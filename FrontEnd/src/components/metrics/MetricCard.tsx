@@ -1,0 +1,167 @@
+import { useMemo, useState } from "react";
+import { Dropdown } from "react-bootstrap";
+import { Fire, PencilSquare, PlusLg, ThreeDotsVertical, Trash3 } from "react-bootstrap-icons";
+
+import { api, ApiError, type TrackedMetric } from "@/api";
+import { Pill } from "@/components/ui/Pill";
+import { ProgressRing } from "@/components/ui/ProgressRing";
+import { Sparkbar } from "@/components/ui/Sparkbar";
+import { useToast } from "@/context/ToastContext";
+import { useAsync } from "@/hooks/useAsync";
+import { clampPercent, formatMetricValue } from "@/lib/format";
+import { METRIC_UNIT_LABEL } from "@/lib/labels";
+import { computeMetricStats } from "@/lib/metrics";
+
+interface MetricCardProps {
+  metric: TrackedMetric;
+  onEdit: (metric: TrackedMetric) => void;
+  onDelete: (metric: TrackedMetric) => void;
+}
+
+export function MetricCard({ metric, onEdit, onDelete }: MetricCardProps) {
+  const toast = useToast();
+  const { data: logs, loading, reload } = useAsync(() => api.metrics.logs(metric.id), [metric.id]);
+  const [value, setValue] = useState("");
+  const [note, setNote] = useState("");
+  const [showNote, setShowNote] = useState(false);
+  const [logging, setLogging] = useState(false);
+
+  const stats = useMemo(() => computeMetricStats(logs ?? []), [logs]);
+  const targetPct = metric.target ? clampPercent((stats.todayTotal / metric.target) * 100) : null;
+
+  async function log(amount: number, withNote?: string) {
+    if (amount <= 0 || Number.isNaN(amount)) return;
+    setLogging(true);
+    try {
+      await api.metrics.addLog(metric.id, { value: amount, note: withNote?.trim() || null });
+      setValue("");
+      setNote("");
+      setShowNote(false);
+      reload();
+      toast.success(`Logged ${formatMetricValue(amount, metric.unit)} · ${metric.label}`);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Couldn't log activity.");
+    } finally {
+      setLogging(false);
+    }
+  }
+
+  return (
+    <div className="surface p-4 h-100 d-flex flex-column">
+      <div className="d-flex align-items-start justify-content-between gap-2 mb-3">
+        <div className="min-w-0">
+          <h3 className="h6 fw-bold mb-1 text-truncate">{metric.label}</h3>
+          <div className="d-flex align-items-center gap-2">
+            <Pill>{METRIC_UNIT_LABEL[metric.unit]}</Pill>
+            {stats.streak > 0 && (
+              <Pill variant="warn">
+                <Fire size={12} /> {stats.streak} day{stats.streak > 1 ? "s" : ""}
+              </Pill>
+            )}
+          </div>
+        </div>
+        <Dropdown align="end">
+          <Dropdown.Toggle
+            as="button"
+            className="btn btn-ghost btn-icon border-0"
+            style={{ width: 34, height: 34 }}
+          >
+            <ThreeDotsVertical size={16} />
+          </Dropdown.Toggle>
+          <Dropdown.Menu>
+            <Dropdown.Item onClick={() => onEdit(metric)}>
+              <PencilSquare size={14} className="me-2" /> Edit
+            </Dropdown.Item>
+            <Dropdown.Item className="text-danger" onClick={() => onDelete(metric)}>
+              <Trash3 size={14} className="me-2" /> Delete
+            </Dropdown.Item>
+          </Dropdown.Menu>
+        </Dropdown>
+      </div>
+
+      <div className="d-flex align-items-center gap-3 mb-3">
+        <div className="flex-grow-1">
+          <div className="stat-value">{formatMetricValue(stats.todayTotal, metric.unit)}</div>
+          <div className="stat-label">
+            today
+            {metric.target != null && (
+              <> · target {formatMetricValue(metric.target, metric.unit)}</>
+            )}
+          </div>
+        </div>
+        {targetPct !== null ? (
+          <ProgressRing value={targetPct} size={62} stroke={7} />
+        ) : (
+          <div className="text-end">
+            <div className="fw-bold">{formatMetricValue(stats.weekTotal, metric.unit)}</div>
+            <div className="text-faint small">this week</div>
+          </div>
+        )}
+      </div>
+
+      <div className="mb-3">
+        <Sparkbar values={loading ? [0, 0, 0, 0, 0, 0, 0] : stats.spark} />
+        <div className="d-flex justify-content-between text-faint mt-1" style={{ fontSize: "0.68rem" }}>
+          <span>7 days ago</span>
+          <span>Today</span>
+        </div>
+      </div>
+
+      {/* Quick log */}
+      <div className="mt-auto">
+        <div className="d-flex gap-2">
+          <input
+            className="form-control"
+            type="number"
+            min={0}
+            step="any"
+            placeholder={`Add ${metric.unit === "minutes" ? "minutes" : "value"}…`}
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                void log(Number(value), note);
+              }
+            }}
+          />
+          {(metric.unit === "count" || metric.unit === "custom") && (
+            <button
+              type="button"
+              className="btn btn-outline-secondary flex-shrink-0"
+              title="Add one"
+              onClick={() => log(1)}
+              disabled={logging}
+            >
+              <PlusLg size={16} /> 1
+            </button>
+          )}
+          <button
+            type="button"
+            className="btn btn-brand flex-shrink-0"
+            onClick={() => log(Number(value), note)}
+            disabled={logging || value.trim() === ""}
+          >
+            Log
+          </button>
+        </div>
+        {showNote ? (
+          <input
+            className="form-control mt-2"
+            placeholder="Optional note…"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+          />
+        ) : (
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm mt-1 px-1 text-faint"
+            onClick={() => setShowNote(true)}
+          >
+            + Add a note
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}

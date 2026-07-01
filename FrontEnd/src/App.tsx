@@ -1,0 +1,58 @@
+import { Route, Routes } from "react-router-dom";
+
+import { AppLayout } from "@/components/layout/AppLayout";
+import { PublicOnly, RequireAuth, RequireOnboarded } from "@/components/routing/Guards";
+import { LoginPage } from "@/pages/auth/LoginPage";
+import { RegisterPage } from "@/pages/auth/RegisterPage";
+import { ChatPage } from "@/pages/chat/ChatPage";
+import { DashboardPage } from "@/pages/dashboard/DashboardPage";
+import { GoalDetailPage } from "@/pages/goals/GoalDetailPage";
+import { GoalsPage } from "@/pages/goals/GoalsPage";
+import { JournalPage } from "@/pages/journal/JournalPage";
+import { NotFoundPage } from "@/pages/NotFoundPage";
+import { NotificationsPage } from "@/pages/notifications/NotificationsPage";
+import { OnboardingPage } from "@/pages/onboarding/OnboardingPage";
+import { PlanPage } from "@/pages/plan/PlanPage";
+import { ReportsPage } from "@/pages/reports/ReportsPage";
+import { SettingsPage } from "@/pages/settings/SettingsPage";
+import { TrackPage } from "@/pages/track/TrackPage";
+
+export default function App() {
+  return (
+    <Routes>
+      {/* Public */}
+      <Route element={<PublicOnly />}>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+      </Route>
+
+      {/* Authenticated, pre-onboarding */}
+      <Route
+        path="/onboarding"
+        element={
+          <RequireAuth>
+            <OnboardingPage />
+          </RequireAuth>
+        }
+      />
+
+      {/* Authenticated + onboarded app */}
+      <Route element={<RequireOnboarded />}>
+        <Route element={<AppLayout />}>
+          <Route path="/" element={<DashboardPage />} />
+          <Route path="/plan" element={<PlanPage />} />
+          <Route path="/goals" element={<GoalsPage />} />
+          <Route path="/goals/:goalId" element={<GoalDetailPage />} />
+          <Route path="/track" element={<TrackPage />} />
+          <Route path="/reports" element={<ReportsPage />} />
+          <Route path="/assistant" element={<ChatPage />} />
+          <Route path="/journal" element={<JournalPage />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+        </Route>
+      </Route>
+
+      <Route path="*" element={<NotFoundPage />} />
+    </Routes>
+  );
+}

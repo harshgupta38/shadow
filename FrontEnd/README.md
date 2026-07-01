@@ -25,35 +25,54 @@ over REST/JSON at `VITE_API_BASE_URL`.
 | Testing       | **Vitest** + **React Testing Library**                     |
 | Hosting       | **Firebase Hosting**                                       |
 
-## Quick Start (once scaffolded in Step 5)
+## Quick Start
 ```powershell
 cd FrontEnd
 npm install
-Copy-Item .env.example .env   # set VITE_API_BASE_URL
+Copy-Item .env.example .env   # set VITE_API_BASE_URL (defaults to http://localhost:8000/api)
 npm run dev                   # dev server at http://localhost:5173
 ```
-Build: `npm run build` • Test: `npm run test` • Deploy: `firebase deploy` (Hosting).
+Scripts: `npm run build` (type-check + production bundle) • `npm run test` /
+`npm run test:coverage` (Vitest) • `npm run preview` (serve the build) •
+`firebase deploy` (Hosting).
 
 ## Project Structure
 ```
 FrontEnd/
 ├── src/
-│   ├── main.tsx
-│   ├── App.tsx
-│   ├── api/          # typed Axios client + endpoint modules (auth, goals, chat, ...)
-│   ├── pages/        # Auth, Onboarding, Dashboard, Goals, Metrics, Reports, Chat, Journal
-│   ├── components/   # reusable presentational + shared UI
-│   ├── context/      # AuthProvider, ThemeProvider
-│   ├── hooks/        # custom hooks (useAuth, useTheme, data hooks)
-│   └── styles/       # Bootstrap overrides, light/dark tokens
+│   ├── main.tsx            # entry: Router + AppProviders + Bootstrap/theme CSS
+│   ├── App.tsx             # route table (public / onboarding / app shells)
+│   ├── api/                # typed Axios client + one module per domain + types.ts
+│   ├── components/
+│   │   ├── layout/         # AppLayout, Sidebar, Topbar, AuthLayout, NotificationsBell
+│   │   ├── routing/        # RequireAuth / RequireOnboarded / PublicOnly guards
+│   │   ├── ui/             # design-system primitives (Brand, StatCard, ProgressRing…)
+│   │   ├── goals/ metrics/ chat/ reports/ tasks/   # feature components
+│   ├── context/            # AuthProvider, ThemeProvider, ToastProvider, AppProviders
+│   ├── hooks/              # useAsync (data loading)
+│   ├── lib/                # format, agents, labels, nav, metrics helpers
+│   ├── pages/              # auth, onboarding, dashboard, goals, plan, track,
+│   │                       # reports, chat, journal, notifications, settings
+│   ├── styles/theme.css    # CSS-variable design system (light + dark)
+│   └── test/setup.ts       # Vitest + jest-dom setup
 ├── index.html
-├── package.json
-├── tsconfig.json
-├── vite.config.ts
-├── firebase.json     # Firebase Hosting config
-├── .firebaserc       # Firebase project alias
+├── package.json · tsconfig*.json · vite.config.ts
+├── firebase.json · .firebaserc      # Firebase Hosting (SPA rewrites)
 └── .env.example
 ```
+
+## Pages & Features (Step 5)
+- **Auth** — split-screen login & register (JWT, auto-detected timezone).
+- **Onboarding** — conversational AI interview; shows each generated "understanding".
+- **Dashboard** — greeting, task-completion ring, streaks, metric mini-cards, active
+  goals, today's plan, unread nudges. Metrics-first, per the behavioral insight.
+- **Today (Plan)** — date-navigable planned tasks with quick capture & completion ring.
+- **Goals** — filterable cards; detail page with milestones (progress auto-recomputes).
+- **Track** — metric cards with 7-day sparklines, streaks, target rings, quick logging.
+- **Reports** — generate daily/weekly reports; modal detail with narrative + next steps.
+- **Assistant** — multi-agent chat (Goal Coach, Career Advisor, …) with suggestions.
+- **Journal** — reflections with mood; **Notifications** center; **Settings** (profile,
+  appearance, and the editable "what Jarvis knows" memory list).
 
 ## Environment Variables (`.env`)
 ```

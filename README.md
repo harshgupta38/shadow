@@ -355,23 +355,25 @@ BackEnd/
 └── .env.example
 ```
 
-**Planned FrontEnd layout:**
+**FrontEnd layout** (implemented — Step 5):
 ```
 FrontEnd/
 ├── src/
-│   ├── main.tsx
-│   ├── App.tsx
-│   ├── api/                 # typed API client (axios)
-│   ├── pages/               # Dashboard, Onboarding, Goals, Chat, Journal, Auth
-│   ├── components/          # reusable UI
-│   ├── context/             # auth + theme providers
-│   ├── hooks/
-│   └── styles/              # Bootstrap theme overrides, light/dark
+│   ├── main.tsx             # entry: Router + providers + Bootstrap/theme CSS
+│   ├── App.tsx              # route table (public / onboarding / app shells)
+│   ├── api/                 # typed Axios client + per-domain modules + types
+│   ├── pages/               # Auth, Onboarding, Dashboard, Plan, Goals, Track,
+│   │                        # Reports, Assistant (chat), Journal, Notifications, Settings
+│   ├── components/          # layout, routing guards, ui primitives, feature UI
+│   ├── context/             # AuthProvider, ThemeProvider, ToastProvider
+│   ├── hooks/               # useAsync (data loading)
+│   ├── lib/                 # format, agents, labels, nav, metrics helpers
+│   └── styles/              # theme.css — CSS-variable design system (light/dark)
 ├── index.html
 ├── package.json
-├── tsconfig.json
+├── tsconfig*.json
 ├── vite.config.ts
-├── firebase.json          # Firebase Hosting config
+├── firebase.json          # Firebase Hosting config (SPA rewrites)
 ├── .firebaserc            # Firebase project alias
 └── .env.example
 ```
@@ -425,7 +427,7 @@ VITE_API_BASE_URL=http://localhost:8000/api
 - [x] **Step 2 — README source of truth** (this file)
 - [x] **Step 3 — Create `FrontEnd/` and `BackEnd/` folders**
 - [x] **Step 4 — Scaffold BackEnd** (FastAPI app, config, DB, auth, AI layer, tests)
-- [ ] **Step 5 — Scaffold FrontEnd** (Vite + Bootstrap + auth/theme)
+- [x] **Step 5 — Scaffold FrontEnd** (Vite + Bootstrap + auth/theme)
 - [ ] **Step 6 — Onboarding interview + memory**
 - [ ] **Step 7 — Goals & milestones**
 - [ ] **Step 8 — AI agents + chat**

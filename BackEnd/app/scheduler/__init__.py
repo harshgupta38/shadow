@@ -1,0 +1,44 @@
+"""APScheduler wiring — start/stop background jobs."""
+
+from __future__ import annotations
+
+import logging
+
+from apscheduler.schedulers.background import BackgroundScheduler
+
+from app.scheduler.jobs import process_due_notifications
+
+logger = logging.getLogger(__name__)
+
+_scheduler: BackgroundScheduler | None = None
+
+
+def start_scheduler() -> BackgroundScheduler:
+    """Start the background scheduler (idempotent)."""
+    global _scheduler
+    if _scheduler is not None and _scheduler.running:
+        return _scheduler
+
+    _scheduler = BackgroundScheduler(timezone="UTC")
+    _scheduler.add_job(
+        process_due_notifications,
+        trigger="interval",
+        minutes=1,
+        id="process_due_notifications",
+        replace_existing=True,
+    )
+    _scheduler.start()
+    logger.info("APScheduler started")
+    return _scheduler
+
+
+def shutdown_scheduler() -> None:
+    """Stop the background scheduler if running."""
+    global _scheduler
+    if _scheduler is not None and _scheduler.running:
+        _scheduler.shutdown(wait=False)
+        logger.info("APScheduler stopped")
+    _scheduler = None
+
+
+__all__ = ["start_scheduler", "shutdown_scheduler", "process_due_notifications"]

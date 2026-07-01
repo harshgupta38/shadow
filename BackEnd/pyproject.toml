@@ -1,0 +1,23 @@
+[project]
+name = "jarvis-backend"
+version = "0.1.0"
+description = "Jarvis — personal life & career assistant API and AI layer (FastAPI)."
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
+
+[tool.coverage.run]
+source = ["app"]
+omit = [
+    "app/scheduler/*",
+    "app/main.py",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false

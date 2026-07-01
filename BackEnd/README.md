@@ -24,7 +24,7 @@ REST/JSON API prefixed with `/api`.
 | Scheduling   | **APScheduler** (reminders + report jobs)                     |
 | Testing      | **pytest** + **httpx** `TestClient`                           |
 
-## Quick Start (once scaffolded in Step 4)
+## Quick Start
 ```powershell
 cd BackEnd
 python -m venv .venv
@@ -40,7 +40,7 @@ Run tests: `pytest` • Migrations: `alembic upgrade head` / `alembic revision -
 BackEnd/
 ├── app/
 │   ├── main.py        # FastAPI entrypoint (app, routers, middleware)
-│   ├── config.py      # env-driven settings (12-factor)
+│   ├── constant.py    # central keys/config (API keys, CORS/FrontEnd URL, version)
 │   ├── database.py    # SQLAlchemy engine/session
 │   ├── models/        # ORM models (one concern per file)
 │   ├── schemas/       # Pydantic request/response models
@@ -62,12 +62,14 @@ DATABASE_URL=sqlite:///./jarvis.db
 JWT_SECRET=change-me
 JWT_ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=1440
-LLM_PROVIDER=gemini
+LLM_PROVIDER=gemini            # or "fake" for offline dev/tests
 GEMINI_API_KEY=your-key
 GEMINI_MODEL=gemini-1.5-flash
 CORS_ORIGINS=http://localhost:5173
+ENABLE_SCHEDULER=true
 ```
-Never commit real secrets. Config is read only through `app/config.py`.
+Never commit real secrets. All config is read only through `app/constant.py` (the single
+source of truth for keys/config).
 
 ## Data Models (quick list — details in root §8)
 `User` • `MemoryEntry` • `Goal` • `Milestone` • `ChatSession` • `ChatMessage` • `JournalEntry`

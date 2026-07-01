@@ -334,12 +334,12 @@ Jarvis/
 └── BackEnd/             ← FastAPI + SQLAlchemy + SQLite + AI agents
 ```
 
-**Planned BackEnd layout** (to be created in the build phase):
+**BackEnd layout** (implemented — Step 4):
 ```
 BackEnd/
 ├── app/
 │   ├── main.py              # FastAPI app entrypoint
-│   ├── config.py            # env-driven settings (12-factor)
+│   ├── constant.py          # central keys/config (API keys, CORS, version)
 │   ├── database.py          # SQLAlchemy engine/session
 │   ├── models/              # ORM models
 │   ├── schemas/             # Pydantic schemas
@@ -380,7 +380,8 @@ FrontEnd/
 
 ## 11. Configuration (12-Factor)
 
-All secrets/config via environment variables. Never commit real secrets.
+All secrets/config via environment variables, read through `BackEnd/app/constant.py` (the
+single source of truth for keys/config). Never commit real secrets.
 
 **Backend `.env`**
 ```
@@ -423,7 +424,7 @@ VITE_API_BASE_URL=http://localhost:8000/api
 - [x] **Step 1 — Requirements** (this document's inputs)
 - [x] **Step 2 — README source of truth** (this file)
 - [x] **Step 3 — Create `FrontEnd/` and `BackEnd/` folders**
-- [ ] **Step 4 — Scaffold BackEnd** (FastAPI app, config, DB, auth)
+- [x] **Step 4 — Scaffold BackEnd** (FastAPI app, config, DB, auth, AI layer, tests)
 - [ ] **Step 5 — Scaffold FrontEnd** (Vite + Bootstrap + auth/theme)
 - [ ] **Step 6 — Onboarding interview + memory**
 - [ ] **Step 7 — Goals & milestones**

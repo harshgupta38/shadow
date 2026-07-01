@@ -20,9 +20,11 @@ export function SectionCard({
   bodyClassName = "",
   padding = true,
 }: SectionCardProps) {
+  const hasHeader = Boolean(title || actions);
+
   return (
     <section className={`surface ${className}`.trim()}>
-      {(title || actions) && (
+      {hasHeader && (
         <header className="d-flex align-items-center justify-content-between gap-2 px-3 px-sm-4 pt-3 pt-sm-4 pb-2">
           <div>
             {title && <h2 className="h6 fw-bold mb-0">{title}</h2>}
@@ -31,7 +33,11 @@ export function SectionCard({
           {actions && <div className="d-flex align-items-center gap-2">{actions}</div>}
         </header>
       )}
-      <div className={`${padding ? "px-3 px-sm-4 pb-3 pb-sm-4" : ""} ${bodyClassName}`.trim()}>
+      <div
+        className={`${
+          padding ? `px-3 px-sm-4 pb-3 pb-sm-4 ${hasHeader ? "" : "pt-3 pt-sm-4"}` : ""
+        } ${bodyClassName}`.trim()}
+      >
         {children}
       </div>
     </section>

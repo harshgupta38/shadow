@@ -128,7 +128,7 @@ export function ChatPage() {
   const meta = selectedSession ? agentMeta(selectedSession.agent_type) : null;
 
   return (
-    <div>
+    <div className="page-fill-height">
       <PageHeader
         title="Assistant"
         subtitle="Coaching that knows your goals, style and progress."

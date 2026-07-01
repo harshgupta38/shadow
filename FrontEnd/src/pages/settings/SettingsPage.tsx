@@ -22,6 +22,7 @@ import { Pill } from "@/components/ui/Pill";
 import { SectionCard } from "@/components/ui/SectionCard";
 import { TextField } from "@/components/ui/TextField";
 import { useAuth } from "@/context/AuthContext";
+import { useLogoutConfirm } from "@/context/LogoutConfirmContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useToast } from "@/context/ToastContext";
 import { useAsync } from "@/hooks/useAsync";
@@ -31,7 +32,8 @@ import { MEMORY_CATEGORY_LABEL, MEMORY_SOURCE_LABEL } from "@/lib/labels";
 const CATEGORY_OPTIONS = Object.keys(MEMORY_CATEGORY_LABEL) as MemoryCategory[];
 
 export function SettingsPage() {
-  const { user, patchUser, logout } = useAuth();
+  const { user, patchUser } = useAuth();
+  const { requestLogout } = useLogoutConfirm();
   const { theme, setTheme } = useTheme();
   const toast = useToast();
 
@@ -166,7 +168,7 @@ export function SettingsPage() {
                 <div className="fw-semibold">Sign out</div>
                 <div className="text-muted-2 small">You'll need to sign in again.</div>
               </div>
-              <button className="btn btn-outline-secondary" onClick={logout}>
+              <button className="btn btn-outline-secondary" onClick={requestLogout}>
                 <BoxArrowRight size={16} className="me-1" /> Sign out
               </button>
             </div>

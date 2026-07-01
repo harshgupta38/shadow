@@ -713,12 +713,25 @@ a {
 /* ----------------------------------------------------------------------------
    15. Chat
    -------------------------------------------------------------------------- */
+/* Fills the viewport height below the topbar, accounting for content padding
+   (desktop 1.5rem+3rem, mobile 1.1rem+4rem). Lets a child flex to fill. */
+.page-fill-height {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - var(--jv-topbar-h) - 4.5rem);
+}
+@media (max-width: 991.98px) {
+  .page-fill-height {
+    min-height: calc(100vh - var(--jv-topbar-h) - 5.1rem);
+  }
+}
+
 .chat-layout {
   display: grid;
   grid-template-columns: 300px 1fr;
   gap: 1.15rem;
-  height: calc(100vh - var(--jv-topbar-h) - 3rem);
-  min-height: 480px;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 .chat-sessions {
   overflow-y: auto;
@@ -803,10 +816,6 @@ a {
 @media (max-width: 768px) {
   .chat-layout {
     grid-template-columns: 1fr;
-    height: auto;
-  }
-  .chat-sessions-panel {
-    display: none;
   }
 }
 

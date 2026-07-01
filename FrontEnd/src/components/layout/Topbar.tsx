@@ -6,6 +6,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { Brand } from "@/components/ui/Brand";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { useAuth } from "@/context/AuthContext";
+import { useLogoutConfirm } from "@/context/LogoutConfirmContext";
 import { NotificationsBell } from "./NotificationsBell";
 
 interface TopbarProps {
@@ -13,7 +14,8 @@ interface TopbarProps {
 }
 
 export function Topbar({ onOpenMenu }: TopbarProps) {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
+  const { requestLogout } = useLogoutConfirm();
   const navigate = useNavigate();
 
   return (
@@ -62,7 +64,7 @@ export function Topbar({ onOpenMenu }: TopbarProps) {
               <GearFill className="me-2" size={16} /> Settings
             </Dropdown.Item>
             <Dropdown.Divider />
-            <Dropdown.Item onClick={logout} className="text-danger">
+            <Dropdown.Item onClick={requestLogout} className="text-danger">
               <BoxArrowRight className="me-2" size={16} /> Sign out
             </Dropdown.Item>
           </Dropdown.Menu>

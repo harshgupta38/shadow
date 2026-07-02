@@ -180,6 +180,19 @@ export interface MemoryEntryUpdate {
   answer?: string | null;
 }
 
+export interface MemoryRefineRequest {
+  text: string;
+  category?: MemoryCategory;
+}
+
+export type MemoryRefineStatus = "refined" | "fallback";
+
+export interface MemoryRefineResponse {
+  refined_text: string;
+  status: MemoryRefineStatus;
+  reason?: string | null;
+}
+
 export interface MemoryCenterEntry {
   id: number;
   category: MemoryCategory;

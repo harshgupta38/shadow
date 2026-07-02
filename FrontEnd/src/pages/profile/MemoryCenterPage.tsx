@@ -7,6 +7,7 @@ import {
   ApiError,
   type MemoryCategory,
   type MemoryCenterEntry,
+  type MemoryRefineResponse,
 } from "@/api";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -21,12 +22,38 @@ import { MEMORY_CATEGORY_LABEL, MEMORY_SOURCE_LABEL } from "@/lib/labels";
 
 const MEMORY_CATEGORIES = Object.keys(MEMORY_CATEGORY_LABEL) as MemoryCategory[];
 const MEMORY_TEXTAREA_STYLE = { minHeight: "110px", maxHeight: "220px", resize: "vertical" } as const;
+const MEMORY_TEXT_REWRITE_THRESHOLD = 15;
 
 function confidencePill(confidence: string): "success" | "info" | "warn" | "muted" {
   if (confidence === "very_high" || confidence === "high") return "success";
   if (confidence === "medium") return "info";
   if (confidence === "low") return "warn";
   return "muted";
+}
+
+function characterEditDistance(a: string, b: string): number {
+  if (a === b) return 0;
+  if (!a) return b.length;
+  if (!b) return a.length;
+
+  const previous = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i += 1) {
+    let diagonal = previous[0];
+    previous[0] = i;
+
+    for (let j = 1; j <= b.length; j += 1) {
+      const up = previous[j];
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      previous[j] = Math.min(
+        previous[j] + 1,
+        previous[j - 1] + 1,
+        diagonal + cost,
+      );
+      diagonal = up;
+    }
+  }
+
+  return previous[b.length];
 }
 
 export function MemoryCenterPage() {
@@ -37,11 +64,19 @@ export function MemoryCenterPage() {
   const [memoryCategory, setMemoryCategory] = useState<MemoryCategory>("other");
   const [memoryText, setMemoryText] = useState("");
   const [addingMemory, setAddingMemory] = useState(false);
+  const [refiningMemory, setRefiningMemory] = useState(false);
+  const [refinedBaselineText, setRefinedBaselineText] = useState<string | null>(null);
   const [editingMemoryId, setEditingMemoryId] = useState<number | null>(null);
   const [editingMemoryText, setEditingMemoryText] = useState("");
   const [confirmEditTarget, setConfirmEditTarget] = useState<MemoryCenterEntry | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [deletingMemory, setDeletingMemory] = useState(false);
+
+  const normalizedModalText = memoryText.trim();
+  const currentEditDistance = refinedBaselineText
+    ? characterEditDistance(refinedBaselineText, normalizedModalText)
+    : 0;
+  const requiresRefine = !refinedBaselineText || currentEditDistance > MEMORY_TEXT_REWRITE_THRESHOLD;
 
   const memoryByCategory = useMemo(() => {
     const grouped = new Map<MemoryCategory, MemoryCenterEntry[]>();
@@ -54,22 +89,69 @@ export function MemoryCenterPage() {
   }, [memoryQuery.data]);
 
   function closeAddModal() {
-    if (addingMemory) return;
+    if (addingMemory || refiningMemory) return;
     setShowAddModal(false);
     setMemoryText("");
     setMemoryCategory("other");
+    setRefinedBaselineText(null);
+  }
+
+  async function refineMemoryText(text: string): Promise<MemoryRefineResponse> {
+    const result = await api.profile.refineMemoryText({
+      category: memoryCategory,
+      text,
+    });
+    return {
+      ...result,
+      refined_text: result.refined_text.trim(),
+    };
   }
 
   async function addMemory() {
-    if (!memoryText.trim()) return;
+    const text = memoryText.trim();
+    if (!text) return;
+
+    const editDistance = refinedBaselineText
+      ? characterEditDistance(refinedBaselineText, text)
+      : 0;
+    const shouldRefine = !refinedBaselineText || editDistance > MEMORY_TEXT_REWRITE_THRESHOLD;
+
+    if (shouldRefine) {
+      setRefiningMemory(true);
+      try {
+        const result = await refineMemoryText(text);
+        const refined = result.refined_text || text;
+
+        setMemoryText(refined);
+        setRefinedBaselineText(refined);
+
+        if (result.status === "fallback") {
+          toast.info(
+            result.reason ??
+              "Shadow couldn't safely refine this detail, so your original text was kept. You can still edit and save it.",
+          );
+        } else if (refinedBaselineText) {
+          toast.info("Large edits detected. Shadow regenerated the memory understanding. You can save now.");
+        } else {
+          toast.info("Shadow generated a memory understanding. Review it, then press Save.");
+        }
+      } catch (err) {
+        toast.error(err instanceof ApiError ? err.message : "Couldn't refine this detail.");
+      } finally {
+        setRefiningMemory(false);
+      }
+      return;
+    }
+
     setAddingMemory(true);
     try {
       await api.profile.addMemory({
         category: memoryCategory,
-        ai_understanding: memoryText.trim(),
+        ai_understanding: text,
         source: "manual",
       });
       setMemoryText("");
+      setRefinedBaselineText(null);
       const refreshed = await api.profile.memoryCenter();
       memoryQuery.setData(refreshed);
       setShowAddModal(false);
@@ -301,6 +383,16 @@ export function MemoryCenterPage() {
               value={memoryText}
               onChange={(e) => setMemoryText(e.target.value)}
             />
+            <p className="text-faint small mb-0 mt-2">
+              Shadow first generates a memory understanding from your note. Minor edits (up to {MEMORY_TEXT_REWRITE_THRESHOLD} characters) are saved directly.
+            </p>
+            {refinedBaselineText && (
+              <p className={`small mb-0 mt-1 ${requiresRefine ? "text-warning" : "text-faint"}`}>
+                {requiresRefine
+                  ? `Large edits detected (${currentEditDistance} characters). Click Refine again before saving.`
+                  : `Ready to save. Current edits from refined text: ${currentEditDistance} characters.`}
+              </p>
+            )}
           </div>
 
           <div>
@@ -311,7 +403,10 @@ export function MemoryCenterPage() {
               id="memory-category"
               className="form-select"
               value={memoryCategory}
-              onChange={(e) => setMemoryCategory(e.target.value as MemoryCategory)}
+              onChange={(e) => {
+                setMemoryCategory(e.target.value as MemoryCategory);
+                setRefinedBaselineText(null);
+              }}
             >
               {MEMORY_CATEGORIES.map((c) => (
                 <option value={c} key={c}>
@@ -322,16 +417,21 @@ export function MemoryCenterPage() {
           </div>
         </Modal.Body>
         <Modal.Footer>
-          <button type="button" className="btn btn-outline-secondary" onClick={closeAddModal} disabled={addingMemory}>
+          <button
+            type="button"
+            className="btn btn-outline-secondary"
+            onClick={closeAddModal}
+            disabled={addingMemory || refiningMemory}
+          >
             Cancel
           </button>
           <button
             type="button"
             className="btn btn-brand"
             onClick={addMemory}
-            disabled={addingMemory || !memoryText.trim()}
+            disabled={addingMemory || refiningMemory || !memoryText.trim()}
           >
-            {addingMemory ? "Saving..." : "Save"}
+            {addingMemory ? "Saving..." : refiningMemory ? "Refining..." : requiresRefine ? "Refine" : "Save"}
           </button>
         </Modal.Footer>
       </Modal>

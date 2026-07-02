@@ -7,6 +7,8 @@ import type {
   MemoryCenterEntry,
   MemoryEntry,
   MemoryEntryCreate,
+  MemoryRefineRequest,
+  MemoryRefineResponse,
   MemoryEntryUpdate,
   ProfileUpdate,
   User,
@@ -43,6 +45,9 @@ export const profileApi = {
   },
   async addMemory(data: MemoryEntryCreate): Promise<MemoryEntry> {
     return http.post<MemoryEntry>("/profile/memories", data);
+  },
+  async refineMemoryText(data: MemoryRefineRequest): Promise<MemoryRefineResponse> {
+    return http.post<MemoryRefineResponse>("/profile/memories/refine", data);
   },
   async updateMemory(id: number, data: MemoryEntryUpdate): Promise<MemoryEntry> {
     return http.put<MemoryEntry>(`/profile/memories/${id}`, data);

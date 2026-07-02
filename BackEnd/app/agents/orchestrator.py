@@ -7,9 +7,13 @@ compiled user-context string.
 
 from __future__ import annotations
 
-from app.agents.personas import system_prompt
+from app.agents.personas import (
+    manual_memory_refiner_prompt,
+    manual_memory_validator_prompt,
+    system_prompt,
+)
 from app.llm.base import LLMMessage, LLMProvider
-from app.models.enums import AgentType
+from app.models.enums import AgentType, MemoryCategory
 
 
 def _with_context(system: str, user_context: str) -> str:
@@ -33,6 +37,94 @@ def generate_onboarding_understanding(
         "Write the understanding (1–3 sentences, third person)."
     )
     return provider.generate([LLMMessage("user", prompt)], system=system, temperature=0.4).strip()
+
+
+def generate_manual_memory_understanding(
+    provider: LLMProvider,
+    *,
+    raw_text: str,
+    category: MemoryCategory,
+    user_context: str = "",
+    validation_feedback: str | None = None,
+) -> str:
+    """Generate the long-term memory Shadow should store from a manual note."""
+
+    system = _with_context(manual_memory_refiner_prompt(), user_context)
+
+    prompt = (
+        f"Memory Category: {category.value}\n"
+        f"Raw User Note:\n{raw_text}\n\n"
+        "Task:\n"
+        "Generate the memory Shadow should permanently remember about this user.\n"
+        "This is a memory-understanding task, not an English rewriting task.\n\n"
+        "Requirements:\n"
+        "- Preserve every explicit fact from the raw note.\n"
+        "- Keep all measurable details exactly (numbers, quantities, frequencies, targets, durations, dates).\n"
+        "- Keep named entities and key terms exactly (for example Google, LeetCode, DSA).\n"
+        "- Refer to the person as 'The user'. Do not use a personal name unless it appears in the raw note.\n"
+        "- Never invent facts.\n"
+        "- Never remove or weaken intent.\n"
+        "- Never generalize measurable facts into vague words.\n"
+        "- Capture enduring insight useful for future personalization (goals, habits, motivations, preferences, constraints, working style).\n"
+        "- Natural professional third-person prose.\n"
+        "- No markdown, no bullets, no labels.\n"
+        "- Usually 1–3 sentences. If one sentence is enough, use one sentence.\n"
+        "- Output only the final memory paragraph."
+    )
+
+    if validation_feedback:
+        prompt += (
+            "\n\n"
+            "Previous candidate failed validation for this reason:\n"
+            f"{validation_feedback}\n\n"
+            "Regenerate the memory and fix the issue while preserving all explicit facts."
+        )
+
+    return provider.generate(
+        [LLMMessage("user", prompt)],
+        system=system,
+        temperature=0.1,
+        max_tokens=900,
+    ).strip()
+
+
+def validate_manual_memory_understanding(
+    provider: LLMProvider,
+    *,
+    raw_text: str,
+    candidate_memory: str,
+) -> tuple[bool, str]:
+    """Validate a generated manual memory for strict fact preservation."""
+    prompt = (
+        "Raw User Note:\n"
+        f"{raw_text}\n\n"
+        "Candidate Memory:\n"
+        f"{candidate_memory}\n\n"
+        "Validate candidate memory against the raw note using the system rules.\n"
+        "Return exactly one line:\n"
+        "PASS\n"
+        "or\n"
+        "FAIL: <short reason>"
+    )
+    verdict = provider.generate(
+        [LLMMessage("user", prompt)],
+        system=manual_memory_validator_prompt(),
+        temperature=0,
+        max_tokens=240,
+    ).strip()
+
+    normalized = verdict.strip()
+    first_line = normalized.splitlines()[0].strip("`* ") if normalized else ""
+    upper = first_line.upper()
+
+    if upper == "PASS" or upper.startswith("PASS"):
+        return True, ""
+    if upper == "FAIL" or upper.startswith("FAIL"):
+        if ":" in first_line:
+            reason = first_line.split(":", 1)[1].strip()
+            return False, reason or "Memory validation failed."
+        return False, "Validator returned FAIL without a reason."
+    return False, "Validator returned unexpected output."
 
 
 def generate_chat_reply(

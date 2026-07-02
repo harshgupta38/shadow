@@ -84,6 +84,50 @@ def test_memory_center_update_and_delete(client, auth_headers):
     assert memory_center_after.json() == []
 
 
+def test_memory_refine_endpoint(client, auth_headers):
+    raw_text = "i dont like doom scrolling"
+    response = client.post(
+        "/api/profile/memories/refine",
+        headers=auth_headers,
+        json={
+            "category": "personality",
+            "text": raw_text,
+        },
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    refined_text = payload["refined_text"]
+    assert refined_text
+    assert refined_text == raw_text
+    assert payload["status"] == "fallback"
+    assert payload["reason"]
+    assert "doom scrolling" in refined_text.lower()
+    assert "[fake-llm]" not in refined_text.lower()
+
+
+def test_memory_refine_maintains_specifics_for_study_goal(client, auth_headers):
+    raw_text = "I like to solve 10 leetcode problems t improve my DSA"
+    response = client.post(
+        "/api/profile/memories/refine",
+        headers=auth_headers,
+        json={
+            "category": "career",
+            "text": raw_text,
+        },
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    refined_text = payload["refined_text"]
+    assert refined_text
+    assert refined_text == raw_text
+    assert payload["status"] == "fallback"
+    assert payload["reason"]
+    assert "leetcode" in refined_text.lower()
+    assert "10" in refined_text
+    assert "dsa" in refined_text.lower() or "data structure" in refined_text.lower()
+    assert "[fake-llm]" not in refined_text.lower()
+
+
 def test_settings_endpoints_and_theme_sync(client, auth_headers):
     initial = client.get("/api/settings", headers=auth_headers)
     assert initial.status_code == 200

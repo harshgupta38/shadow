@@ -4,11 +4,13 @@ from __future__ import annotations
 
 from fastapi import APIRouter, status
 
-from app.api.deps import CurrentUser, DbSession
+from app.api.deps import CurrentUser, DbSession, Provider
 from app.schemas.memory import (
     MemoryCenterEntryRead,
     MemoryEntryCreate,
     MemoryEntryRead,
+    MemoryRefineRequest,
+    MemoryRefineResponse,
     MemoryEntryUpdate,
 )
 from app.schemas.profile import (
@@ -82,6 +84,21 @@ def add_memory(
     data: MemoryEntryCreate, db: DbSession, current_user: CurrentUser
 ) -> MemoryEntryRead:
     return memory_service.add_memory(db, current_user, data)
+
+
+@router.post("/memories/refine", response_model=MemoryRefineResponse)
+def refine_memory_text(
+    data: MemoryRefineRequest,
+    db: DbSession,
+    current_user: CurrentUser,
+    provider: Provider,
+) -> MemoryRefineResponse:
+    result = memory_service.refine_memory_text(db, current_user, provider, data)
+    return MemoryRefineResponse(
+        refined_text=result.refined_text,
+        status=result.status,
+        reason=result.reason,
+    )
 
 
 @router.put("/memories/{memory_id}", response_model=MemoryEntryRead)

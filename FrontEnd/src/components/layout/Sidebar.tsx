@@ -11,7 +11,7 @@ interface SidebarProps {
 export function Sidebar({ onNavigate }: SidebarProps) {
   return (
     <div className="d-flex flex-column h-100">
-      <div className="px-2 mb-3">
+      <div className="d-none d-lg-block px-2 mb-3">
         <Brand subtitle="Life & career coach" />
       </div>
 

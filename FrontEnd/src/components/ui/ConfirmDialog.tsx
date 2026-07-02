@@ -31,7 +31,7 @@ export function ConfirmDialog({
           className="empty-icon mx-auto mb-3"
           style={
             destructive
-              ? { background: "var(--jv-danger-soft)", color: "var(--jv-danger)" }
+              ? { color: "var(--jv-danger)" }
               : undefined
           }
         >

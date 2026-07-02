@@ -143,7 +143,7 @@ export function ProfilePage() {
 
       <div className="row g-4 mb-4">
         <div className="col-12">
-          <section className="surface profile-hero p-4 p-sm-5">
+          <section className="surface profile-hero py-3 py-sm-4 px-4 px-sm-5">
             <div className="d-flex flex-column flex-lg-row align-items-lg-center gap-4">
               <Avatar name={profile.display_name ?? profile.name} size="lg" gradient={["#7c6cff", "#4f8bff"]} />
               <div className="flex-grow-1 min-w-0">
@@ -169,7 +169,7 @@ export function ProfilePage() {
         <div className="col-xl-7 d-flex flex-column gap-4">
           <SectionCard title="Basic Profile" subtitle="Identity details used across Shadow.">
             <form onSubmit={saveBasic}>
-              <div className="row g-3">
+              <div className="row g-2">
                 <div className="col-sm-6">
                   <TextField
                     label="Full Name"
@@ -188,7 +188,6 @@ export function ProfilePage() {
                         display_name: e.target.value || null,
                       }))
                     }
-                    hint="How Shadow should address you"
                   />
                 </div>
                 <div className="col-sm-6">
@@ -306,7 +305,7 @@ export function ProfilePage() {
                     }
                   />
                 </div>
-                <div className="col-md-6">
+                <div className="col-12">
                   <label className="form-label">Working Style</label>
                   <textarea
                     className="form-control"
@@ -317,7 +316,7 @@ export function ProfilePage() {
                     }
                   />
                 </div>
-                <div className="col-md-6">
+                <div className="col-12">
                   <label className="form-label">Productivity Preferences</label>
                   <textarea
                     className="form-control"
@@ -331,7 +330,7 @@ export function ProfilePage() {
                     }
                   />
                 </div>
-                <div className="col-md-6">
+                <div className="col-12">
                   <label className="form-label">Motivation</label>
                   <textarea
                     className="form-control"
@@ -340,7 +339,7 @@ export function ProfilePage() {
                     onChange={(e) => setAiDraft((p) => ({ ...p, motivation: e.target.value || null }))}
                   />
                 </div>
-                <div className="col-md-6">
+                <div className="col-12">
                   <label className="form-label">Always Remember</label>
                   <textarea
                     className="form-control"
@@ -366,10 +365,10 @@ export function ProfilePage() {
           <SectionCard
             title={
               <span className="d-inline-flex align-items-center gap-2">
-                <Stars size={16} style={{ color: "var(--jv-brand-1)" }} /> AI Memory Center
+                <Stars size={16} style={{ color: "var(--jv-brand-1)" }} /> Your Information
               </span>
             }
-            subtitle="Moved to a dedicated page with the same card-based editor."
+            subtitle="What Shadow knows about you. This information is used to personalize responses."
           >
             <div className="surface-2 p-3 d-flex flex-column gap-2">
               <div className="text-muted-2 small">
@@ -377,7 +376,7 @@ export function ProfilePage() {
               </div>
               <div>
                 <button className="btn btn-soft" onClick={() => navigate("/memory-center")}>
-                  Open AI Memory Center
+                  See Your Information
                 </button>
               </div>
             </div>

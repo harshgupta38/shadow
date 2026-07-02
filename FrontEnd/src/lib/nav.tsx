@@ -51,7 +51,7 @@ export const NAV_SECTIONS: NavSection[] = [
     label: "You",
     items: [
       { to: "/profile", label: "Profile", icon: PersonBadgeFill },
-      { to: "/memory-center", label: "AI Memory", icon: Stars },
+      { to: "/memory-center", label: "Your Information", icon: Stars },
       { to: "/settings", label: "Settings", icon: GearFill },
     ],
   },

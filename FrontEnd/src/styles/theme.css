@@ -254,6 +254,24 @@ a {
   border-radius: var(--jv-radius-sm);
 }
 
+.memory-add-btn {
+  transition: transform var(--jv-transition), box-shadow var(--jv-transition),
+    background var(--jv-transition), border-color var(--jv-transition), color var(--jv-transition);
+}
+.memory-add-btn:hover,
+.memory-add-btn:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 10px color-mix(in srgb, var(--jv-brand-1) 28%, transparent);
+}
+.memory-add-btn .memory-add-btn-icon {
+  line-height: 0;
+  transition: transform var(--jv-transition);
+}
+.memory-add-btn:hover .memory-add-btn-icon,
+.memory-add-btn:focus-visible .memory-add-btn-icon {
+  transform: rotate(90deg);
+}
+
 /* ----------------------------------------------------------------------------
    6. Cards & surfaces
    -------------------------------------------------------------------------- */
@@ -299,6 +317,12 @@ a {
 
 .settings-page .form-check-input {
   cursor: pointer;
+}
+
+.profile-page textarea.form-control {
+  min-height: 96px;
+  max-height: 220px;
+  resize: vertical;
 }
 
 [data-bs-theme="dark"] .profile-hero,

@@ -61,7 +61,7 @@ export function Topbar({ onOpenMenu }: TopbarProps) {
               <PersonCircle className="me-2" size={16} /> Profile
             </Dropdown.Item>
             <Dropdown.Item onClick={() => navigate("/memory-center")}>
-              <Stars className="me-2" size={16} /> AI Memory Center
+              <Stars className="me-2" size={16} /> Your Information
             </Dropdown.Item>
             <Dropdown.Item onClick={() => navigate("/settings")}>
               <GearFill className="me-2" size={16} /> Settings

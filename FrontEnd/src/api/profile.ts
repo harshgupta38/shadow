@@ -2,6 +2,7 @@ import { http } from "./client";
 import type {
   MemoryEntry,
   MemoryEntryCreate,
+  PasswordChange,
   ProfileUpdate,
   User,
 } from "./types";
@@ -12,6 +13,12 @@ export const profileApi = {
   },
   async update(data: ProfileUpdate): Promise<User> {
     return http.put<User>("/profile", data);
+  },
+  async changePassword(data: PasswordChange): Promise<{ detail: string }> {
+    return http.put<{ detail: string }>("/profile/password", data);
+  },
+  async deleteAccount(password: string): Promise<void> {
+    return http.del("/profile", { password });
   },
   async memories(): Promise<MemoryEntry[]> {
     return http.get<MemoryEntry[]>("/profile/memories");

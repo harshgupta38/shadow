@@ -7,6 +7,9 @@ import "./styles/theme.css";
 
 import App from "./App";
 import { AppProviders } from "./context/AppProviders";
+import { applyAppearance, loadPreferences } from "./lib/preferences";
+
+applyAppearance(loadPreferences());
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

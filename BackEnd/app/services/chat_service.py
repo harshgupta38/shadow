@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.agents.orchestrator import generate_chat_reply
@@ -24,6 +24,14 @@ def list_sessions(db: Session, user: User) -> list[ChatSession]:
             .order_by(ChatSession.updated_at.desc())
         )
     )
+
+
+def clear_history(db: Session, user: User) -> None:
+    """Delete all of the user's chat sessions and their messages."""
+    session_ids = select(ChatSession.id).where(ChatSession.user_id == user.id).scalar_subquery()
+    db.execute(delete(ChatMessage).where(ChatMessage.session_id.in_(session_ids)))
+    db.execute(delete(ChatSession).where(ChatSession.user_id == user.id))
+    db.commit()
 
 
 def create_session(db: Session, user: User, data: ChatSessionCreate) -> ChatSession:

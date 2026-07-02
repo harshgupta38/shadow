@@ -1,64 +1,33 @@
-import { useState, type FormEvent } from "react";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   BoxArrowRight,
+  Download,
   GearFill,
   MoonStarsFill,
-  PlusLg,
-  Stars,
+  PersonFill,
   SunFill,
+  UniversalAccessCircle,
 } from "react-bootstrap-icons";
 
-import {
-  api,
-  ApiError,
-  type MemoryCategory,
-  type ThemePreference,
-} from "@/api";
-import { Avatar } from "@/components/ui/Avatar";
-import { EmptyState } from "@/components/ui/EmptyState";
-import { LoadingState } from "@/components/ui/LoadingState";
+import { api, ApiError, type ThemePreference } from "@/api";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Pill } from "@/components/ui/Pill";
 import { SectionCard } from "@/components/ui/SectionCard";
-import { TextField } from "@/components/ui/TextField";
 import { useAuth } from "@/context/AuthContext";
 import { useLogoutConfirm } from "@/context/LogoutConfirmContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useToast } from "@/context/ToastContext";
-import { useAsync } from "@/hooks/useAsync";
-import { relativeTime } from "@/lib/format";
-import { MEMORY_CATEGORY_LABEL, MEMORY_SOURCE_LABEL } from "@/lib/labels";
-
-const CATEGORY_OPTIONS = Object.keys(MEMORY_CATEGORY_LABEL) as MemoryCategory[];
+import { getReduceMotion, setReduceMotion } from "@/lib/preferences";
 
 export function SettingsPage() {
   const { user, patchUser } = useAuth();
   const { requestLogout } = useLogoutConfirm();
   const { theme, setTheme } = useTheme();
   const toast = useToast();
+  const navigate = useNavigate();
 
-  const [name, setName] = useState(user?.name ?? "");
-  const [timezone, setTimezone] = useState(user?.timezone ?? "UTC");
-  const [savingProfile, setSavingProfile] = useState(false);
-
-  const memories = useAsync(() => api.profile.memories(), []);
-  const [memoryCategory, setMemoryCategory] = useState<MemoryCategory>("other");
-  const [memoryText, setMemoryText] = useState("");
-  const [addingMemory, setAddingMemory] = useState(false);
-
-  async function saveProfile(event: FormEvent) {
-    event.preventDefault();
-    setSavingProfile(true);
-    try {
-      const updated = await api.profile.update({ name: name.trim(), timezone: timezone.trim() });
-      patchUser(updated);
-      toast.success("Profile updated.");
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Couldn't save your profile.");
-    } finally {
-      setSavingProfile(false);
-    }
-  }
+  const [reduceMotion, setReduceMotionState] = useState(getReduceMotion());
+  const [exporting, setExporting] = useState(false);
 
   async function chooseTheme(next: ThemePreference) {
     setTheme(next);
@@ -70,64 +39,45 @@ export function SettingsPage() {
     }
   }
 
-  async function addMemory(event: FormEvent) {
-    event.preventDefault();
-    if (!memoryText.trim()) return;
-    setAddingMemory(true);
+  function toggleReduceMotion() {
+    const next = !reduceMotion;
+    setReduceMotionState(next);
+    setReduceMotion(next);
+  }
+
+  async function exportData() {
+    setExporting(true);
     try {
-      const entry = await api.profile.addMemory({
-        category: memoryCategory,
-        ai_understanding: memoryText.trim(),
-        source: "manual",
-      });
-      memories.setData((prev) => [entry, ...(prev ?? [])]);
-      setMemoryText("");
-      toast.success("Shadow will remember that.");
+      const [profile, memories] = await Promise.all([
+        api.profile.get(),
+        api.profile.memories(),
+      ]);
+      const payload = JSON.stringify({ profile, memories }, null, 2);
+      const blob = new Blob([payload], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `shadow-data-${new Date().toISOString().slice(0, 10)}.json`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+      toast.success("Your data is downloading.");
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Couldn't save that memory.");
+      toast.error(err instanceof ApiError ? err.message : "Couldn't export your data.");
     } finally {
-      setAddingMemory(false);
+      setExporting(false);
     }
   }
 
-  const memoryList = memories.data ?? [];
-
   return (
     <div>
-      <PageHeader title="Settings" subtitle="Your profile, appearance and what Shadow knows." icon={<GearFill size={20} />} />
+      <PageHeader
+        title="Settings"
+        subtitle="Appearance, accessibility and account preferences."
+        icon={<GearFill size={20} />}
+      />
 
       <div className="row g-4">
         <div className="col-lg-6 d-flex flex-column gap-4">
-          {/* Profile */}
-          <SectionCard title="Profile">
-            <div className="d-flex align-items-center gap-3 mb-4">
-              <Avatar name={user?.name ?? "You"} size="lg" />
-              <div>
-                <div className="fw-bold">{user?.name}</div>
-                <div className="text-muted-2 small">{user?.email}</div>
-              </div>
-            </div>
-            <form onSubmit={saveProfile}>
-              <TextField
-                label="Name"
-                name="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-              />
-              <TextField
-                label="Timezone"
-                name="timezone"
-                value={timezone}
-                onChange={(e) => setTimezone(e.target.value)}
-                hint="e.g. America/New_York, Europe/London"
-              />
-              <button className="btn btn-brand" disabled={savingProfile || !name.trim()}>
-                {savingProfile ? "Saving…" : "Save changes"}
-              </button>
-            </form>
-          </SectionCard>
-
           {/* Appearance */}
           <SectionCard title="Appearance" subtitle="Choose how Shadow looks.">
             <div className="row g-3">
@@ -161,101 +111,87 @@ export function SettingsPage() {
             </div>
           </SectionCard>
 
+          {/* Accessibility */}
+          <SectionCard
+            title={
+              <span className="d-inline-flex align-items-center gap-2">
+                <UniversalAccessCircle size={16} style={{ color: "var(--jv-brand-1)" }} />{" "}
+                Accessibility
+              </span>
+            }
+            subtitle="Make Shadow more comfortable to use."
+          >
+            <div className="form-check form-switch d-flex align-items-center justify-content-between m-0 ps-0">
+              <label className="form-check-label" htmlFor="reduce-motion">
+                <span className="fw-semibold d-block">Reduce motion</span>
+                <span className="text-muted-2 small">
+                  Minimise animations and transitions across the app.
+                </span>
+              </label>
+              <input
+                id="reduce-motion"
+                className="form-check-input ms-3 flex-shrink-0"
+                type="checkbox"
+                role="switch"
+                checked={reduceMotion}
+                onChange={toggleReduceMotion}
+              />
+            </div>
+          </SectionCard>
+        </div>
+
+        <div className="col-lg-6 d-flex flex-column gap-4">
+          {/* Data & privacy */}
+          <SectionCard
+            title={
+              <span className="d-inline-flex align-items-center gap-2">
+                <Download size={16} style={{ color: "var(--jv-brand-1)" }} /> Data &amp; privacy
+              </span>
+            }
+            subtitle="Your data stays yours — take it with you anytime."
+          >
+            <div className="d-flex align-items-center justify-content-between gap-3">
+              <div>
+                <div className="fw-semibold">Export your data</div>
+                <div className="text-muted-2 small">
+                  Download your profile and everything Shadow remembers as JSON.
+                </div>
+              </div>
+              <button
+                className="btn btn-outline-secondary flex-shrink-0"
+                onClick={exportData}
+                disabled={exporting}
+              >
+                <Download size={16} className="me-1" /> {exporting ? "Preparing…" : "Export"}
+              </button>
+            </div>
+          </SectionCard>
+
           {/* Account */}
-          <SectionCard title="Account">
+          <SectionCard title="Account" subtitle="Manage your profile and session.">
+            <div className="d-flex align-items-center justify-content-between mb-3 pb-3 border-bottom">
+              <div>
+                <div className="fw-semibold">Profile &amp; security</div>
+                <div className="text-muted-2 small">Update your details, password or memory.</div>
+              </div>
+              <button className="btn btn-soft flex-shrink-0" onClick={() => navigate("/profile")}>
+                <PersonFill size={16} className="me-1" /> Open profile
+              </button>
+            </div>
             <div className="d-flex align-items-center justify-content-between">
               <div>
                 <div className="fw-semibold">Sign out</div>
                 <div className="text-muted-2 small">You'll need to sign in again.</div>
               </div>
-              <button className="btn btn-outline-secondary" onClick={requestLogout}>
+              <button className="btn btn-outline-secondary flex-shrink-0" onClick={requestLogout}>
                 <BoxArrowRight size={16} className="me-1" /> Sign out
               </button>
             </div>
           </SectionCard>
         </div>
-
-        {/* Memory */}
-        <div className="col-lg-6">
-          <SectionCard
-            title={
-              <span className="d-inline-flex align-items-center gap-2">
-                <Stars size={16} style={{ color: "var(--jv-brand-1)" }} /> What Shadow knows
-              </span>
-            }
-            subtitle="Understandings from onboarding, chats and your own notes."
-          >
-            <form onSubmit={addMemory} className="surface-2 p-3 mb-3">
-              <div className="row g-2 align-items-end">
-                <div className="col-sm-5">
-                  <label htmlFor="mem-cat" className="form-label">
-                    Category
-                  </label>
-                  <select
-                    id="mem-cat"
-                    className="form-select"
-                    value={memoryCategory}
-                    onChange={(e) => setMemoryCategory(e.target.value as MemoryCategory)}
-                  >
-                    {CATEGORY_OPTIONS.map((c) => (
-                      <option value={c} key={c}>
-                        {MEMORY_CATEGORY_LABEL[c]}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="col-sm-7">
-                  <label htmlFor="mem-text" className="form-label">
-                    Something to remember
-                  </label>
-                  <input
-                    id="mem-text"
-                    className="form-control"
-                    placeholder="e.g. I focus best early mornings"
-                    value={memoryText}
-                    onChange={(e) => setMemoryText(e.target.value)}
-                  />
-                </div>
-              </div>
-              <div className="text-end mt-2">
-                <button className="btn btn-soft btn-sm" disabled={addingMemory || !memoryText.trim()}>
-                  <PlusLg size={14} className="me-1" /> Add
-                </button>
-              </div>
-            </form>
-
-            {memories.loading && <LoadingState label="Loading memory…" full={false} />}
-
-            {!memories.loading && memoryList.length === 0 && (
-              <EmptyState
-                compact
-                icon={<Stars size={22} />}
-                title="Nothing remembered yet"
-                message="Complete onboarding or add a note to help Shadow personalise its guidance."
-              />
-            )}
-
-            {!memories.loading && memoryList.length > 0 && (
-              <div className="d-flex flex-column gap-2" style={{ maxHeight: 460, overflowY: "auto" }}>
-                {memoryList.map((memory) => (
-                  <div className="surface-2 p-3" key={memory.id}>
-                    <div className="d-flex align-items-center gap-2 mb-2">
-                      <Pill variant="brand">{MEMORY_CATEGORY_LABEL[memory.category]}</Pill>
-                      <Pill>{MEMORY_SOURCE_LABEL[memory.source]}</Pill>
-                      <span className="text-faint ms-auto" style={{ fontSize: "0.72rem" }}>
-                        {relativeTime(memory.created_at)}
-                      </span>
-                    </div>
-                    <p className="mb-0 small" style={{ lineHeight: 1.55 }}>
-                      {memory.ai_understanding}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </SectionCard>
-        </div>
       </div>
+
+      <div className="text-center text-faint small mt-4">Signed in as {user?.email}</div>
     </div>
   );
 }

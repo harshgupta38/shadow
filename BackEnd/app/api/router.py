@@ -20,6 +20,7 @@ from app.api import (
     plan,
     profile,
     reports,
+    settings,
 )
 
 api_router = APIRouter()
@@ -28,6 +29,7 @@ for _module in (
     auth,
     onboarding,
     profile,
+    settings,
     goals,
     milestones,
     chat,

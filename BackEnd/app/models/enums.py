@@ -10,6 +10,38 @@ class ThemePreference(str, enum.Enum):
     dark = "dark"
 
 
+class AIResponseLength(str, enum.Enum):
+    short = "short"
+    balanced = "balanced"
+    detailed = "detailed"
+    very_detailed = "very_detailed"
+
+
+class AIPersonality(str, enum.Enum):
+    professional = "professional"
+    friendly = "friendly"
+    coach = "coach"
+    teacher = "teacher"
+    mentor = "mentor"
+    minimal = "minimal"
+
+
+class WeekStartsOn(str, enum.Enum):
+    monday = "monday"
+    sunday = "sunday"
+
+
+class TimeFormat(str, enum.Enum):
+    h12 = "12h"
+    h24 = "24h"
+
+
+class DateFormat(str, enum.Enum):
+    dd_mm_yyyy = "dd/mm/yyyy"
+    mm_dd_yyyy = "mm/dd/yyyy"
+    yyyy_mm_dd = "yyyy-mm-dd"
+
+
 class MemoryCategory(str, enum.Enum):
     daily = "daily"
     weekly = "weekly"

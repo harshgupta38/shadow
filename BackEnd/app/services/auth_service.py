@@ -6,6 +6,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.user import User
+from app.models.user_profile import UserProfile
+from app.models.user_setting import UserSetting
 from app.schemas.auth import RegisterRequest
 from app.services import security
 from app.services.exceptions import AuthError, ConflictError
@@ -29,11 +31,23 @@ def register_user(db: Session, data: RegisterRequest) -> User:
         email=email,
         hashed_password=security.hash_password(data.password),
         name=data.name.strip(),
-        timezone=data.timezone,
+        timezone="Asia/Kolkata",
     )
     db.add(user)
     db.commit()
     db.refresh(user)
+
+    # Create a default identity profile + behavior settings record so
+    # Profile/Settings pages can update independently from day one.
+    db.add(
+        UserProfile(
+            user_id=user.id,
+            display_name=user.name,
+            current_goal="Stay consistent with my goals",
+        )
+    )
+    db.add(UserSetting(user_id=user.id, theme_preference=user.theme_preference))
+    db.commit()
 
     # Seed sensible default metrics so the dashboard is useful immediately.
     ensure_default_metrics(db, user)

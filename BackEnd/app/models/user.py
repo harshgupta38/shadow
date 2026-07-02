@@ -17,7 +17,7 @@ class User(Base, TimestampMixin):
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     name: Mapped[str] = mapped_column(String(120), nullable=False)
-    timezone: Mapped[str] = mapped_column(String(64), default="UTC", nullable=False)
+    timezone: Mapped[str] = mapped_column(String(64), default="Asia/Kolkata", nullable=False)
     theme_preference: Mapped[ThemePreference] = mapped_column(
         SAEnum(ThemePreference), default=ThemePreference.light, nullable=False
     )

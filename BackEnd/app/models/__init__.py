@@ -17,12 +17,16 @@ from app.models.notification import Notification
 from app.models.planned_task import PlannedTask
 from app.models.report import Report
 from app.models.user import User
+from app.models.user_profile import UserProfile
+from app.models.user_setting import UserSetting
 
 __all__ = [
     "Base",
     "TimestampMixin",
     "utcnow",
     "User",
+    "UserProfile",
+    "UserSetting",
     "MemoryEntry",
     "Goal",
     "Milestone",

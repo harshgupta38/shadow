@@ -8,13 +8,7 @@ import { TextField } from "@/components/ui/TextField";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 
-function guessTimezone(): string {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-  } catch {
-    return "UTC";
-  }
-}
+const INDIA_TIMEZONE = "Asia/Kolkata";
 
 export function RegisterPage() {
   const { register } = useAuth();
@@ -44,7 +38,7 @@ export function RegisterPage() {
       name: name.trim(),
       email: email.trim(),
       password,
-      timezone: guessTimezone(),
+      timezone: INDIA_TIMEZONE,
     };
     try {
       await register(payload);

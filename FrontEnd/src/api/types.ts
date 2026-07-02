@@ -6,6 +6,18 @@
 // ── Enums (string unions match backend `str, enum.Enum` values) ────────────
 export type ThemePreference = "light" | "dark";
 
+export type AIResponseLength = "short" | "balanced" | "detailed" | "very_detailed";
+export type AIPersonality =
+  | "professional"
+  | "friendly"
+  | "coach"
+  | "teacher"
+  | "mentor"
+  | "minimal";
+export type WeekStartsOn = "monday" | "sunday";
+export type TimeFormat = "12h" | "24h";
+export type DateFormat = "dd/mm/yyyy" | "mm/dd/yyyy" | "yyyy-mm-dd";
+
 export type MemoryCategory =
   | "daily"
   | "weekly"
@@ -78,6 +90,69 @@ export interface ProfileUpdate {
   theme_preference?: ThemePreference;
 }
 
+export interface BasicProfile {
+  user_id: number;
+  email: string;
+  name: string;
+  timezone: string;
+  member_since: string;
+  display_name: string | null;
+  profile_picture_url: string | null;
+  current_role: string | null;
+  current_goal: string | null;
+  phone_number: string | null;
+  short_bio: string | null;
+}
+
+export interface BasicProfileUpdate {
+  name?: string;
+  timezone?: string;
+  display_name?: string | null;
+  profile_picture_url?: string | null;
+  current_role?: string | null;
+  current_goal?: string | null;
+  phone_number?: string | null;
+  short_bio?: string | null;
+}
+
+export interface AIProfile {
+  profession: string | null;
+  industry: string | null;
+  experience_summary: string | null;
+  primary_tech_stack: string | null;
+  current_company: string | null;
+  dream_company: string | null;
+  interview_preparation_status: string | null;
+  long_term_vision: string | null;
+  current_goals_overview: string | null;
+  daily_routine: string | null;
+  working_style: string | null;
+  learning_profile: string | null;
+  productivity_preferences: string | null;
+  motivation: string | null;
+  always_remember: string | null;
+  profile_version: number;
+  updated_at: string;
+}
+
+export interface AIProfileUpdate {
+  profession?: string | null;
+  industry?: string | null;
+  experience_summary?: string | null;
+  primary_tech_stack?: string | null;
+  current_company?: string | null;
+  dream_company?: string | null;
+  interview_preparation_status?: string | null;
+  long_term_vision?: string | null;
+  current_goals_overview?: string | null;
+  daily_routine?: string | null;
+  working_style?: string | null;
+  learning_profile?: string | null;
+  productivity_preferences?: string | null;
+  motivation?: string | null;
+  always_remember?: string | null;
+}
+
 // ── Memory ─────────────────────────────────────────────────────────────────
 export interface MemoryEntry {
   id: number;
@@ -96,6 +171,99 @@ export interface MemoryEntryCreate {
   question?: string | null;
   answer?: string | null;
   source?: MemorySource;
+}
+
+export interface MemoryEntryUpdate {
+  category?: MemoryCategory;
+  ai_understanding?: string;
+  question?: string | null;
+  answer?: string | null;
+}
+
+export interface MemoryCenterEntry {
+  id: number;
+  category: MemoryCategory;
+  value: string;
+  source: MemorySource;
+  confidence: string;
+  editable: boolean;
+  used_by: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AppearanceSettings {
+  theme_preference: ThemePreference;
+}
+
+export interface NotificationSettings {
+  notifications_enabled: boolean;
+  push_notifications_enabled: boolean;
+  email_notifications_enabled: boolean;
+  reminder_notifications_enabled: boolean;
+  daily_brief_enabled: boolean;
+  daily_brief_time: string;
+}
+
+export interface AIBehaviorSettings {
+  ai_response_length: AIResponseLength;
+  ai_personality: AIPersonality;
+  ai_suggestions_enabled: boolean;
+  smart_planning_enabled: boolean;
+}
+
+export interface PlannerSettings {
+  week_starts_on: WeekStartsOn;
+  default_reminder_time: string;
+  default_task_duration_minutes: number;
+  time_format: TimeFormat;
+  date_format: DateFormat;
+}
+
+export interface PrivacySettings {
+  analytics_opt_out: boolean;
+  ai_memory_enabled: boolean;
+}
+
+export interface SettingsRead {
+  appearance: AppearanceSettings;
+  notifications: NotificationSettings;
+  ai_behavior: AIBehaviorSettings;
+  planner: PlannerSettings;
+  privacy: PrivacySettings;
+}
+
+export interface AppearanceSettingsUpdate {
+  theme_preference: ThemePreference;
+}
+
+export interface NotificationSettingsUpdate {
+  notifications_enabled?: boolean;
+  push_notifications_enabled?: boolean;
+  email_notifications_enabled?: boolean;
+  reminder_notifications_enabled?: boolean;
+  daily_brief_enabled?: boolean;
+  daily_brief_time?: string;
+}
+
+export interface AIBehaviorSettingsUpdate {
+  ai_response_length?: AIResponseLength;
+  ai_personality?: AIPersonality;
+  ai_suggestions_enabled?: boolean;
+  smart_planning_enabled?: boolean;
+}
+
+export interface PlannerSettingsUpdate {
+  week_starts_on?: WeekStartsOn;
+  default_reminder_time?: string;
+  default_task_duration_minutes?: number;
+  time_format?: TimeFormat;
+  date_format?: DateFormat;
+}
+
+export interface PrivacySettingsUpdate {
+  analytics_opt_out?: boolean;
+  ai_memory_enabled?: boolean;
 }
 
 // ── Onboarding ─────────────────────────────────────────────────────────────

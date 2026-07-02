@@ -18,11 +18,13 @@ import { onboardingApi } from "./onboarding";
 import { planApi } from "./plan";
 import { profileApi } from "./profile";
 import { reportsApi } from "./reports";
+import { settingsApi } from "./settings";
 
 export const api = {
   auth: authApi,
   onboarding: onboardingApi,
   profile: profileApi,
+  settings: settingsApi,
   goals: goalsApi,
   chat: chatApi,
   journal: journalApi,

@@ -4,8 +4,11 @@ import {
   CalendarCheckFill,
   ChatDotsFill,
   FileEarmarkBarGraphFill,
+  GearFill,
   Grid1x2Fill,
   GraphUpArrow,
+  PersonBadgeFill,
+  Stars,
   type IconProps,
   JournalText,
 } from "react-bootstrap-icons";
@@ -42,6 +45,14 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { to: "/assistant", label: "Assistant", icon: ChatDotsFill },
       { to: "/journal", label: "Journal", icon: JournalText },
+    ],
+  },
+  {
+    label: "You",
+    items: [
+      { to: "/profile", label: "Profile", icon: PersonBadgeFill },
+      { to: "/memory-center", label: "AI Memory", icon: Stars },
+      { to: "/settings", label: "Settings", icon: GearFill },
     ],
   },
 ];

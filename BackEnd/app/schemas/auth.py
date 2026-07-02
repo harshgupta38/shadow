@@ -9,7 +9,7 @@ class RegisterRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
     name: str = Field(min_length=1, max_length=120)
-    timezone: str = Field(default="UTC", max_length=64)
+    timezone: str = Field(default="Asia/Kolkata", max_length=64)
 
 
 class LoginRequest(BaseModel):

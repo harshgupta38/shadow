@@ -269,6 +269,51 @@ a {
   border-radius: var(--jv-radius);
 }
 
+.profile-hero,
+.settings-hero {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(520px 240px at 105% -10%, rgba(124, 108, 255, 0.20), transparent 60%),
+    radial-gradient(420px 220px at -10% -10%, rgba(79, 139, 255, 0.16), transparent 58%),
+    var(--jv-surface);
+}
+
+.profile-hero::after,
+.settings-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(120deg, transparent 0%, rgba(255, 255, 255, 0.04) 52%, transparent 100%);
+}
+
+.setting-grid-option {
+  transition: transform var(--jv-transition), box-shadow var(--jv-transition);
+}
+
+.setting-grid-option:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--jv-shadow);
+}
+
+.settings-page .form-check-input {
+  cursor: pointer;
+}
+
+[data-bs-theme="dark"] .profile-hero,
+[data-bs-theme="dark"] .settings-hero {
+  background:
+    radial-gradient(520px 240px at 105% -10%, rgba(139, 125, 255, 0.24), transparent 62%),
+    radial-gradient(420px 220px at -10% -10%, rgba(91, 149, 255, 0.20), transparent 60%),
+    var(--jv-surface);
+}
+
+[data-bs-theme="dark"] .profile-hero::after,
+[data-bs-theme="dark"] .settings-hero::after {
+  background: linear-gradient(120deg, transparent 0%, rgba(255, 255, 255, 0.03) 52%, transparent 100%);
+}
+
 .card {
   --bs-card-bg: var(--jv-surface);
   --bs-card-border-color: var(--jv-border);

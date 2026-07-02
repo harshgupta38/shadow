@@ -13,6 +13,8 @@ import { NotFoundPage } from "@/pages/NotFoundPage";
 import { NotificationsPage } from "@/pages/notifications/NotificationsPage";
 import { OnboardingPage } from "@/pages/onboarding/OnboardingPage";
 import { PlanPage } from "@/pages/plan/PlanPage";
+import { MemoryCenterPage } from "@/pages/profile/MemoryCenterPage";
+import { ProfilePage } from "@/pages/profile/ProfilePage";
 import { ReportsPage } from "@/pages/reports/ReportsPage";
 import { SettingsPage } from "@/pages/settings/SettingsPage";
 import { TrackPage } from "@/pages/track/TrackPage";
@@ -48,6 +50,8 @@ export default function App() {
           <Route path="/assistant" element={<ChatPage />} />
           <Route path="/journal" element={<JournalPage />} />
           <Route path="/notifications" element={<NotificationsPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/memory-center" element={<MemoryCenterPage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Route>
       </Route>

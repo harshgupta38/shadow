@@ -29,3 +29,26 @@ class MemoryEntryCreate(BaseModel):
     question: str | None = None
     answer: str | None = None
     source: MemorySource = MemorySource.manual
+
+
+class MemoryEntryUpdate(BaseModel):
+    """Update an existing memory entry."""
+
+    category: MemoryCategory | None = None
+    ai_understanding: str | None = Field(default=None, min_length=1)
+    question: str | None = None
+    answer: str | None = None
+
+
+class MemoryCenterEntryRead(ORMModel):
+    """UI-friendly memory card shape for Profile > AI Memory Center."""
+
+    id: int
+    category: MemoryCategory
+    value: str
+    source: MemorySource
+    confidence: str
+    editable: bool
+    used_by: list[str]
+    created_at: datetime
+    updated_at: datetime

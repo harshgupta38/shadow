@@ -2,29 +2,30 @@
 
 The Gemini SDK is imported lazily inside methods so that:
 * importing this module never fails if the SDK is not installed, and
-* the app can boot (and tests can run) without the ``google-generativeai``
-  package or an API key.
+* the app can boot (and tests can run) without the ``google-genai``
+    package or an API key.
 """
 
 from __future__ import annotations
 
 from collections.abc import Iterator
+from typing import Any
 
 from app.llm.base import LLMMessage, LLMProvider
 
 
-def _to_gemini_contents(messages: list[LLMMessage]) -> list[dict]:
+def _to_gemini_contents(messages: list[LLMMessage]) -> list[dict[str, Any]]:
     """Map generic messages to Gemini's ``contents`` structure.
 
-    Gemini uses roles ``"user"`` and ``"model"``; system text is passed
-    separately via ``system_instruction``.
+    ``google-genai`` accepts role/content dictionaries where role is either
+    ``"user"`` or ``"model"``. System text is passed separately in config.
     """
-    contents: list[dict] = []
+    contents: list[dict[str, Any]] = []
     for message in messages:
         if message.role == "system":
-            continue  # handled via system_instruction
+            continue
         role = "model" if message.role == "assistant" else "user"
-        contents.append({"role": role, "parts": [message.content]})
+        contents.append({"role": role, "parts": [{"text": message.content}]})
     return contents
 
 
@@ -34,26 +35,40 @@ class GeminiProvider(LLMProvider):
             raise RuntimeError("GEMINI_API_KEY is not configured.")
         self._api_key = api_key
         self._model_name = model
-        self._genai = None  # lazily configured SDK module
+        self._client = None  # lazily configured SDK client
 
     def _sdk(self):
-        if self._genai is None:
-            import google.generativeai as genai  # lazy import
+        if self._client is None:
+            from google import genai  # lazy import
 
-            genai.configure(api_key=self._api_key)
-            self._genai = genai
-        return self._genai
-
-    def _build_model(self, system: str | None):
-        genai = self._sdk()
-        return genai.GenerativeModel(self._model_name, system_instruction=system)
+            self._client = genai.Client(api_key=self._api_key)
+        return self._client
 
     @staticmethod
-    def _gen_config(temperature: float, max_tokens: int | None) -> dict:
-        config: dict = {"temperature": temperature}
+    def _gen_config(system: str | None, temperature: float, max_tokens: int | None) -> dict[str, Any]:
+        config: dict[str, Any] = {"temperature": temperature}
         if max_tokens is not None:
             config["max_output_tokens"] = max_tokens
+        if system:
+            config["system_instruction"] = system
         return config
+
+    @staticmethod
+    def _response_text(response: Any) -> str:
+        text = getattr(response, "text", None)
+        if text:
+            return str(text).strip()
+
+        candidates = getattr(response, "candidates", None) or []
+        chunks: list[str] = []
+        for candidate in candidates:
+            content = getattr(candidate, "content", None)
+            parts = getattr(content, "parts", None) if content is not None else None
+            for part in parts or []:
+                part_text = getattr(part, "text", None)
+                if part_text:
+                    chunks.append(str(part_text))
+        return "".join(chunks).strip()
 
     def generate(
         self,
@@ -63,12 +78,13 @@ class GeminiProvider(LLMProvider):
         temperature: float = 0.7,
         max_tokens: int | None = None,
     ) -> str:
-        model = self._build_model(system)
-        response = model.generate_content(
-            _to_gemini_contents(messages),
-            generation_config=self._gen_config(temperature, max_tokens),
+        client = self._sdk()
+        response = client.models.generate_content(
+            model=self._model_name,
+            contents=_to_gemini_contents(messages),
+            config=self._gen_config(system, temperature, max_tokens),
         )
-        return (getattr(response, "text", "") or "").strip()
+        return self._response_text(response)
 
     def generate_stream(
         self,
@@ -78,13 +94,13 @@ class GeminiProvider(LLMProvider):
         temperature: float = 0.7,
         max_tokens: int | None = None,
     ) -> Iterator[str]:
-        model = self._build_model(system)
-        stream = model.generate_content(
-            _to_gemini_contents(messages),
-            generation_config=self._gen_config(temperature, max_tokens),
-            stream=True,
+        client = self._sdk()
+        stream = client.models.generate_content_stream(
+            model=self._model_name,
+            contents=_to_gemini_contents(messages),
+            config=self._gen_config(system, temperature, max_tokens),
         )
         for chunk in stream:
-            text = getattr(chunk, "text", "") or ""
+            text = getattr(chunk, "text", None) or self._response_text(chunk)
             if text:
                 yield text

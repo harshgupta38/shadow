@@ -5,7 +5,10 @@ uvicorn[standard]>=0.29
 # ── Database / ORM / migrations ───────────────────────────────
 SQLAlchemy>=2.0,<2.1
 alembic>=1.13
-
+# PostgreSQL driver — for durable managed Postgres in production. SQLite
+# (the MVP default) needs no extra driver. Activate by setting
+# DATABASE_URL=postgresql+psycopg2://USER:PASSWORD@HOST:5432/DBNAME
+psycopg2-binary>=2.9
 # ── Validation / settings ─────────────────────────────────────
 pydantic>=2.6,<3.0
 pydantic-settings>=2.2
@@ -21,7 +24,7 @@ python-multipart>=0.0.9
 APScheduler>=3.10,<4.0
 
 # ── LLM (Google Gemini) ───────────────────────────────────────
-google-generativeai>=0.7
+google-genai>=0.4
 
 # ── Dev / test ────────────────────────────────────────────────
 pytest>=8.0

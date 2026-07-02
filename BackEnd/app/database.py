@@ -13,15 +13,21 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.constant import settings
 
-# SQLite needs ``check_same_thread=False`` when used with FastAPI's
-# threadpool; other databases ignore this connect arg.
-_connect_args = {"check_same_thread": False} if settings.is_sqlite else {}
+# Build engine kwargs per backend. SQLite needs ``check_same_thread=False``
+# with FastAPI's threadpool; server databases (e.g. PostgreSQL) benefit from a
+# connection pool that recycles long-idle connections on a 24/7 service.
+_engine_kwargs: dict = {"pool_pre_ping": True, "future": True}
+
+if settings.is_sqlite:
+    _connect_args: dict = {"check_same_thread": False}
+else:
+    _connect_args = {}
+    _engine_kwargs.update(pool_size=5, max_overflow=10, pool_recycle=1800)
 
 engine = create_engine(
     settings.database_url,
     connect_args=_connect_args,
-    pool_pre_ping=True,
-    future=True,
+    **_engine_kwargs,
 )
 
 SessionLocal = sessionmaker(

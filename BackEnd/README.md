@@ -58,7 +58,7 @@ BackEnd/
 
 ## Environment Variables (`.env`)
 ```
-DATABASE_URL=sqlite:///./shadow.db
+DATABASE_URL=sqlite:///./shadow.db   # prod: postgresql+psycopg2://USER:PASS@HOST:5432/DB
 JWT_SECRET=change-me
 JWT_ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=1440
@@ -68,6 +68,10 @@ GEMINI_MODEL=gemini-1.5-flash
 CORS_ORIGINS=http://localhost:5173
 ENABLE_SCHEDULER=true
 ```
+
+**Production database (durability):** swap SQLite for a **managed PostgreSQL** by setting
+`DATABASE_URL=postgresql+psycopg2://USER:PASS@HOST:5432/DB`, then run `alembic upgrade head`.
+No code changes — SQLAlchemy handles the rest, and the engine pool auto-tunes for servers.
 Never commit real secrets. All config is read only through `app/constant.py` (the single
 source of truth for keys/config).
 

@@ -387,7 +387,7 @@ single source of truth for keys/config). Never commit real secrets.
 
 **Backend `.env`**
 ```
-DATABASE_URL=sqlite:///./shadow.db
+DATABASE_URL=sqlite:///./shadow.db   # prod: postgresql+psycopg2://USER:PASS@HOST:5432/DB
 JWT_SECRET=change-me
 JWT_ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=1440
@@ -396,6 +396,11 @@ GEMINI_API_KEY=your-key
 GEMINI_MODEL=gemini-1.5-flash
 CORS_ORIGINS=http://localhost:5173
 ```
+
+> **Data durability:** SQLite is a single local file (great for dev). For production,
+> point `DATABASE_URL` at a **managed PostgreSQL** (automatic backups, no single-file
+> loss risk) — no code changes needed, then run `alembic upgrade head`. The SQLAlchemy
+> layer makes this a drop-in swap; the connection pool auto-tunes for server databases.
 
 **Frontend `.env`**
 ```

@@ -10,7 +10,7 @@ import {
 
 import type { ThemePreference } from "@/api";
 
-const THEME_STORAGE_KEY = "jarvis.theme";
+const THEME_STORAGE_KEY = "shadow.theme";
 
 interface ThemeContextValue {
   theme: ThemePreference;

@@ -26,7 +26,7 @@ export interface AgentMeta {
 export const AGENTS: Record<AgentType, AgentMeta> = {
   general: {
     type: "general",
-    label: "Jarvis",
+    label: "Shadow",
     tagline: "General assistant",
     description: "Your open-ended companion for anything on your mind.",
     icon: Robot,

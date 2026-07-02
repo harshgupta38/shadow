@@ -1,5 +1,5 @@
 /**
- * TypeScript types mirroring the Jarvis backend Pydantic schemas.
+ * TypeScript types mirroring the Shadow backend Pydantic schemas.
  * Keep in sync with `BackEnd/app/schemas` and `BackEnd/app/models/enums.py`.
  */
 

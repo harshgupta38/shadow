@@ -1,4 +1,4 @@
-# BackEnd — Jarvis API & AI Layer
+# BackEnd — Shadow API & AI Layer
 
 > **Quick reference for agents working in `BackEnd/`.** The root
 > [README.md](../README.md) is the **project source of truth** — read it for full context
@@ -58,7 +58,7 @@ BackEnd/
 
 ## Environment Variables (`.env`)
 ```
-DATABASE_URL=sqlite:///./jarvis.db
+DATABASE_URL=sqlite:///./shadow.db
 JWT_SECRET=change-me
 JWT_ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=1440

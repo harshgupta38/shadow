@@ -1,4 +1,4 @@
-"""Jarvis backend application package."""
+"""Shadow backend application package."""
 
 from app.constant import VERSION
 

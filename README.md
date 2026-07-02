@@ -1,7 +1,7 @@
-# Jarvis — Your Personal Life & Career Assistant
+# Shadow — Your Personal Life & Career Assistant
 
 > **⚠️ AI-FIRST SOURCE OF TRUTH**
-> This README is the **single source of truth** for the Jarvis project. Every AI developer
+> This README is the **single source of truth** for the Shadow project. Every AI developer
 > (and human) working on this codebase **must read this file first**. If you ever lose context,
 > re-read this document top to bottom before writing any code. Keep this file **up to date** —
 > whenever architecture, data models, APIs, or conventions change, update this README in the
@@ -11,7 +11,7 @@
 
 ## 1. Project Overview
 
-**Jarvis** is a personal assistant web application that helps its users reach their **life and
+**Shadow** is a personal assistant web application that helps its users reach their **life and
 career goals**. It combines structured goal tracking with a suite of **AI agents** that coach,
 advise, and hold users accountable — all personalized using a memory built during an AI-driven
 onboarding interview.
@@ -45,25 +45,25 @@ Users stay on track when they see **detailed, quantified reports** of their day/
 A clear daily/weekly report makes them **more likely to stay aligned the next day/week**.
 Therefore **metrics, tracking, and reporting are first-class features**, not add-ons.
 
-### The Core Loop (what Jarvis optimizes)
+### The Core Loop (what Shadow optimizes)
 ```
   PLAN  ─▶  DO  ─▶  TRACK  ─▶  REPORT / REFLECT  ─▶  ADAPT
    ▲                                                    │
-   └──────────────  (Jarvis guides every step)  ────────┘
+   └──────────────  (Shadow guides every step)  ────────┘
 ```
 1. **Plan** — agents help set goals, milestones, and daily/weekly plans.
 2. **Do** — the user works on tasks.
 3. **Track** — the user (and later, integrations) log metrics (tasks done, LeetCode solved, etc.).
-4. **Report / Reflect** — Jarvis generates a quantified daily/weekly report + insights.
-5. **Adapt** — Jarvis learns the user's evolving behavior and adjusts guidance.
+4. **Report / Reflect** — Shadow generates a quantified daily/weekly report + insights.
+5. **Adapt** — Shadow learns the user's evolving behavior and adjusts guidance.
 
-### Adaptive Learning (Jarvis gets to know you over time)
-Jarvis **auto-learns new user behaviors as they use the app** — not just at onboarding. Patterns
+### Adaptive Learning (Shadow gets to know you over time)
+Shadow **auto-learns new user behaviors as they use the app** — not just at onboarding. Patterns
 (when they're productive, what they follow through on, where they stall) are continuously
 captured as memory and folded into future guidance. See §7.3.
 
 ### Guiding Mission
-> As a personal assistant, Jarvis's **primary job is to guide the user and keep them on the right
+> As a personal assistant, Shadow's **primary job is to guide the user and keep them on the right
 > path** toward their life and career goals — gently, with data, and without adding to the noise
 > they're already drowning in.
 
@@ -152,7 +152,7 @@ When a user **first creates an account**, they go through a guided **AI intervie
 4. These understandings are later compiled into the **User Context Document** and injected into
    every agent's prompt, so all agents "know" the user.
 
-> This is what makes Jarvis feel personal. Treat the onboarding memory as a first-class feature.
+> This is what makes Shadow feel personal. Treat the onboarding memory as a first-class feature.
 
 ### 5.2 Goal Setup
 - The AI can **suggest a goal title** (often phrased as a guiding question), and the user adds a
@@ -175,13 +175,13 @@ When a user **first creates an account**, they go through a guided **AI intervie
   but MVP starts with fast manual logging.
 
 ### 5.5 Daily & Weekly Reports (the behavioral hook)
-- Jarvis generates a **daily report** and a **weekly report** summarizing planned vs. completed
+- Shadow generates a **daily report** and a **weekly report** summarizing planned vs. completed
   work, metric totals, streaks, and goal progress — with an **AI-written narrative + next steps**.
 - Reports are the product's core retention mechanism: *see progress → stay aligned tomorrow*.
 - Reports are produced by the **Progress Analyst** agent (see §6) using tracked metrics + goals.
 
 ### 5.6 Adaptive Behavior Learning
-- As the user logs activity, chats, and completes (or misses) plans, Jarvis extracts
+- As the user logs activity, chats, and completes (or misses) plans, Shadow extracts
   **behavior signals** (productive times, follow-through patterns, recurring blockers).
 - These are stored as evolving memory and injected into guidance so advice gets **more tailored
   over time**. See §7.3.
@@ -229,7 +229,7 @@ provider. Each agent = a **system prompt / persona** + context injection + optio
 
 ### 7.3 Adaptive Behavior Learning (continuous, not just onboarding)
 - Memory is **not frozen after onboarding**. As users log metrics, complete/miss tasks, and
-  chat, Jarvis periodically distills **behavior signals** into new/updated `MemoryEntry` rows
+  chat, Shadow periodically distills **behavior signals** into new/updated `MemoryEntry` rows
   (with `source = behavior`).
 - Examples: *"Most productive 8–11am"*, *"Consistently skips weekend planning"*, *"Follows
   through on LeetCode but stalls on writing goals."*
@@ -328,7 +328,7 @@ provider. Each agent = a **system prompt / persona** + context injection + optio
 ## 10. Repository Structure
 
 ```
-Jarvis/
+Shadow/
 ├── README.md            ← this file (source of truth)
 ├── FrontEnd/            ← React + TypeScript + Vite + Bootstrap app
 └── BackEnd/             ← FastAPI + SQLAlchemy + SQLite + AI agents
@@ -387,7 +387,7 @@ single source of truth for keys/config). Never commit real secrets.
 
 **Backend `.env`**
 ```
-DATABASE_URL=sqlite:///./jarvis.db
+DATABASE_URL=sqlite:///./shadow.db
 JWT_SECRET=change-me
 JWT_ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=1440
@@ -444,12 +444,12 @@ VITE_API_BASE_URL=http://localhost:8000/api
 - **User Context Document** — the compiled profile + memories + goals injected into agent prompts.
 - **LLM Provider** — pluggable interface abstracting the AI model (Gemini today).
 - **Agent** — a persona (system prompt) that uses the LLM provider + user context for a purpose.
-- **Core Loop** — Plan → Do → Track → Report/Reflect → Adapt; the behavioral cycle Jarvis drives.
+- **Core Loop** — Plan → Do → Track → Report/Reflect → Adapt; the behavioral cycle Shadow drives.
 - **Tracked Metric** — a measurable a user follows (e.g. LeetCode solved, tasks completed).
 - **Activity Log** — a single logged value for a metric on a given day.
 - **Planned Task** — a day/week plan item; powers planned-vs-completed metrics.
 - **Report** — an AI-generated daily/weekly summary of metrics, streaks, and progress + next steps.
-- **Behavior Signal** — a pattern Jarvis learns from usage (productive times, follow-through), fed
+- **Behavior Signal** — a pattern Shadow learns from usage (productive times, follow-through), fed
   back into memory for adaptive guidance.
 
 ---

@@ -1,4 +1,4 @@
-"""Central constants & configuration for the Jarvis backend.
+"""Central constants & configuration for the Shadow backend.
 
 This is the **single source of truth** for keys and config: API keys
 (Gemini), the FrontEnd URL used for CORS, JWT secrets, the app version,
@@ -27,7 +27,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # ─────────────────────────────────────────────────────────────
 # Non-secret application constants
 # ─────────────────────────────────────────────────────────────
-APP_NAME: str = "Jarvis"
+APP_NAME: str = "Shadow"
 APP_DESCRIPTION: str = "Personal life & career assistant — API and AI layer."
 VERSION: str = "0.1.0"
 API_PREFIX: str = "/api"
@@ -60,7 +60,7 @@ class Settings(BaseSettings):
     debug: bool = True
 
     # ── Database ──────────────────────────────────────────────
-    database_url: str = "sqlite:///./jarvis.db"
+    database_url: str = "sqlite:///./shadow.db"
 
     # ── Auth / JWT ────────────────────────────────────────────
     jwt_secret: str = "change-me-to-a-long-random-string"

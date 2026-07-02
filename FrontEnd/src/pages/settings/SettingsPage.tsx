@@ -82,7 +82,7 @@ export function SettingsPage() {
       });
       memories.setData((prev) => [entry, ...(prev ?? [])]);
       setMemoryText("");
-      toast.success("Jarvis will remember that.");
+      toast.success("Shadow will remember that.");
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Couldn't save that memory.");
     } finally {
@@ -94,7 +94,7 @@ export function SettingsPage() {
 
   return (
     <div>
-      <PageHeader title="Settings" subtitle="Your profile, appearance and what Jarvis knows." icon={<GearFill size={20} />} />
+      <PageHeader title="Settings" subtitle="Your profile, appearance and what Shadow knows." icon={<GearFill size={20} />} />
 
       <div className="row g-4">
         <div className="col-lg-6 d-flex flex-column gap-4">
@@ -129,7 +129,7 @@ export function SettingsPage() {
           </SectionCard>
 
           {/* Appearance */}
-          <SectionCard title="Appearance" subtitle="Choose how Jarvis looks.">
+          <SectionCard title="Appearance" subtitle="Choose how Shadow looks.">
             <div className="row g-3">
               {(
                 [
@@ -180,7 +180,7 @@ export function SettingsPage() {
           <SectionCard
             title={
               <span className="d-inline-flex align-items-center gap-2">
-                <Stars size={16} style={{ color: "var(--jv-brand-1)" }} /> What Jarvis knows
+                <Stars size={16} style={{ color: "var(--jv-brand-1)" }} /> What Shadow knows
               </span>
             }
             subtitle="Understandings from onboarding, chats and your own notes."
@@ -231,7 +231,7 @@ export function SettingsPage() {
                 compact
                 icon={<Stars size={22} />}
                 title="Nothing remembered yet"
-                message="Complete onboarding or add a note to help Jarvis personalise its guidance."
+                message="Complete onboarding or add a note to help Shadow personalise its guidance."
               />
             )}
 

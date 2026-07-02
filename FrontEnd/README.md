@@ -1,4 +1,4 @@
-# FrontEnd — Jarvis Web App
+# FrontEnd — Shadow Web App
 
 > **Quick reference for agents working in `FrontEnd/`.** The root
 > [README.md](../README.md) is the **project source of truth** — read it for full context
@@ -7,7 +7,7 @@
 ---
 
 ## Purpose
-The React single-page app is the user's window into Jarvis: onboarding interview, dashboard,
+The React single-page app is the user's window into Shadow: onboarding interview, dashboard,
 goals & milestones, metrics/tracking, daily/weekly reports, AI chat, journal, and notifications.
 It is a **static build deployed to Firebase Hosting** and talks to the backend (private server)
 over REST/JSON at `VITE_API_BASE_URL`.
@@ -72,7 +72,7 @@ FrontEnd/
 - **Reports** — generate daily/weekly reports; modal detail with narrative + next steps.
 - **Assistant** — multi-agent chat (Goal Coach, Career Advisor, …) with suggestions.
 - **Journal** — reflections with mood; **Notifications** center; **Settings** (profile,
-  appearance, and the editable "what Jarvis knows" memory list).
+  appearance, and the editable "what Shadow knows" memory list).
 
 ## Environment Variables (`.env`)
 ```

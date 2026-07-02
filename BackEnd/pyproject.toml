@@ -1,7 +1,7 @@
 [project]
-name = "jarvis-backend"
+name = "shadow-backend"
 version = "0.1.0"
-description = "Jarvis — personal life & career assistant API and AI layer (FastAPI)."
+description = "Shadow — personal life & career assistant API and AI layer (FastAPI)."
 requires-python = ">=3.11"
 
 [tool.pytest.ini_options]

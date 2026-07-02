@@ -66,7 +66,7 @@ export function NotificationsPage() {
     <div>
       <PageHeader
         title="Notifications"
-        subtitle="Reminders and nudges from Jarvis."
+        subtitle="Reminders and nudges from Shadow."
         icon={<BellFill size={20} />}
         actions={
           unreadCount > 0 && (
@@ -117,7 +117,7 @@ export function NotificationsPage() {
             message={
               tab === "unread"
                 ? "No unread notifications right now."
-                : "Reminders and check-ins from Jarvis will show up here."
+                : "Reminders and check-ins from Shadow will show up here."
             }
           />
         </div>

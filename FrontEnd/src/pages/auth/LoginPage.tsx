@@ -100,7 +100,7 @@ export function LoginPage() {
       </form>
 
       <p className="text-center text-muted-2 mt-4 mb-0">
-        New to Jarvis?{" "}
+        New to Shadow?{" "}
         <Link to="/register" className="fw-semibold">
           Create an account
         </Link>

@@ -1,5 +1,5 @@
 /**
- * Central Axios client for the Jarvis backend.
+ * Central Axios client for the Shadow backend.
  *
  * - Attaches the JWT bearer token to every request.
  * - Normalises backend / FastAPI error payloads into a consistent `ApiError`.
@@ -12,7 +12,7 @@ import axios, { AxiosError, type AxiosInstance } from "axios";
 
 import type { ApiErrorShape } from "./types";
 
-const TOKEN_STORAGE_KEY = "jarvis.token";
+const TOKEN_STORAGE_KEY = "shadow.token";
 
 // ── Token storage (single source of truth for the JWT) ─────────────────────
 export const tokenStore = {
@@ -40,7 +40,7 @@ export const tokenStore = {
 };
 
 // ── Unauthorized broadcast (decouples the client from React state) ─────────
-export const UNAUTHORIZED_EVENT = "jarvis:unauthorized";
+export const UNAUTHORIZED_EVENT = "shadow:unauthorized";
 function emitUnauthorized(): void {
   window.dispatchEvent(new CustomEvent(UNAUTHORIZED_EVENT));
 }

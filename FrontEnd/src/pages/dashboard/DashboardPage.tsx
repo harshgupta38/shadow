@@ -237,7 +237,7 @@ export function DashboardPage() {
                 compact
                 icon={<Bullseye size={22} />}
                 title="No active goals"
-                message="Set your first goal and Jarvis will help you break it into milestones."
+                message="Set your first goal and Shadow will help you break it into milestones."
                 action={
                   <Link to="/goals" className="btn btn-soft btn-sm">
                     Create a goal
@@ -313,7 +313,7 @@ export function DashboardPage() {
 
           {data.unread_notifications.length > 0 && (
             <SectionCard
-              title="From Jarvis"
+              title="From Shadow"
               actions={
                 <Link to="/notifications" className="btn btn-ghost btn-sm">
                   All

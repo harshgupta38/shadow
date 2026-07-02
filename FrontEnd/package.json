@@ -1,9 +1,9 @@
 {
-  "name": "jarvis-frontend",
+  "name": "shadow-frontend",
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Jarvis — personal life & career assistant web app (React + TypeScript + Vite).",
+  "description": "Shadow — personal life & career assistant web app (React + TypeScript + Vite).",
   "scripts": {
     "dev": "vite",
     "deploy": "npm run build:prod && npx firebase-tools deploy --only hosting",

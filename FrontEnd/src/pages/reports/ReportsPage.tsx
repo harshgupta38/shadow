@@ -101,7 +101,7 @@ export function ReportsPage() {
           <div>
             <h2 className="h6 fw-bold mb-1">Generate a report</h2>
             <p className="text-muted-2 small mb-0">
-              Jarvis rolls up your tasks and metrics, then writes a summary with next steps.
+              Shadow rolls up your tasks and metrics, then writes a summary with next steps.
             </p>
           </div>
           <div className="d-flex align-items-center gap-2">

@@ -75,7 +75,7 @@ export const METRIC_UNIT_LABEL: Record<MetricUnit, string> = {
 export const NOTIFICATION_TYPE_LABEL: Record<NotificationType, string> = {
   reminder: "Reminder",
   system: "System",
-  agent: "From Jarvis",
+  agent: "From Shadow",
 };
 
 export const GOAL_CATEGORY_SUGGESTIONS = [

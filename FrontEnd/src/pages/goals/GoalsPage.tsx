@@ -92,7 +92,7 @@ export function GoalsPage() {
             title={filter === "all" ? "No goals yet" : `No ${filter} goals`}
             message={
               filter === "all"
-                ? "Create your first goal and Jarvis will help you turn it into a clear plan."
+                ? "Create your first goal and Shadow will help you turn it into a clear plan."
                 : "Try a different filter, or create a new goal."
             }
             action={

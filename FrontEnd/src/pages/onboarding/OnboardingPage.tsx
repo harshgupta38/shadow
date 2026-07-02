@@ -43,7 +43,7 @@ export function OnboardingPage() {
     try {
       await api.onboarding.complete();
       await refreshUser();
-      toast.success("You're all set. Welcome to Jarvis!");
+      toast.success("You're all set. Welcome to Shadow!");
       navigate("/", { replace: true });
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Could not finish onboarding.");
@@ -180,7 +180,7 @@ export function OnboardingPage() {
                   <div className="fade-in">
                     <div className="surface-2 p-3 p-md-4 mb-4">
                       <div className="d-flex align-items-center gap-2 mb-2 text-muted-2 small fw-semibold text-uppercase" style={{ letterSpacing: "0.05em" }}>
-                        <Stars size={14} /> What Jarvis understood
+                        <Stars size={14} /> What Shadow understood
                       </div>
                       <p className="mb-0" style={{ lineHeight: 1.6 }}>
                         {understanding}
@@ -213,7 +213,7 @@ export function OnboardingPage() {
               </div>
 
               <p className="text-center text-faint small mt-4">
-                Your answers help Jarvis personalise its guidance. You can refine these anytime in
+                Your answers help Shadow personalise its guidance. You can refine these anytime in
                 Settings.
               </p>
             </div>

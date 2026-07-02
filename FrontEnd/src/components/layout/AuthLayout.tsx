@@ -35,7 +35,7 @@ export function AuthLayout({ children }: AuthLayoutProps) {
             <span className="brand-mark" style={{ background: "rgba(255,255,255,0.18)" }}>
               <Stars size={20} />
             </span>
-            <span className="brand-name text-white">Jarvis</span>
+            <span className="brand-name text-white">Shadow</span>
           </span>
         </div>
 

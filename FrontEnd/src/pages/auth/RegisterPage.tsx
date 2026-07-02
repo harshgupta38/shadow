@@ -48,7 +48,7 @@ export function RegisterPage() {
     };
     try {
       await register(payload);
-      toast.success("Welcome to Jarvis! Let's get to know you.");
+      toast.success("Welcome to Shadow! Let's get to know you.");
       navigate("/onboarding", { replace: true });
     } catch (err) {
       if (err instanceof ApiError) {

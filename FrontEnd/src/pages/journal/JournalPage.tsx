@@ -167,7 +167,7 @@ export function JournalPage() {
               <EmptyState
                 icon={<JournalText size={26} />}
                 title="Your journal is empty"
-                message="Write your first reflection. Over time, Jarvis learns from your patterns."
+                message="Write your first reflection. Over time, Shadow learns from your patterns."
               />
             </div>
           )}

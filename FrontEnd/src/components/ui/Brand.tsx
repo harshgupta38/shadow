@@ -1,7 +1,7 @@
 import { Stars } from "react-bootstrap-icons";
 
 interface BrandProps {
-  /** Show the "Jarvis" wordmark next to the mark. */
+  /** Show the "Shadow" wordmark next to the mark. */
   withName?: boolean;
   subtitle?: string;
   size?: "sm" | "md" | "lg";
@@ -13,7 +13,7 @@ const MARK_SIZE: Record<NonNullable<BrandProps["size"]>, number> = {
   lg: 52,
 };
 
-/** The Jarvis logo: a gradient mark plus optional wordmark. */
+/** The Shadow logo: a gradient mark plus optional wordmark. */
 export function Brand({ withName = true, subtitle, size = "md" }: BrandProps) {
   const dimension = MARK_SIZE[size];
   return (
@@ -27,7 +27,7 @@ export function Brand({ withName = true, subtitle, size = "md" }: BrandProps) {
       {withName && (
         <span className="d-flex flex-column">
           <span className="brand-name" style={{ fontSize: size === "lg" ? "1.5rem" : undefined }}>
-            Jarvis
+            Shadow
           </span>
           {subtitle && <span className="brand-sub">{subtitle}</span>}
         </span>

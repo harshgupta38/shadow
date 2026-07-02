@@ -9,7 +9,7 @@ from __future__ import annotations
 import os
 
 # ── Force test configuration BEFORE importing the app ─────────
-os.environ["DATABASE_URL"] = "sqlite:///./_test_jarvis.db"
+os.environ["DATABASE_URL"] = "sqlite:///./_test_shadow.db"
 os.environ["LLM_PROVIDER"] = "fake"
 os.environ["JWT_SECRET"] = "test-secret-key"
 os.environ["ACCESS_TOKEN_EXPIRE_MINUTES"] = "60"

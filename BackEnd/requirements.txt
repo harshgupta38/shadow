@@ -8,6 +8,7 @@ alembic>=1.13
 # PostgreSQL driver — for durable managed Postgres in production. SQLite
 # (the MVP default) needs no extra driver. Activate by setting
 # DATABASE_URL=postgresql+psycopg2://USER:PASSWORD@HOST:5432/DBNAME
+# psycopg2-binary>=2.9
 psycopg2-binary>=2.9
 # ── Validation / settings ─────────────────────────────────────
 pydantic>=2.6,<3.0

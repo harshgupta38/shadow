@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { CalendarCheckFill, GraphUpArrow, Stars } from "react-bootstrap-icons";
+import { CalendarCheckFill, GraphUpArrow, List, Stars } from "react-bootstrap-icons";
 
 import { Brand } from "@/components/ui/Brand";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
@@ -28,7 +28,7 @@ interface AuthLayoutProps {
 
 export function AuthLayout({ children }: AuthLayoutProps) {
   return (
-    <div className="auth-shell">
+    <div className="auth-shell" style={{ userSelect: "none", WebkitUserSelect: "none" }}>
       <aside className="auth-aside">
         <div style={{ position: "relative", zIndex: 1 }}>
           <span className="brand text-white">
@@ -68,17 +68,33 @@ export function AuthLayout({ children }: AuthLayoutProps) {
 
         <p className="small opacity-75 mb-0" style={{ position: "relative", zIndex: 1 }}>
           Private by design · Your data stays yours.
+          <br />
+          Made with 💗 by Harsh
         </p>
       </aside>
 
       <main className="auth-main position-relative">
-        <div className="position-absolute top-0 end-0 p-3">
+        <div className="auth-theme-fab position-absolute top-0 end-0 p-3">
           <ThemeToggle />
         </div>
+
+        <div className="auth-mobile-topbar d-md-none">
+          <button
+            type="button"
+            className="btn btn-ghost btn-icon auth-mobile-menu"
+            aria-label="Open menu"
+          >
+            <List size={20} />
+          </button>
+          <span className="auth-mobile-brand">
+            <Brand size="md" />
+          </span>
+          <span className="auth-mobile-theme">
+            <ThemeToggle />
+          </span>
+        </div>
+
         <div className="auth-card fade-in">
-          <div className="d-md-none mb-4 text-center">
-            <Brand size="lg" />
-          </div>
           {children}
         </div>
       </main>

@@ -154,7 +154,7 @@ export const http = {
     const { data } = await httpClient.patch<T>(url, body);
     return data;
   },
-  async del(url: string, body?: unknown): Promise<void> {
-    await httpClient.delete(url, body === undefined ? undefined : { data: body });
+  async del(url: string): Promise<void> {
+    await httpClient.delete(url);
   },
 };

@@ -21,7 +21,4 @@ export const chatApi = {
       content,
     });
   },
-  async clearHistory(): Promise<void> {
-    return http.del("/chat/history");
-  },
 };

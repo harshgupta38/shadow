@@ -53,24 +53,6 @@ export interface User {
   onboarding_completed: boolean;
   created_at: string;
   updated_at: string;
-
-  // Basic profile
-  display_name: string | null;
-  phone: string | null;
-  bio: string | null;
-  avatar_url: string | null;
-  email_verified: boolean;
-
-  // AI profile
-  profession: string | null;
-  working_hours: string | null;
-  working_style: string | null;
-  interests: string | null;
-  learning_focus: string | null;
-  long_term_vision: string | null;
-  daily_routine: string | null;
-  current_goals: string | null;
-  ai_notes: string | null;
 }
 
 export interface RegisterRequest {
@@ -94,28 +76,6 @@ export interface ProfileUpdate {
   name?: string;
   timezone?: string;
   theme_preference?: ThemePreference;
-
-  // Basic profile
-  display_name?: string | null;
-  phone?: string | null;
-  bio?: string | null;
-  avatar_url?: string | null;
-
-  // AI profile
-  profession?: string | null;
-  working_hours?: string | null;
-  working_style?: string | null;
-  interests?: string | null;
-  learning_focus?: string | null;
-  long_term_vision?: string | null;
-  daily_routine?: string | null;
-  current_goals?: string | null;
-  ai_notes?: string | null;
-}
-
-export interface PasswordChange {
-  current_password: string;
-  new_password: string;
 }
 
 // ── Memory ─────────────────────────────────────────────────────────────────

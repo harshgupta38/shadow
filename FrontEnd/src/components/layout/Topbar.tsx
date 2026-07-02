@@ -57,7 +57,7 @@ export function Topbar({ onOpenMenu }: TopbarProps) {
               </div>
             </div>
             <Dropdown.Divider />
-            <Dropdown.Item onClick={() => navigate("/profile")}>
+            <Dropdown.Item onClick={() => navigate("/settings")}>
               <PersonCircle className="me-2" size={16} /> Profile &amp; memory
             </Dropdown.Item>
             <Dropdown.Item onClick={() => navigate("/settings")}>

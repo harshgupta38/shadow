@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 
 import { AuthProvider } from "./AuthContext";
-import { PreferencesProvider } from "./PreferencesContext";
 import { ThemeProvider } from "./ThemeContext";
 import { ToastProvider } from "./ToastContext";
 
@@ -9,11 +8,9 @@ import { ToastProvider } from "./ToastContext";
 export function AppProviders({ children }: { children: ReactNode }) {
   return (
     <ThemeProvider>
-      <PreferencesProvider>
-        <ToastProvider>
-          <AuthProvider>{children}</AuthProvider>
-        </ToastProvider>
-      </PreferencesProvider>
+      <ToastProvider>
+        <AuthProvider>{children}</AuthProvider>
+      </ToastProvider>
     </ThemeProvider>
   );
 }

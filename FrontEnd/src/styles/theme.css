@@ -127,63 +127,6 @@
   scrollbar-width: thin;
   scrollbar-color: var(--jv-border-strong) transparent;
 }
-
-/* Accessibility: honour the "Reduce motion" preference (Settings) as well as
-   the OS-level setting by disabling animations and transitions. */
-[data-reduce-motion="true"] *,
-[data-reduce-motion="true"] *::before,
-[data-reduce-motion="true"] *::after {
-  animation-duration: 0.001ms !important;
-  animation-iteration-count: 1 !important;
-  transition-duration: 0.001ms !important;
-  scroll-behavior: auto !important;
-}
-
-/* Accent colour — overrides the brand palette from Settings › Appearance. */
-[data-accent="blue"] {
-  --jv-brand-1: #3b82f6;
-  --jv-brand-2: #2563eb;
-  --jv-brand-soft: rgba(59, 130, 246, 0.14);
-  --jv-brand-gradient: linear-gradient(135deg, #3b82f6, #2563eb);
-}
-[data-accent="green"] {
-  --jv-brand-1: #10b981;
-  --jv-brand-2: #0d9488;
-  --jv-brand-soft: rgba(16, 185, 129, 0.14);
-  --jv-brand-gradient: linear-gradient(135deg, #10b981, #0d9488);
-}
-[data-accent="rose"] {
-  --jv-brand-1: #f43f5e;
-  --jv-brand-2: #e11d48;
-  --jv-brand-soft: rgba(244, 63, 94, 0.14);
-  --jv-brand-gradient: linear-gradient(135deg, #f43f5e, #e11d48);
-}
-[data-accent="amber"] {
-  --jv-brand-1: #f59e0b;
-  --jv-brand-2: #d97706;
-  --jv-brand-soft: rgba(245, 158, 11, 0.16);
-  --jv-brand-gradient: linear-gradient(135deg, #f59e0b, #d97706);
-}
-[data-accent] {
-  --bs-primary: var(--jv-brand-1);
-  --bs-link-color: var(--jv-brand-1);
-}
-
-/* High contrast — stronger borders and text from Settings › Accessibility. */
-[data-contrast="high"][data-bs-theme="light"] {
-  --jv-text: #000000;
-  --jv-muted: #33384a;
-  --jv-faint: #4b5162;
-  --jv-border: #b6bccd;
-  --jv-border-strong: #8b91a4;
-}
-[data-contrast="high"][data-bs-theme="dark"] {
-  --jv-text: #ffffff;
-  --jv-muted: #c9cee0;
-  --jv-faint: #a3abc0;
-  --jv-border: #4a5169;
-  --jv-border-strong: #6b7290;
-}
 *::-webkit-scrollbar {
   width: 10px;
   height: 10px;
@@ -528,12 +471,6 @@ a {
   text-transform: uppercase;
   color: var(--jv-faint);
   padding: 0.5rem 0.8rem 0.3rem;
-}
-
-@media (max-width: 991px) {
-  .sidebar-brand {
-    display: none;
-  }
 }
 
 /* ----------------------------------------------------------------------------

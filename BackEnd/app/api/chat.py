@@ -22,11 +22,6 @@ def list_sessions(db: DbSession, current_user: CurrentUser) -> list[ChatSessionR
     return chat_service.list_sessions(db, current_user)
 
 
-@router.delete("/history", status_code=status.HTTP_204_NO_CONTENT)
-def clear_history(db: DbSession, current_user: CurrentUser) -> None:
-    chat_service.clear_history(db, current_user)
-
-
 @router.post("/sessions", response_model=ChatSessionRead, status_code=status.HTTP_201_CREATED)
 def create_session(
     data: ChatSessionCreate, db: DbSession, current_user: CurrentUser

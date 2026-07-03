@@ -9,7 +9,7 @@ from uuid import uuid4
 
 from pydantic import TypeAdapter, ValidationError
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.agents.orchestrator import (
@@ -21,15 +21,23 @@ from app.llm.base import LLMMessage, LLMProvider
 from app.memory.context import compile_user_context
 from app.models.base import utcnow
 from app.models.chat import ChatMessage, ChatSession
-from app.models.enums import AgentType, AssistantActionConfidence, ChatRole, GoalStatus
+from app.models.enums import (
+    AgentType,
+    AssistantActionConfidence,
+    AssistantActionModule,
+    ChatRole,
+    GoalStatus,
+)
 from app.models.goal import Goal
 from app.models.metric import TrackedMetric
+from app.models.milestone import Milestone
 from app.models.user import User
 from app.schemas.activity import ActivityLogCreate
 from app.schemas.chat import (
     AssistantProposedAction,
     ChatActionExecuteResponse,
     ChatSessionCreate,
+    GoalsAddMilestoneArgs,
     GoalsAddMilestoneAction,
     GoalsCreateGoalAction,
     PlanCreateTaskAction,
@@ -329,6 +337,211 @@ def _with_goal_focus_context(user_context: str, goal: Goal | None) -> str:
     return f"{user_context}\n\n{focus_block}" if user_context else focus_block
 
 
+def _clean_milestone_title(raw_title: str) -> str:
+    title = raw_title.strip()
+    title = re.sub(r"^[-*•\s]+", "", title)
+    title = re.sub(r"^[0-9]+[\.)\-\s]+", "", title)
+    title = title.replace("**", "")
+    title = title.strip("`*_:- ")
+    title = " ".join(title.split())
+    if not title:
+        return ""
+    return title[:255]
+
+
+def _normalise_milestone_description(raw_description: str | None) -> str | None:
+    if not raw_description:
+        return None
+
+    cleaned_lines: list[str] = []
+    seen: set[str] = set()
+    for raw_line in raw_description.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        line = re.sub(r"^(?:[-*•]|o)\s+", "", line, flags=re.IGNORECASE)
+        line = line.replace("**", "")
+        line = line.strip("`*_ ")
+        line = " ".join(line.split())
+        if not line:
+            continue
+        key = line.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        cleaned_lines.append(line)
+
+    if not cleaned_lines:
+        return None
+    return "\n".join(cleaned_lines)[:2000]
+
+
+def _clean_milestone_detail_line(raw_line: str) -> str | None:
+    line = raw_line.strip()
+    if not line:
+        return None
+
+    # Bullet-like detail formats from model responses.
+    bullet_match = re.match(r"^(?:[-*•]|o)\s+(.+)$", line, flags=re.IGNORECASE)
+    if bullet_match is not None:
+        line = bullet_match.group(1).strip()
+    elif not re.match(r"^[A-Za-z][A-Za-z0-9 /().&%-]{1,40}:\s+.+$", line):
+        return None
+
+    line = line.replace("**", "")
+    line = line.strip("`*_ ")
+    line = " ".join(line.split())
+    if not line:
+        return None
+    return line[:400]
+
+
+def _extract_milestones_from_reply(reply: str) -> list[tuple[str, str | None]]:
+    parsed: list[tuple[str, str | None]] = []
+    current_title = ""
+    current_details: list[str] = []
+
+    def _flush_current() -> None:
+        nonlocal current_title, current_details
+        if not current_title:
+            return
+
+        description = _normalise_milestone_description("\n".join(current_details))
+        parsed.append((current_title, description))
+        current_title = ""
+        current_details = []
+
+    for raw_line in reply.splitlines():
+        heading_match = re.match(r"^\s*[0-9]+\.\s+(.+)$", raw_line.rstrip())
+        if heading_match is not None:
+            _flush_current()
+            current_title = _clean_milestone_title(heading_match.group(1))
+            current_details = []
+            continue
+
+        if not current_title:
+            continue
+
+        detail = _clean_milestone_detail_line(raw_line)
+        if detail is not None:
+            current_details.append(detail)
+
+    _flush_current()
+
+    deduped: list[tuple[str, str | None]] = []
+    seen_titles: set[str] = set()
+    for title, description in parsed:
+        if not title:
+            continue
+        key = title.lower()
+        if key in seen_titles:
+            continue
+        seen_titles.add(key)
+        deduped.append((title, description))
+        if len(deduped) >= 6:
+            break
+    return deduped
+
+
+def _next_goal_milestone_order(db: Session, goal_id: int) -> int:
+    max_order = db.scalar(select(func.max(Milestone.order)).where(Milestone.goal_id == goal_id))
+    if max_order is None:
+        return 0
+    return int(max_order) + 1
+
+
+def _existing_goal_milestone_titles(db: Session, goal_id: int) -> set[str]:
+    rows = list(db.scalars(select(Milestone.title).where(Milestone.goal_id == goal_id)))
+    return {row.strip().lower() for row in rows if row and row.strip()}
+
+
+def _ensure_goal_breakdown_milestone_actions(
+    db: Session,
+    *,
+    user_content: str,
+    assistant_reply: str,
+    focus_goal: Goal | None,
+    actions: list[AssistantProposedAction],
+) -> list[AssistantProposedAction]:
+    if focus_goal is None or not _is_goal_breakdown_request(user_content):
+        return actions
+
+    extracted_milestones = _extract_milestones_from_reply(assistant_reply)
+    extracted_description_by_title = {
+        title.lower(): description
+        for title, description in extracted_milestones
+        if description is not None
+    }
+
+    existing_titles = _existing_goal_milestone_titles(db, focus_goal.id)
+    seen_titles = set(existing_titles)
+    next_order = _next_goal_milestone_order(db, focus_goal.id)
+
+    normalized_actions: list[AssistantProposedAction] = []
+    milestone_action_count = 0
+
+    for action in actions:
+        if not isinstance(action, GoalsAddMilestoneAction):
+            normalized_actions.append(action)
+            continue
+
+        cleaned_title = _clean_milestone_title(action.args.title)
+        if not cleaned_title:
+            continue
+        title_key = cleaned_title.lower()
+        if title_key in seen_titles:
+            continue
+
+        action.args.goal_id = focus_goal.id
+        action.args.title = cleaned_title
+        action.args.description = _normalise_milestone_description(action.args.description)
+        detail_from_reply = extracted_description_by_title.get(title_key)
+        if action.args.description is None and detail_from_reply is not None:
+            action.args.description = detail_from_reply
+        if action.args.order <= 0:
+            action.args.order = next_order
+            next_order += 1
+        action.confidence = AssistantActionConfidence.high
+        action.requires_confirmation = False
+        action.destructive = False
+        if not action.title.strip():
+            action.title = f"Add milestone: {cleaned_title}"
+
+        seen_titles.add(title_key)
+        milestone_action_count += 1
+        normalized_actions.append(action)
+
+    if milestone_action_count > 0:
+        return normalized_actions
+
+    for title, description in extracted_milestones:
+        title_key = title.lower()
+        if title_key in seen_titles:
+            continue
+
+        normalized_actions.append(
+            GoalsAddMilestoneAction(
+                id=f"act_{uuid4().hex[:10]}",
+                module=AssistantActionModule.goals,
+                type="goals.add_milestone",
+                title=f"Add milestone: {title}",
+                confidence=AssistantActionConfidence.high,
+                requires_confirmation=False,
+                destructive=False,
+                args=GoalsAddMilestoneArgs(
+                    goal_id=focus_goal.id,
+                    title=title,
+                    description=description,
+                    order=next_order,
+                ),
+            )
+        )
+        next_order += 1
+        seen_titles.add(title_key)
+
+    return normalized_actions
+
+
 def _execute_plan_create_task(
     db: Session, user: User, action: PlanCreateTaskAction
 ) -> ChatActionExecuteResponse:
@@ -586,6 +799,13 @@ def send_message(
                 model=preferred_model,
             )
             proposed_actions = _parse_proposed_actions(raw_actions)
+            proposed_actions = _ensure_goal_breakdown_milestone_actions(
+                db,
+                user_content=user_content,
+                assistant_reply=reply,
+                focus_goal=focus_goal,
+                actions=proposed_actions,
+            )
         except Exception:
             logger.warning("Failed to generate proposed actions for session_id=%s", session.id)
 

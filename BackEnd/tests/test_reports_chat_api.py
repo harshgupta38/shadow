@@ -109,6 +109,41 @@ class GoalFocusEchoProvider(LLMProvider):
         return "No goal focus"
 
 
+class GoalBreakdownProvider(LLMProvider):
+    def generate(
+        self,
+        messages: list[LLMMessage],
+        *,
+        system: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+        model: str | None = None,
+    ) -> str:
+        prompt = messages[-1].content if messages else ""
+        if "Return valid JSON only" in prompt:
+            return '{"actions":[]}'
+        if max_tokens == 24:
+            return "Google Milestones"
+        return (
+            "1. Solidify DSA Foundations\n"
+            "o Target: Complete 75% of your Coding Ninja DSA course and solve 250 LeetCode problems.\n"
+            "o Why: Builds the essential problem-solving skills Google looks for.\n"
+            "o Est. Completion: 6 months\n"
+            "2. Master Advanced DSA & System Design Basics\n"
+            "o Target: Solve 200 medium/hard DSA problems and finish a system design course.\n"
+            "o Why: Crucial for tackling higher-complexity interview rounds.\n"
+            "o Est. Completion: 6-8 months\n"
+            "3. Build & Apply\n"
+            "o Target: Build 2 projects and solve 10 system design case studies.\n"
+            "o Why: Demonstrates practical application of your skills.\n"
+            "o Est. Completion: 6-8 months\n"
+            "4. Interview Ready\n"
+            "o Target: Complete 5+ mock interviews and apply to Google.\n"
+            "o Why: Converts preparation into offer-ready interview performance.\n"
+            "o Est. Completion: 3-4 months"
+        )
+
+
 def test_generate_daily_report(client: TestClient, auth_headers: dict) -> None:
     # Log some activity so the report has data.
     metrics = client.get("/api/metrics", headers=auth_headers).json()
@@ -741,5 +776,69 @@ def test_goal_coach_ignores_deleted_session_goal_and_uses_remaining_goal(
         )
         assert messages.status_code == 200
         assert messages.json()[0]["content"] == "Break my goals into milestones"
+    finally:
+        app.dependency_overrides.pop(get_provider, None)
+
+
+def test_goal_coach_breakdown_returns_goal_linked_milestone_actions(
+    client: TestClient, auth_headers: dict
+) -> None:
+    provider = GoalBreakdownProvider()
+    app.dependency_overrides[get_provider] = lambda: provider
+
+    try:
+        goal = client.post(
+            "/api/goals",
+            headers=auth_headers,
+            json={"title": "Get SDE 1 job at Google"},
+        )
+        assert goal.status_code == 201
+        goal_id = goal.json()["id"]
+
+        session = client.post(
+            "/api/chat/sessions",
+            headers=auth_headers,
+            json={"agent_type": "goal_coach", "title": "Goal Coach", "goal_id": goal_id},
+        ).json()
+
+        response = client.post(
+            f"/api/chat/sessions/{session['id']}/messages",
+            headers=auth_headers,
+            json={"content": "Break my goal into milestones"},
+        )
+        assert response.status_code == 200
+
+        actions = response.json()["proposed_actions"]
+        milestone_actions = [item for item in actions if item["type"] == "goals.add_milestone"]
+        assert len(milestone_actions) == 4
+        assert all(item["args"]["goal_id"] == goal_id for item in milestone_actions)
+        assert all(item["confidence"] == "high" for item in milestone_actions)
+        assert all(item["requires_confirmation"] is False for item in milestone_actions)
+        action_by_title = {item["args"]["title"]: item for item in milestone_actions}
+        assert "Target:" in action_by_title["Solidify DSA Foundations"]["args"]["description"]
+        assert "Why:" in action_by_title["Solidify DSA Foundations"]["args"]["description"]
+        assert "Est. Completion:" in action_by_title["Solidify DSA Foundations"]["args"]["description"]
+
+        for action in milestone_actions:
+            executed = client.post(
+                f"/api/chat/sessions/{session['id']}/actions/execute",
+                headers=auth_headers,
+                json={"confirmed": False, "action": action},
+            )
+            assert executed.status_code == 200
+            assert executed.json()["status"] == "executed"
+
+        milestones = client.get(f"/api/goals/{goal_id}/milestones", headers=auth_headers)
+        assert milestones.status_code == 200
+        milestone_by_title = {item["title"]: item for item in milestones.json()}
+        assert "Solidify DSA Foundations" in milestone_by_title
+        assert "Master Advanced DSA & System Design Basics" in milestone_by_title
+        assert "Build & Apply" in milestone_by_title
+        assert "Interview Ready" in milestone_by_title
+        assert "Target:" in (milestone_by_title["Solidify DSA Foundations"]["description"] or "")
+        assert "Why:" in (milestone_by_title["Solidify DSA Foundations"]["description"] or "")
+        assert "Est. Completion:" in (
+            milestone_by_title["Solidify DSA Foundations"]["description"] or ""
+        )
     finally:
         app.dependency_overrides.pop(get_provider, None)

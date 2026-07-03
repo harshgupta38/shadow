@@ -38,6 +38,33 @@ function milestoneProgress(milestones: Milestone[]): number | null {
 
 const STATUS_CYCLE: MilestoneStatus[] = ["todo", "in_progress", "done"];
 
+interface MilestoneDetailRow {
+  label: string | null;
+  value: string;
+}
+
+function parseMilestoneDescription(description: string | null): MilestoneDetailRow[] {
+  if (!description) return [];
+
+  const lines = description
+    .split(/\r?\n/g)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => line.replace(/^(?:[-*•]|o)\s+/i, "").replace(/\*\*/g, "").trim())
+    .filter(Boolean)
+    .slice(0, 6);
+
+  return lines.map((line) => {
+    const separatorIndex = line.indexOf(":");
+    if (separatorIndex > 0 && separatorIndex <= 32) {
+      const label = line.slice(0, separatorIndex).trim();
+      const value = line.slice(separatorIndex + 1).trim();
+      if (label && value) return { label, value };
+    }
+    return { label: null, value: line };
+  });
+}
+
 export function GoalDetailPage() {
   const { goalId } = useParams();
   const id = Number(goalId);
@@ -228,6 +255,7 @@ export function GoalDetailPage() {
             {sortedMilestones.map((milestone, index) => {
               const done = milestone.status === "done";
               const busy = busyMilestoneId === milestone.id;
+              const detailRows = parseMilestoneDescription(milestone.description);
               return (
                 <div
                   key={milestone.id}
@@ -260,6 +288,24 @@ export function GoalDetailPage() {
                     <div className={`fw-medium ${done ? "text-decoration-line-through text-muted-2" : ""}`}>
                       {milestone.title}
                     </div>
+                    {detailRows.length > 0 && (
+                      <div className="small text-muted-2 mt-1 d-flex flex-column gap-1">
+                        {detailRows.map((row, rowIndex) => (
+                          <div key={`${milestone.id}-detail-${rowIndex}`} className="d-flex gap-2">
+                            <span className="text-faint">•</span>
+                            <span>
+                              {row.label ? (
+                                <>
+                                  <span className="fw-semibold text-body">{row.label}:</span> {row.value}
+                                </>
+                              ) : (
+                                row.value
+                              )}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     {milestone.due_date && (
                       <div className="text-faint small">{formatDate(milestone.due_date)}</div>
                     )}

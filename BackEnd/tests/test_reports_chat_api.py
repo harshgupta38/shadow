@@ -155,17 +155,6 @@ class BulletMilestoneBreakdownProvider(LLMProvider):
         model: str | None = None,
     ) -> str:
         prompt = messages[-1].content if messages else ""
-        if "MILESTONE_OBJECT_ARRAY_EXTRACTOR_V1" in prompt:
-            return (
-                "{"
-                '"milestones":[\n'
-                '{"title":"Lose 2KG by July 11","due_date":"2026-07-11","details":[]},'
-                '{"title":"Lose 2KG by August 11 (Total 4KG lost)","due_date":"2026-08-11","details":[]},'
-                '{"title":"Lose 2KG by September 11 (Total 6KG lost)","due_date":"2026-09-11","details":[]},'
-                '{"title":"Lose 2KG by October 11 (Total 8KG lost)","due_date":"2026-10-11","details":[]},'
-                '{"title":"Lose 2KG by October 31 (Total 10KG lost)","due_date":"2026-10-31","details":[]}'
-                "]}"
-            )
         if "Return valid JSON only" in prompt:
             return '{"actions":[]}'
         if max_tokens == 24:
@@ -194,8 +183,6 @@ class ProposalFailureFallbackProvider(LLMProvider):
         prompt = messages[-1].content if messages else ""
         if "Return valid JSON only" in prompt:
             raise RuntimeError("proposal generation failed")
-        if "MILESTONE_OBJECT_ARRAY_EXTRACTOR_V1" in prompt:
-            return '{"milestones":[]}'
         if max_tokens == 24:
             return "SDE Milestones"
         return (
@@ -220,9 +207,6 @@ class LongTitleMilestoneProvider(LLMProvider):
         prompt = messages[-1].content if messages else ""
         if "Return valid JSON only" in prompt:
             return '{"actions":[]}'
-        if "MILESTONE_OBJECT_ARRAY_EXTRACTOR_V1" in prompt:
-            # Force fallback regex extraction to validate action-title truncation path.
-            return '{"milestones":[]}'
         if max_tokens == 24:
             return "Google Milestones"
         return (
@@ -246,9 +230,6 @@ class TenMilestoneFallbackProvider(LLMProvider):
         prompt = messages[-1].content if messages else ""
         if "Return valid JSON only" in prompt:
             return '{"actions":[]}'
-        if "MILESTONE_OBJECT_ARRAY_EXTRACTOR_V1" in prompt:
-            # Ensure fallback parser path is used.
-            return '{"milestones":[]}'
         if max_tokens == 24:
             return "Google Milestones"
         return (
@@ -279,21 +260,6 @@ class MilestoneSubListProvider(LLMProvider):
         prompt = messages[-1].content if messages else ""
         if "Return valid JSON only" in prompt:
             return '{"actions":[]}'
-        if "MILESTONE_OBJECT_ARRAY_EXTRACTOR_V1" in prompt:
-            # Simulate structured extraction that keeps only key-value detail fields.
-            return (
-                "{"
-                '"milestones":[\n'
-                '{"title":"DSA Foundation & Course Completion","due_date":null,'
-                '"details":[{"label":"Target","value":"Mid-2025"}]},'
-                '{"title":"Advanced DSA & Problem Solving Mastery","due_date":null,'
-                '"details":[{"label":"Target","value":"Early-2026"}]},'
-                '{"title":"System Design & Behavioral Readiness","due_date":null,'
-                '"details":[{"label":"Target","value":"Mid-2026"}]},'
-                '{"title":"Application & Interview Polish","due_date":null,'
-                '"details":[{"label":"Target","value":"Late-2026"}]}'
-                "]}"
-            )
         if max_tokens == 24:
             return "Google Milestones"
         return (
@@ -333,9 +299,6 @@ class ImplicitMilestoneBreakdownProvider(LLMProvider):
         prompt = messages[-1].content if messages else ""
         if "Return valid JSON only" in prompt:
             return '{"actions":[]}'
-        if "MILESTONE_OBJECT_ARRAY_EXTRACTOR_V1" in prompt:
-            # Force fallback parser path and milestone-heading detection on assistant reply.
-            return '{"milestones":[]}'
         if max_tokens == 24:
             return "META Roadmap"
         return (
@@ -1025,7 +988,10 @@ def test_goal_coach_breakdown_returns_goal_linked_milestone_actions(
         assert all(item["args"]["goal_id"] == goal_id for item in milestone_actions)
         assert all(item["confidence"] == "high" for item in milestone_actions)
         assert all(item["requires_confirmation"] is False for item in milestone_actions)
+        assert all(item["args"].get("details") is None for item in milestone_actions)
         action_by_title = {item["args"]["title"]: item for item in milestone_actions}
+        assert "<ul>" in (action_by_title["Solidify DSA Foundations"]["args"]["description"] or "")
+        assert "<li>" in (action_by_title["Solidify DSA Foundations"]["args"]["description"] or "")
         assert "Target:" in action_by_title["Solidify DSA Foundations"]["args"]["description"]
         assert "Why:" in action_by_title["Solidify DSA Foundations"]["args"]["description"]
         assert "Est. Completion:" in action_by_title["Solidify DSA Foundations"]["args"]["description"]
@@ -1046,6 +1012,8 @@ def test_goal_coach_breakdown_returns_goal_linked_milestone_actions(
         assert "Master Advanced DSA & System Design Basics" in milestone_by_title
         assert "Build & Apply" in milestone_by_title
         assert "Interview Ready" in milestone_by_title
+        assert milestone_by_title["Solidify DSA Foundations"].get("details") in (None, [])
+        assert "<ul>" in (milestone_by_title["Solidify DSA Foundations"]["description"] or "")
         assert "Target:" in (milestone_by_title["Solidify DSA Foundations"]["description"] or "")
         assert "Why:" in (milestone_by_title["Solidify DSA Foundations"]["description"] or "")
         assert "Est. Completion:" in (
@@ -1104,11 +1072,12 @@ def test_goal_coach_breakdown_saves_bullet_milestone_format(
         milestones = client.get(f"/api/goals/{goal_id}/milestones", headers=auth_headers)
         assert milestones.status_code == 200
         milestone_by_title = {item["title"]: item for item in milestones.json()}
-        assert "Lose 2KG by July 11" in milestone_by_title
-        assert "Lose 2KG by August 11 (Total 4KG lost)" in milestone_by_title
-        assert "Lose 2KG by September 11 (Total 6KG lost)" in milestone_by_title
-        assert "Lose 2KG by October 11 (Total 8KG lost)" in milestone_by_title
-        assert "Lose 2KG by October 31 (Total 10KG lost)" in milestone_by_title
+        titles = set(milestone_by_title)
+        assert any("June 30" in title and "Lose 2KG" in title for title in titles)
+        assert any("July 31" in title and "4KG" in title for title in titles)
+        assert any("August 31" in title and "6KG" in title for title in titles)
+        assert any("September 30" in title and "8KG" in title for title in titles)
+        assert any("October 31" in title and "10KG" in title for title in titles)
         assert all(
             "first step" not in ((item["description"] or "").lower())
             for item in milestone_by_title.values()
@@ -1307,9 +1276,13 @@ def test_goal_coach_breakdown_preserves_sublist_items_in_milestone_description(
         action_by_title = {item["args"]["title"]: item for item in milestone_actions}
         first_description = action_by_title["DSA Foundation & Course Completion"]["args"]["description"]
         assert first_description is not None
+        assert action_by_title["DSA Foundation & Course Completion"]["args"].get("details") is None
+        assert "<ul>" in first_description
+        assert "<li>" in first_description
         assert "Complete 80% of your Coding Ninja course" in first_description
         assert "Solve 200 LeetCode problems" in first_description
-        assert "Target: Mid-2025" in first_description
+        assert "Target:" in first_description
+        assert "Mid-2025" in first_description
 
         for action in milestone_actions:
             executed = client.post(
@@ -1325,9 +1298,12 @@ def test_goal_coach_breakdown_preserves_sublist_items_in_milestone_description(
         milestone_by_title = {item["title"]: item for item in milestones.json()}
 
         saved_description = milestone_by_title["DSA Foundation & Course Completion"]["description"] or ""
+        assert milestone_by_title["DSA Foundation & Course Completion"].get("details") in (None, [])
+        assert "<ul>" in saved_description
         assert "Complete 80% of your Coding Ninja course" in saved_description
         assert "Solve 200 LeetCode problems" in saved_description
-        assert "Target: Mid-2025" in saved_description
+        assert "Target:" in saved_description
+        assert "Mid-2025" in saved_description
     finally:
         app.dependency_overrides.pop(get_provider, None)
 

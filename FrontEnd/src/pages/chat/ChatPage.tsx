@@ -42,6 +42,7 @@ interface ActionConfirmState {
 }
 
 const LEGACY_GOAL_CONTEXT_MARKER = "\n\n[goal_context]";
+const MAX_COMPOSER_LINES = 5;
 
 function parseGoalCoachGoalId(params: URLSearchParams): number | null {
   const goalIdRaw = params.get("goalId");
@@ -101,6 +102,27 @@ export function ChatPage() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const composerInputRef = useRef<HTMLTextAreaElement>(null);
   const selectedSession = sessions?.find((s) => s.id === selectedId) ?? null;
+
+  function autoResizeComposer() {
+    const composer = composerInputRef.current;
+    if (!composer) return;
+
+    composer.style.height = "auto";
+
+    const styles = window.getComputedStyle(composer);
+    const lineHeight = Number.parseFloat(styles.lineHeight || "") || 20;
+    const paddingTop = Number.parseFloat(styles.paddingTop || "") || 0;
+    const paddingBottom = Number.parseFloat(styles.paddingBottom || "") || 0;
+    const borderTop = Number.parseFloat(styles.borderTopWidth || "") || 0;
+    const borderBottom = Number.parseFloat(styles.borderBottomWidth || "") || 0;
+
+    const maxHeight =
+      lineHeight * MAX_COMPOSER_LINES + paddingTop + paddingBottom + borderTop + borderBottom;
+    const nextHeight = Math.min(composer.scrollHeight, maxHeight);
+
+    composer.style.height = `${Math.ceil(nextHeight)}px`;
+    composer.style.overflowY = composer.scrollHeight > maxHeight ? "auto" : "hidden";
+  }
 
   function prefillComposer(text: string) {
     setInput(text);
@@ -346,6 +368,10 @@ export function ChatPage() {
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, loadingMessages]);
+
+  useEffect(() => {
+    autoResizeComposer();
+  }, [input]);
 
   const meta = selectedSession ? agentMeta(selectedSession.agent_type) : null;
   const confirmEntry = actionConfirm

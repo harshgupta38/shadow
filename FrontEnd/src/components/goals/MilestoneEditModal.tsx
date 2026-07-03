@@ -105,6 +105,7 @@ export function MilestoneEditModal({
 
         <label className="form-label">Description</label>
         <ReactQuill
+          className="milestone-editor"
           theme="snow"
           value={description}
           onChange={setDescription}

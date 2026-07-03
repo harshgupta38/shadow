@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import datetime
+import html
 import json
 import logging
 import re
 from uuid import uuid4
 
-from pydantic import BaseModel, Field, TypeAdapter, ValidationError
+from pydantic import TypeAdapter, ValidationError
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -47,7 +48,7 @@ from app.schemas.chat import (
 )
 from app.schemas.goal import GoalCreate
 from app.schemas.metric import MetricCreate
-from app.schemas.milestone import MilestoneCreate, MilestoneDetail
+from app.schemas.milestone import MilestoneCreate
 from app.schemas.plan import PlannedTaskCreate
 from app.services import goal_service, metric_service, plan_service, settings_service
 from app.services.exceptions import AppError
@@ -55,19 +56,7 @@ from app.services.utils import get_owned_or_404
 
 logger = logging.getLogger(__name__)
 
-
-class _ExtractedMilestone(BaseModel):
-    title: str = Field(min_length=1, max_length=255)
-    due_date: datetime.date | None = None
-    details: list[MilestoneDetail] = Field(default_factory=list)
-
-
-class _ExtractedMilestonePayload(BaseModel):
-    milestones: list[_ExtractedMilestone] = Field(default_factory=list)
-
-
 _ACTION_LIST_ADAPTER = TypeAdapter(list[AssistantProposedAction])
-_MILESTONE_EXTRACTION_ADAPTER = TypeAdapter(_ExtractedMilestonePayload)
 _AUTO_EXECUTABLE_TYPES = {
     "plan.create_task",
     "goals.create_goal",
@@ -76,7 +65,6 @@ _AUTO_EXECUTABLE_TYPES = {
     "track.log_metric",
 }
 _GOAL_CONTEXT_MARKER = "[goal_context]"
-_MILESTONE_EXTRACTION_MARKER = "MILESTONE_OBJECT_ARRAY_EXTRACTOR_V1"
 _MAX_GOAL_BREAKDOWN_MILESTONES = 18
 _MILESTONE_BULLET_PATTERN = r"(?:[-*•●◦▪▫◉○◌‣⁃∙·]|[oO])"
 
@@ -425,58 +413,38 @@ def _normalise_milestone_description(raw_description: str | None) -> str | None:
     return "\n".join(cleaned_lines)[:2000]
 
 
-def _normalise_milestone_label(raw_label: str) -> str:
-    label = raw_label.replace("**", "").strip()
-    label = label.strip("`*_:- ")
-    label = " ".join(label.split())
-    if not label:
-        return ""
-    return label[:64]
+def _looks_like_html_fragment(value: str) -> bool:
+    return re.search(r"</?[a-z][\s\S]*>", value, flags=re.IGNORECASE) is not None
 
 
-def _normalise_milestone_details(raw_details: list[MilestoneDetail] | None) -> list[MilestoneDetail] | None:
-    if not raw_details:
+def _to_formatted_milestone_description(raw_description: str | None) -> str | None:
+    if not raw_description:
         return None
 
-    normalized: list[MilestoneDetail] = []
-    seen: set[tuple[str, str]] = set()
-    for item in raw_details:
-        label = _normalise_milestone_label(item.label)
-        value = _normalise_milestone_description(item.value)
-        if not label or not value:
-            continue
-        key = (label.lower(), value.lower())
-        if key in seen:
-            continue
-        seen.add(key)
-        normalized.append(MilestoneDetail(label=label, value=value))
+    trimmed = raw_description.strip()
+    if not trimmed:
+        return None
+    if _looks_like_html_fragment(trimmed):
+        return trimmed[:4000]
 
+    normalized = _normalise_milestone_description(trimmed)
     if not normalized:
         return None
-    return normalized[:8]
 
-
-def _description_to_details(description: str | None) -> list[MilestoneDetail] | None:
-    if not description:
-        return None
-
-    details: list[MilestoneDetail] = []
-    for raw_line in description.splitlines():
-        line = raw_line.strip()
-        if not line:
+    html_items: list[str] = []
+    for line in normalized.splitlines():
+        key_value_match = re.match(r"^([A-Za-z][A-Za-z0-9 /().&%-]{1,40}):\s+(.+)$", line)
+        if key_value_match is not None:
+            label = html.escape(key_value_match.group(1).strip())
+            value = html.escape(key_value_match.group(2).strip())
+            html_items.append(f"<li><strong>{label}:</strong> {value}</li>")
             continue
-        match = re.match(r"^([A-Za-z][A-Za-z0-9 /().&%-]{1,40}):\s+(.+)$", line)
-        if match is None:
-            continue
-        details.append(MilestoneDetail(label=match.group(1).strip(), value=match.group(2).strip()))
 
-    return _normalise_milestone_details(details)
+        html_items.append(f"<li>{html.escape(line)}</li>")
 
-
-def _details_to_description(details: list[MilestoneDetail] | None) -> str | None:
-    if not details:
+    if not html_items:
         return None
-    return _normalise_milestone_description("\n".join(f"{item.label}: {item.value}" for item in details))
+    return "<ul>" + "".join(html_items) + "</ul>"
 
 
 def _merge_milestone_descriptions(*parts: str | None) -> str | None:
@@ -497,62 +465,6 @@ def _merge_milestone_descriptions(*parts: str | None) -> str | None:
     if not merged_lines:
         return None
     return "\n".join(merged_lines)[:2000]
-
-
-def _date_to_due_datetime(value: datetime.date | None) -> datetime.datetime | None:
-    if value is None:
-        return None
-    return datetime.datetime.combine(value, datetime.time.min, tzinfo=datetime.timezone.utc)
-
-
-def _extract_milestones_with_ai(
-    provider: LLMProvider,
-    *,
-    assistant_reply: str,
-    model: str | None,
-) -> list[tuple[str, datetime.datetime | None, list[MilestoneDetail] | None]]:
-    extraction_prompt = (
-        f"{_MILESTONE_EXTRACTION_MARKER}\n"
-        "Extract ONLY milestone objects from the assistant response below.\n"
-        "Ignore intro text, summaries, and follow-up advice lines (for example 'Next action' or 'Your first step').\n"
-        "Return strict JSON with this schema:\n"
-        '{"milestones":[{"title":"...","due_date":"YYYY-MM-DD or null","details":[{"label":"...","value":"..."}]}]}\n'
-        "Rules:\n"
-        "- Keep title concise and milestone-specific.\n"
-        "- If text includes date phrases like 'By July 11', map it to due_date.\n"
-        "- details should include only true milestone fields such as Target, Why, Purpose, Est. Completion.\n"
-        "- If no milestones are present, return {\"milestones\":[]}.\n\n"
-        f"Assistant response:\n{assistant_reply}"
-    )
-
-    try:
-        raw = provider.generate(
-            [LLMMessage(role=ChatRole.user.value, content=extraction_prompt)],
-            temperature=0,
-            max_tokens=720,
-            model=model,
-        ).strip()
-        payload = _MILESTONE_EXTRACTION_ADAPTER.validate_python(json.loads(_strip_markdown_fence(raw)))
-    except Exception:
-        return []
-
-    extracted: list[tuple[str, datetime.datetime | None, list[MilestoneDetail] | None]] = []
-    seen_titles: set[str] = set()
-    for item in payload.milestones:
-        title = _clean_milestone_title(item.title)
-        if not title:
-            continue
-        title_key = title.lower()
-        if title_key in seen_titles:
-            continue
-        seen_titles.add(title_key)
-
-        details = _normalise_milestone_details(item.details)
-        extracted.append((title, _date_to_due_datetime(item.due_date), details))
-        if len(extracted) >= _MAX_GOAL_BREAKDOWN_MILESTONES:
-            break
-
-    return extracted
 
 
 def _clean_milestone_detail_line(raw_line: str) -> str | None:
@@ -680,8 +592,6 @@ def _ensure_goal_breakdown_milestone_actions(
     assistant_reply: str,
     focus_goal: Goal | None,
     actions: list[AssistantProposedAction],
-    provider: LLMProvider,
-    model: str | None,
 ) -> list[AssistantProposedAction]:
     if focus_goal is None:
         return actions
@@ -690,16 +600,6 @@ def _ensure_goal_breakdown_milestone_actions(
     reply_looks_like_breakdown = _looks_like_milestone_breakdown_reply(assistant_reply)
     if not wants_breakdown and not reply_looks_like_breakdown:
         return actions
-
-    structured_milestones = _extract_milestones_with_ai(
-        provider,
-        assistant_reply=assistant_reply,
-        model=model,
-    )
-    structured_by_title = {
-        title.lower(): {"due_date": due_date, "details": details}
-        for title, due_date, details in structured_milestones
-    }
 
     extracted_milestones = _extract_milestones_from_reply(assistant_reply)
     extracted_description_by_title = {
@@ -729,25 +629,12 @@ def _ensure_goal_breakdown_milestone_actions(
 
         action.args.goal_id = focus_goal.id
         action.args.title = cleaned_title
-        action.args.details = _normalise_milestone_details(action.args.details)
+        action.args.details = None
         action.args.description = _normalise_milestone_description(action.args.description)
 
-        structured_data = structured_by_title.get(title_key)
-        if action.args.due_date is None and structured_data is not None:
-            action.args.due_date = structured_data["due_date"]
-        if action.args.details is None and structured_data is not None:
-            action.args.details = structured_data["details"]
-
         detail_from_reply = extracted_description_by_title.get(title_key)
-        if action.args.details is None:
-            action.args.details = _description_to_details(
-                _merge_milestone_descriptions(action.args.description, detail_from_reply)
-            )
-
-        action.args.description = _merge_milestone_descriptions(
-            action.args.description,
-            detail_from_reply,
-            _details_to_description(action.args.details),
+        action.args.description = _to_formatted_milestone_description(
+            _merge_milestone_descriptions(action.args.description, detail_from_reply)
         )
 
         if action.args.order <= 0:
@@ -766,50 +653,10 @@ def _ensure_goal_breakdown_milestone_actions(
     if milestone_action_count > 0:
         return normalized_actions
 
-    if structured_milestones:
-        for title, due_date, details in structured_milestones:
-            title_key = title.lower()
-            if title_key in seen_titles:
-                continue
-
-            detail_from_reply = extracted_description_by_title.get(title_key)
-            merged_details = details or _description_to_details(detail_from_reply)
-            merged_description = _merge_milestone_descriptions(
-                detail_from_reply,
-                _details_to_description(merged_details),
-            )
-
-            normalized_actions.append(
-                GoalsAddMilestoneAction(
-                    id=f"act_{uuid4().hex[:10]}",
-                    module=AssistantActionModule.goals,
-                    type="goals.add_milestone",
-                    title=_milestone_action_title(title),
-                    confidence=AssistantActionConfidence.high,
-                    requires_confirmation=False,
-                    destructive=False,
-                    args=GoalsAddMilestoneArgs(
-                        goal_id=focus_goal.id,
-                        title=title,
-                        due_date=due_date,
-                        details=merged_details,
-                        description=merged_description,
-                        order=next_order,
-                    ),
-                )
-            )
-            next_order += 1
-            seen_titles.add(title_key)
-
-        if normalized_actions:
-            return normalized_actions
-
     for title, description in extracted_milestones:
         title_key = title.lower()
         if title_key in seen_titles:
             continue
-
-        fallback_details = _description_to_details(description)
 
         normalized_actions.append(
             GoalsAddMilestoneAction(
@@ -823,8 +670,8 @@ def _ensure_goal_breakdown_milestone_actions(
                 args=GoalsAddMilestoneArgs(
                     goal_id=focus_goal.id,
                     title=title,
-                    description=description or _details_to_description(fallback_details),
-                    details=fallback_details,
+                    description=_to_formatted_milestone_description(description),
+                    details=None,
                     order=next_order,
                 ),
             )
@@ -1106,8 +953,6 @@ def send_message(
                 assistant_reply=reply,
                 focus_goal=focus_goal,
                 actions=proposed_actions,
-                provider=provider,
-                model=preferred_model,
             )
         except Exception:
             logger.warning(

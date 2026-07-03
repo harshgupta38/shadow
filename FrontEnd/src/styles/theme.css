@@ -543,6 +543,69 @@ a {
   min-height: 145px;
 }
 
+.milestone-editor .ql-editor {
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+
+.milestone-editor .ql-snow .ql-picker.ql-header .ql-picker-label::before,
+.milestone-editor .ql-snow .ql-picker.ql-header .ql-picker-item::before {
+  font-size: 0.92rem;
+}
+
+[data-bs-theme="dark"] .milestone-editor .ql-snow .ql-picker {
+  color: var(--jv-muted);
+}
+
+[data-bs-theme="dark"] .milestone-editor .ql-snow .ql-stroke {
+  stroke: var(--jv-muted);
+}
+
+[data-bs-theme="dark"] .milestone-editor .ql-snow .ql-thin,
+[data-bs-theme="dark"] .milestone-editor .ql-snow .ql-stroke.ql-thin {
+  stroke: var(--jv-muted);
+}
+
+[data-bs-theme="dark"] .milestone-editor .ql-snow .ql-fill,
+[data-bs-theme="dark"] .milestone-editor .ql-snow .ql-stroke.ql-fill {
+  fill: var(--jv-muted);
+}
+
+[data-bs-theme="dark"] .milestone-editor .ql-snow .ql-picker-options {
+  background: var(--jv-surface-2);
+  border-color: var(--jv-border-strong);
+}
+
+[data-bs-theme="dark"] .milestone-editor .ql-snow button:hover,
+[data-bs-theme="dark"] .milestone-editor .ql-snow button:focus,
+[data-bs-theme="dark"] .milestone-editor .ql-snow button.ql-active,
+[data-bs-theme="dark"] .milestone-editor .ql-snow .ql-picker-label:hover,
+[data-bs-theme="dark"] .milestone-editor .ql-snow .ql-picker-label.ql-active,
+[data-bs-theme="dark"] .milestone-editor .ql-snow .ql-picker-item:hover,
+[data-bs-theme="dark"] .milestone-editor .ql-snow .ql-picker-item.ql-selected {
+  color: var(--jv-text);
+}
+
+[data-bs-theme="dark"] .milestone-editor .ql-snow button:hover .ql-stroke,
+[data-bs-theme="dark"] .milestone-editor .ql-snow button:focus .ql-stroke,
+[data-bs-theme="dark"] .milestone-editor .ql-snow button.ql-active .ql-stroke,
+[data-bs-theme="dark"] .milestone-editor .ql-snow .ql-picker-label:hover .ql-stroke,
+[data-bs-theme="dark"] .milestone-editor .ql-snow .ql-picker-label.ql-active .ql-stroke,
+[data-bs-theme="dark"] .milestone-editor .ql-snow .ql-picker-item:hover .ql-stroke,
+[data-bs-theme="dark"] .milestone-editor .ql-snow .ql-picker-item.ql-selected .ql-stroke {
+  stroke: var(--jv-text);
+}
+
+[data-bs-theme="dark"] .milestone-editor .ql-snow button:hover .ql-fill,
+[data-bs-theme="dark"] .milestone-editor .ql-snow button:focus .ql-fill,
+[data-bs-theme="dark"] .milestone-editor .ql-snow button.ql-active .ql-fill,
+[data-bs-theme="dark"] .milestone-editor .ql-snow .ql-picker-label:hover .ql-fill,
+[data-bs-theme="dark"] .milestone-editor .ql-snow .ql-picker-label.ql-active .ql-fill,
+[data-bs-theme="dark"] .milestone-editor .ql-snow .ql-picker-item:hover .ql-fill,
+[data-bs-theme="dark"] .milestone-editor .ql-snow .ql-picker-item.ql-selected .ql-fill {
+  fill: var(--jv-text);
+}
+
 /* ----------------------------------------------------------------------------
    9. App shell layout
    -------------------------------------------------------------------------- */
@@ -1338,7 +1401,7 @@ a {
 }
 .chat-composer textarea {
   resize: none;
-  max-height: 160px;
+  overflow-y: hidden;
 }
 .typing-dot {
   width: 7px;

@@ -380,15 +380,18 @@ export function ChatPage() {
                 <button
                   type="button"
                   key={session.id}
-                  className={`chat-session-item w-100 border-0 bg-transparent text-start ${
+                  className={`chat-session-item w-100 border-0 text-start ${
                     session.id === selectedId ? "active" : ""
                   }`}
                   onClick={() => selectSession(session)}
                 >
                   <AgentAvatar agent={session.agent_type} size={38} />
                   <div className="flex-grow-1 min-w-0">
-                    <div className="fw-semibold small text-truncate">{session.title}</div>
-                    <div className="text-faint text-truncate" style={{ fontSize: "0.72rem" }}>
+                    <div className="fw-semibold small text-truncate chat-session-title">{session.title}</div>
+                    <div
+                      className="text-faint text-truncate chat-session-meta"
+                      style={{ fontSize: "0.72rem" }}
+                    >
                       {sMeta.tagline} · {relativeTime(session.updated_at)}
                     </div>
                   </div>
@@ -433,8 +436,10 @@ export function ChatPage() {
                 </button>
                 <AgentAvatar agent={selectedSession.agent_type} size={40} />
                 <div className="min-w-0">
-                  <div className="fw-bold text-truncate">{meta?.label}</div>
-                  <div className="text-faint small text-truncate">{meta?.description}</div>
+                  <div className="fw-bold text-truncate">{selectedSession.title}</div>
+                  <div className="text-faint small text-truncate">
+                    {meta ? `${meta.label} · ${meta.description}` : "Assistant conversation"}
+                  </div>
                 </div>
                 <button
                   type="button"
@@ -453,7 +458,7 @@ export function ChatPage() {
                 ) : messages.length === 0 ? (
                   <div className="m-auto text-center" style={{ maxWidth: 440 }}>
                     <AgentAvatar agent={selectedSession.agent_type} size={64} />
-                    <h3 className="h5 fw-bold mt-3">{meta?.label}</h3>
+                    <h3 className="h5 fw-bold mt-3">{selectedSession.title}</h3>
                     <p className="text-muted-2">{meta?.description}</p>
                     {meta && meta.suggestions.length > 0 && (
                       <div className="d-flex flex-column gap-2 mt-4">

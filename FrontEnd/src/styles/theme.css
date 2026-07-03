@@ -175,6 +175,11 @@ a {
   font-family: var(--jv-font-display);
 }
 
+/* Utility used in many flex rows to allow text truncation. */
+.min-w-0 {
+  min-width: 0 !important;
+}
+
 /* ----------------------------------------------------------------------------
    5. Buttons — brand accent + refined defaults
    -------------------------------------------------------------------------- */
@@ -1042,18 +1047,34 @@ a {
   display: flex;
   gap: 0.6rem;
   align-items: center;
-  padding: 0.6rem 0.7rem;
+  padding: 0.6rem 0.85rem 0.6rem 0.7rem;
   border-radius: var(--jv-radius-sm);
   cursor: pointer;
-  transition: background var(--jv-transition);
+  transition: background var(--jv-transition), border-color var(--jv-transition),
+    box-shadow var(--jv-transition);
+  background: transparent;
   border: 1px solid transparent;
 }
-.chat-session-item:hover {
-  background: var(--jv-surface-2);
-}
+.chat-session-item:hover,
 .chat-session-item.active {
-  background: var(--jv-brand-soft);
-  border-color: color-mix(in srgb, var(--jv-brand-1) 30%, transparent);
+  background: color-mix(in srgb, var(--jv-brand-soft) 56%, var(--jv-surface) 44%);
+  border-color: transparent;
+  box-shadow: 0 0 5px color-mix(in srgb, var(--jv-brand-1) 32%, transparent);
+}
+.chat-session-item:focus-visible {
+  outline: none;
+  box-shadow: var(--jv-ring);
+}
+.chat-session-title,
+.chat-session-meta {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  padding-right: 0.2rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .chat-window {
   display: flex;

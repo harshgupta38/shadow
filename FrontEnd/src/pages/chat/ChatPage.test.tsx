@@ -297,6 +297,32 @@ describe("ChatPage", () => {
 
     await waitFor(() => expect(mockedChat.messages).toHaveBeenCalledWith(11));
     expect(mockedChat.createSession).not.toHaveBeenCalled();
-    expect(await screen.findByText("Get SDE Job at Google")).toBeInTheDocument();
+    expect((await screen.findAllByText("Get SDE Job at Google")).length).toBeGreaterThan(0);
+  });
+
+  it("shows selected chat title in header and highlights active sidebar chat", async () => {
+    const coachSession = {
+      id: 9,
+      agent_type: "goal_coach",
+      title: "Lose 10KG weight by October end",
+      goal_id: 27,
+      created_at: "2026-07-03T12:00:00Z",
+      updated_at: "2026-07-03T12:10:00Z",
+    } as const;
+
+    mockedChat.sessions.mockResolvedValue([sessionFixture, coachSession]);
+
+    const user = userEvent.setup();
+    renderPage();
+
+    const listTitle = await screen.findByText("Lose 10KG weight by October end");
+    await user.click(listTitle.closest("button") as HTMLButtonElement);
+
+    await waitFor(() => expect(mockedChat.messages).toHaveBeenCalledWith(9));
+    expect(screen.getAllByText("Lose 10KG weight by October end").length).toBeGreaterThan(1);
+
+    const activeItem = document.querySelector(".chat-session-item.active");
+    expect(activeItem).not.toBeNull();
+    expect(activeItem).toHaveTextContent("Lose 10KG weight by October end");
   });
 });

@@ -1,106 +1,196 @@
-# BackEnd — Shadow API & AI Layer
+# BackEnd - Shadow API and AI Layer
 
-> **Quick reference for agents working in `BackEnd/`.** The root
-> [README.md](../README.md) is the **project source of truth** — read it for full context
-> (audience, product vision, data model, roadmap). This file is the fast on-ramp for backend work.
+This file is a backend-focused companion.
+The canonical project source of truth is the root README at ../README.md.
 
 ---
 
-## Purpose
-The FastAPI backend powers everything: auth, onboarding, goals, metrics, reports, the AI agents,
-and user memory. It runs **persistently on a private server (24/7)** and is the **single source
-of truth for auth and data** (JWT + SQLite). The frontend (Firebase Hosting) talks to it over a
-REST/JSON API prefixed with `/api`.
+## 1) Purpose
 
-## Tech Stack
-| Concern      | Choice                                                        |
-| ------------ | ------------------------------------------------------------- |
-| Framework    | **FastAPI** (Python 3.11+)                                    |
-| ORM          | **SQLAlchemy 2.x** + **Alembic** migrations                   |
-| Database     | **SQLite** (MVP) — ORM-abstracted for easy PostgreSQL later   |
-| Validation   | **Pydantic v2** (schemas)                                     |
-| Auth         | **JWT** (python-jose) + **bcrypt** (passlib)                  |
-| AI / LLM     | **Google Gemini** behind a pluggable `LLMProvider` interface  |
-| Scheduling   | **APScheduler** (reminders + report jobs)                     |
-| Testing      | **pytest** + **httpx** `TestClient`                           |
+BackEnd contains the FastAPI application that powers:
 
-## Quick Start
+- authentication and account lifecycle
+- onboarding and memory capture
+- goals, milestones, plan, metrics, reports, chat, journal, notifications
+- profile/settings domains and AI personalization
+
+The backend is the system of record for auth and data.
+
+---
+
+## 2) Stack
+
+- Python 3.11+
+- FastAPI
+- SQLAlchemy 2.x
+- Alembic
+- Pydantic v2 + pydantic-settings
+- JWT via python-jose
+- Password hashing via passlib + bcrypt
+- APScheduler
+- LLM provider layer (Gemini + fake provider)
+
+---
+
+## 3) Quick Start
+
 ```powershell
 cd BackEnd
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-Copy-Item .env.example .env   # then fill in secrets
-uvicorn app.main:app --reload # dev server at http://localhost:8000
-```
-Run tests: `pytest` • Migrations: `alembic upgrade head` / `alembic revision --autogenerate -m "..."`
-
-## Project Structure
-```
-BackEnd/
-├── app/
-│   ├── main.py        # FastAPI entrypoint (app, routers, middleware)
-│   ├── constant.py    # central keys/config (API keys, CORS/FrontEnd URL, version)
-│   ├── database.py    # SQLAlchemy engine/session
-│   ├── models/        # ORM models (one concern per file)
-│   ├── schemas/       # Pydantic request/response models
-│   ├── api/           # routers: auth, onboarding, goals, metrics, reports, chat, ...
-│   ├── agents/        # agent personas (system prompts) + orchestration
-│   ├── llm/           # LLMProvider interface + GeminiProvider
-│   ├── memory/        # User Context Document compilation + behavior learning
-│   ├── services/      # business logic (kept out of routers)
-│   └── scheduler/     # APScheduler jobs (reminders, report generation)
-├── alembic/           # migrations
-├── tests/             # pytest (mirrors app/ layout)
-├── requirements.txt
-└── .env.example
+Copy-Item .env.example .env
+alembic upgrade head
+uvicorn app.main:app --reload
 ```
 
-## Environment Variables (`.env`)
-```
-DATABASE_URL=sqlite:///./shadow.db   # prod: postgresql+psycopg2://USER:PASS@HOST:5432/DB
-JWT_SECRET=change-me
+Useful URLs:
+
+- API root: http://localhost:8000
+- OpenAPI docs: http://localhost:8000/docs
+
+---
+
+## 4) Environment Variables
+
+Primary variables (see .env.example for full comments):
+
+```env
+ENVIRONMENT=development
+DEBUG=true
+
+DATABASE_URL=sqlite:///./shadow.db
+
+JWT_SECRET=change-me-to-a-long-random-string
 JWT_ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=1440
-LLM_PROVIDER=gemini            # or "fake" for offline dev/tests
-GEMINI_API_KEY=your-key
+
+LLM_PROVIDER=gemini
+GEMINI_API_KEY=your-gemini-api-key
 GEMINI_MODEL=gemini-1.5-flash
-CORS_ORIGINS=http://localhost:5173
+
+CORS_ORIGINS=http://localhost:5173, https://shadow-pa.web.app
 ENABLE_SCHEDULER=true
 ```
 
-**Production database (durability):** swap SQLite for a **managed PostgreSQL** by setting
-`DATABASE_URL=postgresql+psycopg2://USER:PASS@HOST:5432/DB`, then run `alembic upgrade head`.
-No code changes — SQLAlchemy handles the rest, and the engine pool auto-tunes for servers.
-Never commit real secrets. All config is read only through `app/constant.py` (the single
-source of truth for keys/config).
+Production posture:
 
-## Data Models (quick list — details in root §8)
-`User` • `MemoryEntry` • `Goal` • `Milestone` • `ChatSession` • `ChatMessage` • `JournalEntry`
-• `Notification` • `TrackedMetric` • `ActivityLog` • `PlannedTask` • `Report`.
+- switch to managed PostgreSQL by setting DATABASE_URL
+- run alembic upgrade head before serving traffic
 
-## API Surface (quick list — details in root §9)
-`auth` • `onboarding` • `profile`/memories • `goals`/`milestones` • `metrics`/`plan` • `reports`
-• `chat` • `journal` • `notifications` • `dashboard`. All under `/api`, JWT-protected except
-register/login.
+---
 
-## Architecture Rules (do not violate)
-- **Never call Gemini directly** from routers/services — always go through `app/llm` (`LLMProvider`).
-  Swapping providers must never touch feature code.
-- **Routers stay thin** — put business logic in `services/`, DB models in `models/`, IO shapes in
-  `schemas/`.
-- **Agents** live in `app/agents/` as versioned personas (system prompt + context injection).
-- **Memory**: agents receive the compiled **User Context Document** from `app/memory/`; behavior
-  signals are distilled back into `MemoryEntry` (`source=behavior`).
-- **Config via env only** (12-factor); no hardcoded secrets or paths.
+## 5) Code Layout
 
-## Testing Conventions
-- **TDD**: write a failing test first, then minimal code.
-- **Mock ALL LLM/network/time** — unit tests must be fast and hermetic. Provide a fake
-  `LLMProvider` for agent tests.
-- API tests use httpx `TestClient` against an in-memory/temp SQLite DB.
-- **≥80% coverage** on new/changed code; assert behavior, not lines.
+```text
+BackEnd/
+|- app/
+|  |- main.py            # app entrypoint, CORS, lifespan, router mounting
+|  |- constant.py        # central settings and constants
+|  |- database.py        # engine/session setup
+|  |- api/               # route modules
+|  |- services/          # business logic
+|  |- models/            # SQLAlchemy models
+|  |- schemas/           # Pydantic contracts
+|  |- llm/               # provider abstraction and implementations
+|  |- memory/            # context compilation + behavior distillation
+|  |- scheduler/         # scheduled jobs
+|- alembic/              # schema migrations
+|- tests/                # pytest suite
+|- requirements.txt
+|- pyproject.toml
+```
 
-## Security
-Hash passwords with bcrypt; validate all input via Pydantic; lock CORS to known origins; keep
-secrets in env; never log sensitive data or leak it in error responses.
+---
+
+## 6) API Domains
+
+All routes are mounted under /api.
+
+- auth
+- onboarding
+- profile
+- settings
+- goals
+- milestones
+- plan
+- metrics
+- reports
+- chat
+- journal
+- notifications
+- dashboard
+
+Current plan API on this branch is CRUD:
+
+- GET /api/plan
+- POST /api/plan
+- PUT /api/plan/{task_id}
+- DELETE /api/plan/{task_id}
+
+---
+
+## 7) AI and Memory Notes
+
+- Provider abstraction lives in app/llm/base.py.
+- Provider factory selection is in app/llm/factory.py.
+- Gemini provider supports model override and fallback to default model if override fails.
+- User model preference normalization is in app/services/settings_service.py.
+- User context assembly is in app/memory/context.py.
+- Behavior memory distillation is in app/memory/behavior.py.
+- Manual memory refinement endpoint is POST /api/profile/memories/refine.
+
+---
+
+## 8) Data and Migrations
+
+Important entities:
+
+- User, UserProfile, UserSetting
+- Goal, Milestone, PlannedTask
+- TrackedMetric, ActivityLog
+- Report
+- ChatSession, ChatMessage
+- MemoryEntry
+- JournalEntry
+- Notification
+
+Current Alembic chain:
+
+1. d431dfd7dcd9 - initial schema
+2. 93f62db4c201 - profile/settings domains
+3. f2a1c0b8d90e - account and behavior settings expansion
+
+Commands:
+
+```powershell
+cd BackEnd
+alembic upgrade head
+alembic current
+```
+
+---
+
+## 9) Testing
+
+Run all backend tests:
+
+```powershell
+cd BackEnd
+pytest
+```
+
+Current suite status in repository:
+
+- 14 test files
+- 59 test functions
+
+---
+
+## 10) Operational Gotchas
+
+- Run migrations before using persistent environments.
+- Use project venv python for uvicorn/alembic to avoid environment drift.
+- If LLM_PROVIDER is gemini but GEMINI_API_KEY is empty, factory falls back to fake provider.
+- Profile timezone is enforced as Asia/Kolkata in profile update flow.
+- BackEnd/deploy.sh exists but is currently empty.

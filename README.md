@@ -1,13 +1,421 @@
-# Shadow — Your Personal Life & Career Assistant
+# Shadow - Personal AI Life and Career Assistant
 
-> **⚠️ AI-FIRST SOURCE OF TRUTH**
-> This README is the **single source of truth** for the Shadow project. Every AI developer
-> (and human) working on this codebase **must read this file first**. If you ever lose context,
-> re-read this document top to bottom before writing any code. Keep this file **up to date** —
-> whenever architecture, data models, APIs, or conventions change, update this README in the
-> same change set.
+> AI-first source of truth for this repository.
+> Read this file before changing code in any folder.
+
+Last updated: 2026-07-03
 
 ---
+
+## 1) What Shadow Is
+
+Shadow is a full-stack web application that helps users stay aligned with life and career goals using:
+
+- Structured planning and daily execution
+- Goal and milestone tracking
+- Metrics and activity logs
+- AI-assisted onboarding, chat, reporting, and memory refinement
+- Feedback loops that reinforce consistency
+
+Shadow is built for a private user group and optimized for practical daily use, not broad consumer scale.
+
+---
+
+## 2) Product Direction
+
+### Target users
+
+- 24-30 year-old early-career professionals
+- Users who struggle with distraction and consistency
+- Users who respond well to visible progress and accountability
+
+### Core loop
+
+Plan -> Do -> Track -> Reflect -> Adapt
+
+### Product principle
+
+Shadow should behave like a calm personal operating layer, not just a CRUD productivity app.
+
+---
+
+## 3) Current Capability Snapshot
+
+Implemented in this repository:
+
+- Auth: register, login, JWT-based session flow
+- Onboarding interview with AI-generated understanding memory
+- Profile/Settings split with AI profile and dedicated memory center
+- Goals and milestones
+- Plan (daily task CRUD with defaults, reminders, completion)
+- Metrics and activity logging
+- Daily/weekly AI reports
+- Multi-agent AI chat
+- Journal CRUD
+- Notifications and dashboard aggregation
+- Data export, chat-history clear, account deletion flow
+
+In progress (see Story folder):
+
+- SCRUM-11: AI-powered Today workspace redesign
+- SCRUM-16: AI journal coaching and knowledge extraction
+- SCRUM-17: Profile/Settings architecture refinements
+
+Important implementation reality:
+
+- `/api/plan/workspace` and `/api/plan/generate-today` are not active on this branch.
+- Current plan API is CRUD (`GET/POST/PUT/DELETE /api/plan...`).
+
+---
+
+## 4) Repository Layout
+
+```text
+Jarvis/
+|- README.md                  # This canonical project document
+|- Story/                     # Product stories (SCRUM-11/16/17)
+|- BackEnd/                   # FastAPI + SQLAlchemy + Alembic
+|- FrontEnd/                  # React + TypeScript + Vite
+|- shadow.db                  # Local SQLite database snapshot
+```
+
+Note: backend folder name is `BackEnd/` (not `BackendEnd/`).
+
+Submodule docs:
+
+- Backend: `BackEnd/README.md`
+- Frontend: `FrontEnd/README.md`
+
+---
+
+## 5) Tech Stack
+
+### Frontend
+
+- React 18 + TypeScript + Vite
+- Bootstrap 5 + React-Bootstrap
+- React Router
+- Axios (typed API modules)
+- Vitest + React Testing Library
+- Firebase Hosting (static deploy)
+
+### Backend
+
+- Python 3.11+
+- FastAPI
+- SQLAlchemy 2 + Alembic
+- SQLite by default, PostgreSQL-ready via `DATABASE_URL`
+- Pydantic v2 + pydantic-settings
+- python-jose + passlib/bcrypt
+- APScheduler
+- Pluggable LLM provider layer (Gemini + fake provider)
+
+---
+
+## 6) Local Setup (Full Stack)
+
+### Prerequisites
+
+- Python 3.11+
+- Node.js 18+
+- npm
+
+### Backend
+
+```powershell
+cd BackEnd
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+Copy-Item .env.example .env
+alembic upgrade head
+uvicorn app.main:app --reload
+```
+
+Backend URLs:
+
+- API root: http://localhost:8000
+- Swagger: http://localhost:8000/docs
+
+### Frontend
+
+```powershell
+cd FrontEnd
+npm install
+Copy-Item .env.example .env
+npm run dev
+```
+
+Frontend URL:
+
+- App: http://localhost:5173
+
+---
+
+## 7) Environment Variables
+
+### Backend (`BackEnd/.env`)
+
+```env
+ENVIRONMENT=development
+DEBUG=true
+
+DATABASE_URL=sqlite:///./shadow.db
+
+JWT_SECRET=change-me-to-a-long-random-string
+JWT_ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=1440
+
+LLM_PROVIDER=gemini
+GEMINI_API_KEY=your-gemini-api-key
+GEMINI_MODEL=gemini-1.5-flash
+
+CORS_ORIGINS=http://localhost:5173, https://shadow-pa.web.app
+ENABLE_SCHEDULER=true
+```
+
+### Frontend (`FrontEnd/.env`)
+
+```env
+VITE_API_BASE_URL=http://localhost:8000/api
+```
+
+Never place secrets in frontend env files.
+
+---
+
+## 8) Backend API Surface (Current)
+
+All API routes are prefixed with `/api`.
+
+### Health
+
+- `GET /`
+- `GET /health`
+
+### Auth
+
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `GET /api/auth/me`
+- `POST /api/auth/change-password`
+
+### Onboarding
+
+- `GET /api/onboarding/questions`
+- `POST /api/onboarding/answer`
+- `POST /api/onboarding/complete`
+
+### Profile and Memory
+
+- `GET /api/profile`
+- `PUT /api/profile`
+- `GET /api/profile/basic`
+- `PUT /api/profile/basic`
+- `GET /api/profile/ai`
+- `PUT /api/profile/ai`
+- `GET /api/profile/account`
+- `POST /api/profile/change-password`
+- `POST /api/profile/clear-chat-history`
+- `GET /api/profile/export`
+- `DELETE /api/profile/account`
+- `GET /api/profile/memory-center`
+- `GET /api/profile/memories`
+- `POST /api/profile/memories`
+- `POST /api/profile/memories/refine`
+- `PUT /api/profile/memories/{memory_id}`
+- `DELETE /api/profile/memories/{memory_id}`
+
+### Settings
+
+- `GET /api/settings`
+- `PUT /api/settings/appearance`
+- `PUT /api/settings/notifications`
+- `PUT /api/settings/ai-behavior`
+- `PUT /api/settings/integrations`
+- `PUT /api/settings/accessibility`
+- `PUT /api/settings/planner`
+- `PUT /api/settings/privacy`
+
+### Goals and Milestones
+
+- `GET /api/goals`
+- `POST /api/goals`
+- `GET /api/goals/{goal_id}`
+- `PUT /api/goals/{goal_id}`
+- `DELETE /api/goals/{goal_id}`
+- `GET /api/goals/{goal_id}/milestones`
+- `POST /api/goals/{goal_id}/milestones`
+- `PUT /api/milestones/{milestone_id}`
+- `DELETE /api/milestones/{milestone_id}`
+
+### Plan
+
+- `GET /api/plan`
+- `POST /api/plan`
+- `PUT /api/plan/{task_id}`
+- `DELETE /api/plan/{task_id}`
+
+### Metrics
+
+- `GET /api/metrics`
+- `POST /api/metrics`
+- `PUT /api/metrics/{metric_id}`
+- `DELETE /api/metrics/{metric_id}`
+- `GET /api/metrics/{metric_id}/logs`
+- `POST /api/metrics/{metric_id}/logs`
+
+### Reports
+
+- `GET /api/reports`
+- `POST /api/reports/generate`
+- `GET /api/reports/{report_id}`
+
+### Chat
+
+- `GET /api/chat/sessions`
+- `POST /api/chat/sessions`
+- `GET /api/chat/sessions/{session_id}/messages`
+- `POST /api/chat/sessions/{session_id}/messages`
+
+### Journal
+
+- `GET /api/journal`
+- `POST /api/journal`
+- `PUT /api/journal/{entry_id}`
+- `DELETE /api/journal/{entry_id}`
+
+### Notifications
+
+- `GET /api/notifications`
+- `POST /api/notifications`
+- `PATCH /api/notifications/{notification_id}/read`
+
+### Dashboard
+
+- `GET /api/dashboard/summary`
+
+---
+
+## 9) AI and Memory Architecture
+
+- All AI calls go through `BackEnd/app/llm/base.py` provider abstraction.
+- Provider selection is centralized in `BackEnd/app/llm/factory.py`.
+- Gemini provider supports per-request model override with safe fallback.
+- User model preference is normalized in `BackEnd/app/services/settings_service.py`.
+- Memory context is compiled in `BackEnd/app/memory/context.py`.
+- Behavior distillation pipeline lives in `BackEnd/app/memory/behavior.py`.
+- Manual memory refinement endpoint: `POST /api/profile/memories/refine`.
+
+---
+
+## 10) Data Model Overview
+
+Core entities:
+
+- User
+- UserProfile
+- UserSetting
+- Goal
+- Milestone
+- PlannedTask
+- TrackedMetric
+- ActivityLog
+- Report
+- ChatSession
+- ChatMessage
+- MemoryEntry
+- JournalEntry
+- Notification
+
+Highlights:
+
+- `UserProfile` and `UserSetting` are separated for identity vs behavior preferences.
+- `User.timezone` is enforced as `Asia/Kolkata` in profile update flows.
+- `PlannedTask` currently includes reminder time and estimated duration fields.
+
+---
+
+## 11) Database and Migrations
+
+Alembic revisions in order:
+
+1. `d431dfd7dcd9` - initial schema
+2. `93f62db4c201` - user profile/settings domains
+3. `f2a1c0b8d90e` - account + behavior settings expansion
+
+Use:
+
+```powershell
+cd BackEnd
+alembic upgrade head
+alembic current
+```
+
+---
+
+## 12) Testing
+
+### Backend
+
+- Framework: pytest
+- Tests folder: `BackEnd/tests/`
+- Current test functions: 59
+- Run:
+
+```powershell
+cd BackEnd
+pytest
+```
+
+### Frontend
+
+- Framework: Vitest + RTL
+- Current test cases: 27
+- Run:
+
+```powershell
+cd FrontEnd
+npm run test
+```
+
+Build checks:
+
+- Backend: `pytest`
+- Frontend: `npm run build`
+
+---
+
+## 13) Deployment Model
+
+- Frontend: Firebase Hosting (`FrontEnd/firebase.json`)
+- Backend: private always-on server
+- CORS must include the deployed frontend domain
+- Keep auth/data ownership on backend
+
+---
+
+## 14) Operating Notes and Gotchas
+
+- Always run `alembic upgrade head` before relying on a persistent environment.
+- Use the project virtual environment for backend runtime and migration commands.
+- If `LLM_PROVIDER=gemini` and `GEMINI_API_KEY` is missing, backend falls back to fake provider.
+- Settings page intentionally allows Gemini models only via dropdown.
+- Frontend auth token key: `shadow.token`; theme key: `shadow.theme`.
+- `BackEnd/deploy.sh` exists but is currently empty.
+
+---
+
+## 15) Active Roadmap
+
+- Keep SCRUM-17 profile/settings architecture clean and stable
+- Complete SCRUM-11 AI-first Today workspace
+- Complete SCRUM-16 AI-enhanced Journal coaching
+- Continue expanding behavior learning and cross-module personalization
+
+---
+
+If anything in `BackEnd/README.md` or `FrontEnd/README.md` conflicts with this file, this root README wins and the child README files must be updated in the same change.
 
 ## 1. Project Overview
 

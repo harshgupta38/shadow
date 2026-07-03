@@ -495,6 +495,54 @@ a {
   display: none !important;
 }
 
+.milestone-richtext {
+  margin-top: 0.35rem;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+.milestone-richtext > :first-child {
+  margin-top: 0;
+}
+.milestone-richtext > :last-child {
+  margin-bottom: 0;
+}
+.milestone-richtext p,
+.milestone-richtext ul,
+.milestone-richtext ol,
+.milestone-richtext blockquote,
+.milestone-richtext pre {
+  margin: 0.18rem 0;
+}
+.milestone-richtext ul,
+.milestone-richtext ol {
+  padding-left: 1.15rem;
+}
+.milestone-richtext li {
+  margin: 0.12rem 0;
+}
+.milestone-richtext strong,
+.milestone-richtext b {
+  color: var(--jv-text);
+}
+
+.ql-toolbar.ql-snow,
+.ql-container.ql-snow {
+  border-color: var(--jv-border-strong);
+}
+.ql-toolbar.ql-snow {
+  background: var(--jv-surface-2);
+  border-radius: var(--jv-radius-sm) var(--jv-radius-sm) 0 0;
+}
+.ql-container.ql-snow {
+  background: var(--jv-surface);
+  border-radius: 0 0 var(--jv-radius-sm) var(--jv-radius-sm);
+  color: var(--jv-text);
+  min-height: 180px;
+}
+.ql-editor {
+  min-height: 145px;
+}
+
 /* ----------------------------------------------------------------------------
    9. App shell layout
    -------------------------------------------------------------------------- */

@@ -20,6 +20,7 @@ import {
   type MilestoneDetail,
   type MilestoneStatus,
 } from "@/api";
+import { MilestoneEditModal } from "@/components/goals/MilestoneEditModal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { GoalFormModal } from "@/components/goals/GoalFormModal";
@@ -83,6 +84,10 @@ function parseMilestoneDescription(description: string | null): MilestoneDetailR
   });
 }
 
+function hasRichMilestoneDescription(description: string | null): boolean {
+  return !!description && /<\/?[a-z][\s\S]*>/i.test(description);
+}
+
 export function GoalDetailPage() {
   const { goalId } = useParams();
   const id = Number(goalId);
@@ -97,9 +102,11 @@ export function GoalDetailPage() {
   const [showEdit, setShowEdit] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [newMilestone, setNewMilestone] = useState("");
   const [addingMilestone, setAddingMilestone] = useState(false);
   const [busyMilestoneId, setBusyMilestoneId] = useState<number | null>(null);
+  const [showMilestoneModal, setShowMilestoneModal] = useState(false);
+  const [editingMilestone, setEditingMilestone] = useState<Milestone | null>(null);
+  const [savingMilestoneEdit, setSavingMilestoneEdit] = useState(false);
 
   function applyMilestones(milestones: Milestone[]) {
     setData((prev) =>
@@ -107,20 +114,48 @@ export function GoalDetailPage() {
     );
   }
 
-  async function addMilestone() {
-    if (!goal || !newMilestone.trim()) return;
-    setAddingMilestone(true);
+  async function saveMilestone(payload: { title: string; description: string | null }) {
+    if (!goal) return;
+
+    if (!editingMilestone) {
+      setAddingMilestone(true);
+      try {
+        const nextOrder =
+          goal.milestones.length > 0
+            ? Math.max(...goal.milestones.map((milestone) => milestone.order)) + 1
+            : 0;
+        const created = await api.goals.addMilestone(goal.id, {
+          title: payload.title,
+          description: payload.description,
+          details: null,
+          order: nextOrder,
+        });
+        applyMilestones([...goal.milestones, created]);
+        setShowMilestoneModal(false);
+      } catch (err) {
+        toast.error(err instanceof ApiError ? err.message : "Couldn't add milestone.");
+      } finally {
+        setAddingMilestone(false);
+      }
+      return;
+    }
+
+    setSavingMilestoneEdit(true);
+    setBusyMilestoneId(editingMilestone.id);
     try {
-      const created = await api.goals.addMilestone(goal.id, {
-        title: newMilestone.trim(),
-        order: goal.milestones.length,
+      const updated = await api.goals.updateMilestone(editingMilestone.id, {
+        title: payload.title,
+        description: payload.description,
+        details: null,
       });
-      applyMilestones([...goal.milestones, created]);
-      setNewMilestone("");
+      applyMilestones(goal.milestones.map((m) => (m.id === editingMilestone.id ? updated : m)));
+      setEditingMilestone(null);
+      setShowMilestoneModal(false);
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Couldn't add milestone.");
+      toast.error(err instanceof ApiError ? err.message : "Couldn't update milestone.");
     } finally {
-      setAddingMilestone(false);
+      setSavingMilestoneEdit(false);
+      setBusyMilestoneId(null);
     }
   }
 
@@ -145,25 +180,6 @@ export function GoalDetailPage() {
       applyMilestones(goal.milestones.filter((m) => m.id !== milestone.id));
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Couldn't delete milestone.");
-    } finally {
-      setBusyMilestoneId(null);
-    }
-  }
-
-  async function editMilestone(milestone: Milestone) {
-    if (!goal) return;
-    const nextTitle = window.prompt("Edit milestone title", milestone.title);
-    if (nextTitle === null) return;
-
-    const trimmed = nextTitle.trim();
-    if (!trimmed || trimmed === milestone.title) return;
-
-    setBusyMilestoneId(milestone.id);
-    try {
-      const updated = await api.goals.updateMilestone(milestone.id, { title: trimmed });
-      applyMilestones(goal.milestones.map((m) => (m.id === milestone.id ? updated : m)));
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Couldn't update milestone.");
     } finally {
       setBusyMilestoneId(null);
     }
@@ -203,6 +219,7 @@ export function GoalDetailPage() {
   const sortedMilestones = [...goal.milestones].sort(
     (a, b) => a.order - b.order || a.id - b.id,
   );
+  const milestoneModalBusy = addingMilestone || savingMilestoneEdit;
 
   return (
     <div>
@@ -249,37 +266,26 @@ export function GoalDetailPage() {
             : "Break this goal into concrete steps"
         }
         actions={
-          <Link
-            to={`/assistant?agent=goal_coach&goalId=${goal.id}`}
-            className="btn btn-soft btn-sm"
-          >
-            <Stars size={14} className="me-1" /> Ask Goal Coach
-          </Link>
+          <div className="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+            <Link
+              to={`/assistant?agent=goal_coach&goalId=${goal.id}`}
+              className="btn btn-soft btn-sm"
+            >
+              <Stars size={14} className="me-1" /> Ask Goal Coach
+            </Link>
+            <button
+              className="btn btn-brand btn-sm d-flex align-items-center"
+              onClick={() => {
+                setEditingMilestone(null);
+                setShowMilestoneModal(true);
+              }}
+              disabled={milestoneModalBusy}
+            >
+              <PlusLg size={15} className="me-1" /> Add milestone
+            </button>
+          </div>
         }
       >
-        {/* Add milestone */}
-        <div className="d-flex gap-2 mb-3">
-          <input
-            className="form-control"
-            placeholder="Add a milestone…"
-            value={newMilestone}
-            onChange={(e) => setNewMilestone(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                void addMilestone();
-              }
-            }}
-          />
-          <button
-            className="btn btn-brand flex-shrink-0"
-            onClick={addMilestone}
-            disabled={addingMilestone || !newMilestone.trim()}
-          >
-            <PlusLg size={16} />
-          </button>
-        </div>
-
         {sortedMilestones.length === 0 ? (
           <EmptyState
             compact
@@ -292,9 +298,10 @@ export function GoalDetailPage() {
             {sortedMilestones.map((milestone, index) => {
               const done = milestone.status === "done";
               const busy = busyMilestoneId === milestone.id;
+              const richDescription = hasRichMilestoneDescription(milestone.description);
               const structuredRows = structuredMilestoneDetails(milestone.details);
               const detailRows =
-                structuredRows.length > 0
+                !richDescription && structuredRows.length > 0
                   ? structuredRows
                   : parseMilestoneDescription(milestone.description);
               return (
@@ -316,10 +323,74 @@ export function GoalDetailPage() {
                   </button>
 
                   <div className="flex-grow-1 min-w-0">
-                    <div className={`fw-medium ${done ? "text-muted-2" : ""}`}>
-                      {milestone.title}
+                    <div className="d-flex align-items-center gap-2">
+                      <div className={`fw-medium flex-grow-1 min-w-0 ${done ? "text-muted-2" : ""}`}>
+                        {milestone.title}
+                      </div>
+
+                      <div className="d-flex align-items-center gap-1 flex-shrink-0">
+                        <Dropdown align="end" className="flex-shrink-0">
+                          <Dropdown.Toggle
+                            as="button"
+                            className="btn p-0 border-0 bg-transparent shadow-none milestone-status-toggle"
+                            disabled={busy}
+                          >
+                            <Pill
+                              variant={MILESTONE_STATUS_PILL[milestone.status]}
+                              className="milestone-status-pill"
+                            >
+                              {MILESTONE_STATUS_LABEL[milestone.status]}
+                            </Pill>
+                          </Dropdown.Toggle>
+                          <Dropdown.Menu>
+                            {STATUS_CYCLE.map((s) => (
+                              <Dropdown.Item
+                                key={s}
+                                active={milestone.status === s}
+                                onClick={() => setMilestoneStatus(milestone, s)}
+                              >
+                                {MILESTONE_STATUS_LABEL[s]}
+                              </Dropdown.Item>
+                            ))}
+                          </Dropdown.Menu>
+                        </Dropdown>
+
+                        <Dropdown align="end" className="flex-shrink-0">
+                          <Dropdown.Toggle
+                            as="button"
+                            className="btn btn-ghost btn-icon border-0"
+                            style={{ width: 34, height: 34 }}
+                            disabled={busy}
+                          >
+                            <ThreeDotsVertical size={16} />
+                          </Dropdown.Toggle>
+                          <Dropdown.Menu>
+                            <Dropdown.Item
+                              onClick={() => {
+                                setEditingMilestone(milestone);
+                                setShowMilestoneModal(true);
+                              }}
+                            >
+                              <PencilSquare size={14} className="me-2" /> Edit
+                            </Dropdown.Item>
+                            <Dropdown.Divider />
+                            <Dropdown.Item
+                              className="text-danger"
+                              onClick={() => removeMilestone(milestone)}
+                            >
+                              <Trash3 size={14} className="me-2" /> Delete
+                            </Dropdown.Item>
+                          </Dropdown.Menu>
+                        </Dropdown>
+                      </div>
                     </div>
-                    {detailRows.length > 0 && (
+                    {richDescription && (
+                      <div
+                        className="milestone-richtext text-muted-2"
+                        dangerouslySetInnerHTML={{ __html: milestone.description ?? "" }}
+                      />
+                    )}
+                    {!richDescription && detailRows.length > 0 && (
                       <div className="small text-muted-2 mt-1 d-flex flex-column gap-1">
                         {detailRows.map((row, rowIndex) => (
                           <div key={`${milestone.id}-detail-${rowIndex}`} className="d-flex gap-2">
@@ -341,52 +412,6 @@ export function GoalDetailPage() {
                       <div className="text-faint small">{formatDate(milestone.due_date)}</div>
                     )}
                   </div>
-
-                  <Dropdown align="end" className="flex-shrink-0">
-                    <Dropdown.Toggle
-                      as="button"
-                      className="btn p-0 border-0 bg-transparent shadow-none milestone-status-toggle"
-                      disabled={busy}
-                    >
-                      <Pill
-                        variant={MILESTONE_STATUS_PILL[milestone.status]}
-                        className="milestone-status-pill"
-                      >
-                        {MILESTONE_STATUS_LABEL[milestone.status]}
-                      </Pill>
-                    </Dropdown.Toggle>
-                    <Dropdown.Menu>
-                      {STATUS_CYCLE.map((s) => (
-                        <Dropdown.Item
-                          key={s}
-                          active={milestone.status === s}
-                          onClick={() => setMilestoneStatus(milestone, s)}
-                        >
-                          {MILESTONE_STATUS_LABEL[s]}
-                        </Dropdown.Item>
-                      ))}
-                    </Dropdown.Menu>
-                  </Dropdown>
-
-                  <Dropdown align="end">
-                    <Dropdown.Toggle
-                      as="button"
-                      className="btn btn-ghost btn-icon border-0"
-                      style={{ width: 34, height: 34 }}
-                      disabled={busy}
-                    >
-                      <ThreeDotsVertical size={16} />
-                    </Dropdown.Toggle>
-                    <Dropdown.Menu>
-                      <Dropdown.Item onClick={() => editMilestone(milestone)}>
-                        <PencilSquare size={14} className="me-2" /> Edit
-                      </Dropdown.Item>
-                      <Dropdown.Divider />
-                      <Dropdown.Item className="text-danger" onClick={() => removeMilestone(milestone)}>
-                        <Trash3 size={14} className="me-2" /> Delete
-                      </Dropdown.Item>
-                    </Dropdown.Menu>
-                  </Dropdown>
                 </div>
               );
             })}
@@ -399,6 +424,18 @@ export function GoalDetailPage() {
         goal={goal}
         onClose={() => setShowEdit(false)}
         onSaved={(updated) => setData(updated)}
+      />
+
+      <MilestoneEditModal
+        show={showMilestoneModal}
+        milestone={editingMilestone}
+        busy={milestoneModalBusy}
+        onClose={() => {
+          if (milestoneModalBusy) return;
+          setShowMilestoneModal(false);
+          setEditingMilestone(null);
+        }}
+        onSave={saveMilestone}
       />
 
       <ConfirmDialog

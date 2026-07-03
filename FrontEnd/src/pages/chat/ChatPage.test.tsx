@@ -281,4 +281,22 @@ describe("ChatPage", () => {
 
     expect(await screen.findByText("Break my goal into milestones")).toBeInTheDocument();
   });
+
+  it("reuses existing goal-linked goal coach chat instead of creating a new one", async () => {
+    const existingCoachSession = {
+      id: 11,
+      agent_type: "goal_coach",
+      title: "Get SDE Job at Google",
+      goal_id: 42,
+      created_at: "2026-07-03T12:00:00Z",
+      updated_at: "2026-07-03T12:15:00Z",
+    } as const;
+    mockedChat.sessions.mockResolvedValue([existingCoachSession]);
+
+    renderPage("/assistant?agent=goal_coach&goalId=42");
+
+    await waitFor(() => expect(mockedChat.messages).toHaveBeenCalledWith(11));
+    expect(mockedChat.createSession).not.toHaveBeenCalled();
+    expect(await screen.findByText("Get SDE Job at Google")).toBeInTheDocument();
+  });
 });

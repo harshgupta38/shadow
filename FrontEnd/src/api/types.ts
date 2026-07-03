@@ -364,11 +364,17 @@ export interface OnboardingAnswerResponse {
 }
 
 // ── Goals & milestones ─────────────────────────────────────────────────────
+export interface MilestoneDetail {
+  label: string;
+  value: string;
+}
+
 export interface Milestone {
   id: number;
   goal_id: number;
   title: string;
   description: string | null;
+  details: MilestoneDetail[] | null;
   status: MilestoneStatus;
   order: number;
   due_date: string | null;
@@ -379,6 +385,7 @@ export interface Milestone {
 export interface MilestoneCreate {
   title: string;
   description?: string | null;
+  details?: MilestoneDetail[] | null;
   status?: MilestoneStatus;
   order?: number;
   due_date?: string | null;
@@ -387,6 +394,7 @@ export interface MilestoneCreate {
 export interface MilestoneUpdate {
   title?: string;
   description?: string | null;
+  details?: MilestoneDetail[] | null;
   status?: MilestoneStatus;
   order?: number;
   due_date?: string | null;
@@ -468,6 +476,7 @@ export interface GoalsAddMilestoneActionArgs {
   goal_id: number;
   title: string;
   description?: string | null;
+  details?: MilestoneDetail[] | null;
   order?: number;
   due_date?: string | null;
 }

@@ -98,6 +98,7 @@ def add_milestone(db: Session, user: User, goal_id: int, data: MilestoneCreate) 
         goal_id=goal.id,
         title=data.title,
         description=data.description,
+        details=[item.model_dump() for item in data.details] if data.details else None,
         status=data.status,
         order=data.order,
         due_date=data.due_date,
@@ -112,6 +113,9 @@ def add_milestone(db: Session, user: User, goal_id: int, data: MilestoneCreate) 
 def update_milestone(db: Session, user: User, milestone_id: int, data: MilestoneUpdate) -> Milestone:
     milestone = _get_milestone_owned(db, user, milestone_id)
     updates = data.model_dump(exclude_unset=True)
+    if "details" in updates:
+        details = updates.pop("details")
+        milestone.details = list(details) if details else None
     for field, value in updates.items():
         setattr(milestone, field, value)
     # Keep completed_at in sync with status changes.

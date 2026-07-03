@@ -12,7 +12,14 @@ import {
   Trash3,
 } from "react-bootstrap-icons";
 
-import { api, ApiError, type Goal, type Milestone, type MilestoneStatus } from "@/api";
+import {
+  api,
+  ApiError,
+  type Goal,
+  type Milestone,
+  type MilestoneDetail,
+  type MilestoneStatus,
+} from "@/api";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { GoalFormModal } from "@/components/goals/GoalFormModal";
@@ -41,6 +48,17 @@ const STATUS_CYCLE: MilestoneStatus[] = ["todo", "in_progress", "done"];
 interface MilestoneDetailRow {
   label: string | null;
   value: string;
+}
+
+function structuredMilestoneDetails(details: MilestoneDetail[] | null): MilestoneDetailRow[] {
+  if (!details || details.length === 0) return [];
+  return details
+    .map((item) => ({
+      label: item.label?.trim() || null,
+      value: item.value?.trim() || "",
+    }))
+    .filter((item) => item.value)
+    .slice(0, 8);
 }
 
 function parseMilestoneDescription(description: string | null): MilestoneDetailRow[] {
@@ -255,7 +273,11 @@ export function GoalDetailPage() {
             {sortedMilestones.map((milestone, index) => {
               const done = milestone.status === "done";
               const busy = busyMilestoneId === milestone.id;
-              const detailRows = parseMilestoneDescription(milestone.description);
+              const structuredRows = structuredMilestoneDetails(milestone.details);
+              const detailRows =
+                structuredRows.length > 0
+                  ? structuredRows
+                  : parseMilestoneDescription(milestone.description);
               return (
                 <div
                   key={milestone.id}

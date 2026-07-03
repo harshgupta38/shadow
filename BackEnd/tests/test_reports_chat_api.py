@@ -144,6 +144,69 @@ class GoalBreakdownProvider(LLMProvider):
         )
 
 
+class BulletMilestoneBreakdownProvider(LLMProvider):
+    def generate(
+        self,
+        messages: list[LLMMessage],
+        *,
+        system: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+        model: str | None = None,
+    ) -> str:
+        prompt = messages[-1].content if messages else ""
+        if "MILESTONE_OBJECT_ARRAY_EXTRACTOR_V1" in prompt:
+            return (
+                "{"
+                '"milestones":[\n'
+                '{"title":"Lose 2KG by July 11","due_date":"2026-07-11","details":[]},'
+                '{"title":"Lose 2KG by August 11 (Total 4KG lost)","due_date":"2026-08-11","details":[]},'
+                '{"title":"Lose 2KG by September 11 (Total 6KG lost)","due_date":"2026-09-11","details":[]},'
+                '{"title":"Lose 2KG by October 11 (Total 8KG lost)","due_date":"2026-10-11","details":[]},'
+                '{"title":"Lose 2KG by October 31 (Total 10KG lost)","due_date":"2026-10-31","details":[]}'
+                "]}"
+            )
+        if "Return valid JSON only" in prompt:
+            return '{"actions":[]}'
+        if max_tokens == 24:
+            return "Weight Loss Milestones"
+        return (
+            "Here are milestones to help you lose 10KG by October end:\n"
+            "• Milestone 1: By June 30th - Lose 2KG.\n"
+            "• Milestone 2: By July 31st - Lose another 2KG (total 4KG).\n"
+            "• Milestone 3: By August 31st - Lose another 2KG (total 6KG).\n"
+            "• Milestone 4: By September 30th - Lose another 2KG (total 8KG).\n"
+            "• Milestone 5: By October 31st - Achieve your 10KG weight loss goal.\n"
+            "Next action: Weigh yourself and record your current weight to establish a baseline."
+        )
+
+
+class ProposalFailureFallbackProvider(LLMProvider):
+    def generate(
+        self,
+        messages: list[LLMMessage],
+        *,
+        system: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+        model: str | None = None,
+    ) -> str:
+        prompt = messages[-1].content if messages else ""
+        if "Return valid JSON only" in prompt:
+            raise RuntimeError("proposal generation failed")
+        if "MILESTONE_OBJECT_ARRAY_EXTRACTOR_V1" in prompt:
+            return '{"milestones":[]}'
+        if max_tokens == 24:
+            return "SDE Milestones"
+        return (
+            "Here are three milestones to guide your progress toward getting an SDE 1 job at Google:\n"
+            "1. DSA Mastery: Complete 300 LeetCode problems by August 31, 2024.\n"
+            "2. System Design Fundamentals: Master core system design concepts by October 31, 2024.\n"
+            "3. Frontend Deep Dive & Interview Readiness: Build 2 complex Angular projects by December 31, 2024.\n"
+            "Let's focus on the first milestone."
+        )
+
+
 def test_generate_daily_report(client: TestClient, auth_headers: dict) -> None:
     # Log some activity so the report has data.
     metrics = client.get("/api/metrics", headers=auth_headers).json()
@@ -839,6 +902,124 @@ def test_goal_coach_breakdown_returns_goal_linked_milestone_actions(
         assert "Why:" in (milestone_by_title["Solidify DSA Foundations"]["description"] or "")
         assert "Est. Completion:" in (
             milestone_by_title["Solidify DSA Foundations"]["description"] or ""
+        )
+    finally:
+        app.dependency_overrides.pop(get_provider, None)
+
+
+def test_goal_coach_breakdown_saves_bullet_milestone_format(
+    client: TestClient, auth_headers: dict
+) -> None:
+    provider = BulletMilestoneBreakdownProvider()
+    app.dependency_overrides[get_provider] = lambda: provider
+
+    try:
+        goal = client.post(
+            "/api/goals",
+            headers=auth_headers,
+            json={"title": "Lose 10KG weight by October end"},
+        )
+        assert goal.status_code == 201
+        goal_id = goal.json()["id"]
+
+        session = client.post(
+            "/api/chat/sessions",
+            headers=auth_headers,
+            json={"agent_type": "goal_coach", "title": "Goal Coach", "goal_id": goal_id},
+        ).json()
+
+        response = client.post(
+            f"/api/chat/sessions/{session['id']}/messages",
+            headers=auth_headers,
+            json={"content": "Break my goal into milestones"},
+        )
+        assert response.status_code == 200
+
+        actions = response.json()["proposed_actions"]
+        milestone_actions = [item for item in actions if item["type"] == "goals.add_milestone"]
+        assert len(milestone_actions) == 5
+        assert all(item["args"]["goal_id"] == goal_id for item in milestone_actions)
+        assert all(
+            "first step" not in ((item["args"].get("description") or "").lower())
+            for item in milestone_actions
+        )
+
+        for action in milestone_actions:
+            executed = client.post(
+                f"/api/chat/sessions/{session['id']}/actions/execute",
+                headers=auth_headers,
+                json={"confirmed": False, "action": action},
+            )
+            assert executed.status_code == 200
+            assert executed.json()["status"] == "executed"
+
+        milestones = client.get(f"/api/goals/{goal_id}/milestones", headers=auth_headers)
+        assert milestones.status_code == 200
+        milestone_by_title = {item["title"]: item for item in milestones.json()}
+        assert "Lose 2KG by July 11" in milestone_by_title
+        assert "Lose 2KG by August 11 (Total 4KG lost)" in milestone_by_title
+        assert "Lose 2KG by September 11 (Total 6KG lost)" in milestone_by_title
+        assert "Lose 2KG by October 11 (Total 8KG lost)" in milestone_by_title
+        assert "Lose 2KG by October 31 (Total 10KG lost)" in milestone_by_title
+        assert all(
+            "first step" not in ((item["description"] or "").lower())
+            for item in milestone_by_title.values()
+        )
+        assert all(item.get("details") in (None, []) for item in milestone_by_title.values())
+    finally:
+        app.dependency_overrides.pop(get_provider, None)
+
+
+def test_goal_coach_breakdown_still_saves_when_action_proposal_fails(
+    client: TestClient, auth_headers: dict
+) -> None:
+    provider = ProposalFailureFallbackProvider()
+    app.dependency_overrides[get_provider] = lambda: provider
+
+    try:
+        goal = client.post(
+            "/api/goals",
+            headers=auth_headers,
+            json={"title": "Get SDE 1 job at Google"},
+        )
+        assert goal.status_code == 201
+        goal_id = goal.json()["id"]
+
+        session = client.post(
+            "/api/chat/sessions",
+            headers=auth_headers,
+            json={"agent_type": "goal_coach", "title": "Goal Coach", "goal_id": goal_id},
+        ).json()
+
+        response = client.post(
+            f"/api/chat/sessions/{session['id']}/messages",
+            headers=auth_headers,
+            json={"content": "Break my goal into milestones"},
+        )
+        assert response.status_code == 200
+
+        actions = response.json()["proposed_actions"]
+        milestone_actions = [item for item in actions if item["type"] == "goals.add_milestone"]
+        assert len(milestone_actions) == 3
+        assert all(item["args"]["goal_id"] == goal_id for item in milestone_actions)
+
+        for action in milestone_actions:
+            executed = client.post(
+                f"/api/chat/sessions/{session['id']}/actions/execute",
+                headers=auth_headers,
+                json={"confirmed": False, "action": action},
+            )
+            assert executed.status_code == 200
+            assert executed.json()["status"] == "executed"
+
+        milestones = client.get(f"/api/goals/{goal_id}/milestones", headers=auth_headers)
+        assert milestones.status_code == 200
+        milestone_titles = {item["title"] for item in milestones.json()}
+        assert "DSA Mastery: Complete 300 LeetCode problems by August 31, 2024." in milestone_titles
+        assert "System Design Fundamentals: Master core system design concepts by October 31, 2024." in milestone_titles
+        assert (
+            "Frontend Deep Dive & Interview Readiness: Build 2 complex Angular projects by December 31, 2024."
+            in milestone_titles
         )
     finally:
         app.dependency_overrides.pop(get_provider, None)

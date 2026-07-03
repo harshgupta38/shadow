@@ -15,6 +15,7 @@ from app.models.enums import (
     MetricUnit,
 )
 from app.schemas.common import ORMModel
+from app.schemas.milestone import MilestoneDetail
 
 
 class ChatSessionCreate(BaseModel):
@@ -64,6 +65,7 @@ class GoalsAddMilestoneArgs(BaseModel):
     goal_id: int
     title: str = Field(min_length=1, max_length=255)
     description: str | None = None
+    details: list[MilestoneDetail] | None = None
     order: int = 0
     due_date: datetime.datetime | None = None
 

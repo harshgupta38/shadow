@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -21,6 +21,7 @@ class Milestone(Base):
     )
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    details: Mapped[list[dict[str, str]] | None] = mapped_column(JSON, nullable=True)
     status: Mapped[MilestoneStatus] = mapped_column(
         SAEnum(MilestoneStatus), default=MilestoneStatus.todo, nullable=False
     )

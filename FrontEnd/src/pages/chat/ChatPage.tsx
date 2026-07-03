@@ -201,6 +201,14 @@ export function ChatPage() {
     void loadMessages(session.id);
   }
 
+  function findExistingGoalCoachSession(goalId: number): ChatSession | null {
+    const matches = (sessions ?? []).filter(
+      (session) => session.agent_type === "goal_coach" && session.goal_id === goalId,
+    );
+    if (matches.length === 0) return null;
+    return [...matches].sort((a, b) => b.updated_at.localeCompare(a.updated_at))[0];
+  }
+
   async function startChat(agent: AgentType, goalId: number | null = null) {
     setShowPicker(false);
     try {
@@ -304,7 +312,16 @@ export function ChatPage() {
     const goalId = parseGoalCoachGoalId(searchParams);
     if (isAgentType(agent)) {
       autoStartRef.current = true;
-      void startChat(agent, agent === "goal_coach" ? goalId : null);
+      if (agent === "goal_coach" && goalId) {
+        const existing = findExistingGoalCoachSession(goalId);
+        if (existing) {
+          selectSession(existing);
+        } else {
+          void startChat(agent, goalId);
+        }
+      } else {
+        void startChat(agent, null);
+      }
       searchParams.delete("agent");
       searchParams.delete("goalId");
       searchParams.delete("goalTitle");

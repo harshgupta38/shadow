@@ -150,6 +150,81 @@ def generate_chat_reply(
     return provider.generate(history, system=system, model=model).strip()
 
 
+def generate_chat_title(
+    provider: LLMProvider,
+    *,
+    agent_type: AgentType,
+    history: list[LLMMessage],
+    user_context: str = "",
+    model: str | None = None,
+) -> str:
+    """Generate a concise contextual title for a chat session."""
+    system = _with_context(system_prompt(agent_type), user_context)
+    recent_history = history[-6:]
+    prompt = (
+        "Generate a concise conversation title based on this chat.\n"
+        "Rules:\n"
+        "- 2 to 4 words.\n"
+        "- Plain text only.\n"
+        "- Do not include markdown, bullets, or quotation marks.\n"
+        "- Focus on the user's topic or intent, not the assistant name.\n"
+        "- Output only the title."
+    )
+    return provider.generate(
+        [*recent_history, LLMMessage("user", prompt)],
+        system=system,
+        temperature=0.2,
+        max_tokens=24,
+        model=model,
+    ).strip()
+
+
+def propose_chat_actions(
+    provider: LLMProvider,
+    *,
+    agent_type: AgentType,
+    history: list[LLMMessage],
+    user_context: str = "",
+    model: str | None = None,
+) -> str:
+    """Propose structured app actions from the latest chat turn as JSON text."""
+    system = _with_context(system_prompt(agent_type), user_context)
+    recent_history = history[-8:]
+    prompt = (
+        "Inspect this conversation and propose follow-up in-app actions.\n"
+        "Allowed modules: plan, goals, track.\n"
+        "Allowed action types: plan.create_task, goals.create_goal, "
+        "goals.add_milestone, track.create_metric, track.log_metric.\n"
+        "Use conservative confidence: high only when user intent and required arguments are explicit.\n"
+        "Never invent hidden assumptions. If uncertain, set confidence to medium or low.\n"
+        "If no concrete action should be proposed, return an empty actions list.\n"
+        "Destructive actions are not allowed in this version; always set destructive=false.\n"
+        "Return valid JSON only. No markdown and no prose.\n"
+        "Schema:\n"
+        "{\n"
+        '  "actions": [\n'
+        "    {\n"
+        '      "module": "plan|goals|track",\n'
+        '      "type": "plan.create_task|goals.create_goal|goals.add_milestone|track.create_metric|track.log_metric",\n'
+        '      "title": "Short action title",\n'
+        '      "rationale": "Why this helps",\n'
+        '      "confidence": "high|medium|low",\n'
+        '      "requires_confirmation": true,\n'
+        '      "destructive": false,\n'
+        '      "args": { ... }\n'
+        "    }\n"
+        "  ]\n"
+        "}"
+    )
+    return provider.generate(
+        [*recent_history, LLMMessage("user", prompt)],
+        system=system,
+        temperature=0.1,
+        max_tokens=420,
+        model=model,
+    ).strip()
+
+
 def suggest_goal_title(
     provider: LLMProvider,
     *,

@@ -1010,10 +1010,13 @@ a {
 .page-fill-height {
   display: flex;
   flex-direction: column;
+  height: calc(100vh - var(--jv-topbar-h) - 4.5rem);
   min-height: calc(100vh - var(--jv-topbar-h) - 4.5rem);
+  overflow: hidden;
 }
 @media (max-width: 991.98px) {
   .page-fill-height {
+    height: calc(100vh - var(--jv-topbar-h) - 5.1rem);
     min-height: calc(100vh - var(--jv-topbar-h) - 5.1rem);
   }
 }
@@ -1023,7 +1026,13 @@ a {
   grid-template-columns: 300px 1fr;
   gap: 1.15rem;
   flex: 1 1 auto;
+  height: 100%;
   min-height: 0;
+  overflow: hidden;
+}
+.chat-sessions-panel {
+  min-height: 0;
+  overflow: hidden;
 }
 .chat-sessions {
   overflow-y: auto;
@@ -1049,10 +1058,12 @@ a {
 .chat-window {
   display: flex;
   flex-direction: column;
+  min-height: 0;
   overflow: hidden;
 }
 .chat-scroll {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding: 1.5rem;
   display: flex;
@@ -1064,7 +1075,7 @@ a {
   padding: 0.8rem 1rem;
   border-radius: 16px;
   line-height: 1.55;
-  white-space: pre-wrap;
+  white-space: normal;
   word-wrap: break-word;
 }
 .chat-bubble.user {
@@ -1072,12 +1083,140 @@ a {
   background: var(--jv-brand-gradient);
   color: #fff;
   border-bottom-right-radius: 5px;
+  white-space: pre-wrap;
 }
 .chat-bubble.assistant {
   align-self: flex-start;
   background: var(--jv-surface-2);
   border: 1px solid var(--jv-border);
   border-bottom-left-radius: 5px;
+}
+.chat-markdown > :first-child {
+  margin-top: 0;
+}
+.chat-markdown > :last-child {
+  margin-bottom: 0;
+}
+.chat-markdown {
+  line-height: 1.42;
+}
+.chat-markdown h1,
+.chat-markdown h2,
+.chat-markdown h3,
+.chat-markdown h4,
+.chat-markdown h5,
+.chat-markdown h6 {
+  margin: 0.5rem 0 0.2rem;
+  line-height: 1.3;
+}
+.chat-markdown p,
+.chat-markdown ul,
+.chat-markdown ol,
+.chat-markdown blockquote,
+.chat-markdown pre,
+.chat-markdown table,
+.chat-markdown hr {
+  margin: 0.18rem 0;
+}
+.chat-markdown ul,
+.chat-markdown ol {
+  padding-left: 1.05rem;
+  margin-top: 0.12rem;
+  margin-bottom: 0.12rem;
+}
+.chat-markdown li {
+  margin: 0.08rem 0;
+}
+.chat-markdown li > p {
+  margin: 0;
+}
+.chat-markdown input[type="checkbox"] {
+  margin-right: 0.3rem;
+}
+.chat-markdown code {
+  font-family: "Cascadia Code", "Fira Code", monospace;
+  font-size: 0.9em;
+  background: color-mix(in srgb, var(--jv-brand-1) 8%, transparent);
+  border-radius: 6px;
+  padding: 0.1rem 0.3rem;
+}
+.chat-markdown pre {
+  overflow-x: auto;
+  border-radius: 10px;
+  padding: 0.52rem 0.64rem;
+  background: color-mix(in srgb, var(--jv-surface) 65%, #000 35%);
+}
+.chat-markdown pre code {
+  background: transparent;
+  padding: 0;
+}
+.chat-markdown blockquote {
+  border-left: 3px solid color-mix(in srgb, var(--jv-brand-1) 45%, var(--jv-border));
+  padding-left: 0.5rem;
+  color: var(--jv-muted);
+}
+.chat-markdown a {
+  color: color-mix(in srgb, var(--jv-brand-2) 85%, var(--jv-text));
+}
+.chat-markdown table {
+  width: 100%;
+  border-collapse: collapse;
+  display: block;
+  overflow-x: auto;
+}
+.chat-markdown th,
+.chat-markdown td {
+  border: 1px solid var(--jv-border);
+  padding: 0.25rem 0.42rem;
+  text-align: left;
+}
+.chat-markdown hr {
+  border: none;
+  border-top: 1px solid var(--jv-border);
+}
+.chat-action-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-top: 0.85rem;
+}
+.chat-action-card {
+  border: 1px solid color-mix(in srgb, var(--jv-brand-1) 25%, var(--jv-border));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--jv-surface) 92%, var(--jv-brand-1) 8%);
+  padding: 0.65rem 0.75rem;
+}
+.chat-action-module {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.66rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: color-mix(in srgb, var(--jv-brand-2) 78%, var(--jv-text));
+  background: color-mix(in srgb, var(--jv-brand-2) 18%, transparent);
+}
+.chat-action-confidence {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+.chat-action-confidence.high {
+  color: #138a5a;
+}
+.chat-action-confidence.medium {
+  color: #c97a00;
+}
+.chat-action-confidence.low {
+  color: #c03d3d;
+}
+.chat-action-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
 }
 .chat-composer {
   border-top: 1px solid var(--jv-border);

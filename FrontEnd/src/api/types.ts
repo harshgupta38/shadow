@@ -444,9 +444,106 @@ export interface ChatMessage {
   created_at: string;
 }
 
+export type AssistantActionModule = "plan" | "goals" | "track";
+export type AssistantActionConfidence = "high" | "medium" | "low";
+
+export interface PlanCreateTaskActionArgs {
+  title: string;
+  date?: string | null;
+  related_goal_id?: number | null;
+  reminder_time?: string | null;
+  estimated_duration_minutes?: number | null;
+}
+
+export interface GoalsCreateGoalActionArgs {
+  title: string;
+  description?: string | null;
+  category?: string | null;
+  target_date?: string | null;
+}
+
+export interface GoalsAddMilestoneActionArgs {
+  goal_id: number;
+  title: string;
+  description?: string | null;
+  order?: number;
+  due_date?: string | null;
+}
+
+export interface TrackCreateMetricActionArgs {
+  key: string;
+  label: string;
+  unit?: MetricUnit;
+  target?: number | null;
+}
+
+export interface TrackLogMetricActionArgs {
+  key: string;
+  value: number;
+  date?: string | null;
+  note?: string | null;
+}
+
+export interface AssistantProposedActionBase {
+  id: string;
+  module: AssistantActionModule;
+  title: string;
+  rationale: string;
+  confidence: AssistantActionConfidence;
+  requires_confirmation: boolean;
+  destructive: boolean;
+}
+
+export interface PlanCreateTaskAction extends AssistantProposedActionBase {
+  module: "plan";
+  type: "plan.create_task";
+  args: PlanCreateTaskActionArgs;
+}
+
+export interface GoalsCreateGoalAction extends AssistantProposedActionBase {
+  module: "goals";
+  type: "goals.create_goal";
+  args: GoalsCreateGoalActionArgs;
+}
+
+export interface GoalsAddMilestoneAction extends AssistantProposedActionBase {
+  module: "goals";
+  type: "goals.add_milestone";
+  args: GoalsAddMilestoneActionArgs;
+}
+
+export interface TrackCreateMetricAction extends AssistantProposedActionBase {
+  module: "track";
+  type: "track.create_metric";
+  args: TrackCreateMetricActionArgs;
+}
+
+export interface TrackLogMetricAction extends AssistantProposedActionBase {
+  module: "track";
+  type: "track.log_metric";
+  args: TrackLogMetricActionArgs;
+}
+
+export type AssistantProposedAction =
+  | PlanCreateTaskAction
+  | GoalsCreateGoalAction
+  | GoalsAddMilestoneAction
+  | TrackCreateMetricAction
+  | TrackLogMetricAction;
+
+export interface ChatActionExecuteResponse {
+  status: "executed" | "rejected" | "failed";
+  message: string;
+  action: AssistantProposedAction;
+  link?: string | null;
+  entity_id?: number | null;
+}
+
 export interface ChatSendResponse {
   user_message: ChatMessage;
   assistant_message: ChatMessage;
+  session: ChatSession;
+  proposed_actions: AssistantProposedAction[];
 }
 
 // ── Journal ────────────────────────────────────────────────────────────────

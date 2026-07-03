@@ -1,0 +1,225 @@
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router-dom";
+import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
+
+import { ApiError, api } from "@/api";
+import { ToastProvider } from "@/context/ToastContext";
+
+import { ChatPage } from "./ChatPage";
+
+vi.mock("@/api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/api")>();
+  return {
+    ...actual,
+    api: {
+      ...actual.api,
+      chat: {
+        sessions: vi.fn(),
+        createSession: vi.fn(),
+        messages: vi.fn(),
+        send: vi.fn(),
+        deleteSession: vi.fn(),
+        executeAction: vi.fn(),
+      },
+    },
+  };
+});
+
+const mockedChat = api.chat as unknown as {
+  sessions: Mock;
+  createSession: Mock;
+  messages: Mock;
+  send: Mock;
+  deleteSession: Mock;
+  executeAction: Mock;
+};
+
+const sessionFixture = {
+  id: 1,
+  agent_type: "general",
+  title: "Focus Sprint",
+  created_at: "2026-07-03T10:00:00Z",
+  updated_at: "2026-07-03T10:00:00Z",
+} as const;
+
+function renderPage() {
+  return render(
+    <MemoryRouter initialEntries={["/assistant"]}>
+      <ToastProvider>
+        <ChatPage />
+      </ToastProvider>
+    </MemoryRouter>,
+  );
+}
+
+describe("ChatPage", () => {
+  beforeEach(() => {
+    mockedChat.sessions.mockReset();
+    mockedChat.createSession.mockReset();
+    mockedChat.messages.mockReset();
+    mockedChat.send.mockReset();
+    mockedChat.deleteSession.mockReset();
+    mockedChat.executeAction.mockReset();
+
+    mockedChat.sessions.mockResolvedValue([sessionFixture]);
+    mockedChat.messages.mockResolvedValue([]);
+    mockedChat.deleteSession.mockResolvedValue(undefined);
+    mockedChat.executeAction.mockResolvedValue({
+      status: "executed",
+      message: "Action completed",
+      action: null,
+      link: "/plan",
+      entity_id: 1,
+    });
+
+    HTMLElement.prototype.scrollTo = vi.fn();
+  });
+
+  it("deletes the selected conversation after confirmation", async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    const title = await screen.findByText("Focus Sprint");
+    await user.click(title.closest("button") as HTMLButtonElement);
+
+    await user.click(screen.getByLabelText("Delete conversation"));
+    await user.click(screen.getByRole("button", { name: "Delete" }));
+
+    await waitFor(() => expect(mockedChat.deleteSession).toHaveBeenCalledWith(1));
+    expect(await screen.findByText("Conversation deleted.")).toBeInTheDocument();
+    expect(screen.queryByText("Focus Sprint")).not.toBeInTheDocument();
+  });
+
+  it("rolls back deletion in the list when API delete fails", async () => {
+    mockedChat.deleteSession.mockRejectedValue(new ApiError({ message: "Delete failed" }));
+    const user = userEvent.setup();
+    renderPage();
+
+    const title = await screen.findByText("Focus Sprint");
+    await user.click(title.closest("button") as HTMLButtonElement);
+
+    await user.click(screen.getByLabelText("Delete conversation"));
+    await user.click(screen.getByRole("button", { name: "Delete" }));
+
+    expect(await screen.findByText("Delete failed")).toBeInTheDocument();
+    await waitFor(() => expect(mockedChat.sessions).toHaveBeenCalledTimes(2));
+    expect(await screen.findByText("Focus Sprint")).toBeInTheDocument();
+  });
+
+  it("auto-runs high-confidence assistant proposals", async () => {
+    const proposal = {
+      id: "act-1",
+      module: "plan",
+      type: "plan.create_task",
+      title: "Create focus block",
+      rationale: "User asked to add a task.",
+      confidence: "high",
+      requires_confirmation: false,
+      destructive: false,
+      args: { title: "Focus block" },
+    } as const;
+    mockedChat.send.mockResolvedValue({
+      user_message: {
+        id: 101,
+        session_id: 1,
+        role: "user",
+        content: "Add a focus block",
+        agent_type: "general",
+        created_at: "2026-07-03T10:05:00Z",
+      },
+      assistant_message: {
+        id: 102,
+        session_id: 1,
+        role: "assistant",
+        content: "Sure, I can do that.",
+        agent_type: "general",
+        created_at: "2026-07-03T10:05:02Z",
+      },
+      session: {
+        ...sessionFixture,
+        updated_at: "2026-07-03T10:05:02Z",
+      },
+      proposed_actions: [proposal],
+    });
+    mockedChat.executeAction.mockResolvedValue({
+      status: "executed",
+      message: "Task created",
+      action: proposal,
+      link: "/plan",
+      entity_id: 42,
+    });
+
+    const user = userEvent.setup();
+    renderPage();
+
+    const title = await screen.findByText("Focus Sprint");
+    await user.click(title.closest("button") as HTMLButtonElement);
+
+    await user.type(screen.getByPlaceholderText("Message Shadow…"), "Add a focus block");
+    await user.click(screen.getByLabelText("Send message"));
+
+    await waitFor(() => expect(mockedChat.executeAction).toHaveBeenCalledWith(1, proposal, false));
+    expect(await screen.findByText("Task created")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open module" })).toHaveAttribute("href", "/plan");
+  });
+
+  it("asks confirmation for uncertain proposals before execution", async () => {
+    const proposal = {
+      id: "act-2",
+      module: "goals",
+      type: "goals.create_goal",
+      title: "Create learning goal",
+      rationale: "This may need your confirmation.",
+      confidence: "medium",
+      requires_confirmation: true,
+      destructive: false,
+      args: { title: "Learn system design" },
+    } as const;
+    mockedChat.send.mockResolvedValue({
+      user_message: {
+        id: 201,
+        session_id: 1,
+        role: "user",
+        content: "Maybe add a learning goal",
+        agent_type: "general",
+        created_at: "2026-07-03T10:06:00Z",
+      },
+      assistant_message: {
+        id: 202,
+        session_id: 1,
+        role: "assistant",
+        content: "I can propose that.",
+        agent_type: "general",
+        created_at: "2026-07-03T10:06:03Z",
+      },
+      session: {
+        ...sessionFixture,
+        updated_at: "2026-07-03T10:06:03Z",
+      },
+      proposed_actions: [proposal],
+    });
+    mockedChat.executeAction.mockResolvedValue({
+      status: "executed",
+      message: "Goal created",
+      action: proposal,
+      link: "/goals/9",
+      entity_id: 9,
+    });
+
+    const user = userEvent.setup();
+    renderPage();
+
+    const title = await screen.findByText("Focus Sprint");
+    await user.click(title.closest("button") as HTMLButtonElement);
+
+    await user.type(screen.getByPlaceholderText("Message Shadow…"), "Maybe add a learning goal");
+    await user.click(screen.getByLabelText("Send message"));
+
+    await user.click(await screen.findByRole("button", { name: "Confirm and run" }));
+    await user.click(screen.getByRole("button", { name: "Run action" }));
+
+    await waitFor(() => expect(mockedChat.executeAction).toHaveBeenCalledWith(1, proposal, true));
+    expect(await screen.findByText("Goal created")).toBeInTheDocument();
+  });
+});

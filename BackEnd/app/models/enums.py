@@ -87,6 +87,18 @@ class ChatRole(str, enum.Enum):
     system = "system"
 
 
+class AssistantActionModule(str, enum.Enum):
+    plan = "plan"
+    goals = "goals"
+    track = "track"
+
+
+class AssistantActionConfidence(str, enum.Enum):
+    high = "high"
+    medium = "medium"
+    low = "low"
+
+
 class NotificationType(str, enum.Enum):
     reminder = "reminder"
     system = "system"

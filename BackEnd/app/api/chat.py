@@ -6,6 +6,8 @@ from fastapi import APIRouter, status
 
 from app.api.deps import CurrentUser, DbSession, Provider
 from app.schemas.chat import (
+    ChatActionExecuteRequest,
+    ChatActionExecuteResponse,
     ChatMessageCreate,
     ChatMessageRead,
     ChatSendResponse,
@@ -29,6 +31,11 @@ def create_session(
     return chat_service.create_session(db, current_user, data)
 
 
+@router.delete("/sessions/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_session(session_id: int, db: DbSession, current_user: CurrentUser) -> None:
+    chat_service.delete_session(db, current_user, session_id)
+
+
 @router.get("/sessions/{session_id}/messages", response_model=list[ChatMessageRead])
 def list_messages(
     session_id: int, db: DbSession, current_user: CurrentUser
@@ -44,10 +51,31 @@ def send_message(
     current_user: CurrentUser,
     provider: Provider,
 ) -> ChatSendResponse:
-    user_message, assistant_message = chat_service.send_message(
+    user_message, assistant_message, session, proposed_actions = chat_service.send_message(
         db, current_user, session_id, data.content, provider
     )
     return ChatSendResponse(
         user_message=ChatMessageRead.model_validate(user_message),
         assistant_message=ChatMessageRead.model_validate(assistant_message),
+        session=ChatSessionRead.model_validate(session),
+        proposed_actions=proposed_actions,
+    )
+
+
+@router.post(
+    "/sessions/{session_id}/actions/execute",
+    response_model=ChatActionExecuteResponse,
+)
+def execute_action(
+    session_id: int,
+    data: ChatActionExecuteRequest,
+    db: DbSession,
+    current_user: CurrentUser,
+) -> ChatActionExecuteResponse:
+    return chat_service.execute_action(
+        db,
+        current_user,
+        session_id,
+        data.action,
+        confirmed=data.confirmed,
     )

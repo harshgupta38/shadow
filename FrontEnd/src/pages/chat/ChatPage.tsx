@@ -99,7 +99,19 @@ export function ChatPage() {
   const autoStartRef = useRef(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const composerInputRef = useRef<HTMLTextAreaElement>(null);
   const selectedSession = sessions?.find((s) => s.id === selectedId) ?? null;
+
+  function prefillComposer(text: string) {
+    setInput(text);
+    requestAnimationFrame(() => {
+      const composer = composerInputRef.current;
+      if (!composer) return;
+      composer.focus();
+      const end = text.length;
+      composer.setSelectionRange(end, end);
+    });
+  }
 
   function updateActionState(
     assistantMessageId: number,
@@ -467,7 +479,7 @@ export function ChatPage() {
                             key={s}
                             type="button"
                             className="surface-2 p-2 px-3 border-0 text-start small fw-medium clickable"
-                            onClick={() => send(s)}
+                            onClick={() => prefillComposer(s)}
                           >
                             {s}
                           </button>
@@ -573,6 +585,7 @@ export function ChatPage() {
                 }}
               >
                 <textarea
+                  ref={composerInputRef}
                   className="form-control"
                   rows={1}
                   placeholder={`Message ${meta?.label}…`}

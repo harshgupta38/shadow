@@ -325,4 +325,63 @@ describe("ChatPage", () => {
     expect(activeItem).not.toBeNull();
     expect(activeItem).toHaveTextContent("Lose 10KG weight by October end");
   });
+
+  it("prefills composer when suggestion is clicked and waits for manual send", async () => {
+    const coachSession = {
+      id: 12,
+      agent_type: "goal_coach",
+      title: "Get SDE Job at Google",
+      goal_id: 27,
+      created_at: "2026-07-03T12:00:00Z",
+      updated_at: "2026-07-03T12:10:00Z",
+    } as const;
+
+    mockedChat.sessions.mockResolvedValue([coachSession]);
+    mockedChat.send.mockResolvedValue({
+      user_message: {
+        id: 401,
+        session_id: coachSession.id,
+        role: "user",
+        content: "Break my goal into milestones with monthly checkpoints",
+        agent_type: "goal_coach",
+        created_at: "2026-07-03T12:11:00Z",
+      },
+      assistant_message: {
+        id: 402,
+        session_id: coachSession.id,
+        role: "assistant",
+        content: "Great, let's split it month by month.",
+        agent_type: "goal_coach",
+        created_at: "2026-07-03T12:11:02Z",
+      },
+      session: {
+        ...coachSession,
+        updated_at: "2026-07-03T12:11:02Z",
+      },
+      proposed_actions: [],
+    });
+
+    const user = userEvent.setup();
+    renderPage();
+
+    const listTitle = await screen.findByText("Get SDE Job at Google");
+    await user.click(listTitle.closest("button") as HTMLButtonElement);
+
+    const suggestion = await screen.findByRole("button", { name: "Break my goal into milestones" });
+    await user.click(suggestion);
+
+    const composer = screen.getByPlaceholderText("Message Goal Coach…") as HTMLTextAreaElement;
+    expect(composer.value).toBe("Break my goal into milestones");
+    expect(mockedChat.send).not.toHaveBeenCalled();
+
+    await user.type(composer, " with monthly checkpoints");
+    await user.click(screen.getByLabelText("Send message"));
+
+    await waitFor(() =>
+      expect(mockedChat.send).toHaveBeenCalledWith(
+        coachSession.id,
+        "Break my goal into milestones with monthly checkpoints",
+      ),
+    );
+  });
 });

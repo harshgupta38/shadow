@@ -453,6 +453,48 @@ a {
   display: inline-block;
 }
 
+/* Goal milestone row controls */
+.milestone-check {
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 2px solid var(--jv-border-strong);
+  background: color-mix(in srgb, var(--jv-surface) 86%, var(--jv-bg) 14%);
+  color: var(--jv-brand-1);
+  margin-top: 0.2rem;
+  transition: border-color var(--jv-transition), background var(--jv-transition),
+    box-shadow var(--jv-transition), transform var(--jv-transition), color var(--jv-transition);
+}
+.milestone-check:hover:not(:disabled) {
+  border-color: var(--jv-brand-1);
+  background: color-mix(in srgb, var(--jv-brand-soft) 45%, var(--jv-surface) 55%);
+}
+.milestone-check:focus-visible {
+  outline: none;
+  box-shadow: var(--jv-ring);
+}
+.milestone-check:disabled {
+  opacity: 0.65;
+}
+.milestone-check.is-done {
+  border-color: transparent;
+  background: var(--jv-brand-gradient);
+  color: #fff;
+}
+
+.milestone-status-pill {
+  white-space: nowrap;
+}
+.milestone-status-toggle {
+  line-height: 1;
+}
+.milestone-status-toggle::after {
+  display: none !important;
+}
+
 /* ----------------------------------------------------------------------------
    9. App shell layout
    -------------------------------------------------------------------------- */

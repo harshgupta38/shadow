@@ -77,6 +77,8 @@ _AUTO_EXECUTABLE_TYPES = {
 }
 _GOAL_CONTEXT_MARKER = "[goal_context]"
 _MILESTONE_EXTRACTION_MARKER = "MILESTONE_OBJECT_ARRAY_EXTRACTOR_V1"
+_MAX_GOAL_BREAKDOWN_MILESTONES = 18
+_MILESTONE_BULLET_PATTERN = r"(?:[-*•●◦▪▫◉○◌‣⁃∙·]|[oO])"
 
 _AGENT_DEFAULT_TITLES: dict[AgentType, str] = {
     AgentType.general: "Shadow",
@@ -231,6 +233,25 @@ def _is_goal_breakdown_request(text: str) -> bool:
     return False
 
 
+def _looks_like_milestone_breakdown_reply(reply: str) -> bool:
+    if not reply.strip():
+        return False
+
+    lowered = reply.lower()
+    if re.search(r"\bmilestone\s*[0-9]+\b", lowered):
+        return True
+
+    heading_count = 0
+    for raw_line in reply.splitlines():
+        if _match_milestone_heading(raw_line) is None:
+            continue
+        heading_count += 1
+        if heading_count >= 2:
+            return True
+
+    return False
+
+
 def _goal_title_matches_text(goal_title: str, text: str) -> bool:
     lowered_text = text.lower()
     lowered_goal = goal_title.lower()
@@ -353,7 +374,7 @@ def _with_goal_focus_context(user_context: str, goal: Goal | None) -> str:
 
 def _clean_milestone_title(raw_title: str) -> str:
     title = raw_title.strip()
-    title = re.sub(r"^[-*•\s]+", "", title)
+    title = re.sub(rf"^(?:{_MILESTONE_BULLET_PATTERN}|\s)+", "", title)
     title = re.sub(r"^[0-9]+[\.)\-\s]+", "", title)
     title = re.sub(r"^milestone\s*[0-9]+\s*[:\-\)]\s*", "", title, flags=re.IGNORECASE)
     title = title.replace("**", "")
@@ -362,6 +383,19 @@ def _clean_milestone_title(raw_title: str) -> str:
     if not title:
         return ""
     return title[:255]
+
+
+def _milestone_action_title(milestone_title: str) -> str:
+    prefix = "Add milestone: "
+    max_title_len = 120
+    budget = max_title_len - len(prefix)
+    if budget <= 0:
+        return "Add milestone"
+
+    title = milestone_title.strip()[:budget].rstrip()
+    if not title:
+        return "Add milestone"
+    return f"{prefix}{title}"
 
 
 def _normalise_milestone_description(raw_description: str | None) -> str | None:
@@ -374,7 +408,7 @@ def _normalise_milestone_description(raw_description: str | None) -> str | None:
         line = raw_line.strip()
         if not line:
             continue
-        line = re.sub(r"^(?:[-*•]|o)\s+", "", line, flags=re.IGNORECASE)
+        line = re.sub(rf"^{_MILESTONE_BULLET_PATTERN}\s+", "", line, flags=re.IGNORECASE)
         line = line.replace("**", "")
         line = line.strip("`*_ ")
         line = " ".join(line.split())
@@ -445,6 +479,26 @@ def _details_to_description(details: list[MilestoneDetail] | None) -> str | None
     return _normalise_milestone_description("\n".join(f"{item.label}: {item.value}" for item in details))
 
 
+def _merge_milestone_descriptions(*parts: str | None) -> str | None:
+    merged_lines: list[str] = []
+    seen: set[str] = set()
+
+    for part in parts:
+        normalized = _normalise_milestone_description(part)
+        if not normalized:
+            continue
+        for line in normalized.splitlines():
+            key = line.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            merged_lines.append(line)
+
+    if not merged_lines:
+        return None
+    return "\n".join(merged_lines)[:2000]
+
+
 def _date_to_due_datetime(value: datetime.date | None) -> datetime.datetime | None:
     if value is None:
         return None
@@ -495,7 +549,7 @@ def _extract_milestones_with_ai(
 
         details = _normalise_milestone_details(item.details)
         extracted.append((title, _date_to_due_datetime(item.due_date), details))
-        if len(extracted) >= 8:
+        if len(extracted) >= _MAX_GOAL_BREAKDOWN_MILESTONES:
             break
 
     return extracted
@@ -509,11 +563,20 @@ def _clean_milestone_detail_line(raw_line: str) -> str | None:
         return None
 
     # Bullet-like detail formats from model responses.
-    bullet_match = re.match(r"^(?:[-*•]|o)\s+(.+)$", line, flags=re.IGNORECASE)
+    bullet_match = re.match(rf"^{_MILESTONE_BULLET_PATTERN}\s+(.+)$", line, flags=re.IGNORECASE)
     if bullet_match is not None:
         line = bullet_match.group(1).strip()
-    elif not re.match(r"^[A-Za-z][A-Za-z0-9 /().&%-]{1,40}:\s+.+$", line):
-        return None
+    else:
+        numbered_subitem = re.match(r"^(?:[A-Za-z][\.)]|[0-9]+[\.)])\s+(.+)$", line)
+        if numbered_subitem is not None:
+            line = numbered_subitem.group(1).strip()
+        else:
+            has_indent = len(raw_line) > len(raw_line.lstrip())
+            looks_like_key_value = (
+                re.match(r"^[A-Za-z][A-Za-z0-9 /().&%-]{1,40}:\s+.+$", line) is not None
+            )
+            if not has_indent and not looks_like_key_value:
+                return None
 
     line = line.replace("**", "")
     line = line.strip("`*_ ")
@@ -525,12 +588,15 @@ def _clean_milestone_detail_line(raw_line: str) -> str | None:
 
 def _match_milestone_heading(raw_line: str) -> str | None:
     line = raw_line.rstrip()
+    # Markdown heading variants such as "### Milestone 1: ...".
+    line = re.sub(r"^\s{0,3}#{1,6}\s*", "", line)
+
     numbered_heading = re.match(r"^\s*[0-9]+\.\s+(.+)$", line)
     if numbered_heading is not None:
         return numbered_heading.group(1)
 
     bullet_milestone_heading = re.match(
-        r"^\s*(?:[-*•]|o)\s*\**\s*milestone\s*[0-9]+\s*[:\-\)]\s*(.+)$",
+        rf"^\s*{_MILESTONE_BULLET_PATTERN}\s*\**\s*milestone\s*[0-9]+\s*[:\-\)]\s*(.+)$",
         line,
         flags=re.IGNORECASE,
     )
@@ -590,7 +656,7 @@ def _extract_milestones_from_reply(reply: str) -> list[tuple[str, str | None]]:
             continue
         seen_titles.add(key)
         deduped.append((title, description))
-        if len(deduped) >= 6:
+        if len(deduped) >= _MAX_GOAL_BREAKDOWN_MILESTONES:
             break
     return deduped
 
@@ -617,7 +683,12 @@ def _ensure_goal_breakdown_milestone_actions(
     provider: LLMProvider,
     model: str | None,
 ) -> list[AssistantProposedAction]:
-    if focus_goal is None or not _is_goal_breakdown_request(user_content):
+    if focus_goal is None:
+        return actions
+
+    wants_breakdown = _is_goal_breakdown_request(user_content)
+    reply_looks_like_breakdown = _looks_like_milestone_breakdown_reply(assistant_reply)
+    if not wants_breakdown and not reply_looks_like_breakdown:
         return actions
 
     structured_milestones = _extract_milestones_with_ai(
@@ -668,12 +739,16 @@ def _ensure_goal_breakdown_milestone_actions(
             action.args.details = structured_data["details"]
 
         detail_from_reply = extracted_description_by_title.get(title_key)
-        if action.args.description is None and detail_from_reply is not None:
-            action.args.description = detail_from_reply
         if action.args.details is None:
-            action.args.details = _description_to_details(action.args.description)
-        if action.args.description is None:
-            action.args.description = _details_to_description(action.args.details)
+            action.args.details = _description_to_details(
+                _merge_milestone_descriptions(action.args.description, detail_from_reply)
+            )
+
+        action.args.description = _merge_milestone_descriptions(
+            action.args.description,
+            detail_from_reply,
+            _details_to_description(action.args.details),
+        )
 
         if action.args.order <= 0:
             action.args.order = next_order
@@ -682,7 +757,7 @@ def _ensure_goal_breakdown_milestone_actions(
         action.requires_confirmation = False
         action.destructive = False
         if not action.title.strip():
-            action.title = f"Add milestone: {cleaned_title}"
+            action.title = _milestone_action_title(cleaned_title)
 
         seen_titles.add(title_key)
         milestone_action_count += 1
@@ -697,12 +772,19 @@ def _ensure_goal_breakdown_milestone_actions(
             if title_key in seen_titles:
                 continue
 
+            detail_from_reply = extracted_description_by_title.get(title_key)
+            merged_details = details or _description_to_details(detail_from_reply)
+            merged_description = _merge_milestone_descriptions(
+                detail_from_reply,
+                _details_to_description(merged_details),
+            )
+
             normalized_actions.append(
                 GoalsAddMilestoneAction(
                     id=f"act_{uuid4().hex[:10]}",
                     module=AssistantActionModule.goals,
                     type="goals.add_milestone",
-                    title=f"Add milestone: {title}",
+                    title=_milestone_action_title(title),
                     confidence=AssistantActionConfidence.high,
                     requires_confirmation=False,
                     destructive=False,
@@ -710,8 +792,8 @@ def _ensure_goal_breakdown_milestone_actions(
                         goal_id=focus_goal.id,
                         title=title,
                         due_date=due_date,
-                        details=details,
-                        description=_details_to_description(details),
+                        details=merged_details,
+                        description=merged_description,
                         order=next_order,
                     ),
                 )
@@ -734,7 +816,7 @@ def _ensure_goal_breakdown_milestone_actions(
                 id=f"act_{uuid4().hex[:10]}",
                 module=AssistantActionModule.goals,
                 type="goals.add_milestone",
-                title=f"Add milestone: {title}",
+                title=_milestone_action_title(title),
                 confidence=AssistantActionConfidence.high,
                 requires_confirmation=False,
                 destructive=False,

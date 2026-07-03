@@ -408,7 +408,7 @@ export function SettingsPage() {
                           <Icon size={17} />
                         </span>
                         <span className="fw-semibold">{option.label}</span>
-                        {active && <span className="ms-auto pill pill-brand">Active</span>}
+                        {/* {active && <span className="ms-auto pill pill-brand">Active</span>} */}
                       </button>
                     </div>
                   );

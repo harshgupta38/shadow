@@ -68,7 +68,7 @@ function parseMilestoneDescription(description: string | null): MilestoneDetailR
     .split(/\r?\n/g)
     .map((line) => line.trim())
     .filter(Boolean)
-    .map((line) => line.replace(/^(?:[-*•]|o)\s+/i, "").replace(/\*\*/g, "").trim())
+    .map((line) => line.replace(/^(?:[-*•●◦▪▫◉○◌‣⁃∙·]|[oO])\s+/i, "").replace(/\*\*/g, "").trim())
     .filter(Boolean)
     .slice(0, 6);
 
@@ -145,6 +145,25 @@ export function GoalDetailPage() {
       applyMilestones(goal.milestones.filter((m) => m.id !== milestone.id));
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Couldn't delete milestone.");
+    } finally {
+      setBusyMilestoneId(null);
+    }
+  }
+
+  async function editMilestone(milestone: Milestone) {
+    if (!goal) return;
+    const nextTitle = window.prompt("Edit milestone title", milestone.title);
+    if (nextTitle === null) return;
+
+    const trimmed = nextTitle.trim();
+    if (!trimmed || trimmed === milestone.title) return;
+
+    setBusyMilestoneId(milestone.id);
+    try {
+      const updated = await api.goals.updateMilestone(milestone.id, { title: trimmed });
+      applyMilestones(goal.milestones.map((m) => (m.id === milestone.id ? updated : m)));
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Couldn't update milestone.");
     } finally {
       setBusyMilestoneId(null);
     }
@@ -281,33 +300,23 @@ export function GoalDetailPage() {
               return (
                 <div
                   key={milestone.id}
-                  className={`d-flex align-items-center gap-3 py-2 ${
+                  className={`d-flex align-items-start gap-3 py-2 ${
                     index > 0 ? "border-top" : ""
                   }`}
                   style={{ borderColor: "var(--jv-border)" }}
                 >
                   <button
                     type="button"
-                    className="btn p-0 border-0 flex-shrink-0"
+                    className={`milestone-check flex-shrink-0 ${done ? "is-done" : ""}`}
                     disabled={busy}
                     onClick={() => setMilestoneStatus(milestone, done ? "todo" : "done")}
                     aria-label={done ? "Mark as not done" : "Mark as done"}
-                    style={{
-                      width: 24,
-                      height: 24,
-                      borderRadius: "50%",
-                      display: "grid",
-                      placeItems: "center",
-                      background: done ? "var(--jv-brand-gradient)" : "transparent",
-                      border: done ? "none" : "2px solid var(--jv-border-strong)",
-                      color: "#fff",
-                    }}
                   >
                     {done && <CheckLg size={14} />}
                   </button>
 
                   <div className="flex-grow-1 min-w-0">
-                    <div className={`fw-medium ${done ? "text-decoration-line-through text-muted-2" : ""}`}>
+                    <div className={`fw-medium ${done ? "text-muted-2" : ""}`}>
                       {milestone.title}
                     </div>
                     {detailRows.length > 0 && (
@@ -333,18 +342,18 @@ export function GoalDetailPage() {
                     )}
                   </div>
 
-                  <Pill variant={MILESTONE_STATUS_PILL[milestone.status]} className="d-none d-sm-inline-flex">
-                    {MILESTONE_STATUS_LABEL[milestone.status]}
-                  </Pill>
-
-                  <Dropdown align="end">
+                  <Dropdown align="end" className="flex-shrink-0">
                     <Dropdown.Toggle
                       as="button"
-                      className="btn btn-ghost btn-icon border-0"
-                      style={{ width: 34, height: 34 }}
+                      className="btn p-0 border-0 bg-transparent shadow-none milestone-status-toggle"
                       disabled={busy}
                     >
-                      <ThreeDotsVertical size={16} />
+                      <Pill
+                        variant={MILESTONE_STATUS_PILL[milestone.status]}
+                        className="milestone-status-pill"
+                      >
+                        {MILESTONE_STATUS_LABEL[milestone.status]}
+                      </Pill>
                     </Dropdown.Toggle>
                     <Dropdown.Menu>
                       {STATUS_CYCLE.map((s) => (
@@ -356,6 +365,22 @@ export function GoalDetailPage() {
                           {MILESTONE_STATUS_LABEL[s]}
                         </Dropdown.Item>
                       ))}
+                    </Dropdown.Menu>
+                  </Dropdown>
+
+                  <Dropdown align="end">
+                    <Dropdown.Toggle
+                      as="button"
+                      className="btn btn-ghost btn-icon border-0"
+                      style={{ width: 34, height: 34 }}
+                      disabled={busy}
+                    >
+                      <ThreeDotsVertical size={16} />
+                    </Dropdown.Toggle>
+                    <Dropdown.Menu>
+                      <Dropdown.Item onClick={() => editMilestone(milestone)}>
+                        <PencilSquare size={14} className="me-2" /> Edit
+                      </Dropdown.Item>
                       <Dropdown.Divider />
                       <Dropdown.Item className="text-danger" onClick={() => removeMilestone(milestone)}>
                         <Trash3 size={14} className="me-2" /> Delete

@@ -207,6 +207,154 @@ class ProposalFailureFallbackProvider(LLMProvider):
         )
 
 
+class LongTitleMilestoneProvider(LLMProvider):
+    def generate(
+        self,
+        messages: list[LLMMessage],
+        *,
+        system: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+        model: str | None = None,
+    ) -> str:
+        prompt = messages[-1].content if messages else ""
+        if "Return valid JSON only" in prompt:
+            return '{"actions":[]}'
+        if "MILESTONE_OBJECT_ARRAY_EXTRACTOR_V1" in prompt:
+            # Force fallback regex extraction to validate action-title truncation path.
+            return '{"milestones":[]}'
+        if max_tokens == 24:
+            return "Google Milestones"
+        return (
+            "Here are three milestones to guide your progress:\n"
+            "1. Master DSA Fundamentals and complete essential modules of your Coding Ninja track while solving a very large batch of easy and medium LeetCode problems with daily review discipline.\n"
+            "2. Build advanced problem-solving speed by practicing hard algorithm sets, writing post-mortems, and refining pattern recognition across arrays, trees, graphs, and dynamic programming.\n"
+            "3. Complete full interview readiness with mocks, behavioral story preparation, and focused application execution."
+        )
+
+
+class TenMilestoneFallbackProvider(LLMProvider):
+    def generate(
+        self,
+        messages: list[LLMMessage],
+        *,
+        system: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+        model: str | None = None,
+    ) -> str:
+        prompt = messages[-1].content if messages else ""
+        if "Return valid JSON only" in prompt:
+            return '{"actions":[]}'
+        if "MILESTONE_OBJECT_ARRAY_EXTRACTOR_V1" in prompt:
+            # Ensure fallback parser path is used.
+            return '{"milestones":[]}'
+        if max_tokens == 24:
+            return "Google Milestones"
+        return (
+            "Here are 10 milestones:\n"
+            "1. Strengthen DS fundamentals and complete baseline practice sets.\n"
+            "2. Build medium-problem consistency with timed daily drills.\n"
+            "3. Increase hard-problem exposure and error analysis depth.\n"
+            "4. Study system design basics for interview-ready clarity.\n"
+            "5. Practice frontend architecture and tradeoff communication.\n"
+            "6. Build two portfolio projects with measurable outcomes.\n"
+            "7. Refine resume, impact bullets, and role-targeted stories.\n"
+            "8. Expand networking and referral conversations each week.\n"
+            "9. Run mock interviews and apply structured feedback loops.\n"
+            "10. Execute applications and final-round interview readiness."
+        )
+
+
+class MilestoneSubListProvider(LLMProvider):
+    def generate(
+        self,
+        messages: list[LLMMessage],
+        *,
+        system: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+        model: str | None = None,
+    ) -> str:
+        prompt = messages[-1].content if messages else ""
+        if "Return valid JSON only" in prompt:
+            return '{"actions":[]}'
+        if "MILESTONE_OBJECT_ARRAY_EXTRACTOR_V1" in prompt:
+            # Simulate structured extraction that keeps only key-value detail fields.
+            return (
+                "{"
+                '"milestones":[\n'
+                '{"title":"DSA Foundation & Course Completion","due_date":null,'
+                '"details":[{"label":"Target","value":"Mid-2025"}]},'
+                '{"title":"Advanced DSA & Problem Solving Mastery","due_date":null,'
+                '"details":[{"label":"Target","value":"Early-2026"}]},'
+                '{"title":"System Design & Behavioral Readiness","due_date":null,'
+                '"details":[{"label":"Target","value":"Mid-2026"}]},'
+                '{"title":"Application & Interview Polish","due_date":null,'
+                '"details":[{"label":"Target","value":"Late-2026"}]}'
+                "]}"
+            )
+        if max_tokens == 24:
+            return "Google Milestones"
+        return (
+            "Here are the milestones to guide you towards getting an SDE 1 job at Google, Harsh:\n"
+            "1. DSA Foundation & Course Completion:\n"
+            "◦ Complete 80% of your Coding Ninja course.\n"
+            "◦ Solve 200 LeetCode problems (focus on Easy & Medium).\n"
+            "◦ Target: Mid-2025\n"
+            "2. Advanced DSA & Problem Solving Mastery:\n"
+            "◦ Solve an additional 300 LeetCode problems (focus on Medium & Hard).\n"
+            "◦ Consistently solve 10 LeetCode problems daily for 3 consecutive months.\n"
+            "◦ Participate in at least 5 LeetCode contests.\n"
+            "◦ Target: Early-2026\n"
+            "3. System Design & Behavioral Readiness:\n"
+            "◦ Complete a dedicated System Design course or comprehensive study.\n"
+            "◦ Practice 10 common System Design problems.\n"
+            "◦ Prepare and document answers for 20 common behavioral interview questions.\n"
+            "◦ Target: Mid-2026\n"
+            "4. Application & Interview Polish:\n"
+            "◦ Refine your resume to highlight relevant skills and projects.\n"
+            "◦ Complete 5 mock interviews (2 DSA, 2 System Design, 1 Behavioral).\n"
+            "◦ Apply to Google.\n"
+            "◦ Target: Late-2026"
+        )
+
+
+class ImplicitMilestoneBreakdownProvider(LLMProvider):
+    def generate(
+        self,
+        messages: list[LLMMessage],
+        *,
+        system: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+        model: str | None = None,
+    ) -> str:
+        prompt = messages[-1].content if messages else ""
+        if "Return valid JSON only" in prompt:
+            return '{"actions":[]}'
+        if "MILESTONE_OBJECT_ARRAY_EXTRACTOR_V1" in prompt:
+            # Force fallback parser path and milestone-heading detection on assistant reply.
+            return '{"milestones":[]}'
+        if max_tokens == 24:
+            return "META Roadmap"
+        return (
+            "Here's a breakdown for your 'get job at META' goal:\n"
+            "Milestone 1: Master Core DSA & Problem Solving\n"
+            "• Target: Consistently solve 10 LeetCode problems daily and complete DSA fundamentals.\n"
+            "• Why: This builds the base needed for technical interviews.\n"
+            "• Due Date: August 31, 2024\n"
+            "Milestone 2: Deep Dive into System Design & Front-End Architecture\n"
+            "• Target: Complete System Design prep and build a scalable front-end project.\n"
+            "• Why: This proves architecture depth for SDE-1 interviews.\n"
+            "• Due Date: December 31, 2024\n"
+            "Milestone 3: Interview Readiness & Application\n"
+            "• Target: Complete mocks and apply broadly.\n"
+            "• Why: Converts preparation into interview outcomes.\n"
+            "• Due Date: March 31, 2025"
+        )
+
+
 def test_generate_daily_report(client: TestClient, auth_headers: dict) -> None:
     # Log some activity so the report has data.
     metrics = client.get("/api/metrics", headers=auth_headers).json()
@@ -1021,5 +1169,217 @@ def test_goal_coach_breakdown_still_saves_when_action_proposal_fails(
             "Frontend Deep Dive & Interview Readiness: Build 2 complex Angular projects by December 31, 2024."
             in milestone_titles
         )
+    finally:
+        app.dependency_overrides.pop(get_provider, None)
+
+
+def test_goal_coach_breakdown_handles_long_titles_without_dropping_actions(
+    client: TestClient, auth_headers: dict
+) -> None:
+    provider = LongTitleMilestoneProvider()
+    app.dependency_overrides[get_provider] = lambda: provider
+
+    try:
+        goal = client.post(
+            "/api/goals",
+            headers=auth_headers,
+            json={"title": "Get SDE 1 job at Google"},
+        )
+        assert goal.status_code == 201
+        goal_id = goal.json()["id"]
+
+        session = client.post(
+            "/api/chat/sessions",
+            headers=auth_headers,
+            json={"agent_type": "goal_coach", "title": "Goal Coach", "goal_id": goal_id},
+        ).json()
+
+        response = client.post(
+            f"/api/chat/sessions/{session['id']}/messages",
+            headers=auth_headers,
+            json={"content": "Break my goal into milestones"},
+        )
+        assert response.status_code == 200
+
+        actions = response.json()["proposed_actions"]
+        milestone_actions = [item for item in actions if item["type"] == "goals.add_milestone"]
+        assert len(milestone_actions) == 3
+        assert all(item["args"]["goal_id"] == goal_id for item in milestone_actions)
+        assert all(len(item["title"]) <= 120 for item in milestone_actions)
+
+        for action in milestone_actions:
+            executed = client.post(
+                f"/api/chat/sessions/{session['id']}/actions/execute",
+                headers=auth_headers,
+                json={"confirmed": False, "action": action},
+            )
+            assert executed.status_code == 200
+            assert executed.json()["status"] == "executed"
+
+        milestones = client.get(f"/api/goals/{goal_id}/milestones", headers=auth_headers)
+        assert milestones.status_code == 200
+        assert len(milestones.json()) == 3
+    finally:
+        app.dependency_overrides.pop(get_provider, None)
+
+
+def test_goal_coach_breakdown_saves_ten_fallback_milestones(
+    client: TestClient, auth_headers: dict
+) -> None:
+    provider = TenMilestoneFallbackProvider()
+    app.dependency_overrides[get_provider] = lambda: provider
+
+    try:
+        goal = client.post(
+            "/api/goals",
+            headers=auth_headers,
+            json={"title": "Get SDE 1 job at Google"},
+        )
+        assert goal.status_code == 201
+        goal_id = goal.json()["id"]
+
+        session = client.post(
+            "/api/chat/sessions",
+            headers=auth_headers,
+            json={"agent_type": "goal_coach", "title": "Goal Coach", "goal_id": goal_id},
+        ).json()
+
+        response = client.post(
+            f"/api/chat/sessions/{session['id']}/messages",
+            headers=auth_headers,
+            json={"content": "Break my goal into 10 milestones"},
+        )
+        assert response.status_code == 200
+
+        actions = response.json()["proposed_actions"]
+        milestone_actions = [item for item in actions if item["type"] == "goals.add_milestone"]
+        assert len(milestone_actions) == 10
+        assert all(item["args"]["goal_id"] == goal_id for item in milestone_actions)
+
+        for action in milestone_actions:
+            executed = client.post(
+                f"/api/chat/sessions/{session['id']}/actions/execute",
+                headers=auth_headers,
+                json={"confirmed": False, "action": action},
+            )
+            assert executed.status_code == 200
+            assert executed.json()["status"] == "executed"
+
+        milestones = client.get(f"/api/goals/{goal_id}/milestones", headers=auth_headers)
+        assert milestones.status_code == 200
+        assert len(milestones.json()) == 10
+    finally:
+        app.dependency_overrides.pop(get_provider, None)
+
+
+def test_goal_coach_breakdown_preserves_sublist_items_in_milestone_description(
+    client: TestClient, auth_headers: dict
+) -> None:
+    provider = MilestoneSubListProvider()
+    app.dependency_overrides[get_provider] = lambda: provider
+
+    try:
+        goal = client.post(
+            "/api/goals",
+            headers=auth_headers,
+            json={"title": "Get SDE 1 job at Google"},
+        )
+        assert goal.status_code == 201
+        goal_id = goal.json()["id"]
+
+        session = client.post(
+            "/api/chat/sessions",
+            headers=auth_headers,
+            json={"agent_type": "goal_coach", "title": "Goal Coach", "goal_id": goal_id},
+        ).json()
+
+        response = client.post(
+            f"/api/chat/sessions/{session['id']}/messages",
+            headers=auth_headers,
+            json={"content": "Break my goal into milestones"},
+        )
+        assert response.status_code == 200
+
+        actions = response.json()["proposed_actions"]
+        milestone_actions = [item for item in actions if item["type"] == "goals.add_milestone"]
+        assert len(milestone_actions) == 4
+
+        action_by_title = {item["args"]["title"]: item for item in milestone_actions}
+        first_description = action_by_title["DSA Foundation & Course Completion"]["args"]["description"]
+        assert first_description is not None
+        assert "Complete 80% of your Coding Ninja course" in first_description
+        assert "Solve 200 LeetCode problems" in first_description
+        assert "Target: Mid-2025" in first_description
+
+        for action in milestone_actions:
+            executed = client.post(
+                f"/api/chat/sessions/{session['id']}/actions/execute",
+                headers=auth_headers,
+                json={"confirmed": False, "action": action},
+            )
+            assert executed.status_code == 200
+            assert executed.json()["status"] == "executed"
+
+        milestones = client.get(f"/api/goals/{goal_id}/milestones", headers=auth_headers)
+        assert milestones.status_code == 200
+        milestone_by_title = {item["title"]: item for item in milestones.json()}
+
+        saved_description = milestone_by_title["DSA Foundation & Course Completion"]["description"] or ""
+        assert "Complete 80% of your Coding Ninja course" in saved_description
+        assert "Solve 200 LeetCode problems" in saved_description
+        assert "Target: Mid-2025" in saved_description
+    finally:
+        app.dependency_overrides.pop(get_provider, None)
+
+
+def test_goal_coach_saves_milestones_when_reply_is_breakdown_without_explicit_user_keyword(
+    client: TestClient, auth_headers: dict
+) -> None:
+    provider = ImplicitMilestoneBreakdownProvider()
+    app.dependency_overrides[get_provider] = lambda: provider
+
+    try:
+        goal = client.post(
+            "/api/goals",
+            headers=auth_headers,
+            json={"title": "get job at META"},
+        )
+        assert goal.status_code == 201
+        goal_id = goal.json()["id"]
+
+        session = client.post(
+            "/api/chat/sessions",
+            headers=auth_headers,
+            json={"agent_type": "goal_coach", "title": "Goal Coach", "goal_id": goal_id},
+        ).json()
+
+        # No explicit milestone/breakdown keywords in the user text.
+        response = client.post(
+            f"/api/chat/sessions/{session['id']}/messages",
+            headers=auth_headers,
+            json={"content": "Can you create a practical roadmap for this?"},
+        )
+        assert response.status_code == 200
+
+        actions = response.json()["proposed_actions"]
+        milestone_actions = [item for item in actions if item["type"] == "goals.add_milestone"]
+        assert len(milestone_actions) == 3
+        assert all(item["args"]["goal_id"] == goal_id for item in milestone_actions)
+
+        for action in milestone_actions:
+            executed = client.post(
+                f"/api/chat/sessions/{session['id']}/actions/execute",
+                headers=auth_headers,
+                json={"confirmed": False, "action": action},
+            )
+            assert executed.status_code == 200
+            assert executed.json()["status"] == "executed"
+
+        milestones = client.get(f"/api/goals/{goal_id}/milestones", headers=auth_headers)
+        assert milestones.status_code == 200
+        saved_titles = {item["title"] for item in milestones.json()}
+        assert "Master Core DSA & Problem Solving" in saved_titles
+        assert "Deep Dive into System Design & Front-End Architecture" in saved_titles
+        assert "Interview Readiness & Application" in saved_titles
     finally:
         app.dependency_overrides.pop(get_provider, None)

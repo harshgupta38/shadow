@@ -20,12 +20,14 @@ from app.schemas.common import ORMModel
 class ChatSessionCreate(BaseModel):
     agent_type: AgentType = AgentType.general
     title: str = Field(default="New chat", max_length=255)
+    goal_id: int | None = Field(default=None, ge=1)
 
 
 class ChatSessionRead(ORMModel):
     id: int
     agent_type: AgentType
     title: str
+    goal_id: int | None
     created_at: datetime.datetime
     updated_at: datetime.datetime
 

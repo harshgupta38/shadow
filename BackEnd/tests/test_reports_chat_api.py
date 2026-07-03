@@ -74,6 +74,41 @@ class ActionProposalProvider(LLMProvider):
         return "Assistant response"
 
 
+class CountingProvider(LLMProvider):
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def generate(
+        self,
+        messages: list[LLMMessage],
+        *,
+        system: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+        model: str | None = None,
+    ) -> str:
+        self.calls += 1
+        return "Model response"
+
+
+class GoalFocusEchoProvider(LLMProvider):
+    def generate(
+        self,
+        messages: list[LLMMessage],
+        *,
+        system: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+        model: str | None = None,
+    ) -> str:
+        if system:
+            for line in system.splitlines():
+                if line.startswith("- Goal title: "):
+                    goal_title = line.split(":", 1)[1].strip()
+                    return f"Using goal: {goal_title}"
+        return "No goal focus"
+
+
 def test_generate_daily_report(client: TestClient, auth_headers: dict) -> None:
     # Log some activity so the report has data.
     metrics = client.get("/api/metrics", headers=auth_headers).json()
@@ -122,6 +157,75 @@ def test_chat_round_trip(client: TestClient, auth_headers: dict) -> None:
         f"/api/chat/sessions/{session['id']}/messages", headers=auth_headers
     ).json()
     assert len(messages) == 2
+
+
+def test_goal_coach_session_can_persist_goal_id(client: TestClient, auth_headers: dict) -> None:
+    goal = client.post(
+        "/api/goals",
+        headers=auth_headers,
+        json={"title": "Crack Google"},
+    )
+    assert goal.status_code == 201
+    goal_id = goal.json()["id"]
+
+    session = client.post(
+        "/api/chat/sessions",
+        headers=auth_headers,
+        json={"agent_type": "goal_coach", "title": "Goal Coach", "goal_id": goal_id},
+    )
+    assert session.status_code == 201
+    body = session.json()
+    assert body["goal_id"] == goal_id
+    assert body["title"] == "Crack Google"
+
+
+def test_non_goal_coach_session_rejects_goal_id(
+    client: TestClient, auth_headers: dict
+) -> None:
+    goal = client.post(
+        "/api/goals",
+        headers=auth_headers,
+        json={"title": "Crack Google"},
+    )
+    assert goal.status_code == 201
+    goal_id = goal.json()["id"]
+
+    session = client.post(
+        "/api/chat/sessions",
+        headers=auth_headers,
+        json={"agent_type": "general", "title": "General", "goal_id": goal_id},
+    )
+    assert session.status_code == 400
+    assert "goal_id" in session.json()["detail"]
+
+
+def test_goal_coach_session_goal_id_enforces_ownership(
+    client: TestClient, auth_headers: dict
+) -> None:
+    goal = client.post(
+        "/api/goals",
+        headers=auth_headers,
+        json={"title": "Crack Google"},
+    )
+    assert goal.status_code == 201
+    goal_id = goal.json()["id"]
+
+    client.post(
+        "/api/auth/register",
+        json={"email": "other@example.com", "password": "password123", "name": "Other"},
+    )
+    login = client.post(
+        "/api/auth/login",
+        json={"email": "other@example.com", "password": "password123"},
+    )
+    other_headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+    session = client.post(
+        "/api/chat/sessions",
+        headers=other_headers,
+        json={"agent_type": "goal_coach", "title": "Goal Coach", "goal_id": goal_id},
+    )
+    assert session.status_code == 404
 
 
 def test_report_next_steps_respect_ai_suggestions_setting(
@@ -470,3 +574,172 @@ def test_execute_action_supports_goals_and_track_modules(
     logs = client.get(f"/api/metrics/{deep_work['id']}/logs", headers=auth_headers)
     assert logs.status_code == 200
     assert any(entry["value"] == 45 for entry in logs.json())
+
+
+def test_goal_coach_asks_which_goal_when_multiple_active_goals(
+    client: TestClient, auth_headers: dict
+) -> None:
+    provider = CountingProvider()
+    app.dependency_overrides[get_provider] = lambda: provider
+
+    try:
+        google_goal = client.post(
+            "/api/goals",
+            headers=auth_headers,
+            json={"title": "Crack Google"},
+        )
+        weight_goal = client.post(
+            "/api/goals",
+            headers=auth_headers,
+            json={"title": "Lose 10kg weight"},
+        )
+        assert google_goal.status_code == 201
+        assert weight_goal.status_code == 201
+
+        session = client.post(
+            "/api/chat/sessions",
+            headers=auth_headers,
+            json={"agent_type": "goal_coach", "title": "Goal Coach"},
+        ).json()
+
+        response = client.post(
+            f"/api/chat/sessions/{session['id']}/messages",
+            headers=auth_headers,
+            json={"content": "Break my goals into milestones"},
+        )
+        assert response.status_code == 200
+        content = response.json()["assistant_message"]["content"]
+        assert "multiple goals" in content.lower()
+        assert "Crack Google" in content
+        assert "Lose 10kg weight" in content
+        assert provider.calls == 0
+    finally:
+        app.dependency_overrides.pop(get_provider, None)
+
+
+def test_goal_coach_prefers_session_goal_id_when_multiple_goals_exist(
+    client: TestClient, auth_headers: dict
+) -> None:
+    provider = GoalFocusEchoProvider()
+    app.dependency_overrides[get_provider] = lambda: provider
+
+    try:
+        google_goal = client.post(
+            "/api/goals",
+            headers=auth_headers,
+            json={"title": "Crack Google"},
+        )
+        weight_goal = client.post(
+            "/api/goals",
+            headers=auth_headers,
+            json={"title": "Lose 10kg weight"},
+        )
+        assert google_goal.status_code == 201
+        assert weight_goal.status_code == 201
+
+        google_id = google_goal.json()["id"]
+        session = client.post(
+            "/api/chat/sessions",
+            headers=auth_headers,
+            json={"agent_type": "goal_coach", "title": "Goal Coach", "goal_id": google_id},
+        ).json()
+
+        response = client.post(
+            f"/api/chat/sessions/{session['id']}/messages",
+            headers=auth_headers,
+            json={"content": "Break my goals into milestones"},
+        )
+        assert response.status_code == 200
+        assert response.json()["assistant_message"]["content"] == "Using goal: Crack Google"
+        assert response.json()["session"]["goal_id"] == google_id
+    finally:
+        app.dependency_overrides.pop(get_provider, None)
+
+
+def test_goal_coach_attaches_session_goal_context_on_non_breakdown_messages(
+    client: TestClient, auth_headers: dict
+) -> None:
+    provider = GoalFocusEchoProvider()
+    app.dependency_overrides[get_provider] = lambda: provider
+
+    try:
+        google_goal = client.post(
+            "/api/goals",
+            headers=auth_headers,
+            json={"title": "Crack Google"},
+        )
+        weight_goal = client.post(
+            "/api/goals",
+            headers=auth_headers,
+            json={"title": "Lose 10kg weight"},
+        )
+        assert google_goal.status_code == 201
+        assert weight_goal.status_code == 201
+
+        google_id = google_goal.json()["id"]
+        session = client.post(
+            "/api/chat/sessions",
+            headers=auth_headers,
+            json={"agent_type": "goal_coach", "title": "Goal Coach", "goal_id": google_id},
+        ).json()
+
+        response = client.post(
+            f"/api/chat/sessions/{session['id']}/messages",
+            headers=auth_headers,
+            json={"content": "How am I doing this week?"},
+        )
+        assert response.status_code == 200
+        assert response.json()["assistant_message"]["content"] == "Using goal: Crack Google"
+        assert response.json()["session"]["goal_id"] == google_id
+    finally:
+        app.dependency_overrides.pop(get_provider, None)
+
+
+def test_goal_coach_ignores_deleted_session_goal_and_uses_remaining_goal(
+    client: TestClient, auth_headers: dict
+) -> None:
+    provider = GoalFocusEchoProvider()
+    app.dependency_overrides[get_provider] = lambda: provider
+
+    try:
+        google_goal = client.post(
+            "/api/goals",
+            headers=auth_headers,
+            json={"title": "Crack Google"},
+        )
+        weight_goal = client.post(
+            "/api/goals",
+            headers=auth_headers,
+            json={"title": "Lose 10kg weight"},
+        )
+        assert google_goal.status_code == 201
+        assert weight_goal.status_code == 201
+
+        google_id = google_goal.json()["id"]
+        weight_id = weight_goal.json()["id"]
+
+        session = client.post(
+            "/api/chat/sessions",
+            headers=auth_headers,
+            json={"agent_type": "goal_coach", "title": "Goal Coach", "goal_id": google_id},
+        ).json()
+
+        deleted = client.delete(f"/api/goals/{google_id}", headers=auth_headers)
+        assert deleted.status_code == 204
+
+        response = client.post(
+            f"/api/chat/sessions/{session['id']}/messages",
+            headers=auth_headers,
+            json={"content": "Break my goals into milestones"},
+        )
+        assert response.status_code == 200
+        assert response.json()["assistant_message"]["content"] == "Using goal: Lose 10kg weight"
+        assert response.json()["session"]["goal_id"] == weight_id
+
+        messages = client.get(
+            f"/api/chat/sessions/{session['id']}/messages", headers=auth_headers
+        )
+        assert messages.status_code == 200
+        assert messages.json()[0]["content"] == "Break my goals into milestones"
+    finally:
+        app.dependency_overrides.pop(get_provider, None)

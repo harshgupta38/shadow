@@ -185,7 +185,10 @@ export function GoalDetailPage() {
             : "Break this goal into concrete steps"
         }
         actions={
-          <Link to="/assistant?agent=goal_coach" className="btn btn-soft btn-sm">
+          <Link
+            to={`/assistant?agent=goal_coach&goalId=${goal.id}`}
+            className="btn btn-soft btn-sm"
+          >
             <Stars size={14} className="me-1" /> Ask Goal Coach
           </Link>
         }

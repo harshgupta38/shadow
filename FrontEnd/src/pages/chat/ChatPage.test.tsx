@@ -39,13 +39,14 @@ const sessionFixture = {
   id: 1,
   agent_type: "general",
   title: "Focus Sprint",
+  goal_id: null,
   created_at: "2026-07-03T10:00:00Z",
   updated_at: "2026-07-03T10:00:00Z",
 } as const;
 
-function renderPage() {
+function renderPage(path = "/assistant") {
   return render(
-    <MemoryRouter initialEntries={["/assistant"]}>
+    <MemoryRouter initialEntries={[path]}>
       <ToastProvider>
         <ChatPage />
       </ToastProvider>
@@ -63,6 +64,7 @@ describe("ChatPage", () => {
     mockedChat.executeAction.mockReset();
 
     mockedChat.sessions.mockResolvedValue([sessionFixture]);
+    mockedChat.createSession.mockResolvedValue(sessionFixture);
     mockedChat.messages.mockResolvedValue([]);
     mockedChat.deleteSession.mockResolvedValue(undefined);
     mockedChat.executeAction.mockResolvedValue({
@@ -221,5 +223,62 @@ describe("ChatPage", () => {
 
     await waitFor(() => expect(mockedChat.executeAction).toHaveBeenCalledWith(1, proposal, true));
     expect(await screen.findByText("Goal created")).toBeInTheDocument();
+  });
+
+  it("keeps goal context when chat is opened from goal detail", async () => {
+    const coachSession = {
+      id: 7,
+      agent_type: "goal_coach",
+      title: "Get SDE Job at Google",
+      goal_id: 42,
+      created_at: "2026-07-03T11:00:00Z",
+      updated_at: "2026-07-03T11:00:00Z",
+    } as const;
+    mockedChat.sessions.mockResolvedValue([]);
+    mockedChat.createSession.mockResolvedValue(coachSession);
+    mockedChat.send.mockImplementation(async (_sessionId: number, sentContent: string) => ({
+      user_message: {
+        id: 301,
+        session_id: coachSession.id,
+        role: "user",
+        content: sentContent,
+        agent_type: "goal_coach",
+        created_at: "2026-07-03T11:01:00Z",
+      },
+      assistant_message: {
+        id: 302,
+        session_id: coachSession.id,
+        role: "assistant",
+        content: "Sure — let's break this specific goal into milestones.",
+        agent_type: "goal_coach",
+        created_at: "2026-07-03T11:01:02Z",
+      },
+      session: {
+        ...coachSession,
+        updated_at: "2026-07-03T11:01:02Z",
+      },
+      proposed_actions: [],
+    }));
+
+    const user = userEvent.setup();
+    renderPage("/assistant?agent=goal_coach&goalId=42");
+
+    await waitFor(() =>
+      expect(mockedChat.createSession).toHaveBeenCalledWith({
+        agent_type: "goal_coach",
+        title: "Goal Coach",
+        goal_id: 42,
+      }),
+    );
+
+    await user.type(screen.getByPlaceholderText("Message Goal Coach…"), "Break my goal into milestones");
+    await user.click(screen.getByLabelText("Send message"));
+
+    await waitFor(() => expect(mockedChat.send).toHaveBeenCalledWith(7, "Break my goal into milestones"));
+    const sentPayload = mockedChat.send.mock.calls[0][1] as string;
+    expect(sentPayload).toContain("Break my goal into milestones");
+    expect(sentPayload).not.toContain("[goal_context]");
+
+    expect(await screen.findByText("Break my goal into milestones")).toBeInTheDocument();
   });
 });

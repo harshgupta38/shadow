@@ -23,6 +23,9 @@ class ChatSession(Base, TimestampMixin):
         SAEnum(AgentType), default=AgentType.general, nullable=False
     )
     title: Mapped[str] = mapped_column(String(255), default="New chat", nullable=False)
+    goal_id: Mapped[int | None] = mapped_column(
+        ForeignKey("goals.id", ondelete="SET NULL"), index=True, nullable=True
+    )
 
     messages: Mapped[list["ChatMessage"]] = relationship(
         "ChatMessage",

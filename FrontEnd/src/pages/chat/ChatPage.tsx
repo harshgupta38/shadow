@@ -41,6 +41,24 @@ interface ActionConfirmState {
   actionId: string;
 }
 
+const LEGACY_GOAL_CONTEXT_MARKER = "\n\n[goal_context]";
+
+function parseGoalCoachGoalId(params: URLSearchParams): number | null {
+  const goalIdRaw = params.get("goalId");
+  if (!goalIdRaw) return null;
+
+  const goalId = Number(goalIdRaw);
+  if (!Number.isFinite(goalId) || goalId <= 0) return null;
+
+  return goalId;
+}
+
+function stripGoalContext(content: string): string {
+  const markerIndex = content.indexOf(LEGACY_GOAL_CONTEXT_MARKER);
+  if (markerIndex < 0) return content;
+  return content.slice(0, markerIndex).trimEnd();
+}
+
 function moduleLabel(module: AssistantProposedAction["module"]): string {
   switch (module) {
     case "plan":
@@ -164,7 +182,12 @@ export function ChatPage() {
   async function loadMessages(sessionId: number) {
     setLoadingMessages(true);
     try {
-      setMessages(await api.chat.messages(sessionId));
+      const loaded = await api.chat.messages(sessionId);
+      setMessages(
+        loaded.map((message) =>
+          message.role === "user" ? { ...message, content: stripGoalContext(message.content) } : message,
+        ),
+      );
     } catch {
       setMessages([]);
     } finally {
@@ -178,12 +201,13 @@ export function ChatPage() {
     void loadMessages(session.id);
   }
 
-  async function startChat(agent: AgentType) {
+  async function startChat(agent: AgentType, goalId: number | null = null) {
     setShowPicker(false);
     try {
       const session = await api.chat.createSession({
         agent_type: agent,
         title: agentMeta(agent).label,
+        goal_id: agent === "goal_coach" && goalId ? goalId : undefined,
       });
       setSessions((prev) => [session, ...(prev ?? [])]);
       setSelectedId(session.id);
@@ -198,6 +222,7 @@ export function ChatPage() {
     const content = text.trim();
     const sessionId = selectedId;
     if (!content || !sessionId || sending) return;
+
     setInput("");
     setSending(true);
     const optimistic: ChatMessage = {
@@ -211,9 +236,13 @@ export function ChatPage() {
     setMessages((prev) => [...prev, optimistic]);
     try {
       const response = await api.chat.send(sessionId, content);
+      const renderedUserMessage = {
+        ...response.user_message,
+        content: stripGoalContext(response.user_message.content),
+      };
       setMessages((prev) => [
         ...prev.filter((m) => m.id !== optimistic.id),
-        response.user_message,
+        renderedUserMessage,
         response.assistant_message,
       ]);
       setSessions((prev) =>
@@ -272,10 +301,13 @@ export function ChatPage() {
   useEffect(() => {
     if (loading || autoStartRef.current) return;
     const agent = searchParams.get("agent");
+    const goalId = parseGoalCoachGoalId(searchParams);
     if (isAgentType(agent)) {
       autoStartRef.current = true;
-      void startChat(agent);
+      void startChat(agent, agent === "goal_coach" ? goalId : null);
       searchParams.delete("agent");
+      searchParams.delete("goalId");
+      searchParams.delete("goalTitle");
       setSearchParams(searchParams, { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

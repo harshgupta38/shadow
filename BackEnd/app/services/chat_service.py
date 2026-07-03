@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from uuid import uuid4
 
 from pydantic import TypeAdapter, ValidationError
@@ -20,7 +21,8 @@ from app.llm.base import LLMMessage, LLMProvider
 from app.memory.context import compile_user_context
 from app.models.base import utcnow
 from app.models.chat import ChatMessage, ChatSession
-from app.models.enums import AgentType, AssistantActionConfidence, ChatRole
+from app.models.enums import AgentType, AssistantActionConfidence, ChatRole, GoalStatus
+from app.models.goal import Goal
 from app.models.metric import TrackedMetric
 from app.models.user import User
 from app.schemas.activity import ActivityLogCreate
@@ -52,6 +54,7 @@ _AUTO_EXECUTABLE_TYPES = {
     "track.create_metric",
     "track.log_metric",
 }
+_GOAL_CONTEXT_MARKER = "[goal_context]"
 
 _AGENT_DEFAULT_TITLES: dict[AgentType, str] = {
     AgentType.general: "Shadow",
@@ -168,6 +171,162 @@ def _parse_proposed_actions(raw: str) -> list[AssistantProposedAction]:
             action.requires_confirmation = True
         normalized.append(action)
     return normalized
+
+
+def _extract_goal_context(content: str) -> tuple[str, int | None, str | None]:
+    if _GOAL_CONTEXT_MARKER not in content:
+        return content.strip(), None, None
+
+    visible, context_block = content.split(_GOAL_CONTEXT_MARKER, 1)
+    clean_content = visible.strip()
+    goal_id: int | None = None
+    goal_title: str | None = None
+
+    for raw_line in context_block.splitlines():
+        line = raw_line.strip()
+        if line.startswith("goal_id="):
+            value = line.split("=", 1)[1].strip()
+            if value.isdigit():
+                goal_id = int(value)
+        elif line.startswith("goal_title="):
+            value = line.split("=", 1)[1].strip()
+            if value:
+                goal_title = value
+
+    return clean_content, goal_id, goal_title
+
+
+def _is_goal_breakdown_request(text: str) -> bool:
+    lowered = text.lower()
+    if "milestone" in lowered:
+        return True
+    if "break" in lowered and "goal" in lowered:
+        return True
+    if "convert" in lowered and "goal" in lowered:
+        return True
+    if "goal" in lowered and "steps" in lowered:
+        return True
+    return False
+
+
+def _goal_title_matches_text(goal_title: str, text: str) -> bool:
+    lowered_text = text.lower()
+    lowered_goal = goal_title.lower()
+    if lowered_goal in lowered_text:
+        return True
+    keywords = [part for part in re.findall(r"[a-z0-9]+", lowered_goal) if len(part) >= 4]
+    return any(word in lowered_text for word in keywords)
+
+
+def _active_goals_for_coaching(db: Session, user: User) -> list[Goal]:
+    goals = list(
+        db.scalars(
+            select(Goal)
+            .where(Goal.user_id == user.id, Goal.status == GoalStatus.active)
+            .order_by(Goal.created_at.desc())
+        )
+    )
+    if goals:
+        return goals
+
+    # Fallback when a user has no active goals but still wants goal coaching.
+    return list(
+        db.scalars(
+            select(Goal)
+            .where(
+                Goal.user_id == user.id,
+                Goal.status.in_([GoalStatus.paused, GoalStatus.completed]),
+            )
+            .order_by(Goal.created_at.desc())
+        )
+    )
+
+
+def _goal_disambiguation_reply(goals: list[Goal]) -> str:
+    listed = "\n".join(f"- {goal.title}" for goal in goals[:10])
+    return (
+        "I can break a goal into milestones, but you have multiple goals right now. "
+        "Tell me which goal to focus on.\n\n"
+        "Your current goals:\n"
+        f"{listed}"
+    )
+
+
+def _resolve_goal_coach_focus(
+    db: Session,
+    user: User,
+    session: ChatSession,
+    user_content: str,
+    marker_goal_id: int | None,
+    marker_goal_title: str | None,
+) -> tuple[Goal | None, str | None]:
+    if session.agent_type != AgentType.goal_coach:
+        return None, None
+
+    breakdown_request = _is_goal_breakdown_request(user_content)
+
+    goals = _active_goals_for_coaching(db, user)
+    if session.goal_id is not None:
+        session_goal = next((goal for goal in goals if goal.id == session.goal_id), None)
+        if session_goal is not None:
+            return session_goal, None
+        # Goal was deleted or is no longer eligible for focus in this session.
+        session.goal_id = None
+
+    if not goals:
+        return None, None
+
+    explicit_matches = [goal for goal in goals if _goal_title_matches_text(goal.title, user_content)]
+    if len(explicit_matches) == 1:
+        session.goal_id = explicit_matches[0].id
+        return explicit_matches[0], None
+    if len(explicit_matches) > 1 and breakdown_request:
+        return None, _goal_disambiguation_reply(explicit_matches)
+
+    marker_goal: Goal | None = None
+    if marker_goal_id is not None:
+        marker_goal = next((goal for goal in goals if goal.id == marker_goal_id), None)
+
+    if marker_goal is None and marker_goal_title:
+        lowered_marker_title = marker_goal_title.lower()
+        marker_goal = next((goal for goal in goals if goal.title.lower() == lowered_marker_title), None)
+
+    if marker_goal is not None:
+        session.goal_id = marker_goal.id
+        return marker_goal, None
+
+    if len(goals) == 1:
+        session.goal_id = goals[0].id
+        return goals[0], None
+    if breakdown_request:
+        return None, _goal_disambiguation_reply(goals)
+    return None, None
+
+
+def _with_goal_focus_context(user_context: str, goal: Goal | None) -> str:
+    if goal is None:
+        return user_context
+
+    focus_lines = [
+        "## Goal focus for this chat",
+        f"- Goal ID: {goal.id}",
+        f"- Goal title: {goal.title}",
+    ]
+    if goal.description:
+        focus_lines.append(f"- Goal description: {goal.description}")
+    if goal.category:
+        focus_lines.append(f"- Goal category: {goal.category}")
+    if goal.target_date is not None:
+        focus_lines.append(f"- Goal target date: {goal.target_date.isoformat()}")
+    focus_lines.extend(
+        [
+            f"- Goal status: {goal.status.value}",
+            f"- Goal progress: {goal.progress}%",
+            "- Treat this as the active goal for milestone breakdowns unless the user explicitly switches goals.",
+        ]
+    )
+    focus_block = "\n".join(focus_lines)
+    return f"{user_context}\n\n{focus_block}" if user_context else focus_block
 
 
 def _execute_plan_create_task(
@@ -294,7 +453,25 @@ def list_sessions(db: Session, user: User) -> list[ChatSession]:
 
 
 def create_session(db: Session, user: User, data: ChatSessionCreate) -> ChatSession:
-    session = ChatSession(user_id=user.id, agent_type=data.agent_type, title=data.title)
+    focus_goal: Goal | None = None
+    if data.goal_id is not None:
+        if data.agent_type != AgentType.goal_coach:
+            raise AppError("goal_id is only supported for goal coach sessions.")
+        focus_goal = get_owned_or_404(db, Goal, data.goal_id, user.id, name="Goal")
+
+    title = data.title.strip() if data.title else "New chat"
+    if (
+        focus_goal is not None
+        and title in {"", "New chat", _AGENT_DEFAULT_TITLES[AgentType.goal_coach]}
+    ):
+        title = focus_goal.title
+
+    session = ChatSession(
+        user_id=user.id,
+        agent_type=data.agent_type,
+        title=title or "New chat",
+        goal_id=focus_goal.id if focus_goal is not None else None,
+    )
     db.add(session)
     db.commit()
     db.refresh(session)
@@ -331,11 +508,20 @@ def send_message(
 ) -> tuple[ChatMessage, ChatMessage, ChatSession, list[AssistantProposedAction]]:
     """Persist the user message, generate an AI reply, persist and return both."""
     session = get_session(db, user, session_id)
+    user_content, marker_goal_id, marker_goal_title = _extract_goal_context(content)
+    focus_goal, disambiguation_reply = _resolve_goal_coach_focus(
+        db,
+        user,
+        session,
+        user_content,
+        marker_goal_id,
+        marker_goal_title,
+    )
 
     user_message = ChatMessage(
         session_id=session.id,
         role=ChatRole.user,
-        content=content,
+        content=user_content,
         agent_type=session.agent_type,
     )
     db.add(user_message)
@@ -351,15 +537,20 @@ def send_message(
     )
     history = [LLMMessage(role=row.role.value, content=row.content) for row in history_rows]
     preferred_model = settings_service.get_effective_ai_model(db, user)
-    user_context = compile_user_context(db, user)
+    user_context = _with_goal_focus_context(compile_user_context(db, user), focus_goal)
 
-    reply = generate_chat_reply(
-        provider,
-        agent_type=session.agent_type,
-        history=history,
-        user_context=user_context,
-        model=preferred_model,
-    )
+    used_model_reply = disambiguation_reply is None
+
+    if disambiguation_reply is None:
+        reply = generate_chat_reply(
+            provider,
+            agent_type=session.agent_type,
+            history=history,
+            user_context=user_context,
+            model=preferred_model,
+        )
+    else:
+        reply = disambiguation_reply
 
     assistant_message = ChatMessage(
         session_id=session.id,
@@ -371,7 +562,7 @@ def send_message(
     session.updated_at = utcnow()  # touch session ordering
     reply_history = [*history, LLMMessage(role=ChatRole.assistant.value, content=reply)]
 
-    if _should_generate_title(session):
+    if used_model_reply and _should_generate_title(session):
         try:
             raw_title = generate_chat_title(
                 provider,
@@ -385,17 +576,18 @@ def send_message(
             logger.warning("Failed to auto-generate chat title for session_id=%s", session.id)
 
     proposed_actions: list[AssistantProposedAction] = []
-    try:
-        raw_actions = propose_chat_actions(
-            provider,
-            agent_type=session.agent_type,
-            history=reply_history,
-            user_context=user_context,
-            model=preferred_model,
-        )
-        proposed_actions = _parse_proposed_actions(raw_actions)
-    except Exception:
-        logger.warning("Failed to generate proposed actions for session_id=%s", session.id)
+    if used_model_reply:
+        try:
+            raw_actions = propose_chat_actions(
+                provider,
+                agent_type=session.agent_type,
+                history=reply_history,
+                user_context=user_context,
+                model=preferred_model,
+            )
+            proposed_actions = _parse_proposed_actions(raw_actions)
+        except Exception:
+            logger.warning("Failed to generate proposed actions for session_id=%s", session.id)
 
     db.commit()
     db.refresh(assistant_message)

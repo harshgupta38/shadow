@@ -426,6 +426,7 @@ export interface ChatSession {
   id: number;
   agent_type: AgentType;
   title: string;
+  goal_id: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -433,6 +434,7 @@ export interface ChatSession {
 export interface ChatSessionCreate {
   agent_type?: AgentType;
   title?: string;
+  goal_id?: number;
 }
 
 export interface ChatMessage {

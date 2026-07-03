@@ -2,16 +2,22 @@
 
 from __future__ import annotations
 
+import re
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.user import User
 from app.models.user_setting import UserSetting
 from app.schemas.settings import (
+    AccessibilitySettings,
+    AccessibilitySettingsUpdate,
     AIBehaviorSettings,
     AIBehaviorSettingsUpdate,
     AppearanceSettings,
     AppearanceSettingsUpdate,
+    IntegrationSettings,
+    IntegrationSettingsUpdate,
     NotificationSettings,
     NotificationSettingsUpdate,
     PlannerSettings,
@@ -20,6 +26,42 @@ from app.schemas.settings import (
     PrivacySettingsUpdate,
     SettingsRead,
 )
+
+_AUTO_MODEL = "auto"
+
+
+def normalize_ai_default_model(value: str | None) -> str:
+    """Normalize user-entered model aliases to canonical slug form.
+
+    Examples:
+    - "Gemini 3.5" -> "gemini-3.5"
+    - "gemini_2.5_flash" -> "gemini-2.5-flash"
+    - "auto" / empty -> "auto"
+    """
+    if value is None:
+        return _AUTO_MODEL
+
+    normalized = " ".join(value.strip().lower().split())
+    if not normalized or normalized in {_AUTO_MODEL, "default"}:
+        return _AUTO_MODEL
+
+    normalized = normalized.replace("_", "-")
+    normalized = re.sub(r"\s*-\s*", "-", normalized)
+    normalized = normalized.replace(" ", "-")
+    normalized = re.sub(r"^gemini(?=\d)", "gemini-", normalized)
+    return normalized
+
+
+def resolve_runtime_ai_model(value: str | None) -> str | None:
+    """Resolve the effective runtime model or None for default auto behavior."""
+    normalized = normalize_ai_default_model(value)
+    return None if normalized == _AUTO_MODEL else normalized
+
+
+def get_effective_ai_model(db: Session, user: User) -> str | None:
+    """Return the model override to pass to providers for this user."""
+    settings = _get_or_create_settings(db, user)
+    return resolve_runtime_ai_model(settings.ai_default_model)
 
 
 def _get_or_create_settings(db: Session, user: User) -> UserSetting:
@@ -34,6 +76,11 @@ def _get_or_create_settings(db: Session, user: User) -> UserSetting:
     return settings
 
 
+def get_user_settings_row(db: Session, user: User) -> UserSetting:
+    """Return raw settings row for runtime checks (creates defaults if missing)."""
+    return _get_or_create_settings(db, user)
+
+
 def get_settings(db: Session, user: User) -> SettingsRead:
     settings = _get_or_create_settings(db, user)
     return SettingsRead(
@@ -45,10 +92,12 @@ def get_settings(db: Session, user: User) -> SettingsRead:
             reminder_notifications_enabled=settings.reminder_notifications_enabled,
             daily_brief_enabled=settings.daily_brief_enabled,
             daily_brief_time=settings.daily_brief_time,
+            weekly_summary_enabled=settings.weekly_summary_enabled,
         ),
         ai_behavior=AIBehaviorSettings(
             ai_response_length=settings.ai_response_length,
             ai_personality=settings.ai_personality,
+            ai_default_model=settings.ai_default_model,
             ai_suggestions_enabled=settings.ai_suggestions_enabled,
             smart_planning_enabled=settings.smart_planning_enabled,
         ),
@@ -62,6 +111,15 @@ def get_settings(db: Session, user: User) -> SettingsRead:
         privacy=PrivacySettings(
             analytics_opt_out=settings.analytics_opt_out,
             ai_memory_enabled=settings.ai_memory_enabled,
+        ),
+        integrations=IntegrationSettings(
+            google_calendar_enabled=settings.integration_google_calendar_enabled,
+            slack_enabled=settings.integration_slack_enabled,
+        ),
+        accessibility=AccessibilitySettings(
+            reduced_motion=settings.accessibility_reduced_motion,
+            high_contrast=settings.accessibility_high_contrast,
+            font_scale_percent=settings.accessibility_font_scale_percent,
         ),
     )
 
@@ -94,8 +152,45 @@ def update_ai_behavior(
     db: Session, user: User, data: AIBehaviorSettingsUpdate
 ) -> SettingsRead:
     settings = _get_or_create_settings(db, user)
-    for field, value in data.model_dump(exclude_unset=True).items():
+    updates = data.model_dump(exclude_unset=True)
+    if "ai_default_model" in updates:
+        updates["ai_default_model"] = normalize_ai_default_model(updates["ai_default_model"])
+
+    for field, value in updates.items():
         setattr(settings, field, value)
+    db.commit()
+    db.refresh(settings)
+    return get_settings(db, user)
+
+
+def update_integrations(
+    db: Session, user: User, data: IntegrationSettingsUpdate
+) -> SettingsRead:
+    settings = _get_or_create_settings(db, user)
+    updates = data.model_dump(exclude_unset=True)
+    mapping = {
+        "google_calendar_enabled": "integration_google_calendar_enabled",
+        "slack_enabled": "integration_slack_enabled",
+    }
+    for field, value in updates.items():
+        setattr(settings, mapping[field], value)
+    db.commit()
+    db.refresh(settings)
+    return get_settings(db, user)
+
+
+def update_accessibility(
+    db: Session, user: User, data: AccessibilitySettingsUpdate
+) -> SettingsRead:
+    settings = _get_or_create_settings(db, user)
+    updates = data.model_dump(exclude_unset=True)
+    mapping = {
+        "reduced_motion": "accessibility_reduced_motion",
+        "high_contrast": "accessibility_high_contrast",
+        "font_scale_percent": "accessibility_font_scale_percent",
+    }
+    for field, value in updates.items():
+        setattr(settings, mapping[field], value)
     db.commit()
     db.refresh(settings)
     return get_settings(db, user)

@@ -24,7 +24,15 @@ class RetryThenPassProvider(LLMProvider):
         self.refine_calls = 0
         self.validate_calls = 0
 
-    def generate(self, messages, *, system=None, temperature=0.7, max_tokens=None) -> str:
+    def generate(
+        self,
+        messages,
+        *,
+        system=None,
+        temperature=0.7,
+        max_tokens=None,
+        model=None,
+    ) -> str:
         if system and "Memory Fidelity Validator" in system:
             self.validate_calls += 1
             if self.validate_calls == 1:
@@ -47,7 +55,15 @@ class RetryThenPassProvider(LLMProvider):
 class AlwaysWeakProvider(LLMProvider):
     """Always returns a vague memory that fails measurable-fact validation."""
 
-    def generate(self, messages, *, system=None, temperature=0.7, max_tokens=None) -> str:
+    def generate(
+        self,
+        messages,
+        *,
+        system=None,
+        temperature=0.7,
+        max_tokens=None,
+        model=None,
+    ) -> str:
         if system and "Memory Fidelity Validator" in system:
             return "FAIL"
         return "The user practices LeetCode regularly and wants career growth."

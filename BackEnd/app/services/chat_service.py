@@ -13,6 +13,7 @@ from app.models.chat import ChatMessage, ChatSession
 from app.models.enums import ChatRole
 from app.models.user import User
 from app.schemas.chat import ChatSessionCreate
+from app.services import settings_service
 from app.services.utils import get_owned_or_404
 
 
@@ -77,12 +78,14 @@ def send_message(
         )
     )
     history = [LLMMessage(role=row.role.value, content=row.content) for row in history_rows]
+    preferred_model = settings_service.get_effective_ai_model(db, user)
 
     reply = generate_chat_reply(
         provider,
         agent_type=session.agent_type,
         history=history,
         user_context=compile_user_context(db, user),
+        model=preferred_model,
     )
 
     assistant_message = ChatMessage(

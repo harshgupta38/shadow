@@ -5,6 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, status
 
 from app.api.deps import CurrentUser, DbSession, Provider
+from app.schemas.common import Message
 from app.schemas.memory import (
     MemoryCenterEntryRead,
     MemoryEntryCreate,
@@ -14,13 +15,18 @@ from app.schemas.memory import (
     MemoryEntryUpdate,
 )
 from app.schemas.profile import (
+    AccountDataExportRead,
+    AccountOverviewRead,
     AIProfileRead,
     AIProfileUpdate,
     BasicProfileRead,
     BasicProfileUpdate,
+    ChatHistoryClearResult,
+    DeleteAccountRequest,
 )
+from app.schemas.auth import ChangePasswordRequest
 from app.schemas.user import ProfileUpdate, UserRead
-from app.services import memory_service, profile_service
+from app.services import auth_service, memory_service, profile_service
 
 router = APIRouter(prefix="/profile", tags=["profile"])
 
@@ -65,6 +71,46 @@ def update_ai_profile(
     data: AIProfileUpdate, db: DbSession, current_user: CurrentUser
 ) -> AIProfileRead:
     return profile_service.update_ai_profile(db, current_user, data)
+
+
+@router.get("/account", response_model=AccountOverviewRead)
+def get_account_overview(db: DbSession, current_user: CurrentUser) -> AccountOverviewRead:
+    return profile_service.get_account_overview(db, current_user)
+
+
+@router.post("/change-password", response_model=Message)
+def change_password(
+    data: ChangePasswordRequest,
+    db: DbSession,
+    current_user: CurrentUser,
+) -> Message:
+    auth_service.change_password(
+        db,
+        current_user,
+        current_password=data.current_password,
+        new_password=data.new_password,
+    )
+    return Message(detail="Password updated successfully")
+
+
+@router.post("/clear-chat-history", response_model=ChatHistoryClearResult)
+def clear_chat_history(db: DbSession, current_user: CurrentUser) -> ChatHistoryClearResult:
+    return profile_service.clear_chat_history(db, current_user)
+
+
+@router.get("/export", response_model=AccountDataExportRead)
+def export_account_data(db: DbSession, current_user: CurrentUser) -> AccountDataExportRead:
+    return profile_service.export_account_data(db, current_user)
+
+
+@router.delete("/account", status_code=status.HTTP_200_OK, response_model=Message)
+def delete_account(
+    data: DeleteAccountRequest,
+    db: DbSession,
+    current_user: CurrentUser,
+) -> Message:
+    profile_service.delete_account(db, current_user, confirmation_text=data.confirmation_text)
+    return Message(detail="Account deleted")
 
 
 @router.get("/memory-center", response_model=list[MemoryCenterEntryRead])

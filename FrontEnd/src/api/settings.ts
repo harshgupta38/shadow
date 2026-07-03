@@ -1,7 +1,9 @@
 import { http } from "./client";
 import type {
+  AccessibilitySettingsUpdate,
   AIBehaviorSettingsUpdate,
   AppearanceSettingsUpdate,
+  IntegrationSettingsUpdate,
   NotificationSettingsUpdate,
   PlannerSettingsUpdate,
   PrivacySettingsUpdate,
@@ -20,6 +22,12 @@ export const settingsApi = {
   },
   async updateAIBehavior(data: AIBehaviorSettingsUpdate): Promise<SettingsRead> {
     return http.put<SettingsRead>("/settings/ai-behavior", data);
+  },
+  async updateIntegrations(data: IntegrationSettingsUpdate): Promise<SettingsRead> {
+    return http.put<SettingsRead>("/settings/integrations", data);
+  },
+  async updateAccessibility(data: AccessibilitySettingsUpdate): Promise<SettingsRead> {
+    return http.put<SettingsRead>("/settings/accessibility", data);
   },
   async updatePlanner(data: PlannerSettingsUpdate): Promise<SettingsRead> {
     return http.put<SettingsRead>("/settings/planner", data);

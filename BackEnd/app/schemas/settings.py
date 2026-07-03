@@ -29,6 +29,7 @@ class NotificationSettings(BaseModel):
     reminder_notifications_enabled: bool
     daily_brief_enabled: bool
     daily_brief_time: str
+    weekly_summary_enabled: bool
 
 
 class NotificationSettingsUpdate(BaseModel):
@@ -38,11 +39,13 @@ class NotificationSettingsUpdate(BaseModel):
     reminder_notifications_enabled: bool | None = None
     daily_brief_enabled: bool | None = None
     daily_brief_time: str | None = Field(default=None, pattern=r"^\d{2}:\d{2}$")
+    weekly_summary_enabled: bool | None = None
 
 
 class AIBehaviorSettings(BaseModel):
     ai_response_length: AIResponseLength
     ai_personality: AIPersonality
+    ai_default_model: str
     ai_suggestions_enabled: bool
     smart_planning_enabled: bool
 
@@ -50,6 +53,7 @@ class AIBehaviorSettings(BaseModel):
 class AIBehaviorSettingsUpdate(BaseModel):
     ai_response_length: AIResponseLength | None = None
     ai_personality: AIPersonality | None = None
+    ai_default_model: str | None = Field(default=None, min_length=1, max_length=40)
     ai_suggestions_enabled: bool | None = None
     smart_planning_enabled: bool | None = None
 
@@ -80,9 +84,33 @@ class PrivacySettingsUpdate(BaseModel):
     ai_memory_enabled: bool | None = None
 
 
+class IntegrationSettings(BaseModel):
+    google_calendar_enabled: bool
+    slack_enabled: bool
+
+
+class IntegrationSettingsUpdate(BaseModel):
+    google_calendar_enabled: bool | None = None
+    slack_enabled: bool | None = None
+
+
+class AccessibilitySettings(BaseModel):
+    reduced_motion: bool
+    high_contrast: bool
+    font_scale_percent: int
+
+
+class AccessibilitySettingsUpdate(BaseModel):
+    reduced_motion: bool | None = None
+    high_contrast: bool | None = None
+    font_scale_percent: int | None = Field(default=None, ge=80, le=140)
+
+
 class SettingsRead(BaseModel):
     appearance: AppearanceSettings
     notifications: NotificationSettings
     ai_behavior: AIBehaviorSettings
     planner: PlannerSettings
     privacy: PrivacySettings
+    integrations: IntegrationSettings
+    accessibility: AccessibilitySettings

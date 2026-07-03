@@ -10,6 +10,7 @@ import { useNavigate } from "react-router-dom";
 
 import { api, ApiError, type AIProfileUpdate, type BasicProfileUpdate } from "@/api";
 import { Avatar } from "@/components/ui/Avatar";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -25,19 +26,29 @@ import { formatDate, relativeTime } from "@/lib/format";
 const INDIA_TIMEZONE = "Asia/Kolkata";
 
 export function ProfilePage() {
-  const { patchUser } = useAuth();
+  const { patchUser, logout } = useAuth();
   const toast = useToast();
   const { requestLogout } = useLogoutConfirm();
   const navigate = useNavigate();
 
   const basicQuery = useAsync(() => api.profile.basic(), []);
   const aiQuery = useAsync(() => api.profile.ai(), []);
+  const accountQuery = useAsync(() => api.profile.account(), []);
 
   const [basicDraft, setBasicDraft] = useState<BasicProfileUpdate>({});
   const [aiDraft, setAiDraft] = useState<AIProfileUpdate>({});
 
   const [savingBasic, setSavingBasic] = useState(false);
   const [savingAi, setSavingAi] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [exportingData, setExportingData] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [confirmDeleteAccount, setConfirmDeleteAccount] = useState(false);
+  const [passwordDraft, setPasswordDraft] = useState({
+    current_password: "",
+    new_password: "",
+    confirm_password: "",
+  });
 
   useEffect(() => {
     if (!basicQuery.data) return;
@@ -105,12 +116,76 @@ export function ProfilePage() {
     }
   }
 
-  const loading = basicQuery.loading || aiQuery.loading;
-  const pageError = basicQuery.error || aiQuery.error;
+  async function changePassword(event: FormEvent) {
+    event.preventDefault();
+    if (!passwordDraft.current_password || !passwordDraft.new_password) {
+      toast.error("Please fill current and new password.");
+      return;
+    }
+    if (passwordDraft.new_password !== passwordDraft.confirm_password) {
+      toast.error("New password and confirm password must match.");
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      await api.profile.changePassword({
+        current_password: passwordDraft.current_password,
+        new_password: passwordDraft.new_password,
+      });
+      accountQuery.reload();
+      setPasswordDraft({ current_password: "", new_password: "", confirm_password: "" });
+      toast.success("Password updated successfully.");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Couldn't update password.");
+    } finally {
+      setChangingPassword(false);
+    }
+  }
+
+  async function exportData() {
+    setExportingData(true);
+    try {
+      const payload = await api.profile.exportAccountData();
+      const fileName = `shadow-export-${new Date(payload.exported_at).toISOString().slice(0, 10)}.json`;
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast.success("Account export downloaded.");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Couldn't export account data.");
+    } finally {
+      setExportingData(false);
+    }
+  }
+
+  async function deleteAccount() {
+    setDeletingAccount(true);
+    try {
+      await api.profile.deleteAccount({ confirmation_text: "DELETE" });
+      logout();
+      toast.success("Account deleted successfully.");
+      navigate("/login", { replace: true });
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Couldn't delete account.");
+    } finally {
+      setDeletingAccount(false);
+      setConfirmDeleteAccount(false);
+    }
+  }
+
+  const loading = basicQuery.loading || aiQuery.loading || accountQuery.loading;
+  const pageError = basicQuery.error || aiQuery.error || accountQuery.error;
 
   if (loading) return <LoadingState label="Loading profile..." />;
 
-  if (pageError || !basicQuery.data || !aiQuery.data) {
+  if (pageError || !basicQuery.data || !aiQuery.data || !accountQuery.data) {
     return (
       <EmptyState
         title="Couldn't load your profile"
@@ -121,6 +196,7 @@ export function ProfilePage() {
             onClick={() => {
               basicQuery.reload();
               aiQuery.reload();
+              accountQuery.reload();
             }}
           >
             Retry
@@ -132,6 +208,7 @@ export function ProfilePage() {
 
   const profile = basicQuery.data;
   const ai = aiQuery.data;
+  const account = accountQuery.data;
 
   return (
     <div className="profile-page">
@@ -387,15 +464,58 @@ export function ProfilePage() {
               <div className="surface-2 p-3 d-flex align-items-start gap-3">
                 <ShieldCheck size={18} style={{ color: "var(--jv-success)", marginTop: 2 }} />
                 <div>
-                  <div className="fw-semibold">Email + Password Authentication</div>
-                  <div className="small text-muted-2">
-                    Password change and 2FA are planned for upcoming sprints.
-                  </div>
+                  <div className="fw-semibold text-capitalize">{account.auth_provider} authentication</div>
+                  <div className="small text-muted-2">Subscription plan: {account.subscription_plan}</div>
                 </div>
               </div>
+              <div className="surface-2 p-3 d-flex flex-column gap-1">
+                <div className="small text-faint">Email</div>
+                <div className="fw-semibold">{account.email}</div>
+                <div className="small text-muted-2">
+                  Verification: {account.email_verified ? "Verified" : "Not verified"}
+                </div>
+                <div className="small text-muted-2">
+                  Last password change: {formatDate(account.last_password_changed_at)}
+                </div>
+              </div>
+              <form className="surface-2 p-3" onSubmit={changePassword}>
+                <div className="fw-semibold mb-2">Change Password</div>
+                <TextField
+                  type="password"
+                  label="Current Password"
+                  value={passwordDraft.current_password}
+                  onChange={(e) =>
+                    setPasswordDraft((prev) => ({ ...prev, current_password: e.target.value }))
+                  }
+                  required
+                />
+                <TextField
+                  type="password"
+                  label="New Password"
+                  value={passwordDraft.new_password}
+                  onChange={(e) =>
+                    setPasswordDraft((prev) => ({ ...prev, new_password: e.target.value }))
+                  }
+                  required
+                  minLength={8}
+                />
+                <TextField
+                  type="password"
+                  label="Confirm New Password"
+                  value={passwordDraft.confirm_password}
+                  onChange={(e) =>
+                    setPasswordDraft((prev) => ({ ...prev, confirm_password: e.target.value }))
+                  }
+                  required
+                  minLength={8}
+                />
+                <button className="btn btn-brand" disabled={changingPassword}>
+                  {changingPassword ? "Updating..." : "Update Password"}
+                </button>
+              </form>
               <div className="surface-2 p-3">
-                <div className="small text-faint mb-1">Email</div>
-                <div className="fw-semibold">{profile.email}</div>
+                <div className="small text-faint mb-1">Member since</div>
+                <div className="fw-semibold">{formatDate(account.member_since)}</div>
               </div>
             </div>
           </SectionCard>
@@ -404,18 +524,42 @@ export function ProfilePage() {
             <div className="surface-2 p-3 border border-danger-subtle">
               <div className="d-flex align-items-start gap-2 mb-2 text-danger">
                 <ExclamationTriangleFill size={16} style={{ marginTop: 2 }} />
-                <div className="fw-semibold">Delete Account (Coming Soon)</div>
+                <div className="fw-semibold">Delete Account</div>
               </div>
               <p className="small text-muted-2 mb-3">
-                Account deletion/export flows are intentionally isolated and require strong confirmation.
+                Account deletion is permanent. Export your data before deleting.
               </p>
-              <button className="btn btn-outline-secondary" onClick={requestLogout}>
-                <BriefcaseFill size={14} className="me-1" /> Sign out instead
-              </button>
+              <div className="d-flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className="btn btn-outline-secondary"
+                  onClick={exportData}
+                  disabled={exportingData}
+                >
+                  {exportingData ? "Exporting..." : "Export Account Data"}
+                </button>
+                <button type="button" className="btn btn-danger" onClick={() => setConfirmDeleteAccount(true)}>
+                  Delete Account
+                </button>
+                <button className="btn btn-outline-secondary" onClick={requestLogout}>
+                  <BriefcaseFill size={14} className="me-1" /> Sign out instead
+                </button>
+              </div>
             </div>
           </SectionCard>
         </div>
       </div>
+
+      <ConfirmDialog
+        show={confirmDeleteAccount}
+        title="Delete your account permanently?"
+        message="This action deletes your profile, goals, tasks, reports, and chat history. This cannot be undone."
+        confirmLabel="Delete account"
+        destructive
+        busy={deletingAccount}
+        onConfirm={deleteAccount}
+        onCancel={() => setConfirmDeleteAccount(false)}
+      />
     </div>
   );
 }

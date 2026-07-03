@@ -14,7 +14,7 @@ from app.models.enums import PlannedTaskStatus, ReportPeriod
 from app.models.planned_task import PlannedTask
 from app.models.report import Report
 from app.models.user import User
-from app.services import metric_service
+from app.services import metric_service, settings_service
 from app.services.utils import get_owned_or_404
 
 
@@ -83,12 +83,17 @@ def generate_report(
     start_d, end_d = _period_bounds(period, on_date)
     metrics_json = _build_metrics_json(db, user, start_d, end_d)
     summary_text = _summary_text(metrics_json, period, start_d, end_d)
+    user_settings = settings_service.get_user_settings_row(db, user)
+    preferred_model = settings_service.resolve_runtime_ai_model(user_settings.ai_default_model)
 
     narrative, next_steps = generate_report_narrative(
         provider,
         metrics_summary=summary_text,
         user_context=compile_user_context(db, user),
+        model=preferred_model,
     )
+    if not user_settings.ai_suggestions_enabled:
+        next_steps = "Suggestions are disabled in AI behavior settings."
 
     report = Report(
         user_id=user.id,

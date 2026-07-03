@@ -24,6 +24,7 @@ class FakeLLMProvider(LLMProvider):
         system: str | None = None,
         temperature: float = 0.7,
         max_tokens: int | None = None,
+        model: str | None = None,
     ) -> str:
         if self._canned is not None:
             return self._canned
@@ -40,7 +41,12 @@ class FakeLLMProvider(LLMProvider):
         system: str | None = None,
         temperature: float = 0.7,
         max_tokens: int | None = None,
+        model: str | None = None,
     ) -> Iterator[str]:
         yield self.generate(
-            messages, system=system, temperature=temperature, max_tokens=max_tokens
+            messages,
+            system=system,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            model=model,
         )

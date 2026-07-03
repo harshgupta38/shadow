@@ -28,6 +28,7 @@ def generate_onboarding_understanding(
     question: str,
     answer: str,
     user_context: str = "",
+    model: str | None = None,
 ) -> str:
     """Interpret an onboarding answer into a saved 'understanding'."""
     system = _with_context(system_prompt(AgentType.onboarding), user_context)
@@ -36,7 +37,12 @@ def generate_onboarding_understanding(
         f"User's answer: {answer}\n\n"
         "Write the understanding (1–3 sentences, third person)."
     )
-    return provider.generate([LLMMessage("user", prompt)], system=system, temperature=0.4).strip()
+    return provider.generate(
+        [LLMMessage("user", prompt)],
+        system=system,
+        temperature=0.4,
+        model=model,
+    ).strip()
 
 
 def generate_manual_memory_understanding(
@@ -46,6 +52,7 @@ def generate_manual_memory_understanding(
     category: MemoryCategory,
     user_context: str = "",
     validation_feedback: str | None = None,
+    model: str | None = None,
 ) -> str:
     """Generate the long-term memory Shadow should store from a manual note."""
 
@@ -85,6 +92,7 @@ def generate_manual_memory_understanding(
         system=system,
         temperature=0.1,
         max_tokens=900,
+        model=model,
     ).strip()
 
 
@@ -93,6 +101,7 @@ def validate_manual_memory_understanding(
     *,
     raw_text: str,
     candidate_memory: str,
+    model: str | None = None,
 ) -> tuple[bool, str]:
     """Validate a generated manual memory for strict fact preservation."""
     prompt = (
@@ -111,6 +120,7 @@ def validate_manual_memory_understanding(
         system=manual_memory_validator_prompt(),
         temperature=0,
         max_tokens=240,
+        model=model,
     ).strip()
 
     normalized = verdict.strip()
@@ -133,10 +143,11 @@ def generate_chat_reply(
     agent_type: AgentType,
     history: list[LLMMessage],
     user_context: str = "",
+    model: str | None = None,
 ) -> str:
     """Produce an assistant reply for a chat session."""
     system = _with_context(system_prompt(agent_type), user_context)
-    return provider.generate(history, system=system).strip()
+    return provider.generate(history, system=system, model=model).strip()
 
 
 def suggest_goal_title(
@@ -144,6 +155,7 @@ def suggest_goal_title(
     *,
     theme: str,
     user_context: str = "",
+    model: str | None = None,
 ) -> str:
     """Suggest a single goal title, often phrased as a guiding question."""
     system = _with_context(system_prompt(AgentType.goal_coach), user_context)
@@ -151,7 +163,12 @@ def suggest_goal_title(
         f"Suggest ONE concise, motivating goal title about: {theme}. "
         "It may be phrased as a guiding question. Output only the title."
     )
-    return provider.generate([LLMMessage("user", prompt)], system=system, temperature=0.8).strip()
+    return provider.generate(
+        [LLMMessage("user", prompt)],
+        system=system,
+        temperature=0.8,
+        model=model,
+    ).strip()
 
 
 def suggest_milestones(
@@ -161,6 +178,7 @@ def suggest_milestones(
     goal_description: str = "",
     user_context: str = "",
     count: int = 4,
+    model: str | None = None,
 ) -> list[str]:
     """Suggest milestone titles for a goal (one per line)."""
     system = _with_context(system_prompt(AgentType.goal_coach), user_context)
@@ -169,7 +187,12 @@ def suggest_milestones(
         f"Description: {goal_description or '(none)'}\n\n"
         f"Propose {count} concrete milestones, one per line, no numbering."
     )
-    text = provider.generate([LLMMessage("user", prompt)], system=system, temperature=0.6)
+    text = provider.generate(
+        [LLMMessage("user", prompt)],
+        system=system,
+        temperature=0.6,
+        model=model,
+    )
     lines = [line.strip(" -•\t") for line in text.splitlines()]
     return [line for line in lines if line][:count]
 
@@ -179,6 +202,7 @@ def generate_report_narrative(
     *,
     metrics_summary: str,
     user_context: str = "",
+    model: str | None = None,
 ) -> tuple[str, str]:
     """Return ``(narrative, next_steps)`` for a progress report."""
     system = _with_context(system_prompt(AgentType.progress_analyst), user_context)
@@ -192,6 +216,7 @@ def generate_report_narrative(
         ],
         system=system,
         temperature=0.5,
+        model=model,
     ).strip()
     next_steps = provider.generate(
         [
@@ -203,6 +228,7 @@ def generate_report_narrative(
         ],
         system=system,
         temperature=0.5,
+        model=model,
     ).strip()
     return narrative, next_steps
 
@@ -212,6 +238,7 @@ def distill_behavior_signal(
     *,
     activity_summary: str,
     user_context: str = "",
+    model: str | None = None,
 ) -> str:
     """Distill recent activity into a single behavior 'understanding'."""
     system = _with_context(system_prompt(AgentType.progress_analyst), user_context)
@@ -221,4 +248,9 @@ def distill_behavior_signal(
         "blockers). Write 1 sentence, third person. If there is not enough "
         f"signal, reply exactly 'NONE'.\n\n{activity_summary}"
     )
-    return provider.generate([LLMMessage("user", prompt)], system=system, temperature=0.3).strip()
+    return provider.generate(
+        [LLMMessage("user", prompt)],
+        system=system,
+        temperature=0.3,
+        model=model,
+    ).strip()

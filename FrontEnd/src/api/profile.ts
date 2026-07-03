@@ -1,9 +1,14 @@
 import { http } from "./client";
 import type {
+  AccountDataExport,
+  AccountOverview,
   AIProfile,
   AIProfileUpdate,
   BasicProfile,
   BasicProfileUpdate,
+  ChangePasswordRequest,
+  ChatHistoryClearResult,
+  DeleteAccountRequest,
   MemoryCenterEntry,
   MemoryEntry,
   MemoryEntryCreate,
@@ -35,6 +40,22 @@ export const profileApi = {
   },
   async updateAi(data: AIProfileUpdate): Promise<AIProfile> {
     return http.put<AIProfile>("/profile/ai", data);
+  },
+  async account(): Promise<AccountOverview> {
+    return http.get<AccountOverview>("/profile/account");
+  },
+  async changePassword(data: ChangePasswordRequest): Promise<{ detail: string }> {
+    return http.post<{ detail: string }>("/profile/change-password", data);
+  },
+  async clearChatHistory(): Promise<ChatHistoryClearResult> {
+    return http.post<ChatHistoryClearResult>("/profile/clear-chat-history");
+  },
+  async exportAccountData(): Promise<AccountDataExport> {
+    return http.get<AccountDataExport>("/profile/export");
+  },
+  async deleteAccount(data: DeleteAccountRequest): Promise<{ detail: string }> {
+    await http.del("/profile/account", data);
+    return { detail: "Account deleted" };
   },
   async memoryCenter(): Promise<MemoryCenterEntry[]> {
     return http.get<MemoryCenterEntry[]>("/profile/memory-center");

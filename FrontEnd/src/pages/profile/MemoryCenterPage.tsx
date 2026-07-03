@@ -372,20 +372,26 @@ export function MemoryCenterPage() {
                               Used by: {memory.used_by.join(", ")}
                             </span>
                             <div className="d-flex align-items-center gap-1">
-                              <button
-                                type="button"
-                                className="btn btn-ghost btn-sm"
-                                onClick={() => requestEditMemory(memory)}
-                              >
-                                <PencilSquare size={14} className="me-1" /> Edit
-                              </button>
-                              <button
-                                type="button"
-                                className="btn btn-ghost btn-sm text-danger"
-                                onClick={() => setConfirmDeleteId(memory.id)}
-                              >
-                                <Trash3 size={14} className="me-1" /> Delete
-                              </button>
+                              {memory.editable ? (
+                                <>
+                                  <button
+                                    type="button"
+                                    className="btn btn-ghost btn-sm"
+                                    onClick={() => requestEditMemory(memory)}
+                                  >
+                                    <PencilSquare size={14} className="me-1" /> Edit
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="btn btn-ghost btn-sm text-danger"
+                                    onClick={() => setConfirmDeleteId(memory.id)}
+                                  >
+                                    <Trash3 size={14} className="me-1" /> Delete
+                                  </button>
+                                </>
+                              ) : (
+                                <span className="text-faint small">Read only</span>
+                              )}
                             </div>
                           </div>
                         </div>

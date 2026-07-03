@@ -14,18 +14,24 @@ class PlannedTaskCreate(BaseModel):
     title: str = Field(min_length=1, max_length=255)
     date: datetime.date | None = None  # defaults to today (server-side)
     related_goal_id: int | None = None
+    reminder_time: str | None = Field(default=None, pattern=r"^\d{2}:\d{2}$")
+    estimated_duration_minutes: int | None = Field(default=None, ge=5, le=360)
 
 
 class PlannedTaskUpdate(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=255)
     status: PlannedTaskStatus | None = None
     related_goal_id: int | None = None
+    reminder_time: str | None = Field(default=None, pattern=r"^\d{2}:\d{2}$")
+    estimated_duration_minutes: int | None = Field(default=None, ge=5, le=360)
 
 
 class PlannedTaskRead(ORMModel):
     id: int
     title: str
     date: datetime.date
+    reminder_time: str | None
+    estimated_duration_minutes: int | None
     status: PlannedTaskStatus
     related_goal_id: int | None
     completed_at: datetime.datetime | None

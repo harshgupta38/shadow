@@ -5,6 +5,7 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.models.base import utcnow
 from app.models.user import User
 from app.models.user_profile import UserProfile
 from app.models.user_setting import UserSetting
@@ -58,4 +59,17 @@ def authenticate_user(db: Session, email: str, password: str) -> User:
     user = get_user_by_email(db, email)
     if user is None or not security.verify_password(password, user.hashed_password):
         raise AuthError("Incorrect email or password")
+    return user
+
+
+def change_password(db: Session, user: User, *, current_password: str, new_password: str) -> User:
+    if not security.verify_password(current_password, user.hashed_password):
+        raise AuthError("Current password is incorrect")
+    if security.verify_password(new_password, user.hashed_password):
+        raise ConflictError("New password must be different from the current password")
+
+    user.hashed_password = security.hash_password(new_password)
+    user.last_password_changed_at = utcnow()
+    db.commit()
+    db.refresh(user)
     return user

@@ -37,6 +37,7 @@ class UserSetting(Base, TimestampMixin):
     reminder_notifications_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     daily_brief_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     daily_brief_time: Mapped[str] = mapped_column(String(5), default="08:00", nullable=False)
+    weekly_summary_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     # AI behavior
     ai_response_length: Mapped[AIResponseLength] = mapped_column(
@@ -45,6 +46,7 @@ class UserSetting(Base, TimestampMixin):
     ai_personality: Mapped[AIPersonality] = mapped_column(
         SAEnum(AIPersonality), default=AIPersonality.coach, nullable=False
     )
+    ai_default_model: Mapped[str] = mapped_column(String(40), default="auto", nullable=False)
     ai_suggestions_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     smart_planning_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
@@ -64,3 +66,16 @@ class UserSetting(Base, TimestampMixin):
     # Privacy
     analytics_opt_out: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     ai_memory_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    # Integrations
+    integration_google_calendar_enabled: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False
+    )
+    integration_slack_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+    # Accessibility
+    accessibility_reduced_motion: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    accessibility_high_contrast: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    accessibility_font_scale_percent: Mapped[int] = mapped_column(
+        Integer, default=100, nullable=False
+    )

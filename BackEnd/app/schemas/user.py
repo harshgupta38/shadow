@@ -16,6 +16,10 @@ class UserRead(ORMModel):
     name: str
     timezone: str
     theme_preference: ThemePreference
+    subscription_plan: str
+    email_verified: bool
+    auth_provider: str
+    last_password_changed_at: datetime
     onboarding_completed: bool
     created_at: datetime
     updated_at: datetime

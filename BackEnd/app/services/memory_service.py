@@ -24,6 +24,7 @@ from app.schemas.memory import (
     MemoryRefineRequest,
     MemoryEntryUpdate,
 )
+from app.services import settings_service
 from app.services.utils import get_owned_or_404
 
 _MEMORY_USED_BY = ["assistant", "planner", "reports", "journal"]
@@ -159,6 +160,7 @@ def _validate_candidate(
     *,
     raw_text: str,
     refined_text: str,
+    model: str | None = None,
 ) -> tuple[bool, str]:
     missing_numbers = _find_missing_numeric_tokens(raw_text, refined_text)
     if missing_numbers:
@@ -175,6 +177,7 @@ def _validate_candidate(
         provider,
         raw_text=raw_text,
         candidate_memory=refined_text,
+        model=model,
     )
 
 
@@ -186,6 +189,22 @@ def _confidence_from_source(source: MemorySource) -> str:
     if source == MemorySource.behavior:
         return "medium"
     return "medium"
+
+
+def _is_editable(source: MemorySource) -> bool:
+    return source in {MemorySource.manual, MemorySource.onboarding}
+
+
+def _why_known(source: MemorySource) -> str:
+    if source == MemorySource.manual:
+        return "Added directly by you in the AI Memory Center."
+    if source == MemorySource.onboarding:
+        return "Captured from your onboarding interview responses."
+    if source == MemorySource.chat:
+        return "Inferred from your chats with Shadow."
+    if source == MemorySource.behavior:
+        return "Inferred from recurring behavior signals in your activity."
+    return "Saved by Shadow for personalization."
 
 
 def list_memories(db: Session, user: User) -> list[MemoryEntry]:
@@ -231,6 +250,7 @@ def refine_memory_text(
         return _fallback_result(raw_text, _FALLBACK_REASON_LLM_UNAVAILABLE)
 
     context = compile_user_context(db, user)
+    preferred_model = settings_service.get_effective_ai_model(db, user)
     validation_feedback: str | None = None
     last_validation_reason: str | None = None
 
@@ -242,6 +262,7 @@ def refine_memory_text(
                 category=data.category,
                 user_context=context,
                 validation_feedback=validation_feedback,
+                model=preferred_model,
             )
         except Exception:
             logger.exception("Memory text refinement failed; using lossless fallback.")
@@ -262,6 +283,7 @@ def refine_memory_text(
             provider,
             raw_text=raw_text,
             refined_text=refined,
+            model=preferred_model,
         )
         if is_valid:
             return MemoryRefineResult(
@@ -312,7 +334,8 @@ def list_memory_center(db: Session, user: User) -> list[MemoryCenterEntryRead]:
             value=entry.ai_understanding,
             source=entry.source,
             confidence=_confidence_from_source(entry.source),
-            editable=True,
+            editable=_is_editable(entry.source),
+            why_known=_why_known(entry.source),
             used_by=_MEMORY_USED_BY,
             created_at=entry.created_at,
             updated_at=entry.updated_at,

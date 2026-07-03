@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
-from sqlalchemy import Date, DateTime, ForeignKey, String
+from sqlalchemy import Date, DateTime, ForeignKey, Integer, String
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -21,6 +21,8 @@ class PlannedTask(Base):
     )
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     date: Mapped[date] = mapped_column(Date, index=True, nullable=False)
+    reminder_time: Mapped[str | None] = mapped_column(String(5), nullable=True)
+    estimated_duration_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     status: Mapped[PlannedTaskStatus] = mapped_column(
         SAEnum(PlannedTaskStatus), default=PlannedTaskStatus.planned, nullable=False
     )

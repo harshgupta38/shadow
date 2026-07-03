@@ -5,9 +5,12 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.models.enums import NotificationType
 from app.models.notification import Notification
 from app.models.user import User
 from app.schemas.notification import NotificationCreate
+from app.services import settings_service
+from app.services.exceptions import ConflictError
 from app.services.utils import get_owned_or_404
 
 
@@ -19,6 +22,24 @@ def list_notifications(db: Session, user: User, *, unread_only: bool = False) ->
 
 
 def create_notification(db: Session, user: User, data: NotificationCreate) -> Notification:
+    settings = settings_service.get_user_settings_row(db, user)
+    if not settings.notifications_enabled:
+        raise ConflictError("Notifications are currently disabled in your settings")
+    if data.type == NotificationType.reminder and not settings.reminder_notifications_enabled:
+        raise ConflictError("Task reminders are disabled in your notification settings")
+    if (
+        data.type == NotificationType.system
+        and data.title.startswith("Daily Brief")
+        and not settings.daily_brief_enabled
+    ):
+        raise ConflictError("Daily brief notifications are disabled in your settings")
+    if (
+        data.type == NotificationType.system
+        and data.title.startswith("Weekly Summary")
+        and not settings.weekly_summary_enabled
+    ):
+        raise ConflictError("Weekly summary notifications are disabled in your settings")
+
     notification = Notification(
         user_id=user.id,
         title=data.title,

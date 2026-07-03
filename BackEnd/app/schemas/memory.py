@@ -65,6 +65,7 @@ class MemoryCenterEntryRead(ORMModel):
     source: MemorySource
     confidence: str
     editable: bool
+    why_known: str
     used_by: list[str]
     created_at: datetime
     updated_at: datetime

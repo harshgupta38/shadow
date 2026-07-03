@@ -2,17 +2,37 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, time, timezone
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.base import utcnow
-from app.models.enums import PlannedTaskStatus
+from app.models.enums import NotificationType, PlannedTaskStatus
+from app.models.notification import Notification
 from app.models.planned_task import PlannedTask
 from app.models.user import User
 from app.schemas.plan import PlannedTaskCreate, PlannedTaskUpdate
+from app.services import settings_service
 from app.services.utils import get_owned_or_404
+
+
+def _safe_timezone(name: str) -> ZoneInfo | timezone:
+    try:
+        return ZoneInfo(name)
+    except ZoneInfoNotFoundError:
+        return timezone.utc
+
+
+def _to_utc_for_user(day: date, hhmm: str, timezone_name: str) -> datetime:
+    hour, minute = hhmm.split(":", 1)
+    local_dt = datetime.combine(
+        day,
+        time(hour=int(hour), minute=int(minute)),
+        tzinfo=_safe_timezone(timezone_name),
+    )
+    return local_dt.astimezone(timezone.utc)
 
 
 def list_tasks(db: Session, user: User, *, on_date: date | None = None) -> list[PlannedTask]:
@@ -23,13 +43,33 @@ def list_tasks(db: Session, user: User, *, on_date: date | None = None) -> list[
 
 
 def create_task(db: Session, user: User, data: PlannedTaskCreate) -> PlannedTask:
+    settings = settings_service.get_user_settings_row(db, user)
+    task_date = data.date or date.today()
+    reminder_time = data.reminder_time or settings.default_reminder_time
+    estimated_duration = data.estimated_duration_minutes or settings.default_task_duration_minutes
+
     task = PlannedTask(
         user_id=user.id,
         title=data.title,
-        date=data.date or date.today(),
+        date=task_date,
+        reminder_time=reminder_time,
+        estimated_duration_minutes=estimated_duration,
         related_goal_id=data.related_goal_id,
     )
     db.add(task)
+
+    if settings.notifications_enabled and settings.reminder_notifications_enabled and reminder_time:
+        db.add(
+            Notification(
+                user_id=user.id,
+                title=f"Task reminder: {data.title}",
+                body=f"Scheduled reminder for {task_date.isoformat()} at {reminder_time}.",
+                type=NotificationType.reminder,
+                related_goal_id=data.related_goal_id,
+                scheduled_at=_to_utc_for_user(task_date, reminder_time, user.timezone),
+            )
+        )
+
     db.commit()
     db.refresh(task)
     return task

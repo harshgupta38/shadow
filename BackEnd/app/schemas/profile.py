@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -74,3 +75,27 @@ class AIProfileUpdate(BaseModel):
     productivity_preferences: str | None = None
     motivation: str | None = None
     always_remember: str | None = None
+
+
+class AccountOverviewRead(ORMModel):
+    user_id: int
+    email: str
+    auth_provider: str
+    email_verified: bool
+    subscription_plan: str
+    member_since: datetime
+    last_password_changed_at: datetime
+
+
+class ChatHistoryClearResult(BaseModel):
+    deleted_sessions: int
+    deleted_messages: int
+
+
+class AccountDataExportRead(BaseModel):
+    exported_at: datetime
+    data: dict[str, Any]
+
+
+class DeleteAccountRequest(BaseModel):
+    confirmation_text: str = Field(min_length=1, max_length=32)

@@ -67,6 +67,8 @@ def test_memory_center_update_and_delete(client, auth_headers):
     assert len(center_json) == 1
     assert center_json[0]["value"] == "User is preparing for Google interviews."
     assert center_json[0]["confidence"] == "very_high"
+    assert center_json[0]["editable"] is True
+    assert "Added directly by you" in center_json[0]["why_known"]
 
     updated = client.put(
         f"/api/profile/memories/{memory_id}",
@@ -137,6 +139,8 @@ def test_settings_endpoints_and_theme_sync(client, auth_headers):
     assert "ai_behavior" in initial_json
     assert "planner" in initial_json
     assert "privacy" in initial_json
+    assert "integrations" in initial_json
+    assert "accessibility" in initial_json
 
     appearance = client.put(
         "/api/settings/appearance",
@@ -157,6 +161,7 @@ def test_settings_endpoints_and_theme_sync(client, auth_headers):
             "daily_brief_enabled": False,
             "daily_brief_time": "09:30",
             "email_notifications_enabled": True,
+            "weekly_summary_enabled": False,
         },
     )
     assert notifications.status_code == 200
@@ -164,12 +169,110 @@ def test_settings_endpoints_and_theme_sync(client, auth_headers):
     assert notifications_json["daily_brief_enabled"] is False
     assert notifications_json["daily_brief_time"] == "09:30"
     assert notifications_json["email_notifications_enabled"] is True
+    assert notifications_json["weekly_summary_enabled"] is False
 
     ai_behavior = client.put(
         "/api/settings/ai-behavior",
         headers=auth_headers,
-        json={"ai_response_length": "detailed", "ai_personality": "mentor"},
+        json={
+            "ai_response_length": "detailed",
+            "ai_personality": "mentor",
+            "ai_default_model": "gemini-2.5-flash",
+        },
     )
     assert ai_behavior.status_code == 200
     assert ai_behavior.json()["ai_behavior"]["ai_response_length"] == "detailed"
     assert ai_behavior.json()["ai_behavior"]["ai_personality"] == "mentor"
+    assert ai_behavior.json()["ai_behavior"]["ai_default_model"] == "gemini-2.5-flash"
+
+    ai_behavior_alias = client.put(
+        "/api/settings/ai-behavior",
+        headers=auth_headers,
+        json={"ai_default_model": "Gemini 3.5"},
+    )
+    assert ai_behavior_alias.status_code == 200
+    assert ai_behavior_alias.json()["ai_behavior"]["ai_default_model"] == "gemini-3.5"
+
+    integrations = client.put(
+        "/api/settings/integrations",
+        headers=auth_headers,
+        json={"google_calendar_enabled": True, "slack_enabled": True},
+    )
+    assert integrations.status_code == 200
+    assert integrations.json()["integrations"]["google_calendar_enabled"] is True
+    assert integrations.json()["integrations"]["slack_enabled"] is True
+
+    accessibility = client.put(
+        "/api/settings/accessibility",
+        headers=auth_headers,
+        json={"reduced_motion": True, "high_contrast": True, "font_scale_percent": 115},
+    )
+    assert accessibility.status_code == 200
+    assert accessibility.json()["accessibility"]["reduced_motion"] is True
+    assert accessibility.json()["accessibility"]["high_contrast"] is True
+    assert accessibility.json()["accessibility"]["font_scale_percent"] == 115
+
+
+def test_account_security_export_and_clear_chat(client, auth_headers):
+    account = client.get("/api/profile/account", headers=auth_headers)
+    assert account.status_code == 200
+    account_json = account.json()
+    assert account_json["auth_provider"] == "password"
+    assert account_json["subscription_plan"] == "free"
+
+    change_password = client.post(
+        "/api/profile/change-password",
+        headers=auth_headers,
+        json={"current_password": "password123", "new_password": "new-password-123"},
+    )
+    assert change_password.status_code == 200
+
+    relogin = client.post(
+        "/api/auth/login",
+        json={"email": "user@example.com", "password": "new-password-123"},
+    )
+    assert relogin.status_code == 200
+
+    session = client.post(
+        "/api/chat/sessions",
+        headers=auth_headers,
+        json={"agent_type": "general", "title": "Cleanup"},
+    )
+    assert session.status_code == 201
+    session_id = session.json()["id"]
+    sent = client.post(
+        f"/api/chat/sessions/{session_id}/messages",
+        headers=auth_headers,
+        json={"content": "hello"},
+    )
+    assert sent.status_code == 200
+
+    export = client.get("/api/profile/export", headers=auth_headers)
+    assert export.status_code == 200
+    assert "counts" in export.json()["data"]
+
+    clear = client.post("/api/profile/clear-chat-history", headers=auth_headers)
+    assert clear.status_code == 200
+    assert clear.json()["deleted_sessions"] >= 1
+    assert clear.json()["deleted_messages"] >= 2
+
+
+def test_delete_account_requires_confirmation_text(client, auth_headers):
+    bad = client.request(
+        "DELETE",
+        "/api/profile/account",
+        headers=auth_headers,
+        json={"confirmation_text": "NO"},
+    )
+    assert bad.status_code == 409
+
+    ok = client.request(
+        "DELETE",
+        "/api/profile/account",
+        headers=auth_headers,
+        json={"confirmation_text": "DELETE"},
+    )
+    assert ok.status_code == 200
+
+    me_after_delete = client.get("/api/auth/me", headers=auth_headers)
+    assert me_after_delete.status_code == 401

@@ -6,7 +6,11 @@ import logging
 
 from apscheduler.schedulers.background import BackgroundScheduler
 
-from app.scheduler.jobs import process_due_notifications
+from app.scheduler.jobs import (
+    enqueue_daily_briefs,
+    enqueue_weekly_summaries,
+    process_due_notifications,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +29,20 @@ def start_scheduler() -> BackgroundScheduler:
         trigger="interval",
         minutes=1,
         id="process_due_notifications",
+        replace_existing=True,
+    )
+    _scheduler.add_job(
+        enqueue_daily_briefs,
+        trigger="interval",
+        minutes=1,
+        id="enqueue_daily_briefs",
+        replace_existing=True,
+    )
+    _scheduler.add_job(
+        enqueue_weekly_summaries,
+        trigger="interval",
+        minutes=1,
+        id="enqueue_weekly_summaries",
         replace_existing=True,
     )
     _scheduler.start()

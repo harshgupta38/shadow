@@ -48,6 +48,29 @@ def test_plan_task_completion(client: TestClient, auth_headers: dict) -> None:
     assert updated["completed_at"] is not None
 
 
+def test_plan_task_uses_planner_defaults(client: TestClient, auth_headers: dict) -> None:
+    planner = client.put(
+        "/api/settings/planner",
+        headers=auth_headers,
+        json={"default_reminder_time": "09:45", "default_task_duration_minutes": 60},
+    )
+    assert planner.status_code == 200
+
+    task = client.post(
+        "/api/plan",
+        headers=auth_headers,
+        json={"title": "Deep work block"},
+    )
+    assert task.status_code == 201
+    task_json = task.json()
+    assert task_json["reminder_time"] == "09:45"
+    assert task_json["estimated_duration_minutes"] == 60
+
+    notifications = client.get("/api/notifications", headers=auth_headers)
+    assert notifications.status_code == 200
+    assert any(n["title"].startswith("Task reminder:") for n in notifications.json())
+
+
 def test_dashboard_summary(client: TestClient, auth_headers: dict) -> None:
     client.post("/api/goals", headers=auth_headers, json={"title": "Ship MVP"})
     client.post("/api/plan", headers=auth_headers, json={"title": "Task A"})

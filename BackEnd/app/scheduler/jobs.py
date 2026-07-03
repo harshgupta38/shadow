@@ -3,14 +3,151 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, time, timedelta, timezone
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlalchemy import select
 
 from app.database import SessionLocal
+from app.models.enums import NotificationType
 from app.models.notification import Notification
+from app.models.user import User
+from app.models.user_setting import UserSetting
 
 logger = logging.getLogger(__name__)
+
+
+def _safe_timezone(name: str) -> ZoneInfo | timezone:
+    try:
+        return ZoneInfo(name)
+    except ZoneInfoNotFoundError:
+        return timezone.utc
+
+
+def _local_today_bounds_utc(timezone_name: str, now_utc: datetime) -> tuple[datetime, datetime]:
+    tz = _safe_timezone(timezone_name)
+    local_now = now_utc.astimezone(tz)
+    start_local = datetime.combine(local_now.date(), time.min, tzinfo=tz)
+    end_local = start_local + timedelta(days=1)
+    return start_local.astimezone(timezone.utc), end_local.astimezone(timezone.utc)
+
+
+def _already_created_today(
+    db,
+    *,
+    user_id: int,
+    title_prefix: str,
+    timezone_name: str,
+    now_utc: datetime,
+) -> bool:
+    start_utc, end_utc = _local_today_bounds_utc(timezone_name, now_utc)
+    existing = db.scalar(
+        select(Notification.id).where(
+            Notification.user_id == user_id,
+            Notification.title.startswith(title_prefix),
+            Notification.created_at >= start_utc,
+            Notification.created_at < end_utc,
+        )
+    )
+    return existing is not None
+
+
+def _matches_local_time(now_utc: datetime, timezone_name: str, hhmm: str) -> bool:
+    tz = _safe_timezone(timezone_name)
+    now_local = now_utc.astimezone(tz)
+    target_hour, target_minute = hhmm.split(":", 1)
+    return now_local.hour == int(target_hour) and now_local.minute == int(target_minute)
+
+
+def enqueue_daily_briefs() -> int:
+    """Create one daily brief notification per eligible user at configured local time."""
+    now = datetime.now(timezone.utc).replace(second=0, microsecond=0)
+    created = 0
+    with SessionLocal() as db:
+        settings_rows = list(
+            db.scalars(
+                select(UserSetting).where(
+                    UserSetting.notifications_enabled.is_(True),
+                    UserSetting.daily_brief_enabled.is_(True),
+                )
+            )
+        )
+        for settings in settings_rows:
+            user = db.get(User, settings.user_id)
+            if user is None:
+                continue
+            if not _matches_local_time(now, user.timezone, settings.daily_brief_time):
+                continue
+            if _already_created_today(
+                db,
+                user_id=user.id,
+                title_prefix="Daily Brief",
+                timezone_name=user.timezone,
+                now_utc=now,
+            ):
+                continue
+            db.add(
+                Notification(
+                    user_id=user.id,
+                    title="Daily Brief",
+                    body="Review your top tasks and focus on one high-impact outcome.",
+                    type=NotificationType.system,
+                    scheduled_at=now,
+                )
+            )
+            created += 1
+        if created:
+            db.commit()
+            logger.info("Queued %d daily brief notification(s)", created)
+    return created
+
+
+def enqueue_weekly_summaries() -> int:
+    """Create one weekly summary notification per eligible user near week-end."""
+    now = datetime.now(timezone.utc).replace(second=0, microsecond=0)
+    created = 0
+    with SessionLocal() as db:
+        settings_rows = list(
+            db.scalars(
+                select(UserSetting).where(
+                    UserSetting.notifications_enabled.is_(True),
+                    UserSetting.weekly_summary_enabled.is_(True),
+                )
+            )
+        )
+        for settings in settings_rows:
+            user = db.get(User, settings.user_id)
+            if user is None:
+                continue
+            tz = _safe_timezone(user.timezone)
+            local_now = now.astimezone(tz)
+            summary_weekday = 6 if settings.week_starts_on.value == "monday" else 5
+            if local_now.weekday() != summary_weekday:
+                continue
+            if not _matches_local_time(now, user.timezone, settings.daily_brief_time):
+                continue
+            if _already_created_today(
+                db,
+                user_id=user.id,
+                title_prefix="Weekly Summary",
+                timezone_name=user.timezone,
+                now_utc=now,
+            ):
+                continue
+            db.add(
+                Notification(
+                    user_id=user.id,
+                    title="Weekly Summary",
+                    body="Check your weekly progress report and plan next week's priorities.",
+                    type=NotificationType.system,
+                    scheduled_at=now,
+                )
+            )
+            created += 1
+        if created:
+            db.commit()
+            logger.info("Queued %d weekly summary notification(s)", created)
+    return created
 
 
 def process_due_notifications() -> int:
@@ -31,6 +168,20 @@ def process_due_notifications() -> int:
             )
         )
         for notification in due:
+            settings = db.scalar(
+                select(UserSetting).where(UserSetting.user_id == notification.user_id)
+            )
+            if settings is None:
+                notification.sent = True
+                continue
+            if not settings.notifications_enabled:
+                continue
+            if notification.type == NotificationType.reminder and not settings.reminder_notifications_enabled:
+                continue
+            if notification.title.startswith("Daily Brief") and not settings.daily_brief_enabled:
+                continue
+            if notification.title.startswith("Weekly Summary") and not settings.weekly_summary_enabled:
+                continue
             notification.sent = True
         if due:
             db.commit()

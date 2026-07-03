@@ -22,6 +22,7 @@ import {
   type WeekStartsOn,
 } from "@/api";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Pill } from "@/components/ui/Pill";
@@ -32,7 +33,14 @@ import { useToast } from "@/context/ToastContext";
 import { useAsync } from "@/hooks/useAsync";
 import { formatMinutes } from "@/lib/format";
 
-type SaveKey = "appearance" | "notifications" | "ai" | "planner" | "privacy";
+type SaveKey =
+  | "appearance"
+  | "notifications"
+  | "ai"
+  | "planner"
+  | "privacy"
+  | "integrations"
+  | "accessibility";
 
 const RESPONSE_LENGTH_OPTIONS: Array<{ value: AIResponseLength; label: string }> = [
   { value: "short", label: "Short" },
@@ -65,6 +73,26 @@ const DATE_FORMAT_OPTIONS: Array<{ value: DateFormat; label: string }> = [
   { value: "mm/dd/yyyy", label: "MM/DD/YYYY" },
   { value: "yyyy-mm-dd", label: "YYYY-MM-DD" },
 ];
+
+const GEMINI_MODEL_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: "gemini-3.5-pro", label: "Gemini 3.5 Pro" },
+  { value: "gemini-3.5-flash", label: "Gemini 3.5 Flash" },
+  { value: "gemini-3.5", label: "Gemini 3.5" },
+  { value: "gemini-3-pro", label: "Gemini 3 Pro" },
+  { value: "gemini-3-flash", label: "Gemini 3 Flash" },
+  { value: "gemini-3-flash-lite", label: "Gemini 3 Flash Lite" },
+  { value: "gemini-3", label: "Gemini 3" },
+  { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
+  { value: "gemini-2.5-pro", label: "Gemini 2.5 Pro" },
+  { value: "gemini-1.5-flash", label: "Gemini 1.5 Flash" },
+  { value: "gemini-1.5-pro", label: "Gemini 1.5 Pro" },
+];
+
+const DEFAULT_GEMINI_MODEL = GEMINI_MODEL_OPTIONS[0].value;
+
+function isSupportedGeminiModel(value: string): boolean {
+  return GEMINI_MODEL_OPTIONS.some((model) => model.value === value);
+}
 
 interface ToggleRowProps {
   id: string;
@@ -109,10 +137,28 @@ export function SettingsPage() {
     ai: false,
     planner: false,
     privacy: false,
+    integrations: false,
+    accessibility: false,
   });
+  const [exportingData, setExportingData] = useState(false);
+  const [clearingChat, setClearingChat] = useState(false);
+  const [confirmClearChat, setConfirmClearChat] = useState(false);
 
   useEffect(() => {
-    if (settingsQuery.data) setDraft(settingsQuery.data);
+    if (!settingsQuery.data) return;
+
+    const loaded = settingsQuery.data;
+    const aiDefaultModel = isSupportedGeminiModel(loaded.ai_behavior.ai_default_model)
+      ? loaded.ai_behavior.ai_default_model
+      : DEFAULT_GEMINI_MODEL;
+
+    setDraft({
+      ...loaded,
+      ai_behavior: {
+        ...loaded.ai_behavior,
+        ai_default_model: aiDefaultModel,
+      },
+    });
   }, [settingsQuery.data]);
 
   function setSavingState(key: SaveKey, value: boolean) {
@@ -200,6 +246,73 @@ export function SettingsPage() {
       toast.error(err instanceof ApiError ? err.message : "Couldn't update privacy settings.");
     } finally {
       setSavingState("privacy", false);
+    }
+  }
+
+  async function saveIntegrations(event: FormEvent) {
+    event.preventDefault();
+    if (!draft) return;
+    setSavingState("integrations", true);
+    try {
+      const updated = await api.settings.updateIntegrations(draft.integrations);
+      applyUpdated(updated);
+      toast.success("Integration preferences updated.");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Couldn't update integrations.");
+    } finally {
+      setSavingState("integrations", false);
+    }
+  }
+
+  async function saveAccessibility(event: FormEvent) {
+    event.preventDefault();
+    if (!draft) return;
+    setSavingState("accessibility", true);
+    try {
+      const updated = await api.settings.updateAccessibility(draft.accessibility);
+      applyUpdated(updated);
+      toast.success("Accessibility settings updated.");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Couldn't update accessibility settings.");
+    } finally {
+      setSavingState("accessibility", false);
+    }
+  }
+
+  async function exportData() {
+    setExportingData(true);
+    try {
+      const payload = await api.profile.exportAccountData();
+      const fileName = `shadow-export-${new Date(payload.exported_at).toISOString().slice(0, 10)}.json`;
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast.success("Account export downloaded.");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Couldn't export your account data.");
+    } finally {
+      setExportingData(false);
+    }
+  }
+
+  async function clearChatHistory() {
+    setClearingChat(true);
+    try {
+      const result = await api.profile.clearChatHistory();
+      toast.success(
+        `Cleared ${result.deleted_sessions} chat session(s) and ${result.deleted_messages} message(s).`,
+      );
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Couldn't clear chat history.");
+    } finally {
+      setClearingChat(false);
+      setConfirmClearChat(false);
     }
   }
 
@@ -401,6 +514,22 @@ export function SettingsPage() {
                   )
                 }
               />
+              <ToggleRow
+                id="notify-weekly-summary"
+                label="Weekly summary"
+                description="Receive a weekly summary reminder at your configured brief time."
+                checked={draft.notifications.weekly_summary_enabled}
+                onChange={(checked) =>
+                  setDraft((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          notifications: { ...prev.notifications, weekly_summary_enabled: checked },
+                        }
+                      : prev,
+                  )
+                }
+              />
 
               <div className="surface-2 p-3">
                 <label className="form-label" htmlFor="daily-brief-time">
@@ -463,7 +592,7 @@ export function SettingsPage() {
               <ToggleRow
                 id="privacy-memory"
                 label="Allow AI memory"
-                description="When disabled, Shadow ignores long-term memory for responses."
+                description="When disabled, Shadow ignores long-term memory for responses. Turning off AI memory does not delete saved memories; it only controls whether they are used in AI context assembly."
                 checked={draft.privacy.ai_memory_enabled}
                 onChange={(checked) =>
                   setDraft((prev) =>
@@ -476,13 +605,138 @@ export function SettingsPage() {
                   )
                 }
               />
-              <div className="small text-muted-2 surface-2 p-3">
-                Turning off AI memory does not delete saved memories. It only controls whether they are used
-                in AI context assembly.
+              <div className="surface-2 p-3 d-flex flex-column flex-sm-row gap-2">
+                <button
+                  type="button"
+                  className="btn btn-outline-secondary"
+                  onClick={exportData}
+                  disabled={exportingData}
+                >
+                  {exportingData ? "Exporting..." : "Export my data"}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline-danger"
+                  onClick={() => setConfirmClearChat(true)}
+                  disabled={clearingChat}
+                >
+                  Clear chat history
+                </button>
               </div>
               <div className="mt-2">
                 <button className="btn btn-brand" disabled={saving.privacy}>
                   {saving.privacy ? "Saving..." : "Save Privacy"}
+                </button>
+              </div>
+            </form>
+          </SectionCard>
+
+          <SectionCard title="Integrations" subtitle="Connected services and sync preferences.">
+            <form onSubmit={saveIntegrations} className="d-flex flex-column gap-2">
+              <ToggleRow
+                id="integration-google-calendar"
+                label="Google Calendar"
+                description="Allow Shadow to sync plan reminders with Google Calendar."
+                checked={draft.integrations.google_calendar_enabled}
+                onChange={(checked) =>
+                  setDraft((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          integrations: { ...prev.integrations, google_calendar_enabled: checked },
+                        }
+                      : prev,
+                  )
+                }
+              />
+              <ToggleRow
+                id="integration-slack"
+                label="Slack"
+                description="Allow Shadow to deliver system updates to your Slack workspace."
+                checked={draft.integrations.slack_enabled}
+                onChange={(checked) =>
+                  setDraft((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          integrations: { ...prev.integrations, slack_enabled: checked },
+                        }
+                      : prev,
+                  )
+                }
+              />
+              <div>
+                <button className="btn btn-brand" disabled={saving.integrations}>
+                  {saving.integrations ? "Saving..." : "Save Integrations"}
+                </button>
+              </div>
+            </form>
+          </SectionCard>
+
+          <SectionCard title="Accessibility" subtitle="Readability and motion preferences.">
+            <form onSubmit={saveAccessibility} className="d-flex flex-column gap-2">
+              <ToggleRow
+                id="accessibility-reduced-motion"
+                label="Reduced motion"
+                description="Minimize motion-heavy UI transitions where possible."
+                checked={draft.accessibility.reduced_motion}
+                onChange={(checked) =>
+                  setDraft((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          accessibility: { ...prev.accessibility, reduced_motion: checked },
+                        }
+                      : prev,
+                  )
+                }
+              />
+              <ToggleRow
+                id="accessibility-high-contrast"
+                label="High contrast"
+                description="Increase contrast in supported UI surfaces for better readability."
+                checked={draft.accessibility.high_contrast}
+                onChange={(checked) =>
+                  setDraft((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          accessibility: { ...prev.accessibility, high_contrast: checked },
+                        }
+                      : prev,
+                  )
+                }
+              />
+              <div className="surface-2 p-3">
+                <label className="form-label" htmlFor="font-scale-percent">
+                  Font scale ({draft.accessibility.font_scale_percent}%)
+                </label>
+                <input
+                  id="font-scale-percent"
+                  type="range"
+                  min={80}
+                  max={140}
+                  step={5}
+                  className="form-range"
+                  value={draft.accessibility.font_scale_percent}
+                  onChange={(e) =>
+                    setDraft((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            accessibility: {
+                              ...prev.accessibility,
+                              font_scale_percent: Number(e.target.value),
+                            },
+                          }
+                        : prev,
+                    )
+                  }
+                />
+              </div>
+              <div>
+                <button className="btn btn-brand" disabled={saving.accessibility}>
+                  {saving.accessibility ? "Saving..." : "Save Accessibility"}
                 </button>
               </div>
             </form>
@@ -557,6 +811,37 @@ export function SettingsPage() {
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div className="surface-2 p-3">
+                <label className="form-label" htmlFor="ai-default-model">
+                  Default model
+                </label>
+                <select
+                  id="ai-default-model"
+                  className="form-select"
+                  value={draft.ai_behavior.ai_default_model}
+                  onChange={(e) =>
+                    setDraft((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            ai_behavior: {
+                              ...prev.ai_behavior,
+                              ai_default_model: e.target.value,
+                            },
+                          }
+                        : prev,
+                    )
+                  }
+                >
+                  {GEMINI_MODEL_OPTIONS.map((model) => (
+                    <option key={model.value} value={model.value}>
+                      {model.label}
+                    </option>
+                  ))}
+                </select>
+                <div className="form-text">Only Gemini models are available for this workspace.</div>
               </div>
 
               <ToggleRow
@@ -782,6 +1067,7 @@ export function SettingsPage() {
                 <div className="d-flex gap-2 flex-wrap justify-content-end">
                   <Pill variant="brand">{draft.ai_behavior.ai_personality}</Pill>
                   <Pill>{draft.ai_behavior.ai_response_length.replace("_", " ")}</Pill>
+                  <Pill>{draft.ai_behavior.ai_default_model || "auto"}</Pill>
                 </div>
               </div>
               <div className="surface-2 p-3 d-flex align-items-center justify-content-between gap-2">
@@ -794,14 +1080,39 @@ export function SettingsPage() {
               </div>
               <div className="surface-2 p-3 d-flex align-items-center justify-content-between gap-2">
                 <span className="fw-semibold">Notifications</span>
-                <Pill variant={draft.notifications.notifications_enabled ? "success" : "warn"}>
-                  {draft.notifications.notifications_enabled ? "Enabled" : "Disabled"}
-                </Pill>
+                <div className="d-flex gap-2 flex-wrap justify-content-end">
+                  <Pill variant={draft.notifications.notifications_enabled ? "success" : "warn"}>
+                    {draft.notifications.notifications_enabled ? "Enabled" : "Disabled"}
+                  </Pill>
+                  <Pill variant={draft.notifications.weekly_summary_enabled ? "info" : "muted"}>
+                    Weekly summary {draft.notifications.weekly_summary_enabled ? "On" : "Off"}
+                  </Pill>
+                </div>
+              </div>
+              <div className="surface-2 p-3 d-flex align-items-center justify-content-between gap-2">
+                <span className="fw-semibold">Accessibility</span>
+                <div className="d-flex gap-2 flex-wrap justify-content-end">
+                  <Pill>{draft.accessibility.font_scale_percent}% text</Pill>
+                  <Pill variant={draft.accessibility.reduced_motion ? "info" : "muted"}>
+                    Motion {draft.accessibility.reduced_motion ? "Reduced" : "Normal"}
+                  </Pill>
+                </div>
               </div>
             </div>
           </SectionCard>
         </div>
       </div>
+
+      <ConfirmDialog
+        show={confirmClearChat}
+        title="Clear chat history?"
+        message="This will delete all existing chat sessions and messages for your account."
+        confirmLabel="Clear history"
+        destructive
+        busy={clearingChat}
+        onConfirm={clearChatHistory}
+        onCancel={() => setConfirmClearChat(false)}
+      />
     </div>
   );
 }

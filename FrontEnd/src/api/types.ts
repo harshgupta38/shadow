@@ -62,6 +62,10 @@ export interface User {
   name: string;
   timezone: string;
   theme_preference: ThemePreference;
+  subscription_plan: string;
+  email_verified: boolean;
+  auth_provider: string;
+  last_password_changed_at: string;
   onboarding_completed: boolean;
   created_at: string;
   updated_at: string;
@@ -82,6 +86,11 @@ export interface LoginRequest {
 export interface Token {
   access_token: string;
   token_type: string;
+}
+
+export interface ChangePasswordRequest {
+  current_password: string;
+  new_password: string;
 }
 
 export interface ProfileUpdate {
@@ -153,6 +162,30 @@ export interface AIProfileUpdate {
   always_remember?: string | null;
 }
 
+export interface AccountOverview {
+  user_id: number;
+  email: string;
+  auth_provider: string;
+  email_verified: boolean;
+  subscription_plan: string;
+  member_since: string;
+  last_password_changed_at: string;
+}
+
+export interface ChatHistoryClearResult {
+  deleted_sessions: number;
+  deleted_messages: number;
+}
+
+export interface AccountDataExport {
+  exported_at: string;
+  data: Record<string, unknown>;
+}
+
+export interface DeleteAccountRequest {
+  confirmation_text: string;
+}
+
 // ── Memory ─────────────────────────────────────────────────────────────────
 export interface MemoryEntry {
   id: number;
@@ -200,6 +233,7 @@ export interface MemoryCenterEntry {
   source: MemorySource;
   confidence: string;
   editable: boolean;
+  why_known: string;
   used_by: string[];
   created_at: string;
   updated_at: string;
@@ -216,11 +250,13 @@ export interface NotificationSettings {
   reminder_notifications_enabled: boolean;
   daily_brief_enabled: boolean;
   daily_brief_time: string;
+  weekly_summary_enabled: boolean;
 }
 
 export interface AIBehaviorSettings {
   ai_response_length: AIResponseLength;
   ai_personality: AIPersonality;
+  ai_default_model: string;
   ai_suggestions_enabled: boolean;
   smart_planning_enabled: boolean;
 }
@@ -238,12 +274,25 @@ export interface PrivacySettings {
   ai_memory_enabled: boolean;
 }
 
+export interface IntegrationSettings {
+  google_calendar_enabled: boolean;
+  slack_enabled: boolean;
+}
+
+export interface AccessibilitySettings {
+  reduced_motion: boolean;
+  high_contrast: boolean;
+  font_scale_percent: number;
+}
+
 export interface SettingsRead {
   appearance: AppearanceSettings;
   notifications: NotificationSettings;
   ai_behavior: AIBehaviorSettings;
   planner: PlannerSettings;
   privacy: PrivacySettings;
+  integrations: IntegrationSettings;
+  accessibility: AccessibilitySettings;
 }
 
 export interface AppearanceSettingsUpdate {
@@ -257,11 +306,13 @@ export interface NotificationSettingsUpdate {
   reminder_notifications_enabled?: boolean;
   daily_brief_enabled?: boolean;
   daily_brief_time?: string;
+  weekly_summary_enabled?: boolean;
 }
 
 export interface AIBehaviorSettingsUpdate {
   ai_response_length?: AIResponseLength;
   ai_personality?: AIPersonality;
+  ai_default_model?: string;
   ai_suggestions_enabled?: boolean;
   smart_planning_enabled?: boolean;
 }
@@ -277,6 +328,17 @@ export interface PlannerSettingsUpdate {
 export interface PrivacySettingsUpdate {
   analytics_opt_out?: boolean;
   ai_memory_enabled?: boolean;
+}
+
+export interface IntegrationSettingsUpdate {
+  google_calendar_enabled?: boolean;
+  slack_enabled?: boolean;
+}
+
+export interface AccessibilitySettingsUpdate {
+  reduced_motion?: boolean;
+  high_contrast?: boolean;
+  font_scale_percent?: number;
 }
 
 // ── Onboarding ─────────────────────────────────────────────────────────────
@@ -472,6 +534,8 @@ export interface PlannedTask {
   id: number;
   title: string;
   date: string;
+  reminder_time: string | null;
+  estimated_duration_minutes: number | null;
   status: PlannedTaskStatus;
   related_goal_id: number | null;
   completed_at: string | null;
@@ -482,12 +546,16 @@ export interface PlannedTaskCreate {
   title: string;
   date?: string | null;
   related_goal_id?: number | null;
+  reminder_time?: string | null;
+  estimated_duration_minutes?: number | null;
 }
 
 export interface PlannedTaskUpdate {
   title?: string;
   status?: PlannedTaskStatus;
   related_goal_id?: number | null;
+  reminder_time?: string | null;
+  estimated_duration_minutes?: number | null;
 }
 
 // ── Reports ────────────────────────────────────────────────────────────────

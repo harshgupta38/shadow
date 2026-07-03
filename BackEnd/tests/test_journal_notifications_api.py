@@ -42,6 +42,55 @@ def test_notifications_flow(client: TestClient, auth_headers: dict) -> None:
     assert read["read"] is True
 
 
+def test_notifications_respect_settings_switches(client: TestClient, auth_headers: dict) -> None:
+    off = client.put(
+        "/api/settings/notifications",
+        headers=auth_headers,
+        json={"notifications_enabled": False},
+    )
+    assert off.status_code == 200
+
+    blocked = client.post(
+        "/api/notifications",
+        headers=auth_headers,
+        json={"title": "Plan", "body": "check", "type": "reminder"},
+    )
+    assert blocked.status_code == 409
+
+    on = client.put(
+        "/api/settings/notifications",
+        headers=auth_headers,
+        json={
+            "notifications_enabled": True,
+            "reminder_notifications_enabled": False,
+            "daily_brief_enabled": False,
+            "weekly_summary_enabled": False,
+        },
+    )
+    assert on.status_code == 200
+
+    blocked_reminder = client.post(
+        "/api/notifications",
+        headers=auth_headers,
+        json={"title": "Task reminder", "type": "reminder"},
+    )
+    assert blocked_reminder.status_code == 409
+
+    blocked_daily = client.post(
+        "/api/notifications",
+        headers=auth_headers,
+        json={"title": "Daily Brief", "type": "system"},
+    )
+    assert blocked_daily.status_code == 409
+
+    blocked_weekly = client.post(
+        "/api/notifications",
+        headers=auth_headers,
+        json={"title": "Weekly Summary", "type": "system"},
+    )
+    assert blocked_weekly.status_code == 409
+
+
 def test_profile_update(client: TestClient, auth_headers: dict) -> None:
     response = client.put(
         "/api/profile",

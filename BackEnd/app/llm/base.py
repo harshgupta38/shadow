@@ -34,6 +34,7 @@ class LLMProvider(ABC):
         system: str | None = None,
         temperature: float = 0.7,
         max_tokens: int | None = None,
+        model: str | None = None,
     ) -> str:
         """Return a single completion for ``messages``.
 
@@ -49,6 +50,7 @@ class LLMProvider(ABC):
         system: str | None = None,
         temperature: float = 0.7,
         max_tokens: int | None = None,
+        model: str | None = None,
     ) -> Iterator[str]:
         """Yield the completion in chunks.
 
@@ -56,5 +58,9 @@ class LLMProvider(ABC):
         once; providers that support streaming may override it.
         """
         yield self.generate(
-            messages, system=system, temperature=temperature, max_tokens=max_tokens
+            messages,
+            system=system,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            model=model,
         )

@@ -116,6 +116,23 @@ def compile_user_context(db: Session, user: User) -> str:
     )
     memory_enabled = user_settings.ai_memory_enabled if user_settings is not None else True
 
+    if user_settings is not None:
+        behavior_points = [
+            f"- Preferred response length: {user_settings.ai_response_length.value}",
+            f"- Preferred personality: {user_settings.ai_personality.value}",
+            f"- Preferred AI model selection: {user_settings.ai_default_model}",
+            f"- Smart planning: {'enabled' if user_settings.smart_planning_enabled else 'disabled'}",
+        ]
+        if not user_settings.ai_suggestions_enabled:
+            behavior_points.append(
+                "- Do not proactively suggest next actions unless the user asks for suggestions."
+            )
+        if not user_settings.smart_planning_enabled:
+            behavior_points.append(
+                "- Do not auto-create detailed plans unless the user explicitly requests planning help."
+            )
+        sections.append("## AI behavior preferences\n" + "\n".join(behavior_points))
+
     if memory_enabled:
         memories = list(
             db.scalars(

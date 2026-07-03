@@ -60,17 +60,19 @@ function stripGoalContext(content: string): string {
   return content.slice(0, markerIndex).trimEnd();
 }
 
-function moduleLabel(module: AssistantProposedAction["module"]): string {
-  switch (module) {
-    case "plan":
-      return "Plan";
-    case "goals":
-      return "Goals";
-    case "track":
-      return "Track";
-    default:
-      return "Action";
-  }
+function actionBadgeLabel(action: AssistantProposedAction): string {
+  if (action.type === "goals.add_milestone") return "Milestone";
+  if (action.type === "goals.create_goal") return "Goal";
+  if (action.type === "plan.create_task") return "Task";
+  if (action.module === "track") return "Metric";
+  return "Action";
+}
+
+function actionDisplayTitle(action: AssistantProposedAction): string {
+  if (action.type !== "goals.add_milestone") return action.title;
+
+  const stripped = action.title.replace(/^add\s+milestone\s*:\s*/i, "").trim();
+  return stripped || action.title;
 }
 
 export function ChatPage() {
@@ -206,7 +208,11 @@ export function ChatPage() {
     actions: AssistantProposedAction[],
   ) {
     const autoActions = actions.filter(
-      (action) => action.confidence === "high" && !action.requires_confirmation && !action.destructive,
+      (action) =>
+        action.confidence === "high" &&
+        !action.requires_confirmation &&
+        !action.destructive &&
+        action.type !== "goals.add_milestone",
     );
     for (const action of autoActions) {
       await executeProposal(sessionId, assistantMessageId, action, false);
@@ -230,8 +236,9 @@ export function ChatPage() {
   }
 
   function selectSession(session: ChatSession) {
-    setSelectedId(session.id);
     setMobilePane("chat");
+    if (selectedId === session.id) return;
+    setSelectedId(session.id);
     void loadMessages(session.id);
   }
 
@@ -526,59 +533,62 @@ export function ChatPage() {
                             <div className="chat-action-list">
                               {(messageActions[message.id] ?? []).map((entry) => (
                                 <div key={entry.action.id} className="chat-action-card">
-                                  <div className="d-flex align-items-center justify-content-between gap-2">
+                                      <div className="chat-action-row">
                                     <span className="chat-action-module">
-                                      {moduleLabel(entry.action.module)}
+                                          {actionBadgeLabel(entry.action)}
                                     </span>
-                                    <span className={`chat-action-confidence ${entry.action.confidence}`}>
-                                      {entry.action.confidence}
-                                    </span>
-                                  </div>
-                                  <div className="fw-semibold small mt-2">{entry.action.title}</div>
-                                  {!!entry.action.rationale && (
-                                    <div className="text-faint small mt-1">{entry.action.rationale}</div>
-                                  )}
-                                  <div className="chat-action-meta mt-2">
+                                        <div
+                                          className="chat-action-title text-truncate"
+                                          title={actionDisplayTitle(entry.action)}
+                                        >
+                                          {actionDisplayTitle(entry.action)}
+                                        </div>
                                     {entry.status === "idle" ? (
-                                      <button
-                                        type="button"
-                                        className="btn btn-sm btn-outline-secondary"
-                                        onClick={() => {
-                                          if (!selectedSession) return;
-                                          if (entry.action.requires_confirmation) {
-                                            setActionConfirm({
-                                              sessionId: selectedSession.id,
-                                              assistantMessageId: message.id,
-                                              actionId: entry.action.id,
-                                            });
-                                            return;
-                                          }
-                                          void executeProposal(
-                                            selectedSession.id,
-                                            message.id,
-                                            entry.action,
-                                            false,
-                                          );
-                                        }}
-                                      >
-                                        {entry.action.requires_confirmation
-                                          ? "Confirm and run"
-                                          : "Run now"}
-                                      </button>
+                                          <div className="chat-action-controls">
+                                            <button
+                                              type="button"
+                                              className="btn btn-sm btn-outline-secondary"
+                                              onClick={() => {
+                                                if (!selectedSession) return;
+                                                if (entry.action.requires_confirmation) {
+                                                  setActionConfirm({
+                                                    sessionId: selectedSession.id,
+                                                    assistantMessageId: message.id,
+                                                    actionId: entry.action.id,
+                                                  });
+                                                  return;
+                                                }
+                                                void executeProposal(
+                                                  selectedSession.id,
+                                                  message.id,
+                                                  entry.action,
+                                                  false,
+                                                );
+                                              }}
+                                            >
+                                              {entry.action.requires_confirmation
+                                                ? "Confirm and run"
+                                                : "Save"}
+                                            </button>
+                                          </div>
                                     ) : entry.status === "running" ? (
-                                      <span className="small text-faint">Running action…</span>
+                                          <span className="chat-action-status text-faint">Running…</span>
                                     ) : (
                                       <span
-                                        className={`small ${
+                                            className={`chat-action-status ${
                                           entry.status === "executed" ? "text-success" : "text-danger"
                                         }`}
                                       >
-                                        {entry.message}
+                                            {entry.status === "executed"
+                                              ? "Done"
+                                              : entry.status === "rejected"
+                                                ? "Skipped"
+                                                : (entry.message ?? "Failed")}
                                       </span>
                                     )}
                                     {entry.link && entry.status === "executed" && (
-                                      <Link to={entry.link} className="small fw-semibold">
-                                        Open module
+                                          <Link to={entry.link} className="chat-action-link">
+                                            Open
                                       </Link>
                                     )}
                                   </div>

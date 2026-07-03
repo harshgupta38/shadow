@@ -162,8 +162,61 @@ describe("ChatPage", () => {
     await user.click(screen.getByLabelText("Send message"));
 
     await waitFor(() => expect(mockedChat.executeAction).toHaveBeenCalledWith(1, proposal, false));
-    expect(await screen.findByText("Task created")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Open module" })).toHaveAttribute("href", "/plan");
+    expect(await screen.findByText("Done")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open" })).toHaveAttribute("href", "/plan");
+  });
+
+  it("does not auto-run milestone proposals and uses compact save action", async () => {
+    const proposal = {
+      id: "act-m-1",
+      module: "goals",
+      type: "goals.add_milestone",
+      title: "Add milestone: Reach 5KG",
+      rationale: "Proposed milestone from goal breakdown.",
+      confidence: "high",
+      requires_confirmation: false,
+      destructive: false,
+      args: { goal_id: 9, title: "Reach 5KG", order: 0 },
+    } as const;
+    mockedChat.send.mockResolvedValue({
+      user_message: {
+        id: 151,
+        session_id: 1,
+        role: "user",
+        content: "Break my goal into milestones",
+        agent_type: "general",
+        created_at: "2026-07-03T10:05:00Z",
+      },
+      assistant_message: {
+        id: 152,
+        session_id: 1,
+        role: "assistant",
+        content: "Here is a milestone plan.",
+        agent_type: "general",
+        created_at: "2026-07-03T10:05:02Z",
+      },
+      session: {
+        ...sessionFixture,
+        updated_at: "2026-07-03T10:05:02Z",
+      },
+      proposed_actions: [proposal],
+    });
+
+    const user = userEvent.setup();
+    renderPage();
+
+    const title = await screen.findByText("Focus Sprint");
+    await user.click(title.closest("button") as HTMLButtonElement);
+
+    await user.type(screen.getByPlaceholderText("Message Shadow…"), "Break my goal into milestones");
+    await user.click(screen.getByLabelText("Send message"));
+
+    await screen.findByRole("button", { name: "Save" });
+    expect(screen.queryByRole("button", { name: "Skip" })).not.toBeInTheDocument();
+    expect(screen.getByText("Milestone")).toBeInTheDocument();
+    expect(screen.getByText("Reach 5KG")).toBeInTheDocument();
+    expect(screen.queryByText("Add milestone: Reach 5KG")).not.toBeInTheDocument();
+    expect(mockedChat.executeAction).not.toHaveBeenCalled();
   });
 
   it("asks confirmation for uncertain proposals before execution", async () => {
@@ -222,7 +275,7 @@ describe("ChatPage", () => {
     await user.click(screen.getByRole("button", { name: "Run action" }));
 
     await waitFor(() => expect(mockedChat.executeAction).toHaveBeenCalledWith(1, proposal, true));
-    expect(await screen.findByText("Goal created")).toBeInTheDocument();
+    expect(await screen.findByText("Done")).toBeInTheDocument();
   });
 
   it("keeps goal context when chat is opened from goal detail", async () => {

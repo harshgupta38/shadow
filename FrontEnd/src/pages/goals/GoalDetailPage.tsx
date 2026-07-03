@@ -114,7 +114,11 @@ export function GoalDetailPage() {
     );
   }
 
-  async function saveMilestone(payload: { title: string; description: string | null }) {
+  async function saveMilestone(payload: {
+    title: string;
+    description: string | null;
+    dueDate: string | null;
+  }) {
     if (!goal) return;
 
     if (!editingMilestone) {
@@ -127,6 +131,7 @@ export function GoalDetailPage() {
         const created = await api.goals.addMilestone(goal.id, {
           title: payload.title,
           description: payload.description,
+          due_date: payload.dueDate,
           details: null,
           order: nextOrder,
         });
@@ -146,6 +151,7 @@ export function GoalDetailPage() {
       const updated = await api.goals.updateMilestone(editingMilestone.id, {
         title: payload.title,
         description: payload.description,
+        due_date: payload.dueDate,
         details: null,
       });
       applyMilestones(goal.milestones.map((m) => (m.id === editingMilestone.id ? updated : m)));

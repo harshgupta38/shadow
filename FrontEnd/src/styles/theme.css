@@ -548,6 +548,11 @@ a {
   line-height: 1.55;
 }
 
+.milestone-editor .ql-editor.ql-blank::before {
+  color: var(--jv-faint);
+  opacity: 1;
+}
+
 .milestone-editor .ql-snow .ql-picker.ql-header .ql-picker-label::before,
 .milestone-editor .ql-snow .ql-picker.ql-header .ql-picker-item::before {
   font-size: 0.92rem;
@@ -555,6 +560,11 @@ a {
 
 [data-bs-theme="dark"] .milestone-editor .ql-snow .ql-picker {
   color: var(--jv-muted);
+}
+
+[data-bs-theme="dark"] .milestone-editor .ql-editor.ql-blank::before {
+  color: var(--jv-muted);
+  opacity: 0.95;
 }
 
 [data-bs-theme="dark"] .milestone-editor .ql-snow .ql-stroke {
@@ -1358,39 +1368,53 @@ a {
   border: 1px solid color-mix(in srgb, var(--jv-brand-1) 25%, var(--jv-border));
   border-radius: 12px;
   background: color-mix(in srgb, var(--jv-surface) 92%, var(--jv-brand-1) 8%);
-  padding: 0.65rem 0.75rem;
+  padding: 0.42rem 0.58rem;
+}
+.chat-action-row {
+  display: flex;
+  align-items: center;
+  gap: 0.48rem;
+  min-width: 0;
 }
 .chat-action-module {
   display: inline-flex;
   align-items: center;
-  padding: 0.12rem 0.45rem;
+  padding: 0.1rem 0.42rem;
   border-radius: 999px;
-  font-size: 0.66rem;
+  font-size: 0.62rem;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   font-weight: 700;
   color: color-mix(in srgb, var(--jv-brand-2) 78%, var(--jv-text));
   background: color-mix(in srgb, var(--jv-brand-2) 18%, transparent);
+  flex-shrink: 0;
 }
-.chat-action-confidence {
-  font-size: 0.72rem;
-  font-weight: 700;
-  text-transform: capitalize;
+.chat-action-title {
+  font-size: 0.83rem;
+  font-weight: 600;
+  min-width: 0;
+  flex: 1 1 auto;
 }
-.chat-action-confidence.high {
-  color: #138a5a;
-}
-.chat-action-confidence.medium {
-  color: #c97a00;
-}
-.chat-action-confidence.low {
-  color: #c03d3d;
-}
-.chat-action-meta {
+.chat-action-controls {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 0.55rem;
+  gap: 0.34rem;
+  flex-shrink: 0;
+}
+.chat-action-controls .btn {
+  padding: 0.18rem 0.45rem;
+  font-size: 0.72rem;
+  line-height: 1.2;
+}
+.chat-action-status {
+  font-size: 0.75rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.chat-action-link {
+  font-size: 0.75rem;
+  font-weight: 600;
+  flex-shrink: 0;
 }
 .chat-composer {
   border-top: 1px solid var(--jv-border);

@@ -9,7 +9,11 @@ interface MilestoneEditModalProps {
   milestone: Milestone | null;
   busy?: boolean;
   onClose: () => void;
-  onSave: (payload: { title: string; description: string | null }) => Promise<void>;
+  onSave: (payload: {
+    title: string;
+    description: string | null;
+    dueDate: string | null;
+  }) => Promise<void>;
 }
 
 const QUILL_MODULES = {
@@ -57,6 +61,11 @@ function descriptionToEditorValue(value: string | null): string {
   return `<p>${escaped.replace(/\r?\n/g, "</p><p>")}</p>`;
 }
 
+function dueDateToInputValue(value: string | null | undefined): string {
+  if (!value) return "";
+  return value.slice(0, 10);
+}
+
 export function MilestoneEditModal({
   show,
   milestone,
@@ -65,11 +74,13 @@ export function MilestoneEditModal({
   onSave,
 }: MilestoneEditModalProps) {
   const [title, setTitle] = useState("");
+  const [dueDate, setDueDate] = useState("");
   const [description, setDescription] = useState("");
 
   useEffect(() => {
     if (!show) return;
     setTitle(milestone?.title ?? "");
+    setDueDate(dueDateToInputValue(milestone?.due_date));
     setDescription(descriptionToEditorValue(milestone?.description ?? null));
   }, [show, milestone]);
 
@@ -84,6 +95,7 @@ export function MilestoneEditModal({
     await onSave({
       title: nextTitle,
       description: nextDescription || null,
+      dueDate: dueDate || null,
     });
   }
 
@@ -93,15 +105,29 @@ export function MilestoneEditModal({
         <Modal.Title className="h5 fw-bold">{isEditing ? "Edit milestone" : "Add milestone"}</Modal.Title>
       </Modal.Header>
       <Modal.Body>
-        <label className="form-label">Title</label>
-        <input
-          className="form-control mb-3"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          disabled={busy}
-          maxLength={255}
-          placeholder="Milestone title"
-        />
+        <div className="row g-3 mb-3">
+          <div className="col-12 col-md-8">
+            <label className="form-label">Title</label>
+            <input
+              className="form-control"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              disabled={busy}
+              maxLength={255}
+              placeholder="Milestone title"
+            />
+          </div>
+          <div className="col-12 col-md-4">
+            <label className="form-label">Due date</label>
+            <input
+              type="date"
+              className="form-control"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+              disabled={busy}
+            />
+          </div>
+        </div>
 
         <label className="form-label">Description</label>
         <ReactQuill

@@ -55,6 +55,8 @@ export type PlannedTaskStatus = "planned" | "done" | "missed";
 
 export type ReportPeriod = "daily" | "weekly";
 
+export type JournalMood = "Great" | "Good" | "Okay" | "Low" | "Rough";
+
 // ── Auth & user ────────────────────────────────────────────────────────────
 export interface User {
   id: number;
@@ -451,19 +453,21 @@ export interface ChatSendResponse {
 export interface JournalEntry {
   id: number;
   content: string;
-  mood: string | null;
+  mood: JournalMood | null;
+  goal_alignment: string | null;
+  shadow_response: string | null;
   created_at: string;
   updated_at: string;
 }
 
 export interface JournalCreate {
   content: string;
-  mood?: string | null;
+  mood?: JournalMood | null;
 }
 
 export interface JournalUpdate {
   content?: string;
-  mood?: string | null;
+  mood?: JournalMood | null;
 }
 
 // ── Notifications ──────────────────────────────────────────────────────────

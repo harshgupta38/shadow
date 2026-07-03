@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, status
 
-from app.api.deps import CurrentUser, DbSession
+from app.api.deps import CurrentUser, DbSession, Provider
 from app.schemas.journal import JournalCreate, JournalRead, JournalUpdate
 from app.services import journal_service
 
@@ -17,15 +17,24 @@ def list_entries(db: DbSession, current_user: CurrentUser) -> list[JournalRead]:
 
 
 @router.post("", response_model=JournalRead, status_code=status.HTTP_201_CREATED)
-def create_entry(data: JournalCreate, db: DbSession, current_user: CurrentUser) -> JournalRead:
-    return journal_service.create_entry(db, current_user, data)
+def create_entry(
+    data: JournalCreate,
+    db: DbSession,
+    current_user: CurrentUser,
+    provider: Provider,
+) -> JournalRead:
+    return journal_service.create_entry(db, current_user, data, provider)
 
 
 @router.put("/{entry_id}", response_model=JournalRead)
 def update_entry(
-    entry_id: int, data: JournalUpdate, db: DbSession, current_user: CurrentUser
+    entry_id: int,
+    data: JournalUpdate,
+    db: DbSession,
+    current_user: CurrentUser,
+    provider: Provider,
 ) -> JournalRead:
-    return journal_service.update_entry(db, current_user, entry_id, data)
+    return journal_service.update_entry(db, current_user, entry_id, data, provider)
 
 
 @router.delete("/{entry_id}", status_code=status.HTTP_204_NO_CONTENT)

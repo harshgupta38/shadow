@@ -9,19 +9,113 @@ def test_journal_crud(client: TestClient, auth_headers: dict) -> None:
     created = client.post(
         "/api/journal",
         headers=auth_headers,
-        json={"content": "Today was productive", "mood": "good"},
+        json={"content": "Today was productive", "mood": "Good"},
     )
     assert created.status_code == 201
-    entry_id = created.json()["id"]
+    created_json = created.json()
+    assert created_json["shadow_response"].startswith("[fake-llm]")
+    assert created_json["goal_alignment"]
+    entry_id = created_json["id"]
 
     assert len(client.get("/api/journal", headers=auth_headers).json()) == 1
 
     updated = client.put(
         f"/api/journal/{entry_id}", headers=auth_headers, json={"content": "edited"}
     )
-    assert updated.json()["content"] == "edited"
+    updated_json = updated.json()
+    assert updated_json["content"] == "edited"
+    assert updated_json["shadow_response"].startswith("[fake-llm]")
+    assert updated_json["goal_alignment"]
 
     assert client.delete(f"/api/journal/{entry_id}", headers=auth_headers).status_code == 204
+
+
+def test_journal_rejects_invalid_mood(client: TestClient, auth_headers: dict) -> None:
+    response = client.post(
+        "/api/journal",
+        headers=auth_headers,
+        json={"content": "Mood test", "mood": "amazing"},
+    )
+    assert response.status_code == 422
+
+
+def test_journal_extracts_goal_alignment_and_memory(client: TestClient, auth_headers: dict) -> None:
+    goal = client.post(
+        "/api/goals",
+        headers=auth_headers,
+        json={
+            "title": "Crack Google interviews",
+            "description": "Solve LeetCode consistently and improve DSA speed.",
+        },
+    )
+    assert goal.status_code == 201
+
+    created = client.post(
+        "/api/journal",
+        headers=auth_headers,
+        json={
+            "content": "I solved 5 LeetCode problems this morning and want to keep this daily routine for interviews.",
+            "mood": "Great",
+        },
+    )
+    assert created.status_code == 201
+    payload = created.json()
+    assert payload["goal_alignment"]
+
+    memories = client.get("/api/profile/memories", headers=auth_headers).json()
+    behavior_memories = [m for m in memories if m["source"] == "behavior"]
+    assert behavior_memories
+    assert any("leetcode" in m["ai_understanding"].lower() for m in behavior_memories)
+
+
+def test_journal_small_edit_skips_ai_refresh(
+    client: TestClient,
+    auth_headers: dict,
+    monkeypatch,
+) -> None:
+    created = client.post(
+        "/api/journal",
+        headers=auth_headers,
+        json={
+            "content": "I solved 10 LeetCode problems and will stay consistent tomorrow.",
+            "mood": "Great",
+        },
+    )
+    assert created.status_code == 201
+    created_json = created.json()
+
+    import app.services.journal_service as journal_service
+
+    calls = {"reflection": 0, "alignment": 0, "memory": 0}
+
+    def spy_reflection(*args, **kwargs):
+        calls["reflection"] += 1
+        return "[spy-reflection]"
+
+    def spy_alignment(*args, **kwargs):
+        calls["alignment"] += 1
+        return "[spy-alignment]"
+
+    def spy_memory(*args, **kwargs):
+        calls["memory"] += 1
+        return '{"insights": []}'
+
+    monkeypatch.setattr(journal_service, "generate_journal_reflection", spy_reflection)
+    monkeypatch.setattr(journal_service, "generate_journal_goal_alignment", spy_alignment)
+    monkeypatch.setattr(journal_service, "extract_journal_memory_insights", spy_memory)
+
+    updated = client.put(
+        f"/api/journal/{created_json['id']}",
+        headers=auth_headers,
+        json={"content": "I solved 10 LeetCode problems and will stay consistent tomorrow!!"},
+    )
+    assert updated.status_code == 200
+    updated_json = updated.json()
+
+    assert updated_json["content"].endswith("!!")
+    assert updated_json["shadow_response"] == created_json["shadow_response"]
+    assert updated_json["goal_alignment"] == created_json["goal_alignment"]
+    assert calls == {"reflection": 0, "alignment": 0, "memory": 0}
 
 
 def test_notifications_flow(client: TestClient, auth_headers: dict) -> None:

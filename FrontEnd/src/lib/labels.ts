@@ -1,5 +1,6 @@
 import type {
   GoalStatus,
+  JournalMood,
   MemoryCategory,
   MemorySource,
   MetricUnit,
@@ -87,7 +88,7 @@ export const GOAL_CATEGORY_SUGGESTIONS = [
   "Relationships",
 ];
 
-export const MOOD_OPTIONS = [
+export const MOOD_OPTIONS: ReadonlyArray<{ emoji: string; label: JournalMood }> = [
   { emoji: "😄", label: "Great" },
   { emoji: "🙂", label: "Good" },
   { emoji: "😐", label: "Okay" },

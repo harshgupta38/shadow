@@ -254,3 +254,98 @@ def distill_behavior_signal(
         temperature=0.3,
         model=model,
     ).strip()
+
+
+def generate_journal_reflection(
+    provider: LLMProvider,
+    *,
+    entry_content: str,
+    mood: str | None,
+    user_context: str = "",
+    model: str | None = None,
+) -> str:
+    """Generate a contextual Shadow reflection for a journal entry."""
+    system = _with_context(system_prompt(AgentType.daily_checkin), user_context)
+    prompt = (
+        "Journal entry:\n"
+        f"{entry_content}\n\n"
+        f"Mood: {mood or 'unspecified'}\n\n"
+        "Write a personalized reflection in 3-5 sentences.\n"
+        "Requirements:\n"
+        "- Acknowledge what happened and the user's emotional tone.\n"
+        "- Tie the reflection to active goals or recent progress signals when possible.\n"
+        "- If this indicates a setback, respond with empathy and accountability.\n"
+        "- End with one practical next step for tomorrow.\n"
+        "- Plain text only, no markdown, no bullet points."
+    )
+    return provider.generate(
+        [LLMMessage("user", prompt)],
+        system=system,
+        temperature=0.45,
+        max_tokens=320,
+        model=model,
+    ).strip()
+
+
+def generate_journal_goal_alignment(
+    provider: LLMProvider,
+    *,
+    entry_content: str,
+    mood: str | None,
+    active_goals: list[str],
+    user_context: str = "",
+    model: str | None = None,
+) -> str:
+    """Generate explicit goal-alignment analysis for a journal entry."""
+    system = _with_context(system_prompt(AgentType.progress_analyst), user_context)
+    goals_block = "\n".join(f"- {goal}" for goal in active_goals) or "- No active goals"
+    prompt = (
+        "Journal entry:\n"
+        f"{entry_content}\n\n"
+        f"Mood: {mood or 'unspecified'}\n\n"
+        "Active goals:\n"
+        f"{goals_block}\n\n"
+        "Write a clear goal-alignment analysis in 2-4 sentences.\n"
+        "Must include:\n"
+        "- Which active goals were supported, if any.\n"
+        "- Which goals may be at risk or conflicted, if any.\n"
+        "- One specific next move to improve alignment.\n"
+        "Plain text only, no markdown, no bullet points."
+    )
+    return provider.generate(
+        [LLMMessage("user", prompt)],
+        system=system,
+        temperature=0.3,
+        max_tokens=260,
+        model=model,
+    ).strip()
+
+
+def extract_journal_memory_insights(
+    provider: LLMProvider,
+    *,
+    entry_content: str,
+    mood: str | None,
+    user_context: str = "",
+    model: str | None = None,
+) -> str:
+    """Extract durable journal insights as strict JSON."""
+    system = _with_context(system_prompt(AgentType.progress_analyst), user_context)
+    prompt = (
+        "Journal entry:\n"
+        f"{entry_content}\n\n"
+        f"Mood: {mood or 'unspecified'}\n\n"
+        "Extract only durable personalization signals useful for future planning and coaching.\n"
+        "Do not include one-off details.\n"
+        "Output MUST be valid JSON with this exact shape:\n"
+        "{\"insights\": [{\"category\": \"daily|weekly|monthly|career|life|personality|other\", \"understanding\": \"...\"}]}\n"
+        "If there is no meaningful durable signal, return exactly: {\"insights\": []}\n"
+        "No markdown fences, no extra keys, no commentary."
+    )
+    return provider.generate(
+        [LLMMessage("user", prompt)],
+        system=system,
+        temperature=0.2,
+        max_tokens=420,
+        model=model,
+    ).strip()

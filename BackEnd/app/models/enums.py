@@ -119,3 +119,11 @@ class PlannedTaskStatus(str, enum.Enum):
 class ReportPeriod(str, enum.Enum):
     daily = "daily"
     weekly = "weekly"
+
+
+class JournalMood(str, enum.Enum):
+    great = "Great"
+    good = "Good"
+    okay = "Okay"
+    low = "Low"
+    rough = "Rough"

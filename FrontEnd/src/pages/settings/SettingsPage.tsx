@@ -245,7 +245,7 @@ export function SettingsPage() {
         icon={<GearFill size={20} />}
       />
 
-      <section className="surface settings-hero p-4 p-sm-5 mb-4">
+      <section className="surface settings-hero py-3 py-sm-4 px-4 px-sm-5 mb-4">
         <div className="d-flex flex-wrap align-items-center justify-content-between gap-3">
           <div>
             <h2 className="h4 fw-bold mb-1">Behavior Controls</h2>

@@ -66,8 +66,14 @@ export function MemoryCenterPage() {
   const [addingMemory, setAddingMemory] = useState(false);
   const [refiningMemory, setRefiningMemory] = useState(false);
   const [refinedBaselineText, setRefinedBaselineText] = useState<string | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [editingMemoryId, setEditingMemoryId] = useState<number | null>(null);
+  const [editingMemoryCategory, setEditingMemoryCategory] = useState<MemoryCategory>("other");
   const [editingMemoryText, setEditingMemoryText] = useState("");
+  const [editOriginalText, setEditOriginalText] = useState("");
+  const [editRefinedBaselineText, setEditRefinedBaselineText] = useState<string | null>(null);
+  const [savingEditedMemory, setSavingEditedMemory] = useState(false);
+  const [refiningEditedMemory, setRefiningEditedMemory] = useState(false);
   const [confirmEditTarget, setConfirmEditTarget] = useState<MemoryCenterEntry | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [deletingMemory, setDeletingMemory] = useState(false);
@@ -77,6 +83,13 @@ export function MemoryCenterPage() {
     ? characterEditDistance(refinedBaselineText, normalizedModalText)
     : 0;
   const requiresRefine = !refinedBaselineText || currentEditDistance > MEMORY_TEXT_REWRITE_THRESHOLD;
+
+  const normalizedEditText = editingMemoryText.trim();
+  const editDistanceReference = editRefinedBaselineText ?? editOriginalText;
+  const editCurrentDistance = editDistanceReference
+    ? characterEditDistance(editDistanceReference, normalizedEditText)
+    : 0;
+  const editRequiresRefine = editCurrentDistance >= MEMORY_TEXT_REWRITE_THRESHOLD;
 
   const memoryByCategory = useMemo(() => {
     const grouped = new Map<MemoryCategory, MemoryCenterEntry[]>();
@@ -96,9 +109,12 @@ export function MemoryCenterPage() {
     setRefinedBaselineText(null);
   }
 
-  async function refineMemoryText(text: string): Promise<MemoryRefineResponse> {
+  async function refineMemoryText(
+    text: string,
+    category: MemoryCategory,
+  ): Promise<MemoryRefineResponse> {
     const result = await api.profile.refineMemoryText({
-      category: memoryCategory,
+      category,
       text,
     });
     return {
@@ -119,7 +135,7 @@ export function MemoryCenterPage() {
     if (shouldRefine) {
       setRefiningMemory(true);
       try {
-        const result = await refineMemoryText(text);
+        const result = await refineMemoryText(text, memoryCategory);
         const refined = result.refined_text || text;
 
         setMemoryText(refined);
@@ -163,32 +179,27 @@ export function MemoryCenterPage() {
     }
   }
 
-  async function saveMemoryEdit(memoryId: number) {
-    if (!editingMemoryText.trim()) return;
-    try {
-      await api.profile.updateMemory(memoryId, { ai_understanding: editingMemoryText.trim() });
-      const refreshed = await api.profile.memoryCenter();
-      memoryQuery.setData(refreshed);
-      setEditingMemoryId(null);
-      setEditingMemoryText("");
-      toast.success("Memory updated.");
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Couldn't update memory.");
-    }
+  function resetEditModalState() {
+    setShowEditModal(false);
+    setEditingMemoryId(null);
+    setEditingMemoryCategory("other");
+    setEditingMemoryText("");
+    setEditOriginalText("");
+    setEditRefinedBaselineText(null);
   }
 
-  async function deleteMemory(memoryId: number) {
-    try {
-      await api.profile.deleteMemory(memoryId);
-      memoryQuery.setData((prev) => (prev ?? []).filter((m) => m.id !== memoryId));
-      if (editingMemoryId === memoryId) {
-        setEditingMemoryId(null);
-        setEditingMemoryText("");
-      }
-      toast.success("Memory removed.");
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Couldn't delete memory.");
-    }
+  function closeEditModal() {
+    if (savingEditedMemory || refiningEditedMemory) return;
+    resetEditModalState();
+  }
+
+  function openEditModal(memory: MemoryCenterEntry) {
+    setShowEditModal(true);
+    setEditingMemoryId(memory.id);
+    setEditingMemoryCategory(memory.category);
+    setEditingMemoryText(memory.value);
+    setEditOriginalText(memory.value.trim());
+    setEditRefinedBaselineText(null);
   }
 
   function requestEditMemory(memory: MemoryCenterEntry) {
@@ -197,9 +208,71 @@ export function MemoryCenterPage() {
 
   function confirmEditMemory() {
     if (!confirmEditTarget) return;
-    setEditingMemoryId(confirmEditTarget.id);
-    setEditingMemoryText(confirmEditTarget.value);
+    openEditModal(confirmEditTarget);
     setConfirmEditTarget(null);
+  }
+
+  async function saveEditedMemory() {
+    if (editingMemoryId === null) return;
+
+    const text = editingMemoryText.trim();
+    if (!text) return;
+
+    if (editRequiresRefine) {
+      setRefiningEditedMemory(true);
+      try {
+        const result = await refineMemoryText(text, editingMemoryCategory);
+        const refined = result.refined_text || text;
+
+        setEditingMemoryText(refined);
+        setEditRefinedBaselineText(refined);
+
+        if (result.status === "fallback") {
+          toast.info(
+            result.reason ??
+              "Shadow couldn't safely refine this detail, so your original text was kept. You can still edit and save it.",
+          );
+        } else if (editRefinedBaselineText) {
+          toast.info("Large edits detected. Shadow regenerated the memory understanding. You can save now.");
+        } else {
+          toast.info("Shadow generated a memory understanding. Review it, then press Save.");
+        }
+      } catch (err) {
+        toast.error(err instanceof ApiError ? err.message : "Couldn't refine this detail.");
+      } finally {
+        setRefiningEditedMemory(false);
+      }
+      return;
+    }
+
+    setSavingEditedMemory(true);
+    try {
+      await api.profile.updateMemory(editingMemoryId, {
+        ai_understanding: text,
+        category: editingMemoryCategory,
+      });
+      const refreshed = await api.profile.memoryCenter();
+      memoryQuery.setData(refreshed);
+      resetEditModalState();
+      toast.success("Memory updated.");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Couldn't update memory.");
+    } finally {
+      setSavingEditedMemory(false);
+    }
+  }
+
+  async function deleteMemory(memoryId: number) {
+    try {
+      await api.profile.deleteMemory(memoryId);
+      memoryQuery.setData((prev) => (prev ?? []).filter((m) => m.id !== memoryId));
+      if (editingMemoryId === memoryId) {
+        resetEditModalState();
+      }
+      toast.success("Memory removed.");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Couldn't delete memory.");
+    }
   }
 
   async function confirmDeleteMemory() {
@@ -291,63 +364,30 @@ export function MemoryCenterPage() {
                             <span className="text-faint small ms-auto">{relativeTime(memory.updated_at)}</span>
                           </div>
 
-                          {editingMemoryId === memory.id ? (
-                            <div className="d-flex flex-column gap-2">
-                              <textarea
-                                className="form-control"
-                                rows={3}
-                                style={MEMORY_TEXTAREA_STYLE}
-                                value={editingMemoryText}
-                                onChange={(e) => setEditingMemoryText(e.target.value)}
-                              />
-                              <div className="d-flex gap-2">
-                                <button
-                                  type="button"
-                                  className="btn btn-soft btn-sm"
-                                  onClick={() => saveMemoryEdit(memory.id)}
-                                >
-                                  Save
-                                </button>
-                                <button
-                                  type="button"
-                                  className="btn btn-ghost btn-sm"
-                                  onClick={() => {
-                                    setEditingMemoryId(null);
-                                    setEditingMemoryText("");
-                                  }}
-                                >
-                                  Cancel
-                                </button>
-                              </div>
+                          <p className="small mb-2" style={{ lineHeight: 1.55 }}>
+                            {memory.value}
+                          </p>
+                          <div className="d-flex align-items-center justify-content-between gap-2">
+                            <span className="text-faint" style={{ fontSize: "0.72rem" }}>
+                              Used by: {memory.used_by.join(", ")}
+                            </span>
+                            <div className="d-flex align-items-center gap-1">
+                              <button
+                                type="button"
+                                className="btn btn-ghost btn-sm"
+                                onClick={() => requestEditMemory(memory)}
+                              >
+                                <PencilSquare size={14} className="me-1" /> Edit
+                              </button>
+                              <button
+                                type="button"
+                                className="btn btn-ghost btn-sm text-danger"
+                                onClick={() => setConfirmDeleteId(memory.id)}
+                              >
+                                <Trash3 size={14} className="me-1" /> Delete
+                              </button>
                             </div>
-                          ) : (
-                            <>
-                              <p className="small mb-2" style={{ lineHeight: 1.55 }}>
-                                {memory.value}
-                              </p>
-                              <div className="d-flex align-items-center justify-content-between gap-2">
-                                <span className="text-faint" style={{ fontSize: "0.72rem" }}>
-                                  Used by: {memory.used_by.join(", ")}
-                                </span>
-                                <div className="d-flex align-items-center gap-1">
-                                  <button
-                                    type="button"
-                                    className="btn btn-ghost btn-sm"
-                                    onClick={() => requestEditMemory(memory)}
-                                  >
-                                    <PencilSquare size={14} className="me-1" /> Edit
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="btn btn-ghost btn-sm text-danger"
-                                    onClick={() => setConfirmDeleteId(memory.id)}
-                                  >
-                                    <Trash3 size={14} className="me-1" /> Delete
-                                  </button>
-                                </div>
-                              </div>
-                            </>
-                          )}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -432,6 +472,87 @@ export function MemoryCenterPage() {
             disabled={addingMemory || refiningMemory || !memoryText.trim()}
           >
             {addingMemory ? "Saving..." : refiningMemory ? "Refining..." : requiresRefine ? "Refine" : "Save"}
+          </button>
+        </Modal.Footer>
+      </Modal>
+
+      <Modal show={showEditModal} onHide={closeEditModal} centered>
+        <Modal.Header closeButton>
+          <Modal.Title as="h3" className="h6 fw-bold mb-0">
+            Edit detail
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p className="text-muted-2 small mb-3">
+            Update this detail so Shadow can personalize responses more accurately.
+          </p>
+
+          <div className="mb-3">
+            <label className="form-label" htmlFor="memory-edit-detail-text">
+              Details
+            </label>
+            <textarea
+              id="memory-edit-detail-text"
+              className="form-control"
+              rows={4}
+              style={MEMORY_TEXTAREA_STYLE}
+              placeholder="Describe a meaningful detail about your preferences, goals, habits, or constraints"
+              value={editingMemoryText}
+              onChange={(e) => setEditingMemoryText(e.target.value)}
+            />
+            <p className="text-faint small mb-0 mt-2">
+              Small edits (under {MEMORY_TEXT_REWRITE_THRESHOLD} characters) save directly. Bigger edits are refined by Shadow first.
+            </p>
+            <p className={`small mb-0 mt-1 ${editRequiresRefine ? "text-warning" : "text-faint"}`}>
+              {editRequiresRefine
+                ? `Large edits detected (${editCurrentDistance} characters). Click Refine before saving.`
+                : `Ready to save. Current edits: ${editCurrentDistance} characters.`}
+            </p>
+          </div>
+
+          <div>
+            <label className="form-label" htmlFor="memory-edit-category">
+              Category
+            </label>
+            <select
+              id="memory-edit-category"
+              className="form-select"
+              value={editingMemoryCategory}
+              onChange={(e) => {
+                setEditingMemoryCategory(e.target.value as MemoryCategory);
+                setEditRefinedBaselineText(null);
+              }}
+            >
+              {MEMORY_CATEGORIES.map((c) => (
+                <option value={c} key={c}>
+                  {MEMORY_CATEGORY_LABEL[c]}
+                </option>
+              ))}
+            </select>
+          </div>
+        </Modal.Body>
+        <Modal.Footer>
+          <button
+            type="button"
+            className="btn btn-outline-secondary"
+            onClick={closeEditModal}
+            disabled={savingEditedMemory || refiningEditedMemory}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="btn btn-brand"
+            onClick={saveEditedMemory}
+            disabled={savingEditedMemory || refiningEditedMemory || !editingMemoryText.trim()}
+          >
+            {savingEditedMemory
+              ? "Saving..."
+              : refiningEditedMemory
+                ? "Refining..."
+                : editRequiresRefine
+                  ? "Refine"
+                  : "Save"}
           </button>
         </Modal.Footer>
       </Modal>

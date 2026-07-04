@@ -183,7 +183,8 @@ describe("RepetitiveTasksPage", () => {
     renderPage();
 
     const card = await screen.findByTestId("repetitive-task-1");
-    await user.click(within(card).getByRole("button", { name: /edit wakeup early/i }));
+    await user.click(within(card).getByRole("button", { name: /open actions for wakeup early/i }));
+    await user.click(screen.getByRole("button", { name: /edit wakeup early/i }));
 
     const taskNameInput = screen.getByLabelText(/task name/i) as HTMLInputElement;
     expect(taskNameInput.value).toBe("Wakeup Early");
@@ -208,13 +209,22 @@ describe("RepetitiveTasksPage", () => {
     const card = await screen.findByTestId("repetitive-task-1");
     expect(within(card).getByText("Active")).toBeInTheDocument();
 
-    await user.click(within(card).getByRole("button", { name: /pause workout routine/i }));
+    await user.click(
+      within(card).getByRole("button", { name: /open actions for workout routine/i }),
+    );
+    await user.click(screen.getByRole("button", { name: /pause workout routine/i }));
     expect(within(card).getByText("Paused")).toBeInTheDocument();
 
-    await user.click(within(card).getByRole("button", { name: /resume workout routine/i }));
+    await user.click(
+      within(card).getByRole("button", { name: /open actions for workout routine/i }),
+    );
+    await user.click(screen.getByRole("button", { name: /resume workout routine/i }));
     expect(within(card).getByText("Active")).toBeInTheDocument();
 
-    await user.click(within(card).getByRole("button", { name: /archive workout routine/i }));
+    await user.click(
+      within(card).getByRole("button", { name: /open actions for workout routine/i }),
+    );
+    await user.click(screen.getByRole("button", { name: /archive workout routine/i }));
     expect(within(card).getByText("Archived")).toBeInTheDocument();
 
     expect(mockedRepetitiveTasksApi.update).toHaveBeenCalledTimes(3);
@@ -227,7 +237,10 @@ describe("RepetitiveTasksPage", () => {
     renderPage();
 
     const card = await screen.findByTestId("repetitive-task-1");
-    await user.click(within(card).getByRole("button", { name: /delete workout routine/i }));
+    await user.click(
+      within(card).getByRole("button", { name: /open actions for workout routine/i }),
+    );
+    await user.click(screen.getByRole("button", { name: /delete workout routine/i }));
 
     expect(await screen.findByText(/delete this repetitive task/i)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Delete" }));

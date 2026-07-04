@@ -8,6 +8,7 @@ import {
   PlayFill,
   PlusLg,
   Stars,
+  ThreeDotsVertical,
   Trash3,
 } from "react-bootstrap-icons";
 
@@ -713,76 +714,88 @@ export function RepetitiveTasksPage() {
                           </div>
                         </div>
 
-                        <div className="d-flex flex-wrap gap-2">
-                          <button
+                        <Dropdown align="end">
+                          <Dropdown.Toggle
+                            as="button"
                             type="button"
-                            className="btn btn-ghost btn-sm"
-                            onClick={() => startEditing(task)}
-                            aria-label={`Edit ${task.name}`}
-                            title="Edit"
+                            className="btn btn-ghost btn-sm px-2"
+                            id={`repetitive-task-actions-${task.id}`}
+                            aria-label={`Open actions for ${task.name}`}
                             disabled={statusBusy}
                           >
-                            <PencilSquare size={14} className="me-1" /> Edit
-                          </button>
+                            <ThreeDotsVertical size={16} />
+                          </Dropdown.Toggle>
 
-                          {task.status === "active" && (
+                          <Dropdown.Menu>
                             <button
                               type="button"
-                              className="btn btn-outline-secondary btn-sm"
-                              onClick={() => void updateStatus(task, "paused")}
-                              aria-label={`Pause ${task.name}`}
-                              disabled={statusBusy}
+                              className="dropdown-item d-flex align-items-center gap-2"
+                              onClick={() => startEditing(task)}
+                              aria-label={`Edit ${task.name}`}
                             >
-                              <PauseFill size={14} className="me-1" /> Pause
+                              <PencilSquare size={14} />
+                              <span>Edit</span>
                             </button>
-                          )}
 
-                          {task.status === "paused" && (
+                            {task.status === "active" && (
+                              <button
+                                type="button"
+                                className="dropdown-item d-flex align-items-center gap-2"
+                                onClick={() => void updateStatus(task, "paused")}
+                                aria-label={`Pause ${task.name}`}
+                              >
+                                <PauseFill size={14} />
+                                <span>Pause</span>
+                              </button>
+                            )}
+
+                            {task.status === "paused" && (
+                              <button
+                                type="button"
+                                className="dropdown-item d-flex align-items-center gap-2"
+                                onClick={() => void updateStatus(task, "active")}
+                                aria-label={`Resume ${task.name}`}
+                              >
+                                <PlayFill size={14} />
+                                <span>Resume</span>
+                              </button>
+                            )}
+
+                            {task.status !== "archived" && (
+                              <button
+                                type="button"
+                                className="dropdown-item d-flex align-items-center gap-2"
+                                onClick={() => void updateStatus(task, "archived")}
+                                aria-label={`Archive ${task.name}`}
+                              >
+                                <Archive size={14} />
+                                <span>Archive</span>
+                              </button>
+                            )}
+
+                            {task.status === "archived" && (
+                              <button
+                                type="button"
+                                className="dropdown-item d-flex align-items-center gap-2"
+                                onClick={() => void updateStatus(task, "active")}
+                                aria-label={`Restore ${task.name}`}
+                              >
+                                <PlayFill size={14} />
+                                <span>Restore</span>
+                              </button>
+                            )}
+
                             <button
                               type="button"
-                              className="btn btn-outline-secondary btn-sm"
-                              onClick={() => void updateStatus(task, "active")}
-                              aria-label={`Resume ${task.name}`}
-                              disabled={statusBusy}
+                              className="dropdown-item text-danger d-flex align-items-center gap-2"
+                              onClick={() => setDeleteTarget(task)}
+                              aria-label={`Delete ${task.name}`}
                             >
-                              <PlayFill size={14} className="me-1" /> Resume
+                              <Trash3 size={14} />
+                              <span>Delete</span>
                             </button>
-                          )}
-
-                          {task.status !== "archived" && (
-                            <button
-                              type="button"
-                              className="btn btn-outline-secondary btn-sm"
-                              onClick={() => void updateStatus(task, "archived")}
-                              aria-label={`Archive ${task.name}`}
-                              disabled={statusBusy}
-                            >
-                              <Archive size={14} className="me-1" /> Archive
-                            </button>
-                          )}
-
-                          {task.status === "archived" && (
-                            <button
-                              type="button"
-                              className="btn btn-outline-secondary btn-sm"
-                              onClick={() => void updateStatus(task, "active")}
-                              aria-label={`Restore ${task.name}`}
-                              disabled={statusBusy}
-                            >
-                              <PlayFill size={14} className="me-1" /> Restore
-                            </button>
-                          )}
-
-                          <button
-                            type="button"
-                            className="btn btn-outline-danger btn-sm"
-                            onClick={() => setDeleteTarget(task)}
-                            aria-label={`Delete ${task.name}`}
-                            disabled={statusBusy}
-                          >
-                            <Trash3 size={14} className="me-1" /> Delete
-                          </button>
-                        </div>
+                          </Dropdown.Menu>
+                        </Dropdown>
                       </div>
 
                       {task.description && <p className="small text-muted-2 mb-2">{task.description}</p>}

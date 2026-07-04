@@ -1552,6 +1552,11 @@ a {
   align-items: stretch;
 }
 
+.goal-shadow-prompt-input {
+  resize: none;
+  overflow-y: hidden;
+}
+
 .goal-shadow-refine-btn {
   display: inline-flex;
   align-items: center;

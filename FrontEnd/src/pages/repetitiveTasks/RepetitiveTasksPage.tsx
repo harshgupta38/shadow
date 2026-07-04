@@ -194,10 +194,11 @@ export function RepetitiveTasksPage() {
   );
 
   const selectedGoalLabels = useMemo(() => {
-    if (!goalsQuery.data) return [] as string[];
+    const goals = goalsQuery.data ?? [];
+    if (goals.length === 0) return [] as string[];
 
     return draft.linked_goal_ids
-      .map((goalId) => goalsQuery.data.find((goal) => goal.id === goalId)?.title)
+      .map((goalId) => goals.find((goal) => goal.id === goalId)?.title)
       .filter((title): title is string => Boolean(title));
   }, [draft.linked_goal_ids, goalsQuery.data]);
 
@@ -385,7 +386,7 @@ export function RepetitiveTasksPage() {
             title={editingTaskId ? "Edit repetitive task" : "Create repetitive task"}
             subtitle="Define what should repeat and why it matters."
           >
-            <form onSubmit={submitDraft} className="d-flex flex-column gap-3">
+            <form onSubmit={submitDraft} className="d-flex flex-column gap-3" autoComplete="off">
               <div>
                 <label className="form-label" htmlFor="repetitive-task-name">
                   Task name
@@ -394,6 +395,7 @@ export function RepetitiveTasksPage() {
                   id="repetitive-task-name"
                   className="form-control"
                   placeholder="Workout, LeetCode practice, Reading..."
+                  autoComplete="off"
                   value={draft.name}
                   onChange={(event) =>
                     setDraft((prev) => ({
@@ -478,6 +480,7 @@ export function RepetitiveTasksPage() {
                     <Dropdown autoClose="outside">
                       <Dropdown.Toggle
                         as="button"
+                        type="button"
                         id="repetitive-task-goals"
                         className="form-select text-start d-flex justify-content-between align-items-center"
                       >

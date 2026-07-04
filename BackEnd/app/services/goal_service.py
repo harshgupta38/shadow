@@ -8,7 +8,7 @@ import json
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.agents.orchestrator import generate_goal_draft_from_prompt
+from app.agents.orchestrator import generate_goal_draft_from_prompt, repair_goal_draft_json
 from app.llm.base import LLMProvider
 from app.memory.context import compile_user_context
 from app.models.base import utcnow
@@ -94,14 +94,44 @@ def draft_goal_from_prompt(
     prompt: str,
 ) -> GoalDraftRead:
     preferred_model = settings_service.get_effective_ai_model(db, user)
+    user_context = compile_user_context(db, user)
     raw = generate_goal_draft_from_prompt(
         provider,
         prompt_text=prompt,
-        user_context=compile_user_context(db, user),
+        user_context=user_context,
         model=preferred_model,
     )
 
     payload = _parse_json_dict(raw)
+    if payload is None:
+        repaired = repair_goal_draft_json(
+            provider,
+            prompt_text=prompt,
+            malformed_output=raw,
+            user_context=user_context,
+            model=preferred_model,
+        )
+        payload = _parse_json_dict(repaired)
+
+    if payload is None:
+        retry_raw = generate_goal_draft_from_prompt(
+            provider,
+            prompt_text=prompt,
+            user_context=user_context,
+            model=preferred_model,
+        )
+        payload = _parse_json_dict(retry_raw)
+
+        if payload is None:
+            retry_repaired = repair_goal_draft_json(
+                provider,
+                prompt_text=prompt,
+                malformed_output=retry_raw,
+                user_context=user_context,
+                model=preferred_model,
+            )
+            payload = _parse_json_dict(retry_repaired)
+
     if payload is None:
         raise AppError("Shadow could not structure this goal yet. Please try again.")
 

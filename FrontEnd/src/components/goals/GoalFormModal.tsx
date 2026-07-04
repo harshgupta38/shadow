@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Modal } from "react-bootstrap";
 import { Stars } from "react-bootstrap-icons";
 
@@ -22,6 +22,7 @@ function toDateInput(value?: string | null): string {
 
 const STATUS_OPTIONS: GoalStatus[] = ["active", "paused", "completed", "archived"];
 type GoalCreationMode = "shadow" | "manual";
+const SHADOW_PROMPT_MAX_LINES = 5;
 
 export function GoalFormModal({ show, goal, onClose, onSaved }: GoalFormModalProps) {
   const toast = useToast();
@@ -39,6 +40,7 @@ export function GoalFormModal({ show, goal, onClose, onSaved }: GoalFormModalPro
   const [progress, setProgress] = useState(0);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
+  const shadowPromptRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (show) {
@@ -59,6 +61,35 @@ export function GoalFormModal({ show, goal, onClose, onSaved }: GoalFormModalPro
   const fieldsLocked = !isEdit && creationMode === "shadow" && !shadowReady;
   const hasShadowPrompt = shadowPrompt.trim().length > 0;
   const submitLocked = busy || fieldsLocked;
+
+  function autoResizeShadowPrompt() {
+    const textarea = shadowPromptRef.current;
+    if (!textarea) return;
+
+    textarea.style.height = "auto";
+
+    const styles = window.getComputedStyle(textarea);
+    const lineHeight = Number.parseFloat(styles.lineHeight || "") || 20;
+    const paddingTop = Number.parseFloat(styles.paddingTop || "") || 0;
+    const paddingBottom = Number.parseFloat(styles.paddingBottom || "") || 0;
+    const borderTop = Number.parseFloat(styles.borderTopWidth || "") || 0;
+    const borderBottom = Number.parseFloat(styles.borderBottomWidth || "") || 0;
+
+    const maxHeight =
+      lineHeight * SHADOW_PROMPT_MAX_LINES +
+      paddingTop +
+      paddingBottom +
+      borderTop +
+      borderBottom;
+
+    const nextHeight = Math.min(textarea.scrollHeight, maxHeight);
+    textarea.style.height = `${Math.ceil(nextHeight)}px`;
+    textarea.style.overflowY = textarea.scrollHeight > maxHeight ? "auto" : "hidden";
+  }
+
+  useEffect(() => {
+    autoResizeShadowPrompt();
+  }, [shadowPrompt, creationMode, show]);
 
   async function handleShadowSetup() {
     const prompt = shadowPrompt.trim();
@@ -149,7 +180,7 @@ export function GoalFormModal({ show, goal, onClose, onSaved }: GoalFormModalPro
   }
 
   return (
-    <Modal show={show} onHide={onClose} centered size="lg">
+    <Modal show={show} onHide={onClose} centered size="lg" backdrop="static">
       <Modal.Header closeButton>
         <Modal.Title className="h5 fw-bold">{isEdit ? "Edit goal" : "New goal"}</Modal.Title>
       </Modal.Header>
@@ -161,17 +192,19 @@ export function GoalFormModal({ show, goal, onClose, onSaved }: GoalFormModalPro
                 Tell Shadow your goal idea
               </label>
               <div className="goal-shadow-prompt-row d-flex gap-2">
-                <input
+                <textarea
+                  ref={shadowPromptRef}
                   id="goal-shadow-prompt"
                   className={`form-control goal-shadow-prompt-input ${fieldErrors.shadow_prompt ? "is-invalid" : ""}`}
                   placeholder="e.g. I want to get an SDE job at Google"
                   value={shadowPrompt}
+                  rows={1}
                   onChange={(e) => setShadowPrompt(e.target.value)}
                   disabled={busy || shadowBusy}
                   autoComplete="off"
                   autoFocus
                   onKeyDown={(event) => {
-                    if (event.key === "Enter") {
+                    if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
                       event.preventDefault();
                       void handleShadowSetup();
                     }

@@ -145,6 +145,38 @@ describe("RepetitiveTasksPage", () => {
     expect(await screen.findByText("Meditation")).toBeInTheDocument();
   });
 
+  it("does not submit the edit form when opening goals dropdown", async () => {
+    const user = userEvent.setup();
+    mockedGoalsApi.list.mockResolvedValue([
+      {
+        id: 11,
+        title: "Secure SDE 1 role at MAANG",
+      },
+    ]);
+    mockedRepetitiveTasksApi.list.mockResolvedValue([
+      buildTask({
+        id: 1,
+        name: "Wakeup Early",
+        description: "Wakeup by 8am daily and work towards your goals",
+        priority: "medium",
+      }),
+    ]);
+
+    renderPage();
+
+    const card = await screen.findByTestId("repetitive-task-1");
+    await user.click(within(card).getByRole("button", { name: /edit wakeup early/i }));
+
+    const taskNameInput = screen.getByLabelText(/task name/i) as HTMLInputElement;
+    expect(taskNameInput.value).toBe("Wakeup Early");
+
+    await user.click(screen.getByRole("button", { name: "Link goals (optional)" }));
+
+    expect(mockedRepetitiveTasksApi.update).not.toHaveBeenCalled();
+    expect(taskNameInput.value).toBe("Wakeup Early");
+    expect(screen.getByText("Secure SDE 1 role at MAANG")).toBeInTheDocument();
+  });
+
   it("supports pause, resume, and archive lifecycle actions", async () => {
     const user = userEvent.setup();
     mockedRepetitiveTasksApi.list.mockResolvedValue([buildTask({ id: 1 })]);

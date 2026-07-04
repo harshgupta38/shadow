@@ -44,6 +44,32 @@ class BrokenGoalDraftProvider(LLMProvider):
         return "not-json"
 
 
+class RecoverableGoalDraftProvider(LLMProvider):
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def generate(
+        self,
+        messages: list[LLMMessage],
+        *,
+        system: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+        model: str | None = None,
+    ) -> str:
+        self.calls += 1
+        if self.calls == 1:
+            return "Sure, here's a draft goal in plain text."
+        return (
+            "{"
+            '"title":"Build a stable productivity routine",'
+            '"description":"Create a daily structure that improves focus and consistency.",'
+            '"category":"Productivity",'
+            '"target_date":null'
+            "}"
+        )
+
+
 def _create_goal(client: TestClient, headers: dict) -> int:
     response = client.post(
         "/api/goals",
@@ -78,6 +104,27 @@ def test_goal_draft_from_prompt_returns_structured_fields(
         assert body["category"] == "Career"
         assert body["description"]
         assert body["target_date"] is not None
+    finally:
+        app.dependency_overrides.pop(get_provider, None)
+
+
+def test_goal_draft_recovers_with_ai_json_repair_when_first_output_is_not_json(
+    client: TestClient, auth_headers: dict
+) -> None:
+    provider = RecoverableGoalDraftProvider()
+    app.dependency_overrides[get_provider] = lambda: provider
+
+    try:
+        response = client.post(
+            "/api/goals/draft",
+            headers=auth_headers,
+            json={"prompt": "I want to improve my routine and focus"},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["title"] == "Build a stable productivity routine"
+        assert body["category"] == "Productivity"
+        assert body["target_date"] is None
     finally:
         app.dependency_overrides.pop(get_provider, None)
 

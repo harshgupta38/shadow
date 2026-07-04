@@ -117,6 +117,47 @@ describe("RepetitiveTasksPage", () => {
     expect(await screen.findByTestId("repetitive-task-42")).toBeInTheDocument();
   });
 
+  it("filters tasks by status and priority from header pills", async () => {
+    const user = userEvent.setup();
+    mockedRepetitiveTasksApi.list.mockResolvedValue([
+      buildTask({
+        id: 1,
+        name: "Active Medium Task",
+        status: "active",
+        priority: "medium",
+      }),
+      buildTask({
+        id: 2,
+        name: "Paused Critical Task",
+        status: "paused",
+        priority: "critical",
+      }),
+    ]);
+
+    renderPage();
+
+    expect(await screen.findByTestId("repetitive-task-1")).toBeInTheDocument();
+    expect(screen.getByTestId("repetitive-task-2")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /status filter/i }));
+    await user.click(screen.getByRole("button", { name: "Paused" }));
+
+    expect(screen.queryByTestId("repetitive-task-1")).not.toBeInTheDocument();
+    expect(screen.getByTestId("repetitive-task-2")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /status filter/i }));
+    await user.click(screen.getByRole("button", { name: "Status" }));
+
+    expect(screen.getByTestId("repetitive-task-1")).toBeInTheDocument();
+    expect(screen.getByTestId("repetitive-task-2")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /priority filter/i }));
+    await user.click(screen.getByRole("button", { name: "Critical" }));
+
+    expect(screen.queryByTestId("repetitive-task-1")).not.toBeInTheDocument();
+    expect(screen.getByTestId("repetitive-task-2")).toBeInTheDocument();
+  });
+
   it("creates a repetitive task using the API", async () => {
     const user = userEvent.setup();
     mockedRepetitiveTasksApi.create.mockResolvedValue(
@@ -152,19 +193,20 @@ describe("RepetitiveTasksPage", () => {
 
     await user.type(screen.getByLabelText(/task name/i), "Meditation");
     await user.click(screen.getByRole("button", { name: "Daily" }));
-    await user.selectOptions(screen.getByLabelText(/priority/i), "high");
+    await user.selectOptions(screen.getByRole("combobox", { name: /^Priority$/i }), "high");
     await user.type(screen.getByLabelText(/description/i), "Stay focused every day");
 
     await user.click(screen.getByRole("button", { name: "Clear" }));
 
     expect((screen.getByLabelText(/task name/i) as HTMLInputElement).value).toBe("");
-    expect((screen.getByLabelText(/priority/i) as HTMLSelectElement).value).toBe("medium");
+    expect((screen.getByRole("combobox", { name: /^Priority$/i }) as HTMLSelectElement).value).toBe("medium");
     expect((screen.getByLabelText(/description/i) as HTMLTextAreaElement).value).toBe("");
     expect(mockedRepetitiveTasksApi.create).not.toHaveBeenCalled();
   });
 
   it("does not submit the edit form when opening goals dropdown", async () => {
     const user = userEvent.setup();
+    const scrollToSpy = vi.spyOn(window, "scrollTo").mockImplementation(() => {});
     mockedGoalsApi.list.mockResolvedValue([
       {
         id: 11,
@@ -185,6 +227,7 @@ describe("RepetitiveTasksPage", () => {
     const card = await screen.findByTestId("repetitive-task-1");
     await user.click(within(card).getByRole("button", { name: /open actions for wakeup early/i }));
     await user.click(screen.getByRole("button", { name: /edit wakeup early/i }));
+    expect(scrollToSpy).toHaveBeenCalledWith({ top: 0, behavior: "smooth" });
 
     const taskNameInput = screen.getByLabelText(/task name/i) as HTMLInputElement;
     expect(taskNameInput.value).toBe("Wakeup Early");
@@ -194,6 +237,7 @@ describe("RepetitiveTasksPage", () => {
     expect(mockedRepetitiveTasksApi.update).not.toHaveBeenCalled();
     expect(taskNameInput.value).toBe("Wakeup Early");
     expect(screen.getByText("Secure SDE 1 role at MAANG")).toBeInTheDocument();
+    scrollToSpy.mockRestore();
   });
 
   it("supports pause, resume, and archive lifecycle actions", async () => {

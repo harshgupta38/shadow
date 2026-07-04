@@ -172,6 +172,8 @@ export function RepetitiveTasksPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [statusTaskId, setStatusTaskId] = useState<number | null>(null);
+  const [statusFilter, setStatusFilter] = useState<RepetitiveTaskStatus | null>(null);
+  const [priorityFilter, setPriorityFilter] = useState<RepetitiveTaskPriority | null>(null);
   const [addSuggestionName, setAddSuggestionName] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -183,6 +185,17 @@ export function RepetitiveTasksPage() {
   const archivedCount = tasks.filter((task) => task.status === "archived").length;
 
   const orderedTasks = useMemo(() => [...tasks].sort(orderTasks), [tasks]);
+  const filteredTasks = useMemo(
+    () =>
+      orderedTasks.filter(
+        (task) =>
+          (statusFilter === null || task.status === statusFilter) &&
+          (priorityFilter === null || task.priority === priorityFilter),
+      ),
+    [orderedTasks, statusFilter, priorityFilter],
+  );
+  const statusFilterLabel = statusFilter ? STATUS_LABEL[statusFilter] : "Status";
+  const priorityFilterLabel = priorityFilter ? PRIORITY_LABEL[priorityFilter] : "Priority";
 
   const goalTitleById = useMemo(
     () => new Map((goalsQuery.data ?? []).map((goal) => [goal.id, goal.title])),
@@ -261,6 +274,13 @@ export function RepetitiveTasksPage() {
     setDraft(toDraftFromTask(task));
     setEditingTaskId(task.id);
     setFormError(null);
+    if (typeof window !== "undefined" && typeof window.scrollTo === "function") {
+      try {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      } catch {
+        // Ignore environments where programmatic scrolling is not supported.
+      }
+    }
   }
 
   async function submitDraft(event: FormEvent<HTMLFormElement>) {
@@ -661,7 +681,79 @@ export function RepetitiveTasksPage() {
         </div>
 
         <div className="col-xl-7">
-          <SectionCard title="Habit library" subtitle="Your repetitive tasks and current lifecycle status.">
+          <SectionCard
+            title="Habit library"
+            subtitle="Your repetitive tasks and current lifecycle status."
+            actions={
+              <>
+                <Dropdown align="end">
+                  <Dropdown.Toggle
+                    as="button"
+                    type="button"
+                    id="repetitive-task-status-filter"
+                    className="btn btn-sm btn-outline-secondary rounded-pill px-3"
+                    aria-label="Status filter"
+                  >
+                    {statusFilterLabel}
+                  </Dropdown.Toggle>
+                  <Dropdown.Menu>
+                    <button
+                      type="button"
+                      className={`dropdown-item${statusFilter === null ? " active" : ""}`}
+                      onClick={() => setStatusFilter(null)}
+                    >
+                      Status
+                    </button>
+                    {(Object.entries(STATUS_LABEL) as Array<[RepetitiveTaskStatus, string]>).map(
+                      ([value, label]) => (
+                        <button
+                          key={value}
+                          type="button"
+                          className={`dropdown-item${statusFilter === value ? " active" : ""}`}
+                          onClick={() => setStatusFilter(value)}
+                        >
+                          {label}
+                        </button>
+                      ),
+                    )}
+                  </Dropdown.Menu>
+                </Dropdown>
+
+                <Dropdown align="end">
+                  <Dropdown.Toggle
+                    as="button"
+                    type="button"
+                    id="repetitive-task-priority-filter"
+                    className="btn btn-sm btn-outline-secondary rounded-pill px-3"
+                    aria-label="Priority filter"
+                  >
+                    {priorityFilterLabel}
+                  </Dropdown.Toggle>
+                  <Dropdown.Menu>
+                    <button
+                      type="button"
+                      className={`dropdown-item${priorityFilter === null ? " active" : ""}`}
+                      onClick={() => setPriorityFilter(null)}
+                    >
+                      Priority
+                    </button>
+                    {(Object.entries(PRIORITY_LABEL) as Array<[RepetitiveTaskPriority, string]>).map(
+                      ([value, label]) => (
+                        <button
+                          key={value}
+                          type="button"
+                          className={`dropdown-item${priorityFilter === value ? " active" : ""}`}
+                          onClick={() => setPriorityFilter(value)}
+                        >
+                          {label}
+                        </button>
+                      ),
+                    )}
+                  </Dropdown.Menu>
+                </Dropdown>
+              </>
+            }
+          >
             {tasksQuery.loading ? (
               <LoadingState full={false} label="Loading repetitive tasks..." />
             ) : tasksQuery.error ? (
@@ -683,9 +775,16 @@ export function RepetitiveTasksPage() {
                 title="No repetitive tasks yet"
                 message="Create your first recurring commitment to build daily consistency."
               />
+            ) : filteredTasks.length === 0 ? (
+              <EmptyState
+                compact
+                icon={<ArrowRepeat size={22} />}
+                title="No tasks match selected filters"
+                message="Try resetting status or priority filters."
+              />
             ) : (
               <div className="d-flex flex-column gap-3">
-                {orderedTasks.map((task) => {
+                {filteredTasks.map((task) => {
                   const frequencyLabels = labelsForFrequencies(task.frequencies);
                   const goalLabels = task.linked_goal_ids.map(
                     (goalId) => goalTitleById.get(goalId) ?? `Goal #${goalId}`,
@@ -822,7 +921,7 @@ export function RepetitiveTasksPage() {
                             ))}
                         </div>
                         <div className="d-none d-md-block small text-faint text-nowrap">
-                          Updated {formatDateTime(task.updated_at)}
+                          {formatDateTime(task.updated_at)}
                         </div>
                       </div>
                     </article>

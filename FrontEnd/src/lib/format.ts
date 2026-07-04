@@ -49,7 +49,7 @@ export function formatDateTime(input?: string | Date | null): string {
 }
 
 /** Days from now until a target date (negative = overdue). */
-export function daysUntil(input?: string | Date | null): number | null {
+function daysUntil(input?: string | Date | null): number | null {
   if (!input) return null;
   const date = typeof input === "string" ? new Date(input) : input;
   if (Number.isNaN(date.getTime())) return null;

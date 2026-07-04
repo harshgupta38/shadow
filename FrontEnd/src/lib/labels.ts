@@ -5,8 +5,6 @@ import type {
   MemorySource,
   MetricUnit,
   MilestoneStatus,
-  NotificationType,
-  PlannedTaskStatus,
 } from "@/api";
 
 type PillVariant = "success" | "warn" | "danger" | "info" | "brand" | "muted";
@@ -37,18 +35,6 @@ export const MILESTONE_STATUS_PILL: Record<MilestoneStatus, PillVariant> = {
   done: "success",
 };
 
-export const TASK_STATUS_LABEL: Record<PlannedTaskStatus, string> = {
-  planned: "Planned",
-  done: "Done",
-  missed: "Missed",
-};
-
-export const TASK_STATUS_PILL: Record<PlannedTaskStatus, PillVariant> = {
-  planned: "info",
-  done: "success",
-  missed: "danger",
-};
-
 export const MEMORY_CATEGORY_LABEL: Record<MemoryCategory, string> = {
   daily: "Daily",
   weekly: "Weekly",
@@ -71,12 +57,6 @@ export const METRIC_UNIT_LABEL: Record<MetricUnit, string> = {
   minutes: "Minutes",
   hours: "Hours",
   custom: "Custom",
-};
-
-export const NOTIFICATION_TYPE_LABEL: Record<NotificationType, string> = {
-  reminder: "Reminder",
-  system: "System",
-  agent: "From Shadow",
 };
 
 export const GOAL_CATEGORY_SUGGESTIONS = [

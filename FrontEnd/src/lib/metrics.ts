@@ -1,7 +1,7 @@
 import type { ActivityLog } from "@/api";
 import { toISODate } from "./format";
 
-export interface MetricStats {
+interface MetricStats {
   todayTotal: number;
   weekTotal: number;
   streak: number;

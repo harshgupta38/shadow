@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
+import datetime
 
 from sqlalchemy import Date, DateTime, ForeignKey, Integer, String
 from sqlalchemy import Enum as SAEnum
@@ -20,7 +20,7 @@ class PlannedTask(Base):
         ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
     )
     title: Mapped[str] = mapped_column(String(255), nullable=False)
-    date: Mapped[date] = mapped_column(Date, index=True, nullable=False)
+    date: Mapped[datetime.date] = mapped_column(Date, index=True, nullable=False)
     reminder_time: Mapped[str | None] = mapped_column(String(5), nullable=True)
     estimated_duration_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     status: Mapped[PlannedTaskStatus] = mapped_column(
@@ -29,7 +29,9 @@ class PlannedTask(Base):
     related_goal_id: Mapped[int | None] = mapped_column(
         ForeignKey("goals.id", ondelete="SET NULL"), nullable=True
     )
-    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
+    completed_at: Mapped[datetime.datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    created_at: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, nullable=False
     )

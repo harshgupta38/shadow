@@ -876,23 +876,6 @@ a {
   color: var(--jv-brand-1);
 }
 
-.skeleton {
-  border-radius: var(--jv-radius-sm);
-  background: linear-gradient(
-    100deg,
-    var(--jv-surface-2) 30%,
-    var(--jv-border) 50%,
-    var(--jv-surface-2) 70%
-  );
-  background-size: 200% 100%;
-  animation: jv-shimmer 1.3s infinite linear;
-}
-@keyframes jv-shimmer {
-  to {
-    background-position: -200% 0;
-  }
-}
-
 .spinner-brand {
   color: var(--jv-brand-1);
 }

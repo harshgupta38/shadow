@@ -13,7 +13,7 @@ import {
   JournalText,
 } from "react-bootstrap-icons";
 
-export interface NavItem {
+interface NavItem {
   to: string;
   label: string;
   icon: ComponentType<IconProps>;
@@ -21,7 +21,7 @@ export interface NavItem {
   end?: boolean;
 }
 
-export interface NavSection {
+interface NavSection {
   label?: string;
   items: NavItem[];
 }

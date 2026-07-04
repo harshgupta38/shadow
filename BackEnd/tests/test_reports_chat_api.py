@@ -318,6 +318,45 @@ class ImplicitMilestoneBreakdownProvider(LLMProvider):
         )
 
 
+class PastDueDateMilestoneActionProvider(LLMProvider):
+    def generate(
+        self,
+        messages: list[LLMMessage],
+        *,
+        system: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+        model: str | None = None,
+    ) -> str:
+        prompt = messages[-1].content if messages else ""
+        if "Return valid JSON only" in prompt:
+            return (
+                "{"
+                '"actions":[{'
+                '"module":"goals",'
+                '"type":"goals.add_milestone",'
+                '"title":"Add milestone: Reach 5 KG",'
+                '"rationale":"Structured proposal from goal breakdown",'
+                '"confidence":"high",'
+                '"requires_confirmation":false,'
+                '"destructive":false,'
+                '"args":{'
+                '"goal_id":999,'
+                '"title":"Reach 5 KG",'
+                '"due_date":"2024-08-05T00:00:00Z",'
+                '"order":0'
+                "}}]}"
+            )
+        if max_tokens == 24:
+            return "Weight Milestones"
+        return (
+            "Here are milestones:\n"
+            "1. Reach 5 KG\n"
+            "o Estimated Completion: August 5, 2024\n"
+            "o Why: Build momentum"
+        )
+
+
 def test_generate_daily_report(client: TestClient, auth_headers: dict) -> None:
     # Log some activity so the report has data.
     metrics = client.get("/api/metrics", headers=auth_headers).json()
@@ -1357,5 +1396,54 @@ def test_goal_coach_saves_milestones_when_reply_is_breakdown_without_explicit_us
         assert "Master Core DSA & Problem Solving" in saved_titles
         assert "Deep Dive into System Design & Front-End Architecture" in saved_titles
         assert "Interview Readiness & Application" in saved_titles
+    finally:
+        app.dependency_overrides.pop(get_provider, None)
+
+
+def test_goal_coach_drops_past_due_dates_from_milestone_actions(
+    client: TestClient, auth_headers: dict
+) -> None:
+    provider = PastDueDateMilestoneActionProvider()
+    app.dependency_overrides[get_provider] = lambda: provider
+
+    try:
+        goal = client.post(
+            "/api/goals",
+            headers=auth_headers,
+            json={"title": "Lose 10KG weight"},
+        )
+        assert goal.status_code == 201
+        goal_id = goal.json()["id"]
+
+        session = client.post(
+            "/api/chat/sessions",
+            headers=auth_headers,
+            json={"agent_type": "goal_coach", "title": "Goal Coach", "goal_id": goal_id},
+        ).json()
+
+        response = client.post(
+            f"/api/chat/sessions/{session['id']}/messages",
+            headers=auth_headers,
+            json={"content": "Break my goal into milestones with dates"},
+        )
+        assert response.status_code == 200
+
+        actions = response.json()["proposed_actions"]
+        milestone_actions = [item for item in actions if item["type"] == "goals.add_milestone"]
+        assert len(milestone_actions) == 1
+        assert milestone_actions[0]["args"]["due_date"] is None
+
+        executed = client.post(
+            f"/api/chat/sessions/{session['id']}/actions/execute",
+            headers=auth_headers,
+            json={"confirmed": False, "action": milestone_actions[0]},
+        )
+        assert executed.status_code == 200
+        assert executed.json()["status"] == "executed"
+
+        milestones = client.get(f"/api/goals/{goal_id}/milestones", headers=auth_headers)
+        assert milestones.status_code == 200
+        assert len(milestones.json()) == 1
+        assert milestones.json()[0]["due_date"] is None
     finally:
         app.dependency_overrides.pop(get_provider, None)

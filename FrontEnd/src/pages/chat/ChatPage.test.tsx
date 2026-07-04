@@ -56,6 +56,8 @@ function renderPage(path = "/assistant") {
 
 describe("ChatPage", () => {
   beforeEach(() => {
+    window.localStorage.clear();
+
     mockedChat.sessions.mockReset();
     mockedChat.createSession.mockReset();
     mockedChat.messages.mockReset();
@@ -217,6 +219,145 @@ describe("ChatPage", () => {
     expect(screen.getByText("Reach 5KG")).toBeInTheDocument();
     expect(screen.queryByText("Add milestone: Reach 5KG")).not.toBeInTheDocument();
     expect(mockedChat.executeAction).not.toHaveBeenCalled();
+  });
+
+  it("saves all idle milestone proposals from a message", async () => {
+    const first = {
+      id: "act-m-10",
+      module: "goals",
+      type: "goals.add_milestone",
+      title: "Add milestone: Reach 5KG",
+      rationale: "Step one.",
+      confidence: "high",
+      requires_confirmation: false,
+      destructive: false,
+      args: { goal_id: 9, title: "Reach 5KG", order: 0 },
+    } as const;
+    const second = {
+      id: "act-m-11",
+      module: "goals",
+      type: "goals.add_milestone",
+      title: "Add milestone: Reach 7KG",
+      rationale: "Step two.",
+      confidence: "high",
+      requires_confirmation: false,
+      destructive: false,
+      args: { goal_id: 9, title: "Reach 7KG", order: 1 },
+    } as const;
+
+    mockedChat.send.mockResolvedValue({
+      user_message: {
+        id: 171,
+        session_id: 1,
+        role: "user",
+        content: "Break my goal into milestones",
+        agent_type: "general",
+        created_at: "2026-07-03T10:05:00Z",
+      },
+      assistant_message: {
+        id: 172,
+        session_id: 1,
+        role: "assistant",
+        content: "Here is a milestone plan.",
+        agent_type: "general",
+        created_at: "2026-07-03T10:05:02Z",
+      },
+      session: {
+        ...sessionFixture,
+        updated_at: "2026-07-03T10:05:02Z",
+      },
+      proposed_actions: [first, second],
+    });
+    mockedChat.executeAction.mockResolvedValue({
+      status: "executed",
+      message: "Saved",
+      action: first,
+      link: "/goals/9",
+      entity_id: 9,
+    });
+
+    const user = userEvent.setup();
+    renderPage();
+
+    const title = await screen.findByText("Focus Sprint");
+    await user.click(title.closest("button") as HTMLButtonElement);
+
+    await user.type(screen.getByPlaceholderText("Message Shadow…"), "Break my goal into milestones");
+    await user.click(screen.getByLabelText("Send message"));
+
+    await user.click(await screen.findByRole("button", { name: "Save all" }));
+
+    await waitFor(() => expect(mockedChat.executeAction).toHaveBeenCalledTimes(2));
+    expect(mockedChat.executeAction).toHaveBeenNthCalledWith(1, 1, first, false);
+    expect(mockedChat.executeAction).toHaveBeenNthCalledWith(2, 1, second, false);
+  });
+
+  it("persists and collapses old action rows after refresh", async () => {
+    const proposal = {
+      id: "act-m-20",
+      module: "goals",
+      type: "goals.add_milestone",
+      title: "Add milestone: Reach 5KG",
+      rationale: "Proposed milestone from goal breakdown.",
+      confidence: "high",
+      requires_confirmation: false,
+      destructive: false,
+      args: { goal_id: 9, title: "Reach 5KG", order: 0 },
+    } as const;
+
+    const userMessage = {
+      id: 251,
+      session_id: 1,
+      role: "user",
+      content: "Break my goal into milestones",
+      agent_type: "general",
+      created_at: "2026-07-03T10:05:00Z",
+    } as const;
+    const assistantMessage = {
+      id: 252,
+      session_id: 1,
+      role: "assistant",
+      content: "Here is a milestone plan.",
+      agent_type: "general",
+      created_at: "2026-07-03T10:05:02Z",
+    } as const;
+
+    mockedChat.send.mockResolvedValue({
+      user_message: userMessage,
+      assistant_message: assistantMessage,
+      session: {
+        ...sessionFixture,
+        updated_at: "2026-07-03T10:05:02Z",
+      },
+      proposed_actions: [proposal],
+    });
+
+    const user = userEvent.setup();
+    const firstRender = renderPage();
+
+    const title = await screen.findByText("Focus Sprint");
+    await user.click(title.closest("button") as HTMLButtonElement);
+
+    await user.type(screen.getByPlaceholderText("Message Shadow…"), "Break my goal into milestones");
+    await user.click(screen.getByLabelText("Send message"));
+
+    await screen.findByRole("button", { name: "Save" });
+
+    firstRender.unmount();
+
+    mockedChat.messages.mockResolvedValue([userMessage, assistantMessage]);
+
+    renderPage();
+
+    const reopenedTitle = await screen.findByText("Focus Sprint");
+    await user.click(reopenedTitle.closest("button") as HTMLButtonElement);
+
+    await screen.findByText("Here is a milestone plan.");
+    expect(await screen.findByRole("button", { name: "Show actions" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Show actions" }));
+    expect(await screen.findByRole("button", { name: "Save" })).toBeInTheDocument();
   });
 
   it("asks confirmation for uncertain proposals before execution", async () => {

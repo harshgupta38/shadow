@@ -7,6 +7,8 @@ compiled user-context string.
 
 from __future__ import annotations
 
+import datetime
+
 from app.agents.personas import (
     manual_memory_refiner_prompt,
     manual_memory_validator_prompt,
@@ -17,9 +19,18 @@ from app.models.enums import AgentType, MemoryCategory
 
 
 def _with_context(system: str, user_context: str) -> str:
+    today = datetime.date.today().isoformat()
+    date_guard = (
+        "# Date guardrails\n"
+        f"- Today's date (UTC): {today}.\n"
+        "- When suggesting timelines, milestones, estimated completion dates, or due dates, "
+        "never use past dates.\n"
+        "- Prefer realistic future dates unless the user explicitly asks for historical examples."
+    )
+
     if not user_context:
-        return system
-    return f"{system}\n\n# About the user (context)\n{user_context}"
+        return f"{system}\n\n{date_guard}"
+    return f"{system}\n\n{date_guard}\n\n# About the user (context)\n{user_context}"
 
 
 def generate_onboarding_understanding(

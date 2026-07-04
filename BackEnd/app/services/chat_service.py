@@ -580,6 +580,20 @@ def _next_goal_milestone_order(db: Session, goal_id: int) -> int:
     return int(max_order) + 1
 
 
+def _normalise_milestone_due_date(value: datetime.datetime | None) -> datetime.datetime | None:
+    if value is None:
+        return None
+
+    if value.tzinfo is None:
+        normalized = value.replace(tzinfo=datetime.timezone.utc)
+    else:
+        normalized = value.astimezone(datetime.timezone.utc)
+
+    if normalized.date() < datetime.date.today():
+        return None
+    return normalized
+
+
 def _existing_goal_milestone_titles(db: Session, goal_id: int) -> set[str]:
     rows = list(db.scalars(select(Milestone.title).where(Milestone.goal_id == goal_id)))
     return {row.strip().lower() for row in rows if row and row.strip()}
@@ -630,6 +644,7 @@ def _ensure_goal_breakdown_milestone_actions(
         action.args.goal_id = focus_goal.id
         action.args.title = cleaned_title
         action.args.details = None
+        action.args.due_date = _normalise_milestone_due_date(action.args.due_date)
         action.args.description = _normalise_milestone_description(action.args.description)
 
         detail_from_reply = extracted_description_by_title.get(title_key)
@@ -719,6 +734,7 @@ def _execute_goals_create_goal(
 def _execute_goals_add_milestone(
     db: Session, user: User, action: GoalsAddMilestoneAction
 ) -> ChatActionExecuteResponse:
+    normalized_due_date = _normalise_milestone_due_date(action.args.due_date)
     milestone = goal_service.add_milestone(
         db,
         user,
@@ -728,7 +744,7 @@ def _execute_goals_add_milestone(
             description=action.args.description,
             details=action.args.details,
             order=action.args.order,
-            due_date=action.args.due_date,
+            due_date=normalized_due_date,
         ),
     )
     return ChatActionExecuteResponse(

@@ -1358,11 +1358,31 @@ a {
   border: none;
   border-top: 1px solid var(--jv-border);
 }
+.chat-action-stack {
+  margin-top: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+.chat-action-section-header {
+  display: flex;
+  justify-content: flex-end;
+}
+.chat-action-toggle {
+  border: 0;
+  background: transparent;
+  color: var(--jv-muted);
+  font-size: 0.73rem;
+  font-weight: 600;
+  padding: 0;
+}
+.chat-action-toggle:hover {
+  color: var(--jv-text);
+}
 .chat-action-list {
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
-  margin-top: 0.85rem;
 }
 .chat-action-card {
   border: 1px solid color-mix(in srgb, var(--jv-brand-1) 25%, var(--jv-border));
@@ -1415,6 +1435,10 @@ a {
   font-size: 0.75rem;
   font-weight: 600;
   flex-shrink: 0;
+}
+.chat-action-footer {
+  display: flex;
+  justify-content: flex-end;
 }
 .chat-composer {
   border-top: 1px solid var(--jv-border);

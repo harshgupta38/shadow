@@ -43,6 +43,71 @@ interface ActionConfirmState {
 
 const LEGACY_GOAL_CONTEXT_MARKER = "\n\n[goal_context]";
 const MAX_COMPOSER_LINES = 5;
+const CHAT_ACTIONS_STORAGE_KEY = "shadow.chat.messageActions.v1";
+
+type StoredActionStateMap = Record<number, ProposedActionState[]>;
+type StoredActionStateStore = Record<string, Record<string, ProposedActionState[]>>;
+
+function readStoredActionStateStore(): StoredActionStateStore {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(CHAT_ACTIONS_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return {};
+    return parsed as StoredActionStateStore;
+  } catch {
+    return {};
+  }
+}
+
+function writeStoredActionStateStore(store: StoredActionStateStore): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(CHAT_ACTIONS_STORAGE_KEY, JSON.stringify(store));
+}
+
+function loadStoredSessionActionStates(sessionId: number): StoredActionStateMap {
+  const sessionState = readStoredActionStateStore()[String(sessionId)] ?? {};
+  const loaded: StoredActionStateMap = {};
+
+  for (const [rawMessageId, entries] of Object.entries(sessionState)) {
+    const messageId = Number(rawMessageId);
+    if (!Number.isFinite(messageId) || !Array.isArray(entries) || entries.length === 0) continue;
+    loaded[messageId] = entries;
+  }
+
+  return loaded;
+}
+
+function persistStoredSessionActionStates(sessionId: number, states: StoredActionStateMap): void {
+  const store = readStoredActionStateStore();
+  if (Object.keys(states).length === 0) {
+    delete store[String(sessionId)];
+    writeStoredActionStateStore(store);
+    return;
+  }
+
+  const normalized: Record<string, ProposedActionState[]> = {};
+  for (const [messageId, entries] of Object.entries(states)) {
+    if (!Array.isArray(entries) || entries.length === 0) continue;
+    normalized[String(messageId)] = entries;
+  }
+
+  if (Object.keys(normalized).length === 0) {
+    delete store[String(sessionId)];
+  } else {
+    store[String(sessionId)] = normalized;
+  }
+
+  writeStoredActionStateStore(store);
+}
+
+function clearStoredSessionActionStates(sessionId: number): void {
+  const store = readStoredActionStateStore();
+  if (!(String(sessionId) in store)) return;
+  delete store[String(sessionId)];
+  writeStoredActionStateStore(store);
+}
 
 function parseGoalCoachGoalId(params: URLSearchParams): number | null {
   const goalIdRaw = params.get("goalId");
@@ -98,6 +163,7 @@ export function ChatPage() {
   const [deleteTarget, setDeleteTarget] = useState<ChatSession | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [messageActions, setMessageActions] = useState<Record<number, ProposedActionState[]>>({});
+  const [collapsedActionMessages, setCollapsedActionMessages] = useState<Record<number, boolean>>({});
   const [actionConfirm, setActionConfirm] = useState<ActionConfirmState | null>(null);
   const autoStartRef = useRef(false);
 
@@ -138,6 +204,7 @@ export function ChatPage() {
   }
 
   function updateActionState(
+    sessionId: number,
     assistantMessageId: number,
     actionId: string,
     updater: (state: ProposedActionState) => ProposedActionState,
@@ -145,26 +212,59 @@ export function ChatPage() {
     setMessageActions((prev) => {
       const entries = prev[assistantMessageId];
       if (!entries) return prev;
-      return {
+      const next = {
         ...prev,
         [assistantMessageId]: entries.map((entry) =>
           entry.action.id === actionId ? updater(entry) : entry,
         ),
       };
+      persistStoredSessionActionStates(sessionId, next);
+      return next;
     });
   }
 
-  function setProposalStates(assistantMessageId: number, actions: AssistantProposedAction[]) {
+  function setProposalStates(
+    sessionId: number,
+    assistantMessageId: number,
+    actions: AssistantProposedAction[],
+  ) {
     if (actions.length === 0) return;
-    setMessageActions((prev) => ({
+    setMessageActions((prev) => {
+      const next = {
+        ...prev,
+        [assistantMessageId]: actions.map((action) => ({
+          action,
+          status: "idle" as const,
+          message: null,
+          link: null,
+        })),
+      };
+      persistStoredSessionActionStates(sessionId, next);
+      return next;
+    });
+    setCollapsedActionMessages((prev) => ({
       ...prev,
-      [assistantMessageId]: actions.map((action) => ({
-        action,
-        status: "idle",
-        message: null,
-        link: null,
-      })),
+      [assistantMessageId]: false,
     }));
+  }
+
+  function toggleActionVisibility(assistantMessageId: number) {
+    setCollapsedActionMessages((prev) => ({
+      ...prev,
+      [assistantMessageId]: !(prev[assistantMessageId] ?? false),
+    }));
+  }
+
+  async function saveAllProposals(sessionId: number, assistantMessageId: number) {
+    const entries = messageActions[assistantMessageId] ?? [];
+    const pending = entries.filter(
+      (entry) =>
+        entry.status === "idle" && !entry.action.requires_confirmation && !entry.action.destructive,
+    );
+
+    for (const entry of pending) {
+      await executeProposal(sessionId, assistantMessageId, entry.action, false);
+    }
   }
 
   async function executeProposal(
@@ -173,7 +273,7 @@ export function ChatPage() {
     action: AssistantProposedAction,
     confirmed: boolean,
   ) {
-    updateActionState(assistantMessageId, action.id, (state) => ({
+    updateActionState(sessionId, assistantMessageId, action.id, (state) => ({
       ...state,
       status: "running",
       message: null,
@@ -181,7 +281,7 @@ export function ChatPage() {
 
     try {
       const result = await api.chat.executeAction(sessionId, action, confirmed);
-      updateActionState(assistantMessageId, action.id, (state) => ({
+      updateActionState(sessionId, assistantMessageId, action.id, (state) => ({
         ...state,
         status: result.status,
         message: result.message,
@@ -193,7 +293,7 @@ export function ChatPage() {
       }
     } catch (err) {
       const message = err instanceof ApiError ? err.message : "Couldn't execute this action.";
-      updateActionState(assistantMessageId, action.id, (state) => ({
+      updateActionState(sessionId, assistantMessageId, action.id, (state) => ({
         ...state,
         status: "failed",
         message,
@@ -223,13 +323,37 @@ export function ChatPage() {
     setLoadingMessages(true);
     try {
       const loaded = await api.chat.messages(sessionId);
-      setMessages(
-        loaded.map((message) =>
-          message.role === "user" ? { ...message, content: stripGoalContext(message.content) } : message,
-        ),
+      const rendered = loaded.map((message) =>
+        message.role === "user" ? { ...message, content: stripGoalContext(message.content) } : message,
       );
+      setMessages(rendered);
+
+      const persisted = loadStoredSessionActionStates(sessionId);
+      const assistantIds = new Set(
+        rendered.filter((message) => message.role === "assistant").map((message) => message.id),
+      );
+
+      const hydrated: StoredActionStateMap = {};
+      for (const [messageId, entries] of Object.entries(persisted)) {
+        const numericMessageId = Number(messageId);
+        if (!assistantIds.has(numericMessageId) || !Array.isArray(entries) || entries.length === 0) {
+          continue;
+        }
+        hydrated[numericMessageId] = entries;
+      }
+
+      setMessageActions(hydrated);
+      setCollapsedActionMessages(
+        Object.fromEntries(Object.keys(hydrated).map((messageId) => [Number(messageId), true])) as Record<
+          number,
+          boolean
+        >,
+      );
+      persistStoredSessionActionStates(sessionId, hydrated);
     } catch {
       setMessages([]);
+      setMessageActions({});
+      setCollapsedActionMessages({});
     } finally {
       setLoadingMessages(false);
     }
@@ -239,6 +363,8 @@ export function ChatPage() {
     setMobilePane("chat");
     if (selectedId === session.id) return;
     setSelectedId(session.id);
+    setMessageActions({});
+    setCollapsedActionMessages({});
     void loadMessages(session.id);
   }
 
@@ -261,6 +387,8 @@ export function ChatPage() {
       setSessions((prev) => [session, ...(prev ?? [])]);
       setSelectedId(session.id);
       setMessages([]);
+      setMessageActions({});
+      setCollapsedActionMessages({});
       setMobilePane("chat");
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Couldn't start the chat.");
@@ -309,7 +437,7 @@ export function ChatPage() {
       );
 
       const assistantMessageId = response.assistant_message.id;
-      setProposalStates(assistantMessageId, response.proposed_actions);
+      setProposalStates(sessionId, assistantMessageId, response.proposed_actions);
       void autoExecuteProposals(sessionId, assistantMessageId, response.proposed_actions);
     } catch (err) {
       setMessages((prev) => prev.filter((m) => m.id !== optimistic.id));
@@ -331,11 +459,13 @@ export function ChatPage() {
       setSelectedId(null);
       setMessages([]);
       setMessageActions({});
+      setCollapsedActionMessages({});
       setMobilePane("list");
     }
 
     try {
       await api.chat.deleteSession(deletingId);
+      clearStoredSessionActionStates(deletingId);
       toast.success("Conversation deleted.");
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Couldn't delete the conversation.");
@@ -375,6 +505,15 @@ export function ChatPage() {
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, loadingMessages]);
+
+  useEffect(() => {
+    if (!loading && (sessions?.length ?? 0) === 0) {
+      setSelectedId(null);
+      setMessages([]);
+      setMessageActions({});
+      setCollapsedActionMessages({});
+    }
+  }, [loading, sessions]);
 
   useEffect(() => {
     autoResizeComposer();
@@ -521,87 +660,130 @@ export function ChatPage() {
                     )}
                   </div>
                 ) : (
-                  messages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={`chat-bubble ${message.role === "user" ? "user" : "assistant"}`}
-                    >
-                      {message.role === "assistant" ? (
-                        <>
-                          <MarkdownMessage content={message.content} />
-                          {(messageActions[message.id] ?? []).length > 0 && (
-                            <div className="chat-action-list">
-                              {(messageActions[message.id] ?? []).map((entry) => (
-                                <div key={entry.action.id} className="chat-action-card">
-                                      <div className="chat-action-row">
-                                    <span className="chat-action-module">
-                                          {actionBadgeLabel(entry.action)}
-                                    </span>
-                                        <div
-                                          className="chat-action-title text-truncate"
-                                          title={actionDisplayTitle(entry.action)}
-                                        >
-                                          {actionDisplayTitle(entry.action)}
-                                        </div>
-                                    {entry.status === "idle" ? (
-                                          <div className="chat-action-controls">
-                                            <button
-                                              type="button"
-                                              className="btn btn-sm btn-outline-secondary"
-                                              onClick={() => {
-                                                if (!selectedSession) return;
-                                                if (entry.action.requires_confirmation) {
-                                                  setActionConfirm({
-                                                    sessionId: selectedSession.id,
-                                                    assistantMessageId: message.id,
-                                                    actionId: entry.action.id,
-                                                  });
-                                                  return;
-                                                }
-                                                void executeProposal(
-                                                  selectedSession.id,
-                                                  message.id,
-                                                  entry.action,
-                                                  false,
-                                                );
-                                              }}
-                                            >
-                                              {entry.action.requires_confirmation
-                                                ? "Confirm and run"
-                                                : "Save"}
-                                            </button>
-                                          </div>
-                                    ) : entry.status === "running" ? (
-                                          <span className="chat-action-status text-faint">Running…</span>
-                                    ) : (
-                                      <span
-                                            className={`chat-action-status ${
-                                          entry.status === "executed" ? "text-success" : "text-danger"
-                                        }`}
-                                      >
-                                            {entry.status === "executed"
-                                              ? "Done"
-                                              : entry.status === "rejected"
-                                                ? "Skipped"
-                                                : (entry.message ?? "Failed")}
-                                      </span>
-                                    )}
-                                    {entry.link && entry.status === "executed" && (
-                                          <Link to={entry.link} className="chat-action-link">
-                                            Open
-                                      </Link>
-                                    )}
-                                  </div>
+                  messages.map((message) => {
+                    const entries = messageActions[message.id] ?? [];
+                    const hasActions = message.role === "assistant" && entries.length > 0;
+                    const isCollapsed = collapsedActionMessages[message.id] ?? false;
+                    const pendingSaveableCount = entries.filter(
+                      (entry) =>
+                        entry.status === "idle" &&
+                        !entry.action.requires_confirmation &&
+                        !entry.action.destructive,
+                    ).length;
+
+                    return (
+                      <div
+                        key={message.id}
+                        className={`chat-bubble ${message.role === "user" ? "user" : "assistant"}`}
+                      >
+                        {message.role === "assistant" ? (
+                          <>
+                            <MarkdownMessage content={message.content} />
+                            {hasActions && (
+                              <div className="chat-action-stack">
+                                <div className="chat-action-section-header">
+                                  <button
+                                    type="button"
+                                    className="chat-action-toggle"
+                                    onClick={() => toggleActionVisibility(message.id)}
+                                  >
+                                    {isCollapsed ? "Show actions" : "Hide actions"}
+                                  </button>
                                 </div>
-                              ))}
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        message.content
-                      )}
-                    </div>
-                  ))
+
+                                {!isCollapsed && (
+                                  <>
+                                    <div className="chat-action-list">
+                                      {entries.map((entry) => (
+                                        <div key={entry.action.id} className="chat-action-card">
+                                          <div className="chat-action-row">
+                                            <span className="chat-action-module">
+                                              {actionBadgeLabel(entry.action)}
+                                            </span>
+                                            <div
+                                              className="chat-action-title text-truncate"
+                                              title={actionDisplayTitle(entry.action)}
+                                            >
+                                              {actionDisplayTitle(entry.action)}
+                                            </div>
+                                            {entry.status === "idle" ? (
+                                              <div className="chat-action-controls">
+                                                <button
+                                                  type="button"
+                                                  className="btn btn-sm btn-outline-secondary"
+                                                  onClick={() => {
+                                                    if (!selectedSession) return;
+                                                    if (entry.action.requires_confirmation) {
+                                                      setActionConfirm({
+                                                        sessionId: selectedSession.id,
+                                                        assistantMessageId: message.id,
+                                                        actionId: entry.action.id,
+                                                      });
+                                                      return;
+                                                    }
+                                                    void executeProposal(
+                                                      selectedSession.id,
+                                                      message.id,
+                                                      entry.action,
+                                                      false,
+                                                    );
+                                                  }}
+                                                >
+                                                  {entry.action.requires_confirmation
+                                                    ? "Confirm and run"
+                                                    : "Save"}
+                                                </button>
+                                              </div>
+                                            ) : entry.status === "running" ? (
+                                              <span className="chat-action-status text-faint">Running…</span>
+                                            ) : (
+                                              <span
+                                                className={`chat-action-status ${
+                                                  entry.status === "executed" ? "text-success" : "text-danger"
+                                                }`}
+                                              >
+                                                {entry.status === "executed"
+                                                  ? "Done"
+                                                  : entry.status === "rejected"
+                                                    ? "Skipped"
+                                                    : (entry.message ?? "Failed")}
+                                              </span>
+                                            )}
+                                            {entry.link && entry.status === "executed" && (
+                                              <Link to={entry.link} className="chat-action-link">
+                                                Open
+                                              </Link>
+                                            )}
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+
+                                    {pendingSaveableCount > 0 && (
+                                      <div className="chat-action-footer">
+                                        <button
+                                          type="button"
+                                          className="btn btn-sm btn-outline-secondary"
+                                          onClick={() => {
+                                            if (!selectedSession) return;
+                                            void saveAllProposals(selectedSession.id, message.id);
+                                          }}
+                                        >
+                                          Save all
+                                        </button>
+                                      </div>
+                                    )}
+                                  </>
+                                )}
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          message.content
+                        )}
+                      </div>
+                    );
+                  })
                 )}
                 {sending && (
                   <div className="chat-bubble assistant" aria-label="Assistant is typing">

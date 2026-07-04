@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from fastapi import APIRouter, status
 
-from app.api.deps import CurrentUser, DbSession
+from app.api.deps import CurrentUser, DbSession, Provider
 from app.models.enums import GoalStatus
-from app.schemas.goal import GoalCreate, GoalRead, GoalUpdate
+from app.schemas.goal import GoalCreate, GoalDraftRead, GoalDraftRequest, GoalRead, GoalUpdate
 from app.schemas.milestone import MilestoneCreate, MilestoneRead
 from app.services import goal_service
 
@@ -23,6 +23,21 @@ def list_goals(
 @router.post("", response_model=GoalRead, status_code=status.HTTP_201_CREATED)
 def create_goal(data: GoalCreate, db: DbSession, current_user: CurrentUser) -> GoalRead:
     return goal_service.create_goal(db, current_user, data)
+
+
+@router.post("/draft", response_model=GoalDraftRead)
+def draft_goal(
+    data: GoalDraftRequest,
+    db: DbSession,
+    current_user: CurrentUser,
+    provider: Provider,
+) -> GoalDraftRead:
+    return goal_service.draft_goal_from_prompt(
+        db,
+        current_user,
+        provider,
+        prompt=data.prompt,
+    )
 
 
 @router.get("/{goal_id}", response_model=GoalRead)

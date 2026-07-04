@@ -2,18 +2,136 @@
 
 from __future__ import annotations
 
+import datetime
+import json
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.agents.orchestrator import generate_goal_draft_from_prompt
+from app.llm.base import LLMProvider
+from app.memory.context import compile_user_context
 from app.models.base import utcnow
 from app.models.enums import GoalStatus, MilestoneStatus
 from app.models.goal import Goal
 from app.models.milestone import Milestone
 from app.models.user import User
-from app.schemas.goal import GoalCreate, GoalUpdate
+from app.schemas.goal import GoalCreate, GoalDraftRead, GoalUpdate
 from app.schemas.milestone import MilestoneCreate, MilestoneUpdate
-from app.services.exceptions import NotFoundError
+from app.services import settings_service
+from app.services.exceptions import AppError, NotFoundError
 from app.services.utils import get_owned_or_404
+
+
+def _strip_markdown_fence(raw: str) -> str:
+    text = raw.strip()
+    if not text.startswith("```"):
+        return text
+    lines = text.splitlines()
+    if len(lines) >= 3 and lines[0].startswith("```") and lines[-1].startswith("```"):
+        return "\n".join(lines[1:-1]).strip()
+    return text
+
+
+def _parse_json_dict(raw: str) -> dict | None:
+    text = _strip_markdown_fence(raw)
+    if not text:
+        return None
+
+    try:
+        payload = json.loads(text)
+        if isinstance(payload, dict):
+            return payload
+    except json.JSONDecodeError:
+        start = text.find("{")
+        end = text.rfind("}")
+        if start != -1 and end != -1 and end > start:
+            try:
+                payload = json.loads(text[start : end + 1])
+                if isinstance(payload, dict):
+                    return payload
+            except json.JSONDecodeError:
+                return None
+    return None
+
+
+def _parse_target_date(value: str | None) -> datetime.datetime | None:
+    if not value:
+        return None
+
+    raw = value.strip()
+    if not raw:
+        return None
+
+    if len(raw) == 10:
+        try:
+            parsed_date = datetime.date.fromisoformat(raw)
+            return datetime.datetime(
+                parsed_date.year,
+                parsed_date.month,
+                parsed_date.day,
+                tzinfo=datetime.timezone.utc,
+            )
+        except ValueError:
+            return None
+
+    normalized = raw.replace("Z", "+00:00")
+    try:
+        parsed = datetime.datetime.fromisoformat(normalized)
+    except ValueError:
+        return None
+
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=datetime.timezone.utc)
+    return parsed.astimezone(datetime.timezone.utc)
+
+
+def draft_goal_from_prompt(
+    db: Session,
+    user: User,
+    provider: LLMProvider,
+    *,
+    prompt: str,
+) -> GoalDraftRead:
+    preferred_model = settings_service.get_effective_ai_model(db, user)
+    raw = generate_goal_draft_from_prompt(
+        provider,
+        prompt_text=prompt,
+        user_context=compile_user_context(db, user),
+        model=preferred_model,
+    )
+
+    payload = _parse_json_dict(raw)
+    if payload is None:
+        raise AppError("Shadow could not structure this goal yet. Please try again.")
+
+    title_raw = payload.get("title")
+    title = title_raw.strip() if isinstance(title_raw, str) else ""
+    if not title:
+        raise AppError("Shadow could not infer a goal title. Please add more detail.")
+
+    description_raw = payload.get("description")
+    description = description_raw.strip() if isinstance(description_raw, str) else None
+    if description == "":
+        description = None
+
+    category_raw = payload.get("category")
+    category = category_raw.strip() if isinstance(category_raw, str) else None
+    if category == "":
+        category = None
+
+    target_date_raw = payload.get("target_date")
+    target_date = _parse_target_date(target_date_raw if isinstance(target_date_raw, str) else None)
+
+    try:
+        return GoalDraftRead(
+            title=title,
+            description=description,
+            category=category,
+            target_date=target_date,
+        )
+    except Exception as exc:
+        raise AppError("Shadow generated an invalid goal draft. Please try again.") from exc
 
 
 # ── Goals ─────────────────────────────────────────────────────

@@ -44,3 +44,18 @@ class GoalSuggestion(BaseModel):
     """AI-suggested goal title (often phrased as a guiding question)."""
 
     title: str
+
+
+class GoalDraftRequest(BaseModel):
+    """Natural-language goal prompt used for Shadow-assisted setup."""
+
+    prompt: str = Field(min_length=3, max_length=1200)
+
+
+class GoalDraftRead(BaseModel):
+    """Structured goal fields extracted by AI from a free-text prompt."""
+
+    title: str = Field(min_length=1, max_length=255)
+    description: str | None = None
+    category: str | None = Field(default=None, max_length=64)
+    target_date: datetime | None = None

@@ -286,6 +286,37 @@ def suggest_milestones(
     return [line for line in lines if line][:count]
 
 
+def generate_goal_draft_from_prompt(
+    provider: LLMProvider,
+    *,
+    prompt_text: str,
+    user_context: str = "",
+    model: str | None = None,
+) -> str:
+    """Convert a natural-language goal prompt into strict JSON goal fields."""
+    system = _with_context(system_prompt(AgentType.goal_coach), user_context)
+    prompt = (
+        "User goal idea:\n"
+        f"{prompt_text}\n\n"
+        "Extract a single structured goal object from this idea.\n"
+        "Return valid JSON only with this exact schema:\n"
+        "{\"title\":\"...\",\"description\":\"...\",\"category\":\"...\",\"target_date\":\"YYYY-MM-DD\"|null}\n"
+        "Rules:\n"
+        "- Keep title concise and actionable.\n"
+        "- Description should be short and practical.\n"
+        "- Category should be a short phrase (for example Career, Health, Learning).\n"
+        "- Use null for unknown target_date.\n"
+        "- Do not include markdown, prose, or extra keys."
+    )
+    return provider.generate(
+        [LLMMessage("user", prompt)],
+        system=system,
+        temperature=0.2,
+        max_tokens=260,
+        model=model,
+    ).strip()
+
+
 def generate_report_narrative(
     provider: LLMProvider,
     *,

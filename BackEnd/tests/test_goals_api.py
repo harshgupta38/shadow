@@ -4,6 +4,45 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
+from app.api.deps import get_provider
+from app.llm.base import LLMMessage, LLMProvider
+from app.main import app
+
+
+class GoalDraftProvider(LLMProvider):
+    def generate(
+        self,
+        messages: list[LLMMessage],
+        *,
+        system: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+        model: str | None = None,
+    ) -> str:
+        return (
+            "```json\n"
+            "{"
+            '"title":"Get SDE role at Google",'
+            '"description":"Prepare DSA and interview readiness for Google SDE opportunities.",'
+            '"category":"Career",'
+            '"target_date":"2026-12-31"'
+            "}"
+            "\n```"
+        )
+
+
+class BrokenGoalDraftProvider(LLMProvider):
+    def generate(
+        self,
+        messages: list[LLMMessage],
+        *,
+        system: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+        model: str | None = None,
+    ) -> str:
+        return "not-json"
+
 
 def _create_goal(client: TestClient, headers: dict) -> int:
     response = client.post(
@@ -19,6 +58,46 @@ def test_create_and_list_goals(client: TestClient, auth_headers: dict) -> None:
     goal_id = _create_goal(client, auth_headers)
     listing = client.get("/api/goals", headers=auth_headers).json()
     assert any(g["id"] == goal_id for g in listing)
+
+
+def test_goal_draft_from_prompt_returns_structured_fields(
+    client: TestClient, auth_headers: dict
+) -> None:
+    provider = GoalDraftProvider()
+    app.dependency_overrides[get_provider] = lambda: provider
+
+    try:
+        response = client.post(
+            "/api/goals/draft",
+            headers=auth_headers,
+            json={"prompt": "I want to get SDE job at Google"},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["title"] == "Get SDE role at Google"
+        assert body["category"] == "Career"
+        assert body["description"]
+        assert body["target_date"] is not None
+    finally:
+        app.dependency_overrides.pop(get_provider, None)
+
+
+def test_goal_draft_returns_400_when_model_output_is_not_structured_json(
+    client: TestClient, auth_headers: dict
+) -> None:
+    provider = BrokenGoalDraftProvider()
+    app.dependency_overrides[get_provider] = lambda: provider
+
+    try:
+        response = client.post(
+            "/api/goals/draft",
+            headers=auth_headers,
+            json={"prompt": "I want to improve my career"},
+        )
+        assert response.status_code == 400
+        assert "could not structure" in response.json()["detail"].lower()
+    finally:
+        app.dependency_overrides.pop(get_provider, None)
 
 
 def test_update_goal(client: TestClient, auth_headers: dict) -> None:

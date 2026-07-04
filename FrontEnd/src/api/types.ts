@@ -429,6 +429,17 @@ export interface GoalUpdate {
   target_date?: string | null;
 }
 
+export interface GoalDraftRequest {
+  prompt: string;
+}
+
+export interface GoalDraft {
+  title: string;
+  description: string | null;
+  category: string | null;
+  target_date: string | null;
+}
+
 // ── Chat ───────────────────────────────────────────────────────────────────
 export interface ChatSession {
   id: number;

@@ -1,5 +1,7 @@
 import { http } from "./client";
 import type {
+  GoalDraft,
+  GoalDraftRequest,
   Goal,
   GoalCreate,
   GoalStatus,
@@ -18,6 +20,9 @@ export const goalsApi = {
   },
   async create(data: GoalCreate): Promise<Goal> {
     return http.post<Goal>("/goals", data);
+  },
+  async draft(data: GoalDraftRequest): Promise<GoalDraft> {
+    return http.post<GoalDraft>("/goals/draft", data);
   },
   async update(id: number, data: GoalUpdate): Promise<Goal> {
     return http.put<Goal>(`/goals/${id}`, data);

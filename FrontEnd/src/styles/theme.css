@@ -828,6 +828,17 @@ a {
   border-radius: var(--jv-radius-pill);
 }
 
+/* Goal cards need stronger empty-track contrast so 0% remains visible. */
+.goal-progress-track {
+  background: var(--jv-border);
+  border: 1px solid var(--jv-border-strong);
+}
+
+[data-bs-theme="dark"] .goal-progress-track {
+  background: var(--jv-border);
+  border-color: var(--jv-border-strong);
+}
+
 /* Sparkline bars */
 .sparkbar {
   display: flex;

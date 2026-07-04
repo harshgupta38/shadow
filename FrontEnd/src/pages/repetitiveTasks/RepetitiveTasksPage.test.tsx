@@ -145,6 +145,24 @@ describe("RepetitiveTasksPage", () => {
     expect(await screen.findByText("Meditation")).toBeInTheDocument();
   });
 
+  it("clears the create form without submitting", async () => {
+    const user = userEvent.setup();
+
+    renderPage();
+
+    await user.type(screen.getByLabelText(/task name/i), "Meditation");
+    await user.click(screen.getByRole("button", { name: "Daily" }));
+    await user.selectOptions(screen.getByLabelText(/priority/i), "high");
+    await user.type(screen.getByLabelText(/description/i), "Stay focused every day");
+
+    await user.click(screen.getByRole("button", { name: "Clear" }));
+
+    expect((screen.getByLabelText(/task name/i) as HTMLInputElement).value).toBe("");
+    expect((screen.getByLabelText(/priority/i) as HTMLSelectElement).value).toBe("medium");
+    expect((screen.getByLabelText(/description/i) as HTMLTextAreaElement).value).toBe("");
+    expect(mockedRepetitiveTasksApi.create).not.toHaveBeenCalled();
+  });
+
   it("does not submit the edit form when opening goals dropdown", async () => {
     const user = userEvent.setup();
     mockedGoalsApi.list.mockResolvedValue([

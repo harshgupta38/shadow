@@ -566,6 +566,16 @@ export function RepetitiveTasksPage() {
                   <PlusLg size={14} className="me-1" />
                   {editingTaskId ? "Update repetitive task" : "Create repetitive task"}
                 </button>
+                {!editingTaskId && (
+                  <button
+                    type="button"
+                    className="btn btn-outline-secondary"
+                    onClick={resetDraft}
+                    disabled={submitting}
+                  >
+                    Clear
+                  </button>
+                )}
                 {editingTaskId && (
                   <button
                     type="button"

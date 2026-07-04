@@ -53,6 +53,26 @@ export type ActivitySource = "manual" | "integration";
 
 export type PlannedTaskStatus = "planned" | "done" | "missed";
 
+export type RepetitiveTaskPriority = "critical" | "high" | "medium" | "low";
+
+export type RepetitiveTaskStatus = "active" | "paused" | "archived";
+
+export type RepetitiveTaskFrequency =
+  | "daily"
+  | "weekly"
+  | "monthly"
+  | "weekdays"
+  | "weekends"
+  | "sunday"
+  | "monday"
+  | "tuesday"
+  | "wednesday"
+  | "thursday"
+  | "friday"
+  | "saturday"
+  | "first_of_month"
+  | "end_of_month";
+
 export type ReportPeriod = "daily" | "weekly";
 
 export type JournalMood = "Great" | "Good" | "Okay" | "Low" | "Rough";
@@ -440,6 +460,49 @@ export interface GoalDraft {
   target_date: string | null;
 }
 
+// ── Repetitive tasks ──────────────────────────────────────────────────────
+export interface RepetitiveTask {
+  id: number;
+  name: string;
+  description: string | null;
+  frequencies: RepetitiveTaskFrequency[];
+  priority: RepetitiveTaskPriority;
+  status: RepetitiveTaskStatus;
+  linked_goal_ids: number[];
+  linked_metric_ids: number[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RepetitiveTaskCreate {
+  name: string;
+  description?: string | null;
+  frequencies: RepetitiveTaskFrequency[];
+  priority?: RepetitiveTaskPriority;
+  linked_goal_ids?: number[];
+  linked_metric_ids?: number[];
+}
+
+export interface RepetitiveTaskUpdate {
+  name?: string;
+  description?: string | null;
+  frequencies?: RepetitiveTaskFrequency[];
+  priority?: RepetitiveTaskPriority;
+  status?: RepetitiveTaskStatus;
+  linked_goal_ids?: number[];
+  linked_metric_ids?: number[];
+}
+
+export interface RepetitiveTaskRecommendation {
+  name: string;
+  description: string;
+  frequencies: RepetitiveTaskFrequency[];
+  priority: RepetitiveTaskPriority;
+  rationale: string;
+  linked_goal_ids: number[];
+  linked_metric_ids: number[];
+}
+
 // ── Chat ───────────────────────────────────────────────────────────────────
 export interface ChatSession {
   id: number;
@@ -469,7 +532,7 @@ export interface ChatSendOptions {
   freshIntakeMode?: boolean;
 }
 
-export type AssistantActionModule = "plan" | "goals" | "track";
+export type AssistantActionModule = "plan" | "goals" | "track" | "repetitive_tasks";
 export type AssistantActionConfidence = "high" | "medium" | "low";
 
 export interface PlanCreateTaskActionArgs {
@@ -508,6 +571,15 @@ export interface TrackLogMetricActionArgs {
   value: number;
   date?: string | null;
   note?: string | null;
+}
+
+export interface RepetitiveTasksCreateTaskActionArgs {
+  name: string;
+  description?: string | null;
+  frequencies: RepetitiveTaskFrequency[];
+  priority?: RepetitiveTaskPriority;
+  linked_goal_ids?: number[];
+  linked_metric_ids?: number[];
 }
 
 export interface AssistantProposedActionBase {
@@ -550,12 +622,19 @@ export interface TrackLogMetricAction extends AssistantProposedActionBase {
   args: TrackLogMetricActionArgs;
 }
 
+export interface RepetitiveTasksCreateTaskAction extends AssistantProposedActionBase {
+  module: "repetitive_tasks";
+  type: "repetitive_tasks.create_task";
+  args: RepetitiveTasksCreateTaskActionArgs;
+}
+
 export type AssistantProposedAction =
   | PlanCreateTaskAction
   | GoalsCreateGoalAction
   | GoalsAddMilestoneAction
   | TrackCreateMetricAction
-  | TrackLogMetricAction;
+  | TrackLogMetricAction
+  | RepetitiveTasksCreateTaskAction;
 
 export interface ChatActionExecuteResponse {
   status: "executed" | "rejected" | "failed";

@@ -44,6 +44,7 @@ from app.schemas.chat import (
     GoalsCreateGoalArgs,
     GoalsCreateGoalAction,
     PlanCreateTaskAction,
+    RepetitiveTasksCreateTaskAction,
     TrackCreateMetricAction,
     TrackLogMetricAction,
 )
@@ -51,7 +52,14 @@ from app.schemas.goal import GoalCreate
 from app.schemas.metric import MetricCreate
 from app.schemas.milestone import MilestoneCreate
 from app.schemas.plan import PlannedTaskCreate
-from app.services import goal_service, metric_service, plan_service, settings_service
+from app.schemas.repetitive_task import RepetitiveTaskCreate
+from app.services import (
+    goal_service,
+    metric_service,
+    plan_service,
+    repetitive_task_service,
+    settings_service,
+)
 from app.services.exceptions import AppError
 from app.services.utils import get_owned_or_404
 
@@ -64,6 +72,7 @@ _AUTO_EXECUTABLE_TYPES = {
     "goals.add_milestone",
     "track.create_metric",
     "track.log_metric",
+    "repetitive_tasks.create_task",
 }
 _GOAL_CONTEXT_MARKER = "[goal_context]"
 _GOAL_DISCOVERY_SEED_PREFIX = "[goal_discovery_seed]"
@@ -288,6 +297,8 @@ def _fallback_action_title(action: AssistantProposedAction) -> str:
         return f"Create metric: {action.args.label}"
     if isinstance(action, TrackLogMetricAction):
         return f"Log metric: {action.args.key}"
+    if isinstance(action, RepetitiveTasksCreateTaskAction):
+        return f"Add repetitive task: {action.args.name}"
     return "Run assistant action"
 
 
@@ -1499,6 +1510,25 @@ def _execute_track_log_metric(
     )
 
 
+def _execute_repetitive_tasks_create_task(
+    db: Session,
+    user: User,
+    action: RepetitiveTasksCreateTaskAction,
+) -> ChatActionExecuteResponse:
+    task = repetitive_task_service.create_task(
+        db,
+        user,
+        RepetitiveTaskCreate(**action.args.model_dump()),
+    )
+    return ChatActionExecuteResponse(
+        status="executed",
+        message=f"Repetitive task '{task.name}' was created.",
+        action=action,
+        link="/repetitive-tasks",
+        entity_id=task.id,
+    )
+
+
 def list_sessions(db: Session, user: User) -> list[ChatSession]:
     return list(
         db.scalars(
@@ -1758,6 +1788,8 @@ def execute_action(
             return _execute_track_create_metric(db, user, action)
         if isinstance(action, TrackLogMetricAction):
             return _execute_track_log_metric(db, user, action)
+        if isinstance(action, RepetitiveTasksCreateTaskAction):
+            return _execute_repetitive_tasks_create_task(db, user, action)
     except AppError as exc:
         return ChatActionExecuteResponse(
             status="failed",

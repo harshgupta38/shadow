@@ -170,6 +170,69 @@ describe("ChatPage", () => {
     expect(screen.getByRole("link", { name: "Open" })).toHaveAttribute("href", "/plan");
   });
 
+  it("renders repetitive task proposals as Habit with link after execution", async () => {
+    const proposal = {
+      id: "act-r-1",
+      module: "repetitive_tasks",
+      type: "repetitive_tasks.create_task",
+      title: "Add repetitive task: Stretch after lunch",
+      rationale: "This routine supports your energy goal.",
+      confidence: "high",
+      requires_confirmation: false,
+      destructive: false,
+      args: {
+        title: "Stretch after lunch",
+        frequencies: ["daily"],
+      },
+    } as const;
+
+    mockedChat.send.mockResolvedValue({
+      user_message: {
+        id: 111,
+        session_id: 1,
+        role: "user",
+        content: "Add a daily stretch habit",
+        agent_type: "general",
+        created_at: "2026-07-03T10:07:00Z",
+      },
+      assistant_message: {
+        id: 112,
+        session_id: 1,
+        role: "assistant",
+        content: "Added a strong habit suggestion.",
+        agent_type: "general",
+        created_at: "2026-07-03T10:07:02Z",
+      },
+      session: {
+        ...sessionFixture,
+        updated_at: "2026-07-03T10:07:02Z",
+      },
+      proposed_actions: [proposal],
+    });
+    mockedChat.executeAction.mockResolvedValue({
+      status: "executed",
+      message: "Habit created",
+      action: proposal,
+      link: "/repetitive-tasks",
+      entity_id: 7,
+    });
+
+    const user = userEvent.setup();
+    renderPage();
+
+    const title = await screen.findByText("Focus Sprint");
+    await user.click(title.closest("button") as HTMLButtonElement);
+
+    await user.type(screen.getByPlaceholderText("Message Shadow…"), "Add a daily stretch habit");
+    await user.click(screen.getByLabelText("Send message"));
+
+    await waitFor(() => expect(mockedChat.executeAction).toHaveBeenCalledWith(1, proposal, false));
+    expect(await screen.findByText("Habit")).toBeInTheDocument();
+    expect(screen.getByText("Stretch after lunch")).toBeInTheDocument();
+    expect(screen.queryByText("Add repetitive task: Stretch after lunch")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open" })).toHaveAttribute("href", "/repetitive-tasks");
+  });
+
   it("does not auto-run milestone proposals and uses compact save action", async () => {
     const proposal = {
       id: "act-m-1",

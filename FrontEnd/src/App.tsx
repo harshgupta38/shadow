@@ -15,6 +15,7 @@ import { OnboardingPage } from "@/pages/onboarding/OnboardingPage";
 import { PlanPage } from "@/pages/plan/PlanPage";
 import { MemoryCenterPage } from "@/pages/profile/MemoryCenterPage";
 import { ProfilePage } from "@/pages/profile/ProfilePage";
+import { RepetitiveTasksPage } from "@/pages/repetitiveTasks/RepetitiveTasksPage";
 import { ReportsPage } from "@/pages/reports/ReportsPage";
 import { SettingsPage } from "@/pages/settings/SettingsPage";
 import { TrackPage } from "@/pages/track/TrackPage";
@@ -45,6 +46,7 @@ export default function App() {
           <Route path="/plan" element={<PlanPage />} />
           <Route path="/goals" element={<GoalsPage />} />
           <Route path="/goals/:goalId" element={<GoalDetailPage />} />
+          <Route path="/repetitive-tasks" element={<RepetitiveTasksPage />} />
           <Route path="/track" element={<TrackPage />} />
           <Route path="/reports" element={<ReportsPage />} />
           <Route path="/assistant" element={<ChatPage />} />

@@ -13,9 +13,11 @@ from app.models.enums import (
     AssistantActionModule,
     ChatRole,
     MetricUnit,
+    RepetitiveTaskPriority,
 )
 from app.schemas.common import ORMModel
 from app.schemas.milestone import MilestoneDetail
+from app.schemas.repetitive_task import RepetitiveTaskFrequency
 
 
 class ChatSessionCreate(BaseModel):
@@ -85,6 +87,15 @@ class TrackLogMetricArgs(BaseModel):
     note: str | None = None
 
 
+class RepetitiveTasksCreateTaskArgs(BaseModel):
+    name: str = Field(min_length=1, max_length=255)
+    description: str | None = None
+    frequencies: list[RepetitiveTaskFrequency] = Field(min_length=1, max_length=14)
+    priority: RepetitiveTaskPriority = RepetitiveTaskPriority.medium
+    linked_goal_ids: list[int] = Field(default_factory=list)
+    linked_metric_ids: list[int] = Field(default_factory=list)
+
+
 class AssistantProposedActionBase(BaseModel):
     id: str = Field(min_length=1, max_length=64)
     module: AssistantActionModule
@@ -126,12 +137,21 @@ class TrackLogMetricAction(AssistantProposedActionBase):
     args: TrackLogMetricArgs
 
 
+class RepetitiveTasksCreateTaskAction(AssistantProposedActionBase):
+    module: Literal[AssistantActionModule.repetitive_tasks] = (
+        AssistantActionModule.repetitive_tasks
+    )
+    type: Literal["repetitive_tasks.create_task"] = "repetitive_tasks.create_task"
+    args: RepetitiveTasksCreateTaskArgs
+
+
 AssistantProposedAction = Annotated[
     PlanCreateTaskAction
     | GoalsCreateGoalAction
     | GoalsAddMilestoneAction
     | TrackCreateMetricAction
-    | TrackLogMetricAction,
+    | TrackLogMetricAction
+    | RepetitiveTasksCreateTaskAction,
     Field(discriminator="type"),
 ]
 

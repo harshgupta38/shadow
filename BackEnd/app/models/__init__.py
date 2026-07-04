@@ -15,6 +15,11 @@ from app.models.metric import TrackedMetric
 from app.models.milestone import Milestone
 from app.models.notification import Notification
 from app.models.planned_task import PlannedTask
+from app.models.repetitive_task import (
+    RepetitiveTask,
+    RepetitiveTaskGoalLink,
+    RepetitiveTaskMetricLink,
+)
 from app.models.report import Report
 from app.models.user import User
 from app.models.user_profile import UserProfile
@@ -37,5 +42,8 @@ __all__ = [
     "TrackedMetric",
     "ActivityLog",
     "PlannedTask",
+    "RepetitiveTask",
+    "RepetitiveTaskGoalLink",
+    "RepetitiveTaskMetricLink",
     "Report",
 ]

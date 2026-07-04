@@ -206,9 +206,10 @@ def propose_chat_actions(
     recent_history = history[-8:]
     prompt = (
         "Inspect this conversation and propose follow-up in-app actions.\n"
-        "Allowed modules: plan, goals, track.\n"
+        "Allowed modules: plan, goals, track, repetitive_tasks.\n"
         "Allowed action types: plan.create_task, goals.create_goal, "
-        "goals.add_milestone, track.create_metric, track.log_metric.\n"
+        "goals.add_milestone, track.create_metric, track.log_metric, "
+        "repetitive_tasks.create_task.\n"
         "Use conservative confidence: high only when user intent and required arguments are explicit.\n"
         "Never invent hidden assumptions. If uncertain, set confidence to medium or low.\n"
         "If no concrete action should be proposed, return an empty actions list.\n"
@@ -218,8 +219,8 @@ def propose_chat_actions(
         "{\n"
         '  "actions": [\n'
         "    {\n"
-        '      "module": "plan|goals|track",\n'
-        '      "type": "plan.create_task|goals.create_goal|goals.add_milestone|track.create_metric|track.log_metric",\n'
+        '      "module": "plan|goals|track|repetitive_tasks",\n'
+        '      "type": "plan.create_task|goals.create_goal|goals.add_milestone|track.create_metric|track.log_metric|repetitive_tasks.create_task",\n'
         '      "title": "Short action title",\n'
         '      "rationale": "Why this helps",\n'
         '      "confidence": "high|medium|low",\n'

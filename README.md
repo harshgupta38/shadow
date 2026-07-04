@@ -48,6 +48,7 @@ Implemented in this repository:
 - Profile/Settings split with AI profile and dedicated memory center
 - Goals and milestones
 - Plan (daily task CRUD with defaults, reminders, completion)
+- Repetitive Tasks (backend + frontend vertical slice with lifecycle controls and recommendations)
 - Metrics and activity logging
 - Daily/weekly AI reports
 - Multi-agent AI chat
@@ -60,11 +61,13 @@ In progress (see Story folder):
 - SCRUM-11: AI-powered Today workspace redesign
 - SCRUM-16: AI journal coaching and knowledge extraction
 - SCRUM-17: Profile/Settings architecture refinements
+- SCRUM-43: Repetitive Tasks module
 
 Important implementation reality:
 
 - `/api/plan/workspace` and `/api/plan/generate-today` are not active on this branch.
 - Current plan API is CRUD (`GET/POST/PUT/DELETE /api/plan...`).
+- Repetitive Tasks APIs are active at `GET/POST/PUT/DELETE /api/repetitive-tasks` and `GET /api/repetitive-tasks/recommendations`.
 
 ---
 
@@ -73,7 +76,7 @@ Important implementation reality:
 ```text
 Jarvis/
 |- README.md                  # This canonical project document
-|- Story/                     # Product stories (SCRUM-11/16/17)
+|- Story/                     # Product stories (SCRUM-11/15/16/17/43)
 |- BackEnd/                   # FastAPI + SQLAlchemy + Alembic
 |- FrontEnd/                  # React + TypeScript + Vite
 |- shadow.db                  # Local SQLite database snapshot

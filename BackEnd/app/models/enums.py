@@ -91,6 +91,7 @@ class AssistantActionModule(str, enum.Enum):
     plan = "plan"
     goals = "goals"
     track = "track"
+    repetitive_tasks = "repetitive_tasks"
 
 
 class AssistantActionConfidence(str, enum.Enum):
@@ -126,6 +127,19 @@ class PlannedTaskStatus(str, enum.Enum):
     planned = "planned"
     done = "done"
     missed = "missed"
+
+
+class RepetitiveTaskPriority(str, enum.Enum):
+    critical = "critical"
+    high = "high"
+    medium = "medium"
+    low = "low"
+
+
+class RepetitiveTaskStatus(str, enum.Enum):
+    active = "active"
+    paused = "paused"
+    archived = "archived"
 
 
 class ReportPeriod(str, enum.Enum):

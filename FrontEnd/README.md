@@ -93,6 +93,7 @@ Authenticated + onboarded app shell:
 - /plan
 - /goals
 - /goals/:goalId
+- /repetitive-tasks
 - /track
 - /reports
 - /assistant
@@ -122,6 +123,7 @@ Fallback:
 ## 8) Current UX Notes
 
 - Plan page currently uses a task CRUD workflow with date navigation.
+- Repetitive Tasks page (`/repetitive-tasks`) is API-backed with persisted CRUD, lifecycle actions, and recommendation endpoints.
 - AI-first Today workspace redesign exists as product story (SCRUM-11) and is in progress.
 - Settings page enforces Gemini-only model selection via dropdown.
 - Memory center uses refine-then-save flow with re-refine on large edits.
@@ -165,8 +167,8 @@ npm run test
 
 Repository test snapshot:
 
-- 6 frontend test files
-- 27 test cases
+- 11 frontend test files
+- 50 test cases
 
 Build check:
 

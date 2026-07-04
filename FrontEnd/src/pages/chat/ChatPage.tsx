@@ -162,11 +162,16 @@ function actionBadgeLabel(action: AssistantProposedAction): string {
   if (action.type === "goals.add_milestone") return "Milestone";
   if (action.type === "goals.create_goal") return "Goal";
   if (action.type === "plan.create_task") return "Task";
+  if (action.type === "repetitive_tasks.create_task") return "Habit";
   if (action.module === "track") return "Metric";
   return "Action";
 }
 
 function actionDisplayTitle(action: AssistantProposedAction): string {
+  if (action.type === "repetitive_tasks.create_task") {
+    const stripped = action.title.replace(/^add\s+repetitive\s+task\s*:\s*/i, "").trim();
+    return stripped || action.title;
+  }
   if (action.type !== "goals.add_milestone") return action.title;
 
   const stripped = action.title.replace(/^add\s+milestone\s*:\s*/i, "").trim();

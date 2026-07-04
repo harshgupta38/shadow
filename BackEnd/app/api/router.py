@@ -19,6 +19,7 @@ from app.api import (
     onboarding,
     plan,
     profile,
+    repetitive_tasks,
     reports,
     settings,
 )
@@ -37,6 +38,7 @@ for _module in (
     notifications,
     metrics,
     plan,
+    repetitive_tasks,
     reports,
     dashboard,
 ):

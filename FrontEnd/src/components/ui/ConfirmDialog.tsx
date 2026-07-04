@@ -25,7 +25,7 @@ export function ConfirmDialog({
   onCancel,
 }: ConfirmDialogProps) {
   return (
-    <Modal show={show} onHide={onCancel} centered>
+    <Modal show={show} onHide={onCancel} centered backdrop="static">
       <Modal.Body className="p-4 text-center">
         <div
           className="empty-icon mx-auto mb-3"

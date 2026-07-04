@@ -179,7 +179,7 @@ export function ReportsPage() {
         </div>
       )}
 
-      <Modal show={!!selected} onHide={() => setSelected(null)} centered size="lg" scrollable>
+      <Modal show={!!selected} onHide={() => setSelected(null)} centered size="lg" scrollable backdrop="static">
         <Modal.Header closeButton>
           <Modal.Title className="h5 fw-bold">Progress report</Modal.Title>
         </Modal.Header>

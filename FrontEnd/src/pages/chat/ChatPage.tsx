@@ -939,7 +939,7 @@ export function ChatPage() {
       </div>
 
       {/* Agent picker */}
-      <Modal show={showPicker} onHide={() => setShowPicker(false)} centered>
+      <Modal show={showPicker} onHide={() => setShowPicker(false)} centered backdrop="static">
         <Modal.Header closeButton>
           <Modal.Title className="h5 fw-bold">Choose an assistant</Modal.Title>
         </Modal.Header>

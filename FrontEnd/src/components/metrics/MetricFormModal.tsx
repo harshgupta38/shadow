@@ -92,7 +92,7 @@ export function MetricFormModal({ show, metric, onClose, onSaved }: MetricFormMo
   }
 
   return (
-    <Modal show={show} onHide={onClose} centered>
+    <Modal show={show} onHide={onClose} centered backdrop="static">
       <Modal.Header closeButton>
         <Modal.Title className="h5 fw-bold">{isEdit ? "Edit metric" : "New metric"}</Modal.Title>
       </Modal.Header>

@@ -100,7 +100,7 @@ export function MilestoneEditModal({
   }
 
   return (
-    <Modal show={show} onHide={busy ? undefined : onClose} centered size="lg">
+    <Modal show={show} onHide={busy ? undefined : onClose} centered size="lg" backdrop="static">
       <Modal.Header closeButton={!busy}>
         <Modal.Title className="h5 fw-bold">{isEditing ? "Edit milestone" : "Add milestone"}</Modal.Title>
       </Modal.Header>

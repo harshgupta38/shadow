@@ -241,7 +241,7 @@ export function JournalPage() {
       </div>
 
       {/* Edit modal */}
-      <Modal show={!!editing} onHide={() => setEditing(null)} centered>
+      <Modal show={!!editing} onHide={() => setEditing(null)} centered backdrop="static">
         <Modal.Header closeButton>
           <Modal.Title className="h5 fw-bold">Edit Journal</Modal.Title>
         </Modal.Header>

@@ -405,7 +405,7 @@ export function MemoryCenterPage() {
         </div>
       </div>
 
-      <Modal show={showAddModal} onHide={closeAddModal} centered>
+      <Modal show={showAddModal} onHide={closeAddModal} centered backdrop="static">
         <Modal.Header closeButton>
           <Modal.Title as="h3" className="h6 fw-bold mb-0">
             What extra details would you like to add?
@@ -482,7 +482,7 @@ export function MemoryCenterPage() {
         </Modal.Footer>
       </Modal>
 
-      <Modal show={showEditModal} onHide={closeEditModal} centered>
+      <Modal show={showEditModal} onHide={closeEditModal} centered backdrop="static">
         <Modal.Header closeButton>
           <Modal.Title as="h3" className="h6 fw-bold mb-0">
             Edit detail

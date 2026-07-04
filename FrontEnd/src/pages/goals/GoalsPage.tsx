@@ -65,8 +65,8 @@ export function GoalsPage() {
             </button>
           ))}
         </div>
-        <Link to="/assistant?agent=goal_coach" className="btn btn-soft btn-sm">
-          <Stars size={14} className="me-1" /> Ask the Goal Coach
+        <Link to="/assistant?agent=general&goalDiscovery=1" className="btn btn-soft btn-sm">
+          <Stars size={14} className="me-1" /> Ask Shadow
         </Link>
       </div>
 

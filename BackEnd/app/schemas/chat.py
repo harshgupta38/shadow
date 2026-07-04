@@ -44,6 +44,7 @@ class ChatMessageRead(ORMModel):
 
 class ChatMessageCreate(BaseModel):
     content: str = Field(min_length=1)
+    fresh_intake_mode: bool = False
 
 
 class PlanCreateTaskArgs(BaseModel):

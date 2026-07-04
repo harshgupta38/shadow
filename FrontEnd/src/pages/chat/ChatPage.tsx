@@ -44,6 +44,12 @@ interface ActionConfirmState {
 const LEGACY_GOAL_CONTEXT_MARKER = "\n\n[goal_context]";
 const MAX_COMPOSER_LINES = 5;
 const CHAT_ACTIONS_STORAGE_KEY = "shadow.chat.messageActions.v1";
+const GOAL_DISCOVERY_SESSION_STORAGE_KEY = "shadow.chat.goalDiscoverySessionId.v1";
+const GOAL_DISCOVERY_QUERY_PARAM = "goalDiscovery";
+const GOAL_DISCOVERY_SEED_PREFIX = "[goal_discovery_seed]";
+const GOAL_DISCOVERY_STARTER_PROMPT =
+  `${GOAL_DISCOVERY_SEED_PREFIX} Ask me one clear question to understand what I want to achieve and by when. ` +
+  "After I answer, help me turn it into trackable goals and propose actions with title, description, category, and target date.";
 
 type StoredActionStateMap = Record<number, ProposedActionState[]>;
 type StoredActionStateStore = Record<string, Record<string, ProposedActionState[]>>;
@@ -107,6 +113,33 @@ function clearStoredSessionActionStates(sessionId: number): void {
   if (!(String(sessionId) in store)) return;
   delete store[String(sessionId)];
   writeStoredActionStateStore(store);
+}
+
+function readStoredGoalDiscoverySessionId(): number | null {
+  if (typeof window === "undefined") return null;
+  const raw = window.localStorage.getItem(GOAL_DISCOVERY_SESSION_STORAGE_KEY);
+  if (!raw) return null;
+
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    window.localStorage.removeItem(GOAL_DISCOVERY_SESSION_STORAGE_KEY);
+    return null;
+  }
+  return parsed;
+}
+
+function writeStoredGoalDiscoverySessionId(sessionId: number): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(GOAL_DISCOVERY_SESSION_STORAGE_KEY, String(sessionId));
+}
+
+function clearStoredGoalDiscoverySessionId(): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(GOAL_DISCOVERY_SESSION_STORAGE_KEY);
+}
+
+function isGoalDiscoverySeedMessage(content: string): boolean {
+  return content.trimStart().startsWith(GOAL_DISCOVERY_SEED_PREFIX);
 }
 
 function parseGoalCoachGoalId(params: URLSearchParams): number | null {
@@ -312,10 +345,43 @@ export function ChatPage() {
         action.confidence === "high" &&
         !action.requires_confirmation &&
         !action.destructive &&
-        action.type !== "goals.add_milestone",
+        action.type !== "goals.add_milestone" &&
+        action.type !== "goals.create_goal",
     );
     for (const action of autoActions) {
       await executeProposal(sessionId, assistantMessageId, action, false);
+    }
+  }
+
+  async function sendGoalDiscoveryKickoff(sessionId: number) {
+    writeStoredGoalDiscoverySessionId(sessionId);
+    setSending(true);
+    try {
+      const response = await api.chat.send(sessionId, GOAL_DISCOVERY_STARTER_PROMPT, {
+        freshIntakeMode: true,
+      });
+      setMessages((prev) => [...prev, response.assistant_message]);
+      setSessions((prev) =>
+        (prev ?? [])
+          .map((s) =>
+            s.id === sessionId
+              ? {
+                  ...s,
+                  updated_at: response.assistant_message.created_at,
+                  title: response.session.title,
+                }
+              : s,
+          )
+          .sort((a, b) => b.updated_at.localeCompare(a.updated_at)),
+      );
+
+      const assistantMessageId = response.assistant_message.id;
+      setProposalStates(sessionId, assistantMessageId, response.proposed_actions);
+      void autoExecuteProposals(sessionId, assistantMessageId, response.proposed_actions);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Couldn't start goal discovery.");
+    } finally {
+      setSending(false);
     }
   }
 
@@ -323,9 +389,15 @@ export function ChatPage() {
     setLoadingMessages(true);
     try {
       const loaded = await api.chat.messages(sessionId);
-      const rendered = loaded.map((message) =>
-        message.role === "user" ? { ...message, content: stripGoalContext(message.content) } : message,
-      );
+      const rendered = loaded
+        .map((message) =>
+          message.role === "user" ? { ...message, content: stripGoalContext(message.content) } : message,
+        )
+        .filter(
+          (message) =>
+            message.role !== "user" ||
+            !isGoalDiscoverySeedMessage(message.content),
+        );
       setMessages(rendered);
 
       const persisted = loadStoredSessionActionStates(sessionId);
@@ -376,7 +448,20 @@ export function ChatPage() {
     return [...matches].sort((a, b) => b.updated_at.localeCompare(a.updated_at))[0];
   }
 
-  async function startChat(agent: AgentType, goalId: number | null = null) {
+  function findExistingGoalDiscoverySession(): ChatSession | null {
+    const sessionId = readStoredGoalDiscoverySessionId();
+    if (sessionId === null) return null;
+
+    const existing = (sessions ?? []).find(
+      (session) => session.id === sessionId && session.agent_type === "general",
+    );
+    if (existing) return existing;
+
+    clearStoredGoalDiscoverySessionId();
+    return null;
+  }
+
+  async function startChat(agent: AgentType, goalId: number | null = null): Promise<ChatSession | null> {
     setShowPicker(false);
     try {
       const session = await api.chat.createSession({
@@ -390,8 +475,10 @@ export function ChatPage() {
       setMessageActions({});
       setCollapsedActionMessages({});
       setMobilePane("chat");
+      return session;
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Couldn't start the chat.");
+      return null;
     }
   }
 
@@ -466,6 +553,9 @@ export function ChatPage() {
     try {
       await api.chat.deleteSession(deletingId);
       clearStoredSessionActionStates(deletingId);
+      if (readStoredGoalDiscoverySessionId() === deletingId) {
+        clearStoredGoalDiscoverySessionId();
+      }
       toast.success("Conversation deleted.");
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Couldn't delete the conversation.");
@@ -481,6 +571,7 @@ export function ChatPage() {
     if (loading || autoStartRef.current) return;
     const agent = searchParams.get("agent");
     const goalId = parseGoalCoachGoalId(searchParams);
+    const goalDiscoveryRequested = searchParams.get(GOAL_DISCOVERY_QUERY_PARAM) === "1";
     if (isAgentType(agent)) {
       autoStartRef.current = true;
       if (agent === "goal_coach" && goalId) {
@@ -490,12 +581,24 @@ export function ChatPage() {
         } else {
           void startChat(agent, goalId);
         }
+      } else if (agent === "general" && goalDiscoveryRequested) {
+        const existing = findExistingGoalDiscoverySession();
+        if (existing) {
+          selectSession(existing);
+        } else {
+          void (async () => {
+            const session = await startChat(agent, null);
+            if (!session) return;
+            await sendGoalDiscoveryKickoff(session.id);
+          })();
+        }
       } else {
         void startChat(agent, null);
       }
       searchParams.delete("agent");
       searchParams.delete("goalId");
       searchParams.delete("goalTitle");
+      searchParams.delete(GOAL_DISCOVERY_QUERY_PARAM);
       setSearchParams(searchParams, { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -842,7 +945,7 @@ export function ChatPage() {
                 key={agent.type}
                 type="button"
                 className="surface-2 p-3 border-0 text-start d-flex align-items-center gap-3 clickable hover-lift"
-                onClick={() => startChat(agent.type)}
+                onClick={() => void startChat(agent.type)}
               >
                 <AgentAvatar agent={agent.type} size={44} />
                 <div className="min-w-0">

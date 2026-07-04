@@ -454,6 +454,10 @@ export interface ChatMessage {
   created_at: string;
 }
 
+export interface ChatSendOptions {
+  freshIntakeMode?: boolean;
+}
+
 export type AssistantActionModule = "plan" | "goals" | "track";
 export type AssistantActionConfidence = "high" | "medium" | "low";
 

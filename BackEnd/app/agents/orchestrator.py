@@ -154,10 +154,13 @@ def generate_chat_reply(
     agent_type: AgentType,
     history: list[LLMMessage],
     user_context: str = "",
+    response_format_hint: str | None = None,
     model: str | None = None,
 ) -> str:
     """Produce an assistant reply for a chat session."""
     system = _with_context(system_prompt(agent_type), user_context)
+    if response_format_hint:
+        system = f"{system}\n\n# Chat response contract\n{response_format_hint.strip()}"
     return provider.generate(history, system=system, model=model).strip()
 
 

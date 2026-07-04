@@ -3,6 +3,7 @@ import type {
   AssistantProposedAction,
   ChatActionExecuteResponse,
   ChatMessage,
+  ChatSendOptions,
   ChatSendResponse,
   ChatSession,
   ChatSessionCreate,
@@ -18,9 +19,14 @@ export const chatApi = {
   async messages(sessionId: number): Promise<ChatMessage[]> {
     return http.get<ChatMessage[]>(`/chat/sessions/${sessionId}/messages`);
   },
-  async send(sessionId: number, content: string): Promise<ChatSendResponse> {
+  async send(
+    sessionId: number,
+    content: string,
+    options?: ChatSendOptions,
+  ): Promise<ChatSendResponse> {
     return http.post<ChatSendResponse>(`/chat/sessions/${sessionId}/messages`, {
       content,
+      ...(options?.freshIntakeMode ? { fresh_intake_mode: true } : {}),
     });
   },
   async deleteSession(sessionId: number): Promise<void> {

@@ -52,7 +52,12 @@ def send_message(
     provider: Provider,
 ) -> ChatSendResponse:
     user_message, assistant_message, session, proposed_actions = chat_service.send_message(
-        db, current_user, session_id, data.content, provider
+        db,
+        current_user,
+        session_id,
+        data.content,
+        provider,
+        fresh_intake_mode=data.fresh_intake_mode,
     )
     return ChatSendResponse(
         user_message=ChatMessageRead.model_validate(user_message),

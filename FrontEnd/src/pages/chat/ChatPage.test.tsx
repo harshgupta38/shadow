@@ -44,6 +44,8 @@ const sessionFixture = {
   updated_at: "2026-07-03T10:00:00Z",
 } as const;
 
+const GOAL_DISCOVERY_SESSION_STORAGE_KEY = "shadow.chat.goalDiscoverySessionId.v1";
+
 function renderPage(path = "/assistant") {
   return render(
     <MemoryRouter initialEntries={[path]}>
@@ -218,6 +220,63 @@ describe("ChatPage", () => {
     expect(screen.getByText("Milestone")).toBeInTheDocument();
     expect(screen.getByText("Reach 5KG")).toBeInTheDocument();
     expect(screen.queryByText("Add milestone: Reach 5KG")).not.toBeInTheDocument();
+    expect(mockedChat.executeAction).not.toHaveBeenCalled();
+  });
+
+  it("keeps goal creation proposals as manual save actions", async () => {
+    const proposal = {
+      id: "act-g-1",
+      module: "goals",
+      type: "goals.create_goal",
+      title: "Save goal: Define Target Google Roles",
+      rationale: "Structured goal extracted from your discovery plan.",
+      confidence: "high",
+      requires_confirmation: false,
+      destructive: false,
+      args: {
+        title: "Define Target Google Roles",
+        description: "Identify 3-5 SWE roles at Google.",
+        category: "Career",
+        target_date: "2026-08-01T00:00:00Z",
+      },
+    } as const;
+
+    mockedChat.send.mockResolvedValue({
+      user_message: {
+        id: 161,
+        session_id: 1,
+        role: "user",
+        content: "I want to get into Google by end of 2026",
+        agent_type: "general",
+        created_at: "2026-07-03T10:05:00Z",
+      },
+      assistant_message: {
+        id: 162,
+        session_id: 1,
+        role: "assistant",
+        content: "Great target. Let's create concrete goals.",
+        agent_type: "general",
+        created_at: "2026-07-03T10:05:02Z",
+      },
+      session: {
+        ...sessionFixture,
+        updated_at: "2026-07-03T10:05:02Z",
+      },
+      proposed_actions: [proposal],
+    });
+
+    const user = userEvent.setup();
+    renderPage();
+
+    const title = await screen.findByText("Focus Sprint");
+    await user.click(title.closest("button") as HTMLButtonElement);
+
+    await user.type(screen.getByPlaceholderText("Message Shadow…"), "I want to get into Google by end of 2026");
+    await user.click(screen.getByLabelText("Send message"));
+
+    expect(await screen.findByRole("button", { name: "Save" })).toBeInTheDocument();
+    expect(screen.getByText("Goal")).toBeInTheDocument();
+    expect(screen.getByText("Save goal: Define Target Google Roles")).toBeInTheDocument();
     expect(mockedChat.executeAction).not.toHaveBeenCalled();
   });
 
@@ -474,6 +533,97 @@ describe("ChatPage", () => {
     expect(sentPayload).not.toContain("[goal_context]");
 
     expect(await screen.findByText("Break my goal into milestones")).toBeInTheDocument();
+  });
+
+  it("starts goal discovery with Shadow from goals CTA entry", async () => {
+    const discoverySession = {
+      id: 8,
+      agent_type: "general",
+      title: "Shadow",
+      goal_id: null,
+      created_at: "2026-07-03T11:00:00Z",
+      updated_at: "2026-07-03T11:00:00Z",
+    } as const;
+
+    mockedChat.sessions.mockResolvedValue([]);
+    mockedChat.createSession.mockResolvedValue(discoverySession);
+    mockedChat.send.mockResolvedValue({
+      user_message: {
+        id: 351,
+        session_id: discoverySession.id,
+        role: "user",
+        content:
+          "[goal_discovery_seed] Ask me one clear question to understand what I want to achieve and by when.",
+        agent_type: "general",
+        created_at: "2026-07-03T11:01:00Z",
+      },
+      assistant_message: {
+        id: 352,
+        session_id: discoverySession.id,
+        role: "assistant",
+        content: "What do you want to achieve first, and by what date?",
+        agent_type: "general",
+        created_at: "2026-07-03T11:01:02Z",
+      },
+      session: {
+        ...discoverySession,
+        updated_at: "2026-07-03T11:01:02Z",
+      },
+      proposed_actions: [],
+    });
+
+    renderPage("/assistant?agent=general&goalDiscovery=1");
+
+    await waitFor(() =>
+      expect(mockedChat.createSession).toHaveBeenCalledWith(
+        expect.objectContaining({
+          agent_type: "general",
+          title: "Shadow",
+        }),
+      ),
+    );
+
+    await waitFor(() => expect(mockedChat.send).toHaveBeenCalledTimes(1));
+    expect(mockedChat.send).toHaveBeenCalledWith(
+      discoverySession.id,
+      expect.stringContaining("[goal_discovery_seed]"),
+      { freshIntakeMode: true },
+    );
+
+    expect(await screen.findByText("What do you want to achieve first, and by what date?")).toBeInTheDocument();
+  });
+
+  it("reuses existing goal discovery chat instead of creating a new one", async () => {
+    const existingDiscoverySession = {
+      id: 18,
+      agent_type: "general",
+      title: "Goal Discovery",
+      goal_id: null,
+      created_at: "2026-07-03T11:00:00Z",
+      updated_at: "2026-07-03T11:20:00Z",
+    } as const;
+    mockedChat.sessions.mockResolvedValue([existingDiscoverySession]);
+    mockedChat.messages.mockResolvedValue([
+      {
+        id: 360,
+        session_id: existingDiscoverySession.id,
+        role: "assistant",
+        content: "What do you want to achieve first, and by what date?",
+        agent_type: "general",
+        created_at: "2026-07-03T11:01:02Z",
+      },
+    ]);
+    window.localStorage.setItem(
+      GOAL_DISCOVERY_SESSION_STORAGE_KEY,
+      String(existingDiscoverySession.id),
+    );
+
+    renderPage("/assistant?agent=general&goalDiscovery=1");
+
+    await waitFor(() => expect(mockedChat.messages).toHaveBeenCalledWith(existingDiscoverySession.id));
+    expect(mockedChat.createSession).not.toHaveBeenCalled();
+    expect(mockedChat.send).not.toHaveBeenCalled();
+    expect(await screen.findByText("What do you want to achieve first, and by what date?")).toBeInTheDocument();
   });
 
   it("reuses existing goal-linked goal coach chat instead of creating a new one", async () => {

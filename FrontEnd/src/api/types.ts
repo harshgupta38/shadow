@@ -52,6 +52,8 @@ export type MetricType = "default" | "custom";
 export type ActivitySource = "manual" | "integration";
 
 export type PlannedTaskStatus = "planned" | "done" | "missed";
+export type PlannedTaskSource = "manual" | "ai_generated" | "assistant";
+export type PlannedTaskPriority = "critical" | "high" | "medium" | "low";
 
 export type RepetitiveTaskPriority = "critical" | "high" | "medium" | "low";
 
@@ -743,7 +745,24 @@ export interface PlannedTask {
   reminder_time: string | null;
   estimated_duration_minutes: number | null;
   status: PlannedTaskStatus;
+  source: PlannedTaskSource;
+  priority: PlannedTaskPriority;
+  ai_rationale: string | null;
+  ai_impact_if_skipped: string | null;
+  ai_confidence_score: number | null;
+  suggested_start_time: string | null;
+  suggested_finish_by_time: string | null;
+  execution_order: number | null;
+  carried_from_date: string | null;
+  generated_at: string | null;
   related_goal_id: number | null;
+  category?: string | null;
+  goal_title?: string | null;
+  missed_yesterday?: boolean;
+  overdue?: boolean;
+  completed_late?: boolean;
+  current_habit_streak?: number | null;
+  previous_completion_history?: string | null;
   completed_at: string | null;
   created_at: string;
 }
@@ -754,6 +773,16 @@ export interface PlannedTaskCreate {
   related_goal_id?: number | null;
   reminder_time?: string | null;
   estimated_duration_minutes?: number | null;
+  source?: PlannedTaskSource;
+  priority?: PlannedTaskPriority;
+  ai_rationale?: string | null;
+  ai_impact_if_skipped?: string | null;
+  ai_confidence_score?: number | null;
+  suggested_start_time?: string | null;
+  suggested_finish_by_time?: string | null;
+  execution_order?: number | null;
+  carried_from_date?: string | null;
+  generated_at?: string | null;
 }
 
 export interface PlannedTaskUpdate {
@@ -762,6 +791,60 @@ export interface PlannedTaskUpdate {
   related_goal_id?: number | null;
   reminder_time?: string | null;
   estimated_duration_minutes?: number | null;
+  source?: PlannedTaskSource;
+  priority?: PlannedTaskPriority;
+  ai_rationale?: string | null;
+  ai_impact_if_skipped?: string | null;
+  ai_confidence_score?: number | null;
+  suggested_start_time?: string | null;
+  suggested_finish_by_time?: string | null;
+  execution_order?: number | null;
+  carried_from_date?: string | null;
+  generated_at?: string | null;
+}
+
+export interface PlanGenerateRequest {
+  on_date?: string | null;
+}
+
+export interface PlanExecutionItem {
+  task_id: number;
+  title: string;
+  source: PlannedTaskSource;
+  priority: PlannedTaskPriority;
+  estimated_duration_minutes: number | null;
+  suggested_start_time: string | null;
+  suggested_finish_by_time: string | null;
+}
+
+export interface PlanInsights {
+  missed_yesterday_count: number;
+  missed_yesterday_titles: string[];
+  carry_forward_count: number;
+  carry_forward_titles: string[];
+  highest_priority_task_title: string | null;
+  highest_priority_message: string | null;
+  estimated_tasks_count: number;
+  estimated_workload_minutes: number;
+  workload_label: string;
+  habit_streak_summary: PlanHabitStreakItem[];
+}
+
+export interface PlanHabitStreakItem {
+  task_title: string;
+  highest_streak_days: number;
+  current_streak_days: number;
+  completion_rate_percent: number;
+  last_completed_days_ago: number | null;
+  at_risk: boolean;
+}
+
+export interface PlanWorkspace {
+  date: string;
+  tasks: PlannedTask[];
+  insights: PlanInsights;
+  execution_order: PlanExecutionItem[];
+  generated_at: string | null;
 }
 
 // ── Reports ────────────────────────────────────────────────────────────────

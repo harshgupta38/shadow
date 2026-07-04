@@ -122,9 +122,9 @@ Fallback:
 
 ## 8) Current UX Notes
 
-- Plan page currently uses a task CRUD workflow with date navigation.
+- Plan page now supports AI generation via `Generate Today's Plan`, workspace insights, and suggested execution order/scheduling alongside manual task CRUD.
 - Repetitive Tasks page (`/repetitive-tasks`) is API-backed with persisted CRUD, lifecycle actions, and recommendation endpoints.
-- AI-first Today workspace redesign exists as product story (SCRUM-11) and is in progress.
+- AI-first Today workspace redesign (SCRUM-11) is now partially implemented on `/plan` with backend-driven workspace and generation endpoints.
 - Settings page enforces Gemini-only model selection via dropdown.
 - Memory center uses refine-then-save flow with re-refine on large edits.
 

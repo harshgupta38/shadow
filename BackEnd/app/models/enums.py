@@ -129,6 +129,19 @@ class PlannedTaskStatus(str, enum.Enum):
     missed = "missed"
 
 
+class PlannedTaskSource(str, enum.Enum):
+    manual = "manual"
+    ai_generated = "ai_generated"
+    assistant = "assistant"
+
+
+class PlannedTaskPriority(str, enum.Enum):
+    critical = "critical"
+    high = "high"
+    medium = "medium"
+    low = "low"
+
+
 class RepetitiveTaskPriority(str, enum.Enum):
     critical = "critical"
     high = "high"

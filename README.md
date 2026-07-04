@@ -65,8 +65,10 @@ In progress (see Story folder):
 
 Important implementation reality:
 
-- `/api/plan/workspace` and `/api/plan/generate-today` are not active on this branch.
-- Current plan API is CRUD (`GET/POST/PUT/DELETE /api/plan...`).
+- Plan workspace and generation endpoints are active:
+  - `GET /api/plan/workspace`
+  - `POST /api/plan/generate-today`
+- CRUD plan endpoints remain active (`GET/POST/PUT/DELETE /api/plan...`).
 - Repetitive Tasks APIs are active at `GET/POST/PUT/DELETE /api/repetitive-tasks` and `GET /api/repetitive-tasks/recommendations`.
 
 ---
@@ -256,6 +258,8 @@ All API routes are prefixed with `/api`.
 
 - `GET /api/plan`
 - `POST /api/plan`
+- `GET /api/plan/workspace`
+- `POST /api/plan/generate-today`
 - `PUT /api/plan/{task_id}`
 - `DELETE /api/plan/{task_id}`
 
@@ -725,6 +729,8 @@ provider. Each agent = a **system prompt / persona** + context injection + optio
 - `PUT/DELETE /api/metrics/{id}` — edit/deactivate a metric.
 - `GET/POST /api/metrics/{id}/logs` — list/add activity logs for a metric.
 - `GET/POST /api/plan` — list/create planned tasks (for a date); `PUT /api/plan/{id}` to complete.
+- `GET /api/plan/workspace` — read day's task workspace with insights and suggested execution order.
+- `POST /api/plan/generate-today` — generate (or regenerate) AI plan tasks for a date.
 
 **Reports**
 - `GET  /api/reports?period=daily|weekly` — list past reports.

@@ -121,10 +121,12 @@ All routes are mounted under /api.
 - notifications
 - dashboard
 
-Current plan API on this branch is CRUD:
+Plan API currently includes CRUD plus AI workspace/generation endpoints:
 
 - GET /api/plan
 - POST /api/plan
+- GET /api/plan/workspace
+- POST /api/plan/generate-today
 - PUT /api/plan/{task_id}
 - DELETE /api/plan/{task_id}
 
@@ -155,11 +157,21 @@ Important entities:
 - JournalEntry
 - Notification
 
-Current Alembic chain:
+Current Alembic head:
+
+- f8b7a9d1334e - AI Today workspace fields on planned tasks
+
+Recent lineage includes journal, chat-goal, milestone-details, and repetitive-task branches:
 
 1. d431dfd7dcd9 - initial schema
 2. 93f62db4c201 - profile/settings domains
 3. f2a1c0b8d90e - account and behavior settings expansion
+4. 8e4a7c3f9b21 - journal shadow response
+5. 6af2d19c4e7b - journal goal alignment
+6. b9d8c120fca4 - chat session goal id
+7. c18f6be4d2a1 - milestone details
+8. af72d620c5e1 - repetitive tasks
+9. f8b7a9d1334e - merge head + planned task AI metadata
 
 Commands:
 

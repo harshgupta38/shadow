@@ -353,6 +353,184 @@ def repair_goal_draft_json(
     ).strip()
 
 
+def generate_today_plan_json(
+    provider: LLMProvider,
+    *,
+    on_date: str,
+    goals_summary: str,
+    repetitive_summary: str,
+    carry_forward_summary: str,
+    manual_tasks_summary: str,
+    user_context: str = "",
+    model: str | None = None,
+) -> str:
+    """Generate a structured daily plan payload as strict JSON."""
+    system = _with_context(system_prompt(AgentType.daily_checkin), user_context)
+    prompt = (
+        f"Plan date: {on_date}\n\n"
+        "Active goals context:\n"
+        f"{goals_summary}\n\n"
+        "Recurring tasks due today:\n"
+        f"{repetitive_summary}\n\n"
+        "Unfinished carry-forward candidates from yesterday:\n"
+        f"{carry_forward_summary}\n\n"
+        "Manual tasks already present for the same date:\n"
+        f"{manual_tasks_summary}\n\n"
+        "Create a realistic, non-duplicative daily plan.\n"
+        "Return valid JSON only (no markdown, no prose) with this exact schema:\n"
+        "{\"tasks\":[{\"title\":\"...\",\"related_goal_id\":123|null,\"priority\":\"critical|high|medium|low\",\"estimated_duration_minutes\":45|null,\"suggested_start_time\":\"HH:MM\"|null,\"suggested_finish_by_time\":\"HH:MM\"|null,\"ai_rationale\":\"...\",\"ai_impact_if_skipped\":\"...\"|null,\"ai_confidence_score\":75|null}]}\n"
+        "Rules:\n"
+        "- Maximum 8 tasks.\n"
+        "- Never duplicate manual tasks already listed.\n"
+        "- Prefer carry-forward and high-value goal work.\n"
+        "- Treat recurring-task descriptions as constraints; when they mention fixed time windows, preserve them in suggested_start_time and suggested_finish_by_time.\n"
+        "- Keep timing realistic; avoid overloaded schedules.\n"
+        "- Set estimated_duration_minutes only when you can justify it from task scope; otherwise set it to null.\n"
+        "- Avoid one-size-fits-all durations across tasks.\n"
+        "- Set suggested_start_time and suggested_finish_by_time only when you intentionally schedule that task; otherwise set both to null.\n"
+        "- Use null for unknown optional fields.\n"
+        "- Keep ai_rationale concise and specific.\n"
+        "- ai_impact_if_skipped should describe realistic downside in one sentence, specific to that task.\n"
+        "- When related_goal_id is set, ai_impact_if_skipped should reflect consequence to that goal outcome.\n"
+        "- Do not repeat the same ai_impact_if_skipped sentence across multiple tasks.\n"
+        "- ai_confidence_score must be an integer from 0 to 100."
+    )
+    return provider.generate(
+        [LLMMessage("user", prompt)],
+        system=system,
+        temperature=0.2,
+        max_tokens=980,
+        model=model,
+    ).strip()
+
+
+def repair_today_plan_json(
+    provider: LLMProvider,
+    *,
+    on_date: str,
+    malformed_output: str,
+    goals_summary: str,
+    repetitive_summary: str,
+    carry_forward_summary: str,
+    manual_tasks_summary: str,
+    user_context: str = "",
+    model: str | None = None,
+) -> str:
+    """Repair a malformed daily-plan response into strict JSON schema output."""
+    system = _with_context(system_prompt(AgentType.daily_checkin), user_context)
+    prompt = (
+        "The previous output did not follow the required JSON schema.\n"
+        "Rewrite it as strict JSON only.\n\n"
+        f"Plan date: {on_date}\n\n"
+        "Active goals context:\n"
+        f"{goals_summary}\n\n"
+        "Recurring tasks due today:\n"
+        f"{repetitive_summary}\n\n"
+        "Unfinished carry-forward candidates from yesterday:\n"
+        f"{carry_forward_summary}\n\n"
+        "Manual tasks already present for the same date:\n"
+        f"{manual_tasks_summary}\n\n"
+        "Malformed output to repair:\n"
+        f"{malformed_output}\n\n"
+        "Return valid JSON only (no markdown, no prose) with this exact schema:\n"
+        "{\"tasks\":[{\"title\":\"...\",\"related_goal_id\":123|null,\"priority\":\"critical|high|medium|low\",\"estimated_duration_minutes\":45|null,\"suggested_start_time\":\"HH:MM\"|null,\"suggested_finish_by_time\":\"HH:MM\"|null,\"ai_rationale\":\"...\",\"ai_impact_if_skipped\":\"...\"|null,\"ai_confidence_score\":75|null}]}\n"
+        "Rules:\n"
+        "- Maximum 8 tasks.\n"
+        "- Never duplicate manual tasks already listed.\n"
+        "- Prefer carry-forward and high-value goal work.\n"
+        "- Treat recurring-task descriptions as constraints; when they mention fixed time windows, preserve them in suggested_start_time and suggested_finish_by_time.\n"
+        "- Keep timing realistic; avoid overloaded schedules.\n"
+        "- Set estimated_duration_minutes only when you can justify it from task scope; otherwise set it to null.\n"
+        "- Avoid one-size-fits-all durations across tasks.\n"
+        "- Set suggested_start_time and suggested_finish_by_time only when you intentionally schedule that task; otherwise set both to null.\n"
+        "- Use null for unknown optional fields.\n"
+        "- Keep ai_rationale concise and specific.\n"
+        "- ai_impact_if_skipped should describe realistic downside in one sentence, specific to that task.\n"
+        "- When related_goal_id is set, ai_impact_if_skipped should reflect consequence to that goal outcome.\n"
+        "- Do not repeat the same ai_impact_if_skipped sentence across multiple tasks.\n"
+        "- ai_confidence_score must be an integer from 0 to 100."
+    )
+    return provider.generate(
+        [LLMMessage("user", prompt)],
+        system=system,
+        temperature=0,
+        max_tokens=980,
+        model=model,
+    ).strip()
+
+
+def estimate_today_task_durations_json(
+    provider: LLMProvider,
+    *,
+    on_date: str,
+    tasks_summary: str,
+    user_context: str = "",
+    model: str | None = None,
+) -> str:
+    """Estimate realistic single-day task durations as strict JSON."""
+    system = _with_context(system_prompt(AgentType.daily_checkin), user_context)
+    prompt = (
+        f"Plan date: {on_date}\n\n"
+        "Tasks requiring duration estimates:\n"
+        f"{tasks_summary}\n\n"
+        "Estimate only how many minutes the user should spend TODAY on each task.\n"
+        "Return valid JSON only (no markdown, no prose) with this exact schema:\n"
+        "{\"durations\":[{\"title\":\"...\",\"estimated_duration_minutes\":45|null}]}\n"
+        "Rules:\n"
+        "- Estimate single-session or same-day effort only.\n"
+        "- Do NOT estimate long-term goal completion time (no weeks/months).\n"
+        "- Use realistic focus blocks, typically between 5 and 240 minutes.\n"
+        "- If uncertain, set estimated_duration_minutes to null.\n"
+        "- Keep title exactly aligned to the input title for mapping.\n"
+        "- Do not add extra keys."
+    )
+    return provider.generate(
+        [LLMMessage("user", prompt)],
+        system=system,
+        temperature=0.1,
+        max_tokens=420,
+        model=model,
+    ).strip()
+
+
+def repair_today_task_durations_json(
+    provider: LLMProvider,
+    *,
+    on_date: str,
+    tasks_summary: str,
+    malformed_output: str,
+    user_context: str = "",
+    model: str | None = None,
+) -> str:
+    """Repair malformed today-duration estimates into strict JSON schema output."""
+    system = _with_context(system_prompt(AgentType.daily_checkin), user_context)
+    prompt = (
+        "The previous output did not follow the required JSON schema.\n"
+        "Rewrite it as strict JSON only.\n\n"
+        f"Plan date: {on_date}\n\n"
+        "Tasks requiring duration estimates:\n"
+        f"{tasks_summary}\n\n"
+        "Malformed output to repair:\n"
+        f"{malformed_output}\n\n"
+        "Return valid JSON only (no markdown, no prose) with this exact schema:\n"
+        "{\"durations\":[{\"title\":\"...\",\"estimated_duration_minutes\":45|null}]}\n"
+        "Rules:\n"
+        "- Estimate single-session or same-day effort only.\n"
+        "- Do NOT estimate long-term goal completion time (no weeks/months).\n"
+        "- Use realistic focus blocks, typically between 5 and 240 minutes.\n"
+        "- If uncertain, set estimated_duration_minutes to null.\n"
+        "- Keep title exactly aligned to the input title for mapping.\n"
+        "- Do not add extra keys."
+    )
+    return provider.generate(
+        [LLMMessage("user", prompt)],
+        system=system,
+        temperature=0,
+        max_tokens=420,
+        model=model,
+    ).strip()
+
+
 def generate_report_narrative(
     provider: LLMProvider,
     *,

@@ -29,6 +29,7 @@ from app.models.enums import (
     AssistantActionModule,
     ChatRole,
     GoalStatus,
+    PlannedTaskSource,
 )
 from app.models.goal import Goal
 from app.models.metric import TrackedMetric
@@ -1398,10 +1399,13 @@ def _ensure_goal_breakdown_milestone_actions(
 def _execute_plan_create_task(
     db: Session, user: User, action: PlanCreateTaskAction
 ) -> ChatActionExecuteResponse:
+    payload = action.args.model_dump()
+    payload["source"] = PlannedTaskSource.assistant
+
     task = plan_service.create_task(
         db,
         user,
-        PlannedTaskCreate(**action.args.model_dump()),
+        PlannedTaskCreate(**payload),
     )
     return ChatActionExecuteResponse(
         status="executed",

@@ -67,6 +67,17 @@ function normaliseError(error: unknown): ApiError {
     return new ApiError({ message: "Something went wrong. Please try again." });
   }
 
+  if (axiosError.code === "ECONNABORTED" || /timeout/i.test(axiosError.message ?? "")) {
+    const requestUrl = axiosError.config?.url ?? "";
+    const planningTimeout = requestUrl.includes("/plan/generate-today");
+    return new ApiError({
+      message: planningTimeout
+        ? "AI planning is taking longer than expected. Please try again in a moment."
+        : "The request timed out. Please try again.",
+      status: axiosError.response?.status,
+    });
+  }
+
   if (axiosError.code === "ERR_NETWORK") {
     return new ApiError({
       message: "Can't reach the server. Check your connection and try again.",

@@ -694,6 +694,7 @@ export function RepetitiveTasksPage() {
                     (metricId) => metricLabelById.get(metricId) ?? `Metric #${metricId}`,
                   );
                   const statusBusy = statusTaskId === task.id;
+                  const showFrequencyInFooter = frequencyLabels.length < 4;
 
                   return (
                     <article
@@ -701,17 +702,9 @@ export function RepetitiveTasksPage() {
                       data-testid={`repetitive-task-${task.id}`}
                       className="surface-2 p-3"
                     >
-                      <div className="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-2">
+                      <div className="d-flex flex-wrap align-items-start justify-content-between gap-2">
                         <div>
-                          <h3 className="h6 fw-bold mb-1">{task.name}</h3>
-                          <div className="d-flex flex-wrap gap-2">
-                            <Pill variant={STATUS_PILL[task.status]} dot>
-                              {STATUS_LABEL[task.status]}
-                            </Pill>
-                            <Pill variant={PRIORITY_PILL[task.priority]}>
-                              {PRIORITY_LABEL[task.priority]}
-                            </Pill>
-                          </div>
+                          <h3 className="h6 fw-bold mb-0">{task.name}</h3>
                         </div>
 
                         <Dropdown align="end">
@@ -798,13 +791,15 @@ export function RepetitiveTasksPage() {
                         </Dropdown>
                       </div>
 
-                      {task.description && <p className="small text-muted-2 mb-2">{task.description}</p>}
+                      {task.description && <p className="small text-muted-2 mb-1">{task.description}</p>}
 
-                      <div className="d-flex flex-wrap gap-2 mb-2">
-                        {frequencyLabels.map((label) => (
-                          <Pill key={`${task.id}-${label}`}>{label}</Pill>
-                        ))}
-                      </div>
+                      {!showFrequencyInFooter && (
+                        <div className="d-flex flex-wrap gap-2 mb-2">
+                          {frequencyLabels.map((label) => (
+                            <Pill key={`${task.id}-${label}`}>{label}</Pill>
+                          ))}
+                        </div>
+                      )}
 
                       {(goalLabels.length > 0 || metricLabels.length > 0) && (
                         <div className="small text-muted-2">
@@ -813,7 +808,23 @@ export function RepetitiveTasksPage() {
                         </div>
                       )}
 
-                      <div className="small text-faint mt-2">Updated {formatDateTime(task.updated_at)}</div>
+                      <div className="d-flex align-items-center justify-content-between gap-2 mt-2">
+                        <div className="d-flex flex-wrap gap-2">
+                          <Pill variant={STATUS_PILL[task.status]} dot>
+                            {STATUS_LABEL[task.status]}
+                          </Pill>
+                          <Pill variant={PRIORITY_PILL[task.priority]}>
+                            {PRIORITY_LABEL[task.priority]}
+                          </Pill>
+                          {showFrequencyInFooter &&
+                            frequencyLabels.map((label) => (
+                              <Pill key={`footer-${task.id}-${label}`}>{label}</Pill>
+                            ))}
+                        </div>
+                        <div className="d-none d-md-block small text-faint text-nowrap">
+                          Updated {formatDateTime(task.updated_at)}
+                        </div>
+                      </div>
                     </article>
                   );
                 })}

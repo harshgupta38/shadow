@@ -25,3 +25,10 @@ class ChangePasswordRequest(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
+
+
+class EmailVerificationDispatch(BaseModel):
+    detail: str
+    email_sent: bool
+    verification_url_preview: str | None = None
+    retry_after_seconds: int = Field(default=0, ge=0)

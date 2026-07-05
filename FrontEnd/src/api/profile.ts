@@ -9,6 +9,7 @@ import type {
   ChangePasswordRequest,
   ChatHistoryClearResult,
   DeleteAccountRequest,
+  EmailVerificationDispatch,
   MemoryCenterEntry,
   MemoryEntry,
   MemoryEntryCreate,
@@ -43,6 +44,9 @@ export const profileApi = {
   },
   async account(): Promise<AccountOverview> {
     return http.get<AccountOverview>("/profile/account");
+  },
+  async requestEmailVerification(): Promise<EmailVerificationDispatch> {
+    return http.post<EmailVerificationDispatch>("/auth/request-email-verification");
   },
   async changePassword(data: ChangePasswordRequest): Promise<{ detail: string }> {
     return http.post<{ detail: string }>("/profile/change-password", data);

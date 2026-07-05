@@ -2,17 +2,31 @@
 
 from __future__ import annotations
 
-from sqlalchemy import select
+import hashlib
+import logging
+import math
+import secrets
+from datetime import datetime, timedelta, timezone
+from urllib.parse import quote
+
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
+from app.constant import settings
 from app.models.base import utcnow
+from app.models.email_verification_token import EmailVerificationToken
 from app.models.user import User
 from app.models.user_profile import UserProfile
 from app.models.user_setting import UserSetting
-from app.schemas.auth import RegisterRequest
+from app.schemas.auth import EmailVerificationDispatch, RegisterRequest
 from app.services import security
+from app.services import email_service
 from app.services.exceptions import AuthError, ConflictError
 from app.services.metric_service import ensure_default_metrics
+
+logger = logging.getLogger(__name__)
+
+EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS = 60
 
 
 def get_user_by_email(db: Session, email: str) -> User | None:
@@ -70,6 +84,151 @@ def change_password(db: Session, user: User, *, current_password: str, new_passw
 
     user.hashed_password = security.hash_password(new_password)
     user.last_password_changed_at = utcnow()
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def _hash_verification_token(raw_token: str) -> str:
+    return hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+
+
+def _build_verification_url(raw_token: str) -> str:
+    base = (settings.public_frontend_base_url or "https://shadow-pa.web.app").rstrip("/")
+    safe_token = quote(raw_token, safe="")
+    return f"{base}/verify-email?token={safe_token}"
+
+
+def _normalize_utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
+def get_email_verification_retry_after_seconds(
+    db: Session,
+    user: User,
+    *,
+    now: datetime | None = None,
+) -> int:
+    current_time = now or utcnow()
+    latest_token = db.scalar(
+        select(EmailVerificationToken)
+        .where(EmailVerificationToken.user_id == user.id)
+        .order_by(EmailVerificationToken.created_at.desc())
+    )
+    if latest_token is None:
+        return 0
+
+    next_allowed_at = _normalize_utc(latest_token.created_at) + timedelta(
+        seconds=EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS
+    )
+    remaining_seconds = math.ceil((next_allowed_at - current_time).total_seconds())
+    return max(0, remaining_seconds)
+
+
+def request_email_verification(db: Session, user: User) -> EmailVerificationDispatch:
+    if user.email_verified:
+        return EmailVerificationDispatch(
+            detail="Email is already verified.",
+            email_sent=False,
+            verification_url_preview=None,
+            retry_after_seconds=0,
+        )
+
+    now = utcnow()
+    retry_after_seconds = get_email_verification_retry_after_seconds(db, user, now=now)
+    if retry_after_seconds > 0:
+        return EmailVerificationDispatch(
+            detail=(
+                f"Please wait {retry_after_seconds} seconds before requesting "
+                "another verification email."
+            ),
+            email_sent=False,
+            verification_url_preview=None,
+            retry_after_seconds=retry_after_seconds,
+        )
+
+    db.execute(
+        delete(EmailVerificationToken).where(
+            EmailVerificationToken.user_id == user.id,
+            EmailVerificationToken.used_at.is_(None),
+        )
+    )
+
+    raw_token = secrets.token_urlsafe(48)
+    token_row = EmailVerificationToken(
+        user_id=user.id,
+        token_hash=_hash_verification_token(raw_token),
+        expires_at=now + timedelta(minutes=settings.email_verification_token_ttl_minutes),
+    )
+    db.add(token_row)
+    db.commit()
+
+    verification_url = _build_verification_url(raw_token)
+    email_subject = "Verify your Shadow account email"
+    email_text = (
+        "Welcome to Shadow.\n\n"
+        "Please verify your email by opening this link:\n"
+        f"{verification_url}\n\n"
+        f"This link expires in {settings.email_verification_token_ttl_minutes} minutes."
+    )
+    email_html = (
+        "<p>Welcome to Shadow.</p>"
+        "<p>Please verify your email by clicking the link below:</p>"
+        f"<p><a href=\"{verification_url}\">Verify my email</a></p>"
+        f"<p>This link expires in {settings.email_verification_token_ttl_minutes} minutes.</p>"
+    )
+
+    email_sent = email_service.send_email(
+        to_email=user.email,
+        subject=email_subject,
+        text_body=email_text,
+        html_body=email_html,
+    )
+
+    preview_url = verification_url if settings.environment.lower() != "production" else None
+    if email_sent:
+        detail = "Verification email sent."
+    else:
+        detail = "Verification link created. Configure SMTP to send emails automatically."
+        logger.info("Verification email not sent because SMTP is unavailable.")
+
+    return EmailVerificationDispatch(
+        detail=detail,
+        email_sent=email_sent,
+        verification_url_preview=preview_url,
+        retry_after_seconds=EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS,
+    )
+
+
+def verify_email_by_token(db: Session, raw_token: str) -> User:
+    token = (raw_token or "").strip()
+    if not token:
+        raise AuthError("Verification link is invalid or expired")
+
+    now = utcnow()
+    row = db.scalar(
+        select(EmailVerificationToken).where(
+            EmailVerificationToken.token_hash == _hash_verification_token(token)
+        )
+    )
+    if row is None or row.used_at is not None or _normalize_utc(row.expires_at) < now:
+        raise AuthError("Verification link is invalid or expired")
+
+    user = db.get(User, row.user_id)
+    if user is None:
+        raise AuthError("Verification link is invalid or expired")
+
+    user.email_verified = True
+    row.used_at = now
+    db.execute(
+        delete(EmailVerificationToken).where(
+            EmailVerificationToken.user_id == user.id,
+            EmailVerificationToken.used_at.is_(None),
+            EmailVerificationToken.id != row.id,
+        )
+    )
     db.commit()
     db.refresh(user)
     return user

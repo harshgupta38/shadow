@@ -4,6 +4,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { PublicOnly, RequireAuth, RequireOnboarded } from "@/components/routing/Guards";
 import { LoginPage } from "@/pages/auth/LoginPage";
 import { RegisterPage } from "@/pages/auth/RegisterPage";
+import { VerifyEmailPage } from "@/pages/auth/VerifyEmailPage";
 import { ChatPage } from "@/pages/chat/ChatPage";
 import { DashboardPage } from "@/pages/dashboard/DashboardPage";
 import { GoalDetailPage } from "@/pages/goals/GoalDetailPage";
@@ -23,6 +24,8 @@ import { TrackPage } from "@/pages/track/TrackPage";
 export default function App() {
   return (
     <Routes>
+      <Route path="/verify-email" element={<VerifyEmailPage />} />
+
       {/* Public */}
       <Route element={<PublicOnly />}>
         <Route path="/login" element={<LoginPage />} />

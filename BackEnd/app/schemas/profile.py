@@ -82,6 +82,7 @@ class AccountOverviewRead(ORMModel):
     email: str
     auth_provider: str
     email_verified: bool
+    verification_email_retry_after_seconds: int
     subscription_plan: str
     member_since: datetime
     last_password_changed_at: datetime

@@ -191,9 +191,17 @@ export interface AccountOverview {
   email: string;
   auth_provider: string;
   email_verified: boolean;
+  verification_email_retry_after_seconds: number;
   subscription_plan: string;
   member_since: string;
   last_password_changed_at: string;
+}
+
+export interface EmailVerificationDispatch {
+  detail: string;
+  email_sent: boolean;
+  verification_url_preview: string | null;
+  retry_after_seconds: number;
 }
 
 export interface ChatHistoryClearResult {

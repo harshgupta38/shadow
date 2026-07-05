@@ -2,10 +2,16 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Query, status
 
 from app.api.deps import CurrentUser, DbSession
-from app.schemas.auth import ChangePasswordRequest, LoginRequest, RegisterRequest, Token
+from app.schemas.auth import (
+    ChangePasswordRequest,
+    EmailVerificationDispatch,
+    LoginRequest,
+    RegisterRequest,
+    Token,
+)
 from app.schemas.common import Message
 from app.schemas.user import UserRead
 from app.services import auth_service, security
@@ -43,3 +49,20 @@ def change_password(
         new_password=data.new_password,
     )
     return Message(detail="Password updated successfully")
+
+
+@router.post("/request-email-verification", response_model=EmailVerificationDispatch)
+def request_email_verification(
+    db: DbSession,
+    current_user: CurrentUser,
+) -> EmailVerificationDispatch:
+    return auth_service.request_email_verification(db, current_user)
+
+
+@router.get("/verify-email", response_model=Message)
+def verify_email(
+    db: DbSession,
+    token: str = Query(min_length=12, max_length=512),
+) -> Message:
+    auth_service.verify_email_by_token(db, token)
+    return Message(detail="Email verified successfully")

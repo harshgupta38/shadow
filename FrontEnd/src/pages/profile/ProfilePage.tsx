@@ -41,9 +41,13 @@ export function ProfilePage() {
   const [savingBasic, setSavingBasic] = useState(false);
   const [savingAi, setSavingAi] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
+  const [sendingVerificationEmail, setSendingVerificationEmail] = useState(false);
+  const [verificationEmailResent, setVerificationEmailResent] = useState(false);
+  const [verificationRetryAfterSeconds, setVerificationRetryAfterSeconds] = useState(0);
   const [exportingData, setExportingData] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [confirmDeleteAccount, setConfirmDeleteAccount] = useState(false);
+  const [showChangePasswordForm, setShowChangePasswordForm] = useState(false);
   const [passwordDraft, setPasswordDraft] = useState({
     current_password: "",
     new_password: "",
@@ -83,6 +87,21 @@ export function ProfilePage() {
       always_remember: aiQuery.data.always_remember,
     });
   }, [aiQuery.data]);
+
+  useEffect(() => {
+    if (!accountQuery.data) return;
+    setVerificationRetryAfterSeconds(
+      Math.max(0, accountQuery.data.verification_email_retry_after_seconds),
+    );
+  }, [accountQuery.data]);
+
+  useEffect(() => {
+    if (verificationRetryAfterSeconds <= 0) return;
+    const timer = window.setTimeout(() => {
+      setVerificationRetryAfterSeconds((prev) => Math.max(0, prev - 1));
+    }, 1000);
+    return () => window.clearTimeout(timer);
+  }, [verificationRetryAfterSeconds]);
 
   async function saveBasic(event: FormEvent) {
     event.preventDefault();
@@ -135,11 +154,34 @@ export function ProfilePage() {
       });
       accountQuery.reload();
       setPasswordDraft({ current_password: "", new_password: "", confirm_password: "" });
+      setShowChangePasswordForm(false);
       toast.success("Password updated successfully.");
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Couldn't update password.");
     } finally {
       setChangingPassword(false);
+    }
+  }
+
+  async function requestEmailVerification() {
+    setVerificationEmailResent(false);
+    setSendingVerificationEmail(true);
+    try {
+      const result = await api.profile.requestEmailVerification();
+      setVerificationRetryAfterSeconds(Math.max(0, result.retry_after_seconds));
+      if (result.email_sent) {
+        setVerificationEmailResent(true);
+        toast.success(result.detail);
+      } else {
+        setVerificationEmailResent(false);
+        toast.info(result.detail);
+      }
+    } catch (err) {
+      toast.error(
+        err instanceof ApiError ? err.message : "Couldn't start email verification.",
+      );
+    } finally {
+      setSendingVerificationEmail(false);
     }
   }
 
@@ -474,45 +516,95 @@ export function ProfilePage() {
                 <div className="small text-muted-2">
                   Verification: {account.email_verified ? "Verified" : "Not verified"}
                 </div>
+                {!account.email_verified && (
+                  <div className="d-flex align-items-center gap-2 flex-wrap mt-1">
+                    <button
+                      type="button"
+                      className="btn btn-soft btn-sm verification-resend-btn"
+                      disabled={sendingVerificationEmail || verificationRetryAfterSeconds > 0}
+                      onClick={requestEmailVerification}
+                    >
+                      {sendingVerificationEmail
+                        ? "Sending..."
+                        : verificationEmailResent
+                          ? "Resent verification link"
+                          : "Resend verification link"}
+                    </button>
+                    {verificationRetryAfterSeconds > 0 && (
+                      <span className="small text-muted-2">
+                        Please wait {verificationRetryAfterSeconds}s before requesting another verification email.
+                      </span>
+                    )}
+                  </div>
+                )}
                 <div className="small text-muted-2">
                   Last password change: {formatDate(account.last_password_changed_at)}
                 </div>
               </div>
-              <form className="surface-2 p-3" onSubmit={changePassword}>
-                <div className="fw-semibold mb-2">Change Password</div>
-                <TextField
-                  type="password"
-                  label="Current Password"
-                  value={passwordDraft.current_password}
-                  onChange={(e) =>
-                    setPasswordDraft((prev) => ({ ...prev, current_password: e.target.value }))
-                  }
-                  required
-                />
-                <TextField
-                  type="password"
-                  label="New Password"
-                  value={passwordDraft.new_password}
-                  onChange={(e) =>
-                    setPasswordDraft((prev) => ({ ...prev, new_password: e.target.value }))
-                  }
-                  required
-                  minLength={8}
-                />
-                <TextField
-                  type="password"
-                  label="Confirm New Password"
-                  value={passwordDraft.confirm_password}
-                  onChange={(e) =>
-                    setPasswordDraft((prev) => ({ ...prev, confirm_password: e.target.value }))
-                  }
-                  required
-                  minLength={8}
-                />
-                <button className="btn btn-brand" disabled={changingPassword}>
-                  {changingPassword ? "Updating..." : "Update Password"}
-                </button>
-              </form>
+              <div className="surface-2 p-3">
+                <div className="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+                  <div className="fw-semibold">Login Security</div>
+                  {!showChangePasswordForm && (
+                    <button
+                      type="button"
+                      className="btn btn-soft btn-sm"
+                      onClick={() => setShowChangePasswordForm(true)}
+                    >
+                      Change Password
+                    </button>
+                  )}
+                </div>
+
+                {showChangePasswordForm && (
+                  <form className="mt-2" onSubmit={changePassword}>
+                    <TextField
+                      type="password"
+                      label="Current Password"
+                      value={passwordDraft.current_password}
+                      onChange={(e) =>
+                        setPasswordDraft((prev) => ({ ...prev, current_password: e.target.value }))
+                      }
+                      required
+                    />
+                    <TextField
+                      type="password"
+                      label="New Password"
+                      value={passwordDraft.new_password}
+                      onChange={(e) =>
+                        setPasswordDraft((prev) => ({ ...prev, new_password: e.target.value }))
+                      }
+                      required
+                      minLength={8}
+                    />
+                    <TextField
+                      type="password"
+                      label="Confirm New Password"
+                      value={passwordDraft.confirm_password}
+                      onChange={(e) =>
+                        setPasswordDraft((prev) => ({ ...prev, confirm_password: e.target.value }))
+                      }
+                      required
+                      minLength={8}
+                    />
+                    <div className="d-flex gap-2 flex-wrap">
+                      <button type="submit" className="btn btn-brand" disabled={changingPassword}>
+                        {changingPassword ? "Updating..." : "Update Password"}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-outline-secondary"
+                        disabled={changingPassword}
+                        onClick={() => {
+                          setPasswordDraft({ current_password: "", new_password: "", confirm_password: "" });
+                          setShowChangePasswordForm(false);
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
               <div className="surface-2 p-3">
                 <div className="small text-faint mb-1">Member since</div>
                 <div className="fw-semibold">{formatDate(account.member_since)}</div>

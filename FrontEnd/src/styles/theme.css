@@ -330,6 +330,13 @@ a {
   resize: vertical;
 }
 
+.profile-page .verification-resend-btn:disabled {
+  border: 1px solid var(--jv-border-strong);
+  background: var(--jv-surface);
+  color: var(--jv-muted);
+  opacity: 1;
+}
+
 [data-bs-theme="dark"] .profile-hero,
 [data-bs-theme="dark"] .settings-hero {
   background:

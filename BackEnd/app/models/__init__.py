@@ -8,6 +8,7 @@ references resolve.
 from app.models.activity import ActivityLog
 from app.models.base import Base, TimestampMixin, utcnow
 from app.models.chat import ChatMessage, ChatSession
+from app.models.email_verification_token import EmailVerificationToken
 from app.models.goal import Goal
 from app.models.journal import JournalEntry
 from app.models.memory import MemoryEntry
@@ -34,6 +35,7 @@ __all__ = [
     "UserSetting",
     "MemoryEntry",
     "Goal",
+    "EmailVerificationToken",
     "Milestone",
     "ChatSession",
     "ChatMessage",

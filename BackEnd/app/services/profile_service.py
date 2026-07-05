@@ -28,6 +28,7 @@ from app.schemas.profile import (
     BasicProfileUpdate,
     ChatHistoryClearResult,
 )
+from app.services.auth_service import get_email_verification_retry_after_seconds
 from app.services.exceptions import ConflictError
 
 
@@ -116,12 +117,17 @@ def update_ai_profile(db: Session, user: User, data: AIProfileUpdate) -> AIProfi
 
 
 def get_account_overview(db: Session, user: User) -> AccountOverviewRead:
+    retry_after_seconds = 0
+    if not user.email_verified:
+        retry_after_seconds = get_email_verification_retry_after_seconds(db, user)
+
     return AccountOverviewRead.model_validate(
         {
             "user_id": user.id,
             "email": user.email,
             "auth_provider": user.auth_provider,
             "email_verified": user.email_verified,
+            "verification_email_retry_after_seconds": retry_after_seconds,
             "subscription_plan": user.subscription_plan,
             "member_since": user.created_at,
             "last_password_changed_at": user.last_password_changed_at,

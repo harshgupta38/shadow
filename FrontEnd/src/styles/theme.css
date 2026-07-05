@@ -1268,6 +1268,17 @@ a {
   min-height: 0;
   overflow: hidden;
 }
+.chat-header-title-link {
+  color: var(--jv-text);
+  text-decoration: none;
+  transition: color var(--jv-transition);
+}
+.chat-header-title-link:hover,
+.chat-header-title-link:focus-visible {
+  color: color-mix(in srgb, var(--jv-brand-1) 38%, var(--jv-text) 62%);
+  text-decoration: none;
+  cursor: pointer;
+}
 .chat-scroll {
   flex: 1;
   min-height: 0;

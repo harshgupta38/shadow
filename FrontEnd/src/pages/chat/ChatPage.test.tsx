@@ -14,6 +14,10 @@ vi.mock("@/api", async (importOriginal) => {
     ...actual,
     api: {
       ...actual.api,
+      goals: {
+        ...actual.api.goals,
+        list: vi.fn(),
+      },
       chat: {
         sessions: vi.fn(),
         createSession: vi.fn(),
@@ -33,6 +37,10 @@ const mockedChat = api.chat as unknown as {
   send: Mock;
   deleteSession: Mock;
   executeAction: Mock;
+};
+
+const mockedGoals = api.goals as unknown as {
+  list: Mock;
 };
 
 const sessionFixture = {
@@ -66,11 +74,13 @@ describe("ChatPage", () => {
     mockedChat.send.mockReset();
     mockedChat.deleteSession.mockReset();
     mockedChat.executeAction.mockReset();
+    mockedGoals.list.mockReset();
 
     mockedChat.sessions.mockResolvedValue([sessionFixture]);
     mockedChat.createSession.mockResolvedValue(sessionFixture);
     mockedChat.messages.mockResolvedValue([]);
     mockedChat.deleteSession.mockResolvedValue(undefined);
+    mockedGoals.list.mockResolvedValue([]);
     mockedChat.executeAction.mockResolvedValue({
       status: "executed",
       message: "Action completed",
@@ -731,6 +741,55 @@ describe("ChatPage", () => {
     const activeItem = document.querySelector(".chat-session-item.active");
     expect(activeItem).not.toBeNull();
     expect(activeItem).toHaveTextContent("Lose 10KG weight by October end");
+  });
+
+  it("renders selected title as goal link when linked goal exists", async () => {
+    const coachSession = {
+      id: 9,
+      agent_type: "goal_coach",
+      title: "Lose 10KG weight by October end",
+      goal_id: 27,
+      created_at: "2026-07-03T12:00:00Z",
+      updated_at: "2026-07-03T12:10:00Z",
+    } as const;
+
+    mockedChat.sessions.mockResolvedValue([coachSession]);
+    mockedGoals.list.mockResolvedValue([{ id: 27, title: "Goal 27" }]);
+
+    const user = userEvent.setup();
+    renderPage();
+
+    const listTitle = await screen.findByText("Lose 10KG weight by October end");
+    await user.click(listTitle.closest("button") as HTMLButtonElement);
+
+    const headerLink = await screen.findByRole("link", {
+      name: "Lose 10KG weight by October end",
+    });
+    expect(headerLink).toHaveAttribute("href", "/goals/27");
+  });
+
+  it("keeps selected title as plain text when linked goal does not exist", async () => {
+    const coachSession = {
+      id: 9,
+      agent_type: "goal_coach",
+      title: "Lose 10KG weight by October end",
+      goal_id: 27,
+      created_at: "2026-07-03T12:00:00Z",
+      updated_at: "2026-07-03T12:10:00Z",
+    } as const;
+
+    mockedChat.sessions.mockResolvedValue([coachSession]);
+    mockedGoals.list.mockResolvedValue([]);
+
+    const user = userEvent.setup();
+    renderPage();
+
+    const listTitle = await screen.findByText("Lose 10KG weight by October end");
+    await user.click(listTitle.closest("button") as HTMLButtonElement);
+
+    expect(
+      screen.queryByRole("link", { name: "Lose 10KG weight by October end" }),
+    ).not.toBeInTheDocument();
   });
 
   it("prefills composer when suggestion is clicked and waits for manual send", async () => {

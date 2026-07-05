@@ -190,6 +190,7 @@ export function ChatPage() {
     () => api.chat.sessions(),
     [],
   );
+  const { data: goals } = useAsync(() => api.goals.list(), []);
 
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -628,6 +629,11 @@ export function ChatPage() {
   }, [input]);
 
   const meta = selectedSession ? agentMeta(selectedSession.agent_type) : null;
+  const selectedGoalId = selectedSession?.goal_id ?? null;
+  const selectedGoalExists =
+    selectedGoalId !== null && (goals ?? []).some((goal) => goal.id === selectedGoalId);
+  const selectedGoalLink =
+    selectedGoalExists && selectedGoalId !== null ? `/goals/${selectedGoalId}` : null;
   const confirmEntry = actionConfirm
     ? messageActions[actionConfirm.assistantMessageId]?.find(
         (entry) => entry.action.id === actionConfirm.actionId,
@@ -728,7 +734,16 @@ export function ChatPage() {
                 </button>
                 <AgentAvatar agent={selectedSession.agent_type} size={40} />
                 <div className="min-w-0">
-                  <div className="fw-bold text-truncate">{selectedSession.title}</div>
+                  {selectedGoalLink ? (
+                    <Link
+                      to={selectedGoalLink}
+                      className="fw-bold text-truncate d-block chat-header-title-link"
+                    >
+                      {selectedSession.title}
+                    </Link>
+                  ) : (
+                    <div className="fw-bold text-truncate">{selectedSession.title}</div>
+                  )}
                   <div className="text-faint small text-truncate">
                     {meta ? `${meta.label} · ${meta.description}` : "Assistant conversation"}
                   </div>

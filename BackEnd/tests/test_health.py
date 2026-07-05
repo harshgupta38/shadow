@@ -14,4 +14,8 @@ def test_root_ok(client: TestClient) -> None:
 
 
 def test_health_ok(client: TestClient) -> None:
-    assert client.get("/health").json() == {"status": "ok"}
+    response = client.get("/health")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok"
+    assert "message" in body

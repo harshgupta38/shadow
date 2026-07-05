@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import logging
+import re
+import subprocess
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -62,9 +64,36 @@ def root() -> dict:
     return {"name": APP_NAME, "version": VERSION, "status": "ok"}
 
 
+def get_battery_percentage():
+    try:
+        output = subprocess.check_output(["termux-battery-status"], text=True)
+
+        match = re.search(r'"percentage":\s*(\d+)', output)
+        if match:
+            return int(match.group(1))
+
+        return "Unknown"
+
+    except Exception as e:
+        return "Unknown"
+
+
 @app.get("/health", tags=["health"])
-def health() -> dict:
-    return {"status": "ok"}
+async def health() -> dict:
+
+    battery = get_battery_percentage()
+    if battery != "Unknown":
+        battery_status = f"{battery}%"
+        message = f"Your agents is up and running with {battery_status} power."
+    else:
+        battery_status = "Unknown"
+        message = "Your agents is up and running. Power status is unavailable."
+
+    print("")
+    return {
+        "status": "ok",
+        "message": message,
+    }
 
 
 app.include_router(api_router, prefix=settings.api_prefix)

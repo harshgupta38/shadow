@@ -313,17 +313,11 @@ export function PlanPage() {
         title="Today's plan"
         subtitle="A short, honest list beats a long one. Plan it, then do it."
         icon={<CalendarCheckFill size={20} />}
-        actions={
-          <button className="btn btn-brand" onClick={generatePlan} disabled={generating}>
-            <ArrowRepeat size={14} className="me-1" />
-            {generating ? "Generating..." : isToday ? "Generate Today's Plan" : "Generate Plan"}
-          </button>
-        }
       />
 
       {/* Date navigation */}
-      <div className="d-flex align-items-center justify-content-between gap-2 mb-4">
-        <div className="d-flex align-items-center gap-2">
+      <div className="plan-date-toolbar mb-4">
+        <div className="plan-date-toolbar-left">
           <button
             className="btn btn-outline-secondary btn-icon"
             onClick={() => setDate((d) => shiftDate(d, -1))}
@@ -346,11 +340,18 @@ export function PlanPage() {
             <ChevronRight size={16} />
           </button>
         </div>
-        {!isToday && (
-          <button className="btn btn-ghost btn-sm" onClick={() => setDate(toISODate())}>
-            Jump to today
+
+        <div className="plan-date-toolbar-right">
+          {!isToday && (
+            <button className="btn btn-ghost btn-sm" onClick={() => setDate(toISODate())}>
+              Jump to today
+            </button>
+          )}
+          <button className="btn btn-brand" onClick={generatePlan} disabled={generating}>
+            <ArrowRepeat size={14} className="me-1" />
+            {generating ? "Generating..." : isToday ? "Generate Today's Plan" : "Generate Plan"}
           </button>
-        )}
+        </div>
       </div>
 
       <div className="row g-4">
@@ -361,25 +362,25 @@ export function PlanPage() {
             {!loading && !error && insights && (
               <>
                 <div className="row g-3 mb-3">
-                  <div className="col-sm-6 col-xl-3">
+                  <div className="col-6 col-xl-3">
                     <div className="surface-2 p-3 h-100">
                       <div className="text-faint small">Missed yesterday</div>
                       <div className="fw-semibold">{insights.missed_yesterday_count}</div>
                     </div>
                   </div>
-                  <div className="col-sm-6 col-xl-3">
+                  <div className="col-6 col-xl-3">
                     <div className="surface-2 p-3 h-100">
                       <div className="text-faint small">Carry forward</div>
                       <div className="fw-semibold">{insights.carry_forward_count}</div>
                     </div>
                   </div>
-                  <div className="col-sm-6 col-xl-3">
+                  <div className="col-6 col-xl-3">
                     <div className="surface-2 p-3 h-100">
                       <div className="text-faint small">Workload</div>
                       <div className="fw-semibold">{insights.workload_label}</div>
                     </div>
                   </div>
-                  <div className="col-sm-6 col-xl-3">
+                  <div className="col-6 col-xl-3">
                     <div className="surface-2 p-3 h-100">
                       <div className="text-faint small">Estimated time</div>
                       <div className="fw-semibold">
@@ -428,8 +429,7 @@ export function PlanPage() {
               />
               {(goals?.length ?? 0) > 0 && (
                 <select
-                  className="form-select"
-                  style={{ maxWidth: 200 }}
+                  className="form-select plan-goal-select"
                   value={goalId}
                   onChange={(e) => setGoalId(e.target.value)}
                   aria-label="Link to goal"

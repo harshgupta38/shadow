@@ -1582,6 +1582,61 @@ a {
   min-width: 6.75rem;
 }
 
+.plan-date-toolbar {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.5rem;
+}
+
+.plan-date-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.plan-date-toolbar-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+@media (max-width: 600px) {
+  .plan-date-toolbar-left {
+    width: 100%;
+  }
+
+  .plan-date-toolbar-left .form-control {
+    flex: 1 1 auto;
+    max-width: none !important;
+  }
+
+  .plan-date-toolbar-right {
+    width: 100%;
+    align-items: stretch;
+  }
+
+  .plan-date-toolbar-right > .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (min-width: 601px) {
+  .plan-date-toolbar {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .plan-date-toolbar-right {
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
+  }
+}
+
 @media (max-width: 991px) {
   .goal-shadow-prompt-row {
     flex-direction: column;

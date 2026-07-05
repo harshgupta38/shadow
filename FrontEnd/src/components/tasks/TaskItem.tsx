@@ -181,7 +181,7 @@ export function TaskItem({
         )}
 
         {!done && (showPriority || categoryLabel || bottomRightMeta) && (
-          <div className="d-flex align-items-center justify-content-between gap-2 mt-2">
+          <div className="d-flex align-items-center justify-content-between gap-2 mt-2 flex-wrap">
             <div className="d-flex align-items-center gap-2">
               {showPriority && (
                 <Pill variant={PRIORITY_PILL[task.priority]}>

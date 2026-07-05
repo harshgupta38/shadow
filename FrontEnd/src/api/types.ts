@@ -462,6 +462,17 @@ export interface GoalDraft {
   target_date: string | null;
 }
 
+export interface GoalLinkedRepetitiveTask {
+  id: number;
+  name: string;
+  description: string | null;
+  category: string | null;
+  priority: RepetitiveTaskPriority;
+  status: RepetitiveTaskStatus;
+  current_streak_days: number;
+  max_streak_days: number;
+}
+
 // ── Repetitive tasks ──────────────────────────────────────────────────────
 export interface RepetitiveTask {
   id: number;

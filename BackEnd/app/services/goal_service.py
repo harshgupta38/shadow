@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import datetime
 import json
+from calendar import monthrange
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -12,15 +13,19 @@ from app.agents.orchestrator import generate_goal_draft_from_prompt, repair_goal
 from app.llm.base import LLMProvider
 from app.memory.context import compile_user_context
 from app.models.base import utcnow
-from app.models.enums import GoalStatus, MilestoneStatus
+from app.models.enums import GoalStatus, MilestoneStatus, PlannedTaskStatus
 from app.models.goal import Goal
 from app.models.milestone import Milestone
+from app.models.planned_task import PlannedTask
+from app.models.repetitive_task import RepetitiveTask, RepetitiveTaskGoalLink
 from app.models.user import User
-from app.schemas.goal import GoalCreate, GoalDraftRead, GoalUpdate
+from app.schemas.goal import GoalCreate, GoalDraftRead, GoalLinkedRepetitiveTaskRead, GoalUpdate
 from app.schemas.milestone import MilestoneCreate, MilestoneUpdate
 from app.services import settings_service
 from app.services.exceptions import AppError, NotFoundError
 from app.services.utils import get_owned_or_404
+
+_HISTORY_LOOKBACK_DAYS = 45
 
 
 def _strip_markdown_fence(raw: str) -> str:
@@ -84,6 +89,90 @@ def _parse_target_date(value: str | None) -> datetime.datetime | None:
     if parsed.tzinfo is None:
         return parsed.replace(tzinfo=datetime.timezone.utc)
     return parsed.astimezone(datetime.timezone.utc)
+
+
+def _normalize_task_name(value: str) -> str:
+    return " ".join(value.strip().lower().split())
+
+
+def _frequency_matches_day(frequency: str, on_date: datetime.date) -> bool:
+    normalized = frequency.strip().lower()
+    weekday = on_date.weekday()
+    if normalized == "daily":
+        return True
+    if normalized == "weekly":
+        return weekday == 0
+    if normalized == "monthly":
+        return on_date.day == 1
+    if normalized == "weekdays":
+        return weekday < 5
+    if normalized == "weekends":
+        return weekday >= 5
+    if normalized == "monday":
+        return weekday == 0
+    if normalized == "tuesday":
+        return weekday == 1
+    if normalized == "wednesday":
+        return weekday == 2
+    if normalized == "thursday":
+        return weekday == 3
+    if normalized == "friday":
+        return weekday == 4
+    if normalized == "saturday":
+        return weekday == 5
+    if normalized == "sunday":
+        return weekday == 6
+    if normalized == "first_of_month":
+        return on_date.day == 1
+    if normalized == "end_of_month":
+        return on_date.day == monthrange(on_date.year, on_date.month)[1]
+    return False
+
+
+def _status_by_date(rows: list[PlannedTask]) -> dict[datetime.date, PlannedTaskStatus]:
+    result: dict[datetime.date, PlannedTaskStatus] = {}
+    for row in rows:
+        existing = result.get(row.date)
+        if existing == PlannedTaskStatus.done:
+            continue
+        if row.status == PlannedTaskStatus.done or existing is None:
+            result[row.date] = row.status
+    return result
+
+
+def _streak_for_repetitive(
+    repetitive: RepetitiveTask,
+    history_rows: list[PlannedTask],
+    *,
+    on_date: datetime.date,
+) -> tuple[int, int]:
+    status_map = _status_by_date(history_rows)
+    floor = on_date - datetime.timedelta(days=_HISTORY_LOOKBACK_DAYS)
+
+    max_streak = 0
+    running_streak = 0
+    cursor = floor
+    while cursor <= on_date:
+        if any(_frequency_matches_day(freq, cursor) for freq in repetitive.frequencies):
+            if status_map.get(cursor) == PlannedTaskStatus.done:
+                running_streak += 1
+                if running_streak > max_streak:
+                    max_streak = running_streak
+            else:
+                running_streak = 0
+        cursor += datetime.timedelta(days=1)
+
+    current_streak = 0
+    cursor = on_date
+    while cursor >= floor:
+        if any(_frequency_matches_day(freq, cursor) for freq in repetitive.frequencies):
+            if status_map.get(cursor) == PlannedTaskStatus.done:
+                current_streak += 1
+            else:
+                break
+        cursor -= datetime.timedelta(days=1)
+
+    return current_streak, max_streak
 
 
 def draft_goal_from_prompt(
@@ -188,6 +277,81 @@ def create_goal(db: Session, user: User, data: GoalCreate) -> Goal:
 
 def get_goal(db: Session, user: User, goal_id: int) -> Goal:
     return get_owned_or_404(db, Goal, goal_id, user.id, name="Goal")
+
+
+def list_linked_repetitive_tasks(
+    db: Session,
+    user: User,
+    goal_id: int,
+) -> list[GoalLinkedRepetitiveTaskRead]:
+    goal = get_goal(db, user, goal_id)
+
+    linked_tasks = list(
+        db.scalars(
+            select(RepetitiveTask)
+            .join(
+                RepetitiveTaskGoalLink,
+                RepetitiveTaskGoalLink.repetitive_task_id == RepetitiveTask.id,
+            )
+            .where(
+                RepetitiveTask.user_id == user.id,
+                RepetitiveTaskGoalLink.goal_id == goal.id,
+            )
+            .order_by(RepetitiveTask.updated_at.desc(), RepetitiveTask.id.desc())
+        )
+    )
+
+    if not linked_tasks:
+        return []
+
+    today = datetime.date.today()
+    history_start = today - datetime.timedelta(days=_HISTORY_LOOKBACK_DAYS)
+    history_rows = list(
+        db.scalars(
+            select(PlannedTask)
+            .where(
+                PlannedTask.user_id == user.id,
+                PlannedTask.date >= history_start,
+                PlannedTask.date <= today,
+            )
+            .order_by(PlannedTask.date.desc(), PlannedTask.id.desc())
+        )
+    )
+
+    title_keys = {
+        _normalize_task_name(task.name)
+        for task in linked_tasks
+        if _normalize_task_name(task.name)
+    }
+    history_by_title: dict[str, list[PlannedTask]] = {}
+    for row in history_rows:
+        title_key = _normalize_task_name(row.title)
+        if not title_key or title_key not in title_keys:
+            continue
+        history_by_title.setdefault(title_key, []).append(row)
+
+    response_rows: list[GoalLinkedRepetitiveTaskRead] = []
+    for task in linked_tasks:
+        title_key = _normalize_task_name(task.name)
+        current_streak, max_streak = _streak_for_repetitive(
+            task,
+            history_by_title.get(title_key, []),
+            on_date=today,
+        )
+        response_rows.append(
+            GoalLinkedRepetitiveTaskRead(
+                id=task.id,
+                name=task.name,
+                description=task.description,
+                category=goal.category,
+                priority=task.priority,
+                status=task.status,
+                current_streak_days=current_streak,
+                max_streak_days=max_streak,
+            )
+        )
+
+    return response_rows
 
 
 def update_goal(db: Session, user: User, goal_id: int, data: GoalUpdate) -> Goal:

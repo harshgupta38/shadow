@@ -6,7 +6,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
-from app.models.enums import GoalStatus
+from app.models.enums import GoalStatus, RepetitiveTaskPriority, RepetitiveTaskStatus
 from app.schemas.common import ORMModel
 from app.schemas.milestone import MilestoneRead
 
@@ -38,6 +38,17 @@ class GoalRead(ORMModel):
     created_at: datetime
     updated_at: datetime
     milestones: list[MilestoneRead] = []
+
+
+class GoalLinkedRepetitiveTaskRead(BaseModel):
+    id: int
+    name: str
+    description: str | None
+    category: str | None = Field(default=None, max_length=64)
+    priority: RepetitiveTaskPriority
+    status: RepetitiveTaskStatus
+    current_streak_days: int = Field(default=0, ge=0)
+    max_streak_days: int = Field(default=0, ge=0)
 
 
 class GoalSuggestion(BaseModel):

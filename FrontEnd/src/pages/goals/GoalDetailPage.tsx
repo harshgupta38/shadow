@@ -16,6 +16,7 @@ import {
   api,
   ApiError,
   type Goal,
+  type GoalLinkedRepetitiveTask,
   type Milestone,
   type MilestoneDetail,
   type MilestoneStatus,
@@ -45,6 +46,29 @@ function milestoneProgress(milestones: Milestone[]): number | null {
 }
 
 const STATUS_CYCLE: MilestoneStatus[] = ["todo", "in_progress", "done"];
+
+type PillVariant = "success" | "warn" | "danger" | "info" | "brand" | "muted";
+
+const REPETITIVE_PRIORITY_LABEL: Record<GoalLinkedRepetitiveTask["priority"], string> = {
+  critical: "Critical",
+  high: "High",
+  medium: "Medium",
+  low: "Low",
+};
+
+const REPETITIVE_PRIORITY_PILL: Record<GoalLinkedRepetitiveTask["priority"], PillVariant> = {
+  critical: "danger",
+  high: "warn",
+  medium: "info",
+  low: "muted",
+};
+
+const REPETITIVE_PRIORITY_SORT: Record<GoalLinkedRepetitiveTask["priority"], number> = {
+  critical: 0,
+  high: 1,
+  medium: 2,
+  low: 3,
+};
 
 interface MilestoneDetailRow {
   label: string | null;
@@ -98,6 +122,11 @@ export function GoalDetailPage() {
     () => api.goals.get(id),
     [id],
   );
+  const {
+    data: linkedRepetitive,
+    loading: linkedRepetitiveLoading,
+    error: linkedRepetitiveError,
+  } = useAsync(() => api.goals.linkedRepetitiveTasks(id), [id]);
 
   const [showEdit, setShowEdit] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -225,6 +254,12 @@ export function GoalDetailPage() {
   const sortedMilestones = [...goal.milestones].sort(
     (a, b) => a.order - b.order || a.id - b.id,
   );
+  const sortedLinkedTasks = [...(linkedRepetitive ?? [])].sort((left, right) => {
+    const priorityDiff =
+      REPETITIVE_PRIORITY_SORT[left.priority] - REPETITIVE_PRIORITY_SORT[right.priority];
+    if (priorityDiff !== 0) return priorityDiff;
+    return left.name.localeCompare(right.name);
+  });
   const milestoneModalBusy = addingMilestone || savingMilestoneEdit;
 
   return (
@@ -424,6 +459,56 @@ export function GoalDetailPage() {
           </div>
         )}
       </SectionCard>
+
+      <div className="mt-4">
+        <SectionCard
+          title="Linked repetitive items"
+          subtitle="Habits connected to this goal and their current momentum."
+        >
+          {linkedRepetitiveLoading ? (
+            <LoadingState full={false} label="Loading linked repetitive items..." />
+          ) : linkedRepetitiveError ? (
+            <EmptyState
+              compact
+              icon={<Stars size={20} />}
+              title="Couldn't load linked repetitive items"
+              message={linkedRepetitiveError}
+            />
+          ) : sortedLinkedTasks.length === 0 ? (
+            <EmptyState
+              compact
+              icon={<CheckLg size={20} />}
+              title="No linked repetitive items"
+              message="Link repetitive habits to this goal to track streak momentum here."
+            />
+          ) : (
+            <div className="d-flex flex-column gap-2">
+              {sortedLinkedTasks.map((task) => (
+                <article key={task.id} className="surface-2 p-3">
+                  <div className="d-flex align-items-start justify-content-between gap-2">
+                    <div className="min-w-0">
+                      <div className="fw-semibold text-truncate">{task.name}</div>
+                      {task.description && <div className="small text-muted-2">{task.description}</div>}
+                    </div>
+                    <Pill variant={REPETITIVE_PRIORITY_PILL[task.priority]}>
+                      {REPETITIVE_PRIORITY_LABEL[task.priority]}
+                    </Pill>
+                  </div>
+                  <div className="d-flex flex-wrap gap-2 mt-2">
+                    <Pill variant="brand">{task.category || "Uncategorized"}</Pill>
+                    <Pill>
+                      Current streak: <span className="fw-semibold">{task.current_streak_days}d</span>
+                    </Pill>
+                    <Pill>
+                      Max streak: <span className="fw-semibold">{task.max_streak_days}d</span>
+                    </Pill>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </SectionCard>
+      </div>
 
       <GoalFormModal
         show={showEdit}

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import date, timedelta
+
 from fastapi.testclient import TestClient
 
 from app.api.deps import get_provider
@@ -195,3 +197,58 @@ def test_cannot_access_other_users_goal(client: TestClient, auth_headers: dict) 
 
     other = register_and_login(client, email="other@example.com")
     assert client.get(f"/api/goals/{goal_id}", headers=other).status_code == 404
+
+
+def test_goal_linked_repetitive_tasks_include_streak_priority_and_category(
+    client: TestClient,
+    auth_headers: dict,
+) -> None:
+    goal = client.post(
+        "/api/goals",
+        headers=auth_headers,
+        json={"title": "Secure SDE role", "category": "Career"},
+    )
+    assert goal.status_code == 201
+    goal_id = int(goal.json()["id"])
+
+    repetitive = client.post(
+        "/api/repetitive-tasks",
+        headers=auth_headers,
+        json={
+            "name": "LeetCode practice",
+            "frequencies": ["daily"],
+            "priority": "high",
+            "linked_goal_ids": [goal_id],
+        },
+    )
+    assert repetitive.status_code == 201
+    repetitive_name = repetitive.json()["name"]
+
+    done_offsets = {0, 1, 3, 4, 5}
+    for offset in range(6):
+        day = (date.today() - timedelta(days=offset)).isoformat()
+        created = client.post(
+            "/api/plan",
+            headers=auth_headers,
+            json={"title": repetitive_name, "date": day},
+        )
+        assert created.status_code == 201
+        if offset in done_offsets:
+            updated = client.put(
+                f"/api/plan/{created.json()['id']}",
+                headers=auth_headers,
+                json={"status": "done"},
+            )
+            assert updated.status_code == 200
+
+    response = client.get(f"/api/goals/{goal_id}/repetitive-tasks", headers=auth_headers)
+    assert response.status_code == 200
+
+    rows = response.json()
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["name"] == repetitive_name
+    assert row["category"] == "Career"
+    assert row["priority"] == "high"
+    assert row["current_streak_days"] == 2
+    assert row["max_streak_days"] == 3

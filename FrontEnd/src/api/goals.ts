@@ -3,6 +3,7 @@ import type {
   GoalDraft,
   GoalDraftRequest,
   Goal,
+  GoalLinkedRepetitiveTask,
   GoalCreate,
   GoalStatus,
   GoalUpdate,
@@ -17,6 +18,9 @@ export const goalsApi = {
   },
   async get(id: number): Promise<Goal> {
     return http.get<Goal>(`/goals/${id}`);
+  },
+  async linkedRepetitiveTasks(goalId: number): Promise<GoalLinkedRepetitiveTask[]> {
+    return http.get<GoalLinkedRepetitiveTask[]>(`/goals/${goalId}/repetitive-tasks`);
   },
   async create(data: GoalCreate): Promise<Goal> {
     return http.post<Goal>("/goals", data);

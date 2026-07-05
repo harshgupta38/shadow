@@ -39,7 +39,7 @@ class WebhookHandler(BaseHTTPRequestHandler):
 
             print("🚀 GitHub push to main detected! Updating repository...")
             os.system(
-                "cd ~/calorie_bot/calorie-tracker-bot && git pull origin main && ./restart_server.sh &"
+                "cd ~/shdaow/BackEnd && git pull origin main && ./restart_server.sh &"
             )
             self.send_response(200)
             self.end_headers()

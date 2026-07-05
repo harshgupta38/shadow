@@ -72,6 +72,11 @@ export function DashboardPage() {
     [data],
   );
 
+  const goalTitleById = useMemo(
+    () => new Map((data?.active_goals ?? []).map((goal) => [goal.id, goal.title])),
+    [data?.active_goals],
+  );
+
   const completionRate = data && data.tasks_today_total > 0
     ? clampPercent((data.tasks_today_done / data.tasks_today_total) * 100)
     : 0;
@@ -305,7 +310,12 @@ export function DashboardPage() {
             ) : (
               <div className="d-flex flex-column">
                 {data.upcoming_tasks.slice(0, 6).map((task) => (
-                  <TaskItem key={task.id} task={task} onToggle={toggleTask} />
+                  <TaskItem
+                    key={task.id}
+                    task={task}
+                    goalTitle={task.related_goal_id ? goalTitleById.get(task.related_goal_id) : null}
+                    onToggle={toggleTask}
+                  />
                 ))}
               </div>
             )}

@@ -67,7 +67,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES=1440
 
 LLM_PROVIDER=gemini
 GEMINI_API_KEY=your-gemini-api-key
-GEMINI_MODEL=gemini-1.5-flash
+GEMINI_MODEL=gemini-2.5-flash
 
 CORS_ORIGINS=http://localhost:5173, https://shadow-pa.web.app
 ENABLE_SCHEDULER=true

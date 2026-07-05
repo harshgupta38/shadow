@@ -59,9 +59,18 @@ def _matches_local_time(now_utc: datetime, timezone_name: str, hhmm: str) -> boo
     return now_local.hour == int(target_hour) and now_local.minute == int(target_minute)
 
 
-def enqueue_daily_briefs() -> int:
+def _at_or_after_local_time(now_utc: datetime, timezone_name: str, hhmm: str) -> bool:
+    tz = _safe_timezone(timezone_name)
+    now_local = now_utc.astimezone(tz)
+    now_minutes = now_local.hour * 60 + now_local.minute
+    target_hour, target_minute = hhmm.split(":", 1)
+    target_minutes = int(target_hour) * 60 + int(target_minute)
+    return now_minutes >= target_minutes
+
+
+def enqueue_daily_briefs(*, now_utc: datetime | None = None) -> int:
     """Create one daily brief notification per eligible user at configured local time."""
-    now = datetime.now(timezone.utc).replace(second=0, microsecond=0)
+    now = (now_utc or datetime.now(timezone.utc)).replace(second=0, microsecond=0)
     created = 0
     with SessionLocal() as db:
         settings_rows = list(
@@ -76,7 +85,7 @@ def enqueue_daily_briefs() -> int:
             user = db.get(User, settings.user_id)
             if user is None:
                 continue
-            if not _matches_local_time(now, user.timezone, settings.daily_brief_time):
+            if not _at_or_after_local_time(now, user.timezone, settings.daily_brief_time):
                 continue
             if _already_created_today(
                 db,
@@ -102,9 +111,9 @@ def enqueue_daily_briefs() -> int:
     return created
 
 
-def enqueue_weekly_summaries() -> int:
+def enqueue_weekly_summaries(*, now_utc: datetime | None = None) -> int:
     """Create one weekly summary notification per eligible user near week-end."""
-    now = datetime.now(timezone.utc).replace(second=0, microsecond=0)
+    now = (now_utc or datetime.now(timezone.utc)).replace(second=0, microsecond=0)
     created = 0
     with SessionLocal() as db:
         settings_rows = list(
@@ -124,7 +133,7 @@ def enqueue_weekly_summaries() -> int:
             summary_weekday = 6 if settings.week_starts_on.value == "monday" else 5
             if local_now.weekday() != summary_weekday:
                 continue
-            if not _matches_local_time(now, user.timezone, settings.daily_brief_time):
+            if not _at_or_after_local_time(now, user.timezone, settings.daily_brief_time):
                 continue
             if _already_created_today(
                 db,

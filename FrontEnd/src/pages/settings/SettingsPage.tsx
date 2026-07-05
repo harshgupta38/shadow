@@ -84,8 +84,6 @@ const GEMINI_MODEL_OPTIONS: Array<{ value: string; label: string }> = [
   { value: "gemini-3", label: "Gemini 3" },
   { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
   { value: "gemini-2.5-pro", label: "Gemini 2.5 Pro" },
-  { value: "gemini-1.5-flash", label: "Gemini 1.5 Flash" },
-  { value: "gemini-1.5-pro", label: "Gemini 1.5 Pro" },
 ];
 
 const DEFAULT_GEMINI_MODEL = GEMINI_MODEL_OPTIONS[0].value;

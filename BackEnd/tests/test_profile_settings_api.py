@@ -193,6 +193,22 @@ def test_settings_endpoints_and_theme_sync(client, auth_headers):
     assert ai_behavior_alias.status_code == 200
     assert ai_behavior_alias.json()["ai_behavior"]["ai_default_model"] == "gemini-3.5"
 
+    ai_behavior_retired = client.put(
+        "/api/settings/ai-behavior",
+        headers=auth_headers,
+        json={"ai_default_model": "gemini-1.5-pro"},
+    )
+    assert ai_behavior_retired.status_code == 200
+    assert ai_behavior_retired.json()["ai_behavior"]["ai_default_model"] == "gemini-2.5-flash"
+
+    ai_behavior_retired_v2 = client.put(
+        "/api/settings/ai-behavior",
+        headers=auth_headers,
+        json={"ai_default_model": "gemini-2.0-flash-lite"},
+    )
+    assert ai_behavior_retired_v2.status_code == 200
+    assert ai_behavior_retired_v2.json()["ai_behavior"]["ai_default_model"] == "gemini-2.5-flash"
+
     integrations = client.put(
         "/api/settings/integrations",
         headers=auth_headers,

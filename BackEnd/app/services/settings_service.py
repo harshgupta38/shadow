@@ -28,6 +28,15 @@ from app.schemas.settings import (
 )
 
 _AUTO_MODEL = "auto"
+_DEFAULT_RUNTIME_GEMINI_MODEL = "gemini-2.5-flash"
+_RETIRED_GEMINI_MODELS = {
+    "gemini-1.5-pro",
+    "gemini-1.5-flash",
+    "gemini-2.0-flash",
+    "gemini-2.0-flash-lite",
+    "gemini-2-flash",
+    "gemini-2-flash-lite",
+}
 
 
 def normalize_ai_default_model(value: str | None) -> str:
@@ -37,6 +46,8 @@ def normalize_ai_default_model(value: str | None) -> str:
     - "Gemini 3.5" -> "gemini-3.5"
     - "gemini_2.5_flash" -> "gemini-2.5-flash"
     - "auto" / empty -> "auto"
+
+    Retired model slugs are remapped to the current supported default.
     """
     if value is None:
         return _AUTO_MODEL
@@ -49,6 +60,8 @@ def normalize_ai_default_model(value: str | None) -> str:
     normalized = re.sub(r"\s*-\s*", "-", normalized)
     normalized = normalized.replace(" ", "-")
     normalized = re.sub(r"^gemini(?=\d)", "gemini-", normalized)
+    if normalized in _RETIRED_GEMINI_MODELS:
+        return _DEFAULT_RUNTIME_GEMINI_MODEL
     return normalized
 
 
@@ -97,7 +110,7 @@ def get_settings(db: Session, user: User) -> SettingsRead:
         ai_behavior=AIBehaviorSettings(
             ai_response_length=settings.ai_response_length,
             ai_personality=settings.ai_personality,
-            ai_default_model=settings.ai_default_model,
+            ai_default_model=normalize_ai_default_model(settings.ai_default_model),
             ai_suggestions_enabled=settings.ai_suggestions_enabled,
             smart_planning_enabled=settings.smart_planning_enabled,
         ),

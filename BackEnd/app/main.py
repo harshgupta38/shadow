@@ -19,6 +19,10 @@ from app.scheduler import shutdown_scheduler, start_scheduler
 from app.services.exceptions import AppError
 
 logging.basicConfig(level=logging.INFO)
+# Keep scheduler internals quiet in dev/prod logs while preserving warnings/errors.
+logging.getLogger("apscheduler").setLevel(logging.WARNING)
+logging.getLogger("apscheduler.scheduler").setLevel(logging.WARNING)
+logging.getLogger("apscheduler.executors").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 

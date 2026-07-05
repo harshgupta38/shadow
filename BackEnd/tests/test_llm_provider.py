@@ -28,7 +28,7 @@ def test_factory_returns_fake_when_configured() -> None:
 
 def test_gemini_provider_requires_api_key() -> None:
     with pytest.raises(RuntimeError):
-        GeminiProvider(api_key="", model="gemini-1.5-flash")
+        GeminiProvider(api_key="", model="gemini-2.5-flash")
 
 
 def test_generate_stream_default_yields_full_text() -> None:

@@ -223,6 +223,22 @@ export function RepetitiveTasksPage() {
         ? selectedGoalLabels[0]
         : `${selectedGoalLabels.length} goals selected`;
 
+  const selectedMetricLabels = useMemo(() => {
+    const metrics = metricsQuery.data ?? [];
+    if (metrics.length === 0) return [] as string[];
+
+    return draft.linked_metric_ids
+      .map((metricId) => metrics.find((metric) => metric.id === metricId)?.label)
+      .filter((label): label is string => Boolean(label));
+  }, [draft.linked_metric_ids, metricsQuery.data]);
+
+  const metricsDropdownLabel =
+    selectedMetricLabels.length === 0
+      ? "Select metrics"
+      : selectedMetricLabels.length === 1
+        ? selectedMetricLabels[0]
+        : `${selectedMetricLabels.length} metrics selected`;
+
   function resetDraft() {
     setDraft(EMPTY_DRAFT);
     setEditingTaskId(null);
@@ -557,25 +573,53 @@ export function RepetitiveTasksPage() {
                   <div className="form-text">No metrics yet. You can link later.</div>
                 )}
                 {!metricsQuery.loading && (metricsQuery.data?.length ?? 0) > 0 && (
-                  <select
-                    id="repetitive-task-metrics"
-                    className="form-select"
-                    multiple
-                    size={Math.min(Math.max(metricsQuery.data?.length ?? 2, 2), 6)}
-                    value={draft.linked_metric_ids.map((id) => String(id))}
-                    onChange={(event) => {
-                      const ids = Array.from(event.target.selectedOptions)
-                        .map((option) => Number(option.value))
-                        .filter((id) => Number.isFinite(id) && id > 0);
-                      setDraft((prev) => ({ ...prev, linked_metric_ids: ids }));
-                    }}
-                  >
-                    {(metricsQuery.data ?? []).map((metric) => (
-                      <option key={metric.id} value={metric.id}>
-                        {metric.label}
-                      </option>
-                    ))}
-                  </select>
+                  <>
+                    <Dropdown autoClose="outside">
+                      <Dropdown.Toggle
+                        as="button"
+                        type="button"
+                        id="repetitive-task-metrics"
+                        className="form-select text-start d-flex justify-content-between align-items-center"
+                      >
+                        <span className="text-truncate pe-2">{metricsDropdownLabel}</span>
+                      </Dropdown.Toggle>
+
+                      <Dropdown.Menu className="w-100" style={{ maxHeight: 240, overflowY: "auto" }}>
+                        {(metricsQuery.data ?? []).map((metric) => {
+                          const selected = draft.linked_metric_ids.includes(metric.id);
+
+                          return (
+                            <button
+                              key={metric.id}
+                              type="button"
+                              className="dropdown-item d-flex align-items-center gap-2"
+                              onClick={() => {
+                                setDraft((prev) => ({
+                                  ...prev,
+                                  linked_metric_ids: selected
+                                    ? prev.linked_metric_ids.filter((id) => id !== metric.id)
+                                    : [...prev.linked_metric_ids, metric.id],
+                                }));
+                              }}
+                            >
+                              <input
+                                type="checkbox"
+                                className="form-check-input mt-0"
+                                checked={selected}
+                                readOnly
+                                tabIndex={-1}
+                              />
+                              <span className="text-wrap">{metric.label}</span>
+                            </button>
+                          );
+                        })}
+                      </Dropdown.Menu>
+                    </Dropdown>
+
+                    {selectedMetricLabels.length > 0 && (
+                      <div className="form-text">Selected: {selectedMetricLabels.join(", ")}</div>
+                    )}
+                  </>
                 )}
                 {metricsQuery.error && <div className="form-text text-danger">{metricsQuery.error}</div>}
               </div>

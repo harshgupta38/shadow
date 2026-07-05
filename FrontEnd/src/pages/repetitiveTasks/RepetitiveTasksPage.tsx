@@ -172,8 +172,11 @@ export function RepetitiveTasksPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [statusTaskId, setStatusTaskId] = useState<number | null>(null);
-  const [statusFilter, setStatusFilter] = useState<RepetitiveTaskStatus | null>(null);
-  const [priorityFilter, setPriorityFilter] = useState<RepetitiveTaskPriority | null>(null);
+  const [statusFilters, setStatusFilters] = useState<RepetitiveTaskStatus[]>([]);
+  const [priorityFilters, setPriorityFilters] = useState<RepetitiveTaskPriority[]>([]);
+  const [goalFilterIds, setGoalFilterIds] = useState<number[]>([]);
+  const [includeUnlinkedGoals, setIncludeUnlinkedGoals] = useState(false);
+  const [frequencyFilters, setFrequencyFilters] = useState<RepetitiveTaskFrequency[]>([]);
   const [addSuggestionName, setAddSuggestionName] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -183,19 +186,36 @@ export function RepetitiveTasksPage() {
   const activeCount = tasks.filter((task) => task.status === "active").length;
   const pausedCount = tasks.filter((task) => task.status === "paused").length;
   const archivedCount = tasks.filter((task) => task.status === "archived").length;
+  const hasGoalLinkageFilter = goalFilterIds.length > 0 || includeUnlinkedGoals;
 
   const orderedTasks = useMemo(() => [...tasks].sort(orderTasks), [tasks]);
   const filteredTasks = useMemo(
     () =>
       orderedTasks.filter(
         (task) =>
-          (statusFilter === null || task.status === statusFilter) &&
-          (priorityFilter === null || task.priority === priorityFilter),
+          (statusFilters.length === 0 || statusFilters.includes(task.status)) &&
+          (priorityFilters.length === 0 || priorityFilters.includes(task.priority)) &&
+          (!hasGoalLinkageFilter ||
+            (includeUnlinkedGoals && task.linked_goal_ids.length === 0) ||
+            task.linked_goal_ids.some((goalId) => goalFilterIds.includes(goalId))) &&
+          (frequencyFilters.length === 0 ||
+            task.frequencies.some((frequency) => frequencyFilters.includes(frequency))),
       ),
-    [orderedTasks, statusFilter, priorityFilter],
+    [
+      orderedTasks,
+      statusFilters,
+      priorityFilters,
+      hasGoalLinkageFilter,
+      includeUnlinkedGoals,
+      goalFilterIds,
+      frequencyFilters,
+    ],
   );
-  const statusFilterLabel = statusFilter ? STATUS_LABEL[statusFilter] : "Status";
-  const priorityFilterLabel = priorityFilter ? PRIORITY_LABEL[priorityFilter] : "Priority";
+  const activeFilterCount =
+    (statusFilters.length > 0 ? 1 : 0) +
+    (priorityFilters.length > 0 ? 1 : 0) +
+    (hasGoalLinkageFilter ? 1 : 0) +
+    (frequencyFilters.length > 0 ? 1 : 0);
 
   const goalTitleById = useMemo(
     () => new Map((goalsQuery.data ?? []).map((goal) => [goal.id, goal.title])),
@@ -243,6 +263,42 @@ export function RepetitiveTasksPage() {
     setDraft(EMPTY_DRAFT);
     setEditingTaskId(null);
     setFormError(null);
+  }
+
+  function resetLibraryFilters() {
+    setStatusFilters([]);
+    setPriorityFilters([]);
+    setGoalFilterIds([]);
+    setIncludeUnlinkedGoals(false);
+    setFrequencyFilters([]);
+  }
+
+  function toggleStatusFilter(value: RepetitiveTaskStatus) {
+    setStatusFilters((prev) =>
+      prev.includes(value) ? prev.filter((entry) => entry !== value) : [...prev, value],
+    );
+  }
+
+  function togglePriorityFilter(value: RepetitiveTaskPriority) {
+    setPriorityFilters((prev) =>
+      prev.includes(value) ? prev.filter((entry) => entry !== value) : [...prev, value],
+    );
+  }
+
+  function toggleGoalFilterId(value: number) {
+    setGoalFilterIds((prev) =>
+      prev.includes(value) ? prev.filter((entry) => entry !== value) : [...prev, value],
+    );
+  }
+
+  function toggleUnlinkedGoalsFilter() {
+    setIncludeUnlinkedGoals((prev) => !prev);
+  }
+
+  function toggleFrequencyFilter(value: RepetitiveTaskFrequency) {
+    setFrequencyFilters((prev) =>
+      prev.includes(value) ? prev.filter((entry) => entry !== value) : [...prev, value],
+    );
   }
 
   function toggleFrequency(frequency: RepetitiveTaskFrequency) {
@@ -729,73 +785,129 @@ export function RepetitiveTasksPage() {
             title="Habit library"
             subtitle="Your repetitive tasks and current lifecycle status."
             actions={
-              <>
-                <Dropdown align="end">
-                  <Dropdown.Toggle
-                    as="button"
-                    type="button"
-                    id="repetitive-task-status-filter"
-                    className="btn btn-sm btn-outline-secondary rounded-pill px-3"
-                    aria-label="Status filter"
-                  >
-                    {statusFilterLabel}
-                  </Dropdown.Toggle>
-                  <Dropdown.Menu>
-                    <button
-                      type="button"
-                      className={`dropdown-item${statusFilter === null ? " active" : ""}`}
-                      onClick={() => setStatusFilter(null)}
-                    >
-                      Status
-                    </button>
+              <Dropdown align="end" autoClose="outside">
+                <Dropdown.Toggle
+                  as="button"
+                  type="button"
+                  className="btn btn-sm btn-outline-secondary rounded-pill px-3"
+                  aria-label="Open task filters"
+                >
+                  Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
+                </Dropdown.Toggle>
+                <Dropdown.Menu
+                  className="repetitive-task-filter-menu"
+                  data-testid="repetitive-task-filter-menu"
+                >
+                  <div className="px-2 pb-1 small fw-semibold text-faint">Status</div>
+                  <div className="px-2 pb-1 d-flex flex-wrap gap-2">
                     {(Object.entries(STATUS_LABEL) as Array<[RepetitiveTaskStatus, string]>).map(
-                      ([value, label]) => (
-                        <button
-                          key={value}
-                          type="button"
-                          className={`dropdown-item${statusFilter === value ? " active" : ""}`}
-                          onClick={() => setStatusFilter(value)}
-                        >
-                          {label}
-                        </button>
-                      ),
+                      ([value, label]) => {
+                        const selected = statusFilters.includes(value);
+                        return (
+                          <button
+                            key={value}
+                            type="button"
+                            className={`btn btn-sm ${selected ? "btn-brand" : "btn-outline-secondary"}`}
+                            aria-label={`Status filter ${label}`}
+                            onClick={() => toggleStatusFilter(value)}
+                          >
+                            {label}
+                          </button>
+                        );
+                      },
                     )}
-                  </Dropdown.Menu>
-                </Dropdown>
+                  </div>
 
-                <Dropdown align="end">
-                  <Dropdown.Toggle
-                    as="button"
-                    type="button"
-                    id="repetitive-task-priority-filter"
-                    className="btn btn-sm btn-outline-secondary rounded-pill px-3"
-                    aria-label="Priority filter"
-                  >
-                    {priorityFilterLabel}
-                  </Dropdown.Toggle>
-                  <Dropdown.Menu>
+                  <div className="dropdown-divider my-1" />
+                  <div className="px-2 pb-1 small fw-semibold text-faint">Priority</div>
+                  <div className="px-2 pb-1 d-flex flex-wrap gap-2">
+                    {(Object.entries(PRIORITY_LABEL) as Array<[RepetitiveTaskPriority, string]>).map(
+                      ([value, label]) => {
+                        const selected = priorityFilters.includes(value);
+                        return (
+                          <button
+                            key={value}
+                            type="button"
+                            className={`btn btn-sm ${selected ? "btn-brand" : "btn-outline-secondary"}`}
+                            aria-label={`Priority filter ${label}`}
+                            onClick={() => togglePriorityFilter(value)}
+                          >
+                            {label}
+                          </button>
+                        );
+                      },
+                    )}
+                  </div>
+
+                  <div className="dropdown-divider my-1" />
+                  <div className="px-2 pb-1 small fw-semibold text-faint">Goal linkage</div>
+                  <div className="px-2 pb-1 d-flex flex-wrap gap-2">
+                    {(goalsQuery.data ?? []).map((goal) => {
+                      const selected = goalFilterIds.includes(goal.id);
+                      return (
+                        <button
+                          key={goal.id}
+                          type="button"
+                          className={`btn btn-sm ${selected ? "btn-brand" : "btn-outline-secondary"}`}
+                          aria-label={`Goal linkage filter ${goal.title}`}
+                          onClick={() => toggleGoalFilterId(goal.id)}
+                        >
+                          {goal.title}
+                        </button>
+                      );
+                    })}
                     <button
                       type="button"
-                      className={`dropdown-item${priorityFilter === null ? " active" : ""}`}
-                      onClick={() => setPriorityFilter(null)}
+                      className={`btn btn-sm ${includeUnlinkedGoals ? "btn-brand" : "btn-outline-secondary"}`}
+                      aria-label="Goal linkage filter Not linked to goals"
+                      onClick={toggleUnlinkedGoalsFilter}
                     >
-                      Priority
+                      Not linked to goals
                     </button>
-                    {(Object.entries(PRIORITY_LABEL) as Array<[RepetitiveTaskPriority, string]>).map(
-                      ([value, label]) => (
-                        <button
-                          key={value}
-                          type="button"
-                          className={`dropdown-item${priorityFilter === value ? " active" : ""}`}
-                          onClick={() => setPriorityFilter(value)}
-                        >
-                          {label}
-                        </button>
-                      ),
+                    {!goalsQuery.loading && (goalsQuery.data?.length ?? 0) === 0 && (
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-outline-secondary"
+                        disabled
+                        aria-label="No active goals available"
+                      >
+                        No active goals
+                      </button>
                     )}
-                  </Dropdown.Menu>
-                </Dropdown>
-              </>
+                  </div>
+
+                  <div className="dropdown-divider my-1" />
+                  <div className="px-2 pb-1 small fw-semibold text-faint">Frequency</div>
+                  <div className="px-2 pb-1 d-flex flex-wrap gap-2">
+                    {FREQUENCY_OPTIONS.map((option) => {
+                      const selected = frequencyFilters.includes(option.value);
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          className={`btn btn-sm ${selected ? "btn-brand" : "btn-outline-secondary"}`}
+                          aria-label={`Frequency filter ${option.label}`}
+                          onClick={() => toggleFrequencyFilter(option.value)}
+                        >
+                          {option.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="dropdown-divider my-1" />
+                  <div className="px-2 pt-1">
+                    <button
+                      type="button"
+                      className="btn btn-soft btn-sm w-100"
+                      onClick={resetLibraryFilters}
+                      disabled={activeFilterCount === 0}
+                    >
+                      Reset filters
+                    </button>
+                  </div>
+                </Dropdown.Menu>
+              </Dropdown>
             }
           >
             {tasksQuery.loading ? (
@@ -824,7 +936,7 @@ export function RepetitiveTasksPage() {
                 compact
                 icon={<ArrowRepeat size={22} />}
                 title="No tasks match selected filters"
-                message="Try resetting status or priority filters."
+                message="Try resetting one or more filters."
               />
             ) : (
               <div className="d-flex flex-column gap-3">

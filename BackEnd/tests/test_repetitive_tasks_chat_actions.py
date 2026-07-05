@@ -173,3 +173,64 @@ def test_goal_repetitive_seed_synthesizes_saveable_repetitive_actions(
         assert len(task_names.intersection(names)) >= 1
     finally:
         app.dependency_overrides.pop(get_provider, None)
+
+
+def test_goal_coach_save_maps_weekly_and_monthly_frequencies(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    provider = GoalRepetitivePlanProvider()
+    app.dependency_overrides[get_provider] = lambda: provider
+
+    try:
+        goal = client.post(
+            "/api/goals",
+            headers=auth_headers,
+            json={"title": "Get SDE 1 job at Google"},
+        )
+        assert goal.status_code == 201
+        goal_id = goal.json()["id"]
+
+        session = client.post(
+            "/api/chat/sessions",
+            headers=auth_headers,
+            json={"agent_type": "goal_coach", "title": "Goal Coach", "goal_id": goal_id},
+        )
+        assert session.status_code == 201
+        session_id = session.json()["id"]
+
+        action = {
+            "id": "act_frequency_map_1",
+            "module": "repetitive_tasks",
+            "type": "repetitive_tasks.create_task",
+            "title": "Add repetitive task: Weekly-Monthly cadence",
+            "rationale": "Goal coach suggested this cadence.",
+            "confidence": "medium",
+            "requires_confirmation": False,
+            "destructive": False,
+            "args": {
+                "name": "Weekly-Monthly cadence",
+                "description": "Coach generated plan cadence.",
+                "frequencies": ["weekly", "monthly"],
+                "priority": "medium",
+                "linked_goal_ids": [goal_id],
+                "linked_metric_ids": [],
+            },
+        }
+
+        executed = client.post(
+            f"/api/chat/sessions/{session_id}/actions/execute",
+            headers=auth_headers,
+            json={"action": action, "confirmed": False},
+        )
+        assert executed.status_code == 200
+        execution = executed.json()
+        assert execution["status"] == "executed"
+        assert execution["action"]["args"]["frequencies"] == ["saturday", "end_of_month"]
+
+        tasks = client.get("/api/repetitive-tasks", headers=auth_headers)
+        assert tasks.status_code == 200
+        saved = next(task for task in tasks.json() if task["name"] == "Weekly-Monthly cadence")
+        assert saved["frequencies"] == ["saturday", "end_of_month"]
+    finally:
+        app.dependency_overrides.pop(get_provider, None)

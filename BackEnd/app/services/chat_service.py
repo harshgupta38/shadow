@@ -1841,12 +1841,33 @@ def _execute_track_log_metric(
 def _execute_repetitive_tasks_create_task(
     db: Session,
     user: User,
+    session: ChatSession,
     action: RepetitiveTasksCreateTaskAction,
 ) -> ChatActionExecuteResponse:
+    frequencies = list(action.args.frequencies)
+    if session.agent_type == AgentType.goal_coach:
+        remapped: list[str] = []
+        seen: set[str] = set()
+        for frequency in frequencies:
+            mapped = {
+                "weekly": "saturday",
+                "monthly": "end_of_month",
+            }.get(frequency, frequency)
+            if mapped in seen:
+                continue
+            seen.add(mapped)
+            remapped.append(mapped)
+
+        if remapped:
+            frequencies = remapped
+            action.args.frequencies = remapped
+
+    payload = action.args.model_dump()
+    payload["frequencies"] = frequencies
     task = repetitive_task_service.create_task(
         db,
         user,
-        RepetitiveTaskCreate(**action.args.model_dump()),
+        RepetitiveTaskCreate(**payload),
     )
     return ChatActionExecuteResponse(
         status="executed",
@@ -2115,7 +2136,7 @@ def execute_action(
     confirmed: bool = False,
 ) -> ChatActionExecuteResponse:
     """Execute a proposed assistant action within an owned chat session."""
-    get_session(db, user, session_id)
+    session = get_session(db, user, session_id)
 
     if action.requires_confirmation and not confirmed:
         return ChatActionExecuteResponse(
@@ -2136,7 +2157,7 @@ def execute_action(
         if isinstance(action, TrackLogMetricAction):
             return _execute_track_log_metric(db, user, action)
         if isinstance(action, RepetitiveTasksCreateTaskAction):
-            return _execute_repetitive_tasks_create_task(db, user, action)
+            return _execute_repetitive_tasks_create_task(db, user, session, action)
     except AppError as exc:
         return ChatActionExecuteResponse(
             status="failed",

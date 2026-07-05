@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
@@ -117,20 +117,36 @@ describe("RepetitiveTasksPage", () => {
     expect(await screen.findByTestId("repetitive-task-42")).toBeInTheDocument();
   });
 
-  it("filters tasks by status and priority from header pills", async () => {
+  it("filters tasks from the task filter popup", async () => {
     const user = userEvent.setup();
+    mockedGoalsApi.list.mockResolvedValue([
+      { id: 11, title: "SDE Goal" },
+      { id: 22, title: "Fitness Goal" },
+    ]);
     mockedRepetitiveTasksApi.list.mockResolvedValue([
       buildTask({
         id: 1,
         name: "Active Medium Task",
         status: "active",
         priority: "medium",
+        frequencies: ["daily"],
+        linked_goal_ids: [],
       }),
       buildTask({
         id: 2,
         name: "Paused Critical Task",
         status: "paused",
         priority: "critical",
+        frequencies: ["weekly"],
+        linked_goal_ids: [11],
+      }),
+      buildTask({
+        id: 3,
+        name: "Active Critical Monthly Task",
+        status: "active",
+        priority: "critical",
+        frequencies: ["monthly"],
+        linked_goal_ids: [22],
       }),
     ]);
 
@@ -138,24 +154,73 @@ describe("RepetitiveTasksPage", () => {
 
     expect(await screen.findByTestId("repetitive-task-1")).toBeInTheDocument();
     expect(screen.getByTestId("repetitive-task-2")).toBeInTheDocument();
+    expect(screen.getByTestId("repetitive-task-3")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: /status filter/i }));
-    await user.click(screen.getByRole("button", { name: "Paused" }));
+    await user.click(screen.getByRole("button", { name: /open task filters/i }));
+    const popup = await screen.findByTestId("repetitive-task-filter-menu");
 
-    expect(screen.queryByTestId("repetitive-task-1")).not.toBeInTheDocument();
-    expect(screen.getByTestId("repetitive-task-2")).toBeInTheDocument();
+    await user.click(within(popup).getByRole("button", { name: /status filter paused/i }));
+    await waitFor(() => {
+      expect(screen.queryByTestId("repetitive-task-1")).not.toBeInTheDocument();
+      expect(screen.getByTestId("repetitive-task-2")).toBeInTheDocument();
+      expect(screen.queryByTestId("repetitive-task-3")).not.toBeInTheDocument();
+    });
 
-    await user.click(screen.getByRole("button", { name: /status filter/i }));
-    await user.click(screen.getByRole("button", { name: "Status" }));
+    await user.click(within(popup).getByRole("button", { name: /status filter active/i }));
+    await waitFor(() => {
+      expect(screen.getByTestId("repetitive-task-1")).toBeInTheDocument();
+      expect(screen.getByTestId("repetitive-task-2")).toBeInTheDocument();
+      expect(screen.getByTestId("repetitive-task-3")).toBeInTheDocument();
+    });
 
-    expect(screen.getByTestId("repetitive-task-1")).toBeInTheDocument();
-    expect(screen.getByTestId("repetitive-task-2")).toBeInTheDocument();
+    await user.click(within(popup).getByRole("button", { name: /priority filter critical/i }));
+    await waitFor(() => {
+      expect(screen.queryByTestId("repetitive-task-1")).not.toBeInTheDocument();
+      expect(screen.getByTestId("repetitive-task-2")).toBeInTheDocument();
+      expect(screen.getByTestId("repetitive-task-3")).toBeInTheDocument();
+    });
 
-    await user.click(screen.getByRole("button", { name: /priority filter/i }));
-    await user.click(screen.getByRole("button", { name: "Critical" }));
+    expect(
+      within(popup).getByRole("button", { name: /goal linkage filter not linked to goals/i }),
+    ).toBeInTheDocument();
+    await user.click(
+      within(popup).getByRole("button", { name: /goal linkage filter fitness goal/i }),
+    );
+    await waitFor(() => {
+      expect(screen.queryByTestId("repetitive-task-1")).not.toBeInTheDocument();
+      expect(screen.queryByTestId("repetitive-task-2")).not.toBeInTheDocument();
+      expect(screen.getByTestId("repetitive-task-3")).toBeInTheDocument();
+    });
 
-    expect(screen.queryByTestId("repetitive-task-1")).not.toBeInTheDocument();
-    expect(screen.getByTestId("repetitive-task-2")).toBeInTheDocument();
+    await user.click(within(popup).getByRole("button", { name: /frequency filter monthly/i }));
+    await waitFor(() => {
+      expect(screen.queryByTestId("repetitive-task-1")).not.toBeInTheDocument();
+      expect(screen.queryByTestId("repetitive-task-2")).not.toBeInTheDocument();
+      expect(screen.getByTestId("repetitive-task-3")).toBeInTheDocument();
+    });
+
+    await user.click(within(popup).getByRole("button", { name: /reset filters/i }));
+    await waitFor(() => {
+      expect(screen.getByTestId("repetitive-task-1")).toBeInTheDocument();
+      expect(screen.getByTestId("repetitive-task-2")).toBeInTheDocument();
+      expect(screen.getByTestId("repetitive-task-3")).toBeInTheDocument();
+    });
+
+    await user.click(
+      within(popup).getByRole("button", { name: /goal linkage filter not linked to goals/i }),
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId("repetitive-task-1")).toBeInTheDocument();
+      expect(screen.queryByTestId("repetitive-task-2")).not.toBeInTheDocument();
+      expect(screen.queryByTestId("repetitive-task-3")).not.toBeInTheDocument();
+    });
+
+    await user.click(within(popup).getByRole("button", { name: /reset filters/i }));
+    await waitFor(() => {
+      expect(screen.getByTestId("repetitive-task-1")).toBeInTheDocument();
+      expect(screen.getByTestId("repetitive-task-2")).toBeInTheDocument();
+      expect(screen.getByTestId("repetitive-task-3")).toBeInTheDocument();
+    });
   });
 
   it("creates a repetitive task using the API", async () => {

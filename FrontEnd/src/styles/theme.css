@@ -677,6 +677,11 @@ a {
   overflow-y: auto;
 }
 
+.repetitive-task-filter-menu {
+  width: 340px;
+  max-width: 92vw;
+}
+
 @media (max-width: 576px) {
   .notifications-bell-menu {
     width: 320px;
@@ -685,6 +690,11 @@ a {
 
   .notifications-bell-list {
     max-height: 300px;
+  }
+
+  .repetitive-task-filter-menu {
+    width: 300px;
+    max-width: 82vw;
   }
 }
 

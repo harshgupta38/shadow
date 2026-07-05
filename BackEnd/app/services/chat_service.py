@@ -30,10 +30,12 @@ from app.models.enums import (
     ChatRole,
     GoalStatus,
     PlannedTaskSource,
+    RepetitiveTaskPriority,
 )
 from app.models.goal import Goal
 from app.models.metric import TrackedMetric
 from app.models.milestone import Milestone
+from app.models.repetitive_task import RepetitiveTask
 from app.models.user import User
 from app.schemas.activity import ActivityLogCreate
 from app.schemas.chat import (
@@ -45,6 +47,7 @@ from app.schemas.chat import (
     GoalsCreateGoalArgs,
     GoalsCreateGoalAction,
     PlanCreateTaskAction,
+    RepetitiveTasksCreateTaskArgs,
     RepetitiveTasksCreateTaskAction,
     TrackCreateMetricAction,
     TrackLogMetricAction,
@@ -77,12 +80,39 @@ _AUTO_EXECUTABLE_TYPES = {
 }
 _GOAL_CONTEXT_MARKER = "[goal_context]"
 _GOAL_DISCOVERY_SEED_PREFIX = "[goal_discovery_seed]"
+_GOAL_REPETITIVE_SEED_PREFIX = "[goal_repetitive_seed]"
 _GOAL_DISCOVERY_EXTRACTION_PROMPT_MARKER = "GOAL_DISCOVERY_EXTRACTION_JSON_V1"
 _ASSISTANT_STRUCTURED_REPLY_SCHEMA = "SHADOW_RESPONSE_JSON_V1"
 _MAX_GOAL_BREAKDOWN_MILESTONES = 18
 _MAX_GOAL_DISCOVERY_GOALS = 12
+_MAX_GOAL_REPETITIVE_TASKS = 10
 _MILESTONE_BULLET_PATTERN = r"(?:[-*•●◦▪▫◉○◌‣⁃∙·]|[oO])"
 _ASSISTANT_JSON_CODE_BLOCK_PATTERN = re.compile(r"```(?:json)?\s*([\s\S]*?)```", re.IGNORECASE)
+
+_REPETITIVE_FREQUENCY_VALUES = {
+    "daily",
+    "weekly",
+    "monthly",
+    "weekdays",
+    "weekends",
+    "sunday",
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
+    "first_of_month",
+    "end_of_month",
+}
+
+_REPETITIVE_SECTION_FREQUENCIES: dict[str, list[str]] = {
+    "daily": ["daily"],
+    "weekly": ["weekly"],
+    "monthly": ["monthly"],
+    "weekdays": ["weekdays"],
+    "weekends": ["weekends"],
+}
 
 _AGENT_DEFAULT_TITLES: dict[AgentType, str] = {
     AgentType.general: "Shadow",
@@ -383,6 +413,10 @@ def _is_goal_discovery_seed_message(content: str) -> bool:
     return content.strip().startswith(_GOAL_DISCOVERY_SEED_PREFIX)
 
 
+def _is_goal_repetitive_seed_message(content: str) -> bool:
+    return content.strip().startswith(_GOAL_REPETITIVE_SEED_PREFIX)
+
+
 def _build_fresh_intake_context(user: User) -> str:
     profile_lines = [
         "## Profile",
@@ -402,6 +436,13 @@ def _build_fresh_intake_context(user: User) -> str:
 def _session_has_goal_discovery_seed(history_rows: list[ChatMessage]) -> bool:
     return any(
         row.role == ChatRole.user and _is_goal_discovery_seed_message(row.content)
+        for row in history_rows
+    )
+
+
+def _session_has_goal_repetitive_seed(history_rows: list[ChatMessage]) -> bool:
+    return any(
+        row.role == ChatRole.user and _is_goal_repetitive_seed_message(row.content)
         for row in history_rows
     )
 
@@ -1273,6 +1314,289 @@ def _ensure_goal_discovery_goal_actions(
     return normalized_actions
 
 
+def _normalise_id_list(values: list[int] | None) -> list[int]:
+    if not values:
+        return []
+
+    ordered: list[int] = []
+    seen: set[int] = set()
+    for value in values:
+        if value <= 0 or value in seen:
+            continue
+        seen.add(value)
+        ordered.append(value)
+    return ordered
+
+
+def _normalise_repetitive_task_name(raw_name: str) -> str:
+    name = (raw_name or "").strip()
+    name = re.sub(rf"^(?:{_MILESTONE_BULLET_PATTERN}|[0-9]+[\.)])\s+", "", name)
+    name = name.replace("**", "").strip("`*_ ")
+    name = " ".join(name.split())
+    return name[:255]
+
+
+def _normalise_repetitive_task_description(raw_description: str | None) -> str | None:
+    if raw_description is None:
+        return None
+
+    description = " ".join(raw_description.strip().split())
+    if not description:
+        return None
+    return description[:2000]
+
+
+def _normalise_repetitive_frequency_token(raw_value: str) -> str | None:
+    token = (raw_value or "").strip().lower().replace("_", " ").replace("-", " ")
+    token = re.sub(r"\s+", " ", token)
+    if not token:
+        return None
+
+    if token in {
+        "everyday",
+        "every day",
+        "each day",
+        "daily",
+    }:
+        return "daily"
+    if token in {"every week", "each week", "weekly"}:
+        return "weekly"
+    if token in {"every month", "each month", "monthly"}:
+        return "monthly"
+    if token in {"weekday", "weekdays", "monday to friday", "monday friday", "mon fri"}:
+        return "weekdays"
+    if token in {"weekend", "weekends", "saturday sunday"}:
+        return "weekends"
+    if token in {"first of month", "first day of month"}:
+        return "first_of_month"
+    if token in {"end of month", "last day of month"}:
+        return "end_of_month"
+
+    candidate = token.replace(" ", "_")
+    if candidate in _REPETITIVE_FREQUENCY_VALUES:
+        return candidate
+    return None
+
+
+def _normalise_repetitive_frequencies(raw_values: list[str] | None) -> list[str]:
+    if not raw_values:
+        return []
+
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for value in raw_values:
+        frequency = _normalise_repetitive_frequency_token(value)
+        if frequency is None or frequency in seen:
+            continue
+        seen.add(frequency)
+        normalized.append(frequency)
+    return normalized
+
+
+def _normalise_repetitive_priority(
+    value: RepetitiveTaskPriority | str | None,
+) -> RepetitiveTaskPriority:
+    if isinstance(value, RepetitiveTaskPriority):
+        return value
+
+    raw = str(value or "").strip().lower()
+    mapping = {
+        "urgent": "critical",
+        "very high": "critical",
+        "important": "high",
+        "normal": "medium",
+    }
+    normalized = mapping.get(raw, raw)
+    try:
+        return RepetitiveTaskPriority(normalized)
+    except ValueError:
+        return RepetitiveTaskPriority.medium
+
+
+def _repetitive_task_action_title(task_name: str) -> str:
+    prefix = "Add repetitive task: "
+    budget = 120 - len(prefix)
+    if budget <= 0:
+        return "Add repetitive task"
+    clipped = task_name.strip()[:budget].rstrip()
+    return f"{prefix}{clipped}" if clipped else "Add repetitive task"
+
+
+def _extract_goal_repetitive_task_candidates(
+    assistant_reply: str,
+) -> list[tuple[str, str | None, list[str], RepetitiveTaskPriority]]:
+    candidates: list[tuple[str, str | None, list[str], RepetitiveTaskPriority]] = []
+    current_frequencies: list[str] = []
+
+    for raw_line in assistant_reply.splitlines():
+        line = raw_line.strip().replace("**", "")
+        if not line:
+            continue
+
+        section_key = line.rstrip(":").strip().lower()
+        if section_key in _REPETITIVE_SECTION_FREQUENCIES:
+            current_frequencies = list(_REPETITIVE_SECTION_FREQUENCIES[section_key])
+            continue
+
+        bullet_match = re.match(
+            rf"^\s*(?:{_MILESTONE_BULLET_PATTERN}|[0-9]+[\.)])\s+(.+)$",
+            line,
+            flags=re.IGNORECASE,
+        )
+        if bullet_match is None:
+            continue
+
+        item_text = bullet_match.group(1).strip()
+        if not item_text:
+            continue
+
+        name_raw = item_text
+        description_raw: str | None = None
+        if ":" in item_text:
+            left, right = item_text.split(":", 1)
+            name_raw = left.strip()
+            description_raw = right.strip()
+
+        name = _normalise_repetitive_task_name(name_raw)
+        if not name:
+            continue
+
+        frequencies = list(current_frequencies)
+        if not frequencies:
+            inferred = _normalise_repetitive_frequency_token(item_text)
+            if inferred is not None:
+                frequencies = [inferred]
+        if not frequencies:
+            frequencies = ["weekly"]
+
+        lowered_item = item_text.lower()
+        if "daily" in lowered_item or "every day" in lowered_item:
+            priority = RepetitiveTaskPriority.high
+        elif "weekly" in lowered_item:
+            priority = RepetitiveTaskPriority.medium
+        else:
+            priority = RepetitiveTaskPriority.medium
+
+        candidates.append(
+            (
+                name,
+                _normalise_repetitive_task_description(description_raw),
+                frequencies,
+                priority,
+            )
+        )
+
+    deduped: list[tuple[str, str | None, list[str], RepetitiveTaskPriority]] = []
+    seen_names: set[str] = set()
+    for name, description, frequencies, priority in candidates:
+        key = name.lower()
+        if key in seen_names:
+            continue
+        seen_names.add(key)
+        deduped.append((name, description, frequencies, priority))
+        if len(deduped) >= _MAX_GOAL_REPETITIVE_TASKS:
+            break
+
+    return deduped
+
+
+def _existing_repetitive_task_names(db: Session, user_id: int) -> set[str]:
+    rows = list(
+        db.scalars(select(RepetitiveTask.name).where(RepetitiveTask.user_id == user_id))
+    )
+    return {name.strip().lower() for name in rows if name and name.strip()}
+
+
+def _ensure_goal_repetitive_task_actions(
+    db: Session,
+    *,
+    user: User,
+    assistant_reply: str,
+    focus_goal: Goal | None,
+    should_synthesize: bool,
+    actions: list[AssistantProposedAction],
+) -> list[AssistantProposedAction]:
+    if not should_synthesize:
+        return actions
+
+    existing_task_names = _existing_repetitive_task_names(db, user.id)
+    seen_names = set(existing_task_names)
+    normalized_actions: list[AssistantProposedAction] = []
+
+    for action in actions:
+        if not isinstance(action, RepetitiveTasksCreateTaskAction):
+            normalized_actions.append(action)
+            continue
+
+        task_name = _normalise_repetitive_task_name(action.args.name)
+        if not task_name:
+            continue
+
+        key = task_name.lower()
+        if key in seen_names:
+            continue
+
+        frequencies = _normalise_repetitive_frequencies(
+            [str(value) for value in action.args.frequencies]
+        )
+        if not frequencies:
+            frequencies = ["daily"]
+
+        linked_goal_ids = _normalise_id_list(action.args.linked_goal_ids)
+        if focus_goal is not None and focus_goal.id not in linked_goal_ids:
+            linked_goal_ids.append(focus_goal.id)
+
+        action.args.name = task_name
+        action.args.description = _normalise_repetitive_task_description(
+            action.args.description
+        )
+        action.args.frequencies = frequencies
+        action.args.priority = _normalise_repetitive_priority(action.args.priority)
+        action.args.linked_goal_ids = linked_goal_ids
+        action.args.linked_metric_ids = _normalise_id_list(action.args.linked_metric_ids)
+        action.title = _repetitive_task_action_title(task_name)
+        action.rationale = (
+            action.rationale.strip() or "Suggested repetitive task from your goal plan."
+        )
+        action.confidence = AssistantActionConfidence.medium
+        action.requires_confirmation = False
+        action.destructive = False
+
+        normalized_actions.append(action)
+        seen_names.add(key)
+
+    extracted_candidates = _extract_goal_repetitive_task_candidates(assistant_reply)
+    for name, description, frequencies, priority in extracted_candidates:
+        key = name.lower()
+        if key in seen_names:
+            continue
+
+        linked_goal_ids = [focus_goal.id] if focus_goal is not None else []
+        normalized_actions.append(
+            RepetitiveTasksCreateTaskAction(
+                id=f"act_{uuid4().hex[:10]}",
+                module=AssistantActionModule.repetitive_tasks,
+                type="repetitive_tasks.create_task",
+                title=_repetitive_task_action_title(name),
+                rationale="Structured repetitive task extracted from your goal plan.",
+                confidence=AssistantActionConfidence.medium,
+                requires_confirmation=False,
+                destructive=False,
+                args=RepetitiveTasksCreateTaskArgs(
+                    name=name,
+                    description=description,
+                    frequencies=frequencies,
+                    priority=priority,
+                    linked_goal_ids=linked_goal_ids,
+                    linked_metric_ids=[],
+                ),
+            )
+        )
+        seen_names.add(key)
+
+    return normalized_actions
+
+
 def _existing_goal_milestone_titles(db: Session, goal_id: int) -> set[str]:
     rows = list(db.scalars(select(Milestone.title).where(Milestone.goal_id == goal_id)))
     return {row.strip().lower() for row in rows if row and row.strip()}
@@ -1631,6 +1955,7 @@ def send_message(
     history = [LLMMessage(role=row.role.value, content=row.content) for row in history_rows]
     preferred_model = settings_service.get_effective_ai_model(db, user)
     session_in_goal_discovery_mode = _session_has_goal_discovery_seed(history_rows)
+    session_in_goal_repetitive_mode = _session_has_goal_repetitive_seed(history_rows)
     use_fresh_intake_context = fresh_intake_mode or session_in_goal_discovery_mode
     if use_fresh_intake_context:
         base_context = _build_fresh_intake_context(user)
@@ -1754,6 +2079,24 @@ def send_message(
         except Exception:
             logger.warning(
                 "Failed to synthesize goal discovery actions for session_id=%s",
+                session.id,
+            )
+
+        try:
+            should_synthesize_goal_repetitive_actions = (
+                session_in_goal_repetitive_mode and session.agent_type == AgentType.goal_coach
+            )
+            proposed_actions = _ensure_goal_repetitive_task_actions(
+                db,
+                user=user,
+                assistant_reply=reply,
+                focus_goal=focus_goal,
+                should_synthesize=should_synthesize_goal_repetitive_actions,
+                actions=proposed_actions,
+            )
+        except Exception:
+            logger.warning(
+                "Failed to synthesize goal repetitive task actions for session_id=%s",
                 session.id,
             )
 

@@ -1602,6 +1602,18 @@ a {
   gap: 0.5rem;
 }
 
+.plan-goal-select {
+  width: 100%;
+  max-width: none;
+}
+
+@media (min-width: 576px) {
+  .plan-goal-select {
+    width: 200px;
+    max-width: 200px;
+  }
+}
+
 @media (max-width: 600px) {
   .plan-date-toolbar-left {
     width: 100%;

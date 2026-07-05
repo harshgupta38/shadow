@@ -406,13 +406,26 @@ export function ChatPage() {
 
   async function sendGoalRepetitiveKickoff(sessionId: number) {
     setSending(true);
+    const optimistic: ChatMessage = {
+      id: -Date.now(),
+      session_id: sessionId,
+      role: "user",
+      content: stripGoalRepetitiveSeed(stripGoalContext(GOAL_REPETITIVE_STARTER_PROMPT)),
+      agent_type: "goal_coach",
+      created_at: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, optimistic]);
     try {
       const response = await api.chat.send(sessionId, GOAL_REPETITIVE_STARTER_PROMPT);
       const renderedUserMessage = {
         ...response.user_message,
         content: stripGoalRepetitiveSeed(stripGoalContext(response.user_message.content)),
       };
-      setMessages((prev) => [...prev, renderedUserMessage, response.assistant_message]);
+      setMessages((prev) => [
+        ...prev.filter((message) => message.id !== optimistic.id),
+        renderedUserMessage,
+        response.assistant_message,
+      ]);
       setSessions((prev) =>
         (prev ?? [])
           .map((s) =>
@@ -431,6 +444,7 @@ export function ChatPage() {
       setProposalStates(sessionId, assistantMessageId, response.proposed_actions);
       void autoExecuteProposals(sessionId, assistantMessageId, response.proposed_actions);
     } catch (err) {
+      setMessages((prev) => prev.filter((message) => message.id !== optimistic.id));
       toast.error(err instanceof ApiError ? err.message : "Couldn't start repetitive planning.");
     } finally {
       setSending(false);

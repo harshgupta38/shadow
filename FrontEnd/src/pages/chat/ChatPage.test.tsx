@@ -722,6 +722,63 @@ describe("ChatPage", () => {
     expect(await screen.findByText("Here are repetitive tasks mapped to your milestones.")).toBeInTheDocument();
   });
 
+  it("shows repetitive kickoff user message before AI response returns", async () => {
+    const coachSession = {
+      id: 22,
+      agent_type: "goal_coach",
+      title: "Lose 10KG",
+      goal_id: 99,
+      created_at: "2026-07-03T11:00:00Z",
+      updated_at: "2026-07-03T11:00:00Z",
+    } as const;
+
+    mockedChat.sessions.mockResolvedValue([]);
+    mockedChat.createSession.mockResolvedValue(coachSession);
+
+    let resolveSend: ((value: unknown) => void) | null = null;
+    mockedChat.send.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveSend = resolve;
+        }),
+    );
+
+    renderPage("/assistant?agent=goal_coach&goalId=99&goalRepetitive=1");
+
+    await waitFor(() => expect(mockedChat.send).toHaveBeenCalledTimes(1));
+
+    expect(
+      await screen.findByText(/Based on my current goal and existing milestones/i),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Here are repetitive tasks mapped to your milestones.")).not.toBeInTheDocument();
+
+    resolveSend?.({
+      user_message: {
+        id: 501,
+        session_id: coachSession.id,
+        role: "user",
+        content: "[goal_repetitive_seed] based on milestones propose repetitive tasks",
+        agent_type: "goal_coach",
+        created_at: "2026-07-03T11:01:00Z",
+      },
+      assistant_message: {
+        id: 502,
+        session_id: coachSession.id,
+        role: "assistant",
+        content: "Here are repetitive tasks mapped to your milestones.",
+        agent_type: "goal_coach",
+        created_at: "2026-07-03T11:01:02Z",
+      },
+      session: {
+        ...coachSession,
+        updated_at: "2026-07-03T11:01:02Z",
+      },
+      proposed_actions: [],
+    });
+
+    expect(await screen.findByText("Here are repetitive tasks mapped to your milestones.")).toBeInTheDocument();
+  });
+
   it("reuses existing goal coach chat and still triggers repetitive kickoff", async () => {
     const existingCoachSession = {
       id: 20,

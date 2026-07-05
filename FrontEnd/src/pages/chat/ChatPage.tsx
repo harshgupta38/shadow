@@ -47,9 +47,14 @@ const CHAT_ACTIONS_STORAGE_KEY = "shadow.chat.messageActions.v1";
 const GOAL_DISCOVERY_SESSION_STORAGE_KEY = "shadow.chat.goalDiscoverySessionId.v1";
 const GOAL_DISCOVERY_QUERY_PARAM = "goalDiscovery";
 const GOAL_DISCOVERY_SEED_PREFIX = "[goal_discovery_seed]";
+const GOAL_REPETITIVE_QUERY_PARAM = "goalRepetitive";
+const GOAL_REPETITIVE_SEED_PREFIX = "[goal_repetitive_seed]";
 const GOAL_DISCOVERY_STARTER_PROMPT =
   `${GOAL_DISCOVERY_SEED_PREFIX} Ask me one clear question to understand what I want to achieve and by when. ` +
   "After I answer, help me turn it into trackable goals and propose actions with title, description, category, and target date.";
+const GOAL_REPETITIVE_STARTER_PROMPT =
+  `${GOAL_REPETITIVE_SEED_PREFIX} Based on my current goal and existing milestones, propose repetitive tasks ` +
+  "I should do daily/weekly to reach the milestones. Return practical frequencies and include executable repetitive task actions.";
 
 type StoredActionStateMap = Record<number, ProposedActionState[]>;
 type StoredActionStateStore = Record<string, Record<string, ProposedActionState[]>>;
@@ -140,6 +145,14 @@ function clearStoredGoalDiscoverySessionId(): void {
 
 function isGoalDiscoverySeedMessage(content: string): boolean {
   return content.trimStart().startsWith(GOAL_DISCOVERY_SEED_PREFIX);
+}
+
+function stripGoalRepetitiveSeed(content: string): string {
+  const normalized = content.trimStart();
+  if (!normalized.startsWith(GOAL_REPETITIVE_SEED_PREFIX)) return content;
+
+  const stripped = normalized.slice(GOAL_REPETITIVE_SEED_PREFIX.length).trimStart();
+  return stripped || "Suggest repetitive tasks from my milestones.";
 }
 
 function parseGoalCoachGoalId(params: URLSearchParams): number | null {
@@ -391,14 +404,53 @@ export function ChatPage() {
     }
   }
 
+  async function sendGoalRepetitiveKickoff(sessionId: number) {
+    setSending(true);
+    try {
+      const response = await api.chat.send(sessionId, GOAL_REPETITIVE_STARTER_PROMPT);
+      const renderedUserMessage = {
+        ...response.user_message,
+        content: stripGoalRepetitiveSeed(stripGoalContext(response.user_message.content)),
+      };
+      setMessages((prev) => [...prev, renderedUserMessage, response.assistant_message]);
+      setSessions((prev) =>
+        (prev ?? [])
+          .map((s) =>
+            s.id === sessionId
+              ? {
+                  ...s,
+                  updated_at: response.assistant_message.created_at,
+                  title: response.session.title,
+                }
+              : s,
+          )
+          .sort((a, b) => b.updated_at.localeCompare(a.updated_at)),
+      );
+
+      const assistantMessageId = response.assistant_message.id;
+      setProposalStates(sessionId, assistantMessageId, response.proposed_actions);
+      void autoExecuteProposals(sessionId, assistantMessageId, response.proposed_actions);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Couldn't start repetitive planning.");
+    } finally {
+      setSending(false);
+    }
+  }
+
   async function loadMessages(sessionId: number) {
     setLoadingMessages(true);
     try {
       const loaded = await api.chat.messages(sessionId);
       const rendered = loaded
-        .map((message) =>
-          message.role === "user" ? { ...message, content: stripGoalContext(message.content) } : message,
-        )
+        .map((message) => {
+          if (message.role !== "user") return message;
+
+          const withoutGoalContext = stripGoalContext(message.content);
+          return {
+            ...message,
+            content: stripGoalRepetitiveSeed(withoutGoalContext),
+          };
+        })
         .filter(
           (message) =>
             message.role !== "user" ||
@@ -437,13 +489,17 @@ export function ChatPage() {
     }
   }
 
-  function selectSession(session: ChatSession) {
+  async function openSession(session: ChatSession) {
     setMobilePane("chat");
     if (selectedId === session.id) return;
     setSelectedId(session.id);
     setMessageActions({});
     setCollapsedActionMessages({});
-    void loadMessages(session.id);
+    await loadMessages(session.id);
+  }
+
+  function selectSession(session: ChatSession) {
+    void openSession(session);
   }
 
   function findExistingGoalCoachSession(goalId: number): ChatSession | null {
@@ -578,15 +634,25 @@ export function ChatPage() {
     const agent = searchParams.get("agent");
     const goalId = parseGoalCoachGoalId(searchParams);
     const goalDiscoveryRequested = searchParams.get(GOAL_DISCOVERY_QUERY_PARAM) === "1";
+    const goalRepetitiveRequested = searchParams.get(GOAL_REPETITIVE_QUERY_PARAM) === "1";
     if (isAgentType(agent)) {
       autoStartRef.current = true;
       if (agent === "goal_coach" && goalId) {
-        const existing = findExistingGoalCoachSession(goalId);
-        if (existing) {
-          selectSession(existing);
-        } else {
-          void startChat(agent, goalId);
-        }
+        void (async () => {
+          const existing = findExistingGoalCoachSession(goalId);
+          if (existing) {
+            await openSession(existing);
+            if (goalRepetitiveRequested) {
+              await sendGoalRepetitiveKickoff(existing.id);
+            }
+            return;
+          }
+
+          const created = await startChat(agent, goalId);
+          if (goalRepetitiveRequested && created) {
+            await sendGoalRepetitiveKickoff(created.id);
+          }
+        })();
       } else if (agent === "general" && goalDiscoveryRequested) {
         const existing = findExistingGoalDiscoverySession();
         if (existing) {
@@ -605,6 +671,7 @@ export function ChatPage() {
       searchParams.delete("goalId");
       searchParams.delete("goalTitle");
       searchParams.delete(GOAL_DISCOVERY_QUERY_PARAM);
+      searchParams.delete(GOAL_REPETITIVE_QUERY_PARAM);
       setSearchParams(searchParams, { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

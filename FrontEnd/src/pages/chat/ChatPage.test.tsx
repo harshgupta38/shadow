@@ -666,6 +666,122 @@ describe("ChatPage", () => {
     expect(await screen.findByText("What do you want to achieve first, and by what date?")).toBeInTheDocument();
   });
 
+  it("starts repetitive planning with Goal Coach from goal detail CTA", async () => {
+    const coachSession = {
+      id: 19,
+      agent_type: "goal_coach",
+      title: "Get SDE Job at Google",
+      goal_id: 42,
+      created_at: "2026-07-03T11:00:00Z",
+      updated_at: "2026-07-03T11:00:00Z",
+    } as const;
+
+    mockedChat.sessions.mockResolvedValue([]);
+    mockedChat.createSession.mockResolvedValue(coachSession);
+    mockedChat.send.mockResolvedValue({
+      user_message: {
+        id: 381,
+        session_id: coachSession.id,
+        role: "user",
+        content: "[goal_repetitive_seed] based on milestones propose repetitive tasks",
+        agent_type: "goal_coach",
+        created_at: "2026-07-03T11:01:00Z",
+      },
+      assistant_message: {
+        id: 382,
+        session_id: coachSession.id,
+        role: "assistant",
+        content: "Here are repetitive tasks mapped to your milestones.",
+        agent_type: "goal_coach",
+        created_at: "2026-07-03T11:01:02Z",
+      },
+      session: {
+        ...coachSession,
+        updated_at: "2026-07-03T11:01:02Z",
+      },
+      proposed_actions: [],
+    });
+
+    renderPage("/assistant?agent=goal_coach&goalId=42&goalRepetitive=1");
+
+    await waitFor(() =>
+      expect(mockedChat.createSession).toHaveBeenCalledWith({
+        agent_type: "goal_coach",
+        title: "Goal Coach",
+        goal_id: 42,
+      }),
+    );
+
+    await waitFor(() => expect(mockedChat.send).toHaveBeenCalledTimes(1));
+    expect(mockedChat.send).toHaveBeenCalledWith(
+      coachSession.id,
+      expect.stringContaining("[goal_repetitive_seed]"),
+    );
+    expect(await screen.findByText("based on milestones propose repetitive tasks")).toBeInTheDocument();
+    expect(screen.queryByText(/\[goal_repetitive_seed\]/i)).not.toBeInTheDocument();
+    expect(await screen.findByText("Here are repetitive tasks mapped to your milestones.")).toBeInTheDocument();
+  });
+
+  it("reuses existing goal coach chat and still triggers repetitive kickoff", async () => {
+    const existingCoachSession = {
+      id: 20,
+      agent_type: "goal_coach",
+      title: "Get SDE Job at Google",
+      goal_id: 42,
+      created_at: "2026-07-03T12:00:00Z",
+      updated_at: "2026-07-03T12:15:00Z",
+    } as const;
+
+    mockedChat.sessions.mockResolvedValue([existingCoachSession]);
+    mockedChat.messages.mockResolvedValue([
+      {
+        id: 391,
+        session_id: existingCoachSession.id,
+        role: "assistant",
+        content: "Current coach context loaded.",
+        agent_type: "goal_coach",
+        created_at: "2026-07-03T12:16:00Z",
+      },
+    ]);
+    mockedChat.send.mockResolvedValue({
+      user_message: {
+        id: 392,
+        session_id: existingCoachSession.id,
+        role: "user",
+        content: "[goal_repetitive_seed] based on milestones propose repetitive tasks",
+        agent_type: "goal_coach",
+        created_at: "2026-07-03T12:17:00Z",
+      },
+      assistant_message: {
+        id: 393,
+        session_id: existingCoachSession.id,
+        role: "assistant",
+        content: "I'll suggest repetitive tasks now.",
+        agent_type: "goal_coach",
+        created_at: "2026-07-03T12:17:02Z",
+      },
+      session: {
+        ...existingCoachSession,
+        updated_at: "2026-07-03T12:17:02Z",
+      },
+      proposed_actions: [],
+    });
+
+    renderPage("/assistant?agent=goal_coach&goalId=42&goalRepetitive=1");
+
+    await waitFor(() => expect(mockedChat.messages).toHaveBeenCalledWith(existingCoachSession.id));
+    expect(mockedChat.createSession).not.toHaveBeenCalled();
+
+    await waitFor(() => expect(mockedChat.send).toHaveBeenCalledTimes(1));
+    expect(mockedChat.send).toHaveBeenCalledWith(
+      existingCoachSession.id,
+      expect.stringContaining("[goal_repetitive_seed]"),
+    );
+    expect(await screen.findByText("based on milestones propose repetitive tasks")).toBeInTheDocument();
+    expect(screen.queryByText(/\[goal_repetitive_seed\]/i)).not.toBeInTheDocument();
+    expect(await screen.findByText("I'll suggest repetitive tasks now.")).toBeInTheDocument();
+  });
+
   it("reuses existing goal discovery chat instead of creating a new one", async () => {
     const existingDiscoverySession = {
       id: 18,

@@ -251,6 +251,7 @@ export function GoalDetailPage() {
   }
 
   const doneCount = goal.milestones.filter((m) => m.status === "done").length;
+  const hasMilestones = goal.milestones.length > 0;
   const sortedMilestones = [...goal.milestones].sort(
     (a, b) => a.order - b.order || a.id - b.id,
   );
@@ -302,7 +303,7 @@ export function GoalDetailPage() {
       <SectionCard
         title="Milestones"
         subtitle={
-          goal.milestones.length > 0
+          hasMilestones
             ? `${doneCount} of ${goal.milestones.length} complete`
             : "Break this goal into concrete steps"
         }
@@ -464,6 +465,16 @@ export function GoalDetailPage() {
         <SectionCard
           title="Linked repetitive items"
           subtitle="Habits connected to this goal and their current momentum."
+          actions={
+            hasMilestones ? (
+              <Link
+                to={`/assistant?agent=goal_coach&goalId=${goal.id}&goalRepetitive=1`}
+                className="btn btn-soft btn-sm"
+              >
+                <Stars size={14} className="me-1" /> Ask Goal Coach
+              </Link>
+            ) : undefined
+          }
         >
           {linkedRepetitiveLoading ? (
             <LoadingState full={false} label="Loading linked repetitive items..." />

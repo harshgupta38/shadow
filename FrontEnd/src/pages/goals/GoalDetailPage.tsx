@@ -2,10 +2,13 @@ import { useState } from "react";
 import { Dropdown } from "react-bootstrap";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
+  Archive,
   ArrowLeft,
   CalendarEvent,
   CheckLg,
+  PauseFill,
   PencilSquare,
+  PlayFill,
   PlusLg,
   Stars,
   ThreeDotsVertical,
@@ -61,6 +64,18 @@ const REPETITIVE_PRIORITY_PILL: Record<GoalLinkedRepetitiveTask["priority"], Pil
   high: "warn",
   medium: "info",
   low: "muted",
+};
+
+const REPETITIVE_STATUS_LABEL: Record<GoalLinkedRepetitiveTask["status"], string> = {
+  active: "Active",
+  paused: "Paused",
+  archived: "Archived",
+};
+
+const REPETITIVE_STATUS_PILL: Record<GoalLinkedRepetitiveTask["status"], PillVariant> = {
+  active: "success",
+  paused: "warn",
+  archived: "muted",
 };
 
 const REPETITIVE_PRIORITY_SORT: Record<GoalLinkedRepetitiveTask["priority"], number> = {
@@ -126,6 +141,8 @@ export function GoalDetailPage() {
     data: linkedRepetitive,
     loading: linkedRepetitiveLoading,
     error: linkedRepetitiveError,
+    reload: reloadLinkedRepetitive,
+    setData: setLinkedRepetitive,
   } = useAsync(() => api.goals.linkedRepetitiveTasks(id), [id]);
 
   const [showEdit, setShowEdit] = useState(false);
@@ -136,6 +153,9 @@ export function GoalDetailPage() {
   const [showMilestoneModal, setShowMilestoneModal] = useState(false);
   const [editingMilestone, setEditingMilestone] = useState<Milestone | null>(null);
   const [savingMilestoneEdit, setSavingMilestoneEdit] = useState(false);
+  const [updatingRepetitiveStatusId, setUpdatingRepetitiveStatusId] = useState<number | null>(
+    null,
+  );
 
   function applyMilestones(milestones: Milestone[]) {
     setData((prev) =>
@@ -230,6 +250,44 @@ export function GoalDetailPage() {
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Couldn't delete the goal.");
       setDeleting(false);
+    }
+  }
+
+  async function updateLinkedRepetitiveStatus(
+    task: GoalLinkedRepetitiveTask,
+    status: GoalLinkedRepetitiveTask["status"],
+  ) {
+    if (task.status === status) return;
+
+    setUpdatingRepetitiveStatusId(task.id);
+    setLinkedRepetitive((prev) =>
+      (prev ?? []).map((entry) =>
+        entry.id === task.id
+          ? {
+              ...entry,
+              status,
+            }
+          : entry,
+      ),
+    );
+
+    try {
+      const updated = await api.repetitiveTasks.update(task.id, { status });
+      setLinkedRepetitive((prev) =>
+        (prev ?? []).map((entry) =>
+          entry.id === task.id
+            ? {
+                ...entry,
+                status: updated.status,
+              }
+            : entry,
+        ),
+      );
+    } catch (err) {
+      reloadLinkedRepetitive();
+      toast.error(err instanceof ApiError ? err.message : "Couldn't update this repetitive task.");
+    } finally {
+      setUpdatingRepetitiveStatusId(null);
     }
   }
 
@@ -463,7 +521,7 @@ export function GoalDetailPage() {
 
       <div className="mt-4">
         <SectionCard
-          title="Linked repetitive items"
+          title="Habit library"
           subtitle="Habits connected to this goal and their current momentum."
           actions={
             hasMilestones ? (
@@ -494,28 +552,126 @@ export function GoalDetailPage() {
             />
           ) : (
             <div className="d-flex flex-column gap-2">
-              {sortedLinkedTasks.map((task) => (
-                <article key={task.id} className="surface-2 p-3">
-                  <div className="d-flex align-items-start justify-content-between gap-2">
-                    <div className="min-w-0">
-                      <div className="fw-semibold text-truncate">{task.name}</div>
-                      {task.description && <div className="small text-muted-2">{task.description}</div>}
+              {sortedLinkedTasks.map((task) => {
+                const statusBusy = updatingRepetitiveStatusId === task.id;
+                return (
+                  <article key={task.id} className="surface-2 p-3">
+                    <div className="d-flex align-items-start justify-content-between gap-2">
+                      <div className="min-w-0">
+                        <div className="fw-semibold text-truncate">{task.name}</div>
+                        {task.description && <div className="small text-muted-2">{task.description}</div>}
+                      </div>
+                      <div className="d-none d-md-flex align-items-center gap-2 flex-shrink-0">
+                        <Dropdown align="end" className="flex-shrink-0">
+                          <Dropdown.Toggle
+                            as="button"
+                            type="button"
+                            className="btn p-0 border-0 bg-transparent shadow-none"
+                            aria-label={`Update status for ${task.name}`}
+                            disabled={statusBusy}
+                          >
+                            <Pill variant={REPETITIVE_STATUS_PILL[task.status]} dot>
+                              {REPETITIVE_STATUS_LABEL[task.status]}
+                            </Pill>
+                          </Dropdown.Toggle>
+                          <Dropdown.Menu>
+                            {task.status === "active" && (
+                              <Dropdown.Item
+                                onClick={() => void updateLinkedRepetitiveStatus(task, "paused")}
+                              >
+                                <PauseFill size={14} className="me-2" /> Pause
+                              </Dropdown.Item>
+                            )}
+                            {task.status === "paused" && (
+                              <Dropdown.Item
+                                onClick={() => void updateLinkedRepetitiveStatus(task, "active")}
+                              >
+                                <PlayFill size={14} className="me-2" /> Resume
+                              </Dropdown.Item>
+                            )}
+                            {task.status !== "archived" && (
+                              <Dropdown.Item
+                                onClick={() => void updateLinkedRepetitiveStatus(task, "archived")}
+                              >
+                                <Archive size={14} className="me-2" /> Archive
+                              </Dropdown.Item>
+                            )}
+                            {task.status === "archived" && (
+                              <Dropdown.Item
+                                onClick={() => void updateLinkedRepetitiveStatus(task, "active")}
+                              >
+                                <PlayFill size={14} className="me-2" /> Restore
+                              </Dropdown.Item>
+                            )}
+                          </Dropdown.Menu>
+                        </Dropdown>
+                        <Pill variant={REPETITIVE_PRIORITY_PILL[task.priority]}>
+                          {REPETITIVE_PRIORITY_LABEL[task.priority]}
+                        </Pill>
+                      </div>
                     </div>
-                    <Pill variant={REPETITIVE_PRIORITY_PILL[task.priority]}>
-                      {REPETITIVE_PRIORITY_LABEL[task.priority]}
-                    </Pill>
-                  </div>
-                  <div className="d-flex flex-wrap gap-2 mt-2">
-                    <Pill variant="brand">{task.category || "Uncategorized"}</Pill>
-                    <Pill>
-                      Current streak: <span className="fw-semibold">{task.current_streak_days}d</span>
-                    </Pill>
-                    <Pill>
-                      Max streak: <span className="fw-semibold">{task.max_streak_days}d</span>
-                    </Pill>
-                  </div>
-                </article>
-              ))}
+                    <div className="d-flex flex-wrap gap-2 mt-2">
+                      <Dropdown align="end" className="d-md-none">
+                        <Dropdown.Toggle
+                          as="button"
+                          type="button"
+                          className="btn p-0 border-0 bg-transparent shadow-none"
+                          aria-label={`Update status for ${task.name}`}
+                          disabled={statusBusy}
+                        >
+                          <Pill variant={REPETITIVE_STATUS_PILL[task.status]} dot>
+                            {REPETITIVE_STATUS_LABEL[task.status]}
+                          </Pill>
+                        </Dropdown.Toggle>
+                        <Dropdown.Menu>
+                          {task.status === "active" && (
+                            <Dropdown.Item
+                              onClick={() => void updateLinkedRepetitiveStatus(task, "paused")}
+                            >
+                              <PauseFill size={14} className="me-2" /> Pause
+                            </Dropdown.Item>
+                          )}
+                          {task.status === "paused" && (
+                            <Dropdown.Item
+                              onClick={() => void updateLinkedRepetitiveStatus(task, "active")}
+                            >
+                              <PlayFill size={14} className="me-2" /> Resume
+                            </Dropdown.Item>
+                          )}
+                          {task.status !== "archived" && (
+                            <Dropdown.Item
+                              onClick={() => void updateLinkedRepetitiveStatus(task, "archived")}
+                            >
+                              <Archive size={14} className="me-2" /> Archive
+                            </Dropdown.Item>
+                          )}
+                          {task.status === "archived" && (
+                            <Dropdown.Item
+                              onClick={() => void updateLinkedRepetitiveStatus(task, "active")}
+                            >
+                              <PlayFill size={14} className="me-2" /> Restore
+                            </Dropdown.Item>
+                          )}
+                        </Dropdown.Menu>
+                      </Dropdown>
+                      <Pill className="d-md-none" variant={REPETITIVE_PRIORITY_PILL[task.priority]}>
+                        {REPETITIVE_PRIORITY_LABEL[task.priority]}
+                      </Pill>
+                      <Pill variant="brand">{task.category || "Uncategorized"}</Pill>
+                      <Pill>
+                        <span className="d-none d-md-inline">Current streak:</span>
+                        <span className="d-md-none">Streak:</span>{" "}
+                        <span className="fw-semibold">{task.current_streak_days}d</span>
+                      </Pill>
+                      <Pill>
+                        <span className="d-none d-md-inline">Max streak:</span>
+                        <span className="d-md-none">Max:</span>{" "}
+                        <span className="fw-semibold">{task.max_streak_days}d</span>
+                      </Pill>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           )}
         </SectionCard>

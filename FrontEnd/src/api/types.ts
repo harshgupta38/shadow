@@ -848,6 +848,7 @@ export interface PlanTaskLinkedMetric {
   time_span: MetricTimeSpan;
   time_span_custom_text: string | null;
   logged_total: number;
+  is_streak_style?: boolean;
 }
 
 export interface PlannedTaskCreate {

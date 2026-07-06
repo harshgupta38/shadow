@@ -414,4 +414,54 @@ describe("PlanPage", () => {
 		expect(mockedPlanApi.update).toHaveBeenCalledWith(1, { status: "done" });
 		expect(mockedPlanApi.logProgress).not.toHaveBeenCalled();
 	});
+
+	it("uses checkbox toggle for weekly streak-linked tasks", async () => {
+		const user = userEvent.setup();
+
+		mockedPlanApi.workspace.mockResolvedValue(
+			buildWorkspace({
+				tasks: [
+					buildTask({
+						linked_metrics: [
+							{
+								metric_id: 31,
+								label: "Workout sessions",
+								unit_text: "count",
+								target: 3,
+								time_span: "week",
+								time_span_custom_text: null,
+								logged_total: 1,
+								is_streak_style: true,
+							},
+						],
+					}),
+				],
+			}),
+		);
+
+		mockedPlanApi.update.mockResolvedValue(
+			buildTask({
+				status: "done",
+				linked_metrics: [
+					{
+						metric_id: 31,
+						label: "Workout sessions",
+						unit_text: "count",
+						target: 3,
+						time_span: "week",
+						time_span_custom_text: null,
+						logged_total: 2,
+						is_streak_style: true,
+					},
+				],
+			}),
+		);
+
+		renderPage();
+
+		await user.click(await screen.findByRole("button", { name: "Mark as done" }));
+
+		expect(mockedPlanApi.update).toHaveBeenCalledWith(1, { status: "done" });
+		expect(mockedPlanApi.logProgress).not.toHaveBeenCalled();
+	});
 });

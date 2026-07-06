@@ -97,10 +97,13 @@ export function TaskItem({
     ?? "Not linked to a goal";
   const urgencyLabel = task.overdue ? "Overdue" : due;
   const primaryLinkedMetric = task.linked_metrics?.[0] ?? null;
-  const isStreakLinkedMetric =
+  const legacyDailyFallbackStreak =
     primaryLinkedMetric !== null
     && primaryLinkedMetric.time_span === "day"
     && primaryLinkedMetric.target === 1;
+  const isStreakLinkedMetric =
+    primaryLinkedMetric !== null
+    && (primaryLinkedMetric.is_streak_style ?? legacyDailyFallbackStreak);
   const isQuantifiableTask = primaryLinkedMetric !== null && !isStreakLinkedMetric;
   const metricUnitText = primaryLinkedMetric?.unit_text?.trim() || "units";
   const metricLoggedTotal = primaryLinkedMetric ? Number(primaryLinkedMetric.logged_total || 0) : 0;

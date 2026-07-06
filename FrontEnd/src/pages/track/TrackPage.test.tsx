@@ -251,6 +251,26 @@ describe("TrackPage", () => {
     expect(await screen.findByText(/0 day streak/i)).toBeInTheDocument();
   });
 
+  it("shows week-based streak badge for weekly streak-style metrics", async () => {
+    mockedMetricsApi.list.mockResolvedValue([
+      buildMetric({
+        id: 3,
+        label: "Workout sessions",
+        key: "workout_sessions_weekly",
+        unit: "count",
+        unit_text: "count",
+        time_span: "week",
+        target: 3,
+      }),
+    ]);
+    mockedMetricsApi.logs.mockResolvedValue([]);
+
+    renderPage();
+
+    expect(await screen.findByText("Workout sessions")).toBeInTheDocument();
+    expect(await screen.findByText(/0 week streak/i)).toBeInTheDocument();
+  });
+
   it("keeps manual fields hidden in shadow mode until Shadow setup succeeds", async () => {
     const user = userEvent.setup();
     renderPage();

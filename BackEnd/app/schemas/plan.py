@@ -105,6 +105,7 @@ class PlanTaskLinkedMetricRead(BaseModel):
     time_span: MetricTimeSpan
     time_span_custom_text: str | None
     logged_total: float = 0.0
+    is_streak_style: bool = False
 
 
 class PlanWorkspaceTaskRead(PlannedTaskRead):

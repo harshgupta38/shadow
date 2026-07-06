@@ -787,6 +787,111 @@ def test_task_status_toggle_syncs_daily_streak_metric_logs(
         app.dependency_overrides.pop(get_provider, None)
 
 
+def test_task_status_toggle_syncs_weekly_streak_metric_logs(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    app.dependency_overrides[get_provider] = lambda: EmptyPlanProvider()
+
+    try:
+        today = date.today()
+        tomorrow = today + timedelta(days=1)
+
+        metric = client.post(
+            "/api/metrics",
+            headers=auth_headers,
+            json={
+                "key": "workout_sessions_weekly",
+                "label": "Workout sessions",
+                "unit_text": "count",
+                "time_span": "week",
+                "target": 3,
+            },
+        )
+        assert metric.status_code == 201
+        metric_id = int(metric.json()["id"])
+
+        repetitive = client.post(
+            "/api/repetitive-tasks",
+            headers=auth_headers,
+            json={
+                "name": "Workout",
+                "description": "Daily training session.",
+                "frequencies": ["daily"],
+                "priority": "high",
+                "linked_metric_ids": [metric_id],
+            },
+        )
+        assert repetitive.status_code == 201
+
+        generated_today = client.post(
+            "/api/plan/generate-today",
+            headers=auth_headers,
+            json={"on_date": today.isoformat()},
+        )
+        assert generated_today.status_code == 200
+        today_task = next(row for row in generated_today.json()["tasks"] if row["title"] == "Workout")
+
+        mark_today_done = client.put(
+            f"/api/plan/{today_task['id']}",
+            headers=auth_headers,
+            json={"status": "done"},
+        )
+        assert mark_today_done.status_code == 200
+
+        generated_tomorrow = client.post(
+            "/api/plan/generate-today",
+            headers=auth_headers,
+            json={"on_date": tomorrow.isoformat()},
+        )
+        assert generated_tomorrow.status_code == 200
+        tomorrow_task = next(
+            row for row in generated_tomorrow.json()["tasks"] if row["title"] == "Workout"
+        )
+
+        mark_tomorrow_done = client.put(
+            f"/api/plan/{tomorrow_task['id']}",
+            headers=auth_headers,
+            json={"status": "done"},
+        )
+        assert mark_tomorrow_done.status_code == 200
+
+        workspace_after_second_done = client.get(
+            f"/api/plan/workspace?on_date={tomorrow.isoformat()}",
+            headers=auth_headers,
+        )
+        assert workspace_after_second_done.status_code == 200
+        done_task = next(
+            row
+            for row in workspace_after_second_done.json()["tasks"]
+            if row["id"] == tomorrow_task["id"]
+        )
+        assert done_task["linked_metrics"]
+        assert done_task["linked_metrics"][0]["is_streak_style"] is True
+        assert float(done_task["linked_metrics"][0]["logged_total"]) == 2.0
+
+        mark_tomorrow_planned = client.put(
+            f"/api/plan/{tomorrow_task['id']}",
+            headers=auth_headers,
+            json={"status": "planned"},
+        )
+        assert mark_tomorrow_planned.status_code == 200
+
+        workspace_after_revert = client.get(
+            f"/api/plan/workspace?on_date={tomorrow.isoformat()}",
+            headers=auth_headers,
+        )
+        assert workspace_after_revert.status_code == 200
+        reverted_task = next(
+            row
+            for row in workspace_after_revert.json()["tasks"]
+            if row["id"] == tomorrow_task["id"]
+        )
+        assert float(reverted_task["linked_metrics"][0]["logged_total"]) == 1.0
+    finally:
+        app.dependency_overrides.pop(get_provider, None)
+
+
 def test_task_progress_updates_linked_metric_and_completes_when_target_reached(
     client: TestClient,
     auth_headers: dict[str, str],

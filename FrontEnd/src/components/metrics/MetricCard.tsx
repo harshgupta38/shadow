@@ -26,11 +26,23 @@ export function MetricCard({ metric, onEdit, onDelete }: MetricCardProps) {
   const [showNote, setShowNote] = useState(false);
   const [logging, setLogging] = useState(false);
 
-  const stats = useMemo(() => computeMetricStats(logs ?? []), [logs]);
-  const unitLabel = (metric.unit_text ?? "").trim() || METRIC_UNIT_LABEL[metric.unit];
   const timeSpan = metric.time_span ?? "day";
-  const isStreakMetric =
+  const isDailyStreakMetric =
     timeSpan === "day" && metric.target === 1 && (metric.unit === "count" || metric.unit === "custom");
+  const isWeeklyStreakMetric =
+    timeSpan === "week"
+    && (metric.target ?? 0) > 0
+    && (metric.unit === "count" || metric.unit === "custom");
+  const isStreakMetric = isDailyStreakMetric || isWeeklyStreakMetric;
+  const stats = useMemo(
+    () => computeMetricStats(logs ?? [], {
+      streakMode: isWeeklyStreakMetric ? "weekly" : "daily",
+      weeklyTarget: isWeeklyStreakMetric ? metric.target : null,
+    }),
+    [logs, isWeeklyStreakMetric, metric.target],
+  );
+  const unitLabel = (metric.unit_text ?? "").trim() || METRIC_UNIT_LABEL[metric.unit];
+  const streakUnitLabel = isWeeklyStreakMetric ? "week" : "day";
   const timeSpanLabel =
     timeSpan === "custom"
       ? (metric.time_span_custom_text ?? "").trim() || "Custom"
@@ -69,7 +81,7 @@ export function MetricCard({ metric, onEdit, onDelete }: MetricCardProps) {
             <Pill>{unitLabel}</Pill>
             {(isStreakMetric || stats.streak > 0) && (
               <Pill variant={stats.streak > 0 ? "warn" : "muted"}>
-                <Fire size={12} /> {stats.streak} day{stats.streak > 1 ? "s" : ""} streak
+                <Fire size={12} /> {stats.streak} {streakUnitLabel}{stats.streak > 1 ? "s" : ""} streak
               </Pill>
             )}
           </div>

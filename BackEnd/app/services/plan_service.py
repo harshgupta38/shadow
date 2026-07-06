@@ -867,6 +867,7 @@ def _linked_metrics_by_repetitive_id(
                 RepetitiveTaskMetricLink.repetitive_task_id,
                 TrackedMetric.id,
                 TrackedMetric.label,
+                TrackedMetric.unit,
                 TrackedMetric.unit_text,
                 TrackedMetric.target,
                 TrackedMetric.time_span,
@@ -882,20 +883,6 @@ def _linked_metrics_by_repetitive_id(
         )
     )
 
-    metric_ids = sorted({int(row[1]) for row in link_rows})
-    totals_by_metric_id: dict[int, float] = {}
-    if metric_ids:
-        total_rows = db.execute(
-            select(ActivityLog.metric_id, func.coalesce(func.sum(ActivityLog.value), 0.0))
-            .where(
-                ActivityLog.user_id == user.id,
-                ActivityLog.date == on_date,
-                ActivityLog.metric_id.in_(metric_ids),
-            )
-            .group_by(ActivityLog.metric_id)
-        )
-        totals_by_metric_id = {int(metric_id): float(total) for metric_id, total in total_rows}
-
     def _as_time_span(value: object) -> MetricTimeSpan:
         if isinstance(value, MetricTimeSpan):
             return value
@@ -909,17 +896,75 @@ def _linked_metrics_by_repetitive_id(
                 return MetricTimeSpan.day
         return MetricTimeSpan.day
 
+    def _as_metric_unit(value: object) -> MetricUnit:
+        if isinstance(value, MetricUnit):
+            return value
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized.startswith("metricunit."):
+                normalized = normalized.split(".", 1)[1]
+            try:
+                return MetricUnit(normalized)
+            except ValueError:
+                return MetricUnit.count
+        return MetricUnit.count
+
+    def _window_start_for_time_span(time_span: MetricTimeSpan, *, on_date: date) -> date:
+        if time_span == MetricTimeSpan.week:
+            return on_date - timedelta(days=6)
+        if time_span == MetricTimeSpan.month:
+            return on_date.replace(day=1)
+        if time_span == MetricTimeSpan.year:
+            return on_date.replace(month=1, day=1)
+        return on_date
+
+    metric_time_spans: dict[int, MetricTimeSpan] = {}
+    for row in link_rows:
+        metric_id = int(row[1])
+        if metric_id not in metric_time_spans:
+            metric_time_spans[metric_id] = _as_time_span(row[6])
+
+    totals_by_metric_id: dict[int, float] = {}
+    for metric_id, time_span in metric_time_spans.items():
+        window_start = _window_start_for_time_span(time_span, on_date=on_date)
+        total_raw = db.scalar(
+            select(func.coalesce(func.sum(ActivityLog.value), 0.0)).where(
+                ActivityLog.user_id == user.id,
+                ActivityLog.metric_id == metric_id,
+                ActivityLog.date >= window_start,
+                ActivityLog.date <= on_date,
+            )
+        )
+        totals_by_metric_id[metric_id] = float(total_raw or 0.0)
+
     linked: dict[int, list[PlanTaskLinkedMetricRead]] = {}
-    for repetitive_task_id, metric_id, label, unit_text, target, time_span, custom_span in link_rows:
+    for (
+        repetitive_task_id,
+        metric_id,
+        label,
+        unit,
+        unit_text,
+        target,
+        time_span,
+        custom_span,
+    ) in link_rows:
+        normalized_time_span = _as_time_span(time_span)
+        normalized_target = int(target) if target is not None else None
+        normalized_unit = _as_metric_unit(unit)
         linked.setdefault(int(repetitive_task_id), []).append(
             PlanTaskLinkedMetricRead(
                 metric_id=int(metric_id),
                 label=str(label),
                 unit_text=str(unit_text),
-                target=int(target) if target is not None else None,
-                time_span=_as_time_span(time_span),
+                target=normalized_target,
+                time_span=normalized_time_span,
                 time_span_custom_text=str(custom_span) if custom_span is not None else None,
                 logged_total=totals_by_metric_id.get(int(metric_id), 0.0),
+                is_streak_style=_is_streak_style_metric_values(
+                    unit=normalized_unit,
+                    time_span=normalized_time_span,
+                    target=normalized_target,
+                ),
             )
         )
 
@@ -974,15 +1019,34 @@ def _streak_sync_note(task_id: int) -> str:
     return f"{_STREAK_SYNC_NOTE_PREFIX}:task={task_id}"
 
 
-def _is_daily_streak_metric(metric: TrackedMetric) -> bool:
+def _is_streak_style_metric_values(
+    *,
+    unit: MetricUnit,
+    time_span: MetricTimeSpan,
+    target: int | None,
+) -> bool:
+    if target is None or target <= 0:
+        return False
+    if unit not in {MetricUnit.count, MetricUnit.custom}:
+        return False
+    if time_span == MetricTimeSpan.day:
+        return target == 1
+    if time_span == MetricTimeSpan.week:
+        return True
+    return False
+
+
+def _is_streak_style_metric(metric: TrackedMetric) -> bool:
     return (
-        metric.time_span == MetricTimeSpan.day
-        and metric.target == 1
-        and metric.unit in {MetricUnit.count, MetricUnit.custom}
+        _is_streak_style_metric_values(
+            unit=metric.unit,
+            time_span=metric.time_span,
+            target=metric.target,
+        )
     )
 
 
-def _sync_daily_streak_metrics_with_task_status(
+def _sync_streak_style_metrics_with_task_status(
     db: Session,
     user: User,
     task: PlannedTask,
@@ -997,7 +1061,7 @@ def _sync_daily_streak_metrics_with_task_status(
     streak_metrics = [
         metric
         for metric in _linked_metrics_for_task(db, user, task)
-        if _is_daily_streak_metric(metric)
+        if _is_streak_style_metric(metric)
     ]
     if not streak_metrics:
         return
@@ -1019,15 +1083,19 @@ def _sync_daily_streak_metrics_with_task_status(
             if existing_auto_log_ids:
                 continue
 
-            current_total_raw = db.scalar(
-                select(func.coalesce(func.sum(ActivityLog.value), 0.0)).where(
-                    ActivityLog.user_id == user.id,
-                    ActivityLog.metric_id == metric.id,
-                    ActivityLog.date == task.date,
+            value_to_add = 1.0
+            if metric.time_span == MetricTimeSpan.day:
+                current_total_raw = db.scalar(
+                    select(func.coalesce(func.sum(ActivityLog.value), 0.0)).where(
+                        ActivityLog.user_id == user.id,
+                        ActivityLog.metric_id == metric.id,
+                        ActivityLog.date == task.date,
+                    )
                 )
-            )
-            current_total = float(current_total_raw or 0.0)
-            if current_total >= 1.0:
+                current_total = float(current_total_raw or 0.0)
+                value_to_add = max(1.0 - current_total, 0.0)
+
+            if value_to_add <= 0:
                 continue
 
             db.add(
@@ -1035,7 +1103,7 @@ def _sync_daily_streak_metrics_with_task_status(
                     user_id=user.id,
                     metric_id=metric.id,
                     date=task.date,
-                    value=max(1.0 - current_total, 0.0),
+                    value=value_to_add,
                     note=sync_note,
                     source=ActivitySource.integration,
                 )
@@ -1843,7 +1911,7 @@ def update_task(db: Session, user: User, task_id: int, data: PlannedTaskUpdate) 
         elif task.status != PlannedTaskStatus.done:
             task.completed_at = None
 
-        _sync_daily_streak_metrics_with_task_status(
+        _sync_streak_style_metrics_with_task_status(
             db,
             user,
             task,

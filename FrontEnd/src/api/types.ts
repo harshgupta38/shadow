@@ -4,7 +4,7 @@
  */
 
 // ── Enums (string unions match backend `str, enum.Enum` values) ────────────
-export type ThemePreference = "light" | "dark";
+export type ThemePreference = "browser" | "light" | "dark";
 
 export type AIResponseLength = "short" | "balanced" | "detailed" | "very_detailed";
 export type AIPersonality =

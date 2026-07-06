@@ -27,7 +27,7 @@ class UserSetting(Base, TimestampMixin):
 
     # Appearance
     theme_preference: Mapped[ThemePreference] = mapped_column(
-        SAEnum(ThemePreference), default=ThemePreference.light, nullable=False
+        SAEnum(ThemePreference), default=ThemePreference.browser, nullable=False
     )
 
     # Notifications

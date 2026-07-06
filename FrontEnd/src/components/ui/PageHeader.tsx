@@ -10,7 +10,7 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, subtitle, icon, actions }: PageHeaderProps) {
   return (
-    <div className="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-4">
+    <div className="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
       <div className="d-flex align-items-center gap-3">
         {icon && <div className="stat-icon">{icon}</div>}
         <div>

@@ -1,8 +1,9 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   BellFill,
   CalendarWeek,
   ChatSquareTextFill,
+  Display,
   GearFill,
   Globe,
   MoonStarsFill,
@@ -41,6 +42,36 @@ type SaveKey =
   | "privacy"
   | "integrations"
   | "accessibility";
+
+const EMPTY_DIRTY_STATE: Record<SaveKey, boolean> = {
+  appearance: false,
+  notifications: false,
+  ai: false,
+  planner: false,
+  privacy: false,
+  integrations: false,
+  accessibility: false,
+};
+
+const SECTION_FIELD_BY_SAVE_KEY = {
+  appearance: "appearance",
+  notifications: "notifications",
+  ai: "ai_behavior",
+  planner: "planner",
+  privacy: "privacy",
+  integrations: "integrations",
+  accessibility: "accessibility",
+} as const;
+
+const SECTION_LABEL_BY_SAVE_KEY: Record<SaveKey, string> = {
+  appearance: "Appearance",
+  notifications: "Notifications",
+  ai: "AI behavior",
+  planner: "Planner defaults",
+  privacy: "Privacy",
+  integrations: "Integrations",
+  accessibility: "Accessibility",
+};
 
 const RESPONSE_LENGTH_OPTIONS: Array<{ value: AIResponseLength; label: string }> = [
   { value: "short", label: "Short" },
@@ -92,6 +123,24 @@ function isSupportedGeminiModel(value: string): boolean {
   return GEMINI_MODEL_OPTIONS.some((model) => model.value === value);
 }
 
+function normalizeSettingsForEditor(settings: SettingsRead): SettingsRead {
+  const aiDefaultModel = isSupportedGeminiModel(settings.ai_behavior.ai_default_model)
+    ? settings.ai_behavior.ai_default_model
+    : DEFAULT_GEMINI_MODEL;
+
+  return {
+    ...settings,
+    ai_behavior: {
+      ...settings.ai_behavior,
+      ai_default_model: aiDefaultModel,
+    },
+  };
+}
+
+function sectionsEqual<T>(left: T, right: T): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
 interface ToggleRowProps {
   id: string;
   label: string;
@@ -129,6 +178,7 @@ export function SettingsPage() {
 
   const settingsQuery = useAsync(() => api.settings.get(), []);
   const [draft, setDraft] = useState<SettingsRead | null>(null);
+  const [baseline, setBaseline] = useState<SettingsRead | null>(null);
   const [saving, setSaving] = useState<Record<SaveKey, boolean>>({
     appearance: false,
     notifications: false,
@@ -143,138 +193,124 @@ export function SettingsPage() {
   const [confirmClearChat, setConfirmClearChat] = useState(false);
 
   useEffect(() => {
-    if (!settingsQuery.data) return;
+    if (!settingsQuery.data || draft || baseline) return;
 
-    const loaded = settingsQuery.data;
-    const aiDefaultModel = isSupportedGeminiModel(loaded.ai_behavior.ai_default_model)
-      ? loaded.ai_behavior.ai_default_model
-      : DEFAULT_GEMINI_MODEL;
-
-    setDraft({
-      ...loaded,
-      ai_behavior: {
-        ...loaded.ai_behavior,
-        ai_default_model: aiDefaultModel,
-      },
-    });
-  }, [settingsQuery.data]);
+    const normalized = normalizeSettingsForEditor(settingsQuery.data);
+    setDraft(normalized);
+    setBaseline(normalized);
+  }, [baseline, draft, settingsQuery.data]);
 
   function setSavingState(key: SaveKey, value: boolean) {
     setSaving((prev) => ({ ...prev, [key]: value }));
   }
 
-  function applyUpdated(updated: SettingsRead) {
-    settingsQuery.setData(updated);
-    setDraft(updated);
-    setTheme(updated.appearance.theme_preference);
-    patchUser({ theme_preference: updated.appearance.theme_preference });
+  function preventSubmit(event: FormEvent) {
+    event.preventDefault();
   }
 
-  async function saveAppearance(event: FormEvent) {
-    event.preventDefault();
-    if (!draft) return;
-    setSavingState("appearance", true);
-    try {
-      const updated = await api.settings.updateAppearance({
-        theme_preference: draft.appearance.theme_preference,
-      });
-      applyUpdated(updated);
-      toast.success("Appearance settings updated.");
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Couldn't update appearance settings.");
-    } finally {
-      setSavingState("appearance", false);
-    }
-  }
+  const dirtyBySection = useMemo<Record<SaveKey, boolean>>(() => {
+    if (!draft || !baseline) return EMPTY_DIRTY_STATE;
 
-  async function saveNotifications(event: FormEvent) {
-    event.preventDefault();
-    if (!draft) return;
-    setSavingState("notifications", true);
-    try {
-      const updated = await api.settings.updateNotifications(draft.notifications);
-      applyUpdated(updated);
-      toast.success("Notification settings updated.");
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Couldn't update notifications.");
-    } finally {
-      setSavingState("notifications", false);
-    }
-  }
+    return {
+      appearance: !sectionsEqual(draft.appearance, baseline.appearance),
+      notifications: !sectionsEqual(draft.notifications, baseline.notifications),
+      ai: !sectionsEqual(draft.ai_behavior, baseline.ai_behavior),
+      planner: !sectionsEqual(draft.planner, baseline.planner),
+      privacy: !sectionsEqual(draft.privacy, baseline.privacy),
+      integrations: !sectionsEqual(draft.integrations, baseline.integrations),
+      accessibility: !sectionsEqual(draft.accessibility, baseline.accessibility),
+    };
+  }, [baseline, draft]);
 
-  async function saveAIBehavior(event: FormEvent) {
-    event.preventDefault();
-    if (!draft) return;
-    setSavingState("ai", true);
-    try {
-      const updated = await api.settings.updateAIBehavior(draft.ai_behavior);
-      applyUpdated(updated);
-      toast.success("AI behavior updated.");
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Couldn't update AI behavior.");
-    } finally {
-      setSavingState("ai", false);
-    }
-  }
+  const dirtySections = useMemo(
+    () =>
+      (Object.keys(dirtyBySection) as SaveKey[]).filter(
+        (section) => dirtyBySection[section],
+      ),
+    [dirtyBySection],
+  );
 
-  async function savePlanner(event: FormEvent) {
-    event.preventDefault();
-    if (!draft) return;
-    setSavingState("planner", true);
-    try {
-      const updated = await api.settings.updatePlanner(draft.planner);
-      applyUpdated(updated);
-      toast.success("Planner defaults updated.");
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Couldn't update planner defaults.");
-    } finally {
-      setSavingState("planner", false);
-    }
-  }
+  const isSavingAny = useMemo(() => Object.values(saving).some(Boolean), [saving]);
+  const hasPendingChanges = dirtySections.length > 0;
 
-  async function savePrivacy(event: FormEvent) {
-    event.preventDefault();
-    if (!draft) return;
-    setSavingState("privacy", true);
-    try {
-      const updated = await api.settings.updatePrivacy(draft.privacy);
-      applyUpdated(updated);
-      toast.success("Privacy settings updated.");
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Couldn't update privacy settings.");
-    } finally {
-      setSavingState("privacy", false);
-    }
-  }
+  async function saveChangedSections() {
+    if (!draft || !baseline || isSavingAny || dirtySections.length === 0) return;
 
-  async function saveIntegrations(event: FormEvent) {
-    event.preventDefault();
-    if (!draft) return;
-    setSavingState("integrations", true);
-    try {
-      const updated = await api.settings.updateIntegrations(draft.integrations);
-      applyUpdated(updated);
-      toast.success("Integration preferences updated.");
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Couldn't update integrations.");
-    } finally {
-      setSavingState("integrations", false);
-    }
-  }
+    const snapshot = draft;
+    const succeeded: SaveKey[] = [];
+    const failures: Array<{ section: SaveKey; message: string }> = [];
 
-  async function saveAccessibility(event: FormEvent) {
-    event.preventDefault();
-    if (!draft) return;
-    setSavingState("accessibility", true);
-    try {
-      const updated = await api.settings.updateAccessibility(draft.accessibility);
-      applyUpdated(updated);
-      toast.success("Accessibility settings updated.");
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Couldn't update accessibility settings.");
-    } finally {
-      setSavingState("accessibility", false);
+    for (const section of dirtySections) {
+      setSavingState(section, true);
+      try {
+        let updated: SettingsRead;
+        if (section === "appearance") {
+          updated = await api.settings.updateAppearance({
+            theme_preference: snapshot.appearance.theme_preference,
+          });
+        } else if (section === "notifications") {
+          updated = await api.settings.updateNotifications(snapshot.notifications);
+        } else if (section === "ai") {
+          updated = await api.settings.updateAIBehavior(snapshot.ai_behavior);
+        } else if (section === "planner") {
+          updated = await api.settings.updatePlanner(snapshot.planner);
+        } else if (section === "privacy") {
+          updated = await api.settings.updatePrivacy(snapshot.privacy);
+        } else if (section === "integrations") {
+          updated = await api.settings.updateIntegrations(snapshot.integrations);
+        } else {
+          updated = await api.settings.updateAccessibility(snapshot.accessibility);
+        }
+
+        const normalized = normalizeSettingsForEditor(updated);
+        const field = SECTION_FIELD_BY_SAVE_KEY[section];
+        const savedSectionValue = normalized[field];
+
+        setBaseline((prev) => (prev ? { ...prev, [field]: savedSectionValue } : prev));
+        setDraft((prev) => (prev ? { ...prev, [field]: savedSectionValue } : prev));
+
+        if (section === "appearance") {
+          setTheme(normalized.appearance.theme_preference);
+          patchUser({ theme_preference: normalized.appearance.theme_preference });
+        }
+
+        succeeded.push(section);
+      } catch (err) {
+        failures.push({
+          section,
+          message: err instanceof ApiError ? err.message : "Couldn't save this section.",
+        });
+      } finally {
+        setSavingState(section, false);
+      }
     }
+
+    if (failures.length === 0) {
+      if (succeeded.length === 1) {
+        toast.success(`${SECTION_LABEL_BY_SAVE_KEY[succeeded[0]]} settings updated.`);
+      } else {
+        toast.success(`Saved ${succeeded.length} changed sections.`);
+      }
+      return;
+    }
+
+    const failedLabels = failures
+      .map((failure) => SECTION_LABEL_BY_SAVE_KEY[failure.section])
+      .join(", ");
+
+    if (succeeded.length > 0) {
+      toast.error(
+        `Saved ${succeeded.length} section${succeeded.length === 1 ? "" : "s"}, but failed: ${failedLabels}.`,
+      );
+      return;
+    }
+
+    if (failures.length === 1) {
+      toast.error(`Couldn't save ${failedLabels}: ${failures[0].message}`);
+      return;
+    }
+
+    toast.error(`Couldn't save changes. Failed sections: ${failedLabels}.`);
   }
 
   async function exportData() {
@@ -326,6 +362,10 @@ export function SettingsPage() {
     );
   }
 
+  function chooseBrowserDefault() {
+    chooseTheme("browser");
+  }
+
   if (settingsQuery.loading) {
     return <LoadingState label="Loading settings..." />;
   }
@@ -354,6 +394,20 @@ export function SettingsPage() {
         title="Settings"
         subtitle="How Shadow behaves, reminds and formats your workflow."
         icon={<GearFill size={20} />}
+        actions={
+          <button
+            type="button"
+            className="btn btn-brand"
+            onClick={saveChangedSections}
+            disabled={!hasPendingChanges || isSavingAny}
+          >
+            {isSavingAny
+              ? "Saving..."
+              : hasPendingChanges
+                ? `Save changes${dirtySections.length > 1 ? ` (${dirtySections.length})` : ""}`
+                : "Saved"}
+          </button>
+        }
       />
 
       <section className="surface settings-hero py-3 py-sm-4 px-4 px-sm-5 mb-4">
@@ -384,23 +438,30 @@ export function SettingsPage() {
             }
             subtitle="Choose how your Shadow workspace looks."
           >
-            <form onSubmit={saveAppearance}>
+            <form onSubmit={preventSubmit}>
               <div className="row g-3">
                 {[
                   { value: "light" as ThemePreference, label: "Light", icon: SunFill },
                   { value: "dark" as ThemePreference, label: "Dark", icon: MoonStarsFill },
+                  { value: "browser" as const, label: "Browser Default", icon: Display },
                 ].map((option) => {
                   const Icon = option.icon;
                   const active = draft.appearance.theme_preference === option.value;
                   return (
-                    <div className="col-6" key={option.value}>
+                    <div className="col-12 col-md-6" key={option.value}>
                       <button
                         type="button"
                         className="surface-2 w-100 p-3 border-0 d-flex align-items-center gap-2 clickable setting-grid-option"
                         style={{
                           outline: active ? "2px solid var(--jv-brand-1)" : "2px solid transparent",
                         }}
-                        onClick={() => chooseTheme(option.value)}
+                        onClick={() => {
+                          if (option.value === "browser") {
+                            chooseBrowserDefault();
+                            return;
+                          }
+                          chooseTheme(option.value);
+                        }}
                       >
                         <span className="stat-icon" style={{ width: 38, height: 38 }}>
                           <Icon size={17} />
@@ -411,11 +472,6 @@ export function SettingsPage() {
                     </div>
                   );
                 })}
-              </div>
-              <div className="mt-3">
-                <button className="btn btn-brand" disabled={saving.appearance}>
-                  {saving.appearance ? "Saving..." : "Save Appearance"}
-                </button>
               </div>
             </form>
           </SectionCard>
@@ -428,7 +484,7 @@ export function SettingsPage() {
             }
             subtitle="Control reminders and daily brief behavior."
           >
-            <form onSubmit={saveNotifications} className="d-flex flex-column gap-2">
+            <form onSubmit={preventSubmit} className="d-flex flex-column gap-2">
               <ToggleRow
                 id="notify-enabled"
                 label="Enable notifications"
@@ -554,11 +610,6 @@ export function SettingsPage() {
                 />
               </div>
 
-              <div className="mt-2">
-                <button className="btn btn-brand" disabled={saving.notifications}>
-                  {saving.notifications ? "Saving..." : "Save Notifications"}
-                </button>
-              </div>
             </form>
           </SectionCard>
 
@@ -570,7 +621,7 @@ export function SettingsPage() {
             }
             subtitle="Control analytics and memory usage."
           >
-            <form onSubmit={savePrivacy} className="d-flex flex-column gap-2">
+            <form onSubmit={preventSubmit} className="d-flex flex-column gap-2">
               <ToggleRow
                 id="privacy-analytics"
                 label="Opt out of analytics"
@@ -621,16 +672,11 @@ export function SettingsPage() {
                   Clear chat history
                 </button>
               </div>
-              <div className="mt-2">
-                <button className="btn btn-brand" disabled={saving.privacy}>
-                  {saving.privacy ? "Saving..." : "Save Privacy"}
-                </button>
-              </div>
             </form>
           </SectionCard>
 
           <SectionCard title="Integrations" subtitle="Connected services and sync preferences.">
-            <form onSubmit={saveIntegrations} className="d-flex flex-column gap-2">
+            <form onSubmit={preventSubmit} className="d-flex flex-column gap-2">
               <ToggleRow
                 id="integration-google-calendar"
                 label="Google Calendar"
@@ -663,16 +709,11 @@ export function SettingsPage() {
                   )
                 }
               />
-              <div>
-                <button className="btn btn-brand" disabled={saving.integrations}>
-                  {saving.integrations ? "Saving..." : "Save Integrations"}
-                </button>
-              </div>
             </form>
           </SectionCard>
 
           <SectionCard title="Accessibility" subtitle="Readability and motion preferences.">
-            <form onSubmit={saveAccessibility} className="d-flex flex-column gap-2">
+            <form onSubmit={preventSubmit} className="d-flex flex-column gap-2">
               <ToggleRow
                 id="accessibility-reduced-motion"
                 label="Reduced motion"
@@ -732,11 +773,6 @@ export function SettingsPage() {
                   }
                 />
               </div>
-              <div>
-                <button className="btn btn-brand" disabled={saving.accessibility}>
-                  {saving.accessibility ? "Saving..." : "Save Accessibility"}
-                </button>
-              </div>
             </form>
           </SectionCard>
         </div>
@@ -750,7 +786,7 @@ export function SettingsPage() {
             }
             subtitle="Tune response style and suggestion behavior."
           >
-            <form onSubmit={saveAIBehavior} className="d-flex flex-column gap-3">
+            <form onSubmit={preventSubmit} className="d-flex flex-column gap-3">
               <div className="surface-2 p-3">
                 <label className="form-label" htmlFor="ai-response-length">
                   Response length
@@ -875,11 +911,6 @@ export function SettingsPage() {
                 }
               />
 
-              <div>
-                <button className="btn btn-brand" disabled={saving.ai}>
-                  {saving.ai ? "Saving..." : "Save AI Behavior"}
-                </button>
-              </div>
             </form>
           </SectionCard>
 
@@ -891,7 +922,7 @@ export function SettingsPage() {
             }
             subtitle="Formatting and default timing for planning flows."
           >
-            <form onSubmit={savePlanner} className="d-flex flex-column gap-3">
+            <form onSubmit={preventSubmit} className="d-flex flex-column gap-3">
               <div className="row g-3">
                 <div className="col-sm-6">
                   <div className="surface-2 p-3">
@@ -1050,11 +1081,6 @@ export function SettingsPage() {
                 </div>
               </div>
 
-              <div>
-                <button className="btn btn-brand" disabled={saving.planner}>
-                  {saving.planner ? "Saving..." : "Save Planner Defaults"}
-                </button>
-              </div>
             </form>
           </SectionCard>
 

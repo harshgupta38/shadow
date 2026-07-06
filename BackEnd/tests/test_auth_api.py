@@ -43,6 +43,18 @@ def test_login_and_me(client: TestClient) -> None:
     assert response.json()["email"] == "me@example.com"
 
 
+def test_new_accounts_default_to_browser_theme(client: TestClient) -> None:
+    headers = register_and_login(client, email="browser-default@example.com")
+
+    me_response = client.get("/api/auth/me", headers=headers)
+    assert me_response.status_code == 200
+    assert me_response.json()["theme_preference"] == "browser"
+
+    settings_response = client.get("/api/settings", headers=headers)
+    assert settings_response.status_code == 200
+    assert settings_response.json()["appearance"]["theme_preference"] == "browser"
+
+
 def test_login_wrong_password(client: TestClient) -> None:
     client.post(
         "/api/auth/register",

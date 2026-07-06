@@ -21,7 +21,7 @@ class User(Base, TimestampMixin):
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     timezone: Mapped[str] = mapped_column(String(64), default="Asia/Kolkata", nullable=False)
     theme_preference: Mapped[ThemePreference] = mapped_column(
-        SAEnum(ThemePreference), default=ThemePreference.light, nullable=False
+        SAEnum(ThemePreference), default=ThemePreference.browser, nullable=False
     )
     subscription_plan: Mapped[str] = mapped_column(String(40), default="free", nullable=False)
     email_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

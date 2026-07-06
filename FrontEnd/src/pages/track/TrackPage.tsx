@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { GraphUpArrow, PlusLg, Stars } from "react-bootstrap-icons";
+import { Clock, GraphUpArrow, PlusLg, Stars } from "react-bootstrap-icons";
 
 import { api, ApiError, type TrackedMetric } from "@/api";
 import { MetricCard } from "@/components/metrics/MetricCard";
@@ -12,7 +12,7 @@ import { Pill } from "@/components/ui/Pill";
 import { SectionCard } from "@/components/ui/SectionCard";
 import { useToast } from "@/context/ToastContext";
 import { useAsync } from "@/hooks/useAsync";
-import { formatMetricValue, relativeTime } from "@/lib/format";
+import { formatMetricValue } from "@/lib/format";
 import { METRIC_UNIT_LABEL } from "@/lib/labels";
 
 export function TrackPage() {
@@ -122,11 +122,6 @@ export function TrackPage() {
         className="mb-4"
         title="Progress Coach recommendations"
         subtitle="Metric suggestions generated from your latest habit create/update changes."
-        actions={
-          <Pill variant="brand" className="text-nowrap">
-            Triggered on Habit Updates
-          </Pill>
-        }
       >
         {recommendationsLoading ? (
           <LoadingState full={false} label="Loading Progress Coach recommendations..." />
@@ -150,42 +145,45 @@ export function TrackPage() {
             message="Create or update habits in the Habit Library to get measurable metric suggestions here."
           />
         ) : (
-          <div className="d-flex flex-column gap-2">
+          <div className="row g-3">
             {recommendations.map((recommendation) => {
               const busy = acceptingRecommendationId === recommendation.id;
               return (
-                <article key={recommendation.id} className="surface-2 p-3">
-                  <div className="d-flex align-items-start justify-content-between gap-2 mb-2">
-                    <div className="min-w-0">
-                      <div className="fw-semibold text-truncate">{recommendation.metric_name}</div>
-                      <div className="small text-muted-2">{recommendation.rationale}</div>
+                <div key={recommendation.id} className="col-12 col-lg-6 col-xxl-4">
+                  <article className="surface-2 p-3 h-100 d-flex flex-column">
+                    <div className="d-flex align-items-start justify-content-between gap-2 mb-2">
+                      <div className="min-w-0">
+                        <div className="fw-semibold text-truncate">{recommendation.metric_name}</div>
+                        <div className="small text-muted-2">{recommendation.rationale}</div>
+                      </div>
+                      <Stars size={16} className="text-faint flex-shrink-0" />
                     </div>
-                    <Stars size={16} className="text-faint flex-shrink-0" />
-                  </div>
 
-                  <div className="d-flex flex-wrap gap-2 mb-2">
-                    <Pill>{recommendationUnitLabel(recommendation.unit, recommendation.unit_hint)}</Pill>
-                    <Pill variant="info">
-                      Target: {recommendationTargetLabel(recommendation.target, recommendation.unit, recommendation.unit_hint)}
-                    </Pill>
-                  </div>
-
-                  <div className="d-flex align-items-center justify-content-between gap-2 flex-wrap">
-                    <div className="small text-muted-2">
-                      From habit: <span className="fw-medium">{recommendation.habit_name}</span> · {relativeTime(recommendation.created_at)}
+                    <div className="d-flex flex-wrap gap-2 mb-2">
+                      <Pill>{recommendationUnitLabel(recommendation.unit, recommendation.unit_hint)}</Pill>
+                      <Pill variant="info">
+                        Target: {recommendationTargetLabel(recommendation.target, recommendation.unit, recommendation.unit_hint)}
+                      </Pill>
                     </div>
-                    <button
-                      type="button"
-                      className="btn btn-outline-secondary btn-sm"
-                      onClick={() => {
-                        void acceptRecommendation(recommendation.id);
-                      }}
-                      disabled={busy}
-                    >
-                      {busy ? "Adding..." : "Add this"}
-                    </button>
-                  </div>
-                </article>
+
+                    <div className="d-flex align-items-center justify-content-between gap-2 flex-wrap mt-auto">
+                      <div className="small text-muted-2 d-flex align-items-center gap-2 min-w-0">
+                        <Clock size={12} className="text-faint flex-shrink-0" aria-hidden="true" />
+                        <span className="fw-medium text-truncate">{recommendation.habit_name}</span>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn btn-outline-secondary btn-sm"
+                        onClick={() => {
+                          void acceptRecommendation(recommendation.id);
+                        }}
+                        disabled={busy}
+                      >
+                        {busy ? "Adding..." : "Add this"}
+                      </button>
+                    </div>
+                  </article>
+                </div>
               );
             })}
           </div>

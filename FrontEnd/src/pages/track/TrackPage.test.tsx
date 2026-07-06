@@ -106,7 +106,7 @@ describe("TrackPage", () => {
 
     expect(await screen.findByText("Progress Coach recommendations")).toBeInTheDocument();
     expect(await screen.findByText("Water intake")).toBeInTheDocument();
-    expect(screen.getByText(/From habit:/i)).toBeInTheDocument();
+    expect(screen.getByText("Drink water")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Add this" })).toBeInTheDocument();
   });
 

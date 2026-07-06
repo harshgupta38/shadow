@@ -95,6 +95,33 @@ def _matches_local_weekday(now_utc: datetime, timezone_name: str, weekday_name: 
     return now_local.weekday() == weekday_to_index.get(weekday_name, 5)
 
 
+def _enqueue_auto_report_notification(
+    db,
+    *,
+    user: User,
+    period: ReportPeriod,
+    now_utc: datetime,
+) -> None:
+    settings = db.scalar(select(UserSetting).where(UserSetting.user_id == user.id))
+    if settings is None or not settings.notifications_enabled:
+        return
+
+    label = "Daily" if period == ReportPeriod.daily else "Weekly"
+    db.add(
+        Notification(
+            user_id=user.id,
+            title=f"{label} Report Ready",
+            body=(
+                f"Your automatic {label.lower()} report is ready. "
+                "Open Reports to review insights and next steps."
+            ),
+            type=NotificationType.system,
+            scheduled_at=now_utc,
+        )
+    )
+    db.commit()
+
+
 def enqueue_daily_briefs(*, now_utc: datetime | None = None) -> int:
     """Create one daily brief notification per eligible user at configured local time."""
     now = (now_utc or datetime.now(timezone.utc)).replace(second=0, microsecond=0)
@@ -225,6 +252,17 @@ def enqueue_daily_reports(*, now_utc: datetime | None = None) -> int:
                 created += 1
             except Exception:  # pragma: no cover - defensive scheduler guard
                 logger.exception("Failed to generate daily report for user_id=%s", user.id)
+                continue
+
+            try:
+                _enqueue_auto_report_notification(
+                    db,
+                    user=user,
+                    period=ReportPeriod.daily,
+                    now_utc=now,
+                )
+            except Exception:  # pragma: no cover - defensive scheduler guard
+                logger.exception("Failed to queue daily report notification for user_id=%s", user.id)
 
         if created:
             logger.info("Generated %d automatic daily report(s)", created)
@@ -272,6 +310,17 @@ def enqueue_weekly_reports(*, now_utc: datetime | None = None) -> int:
                 created += 1
             except Exception:  # pragma: no cover - defensive scheduler guard
                 logger.exception("Failed to generate weekly report for user_id=%s", user.id)
+                continue
+
+            try:
+                _enqueue_auto_report_notification(
+                    db,
+                    user=user,
+                    period=ReportPeriod.weekly,
+                    now_utc=now,
+                )
+            except Exception:  # pragma: no cover - defensive scheduler guard
+                logger.exception("Failed to queue weekly report notification for user_id=%s", user.id)
 
         if created:
             logger.info("Generated %d automatic weekly report(s)", created)

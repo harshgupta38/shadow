@@ -75,10 +75,18 @@ def test_enqueue_daily_reports_generates_once_per_day(
     assert versions[0]["source"] == "automatic"
     assert versions[0]["period"] == "daily"
 
+    notifications = client.get("/api/notifications", headers=auth_headers).json()
+    daily_ready = [row for row in notifications if row["title"] == "Daily Report Ready"]
+    assert len(daily_ready) == 1
+
     created_again = scheduler_jobs.enqueue_daily_reports(
         now_utc=datetime(2026, 7, 5, 18, 40, tzinfo=timezone.utc),
     )
     assert created_again == 0
+
+    notifications_after = client.get("/api/notifications", headers=auth_headers).json()
+    daily_ready_after = [row for row in notifications_after if row["title"] == "Daily Report Ready"]
+    assert len(daily_ready_after) == 1
 
 
 def test_enqueue_weekly_reports_generates_once_per_week_window(
@@ -102,10 +110,18 @@ def test_enqueue_weekly_reports_generates_once_per_week_window(
     assert versions[0]["source"] == "automatic"
     assert versions[0]["period"] == "weekly"
 
+    notifications = client.get("/api/notifications", headers=auth_headers).json()
+    weekly_ready = [row for row in notifications if row["title"] == "Weekly Report Ready"]
+    assert len(weekly_ready) == 1
+
     created_again = scheduler_jobs.enqueue_weekly_reports(
         now_utc=datetime(2026, 7, 11, 19, 0, tzinfo=timezone.utc),
     )
     assert created_again == 0
+
+    notifications_after = client.get("/api/notifications", headers=auth_headers).json()
+    weekly_ready_after = [row for row in notifications_after if row["title"] == "Weekly Report Ready"]
+    assert len(weekly_ready_after) == 1
 
 
 def test_enqueue_daily_reports_respects_automation_enablement(

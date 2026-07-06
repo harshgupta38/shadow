@@ -79,3 +79,43 @@ class UserSetting(Base, TimestampMixin):
     accessibility_font_scale_percent: Mapped[int] = mapped_column(
         Integer, default=100, nullable=False
     )
+
+    # Reports automation
+    report_automation_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    report_automation_daily_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    report_automation_daily_time: Mapped[str] = mapped_column(
+        String(5),
+        default="23:55",
+        nullable=False,
+    )
+    report_automation_weekly_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    report_automation_weekly_day: Mapped[str] = mapped_column(
+        String(16),
+        default="saturday",
+        nullable=False,
+    )
+    report_automation_weekly_time: Mapped[str] = mapped_column(
+        String(5),
+        default="23:55",
+        nullable=False,
+    )
+    report_snapshot_include_plan: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    report_snapshot_include_goals: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    report_snapshot_include_habits: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    report_snapshot_include_metrics: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    report_snapshot_include_missed_tasks: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True,
+        nullable=False,
+    )
+    report_snapshot_include_streaks: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    report_snapshot_metric_ids_csv: Mapped[str] = mapped_column(
+        String(1000),
+        default="",
+        nullable=False,
+    )
+    report_snapshot_habit_ids_csv: Mapped[str] = mapped_column(
+        String(1000),
+        default="",
+        nullable=False,
+    )

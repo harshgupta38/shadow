@@ -80,6 +80,21 @@ def _at_or_after_local_time(now_utc: datetime, timezone_name: str, hhmm: str) ->
     return now_minutes >= target_minutes
 
 
+def _matches_local_weekday(now_utc: datetime, timezone_name: str, weekday_name: str) -> bool:
+    tz = _safe_timezone(timezone_name)
+    now_local = now_utc.astimezone(tz)
+    weekday_to_index = {
+        "monday": 0,
+        "tuesday": 1,
+        "wednesday": 2,
+        "thursday": 3,
+        "friday": 4,
+        "saturday": 5,
+        "sunday": 6,
+    }
+    return now_local.weekday() == weekday_to_index.get(weekday_name, 5)
+
+
 def enqueue_daily_briefs(*, now_utc: datetime | None = None) -> int:
     """Create one daily brief notification per eligible user at configured local time."""
     now = (now_utc or datetime.now(timezone.utc)).replace(second=0, microsecond=0)
@@ -172,7 +187,7 @@ def enqueue_weekly_summaries(*, now_utc: datetime | None = None) -> int:
 
 
 def enqueue_daily_reports(*, now_utc: datetime | None = None) -> int:
-    """Create one automatic daily report per eligible user after 23:55 local time."""
+    """Create one automatic daily report per eligible user after configured local time."""
     now = (now_utc or datetime.now(timezone.utc)).replace(second=0, microsecond=0)
     created = 0
     provider = get_llm_provider()
@@ -180,7 +195,11 @@ def enqueue_daily_reports(*, now_utc: datetime | None = None) -> int:
     with SessionLocal() as db:
         users = list(db.scalars(select(User)))
         for user in users:
-            if not _at_or_after_local_time(now, user.timezone, "23:55"):
+            automation = report_service.get_report_automation_schedule(db, user)
+            if not automation["enabled"] or not automation["daily_enabled"]:
+                continue
+            daily_time = str(automation["daily_time"])
+            if not _at_or_after_local_time(now, user.timezone, daily_time):
                 continue
 
             local_now = now.astimezone(_safe_timezone(user.timezone))
@@ -214,7 +233,7 @@ def enqueue_daily_reports(*, now_utc: datetime | None = None) -> int:
 
 
 def enqueue_weekly_reports(*, now_utc: datetime | None = None) -> int:
-    """Create one automatic weekly report per eligible user after Saturday 23:55 local time."""
+    """Create one automatic weekly report per eligible user after configured local day/time."""
     now = (now_utc or datetime.now(timezone.utc)).replace(second=0, microsecond=0)
     created = 0
     provider = get_llm_provider()
@@ -222,13 +241,17 @@ def enqueue_weekly_reports(*, now_utc: datetime | None = None) -> int:
     with SessionLocal() as db:
         users = list(db.scalars(select(User)))
         for user in users:
-            local_now = now.astimezone(_safe_timezone(user.timezone))
-            if local_now.weekday() != 5:  # Saturday
+            automation = report_service.get_report_automation_schedule(db, user)
+            if not automation["enabled"] or not automation["weekly_enabled"]:
                 continue
-            if not _at_or_after_local_time(now, user.timezone, "23:55"):
+            weekly_day = str(automation["weekly_day"])
+            weekly_time = str(automation["weekly_time"])
+            if not _matches_local_weekday(now, user.timezone, weekly_day):
+                continue
+            if not _at_or_after_local_time(now, user.timezone, weekly_time):
                 continue
 
-            on_date = local_now.date()
+            on_date = now.astimezone(_safe_timezone(user.timezone)).date()
             if report_service.automatic_report_exists(
                 db,
                 user,

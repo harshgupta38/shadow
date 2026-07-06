@@ -1,5 +1,12 @@
 import { http } from "./client";
-import type { Report, ReportGenerateRequest, ReportHistoryCard, ReportPeriod } from "./types";
+import type {
+  Report,
+  ReportAutomation,
+  ReportAutomationUpdate,
+  ReportGenerateRequest,
+  ReportHistoryCard,
+  ReportPeriod,
+} from "./types";
 
 export const reportsApi = {
   async list(period?: ReportPeriod): Promise<Report[]> {
@@ -19,5 +26,11 @@ export const reportsApi = {
   },
   async remove(id: number): Promise<void> {
     return http.del(`/reports/${id}`);
+  },
+  async getAutomation(): Promise<ReportAutomation> {
+    return http.get<ReportAutomation>("/reports/automation");
+  },
+  async updateAutomation(data: ReportAutomationUpdate): Promise<ReportAutomation> {
+    return http.put<ReportAutomation>("/reports/automation", data);
   },
 };

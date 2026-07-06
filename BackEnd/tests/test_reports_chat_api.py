@@ -886,6 +886,106 @@ def test_delete_report_version_removes_only_selected_version(
     assert history_after_second_delete == []
 
 
+def test_report_automation_defaults_are_exposed(
+    client: TestClient,
+    auth_headers: dict,
+) -> None:
+    response = client.get("/api/reports/automation", headers=auth_headers)
+    assert response.status_code == 200
+
+    body = response.json()
+    assert body["enabled"] is True
+    assert body["daily_enabled"] is True
+    assert body["daily_time"] == "23:55"
+    assert body["weekly_enabled"] is True
+    assert body["weekly_day"] == "saturday"
+    assert body["weekly_time"] == "23:55"
+    assert body["include_plan_snapshot"] is True
+    assert body["include_goals_snapshot"] is True
+    assert body["include_habits_snapshot"] is True
+    assert body["include_metrics_snapshot"] is True
+    assert body["include_missed_tasks_snapshot"] is True
+    assert body["include_streaks_snapshot"] is True
+    assert body["selected_metric_ids"] == []
+    assert body["selected_habit_ids"] == []
+
+
+def test_report_automation_update_sanitizes_times_and_filters_owned_ids(
+    client: TestClient,
+    auth_headers: dict,
+) -> None:
+    metrics = client.get("/api/metrics", headers=auth_headers).json()
+    metric_id = metrics[0]["id"]
+    extra_metric = client.post(
+        "/api/metrics",
+        headers=auth_headers,
+        json={
+            "key": "focus_sessions",
+            "label": "Focus Sessions",
+            "unit": "count",
+            "target": 2,
+            "time_span": "day",
+        },
+    )
+    assert extra_metric.status_code == 201
+    extra_metric_id = extra_metric.json()["id"]
+
+    habit = client.post(
+        "/api/repetitive-tasks",
+        headers=auth_headers,
+        json={
+            "name": "Evening Walk",
+            "description": "30 minute walk",
+            "priority": "medium",
+            "frequencies": ["daily"],
+        },
+    )
+    assert habit.status_code == 201
+    habit_id = habit.json()["id"]
+
+    # Invalid ids should be dropped; invalid times should preserve previous defaults.
+    update = client.put(
+        "/api/reports/automation",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "daily_enabled": False,
+            "daily_time": "99:99",
+            "weekly_enabled": True,
+            "weekly_day": "monday",
+            "weekly_time": "19:30",
+            "include_plan_snapshot": True,
+            "include_goals_snapshot": False,
+            "include_habits_snapshot": True,
+            "include_metrics_snapshot": True,
+            "include_missed_tasks_snapshot": False,
+            "include_streaks_snapshot": True,
+            "selected_metric_ids": [metric_id, 999999, extra_metric_id],
+            "selected_habit_ids": [habit_id, 987654],
+        },
+    )
+    assert update.status_code == 200
+    body = update.json()
+
+    assert body["daily_enabled"] is False
+    assert body["daily_time"] == "23:55"
+    assert body["weekly_day"] == "monday"
+    assert body["weekly_time"] == "19:30"
+    assert body["include_goals_snapshot"] is False
+    assert body["include_missed_tasks_snapshot"] is False
+    assert body["selected_metric_ids"] == [metric_id, extra_metric_id]
+    assert body["selected_habit_ids"] == [habit_id]
+
+    reread = client.get("/api/reports/automation", headers=auth_headers)
+    assert reread.status_code == 200
+    reread_body = reread.json()
+    assert reread_body["daily_time"] == "23:55"
+    assert reread_body["weekly_day"] == "monday"
+    assert reread_body["weekly_time"] == "19:30"
+    assert reread_body["selected_metric_ids"] == [metric_id, extra_metric_id]
+    assert reread_body["selected_habit_ids"] == [habit_id]
+
+
 def test_chat_round_trip(client: TestClient, auth_headers: dict) -> None:
     session = client.post(
         "/api/chat/sessions",

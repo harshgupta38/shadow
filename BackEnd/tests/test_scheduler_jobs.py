@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 from fastapi.testclient import TestClient
 
@@ -105,3 +106,76 @@ def test_enqueue_weekly_reports_generates_once_per_week_window(
         now_utc=datetime(2026, 7, 11, 19, 0, tzinfo=timezone.utc),
     )
     assert created_again == 0
+
+
+def test_enqueue_daily_reports_respects_automation_enablement(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    updated = client.put(
+        "/api/reports/automation",
+        headers=auth_headers,
+        json={
+            "enabled": False,
+        },
+    )
+    assert updated.status_code == 200
+
+    created = scheduler_jobs.enqueue_daily_reports(
+        now_utc=datetime(2026, 7, 5, 18, 30, tzinfo=timezone.utc),
+    )
+    assert created == 0
+
+    history = client.get("/api/reports/history", headers=auth_headers).json()
+    assert history == []
+
+
+def test_enqueue_weekly_reports_respects_configured_day_and_time(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    updated = client.put(
+        "/api/reports/automation",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "weekly_enabled": True,
+            "weekly_day": "monday",
+            "weekly_time": "23:59",
+        },
+    )
+    assert updated.status_code == 200
+
+    me = client.get("/api/auth/me", headers=auth_headers)
+    assert me.status_code == 200
+    user_tz = ZoneInfo(me.json()["timezone"])
+
+    not_due_local = datetime(2026, 7, 12, 23, 59, tzinfo=user_tz)  # Sunday
+    still_early_local = datetime(2026, 7, 13, 23, 58, tzinfo=user_tz)  # Monday
+    due_local = datetime(2026, 7, 13, 23, 59, tzinfo=user_tz)  # Monday
+
+    not_due = scheduler_jobs.enqueue_weekly_reports(
+        now_utc=not_due_local.astimezone(timezone.utc),
+    )
+    assert not_due == 0
+
+    still_early = scheduler_jobs.enqueue_weekly_reports(
+        now_utc=still_early_local.astimezone(timezone.utc),
+    )
+    assert still_early == 0
+
+    created = scheduler_jobs.enqueue_weekly_reports(
+        now_utc=due_local.astimezone(timezone.utc),
+    )
+    assert created == 1
+
+    history = client.get("/api/reports/history", headers=auth_headers).json()
+    assert len(history) == 1
+    history_date = history[0]["history_date"]
+    versions = client.get(
+        f"/api/reports/history/{history_date}",
+        headers=auth_headers,
+    ).json()
+    assert len(versions) == 1
+    assert versions[0]["period"] == "weekly"
+    assert versions[0]["source"] == "automatic"

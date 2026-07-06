@@ -8,7 +8,13 @@ from fastapi import APIRouter, Response, status
 
 from app.api.deps import CurrentUser, DbSession, Provider
 from app.models.enums import ReportPeriod
-from app.schemas.report import ReportGenerateRequest, ReportHistoryCardRead, ReportRead
+from app.schemas.report import (
+    ReportAutomationRead,
+    ReportAutomationUpdate,
+    ReportGenerateRequest,
+    ReportHistoryCardRead,
+    ReportRead,
+)
 from app.services import report_service
 
 router = APIRouter(prefix="/reports", tags=["reports"])
@@ -55,6 +61,20 @@ def generate_report(
     return report_service.generate_report(
         db, current_user, provider, period=data.period, on_date=data.on_date
     )
+
+
+@router.get("/automation", response_model=ReportAutomationRead)
+def get_report_automation(db: DbSession, current_user: CurrentUser) -> ReportAutomationRead:
+    return report_service.get_report_automation(db, current_user)
+
+
+@router.put("/automation", response_model=ReportAutomationRead)
+def update_report_automation(
+    data: ReportAutomationUpdate,
+    db: DbSession,
+    current_user: CurrentUser,
+) -> ReportAutomationRead:
+    return report_service.update_report_automation(db, current_user, data)
 
 
 @router.get("/{report_id}", response_model=ReportRead)

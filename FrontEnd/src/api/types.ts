@@ -79,6 +79,14 @@ export type RepetitiveTaskFrequency =
 
 export type ReportPeriod = "daily" | "weekly";
 export type ReportSource = "manual" | "automatic";
+export type ReportAutomationWeekday =
+  | "monday"
+  | "tuesday"
+  | "wednesday"
+  | "thursday"
+  | "friday"
+  | "saturday"
+  | "sunday";
 
 export type JournalMood = "Great" | "Good" | "Okay" | "Low" | "Rough";
 
@@ -969,6 +977,40 @@ export interface ReportHistoryCard {
   latest_created_at: string;
   latest_narrative_snippet: string | null;
   report_periods: ReportPeriod[];
+}
+
+export interface ReportAutomation {
+  enabled: boolean;
+  daily_enabled: boolean;
+  daily_time: string;
+  weekly_enabled: boolean;
+  weekly_day: ReportAutomationWeekday;
+  weekly_time: string;
+  include_plan_snapshot: boolean;
+  include_goals_snapshot: boolean;
+  include_habits_snapshot: boolean;
+  include_metrics_snapshot: boolean;
+  include_missed_tasks_snapshot: boolean;
+  include_streaks_snapshot: boolean;
+  selected_metric_ids: number[];
+  selected_habit_ids: number[];
+}
+
+export interface ReportAutomationUpdate {
+  enabled?: boolean;
+  daily_enabled?: boolean;
+  daily_time?: string;
+  weekly_enabled?: boolean;
+  weekly_day?: ReportAutomationWeekday;
+  weekly_time?: string;
+  include_plan_snapshot?: boolean;
+  include_goals_snapshot?: boolean;
+  include_habits_snapshot?: boolean;
+  include_metrics_snapshot?: boolean;
+  include_missed_tasks_snapshot?: boolean;
+  include_streaks_snapshot?: boolean;
+  selected_metric_ids?: number[];
+  selected_habit_ids?: number[];
 }
 
 export interface ReportMetricRow {

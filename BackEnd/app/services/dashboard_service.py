@@ -30,6 +30,10 @@ def build_summary(db: Session, user: User) -> dict:
     today_tasks = plan_service.list_tasks(db, user, on_date=today)
     tasks_today_total = len(today_tasks)
     tasks_today_done = sum(1 for t in today_tasks if t.status == PlannedTaskStatus.done)
+    todays_workspace = plan_service.workspace_for_date(db, user, on_date=today)
+    upcoming_tasks = [
+        task for task in todays_workspace.tasks if task.status == PlannedTaskStatus.planned
+    ][:5]
 
     metrics = [
         metric_service.metric_summary(db, metric)
@@ -45,7 +49,7 @@ def build_summary(db: Session, user: User) -> dict:
         "tasks_today_done": tasks_today_done,
         "active_goals": active_goals,
         "metrics": metrics,
-        "upcoming_tasks": plan_service.upcoming_tasks(db, user, limit=5),
+        "upcoming_tasks": upcoming_tasks,
         "unread_notifications": notification_service.list_notifications(
             db, user, unread_only=True
         ),

@@ -9,7 +9,7 @@ from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, utcnow
-from app.models.enums import ReportPeriod
+from app.models.enums import ReportPeriod, ReportSource
 
 
 class Report(Base):
@@ -20,6 +20,11 @@ class Report(Base):
         ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
     )
     period: Mapped[ReportPeriod] = mapped_column(SAEnum(ReportPeriod), nullable=False)
+    source: Mapped[ReportSource] = mapped_column(
+        SAEnum(ReportSource),
+        default=ReportSource.manual,
+        nullable=False,
+    )
     period_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     period_end: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     metrics_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)

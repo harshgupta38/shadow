@@ -18,6 +18,7 @@ import { MemoryCenterPage } from "@/pages/profile/MemoryCenterPage";
 import { ProfilePage } from "@/pages/profile/ProfilePage";
 import { RepetitiveTasksPage } from "@/pages/repetitiveTasks/RepetitiveTasksPage";
 import { ReportsPage } from "@/pages/reports/ReportsPage";
+import { ReportViewerPage } from "@/pages/reports/ReportViewerPage";
 import { SettingsPage } from "@/pages/settings/SettingsPage";
 import { TrackPage } from "@/pages/track/TrackPage";
 
@@ -52,6 +53,7 @@ export default function App() {
           <Route path="/repetitive-tasks" element={<RepetitiveTasksPage />} />
           <Route path="/track" element={<TrackPage />} />
           <Route path="/reports" element={<ReportsPage />} />
+          <Route path="/reports/day/:historyDate" element={<ReportViewerPage />} />
           <Route path="/assistant" element={<ChatPage />} />
           <Route path="/journal" element={<JournalPage />} />
           <Route path="/notifications" element={<NotificationsPage />} />

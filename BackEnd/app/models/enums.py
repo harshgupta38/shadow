@@ -170,6 +170,11 @@ class ReportPeriod(str, enum.Enum):
     weekly = "weekly"
 
 
+class ReportSource(str, enum.Enum):
+    manual = "manual"
+    automatic = "automatic"
+
+
 class JournalMood(str, enum.Enum):
     great = "Great"
     good = "Good"

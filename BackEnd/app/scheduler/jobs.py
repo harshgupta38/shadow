@@ -6,13 +6,15 @@ import logging
 from datetime import datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 
 from app.database import SessionLocal
-from app.models.enums import NotificationType
+from app.llm.factory import get_llm_provider
+from app.models.enums import NotificationType, ReportPeriod, ReportSource
 from app.models.notification import Notification
 from app.models.user import User
 from app.models.user_setting import UserSetting
+from app.services import report_service
 
 logger = logging.getLogger(__name__)
 
@@ -45,8 +47,18 @@ def _already_created_today(
         select(Notification.id).where(
             Notification.user_id == user_id,
             Notification.title.startswith(title_prefix),
-            Notification.created_at >= start_utc,
-            Notification.created_at < end_utc,
+            or_(
+                and_(
+                    Notification.scheduled_at.is_not(None),
+                    Notification.scheduled_at >= start_utc,
+                    Notification.scheduled_at < end_utc,
+                ),
+                and_(
+                    Notification.scheduled_at.is_(None),
+                    Notification.created_at >= start_utc,
+                    Notification.created_at < end_utc,
+                ),
+            ),
         )
     )
     return existing is not None
@@ -156,6 +168,91 @@ def enqueue_weekly_summaries(*, now_utc: datetime | None = None) -> int:
         if created:
             db.commit()
             logger.info("Queued %d weekly summary notification(s)", created)
+    return created
+
+
+def enqueue_daily_reports(*, now_utc: datetime | None = None) -> int:
+    """Create one automatic daily report per eligible user after 23:55 local time."""
+    now = (now_utc or datetime.now(timezone.utc)).replace(second=0, microsecond=0)
+    created = 0
+    provider = get_llm_provider()
+
+    with SessionLocal() as db:
+        users = list(db.scalars(select(User)))
+        for user in users:
+            if not _at_or_after_local_time(now, user.timezone, "23:55"):
+                continue
+
+            local_now = now.astimezone(_safe_timezone(user.timezone))
+            on_date = local_now.date()
+
+            if report_service.automatic_report_exists(
+                db,
+                user,
+                period=ReportPeriod.daily,
+                on_date=on_date,
+            ):
+                continue
+
+            try:
+                report_service.generate_report(
+                    db,
+                    user,
+                    provider,
+                    period=ReportPeriod.daily,
+                    on_date=on_date,
+                    source=ReportSource.automatic,
+                )
+                created += 1
+            except Exception:  # pragma: no cover - defensive scheduler guard
+                logger.exception("Failed to generate daily report for user_id=%s", user.id)
+
+        if created:
+            logger.info("Generated %d automatic daily report(s)", created)
+
+    return created
+
+
+def enqueue_weekly_reports(*, now_utc: datetime | None = None) -> int:
+    """Create one automatic weekly report per eligible user after Saturday 23:55 local time."""
+    now = (now_utc or datetime.now(timezone.utc)).replace(second=0, microsecond=0)
+    created = 0
+    provider = get_llm_provider()
+
+    with SessionLocal() as db:
+        users = list(db.scalars(select(User)))
+        for user in users:
+            local_now = now.astimezone(_safe_timezone(user.timezone))
+            if local_now.weekday() != 5:  # Saturday
+                continue
+            if not _at_or_after_local_time(now, user.timezone, "23:55"):
+                continue
+
+            on_date = local_now.date()
+            if report_service.automatic_report_exists(
+                db,
+                user,
+                period=ReportPeriod.weekly,
+                on_date=on_date,
+            ):
+                continue
+
+            try:
+                report_service.generate_report(
+                    db,
+                    user,
+                    provider,
+                    period=ReportPeriod.weekly,
+                    on_date=on_date,
+                    source=ReportSource.automatic,
+                )
+                created += 1
+            except Exception:  # pragma: no cover - defensive scheduler guard
+                logger.exception("Failed to generate weekly report for user_id=%s", user.id)
+
+        if created:
+            logger.info("Generated %d automatic weekly report(s)", created)
+
     return created
 
 

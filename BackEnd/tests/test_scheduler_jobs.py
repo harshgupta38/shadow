@@ -51,3 +51,57 @@ def test_enqueue_weekly_summaries_catches_up_after_target_time(
 
     rows = client.get("/api/notifications", headers=auth_headers).json()
     assert any(row["title"] == "Weekly Summary" for row in rows)
+
+
+def test_enqueue_daily_reports_generates_once_per_day(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    created = scheduler_jobs.enqueue_daily_reports(
+        now_utc=datetime(2026, 7, 5, 18, 25, tzinfo=timezone.utc),
+    )
+    assert created == 1
+
+    history = client.get("/api/reports/history", headers=auth_headers).json()
+    assert len(history) == 1
+    history_date = history[0]["history_date"]
+
+    versions = client.get(
+        f"/api/reports/history/{history_date}",
+        headers=auth_headers,
+    ).json()
+    assert len(versions) == 1
+    assert versions[0]["source"] == "automatic"
+    assert versions[0]["period"] == "daily"
+
+    created_again = scheduler_jobs.enqueue_daily_reports(
+        now_utc=datetime(2026, 7, 5, 18, 40, tzinfo=timezone.utc),
+    )
+    assert created_again == 0
+
+
+def test_enqueue_weekly_reports_generates_once_per_week_window(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    created = scheduler_jobs.enqueue_weekly_reports(
+        now_utc=datetime(2026, 7, 11, 18, 25, tzinfo=timezone.utc),
+    )
+    assert created == 1
+
+    history = client.get("/api/reports/history", headers=auth_headers).json()
+    assert len(history) == 1
+    history_date = history[0]["history_date"]
+
+    versions = client.get(
+        f"/api/reports/history/{history_date}",
+        headers=auth_headers,
+    ).json()
+    assert len(versions) == 1
+    assert versions[0]["source"] == "automatic"
+    assert versions[0]["period"] == "weekly"
+
+    created_again = scheduler_jobs.enqueue_weekly_reports(
+        now_utc=datetime(2026, 7, 11, 19, 0, tzinfo=timezone.utc),
+    )
+    assert created_again == 0

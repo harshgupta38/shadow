@@ -1,13 +1,13 @@
 import { useState } from "react";
-import { Modal } from "react-bootstrap";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   CalendarWeek,
   FileEarmarkBarGraphFill,
   LightningChargeFill,
+  ClockHistory,
 } from "react-bootstrap-icons";
 
-import { api, ApiError, type Report, type ReportPeriod } from "@/api";
-import { ReportDetail } from "@/components/reports/ReportDetail";
+import { api, ApiError, type ReportHistoryCard, type ReportPeriod } from "@/api";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -15,7 +15,7 @@ import { Pill } from "@/components/ui/Pill";
 import { SectionCard } from "@/components/ui/SectionCard";
 import { useToast } from "@/context/ToastContext";
 import { useAsync } from "@/hooks/useAsync";
-import { clampPercent, formatDate, relativeTime } from "@/lib/format";
+import { formatDate, relativeTime } from "@/lib/format";
 
 type Filter = "all" | ReportPeriod;
 
@@ -25,61 +25,86 @@ const FILTERS: { value: Filter; label: string }[] = [
   { value: "weekly", label: "Weekly" },
 ];
 
-function ReportCard({ report, onOpen }: { report: Report; onOpen: () => void }) {
-  const tasks = report.metrics_json?.tasks ?? { planned: 0, completed: 0 };
-  const completion = tasks.planned > 0 ? clampPercent((tasks.completed / tasks.planned) * 100) : 0;
-  const snippet = report.narrative?.split(/\n+/)[0] ?? "";
+function parseFilter(value: string | null): Filter {
+  if (value === "daily" || value === "weekly") return value;
+  return "all";
+}
 
+function formatHistoryDate(value: string): string {
+  const [yearText, monthText, dayText] = value.split("-");
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return value;
+  return formatDate(new Date(year, month - 1, day, 12));
+}
+
+function buildViewerPath(historyDate: string, reportId: number, period?: ReportPeriod): string {
+  const params = new URLSearchParams();
+  if (period) params.set("period", period);
+  params.set("reportId", String(reportId));
+  return `/reports/day/${historyDate}?${params.toString()}`;
+}
+
+function HistoryCard({ card, onOpen }: { card: ReportHistoryCard; onOpen: () => void }) {
   return (
     <button type="button" className="surface p-4 text-start w-100 border-0 card-hover h-100" onClick={onOpen}>
-      <div className="d-flex align-items-center justify-content-between mb-2">
-        <Pill variant={report.period === "weekly" ? "info" : "brand"}>
-          <CalendarWeek size={12} /> {report.period === "weekly" ? "Weekly" : "Daily"}
-        </Pill>
-        <span className="text-faint small">{relativeTime(report.created_at)}</span>
-      </div>
-      <div className="fw-bold mb-1">
-        {formatDate(report.period_start)}
-        {report.period === "weekly" && <> → {formatDate(report.period_end)}</>}
-      </div>
-      {snippet && <p className="text-muted-2 small line-clamp-2 mb-3">{snippet}</p>}
-      <div className="d-flex align-items-center gap-2">
-        <div className="progress flex-grow-1" style={{ height: 6 }}>
-          <div className="progress-bar" style={{ width: `${completion}%` }} />
+      <div className="d-flex align-items-center justify-content-between gap-2 mb-2 flex-wrap">
+        <div className="d-flex align-items-center gap-2 flex-wrap">
+          {card.report_periods.map((period) => (
+            <Pill key={period} variant={period === "weekly" ? "info" : "brand"}>
+              <CalendarWeek size={12} /> {period === "weekly" ? "Weekly" : "Daily"}
+            </Pill>
+          ))}
+          <Pill variant="muted">{card.versions_count} version{card.versions_count === 1 ? "" : "s"}</Pill>
         </div>
-        <span className="small fw-semibold text-muted-2">
-          {tasks.completed}/{tasks.planned}
-        </span>
+        <span className="text-faint small">{relativeTime(card.latest_created_at)}</span>
       </div>
+
+      <div className="fw-bold mb-1">{formatHistoryDate(card.history_date)}</div>
+      <div className="small text-muted-2 mb-2">Latest generated {formatDate(card.latest_created_at)}</div>
+      {card.latest_narrative_snippet && (
+        <p className="text-muted-2 small line-clamp-2 mb-0">{card.latest_narrative_snippet}</p>
+      )}
     </button>
   );
 }
 
 export function ReportsPage() {
+  const navigate = useNavigate();
   const toast = useToast();
-  const [filter, setFilter] = useState<Filter>("all");
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const filter = parseFilter(searchParams.get("period"));
   const [genPeriod, setGenPeriod] = useState<ReportPeriod>("daily");
   const [generating, setGenerating] = useState(false);
-  const [selected, setSelected] = useState<Report | null>(null);
 
   const { data, loading, error, reload, setData } = useAsync(
-    () => api.reports.list(filter === "all" ? undefined : filter),
+    () => api.reports.history(filter === "all" ? undefined : filter),
     [filter],
   );
 
-  const reports = data ?? [];
+  const historyCards = data ?? [];
+
+  function setFilter(nextFilter: Filter) {
+    const next = new URLSearchParams(searchParams);
+    if (nextFilter === "all") next.delete("period");
+    else next.set("period", nextFilter);
+    setSearchParams(next, { replace: true });
+  }
 
   async function generate() {
     setGenerating(true);
     try {
       const report = await api.reports.generate({ period: genPeriod });
+      const refreshed = await api.reports.history();
+      setData(refreshed);
       toast.success(`${genPeriod === "weekly" ? "Weekly" : "Daily"} report ready.`);
-      if (filter === "all" || filter === genPeriod) {
-        setData((prev) => [report, ...(prev ?? [])]);
-      } else {
-        reload();
+
+      const target = refreshed.find((card) => card.latest_report_id === report.id);
+      if (target) {
+        navigate(buildViewerPath(target.history_date, report.id));
       }
-      setSelected(report);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Couldn't generate the report.");
     } finally {
@@ -91,55 +116,53 @@ export function ReportsPage() {
     <div>
       <PageHeader
         title="Reports"
-        subtitle="See your progress in numbers. A clear report today keeps you aligned tomorrow."
+        subtitle="Shadow keeps your reflections organized by day so you can revisit every version."
         icon={<FileEarmarkBarGraphFill size={20} />}
       />
 
-      {/* Generate */}
       <SectionCard className="mb-4">
         <div className="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3">
           <div>
             <h2 className="h6 fw-bold mb-1">Generate a report</h2>
             <p className="text-muted-2 small mb-0">
-              Shadow rolls up your tasks and metrics, then writes a summary with next steps.
+              Create a fresh reflection now. Automatic reports are generated in the background at night.
             </p>
           </div>
           <div className="d-flex align-items-center gap-2">
             <div className="nav-tabs-jv">
-              {(["daily", "weekly"] as ReportPeriod[]).map((p) => (
+              {(["daily", "weekly"] as ReportPeriod[]).map((period) => (
                 <button
-                  key={p}
+                  key={period}
                   type="button"
-                  className={`nav-tab-jv ${genPeriod === p ? "active" : ""}`}
-                  onClick={() => setGenPeriod(p)}
+                  className={`nav-tab-jv ${genPeriod === period ? "active" : ""}`}
+                  onClick={() => setGenPeriod(period)}
                 >
-                  {p === "daily" ? "Daily" : "Weekly"}
+                  {period === "daily" ? "Daily" : "Weekly"}
                 </button>
               ))}
             </div>
             <button className="btn btn-brand flex-shrink-0" onClick={generate} disabled={generating}>
               <LightningChargeFill size={15} className="me-1" />
-              {generating ? "Generating…" : "Generate"}
+              {generating ? "Generating..." : "Generate"}
             </button>
           </div>
         </div>
       </SectionCard>
 
-      {/* Filter */}
       <div className="nav-tabs-jv mb-4">
-        {FILTERS.map((f) => (
+        {FILTERS.map((item) => (
           <button
-            key={f.value}
+            key={item.value}
             type="button"
-            className={`nav-tab-jv ${filter === f.value ? "active" : ""}`}
-            onClick={() => setFilter(f.value)}
+            className={`nav-tab-jv ${filter === item.value ? "active" : ""}`}
+            onClick={() => setFilter(item.value)}
           >
-            {f.label}
+            {item.label}
           </button>
         ))}
       </div>
 
-      {loading && <LoadingState label="Loading reports…" />}
+      {loading && <LoadingState label="Loading report history..." />}
 
       {error && !loading && (
         <EmptyState
@@ -154,12 +177,12 @@ export function ReportsPage() {
         />
       )}
 
-      {!loading && !error && reports.length === 0 && (
+      {!loading && !error && historyCards.length === 0 && (
         <div className="surface">
           <EmptyState
-            icon={<FileEarmarkBarGraphFill size={26} />}
-            title="No reports yet"
-            message="Generate your first daily or weekly report to see your momentum summarised."
+            icon={<ClockHistory size={26} />}
+            title="No report history yet"
+            message="Generate your first daily or weekly report to start building your reflection timeline."
             action={
               <button className="btn btn-brand" onClick={generate} disabled={generating}>
                 <LightningChargeFill size={15} className="me-1" /> Generate report
@@ -169,22 +192,26 @@ export function ReportsPage() {
         </div>
       )}
 
-      {!loading && !error && reports.length > 0 && (
+      {!loading && !error && historyCards.length > 0 && (
         <div className="row g-3">
-          {reports.map((report) => (
-            <div className="col-md-6 col-xl-4" key={report.id}>
-              <ReportCard report={report} onOpen={() => setSelected(report)} />
+          {historyCards.map((card) => (
+            <div className="col-md-6 col-xl-4" key={card.history_date}>
+              <HistoryCard
+                card={card}
+                onOpen={() =>
+                  navigate(
+                    buildViewerPath(
+                      card.history_date,
+                      card.latest_report_id,
+                      filter === "all" ? undefined : filter,
+                    ),
+                  )
+                }
+              />
             </div>
           ))}
         </div>
       )}
-
-      <Modal show={!!selected} onHide={() => setSelected(null)} centered size="lg" scrollable backdrop="static">
-        <Modal.Header closeButton>
-          <Modal.Title className="h5 fw-bold">Progress report</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>{selected && <ReportDetail report={selected} />}</Modal.Body>
-      </Modal>
     </div>
   );
 }

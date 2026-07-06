@@ -797,12 +797,93 @@ def test_generate_daily_report(client: TestClient, auth_headers: dict) -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["period"] == "daily"
+    assert body["source"] == "manual"
     assert body["narrative"]
     assert body["next_steps"]
     assert "metrics" in body["metrics_json"]
 
     listing = client.get("/api/reports?period=daily", headers=auth_headers).json()
     assert len(listing) == 1
+
+
+def test_report_history_groups_versions_by_date(client: TestClient, auth_headers: dict) -> None:
+    first = client.post(
+        "/api/reports/generate",
+        headers=auth_headers,
+        json={"period": "daily"},
+    )
+    assert first.status_code == 200
+
+    second = client.post(
+        "/api/reports/generate",
+        headers=auth_headers,
+        json={"period": "weekly"},
+    )
+    assert second.status_code == 200
+
+    third = client.post(
+        "/api/reports/generate",
+        headers=auth_headers,
+        json={"period": "daily"},
+    )
+    assert third.status_code == 200
+
+    history = client.get("/api/reports/history", headers=auth_headers)
+    assert history.status_code == 200
+    history_rows = history.json()
+    assert len(history_rows) == 1
+    card = history_rows[0]
+    assert card["versions_count"] == 3
+    assert set(card["report_periods"]) == {"daily", "weekly"}
+
+    versions = client.get(
+        f"/api/reports/history/{card['history_date']}",
+        headers=auth_headers,
+    )
+    assert versions.status_code == 200
+    version_rows = versions.json()
+    assert len(version_rows) == 3
+    assert all(row["source"] == "manual" for row in version_rows)
+
+
+def test_delete_report_version_removes_only_selected_version(
+    client: TestClient, auth_headers: dict
+) -> None:
+    first = client.post(
+        "/api/reports/generate",
+        headers=auth_headers,
+        json={"period": "daily"},
+    )
+    assert first.status_code == 200
+    first_id = first.json()["id"]
+
+    second = client.post(
+        "/api/reports/generate",
+        headers=auth_headers,
+        json={"period": "daily"},
+    )
+    assert second.status_code == 200
+    second_id = second.json()["id"]
+
+    history = client.get("/api/reports/history", headers=auth_headers).json()
+    assert len(history) == 1
+    history_date = history[0]["history_date"]
+
+    deleted = client.delete(f"/api/reports/{first_id}", headers=auth_headers)
+    assert deleted.status_code == 204
+
+    versions_after_first_delete = client.get(
+        f"/api/reports/history/{history_date}",
+        headers=auth_headers,
+    ).json()
+    assert len(versions_after_first_delete) == 1
+    assert versions_after_first_delete[0]["id"] == second_id
+
+    deleted_second = client.delete(f"/api/reports/{second_id}", headers=auth_headers)
+    assert deleted_second.status_code == 204
+
+    history_after_second_delete = client.get("/api/reports/history", headers=auth_headers).json()
+    assert history_after_second_delete == []
 
 
 def test_chat_round_trip(client: TestClient, auth_headers: dict) -> None:

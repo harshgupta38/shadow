@@ -78,6 +78,7 @@ export type RepetitiveTaskFrequency =
   | "end_of_month";
 
 export type ReportPeriod = "daily" | "weekly";
+export type ReportSource = "manual" | "automatic";
 
 export type JournalMood = "Great" | "Good" | "Okay" | "Low" | "Rough";
 
@@ -951,12 +952,23 @@ export interface PlanWorkspace {
 export interface Report {
   id: number;
   period: ReportPeriod;
+  source: ReportSource;
   period_start: string;
   period_end: string;
   metrics_json: ReportMetricsJson;
   narrative: string | null;
   next_steps: string | null;
   created_at: string;
+}
+
+export interface ReportHistoryCard {
+  history_date: string;
+  versions_count: number;
+  latest_report_id: number;
+  latest_period: ReportPeriod;
+  latest_created_at: string;
+  latest_narrative_snippet: string | null;
+  report_periods: ReportPeriod[];
 }
 
 export interface ReportMetricRow {

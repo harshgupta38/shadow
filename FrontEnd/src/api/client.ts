@@ -13,6 +13,51 @@ import axios, { AxiosError, type AxiosInstance } from "axios";
 import type { ApiErrorShape } from "./types";
 
 const TOKEN_STORAGE_KEY = "shadow.token";
+const GET_CACHE_TTL_MS = 15_000;
+
+type HttpGetOptions = {
+  bypassCache?: boolean;
+  ttlMs?: number;
+};
+
+type GetResponseCacheEntry = {
+  data: unknown;
+  expiresAt: number;
+};
+
+const getResponseCache = new Map<string, GetResponseCacheEntry>();
+
+function normalizeForStableStringify(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((entry) => normalizeForStableStringify(entry));
+  }
+
+  if (value && typeof value === "object" && Object.getPrototypeOf(value) === Object.prototype) {
+    const normalizedEntries = Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, entry]) => [key, normalizeForStableStringify(entry)]);
+    return Object.fromEntries(normalizedEntries);
+  }
+
+  return value;
+}
+
+function stableStringify(value: unknown): string {
+  return JSON.stringify(normalizeForStableStringify(value));
+}
+
+function getCacheKey(url: string, params?: Record<string, unknown>): string {
+  if (!params || Object.keys(params).length === 0) return url;
+  return `${url}?${stableStringify(params)}`;
+}
+
+function clearGetResponseCache(): void {
+  getResponseCache.clear();
+}
+
+export function __resetHttpGetCacheForTests(): void {
+  clearGetResponseCache();
+}
 
 // ── Token storage (single source of truth for the JWT) ─────────────────────
 export const tokenStore = {
@@ -149,23 +194,49 @@ export const httpClient = createClient();
 
 /** Thin helpers so endpoint modules stay terse and consistent. */
 export const http = {
-  async get<T>(url: string, params?: Record<string, unknown>): Promise<T> {
+  async get<T>(
+    url: string,
+    params?: Record<string, unknown>,
+    options: HttpGetOptions = {},
+  ): Promise<T> {
+    const cacheKey = getCacheKey(url, params);
+    if (!options.bypassCache) {
+      const cached = getResponseCache.get(cacheKey);
+      if (cached) {
+        if (Date.now() <= cached.expiresAt) return cached.data as T;
+        getResponseCache.delete(cacheKey);
+      }
+    }
+
     const { data } = await httpClient.get<T>(url, { params });
+
+    const ttlMs = options.ttlMs ?? GET_CACHE_TTL_MS;
+    if (ttlMs > 0) {
+      getResponseCache.set(cacheKey, {
+        data,
+        expiresAt: Date.now() + ttlMs,
+      });
+    }
+
     return data;
   },
   async post<T>(url: string, body?: unknown): Promise<T> {
     const { data } = await httpClient.post<T>(url, body);
+    clearGetResponseCache();
     return data;
   },
   async put<T>(url: string, body?: unknown): Promise<T> {
     const { data } = await httpClient.put<T>(url, body);
+    clearGetResponseCache();
     return data;
   },
   async patch<T>(url: string, body?: unknown): Promise<T> {
     const { data } = await httpClient.patch<T>(url, body);
+    clearGetResponseCache();
     return data;
   },
   async del(url: string, body?: unknown): Promise<void> {
     await httpClient.delete(url, body === undefined ? undefined : { data: body });
+    clearGetResponseCache();
   },
 };

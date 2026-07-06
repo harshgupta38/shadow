@@ -7,7 +7,7 @@ import { api } from "@/api";
 import { ToastProvider } from "@/context/ToastContext";
 import { toISODate } from "@/lib/format";
 
-import { PlanPage } from "./PlanPage";
+import { __resetPlanWorkspaceCacheForTests, PlanPage } from "./PlanPage";
 
 vi.mock("@/api", async (importOriginal) => {
 	const actual = await importOriginal<typeof import("@/api")>();
@@ -131,6 +131,7 @@ function renderPage() {
 
 describe("PlanPage", () => {
 	beforeEach(() => {
+		__resetPlanWorkspaceCacheForTests();
 		mockedGoalsApi.list.mockReset();
 		mockedPlanApi.workspace.mockReset();
 		mockedPlanApi.generateToday.mockReset();
@@ -146,6 +147,30 @@ describe("PlanPage", () => {
 		mockedPlanApi.update.mockResolvedValue(buildTask({ status: "done" }));
 		mockedPlanApi.logProgress.mockResolvedValue(buildWorkspace());
 		mockedPlanApi.remove.mockResolvedValue(undefined);
+	});
+
+	it("reuses cached workspace for 15 seconds across remounts", async () => {
+		let now = Date.parse("2026-07-06T09:00:00.000Z");
+		const nowSpy = vi.spyOn(Date, "now").mockImplementation(() => now);
+		try {
+			const first = renderPage();
+			expect(await screen.findByText("Daily insights")).toBeInTheDocument();
+			expect(mockedPlanApi.workspace).toHaveBeenCalledTimes(1);
+			first.unmount();
+
+			now = Date.parse("2026-07-06T09:00:10.000Z");
+			const second = renderPage();
+			expect(await screen.findByText("Daily insights")).toBeInTheDocument();
+			expect(mockedPlanApi.workspace).toHaveBeenCalledTimes(1);
+			second.unmount();
+
+			now = Date.parse("2026-07-06T09:00:16.000Z");
+			renderPage();
+			expect(await screen.findByText("Daily insights")).toBeInTheDocument();
+			expect(mockedPlanApi.workspace).toHaveBeenCalledTimes(2);
+		} finally {
+			nowSpy.mockRestore();
+		}
 	});
 
 	it("renders daily insights and maps habit streak details into suggested order", async () => {

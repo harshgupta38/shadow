@@ -12,10 +12,14 @@ export const planApi = {
   async list(onDate?: string): Promise<PlannedTask[]> {
     return http.get<PlannedTask[]>("/plan", onDate ? { on_date: onDate } : undefined);
   },
-  async workspace(onDate?: string): Promise<PlanWorkspace> {
+  async workspace(
+    onDate?: string,
+    options: { bypassCache?: boolean } = {},
+  ): Promise<PlanWorkspace> {
     return http.get<PlanWorkspace>(
       "/plan/workspace",
       onDate ? { on_date: onDate } : undefined,
+      { bypassCache: options.bypassCache },
     );
   },
   async generateToday(data?: PlanGenerateRequest): Promise<PlanWorkspace> {

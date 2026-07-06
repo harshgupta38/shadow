@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
   ArrowRepeat,
   CalendarCheckFill,
@@ -9,7 +9,7 @@ import {
   PlusLg,
 } from "react-bootstrap-icons";
 
-import { api, ApiError, type PlannedTask } from "@/api";
+import { api, ApiError, type PlannedTask, type PlanWorkspace } from "@/api";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -94,20 +94,89 @@ const PRIORITY_PILL: Record<PlannedTask["priority"], PillVariant> = {
   low: "muted",
 };
 
+const WORKSPACE_CACHE_TTL_MS = 15_000;
+
+type WorkspaceCacheEntry = {
+  workspace: PlanWorkspace;
+  expiresAt: number;
+};
+
+const workspaceCacheByDate = new Map<string, WorkspaceCacheEntry>();
+
+function getCachedWorkspace(onDate: string): PlanWorkspace | null {
+  const cached = workspaceCacheByDate.get(onDate);
+  if (!cached) return null;
+  if (Date.now() > cached.expiresAt) {
+    workspaceCacheByDate.delete(onDate);
+    return null;
+  }
+  return cached.workspace;
+}
+
+function setCachedWorkspace(onDate: string, workspace: PlanWorkspace): void {
+  workspaceCacheByDate.set(onDate, {
+    workspace,
+    expiresAt: Date.now() + WORKSPACE_CACHE_TTL_MS,
+  });
+}
+
+export function __resetPlanWorkspaceCacheForTests(): void {
+  workspaceCacheByDate.clear();
+}
+
 export function PlanPage() {
   const toast = useToast();
   const [date, setDate] = useState(toISODate());
+  const [workspaceRequestNonce, setWorkspaceRequestNonce] = useState(0);
   const [title, setTitle] = useState("");
   const [goalId, setGoalId] = useState<string>("");
   const [adding, setAdding] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [busyId, setBusyId] = useState<number | null>(null);
+  const forceFreshWorkspaceRef = useRef(false);
 
-  const { data, loading, error, reload, setData } = useAsync(
-    () => api.plan.workspace(date),
-    [date],
-  );
+  const loadWorkspace = useCallback(async () => {
+    const shouldForceFresh = forceFreshWorkspaceRef.current;
+    forceFreshWorkspaceRef.current = false;
+
+    if (!shouldForceFresh) {
+      const cached = getCachedWorkspace(date);
+      if (cached) return cached;
+    }
+
+    const fresh = await api.plan.workspace(date, { bypassCache: shouldForceFresh });
+    setCachedWorkspace(date, fresh);
+    return fresh;
+  }, [date]);
+
+  const reloadWorkspace = useCallback(() => {
+    forceFreshWorkspaceRef.current = true;
+    setWorkspaceRequestNonce((prev) => prev + 1);
+  }, []);
+
+  const { data, loading, error, setData } = useAsync(loadWorkspace, [loadWorkspace, workspaceRequestNonce]);
   const { data: goals } = useAsync(() => api.goals.list("active"), []);
+
+  const setWorkspaceData = useCallback(
+    (
+      updater:
+        | PlanWorkspace
+        | null
+        | ((prev: PlanWorkspace | null) => PlanWorkspace | null),
+    ) => {
+      setData((prev) => {
+        const next =
+          typeof updater === "function"
+            ? (updater as (rows: PlanWorkspace | null) => PlanWorkspace | null)(prev)
+            : updater;
+        if (next) {
+          setCachedWorkspace(next.date, next);
+        }
+        return next;
+      });
+    },
+    [setData],
+  );
 
   const tasks = data?.tasks ?? [];
   const executionOrder = data?.execution_order ?? [];
@@ -238,7 +307,7 @@ export function PlanPage() {
   const doneTasks = tasks.filter((t) => t.status === "done");
 
   function updateWorkspaceTasks(update: (rows: PlannedTask[]) => PlannedTask[]) {
-    setData((prev) => (prev ? { ...prev, tasks: update(prev.tasks) } : prev));
+    setWorkspaceData((prev) => (prev ? { ...prev, tasks: update(prev.tasks) } : prev));
   }
 
   async function addTask() {
@@ -253,7 +322,7 @@ export function PlanPage() {
       updateWorkspaceTasks((prev) => [...prev, created]);
       setTitle("");
       setGoalId("");
-      reload();
+      reloadWorkspace();
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Couldn't add the task.");
     } finally {
@@ -274,7 +343,7 @@ export function PlanPage() {
       );
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Couldn't update the task.");
-      reload();
+      reloadWorkspace();
     } finally {
       setBusyId(null);
     }
@@ -288,7 +357,7 @@ export function PlanPage() {
         mode: "set",
         metric_id: metricId ?? null,
       });
-      setData(workspace);
+      setWorkspaceData(workspace);
 
       const updatedTask = workspace.tasks.find((row) => row.id === task.id);
       if (updatedTask?.status === "done" && task.status !== "done") {
@@ -298,7 +367,7 @@ export function PlanPage() {
       }
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Couldn't log task progress.");
-      reload();
+      reloadWorkspace();
     } finally {
       setBusyId(null);
     }
@@ -309,10 +378,10 @@ export function PlanPage() {
     updateWorkspaceTasks((prev) => prev.filter((entry) => entry.id !== task.id));
     try {
       await api.plan.remove(task.id);
-      reload();
+      reloadWorkspace();
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Couldn't delete the task.");
-      reload();
+      reloadWorkspace();
     } finally {
       setBusyId(null);
     }
@@ -322,7 +391,7 @@ export function PlanPage() {
     setGenerating(true);
     try {
       const workspace = await api.plan.generateToday({ on_date: date });
-      setData(workspace);
+      setWorkspaceData(workspace);
       toast.success(isToday ? "Today's plan generated." : "Plan generated for selected date.");
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Couldn't generate the plan.");
@@ -484,7 +553,7 @@ export function PlanPage() {
                 title="Couldn't load your plan"
                 message={error}
                 action={
-                  <button className="btn btn-brand btn-sm" onClick={reload}>
+                  <button className="btn btn-brand btn-sm" onClick={reloadWorkspace}>
                     Retry
                   </button>
                 }

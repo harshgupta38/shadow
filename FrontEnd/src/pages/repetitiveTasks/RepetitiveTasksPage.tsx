@@ -457,7 +457,7 @@ export function RepetitiveTasksPage() {
   return (
     <div>
       <PageHeader
-        title="Repetitive Tasks"
+        title="Habit Library"
         subtitle="Create recurring commitments once, then keep them visible every day."
         icon={<ArrowRepeat size={20} />}
       />
@@ -467,7 +467,7 @@ export function RepetitiveTasksPage() {
           <section className="surface p-4">
             <h2 className="h5 fw-bold mb-1">Habit Library Overview</h2>
             <p className="text-muted-2 mb-3">
-              Tasks and recommendations are now powered by backend APIs.
+              Tasks and recommendations are now powered by your Goal Coach.
             </p>
             <div className="d-flex flex-wrap gap-2">
               <Pill variant="success">{activeCount} Active</Pill>

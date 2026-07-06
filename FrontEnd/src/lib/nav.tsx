@@ -37,7 +37,7 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { to: "/plan", label: "Today", icon: CalendarCheckFill },
       { to: "/goals", label: "Goals", icon: Bullseye },
-      { to: "/repetitive-tasks", label: "Repetitive Tasks", icon: ArrowRepeat },
+      { to: "/repetitive-tasks", label: "Habit Library", icon: ArrowRepeat },
       { to: "/track", label: "Track", icon: GraphUpArrow },
       { to: "/reports", label: "Reports", icon: FileEarmarkBarGraphFill },
     ],

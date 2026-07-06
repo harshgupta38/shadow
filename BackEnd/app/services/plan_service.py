@@ -11,7 +11,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.agents.orchestrator import (
     estimate_today_task_durations_json,
@@ -26,7 +26,9 @@ from app.models.activity import ActivityLog
 from app.models.enums import (
     ActivitySource,
     GoalStatus,
+    MilestoneStatus,
     MetricTimeSpan,
+    MetricUnit,
     NotificationType,
     PlannedTaskPriority,
     PlannedTaskSource,
@@ -62,6 +64,7 @@ _MAX_TITLE_LENGTH = 255
 _HISTORY_LOOKBACK_DAYS = 45
 _MAX_ACCOUNTABILITY_LENGTH = 255
 _MIN_ACCOUNTABILITY_COPY_LENGTH = 24
+_STREAK_SYNC_NOTE_PREFIX = "[auto-task-streak-sync]"
 _PRIORITY_SORT = {
     PlannedTaskPriority.critical: 0,
     PlannedTaskPriority.high: 1,
@@ -926,18 +929,12 @@ def _linked_metrics_by_repetitive_id(
     return linked
 
 
-def _select_progress_metric_for_task(
-    db: Session,
-    user: User,
-    *,
-    task: PlannedTask,
-    metric_id: int | None,
-) -> TrackedMetric:
+def _linked_metrics_for_task(db: Session, user: User, task: PlannedTask) -> list[TrackedMetric]:
     repetitive = _match_repetitive_task_by_title(task.title, _list_active_repetitive_tasks(db, user))
     if repetitive is None:
-        raise AppError("This task is not linked to any habit yet.")
+        return []
 
-    linked_metrics = list(
+    return list(
         db.scalars(
             select(TrackedMetric)
             .join(RepetitiveTaskMetricLink, RepetitiveTaskMetricLink.metric_id == TrackedMetric.id)
@@ -949,8 +946,18 @@ def _select_progress_metric_for_task(
             .order_by(TrackedMetric.created_at, TrackedMetric.id)
         )
     )
+
+
+def _select_progress_metric_for_task(
+    db: Session,
+    user: User,
+    *,
+    task: PlannedTask,
+    metric_id: int | None,
+) -> TrackedMetric:
+    linked_metrics = _linked_metrics_for_task(db, user, task)
     if not linked_metrics:
-        raise AppError("No linked metric found for this habit task yet.")
+        raise AppError("This task is not linked to any habit yet.")
 
     if metric_id is None:
         if len(linked_metrics) > 1:
@@ -961,6 +968,92 @@ def _select_progress_metric_for_task(
     if selected is None:
         raise AppError("Selected metric is not linked to this task.")
     return selected
+
+
+def _streak_sync_note(task_id: int) -> str:
+    return f"{_STREAK_SYNC_NOTE_PREFIX}:task={task_id}"
+
+
+def _is_daily_streak_metric(metric: TrackedMetric) -> bool:
+    return (
+        metric.time_span == MetricTimeSpan.day
+        and metric.target == 1
+        and metric.unit in {MetricUnit.count, MetricUnit.custom}
+    )
+
+
+def _sync_daily_streak_metrics_with_task_status(
+    db: Session,
+    user: User,
+    task: PlannedTask,
+    *,
+    previous_status: PlannedTaskStatus,
+) -> None:
+    was_done = previous_status == PlannedTaskStatus.done
+    is_done = task.status == PlannedTaskStatus.done
+    if was_done == is_done:
+        return
+
+    streak_metrics = [
+        metric
+        for metric in _linked_metrics_for_task(db, user, task)
+        if _is_daily_streak_metric(metric)
+    ]
+    if not streak_metrics:
+        return
+
+    sync_note = _streak_sync_note(task.id)
+    for metric in streak_metrics:
+        if is_done:
+            existing_auto_log_ids = list(
+                db.scalars(
+                    select(ActivityLog.id).where(
+                        ActivityLog.user_id == user.id,
+                        ActivityLog.metric_id == metric.id,
+                        ActivityLog.date == task.date,
+                        ActivityLog.source == ActivitySource.integration,
+                        ActivityLog.note == sync_note,
+                    )
+                )
+            )
+            if existing_auto_log_ids:
+                continue
+
+            current_total_raw = db.scalar(
+                select(func.coalesce(func.sum(ActivityLog.value), 0.0)).where(
+                    ActivityLog.user_id == user.id,
+                    ActivityLog.metric_id == metric.id,
+                    ActivityLog.date == task.date,
+                )
+            )
+            current_total = float(current_total_raw or 0.0)
+            if current_total >= 1.0:
+                continue
+
+            db.add(
+                ActivityLog(
+                    user_id=user.id,
+                    metric_id=metric.id,
+                    date=task.date,
+                    value=max(1.0 - current_total, 0.0),
+                    note=sync_note,
+                    source=ActivitySource.integration,
+                )
+            )
+        else:
+            auto_logs = list(
+                db.scalars(
+                    select(ActivityLog).where(
+                        ActivityLog.user_id == user.id,
+                        ActivityLog.metric_id == metric.id,
+                        ActivityLog.date == task.date,
+                        ActivityLog.source == ActivitySource.integration,
+                        ActivityLog.note == sync_note,
+                    )
+                )
+            )
+            for log in auto_logs:
+                db.delete(log)
 
 
 def _infer_task_category(
@@ -1284,6 +1377,7 @@ def _carry_forward_candidates(yesterday_open: list[PlannedTask]) -> list[_Genera
 
 def _deterministic_candidates(
     *,
+    on_date: date,
     goals: list[Goal],
     due_repetitive: list[RepetitiveTask],
     carry_forward: list[_GeneratedCandidate],
@@ -1310,25 +1404,80 @@ def _deterministic_candidates(
             )
         )
 
-    goal_candidates: list[_GeneratedCandidate] = []
+    milestone_candidates: list[_GeneratedCandidate] = []
     ordered_goals = sorted(goals, key=lambda goal: (goal.progress, goal.id))
     for goal in ordered_goals[:6]:
-        title = f"Move '{goal.title}' forward"[:_MAX_TITLE_LENGTH]
         priority = PlannedTaskPriority.medium
-        if goal.target_date:
-            days_left = (goal.target_date.date() - date.today()).days
+        due_dates = [
+            value
+            for value in [
+                goal.target_date.date() if goal.target_date else None,
+            ]
+            if value is not None
+        ]
+        if due_dates:
+            days_left = min((due_date - on_date).days for due_date in due_dates)
             if days_left <= 14:
                 priority = PlannedTaskPriority.high
-        goal_candidates.append(
+
+        open_milestones = [
+            milestone
+            for milestone in goal.milestones
+            if milestone.status != MilestoneStatus.done
+        ]
+        open_milestones.sort(
+            key=lambda milestone: (
+                0 if milestone.status == MilestoneStatus.in_progress else 1,
+                milestone.due_date.date() if milestone.due_date else date.max,
+                milestone.order,
+                milestone.id,
+            )
+        )
+        if not open_milestones:
+            milestone_candidates.append(
+                _GeneratedCandidate(
+                    task=PlanGeneratedTaskInput(
+                        title=f"Define next milestone for {goal.title}"[:_MAX_TITLE_LENGTH],
+                        related_goal_id=goal.id,
+                        priority=priority,
+                        estimated_duration_minutes=None,
+                        ai_rationale="Create a concrete next step so this goal can be scheduled clearly.",
+                        ai_impact_if_skipped=(
+                            f"Skipping this can keep your {goal.title} goal vague and delay meaningful progress."
+                        ),
+                        ai_confidence_score=78,
+                    )
+                )
+            )
+            continue
+
+        next_milestone = open_milestones[0]
+        milestone_title = next_milestone.title.strip()
+        if not milestone_title:
+            continue
+
+        due_dates = [
+            value
+            for value in [
+                goal.target_date.date() if goal.target_date else None,
+                next_milestone.due_date.date() if next_milestone.due_date else None,
+            ]
+            if value is not None
+        ]
+        if due_dates:
+            days_left = min((due_date - on_date).days for due_date in due_dates)
+            if days_left <= 14:
+                priority = PlannedTaskPriority.high
+        milestone_candidates.append(
             _GeneratedCandidate(
                 task=PlanGeneratedTaskInput(
-                    title=title,
+                    title=milestone_title[:_MAX_TITLE_LENGTH],
                     related_goal_id=goal.id,
                     priority=priority,
                     estimated_duration_minutes=None,
-                    ai_rationale="Direct progress on an active goal.",
+                    ai_rationale=f"Advance the next open milestone for {goal.title}.",
                     ai_impact_if_skipped=(
-                        "Delaying this reduces progress on an active goal and risks deadline pressure."
+                        f"Skipping {milestone_title} can delay progress toward your {goal.title} goal."
                     ),
                     ai_confidence_score=78,
                 )
@@ -1336,7 +1485,7 @@ def _deterministic_candidates(
         )
 
     merged = _merge_candidates(merged, repetitive_candidates, existing_title_keys, _MAX_GENERATED_TASKS)
-    merged = _merge_candidates(merged, goal_candidates, existing_title_keys, _MAX_GENERATED_TASKS)
+    merged = _merge_candidates(merged, milestone_candidates, existing_title_keys, _MAX_GENERATED_TASKS)
     return merged
 
 
@@ -1660,6 +1809,7 @@ def create_task(db: Session, user: User, data: PlannedTaskCreate) -> PlannedTask
 
 def update_task(db: Session, user: User, task_id: int, data: PlannedTaskUpdate) -> PlannedTask:
     task = get_owned_or_404(db, PlannedTask, task_id, user.id, name="Task")
+    previous_status = task.status
     updates = data.model_dump(exclude_unset=True)
 
     if "related_goal_id" in updates:
@@ -1692,6 +1842,14 @@ def update_task(db: Session, user: User, task_id: int, data: PlannedTaskUpdate) 
             task.completed_at = utcnow()
         elif task.status != PlannedTaskStatus.done:
             task.completed_at = None
+
+        _sync_daily_streak_metrics_with_task_status(
+            db,
+            user,
+            task,
+            previous_status=previous_status,
+        )
+
     db.commit()
     db.refresh(task)
     return task
@@ -1886,6 +2044,7 @@ def generate_today_plan(
     active_goals = list(
         db.scalars(
             select(Goal)
+            .options(selectinload(Goal.milestones))
             .where(Goal.user_id == user.id, Goal.status == GoalStatus.active)
             .order_by(Goal.updated_at.desc(), Goal.id.desc())
         )
@@ -1934,6 +2093,7 @@ def generate_today_plan(
             generated = _merge_candidates(
                 generated,
                 _deterministic_candidates(
+                    on_date=target_date,
                     goals=active_goals,
                     due_repetitive=due_repetitive,
                     carry_forward=carry_forward,
@@ -1944,6 +2104,7 @@ def generate_today_plan(
             )
     else:
         generated = _deterministic_candidates(
+            on_date=target_date,
             goals=active_goals,
             due_repetitive=due_repetitive,
             carry_forward=carry_forward,

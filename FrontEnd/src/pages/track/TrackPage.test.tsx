@@ -231,6 +231,26 @@ describe("TrackPage", () => {
     expect(await screen.findByText("No pending recommendations")).toBeInTheDocument();
   });
 
+  it("shows streak badge for daily 1/day metrics even before first log", async () => {
+    mockedMetricsApi.list.mockResolvedValue([
+      buildMetric({
+        id: 2,
+        label: "Workout",
+        key: "workout_done_today",
+        unit: "count",
+        unit_text: "count",
+        time_span: "day",
+        target: 1,
+      }),
+    ]);
+    mockedMetricsApi.logs.mockResolvedValue([]);
+
+    renderPage();
+
+    expect(await screen.findByText("Workout")).toBeInTheDocument();
+    expect(await screen.findByText(/0 day streak/i)).toBeInTheDocument();
+  });
+
   it("keeps manual fields hidden in shadow mode until Shadow setup succeeds", async () => {
     const user = userEvent.setup();
     renderPage();

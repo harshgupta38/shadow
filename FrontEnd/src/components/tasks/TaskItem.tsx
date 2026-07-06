@@ -97,7 +97,11 @@ export function TaskItem({
     ?? "Not linked to a goal";
   const urgencyLabel = task.overdue ? "Overdue" : due;
   const primaryLinkedMetric = task.linked_metrics?.[0] ?? null;
-  const isQuantifiableTask = primaryLinkedMetric !== null;
+  const isStreakLinkedMetric =
+    primaryLinkedMetric !== null
+    && primaryLinkedMetric.time_span === "day"
+    && primaryLinkedMetric.target === 1;
+  const isQuantifiableTask = primaryLinkedMetric !== null && !isStreakLinkedMetric;
   const metricUnitText = primaryLinkedMetric?.unit_text?.trim() || "units";
   const metricLoggedTotal = primaryLinkedMetric ? Number(primaryLinkedMetric.logged_total || 0) : 0;
   const metricTarget = primaryLinkedMetric?.target ?? null;
@@ -230,7 +234,7 @@ export function TaskItem({
               </div>
             </div>
 
-            {!done && onLogProgress && (
+            {!done && isQuantifiableTask && onLogProgress && (
               <div className="d-flex align-items-center gap-2 flex-wrap mt-2 mt-xl-0 flex-shrink-0">
                 <input
                   type="number"

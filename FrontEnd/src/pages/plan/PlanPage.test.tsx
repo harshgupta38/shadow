@@ -366,4 +366,52 @@ describe("PlanPage", () => {
 			metric_id: 11,
 		});
 	});
+
+	it("uses checkbox toggle for 1/day streak-linked tasks", async () => {
+		const user = userEvent.setup();
+
+		mockedPlanApi.workspace.mockResolvedValue(
+			buildWorkspace({
+				tasks: [
+					buildTask({
+						linked_metrics: [
+							{
+								metric_id: 21,
+								label: "Workout",
+								unit_text: "count",
+								target: 1,
+								time_span: "day",
+								time_span_custom_text: null,
+								logged_total: 0,
+							},
+						],
+					}),
+				],
+			}),
+		);
+
+		mockedPlanApi.update.mockResolvedValue(
+			buildTask({
+				status: "done",
+				linked_metrics: [
+					{
+						metric_id: 21,
+						label: "Workout",
+						unit_text: "count",
+						target: 1,
+						time_span: "day",
+						time_span_custom_text: null,
+						logged_total: 1,
+					},
+				],
+			}),
+		);
+
+		renderPage();
+
+		await user.click(await screen.findByRole("button", { name: "Mark as done" }));
+
+		expect(mockedPlanApi.update).toHaveBeenCalledWith(1, { status: "done" });
+		expect(mockedPlanApi.logProgress).not.toHaveBeenCalled();
+	});
 });

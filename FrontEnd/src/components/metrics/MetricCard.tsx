@@ -29,6 +29,8 @@ export function MetricCard({ metric, onEdit, onDelete }: MetricCardProps) {
   const stats = useMemo(() => computeMetricStats(logs ?? []), [logs]);
   const unitLabel = (metric.unit_text ?? "").trim() || METRIC_UNIT_LABEL[metric.unit];
   const timeSpan = metric.time_span ?? "day";
+  const isStreakMetric =
+    timeSpan === "day" && metric.target === 1 && (metric.unit === "count" || metric.unit === "custom");
   const timeSpanLabel =
     timeSpan === "custom"
       ? (metric.time_span_custom_text ?? "").trim() || "Custom"
@@ -65,9 +67,9 @@ export function MetricCard({ metric, onEdit, onDelete }: MetricCardProps) {
           <h3 className="h6 fw-bold mb-1 text-truncate">{metric.label}</h3>
           <div className="d-flex align-items-center gap-2">
             <Pill>{unitLabel}</Pill>
-            {stats.streak > 0 && (
-              <Pill variant="warn">
-                <Fire size={12} /> {stats.streak} day{stats.streak > 1 ? "s" : ""}
+            {(isStreakMetric || stats.streak > 0) && (
+              <Pill variant={stats.streak > 0 ? "warn" : "muted"}>
+                <Fire size={12} /> {stats.streak} day{stats.streak > 1 ? "s" : ""} streak
               </Pill>
             )}
           </div>

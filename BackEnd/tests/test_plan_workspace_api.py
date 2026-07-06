@@ -670,6 +670,123 @@ def test_generate_today_estimates_missing_duration_with_llm_when_no_user_time_wi
         app.dependency_overrides.pop(get_provider, None)
 
 
+def test_generate_today_deterministic_fallback_uses_milestone_titles(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    app.dependency_overrides[get_provider] = lambda: EmptyPlanProvider()
+
+    try:
+        goal = client.post(
+            "/api/goals",
+            headers=auth_headers,
+            json={"title": "Secure SDE 1 role at MAANG", "category": "Career"},
+        )
+        assert goal.status_code == 201
+        goal_id = int(goal.json()["id"])
+
+        milestone = client.post(
+            f"/api/goals/{goal_id}/milestones",
+            headers=auth_headers,
+            json={"title": "Solve 5 graph problems"},
+        )
+        assert milestone.status_code == 201
+
+        response = client.post("/api/plan/generate-today", headers=auth_headers, json={})
+        assert response.status_code == 200
+
+        tasks = response.json()["tasks"]
+        titles = [task["title"] for task in tasks]
+
+        assert "Solve 5 graph problems" in titles
+        assert all(not title.startswith("Move '") for title in titles)
+        assert all("forward" not in title.lower() for title in titles)
+    finally:
+        app.dependency_overrides.pop(get_provider, None)
+
+
+def test_task_status_toggle_syncs_daily_streak_metric_logs(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    app.dependency_overrides[get_provider] = lambda: EmptyPlanProvider()
+
+    try:
+        metric = client.post(
+            "/api/metrics",
+            headers=auth_headers,
+            json={
+                "key": "workout_done_today",
+                "label": "Workout",
+                "unit_text": "count",
+                "time_span": "day",
+                "target": 1,
+            },
+        )
+        assert metric.status_code == 201
+        metric_id = int(metric.json()["id"])
+
+        repetitive = client.post(
+            "/api/repetitive-tasks",
+            headers=auth_headers,
+            json={
+                "name": "Workout",
+                "description": "Daily training session.",
+                "frequencies": ["daily"],
+                "priority": "high",
+                "linked_metric_ids": [metric_id],
+            },
+        )
+        assert repetitive.status_code == 201
+
+        generated = client.post("/api/plan/generate-today", headers=auth_headers, json={})
+        assert generated.status_code == 200
+        task = next(row for row in generated.json()["tasks"] if row["title"] == "Workout")
+
+        mark_done = client.put(
+            f"/api/plan/{task['id']}",
+            headers=auth_headers,
+            json={"status": "done"},
+        )
+        assert mark_done.status_code == 200
+        assert mark_done.json()["status"] == "done"
+
+        workspace_after_done = client.get("/api/plan/workspace", headers=auth_headers)
+        assert workspace_after_done.status_code == 200
+        done_task = next(
+            row for row in workspace_after_done.json()["tasks"] if row["id"] == task["id"]
+        )
+        assert done_task["linked_metrics"]
+        assert float(done_task["linked_metrics"][0]["logged_total"]) == 1.0
+
+        logs_after_done = client.get(f"/api/metrics/{metric_id}/logs", headers=auth_headers)
+        assert logs_after_done.status_code == 200
+        today_total_after_done = sum(float(row["value"]) for row in logs_after_done.json())
+        assert today_total_after_done == 1.0
+
+        mark_planned = client.put(
+            f"/api/plan/{task['id']}",
+            headers=auth_headers,
+            json={"status": "planned"},
+        )
+        assert mark_planned.status_code == 200
+        assert mark_planned.json()["status"] == "planned"
+
+        workspace_after_revert = client.get("/api/plan/workspace", headers=auth_headers)
+        assert workspace_after_revert.status_code == 200
+        reverted_task = next(
+            row for row in workspace_after_revert.json()["tasks"] if row["id"] == task["id"]
+        )
+        assert float(reverted_task["linked_metrics"][0]["logged_total"]) == 0.0
+
+        logs_after_revert = client.get(f"/api/metrics/{metric_id}/logs", headers=auth_headers)
+        assert logs_after_revert.status_code == 200
+        today_total_after_revert = sum(float(row["value"]) for row in logs_after_revert.json())
+        assert today_total_after_revert == 0.0
+    finally:
+        app.dependency_overrides.pop(get_provider, None)
+
+
 def test_task_progress_updates_linked_metric_and_completes_when_target_reached(
     client: TestClient,
     auth_headers: dict[str, str],

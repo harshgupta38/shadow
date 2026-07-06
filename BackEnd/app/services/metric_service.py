@@ -17,6 +17,7 @@ from app.models.activity import ActivityLog
 from app.memory.context import compile_user_context
 from app.models.enums import ActivitySource, MetricTimeSpan, MetricType, MetricUnit
 from app.models.metric import TrackedMetric
+from app.models.notification import Notification
 from app.models.repetitive_task import RepetitiveTask, RepetitiveTaskMetricLink
 from app.models.user import User
 from app.schemas.activity import ActivityLogCreate
@@ -71,6 +72,7 @@ _COUNT_KEYWORDS = {
     "glasses",
     "glass",
 }
+_PROGRESS_COACH_TITLE_PREFIX = "__internal_progress_coach_metric_recommendation__:habit:"
 
 
 def _strip_markdown_fence(raw: str) -> str:
@@ -185,6 +187,26 @@ def _replace_metric_habit_links(db: Session, metric_id: int, habit_ids: list[int
                 for habit_id in habit_ids
             ]
         )
+
+
+def _clear_pending_progress_coach_recommendations(
+    db: Session,
+    user_id: int,
+    habit_ids: list[int],
+) -> None:
+    if not habit_ids:
+        return
+
+    titles = [f"{_PROGRESS_COACH_TITLE_PREFIX}{habit_id}" for habit_id in _normalize_ids(habit_ids)]
+    if not titles:
+        return
+
+    db.execute(
+        delete(Notification).where(
+            Notification.user_id == user_id,
+            Notification.title.in_(titles),
+        )
+    )
 
 
 def _parse_draft_target(value: object) -> int | None:
@@ -366,6 +388,7 @@ def create_metric(db: Session, user: User, data: MetricCreate) -> TrackedMetric:
     db.add(metric)
     db.flush()
     _replace_metric_habit_links(db, metric.id, linked_habit_ids)
+    _clear_pending_progress_coach_recommendations(db, user.id, linked_habit_ids)
     metric_id = metric.id
     db.commit()
     persisted = db.scalar(
@@ -417,6 +440,7 @@ def update_metric(db: Session, user: User, metric_id: int, data: MetricUpdate) -
     if "linked_habit_ids" in updates:
         linked_habit_ids = _ensure_owned_habit_ids(db, user.id, updates["linked_habit_ids"] or [])
         _replace_metric_habit_links(db, metric.id, linked_habit_ids)
+        _clear_pending_progress_coach_recommendations(db, user.id, linked_habit_ids)
 
     persisted_id = metric.id
     db.commit()

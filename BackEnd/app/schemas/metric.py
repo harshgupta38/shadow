@@ -67,6 +67,7 @@ class ProgressCoachRecommendationRead(BaseModel):
     metric_name: str
     metric_key: str
     unit: MetricUnit
+    time_span: MetricTimeSpan
     target: int
     unit_hint: str | None = None
     rationale: str

@@ -635,7 +635,7 @@ def recommend_progress_metric_json(
         [LLMMessage("user", prompt)],
         system=system,
         temperature=0.1,
-        max_tokens=320,
+        max_tokens=1200,
         model=model,
     ).strip()
 
@@ -668,7 +668,7 @@ def repair_progress_metric_json(
         [LLMMessage("user", prompt)],
         system=system,
         temperature=0,
-        max_tokens=260,
+        max_tokens=1200,
         model=model,
     ).strip()
 

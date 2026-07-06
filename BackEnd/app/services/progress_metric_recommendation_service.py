@@ -47,7 +47,19 @@ logger = logging.getLogger(__name__)
 INTERNAL_PROGRESS_COACH_TITLE_PREFIX = "__internal_progress_coach_metric_recommendation__:habit:"
 _RECOMMENDATION_SCHEMA = "PROGRESS_COACH_RECOMMENDATION_V1"
 
-_MONTHLY_ONLY_FREQUENCIES = {"monthly", "first_of_month", "end_of_month"}
+_WEEKLY_FREQUENCIES = {
+    "weekly",
+    "weekdays",
+    "weekends",
+    "sunday",
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
+}
+_MONTHLY_FREQUENCIES = {"monthly", "first_of_month", "end_of_month"}
 _NON_PROGRESS_PATTERNS = (
     "work from office",
     "work from home",
@@ -265,9 +277,6 @@ def _is_habit_quantifiable_candidate(
     if not text:
         return False
 
-    if set(frequencies).issubset(_MONTHLY_ONLY_FREQUENCIES):
-        return False
-
     has_number = _has_numeric_signal(text)
     has_unit_signal = _contains_any(text, _QUANTIFIABLE_UNIT_KEYWORDS)
     has_activity_signal = _contains_any(text, _QUANTIFIABLE_ACTIVITY_KEYWORDS)
@@ -282,6 +291,26 @@ def _is_habit_quantifiable_candidate(
 
     # Allow canonical measurable habits even when no explicit number is given.
     return has_activity_signal
+
+
+def _recommendation_time_span_for_frequencies(frequencies: list[str]) -> MetricTimeSpan:
+    normalized = {value.strip().lower() for value in frequencies if value and value.strip()}
+    if not normalized:
+        return MetricTimeSpan.day
+
+    if "daily" in normalized:
+        return MetricTimeSpan.day
+    if normalized.issubset(_MONTHLY_FREQUENCIES):
+        return MetricTimeSpan.month
+    if normalized.issubset(_WEEKLY_FREQUENCIES):
+        return MetricTimeSpan.week
+
+    if normalized & _MONTHLY_FREQUENCIES and not (normalized & _WEEKLY_FREQUENCIES):
+        return MetricTimeSpan.month
+    if normalized & _WEEKLY_FREQUENCIES:
+        return MetricTimeSpan.week
+
+    return MetricTimeSpan.day
 
 
 def _is_recommendation_consistent_with_habit(
@@ -498,8 +527,35 @@ def _normalise_extractor_output(
         target = int(round(target_number))
         unit_hint = "m"
     elif raw_unit == "custom":
+        habit_signal_text = f"{metric_name.lower()} {_habit_text(name=habit_name, description=habit_description)}"
         unit = MetricUnit.custom
         target = int(round(target_number))
+        if _contains_any(habit_signal_text, _VOLUME_EVIDENCE_KEYWORDS):
+            unit_hint = "ml"
+            liters_signal = (
+                "liter" in habit_signal_text
+                or "litre" in habit_signal_text
+                or re.search(r"\d(?:\.\d+)?\s*l\b", habit_signal_text) is not None
+            )
+            if liters_signal and "ml" not in habit_signal_text and target_number <= 20:
+                target = int(round(target_number * 1000))
+        elif _contains_any(habit_signal_text, _DISTANCE_EVIDENCE_KEYWORDS):
+            unit_hint = "m"
+            km_signal = (
+                "kilometer" in habit_signal_text
+                or "kilometre" in habit_signal_text
+                or re.search(r"\d(?:\.\d+)?\s*km\b", habit_signal_text) is not None
+            )
+            if km_signal and target_number <= 100:
+                target = int(round(target_number * 1000))
+        elif _contains_any(habit_signal_text, _WEIGHT_EVIDENCE_KEYWORDS):
+            unit_hint = "g"
+            kg_signal = (
+                "kilogram" in habit_signal_text
+                or re.search(r"\d(?:\.\d+)?\s*kg\b", habit_signal_text) is not None
+            )
+            if kg_signal and target_number <= 100:
+                target = int(round(target_number * 1000))
     else:
         return None
 
@@ -540,7 +596,12 @@ def _parse_stored_recommendation(row: Notification) -> _StoredRecommendation | N
     return payload
 
 
-def _to_read(row: Notification, payload: _StoredRecommendation) -> ProgressCoachRecommendationRead:
+def _to_read(
+    row: Notification,
+    payload: _StoredRecommendation,
+    *,
+    habit: RepetitiveTask,
+) -> ProgressCoachRecommendationRead:
     return ProgressCoachRecommendationRead(
         id=row.id,
         habit_id=payload.habit_id,
@@ -548,6 +609,7 @@ def _to_read(row: Notification, payload: _StoredRecommendation) -> ProgressCoach
         metric_name=payload.metric_name,
         metric_key=payload.metric_key,
         unit=payload.unit,
+        time_span=_recommendation_time_span_for_frequencies(list(habit.frequencies)),
         target=payload.target,
         unit_hint=payload.unit_hint,
         rationale=payload.rationale,
@@ -756,7 +818,7 @@ def list_pending(db: Session, user: User) -> list[ProgressCoachRecommendationRea
         if not _stored_recommendation_is_still_valid(payload, habit):
             stale_recommendation_ids.append(row.id)
             continue
-        recommendations.append(_to_read(row, payload))
+        recommendations.append(_to_read(row, payload, habit=habit))
 
     if stale_recommendation_ids:
         db.execute(
@@ -791,6 +853,7 @@ def accept_pending(
         raise NotFoundError("Progress Coach recommendation not found")
 
     habit = get_owned_or_404(db, RepetitiveTask, payload.habit_id, user.id, name="Repetitive task")
+    recommendation_time_span = _recommendation_time_span_for_frequencies(list(habit.frequencies))
 
     metric = db.scalar(
         select(TrackedMetric).where(
@@ -807,7 +870,7 @@ def accept_pending(
                 label=payload.metric_name,
                 unit=payload.unit,
                 unit_text=(payload.unit_hint or payload.unit.value),
-                time_span=MetricTimeSpan.day,
+                time_span=recommendation_time_span,
                 target=payload.target,
                 linked_habit_ids=[habit.id],
             ),
@@ -821,8 +884,8 @@ def accept_pending(
         expected_unit_text = payload.unit_hint or payload.unit.value
         if (metric.unit_text or "").lower() != expected_unit_text.lower():
             updates["unit_text"] = expected_unit_text
-        if metric.time_span != MetricTimeSpan.day:
-            updates["time_span"] = MetricTimeSpan.day
+        if metric.time_span != recommendation_time_span:
+            updates["time_span"] = recommendation_time_span
         if metric.target != payload.target:
             updates["target"] = payload.target
         if not metric.active:

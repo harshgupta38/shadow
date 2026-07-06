@@ -36,6 +36,16 @@ class ProgressMetricRecommendationProvider(LLMProvider):
                 '{"measurable":true,"metric_name":"LeetCode solved","unit":"count",'
                 '"daily_target":10,"rationale":"Problems solved is directly measurable."}'
             )
+        if "Habit name" in prompt and "Weekly Run" in prompt:
+            return (
+                '{"measurable":true,"metric_name":"Run minutes","unit":"minutes",'
+                '"daily_target":180,"rationale":"Running volume is measurable each week."}'
+            )
+        if "Habit name" in prompt and "Monthly Run" in prompt:
+            return (
+                '{"measurable":true,"metric_name":"Run minutes","unit":"minutes",'
+                '"daily_target":300,"rationale":"Running volume is measurable each month."}'
+            )
         return (
             '{"measurable":false,"metric_name":null,"unit":null,'
             '"daily_target":null,"rationale":"Not quantifiable as a daily metric."}'
@@ -55,6 +65,38 @@ class AlwaysMeasurableRecommendationProvider(LLMProvider):
         return (
             '{"measurable":true,"metric_name":"Office attendance","unit":"count",'
             '"daily_target":1,"rationale":"Daily completion count."}'
+        )
+
+
+class CustomWaterRecommendationProvider(LLMProvider):
+    def generate(
+        self,
+        messages: list[LLMMessage],
+        *,
+        system: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+        model: str | None = None,
+    ) -> str:
+        return (
+            '{"measurable":true,"metric_name":"Water intake","unit":"custom",'
+            '"daily_target":2000,"rationale":"Track hydration daily."}'
+        )
+
+
+class CustomLitersWaterRecommendationProvider(LLMProvider):
+    def generate(
+        self,
+        messages: list[LLMMessage],
+        *,
+        system: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+        model: str | None = None,
+    ) -> str:
+        return (
+            '{"measurable":true,"metric_name":"Water intake","unit":"custom",'
+            '"daily_target":2,"rationale":"Track hydration daily."}'
         )
 
 
@@ -301,6 +343,142 @@ def test_update_habit_replaces_pending_progress_recommendation(
         assert rows[0]["habit_id"] == task_id
         assert rows[0]["metric_name"] == "LeetCode solved"
         assert rows[0]["target"] == 10
+        assert rows[0]["time_span"] == "day"
+    finally:
+        app.dependency_overrides.pop(get_provider, None)
+
+
+def test_create_weekly_habit_recommendation_uses_week_time_span(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    provider = ProgressMetricRecommendationProvider()
+    app.dependency_overrides[get_provider] = lambda: provider
+
+    try:
+        created = client.post(
+            "/api/repetitive-tasks",
+            headers=auth_headers,
+            json={
+                "name": "Weekly Run",
+                "description": "Run 180 minutes weekly",
+                "frequencies": ["weekly"],
+                "priority": "high",
+            },
+        )
+        assert created.status_code == 201
+
+        recommendations = client.get(
+            "/api/metrics/progress-coach-recommendations",
+            headers=auth_headers,
+        )
+        assert recommendations.status_code == 200
+        rows = recommendations.json()
+        assert len(rows) == 1
+        assert rows[0]["metric_name"] == "Run minutes"
+        assert rows[0]["time_span"] == "week"
+    finally:
+        app.dependency_overrides.pop(get_provider, None)
+
+
+def test_create_monthly_habit_recommendation_uses_month_time_span(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    provider = ProgressMetricRecommendationProvider()
+    app.dependency_overrides[get_provider] = lambda: provider
+
+    try:
+        created = client.post(
+            "/api/repetitive-tasks",
+            headers=auth_headers,
+            json={
+                "name": "Monthly Run",
+                "description": "Run 300 minutes monthly",
+                "frequencies": ["monthly"],
+                "priority": "high",
+            },
+        )
+        assert created.status_code == 201
+
+        recommendations = client.get(
+            "/api/metrics/progress-coach-recommendations",
+            headers=auth_headers,
+        )
+        assert recommendations.status_code == 200
+        rows = recommendations.json()
+        assert len(rows) == 1
+        assert rows[0]["metric_name"] == "Run minutes"
+        assert rows[0]["time_span"] == "month"
+    finally:
+        app.dependency_overrides.pop(get_provider, None)
+
+
+def test_create_habit_accepts_custom_unit_recommendation_for_water(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    provider = CustomWaterRecommendationProvider()
+    app.dependency_overrides[get_provider] = lambda: provider
+
+    try:
+        created = client.post(
+            "/api/repetitive-tasks",
+            headers=auth_headers,
+            json={
+                "name": "Drink water",
+                "description": "Drink 2000ml water daily",
+                "frequencies": ["daily"],
+                "priority": "medium",
+            },
+        )
+        assert created.status_code == 201
+
+        recommendations = client.get(
+            "/api/metrics/progress-coach-recommendations",
+            headers=auth_headers,
+        )
+        assert recommendations.status_code == 200
+        rows = recommendations.json()
+        assert len(rows) == 1
+        assert rows[0]["metric_name"] == "Water intake"
+        assert rows[0]["unit"] == "custom"
+        assert rows[0]["unit_hint"] == "ml"
+        assert rows[0]["target"] == 2000
+    finally:
+        app.dependency_overrides.pop(get_provider, None)
+
+
+def test_create_habit_converts_custom_liters_target_to_ml(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    provider = CustomLitersWaterRecommendationProvider()
+    app.dependency_overrides[get_provider] = lambda: provider
+
+    try:
+        created = client.post(
+            "/api/repetitive-tasks",
+            headers=auth_headers,
+            json={
+                "name": "Drink water",
+                "description": "Drink 2L water daily",
+                "frequencies": ["daily"],
+                "priority": "medium",
+            },
+        )
+        assert created.status_code == 201
+
+        recommendations = client.get(
+            "/api/metrics/progress-coach-recommendations",
+            headers=auth_headers,
+        )
+        assert recommendations.status_code == 200
+        rows = recommendations.json()
+        assert len(rows) == 1
+        assert rows[0]["unit"] == "custom"
+        assert rows[0]["unit_hint"] == "ml"
+        assert rows[0]["target"] == 2000
     finally:
         app.dependency_overrides.pop(get_provider, None)
 

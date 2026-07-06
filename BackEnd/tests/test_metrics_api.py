@@ -43,6 +43,28 @@ class ProgressMetricRecommendationProvider(LLMProvider):
         )
 
 
+class WeeklyProgressMetricRecommendationProvider(LLMProvider):
+    def generate(
+        self,
+        messages: list[LLMMessage],
+        *,
+        system: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+        model: str | None = None,
+    ) -> str:
+        prompt = messages[-1].content if messages else ""
+        if "Habit name" in prompt and "Weekly Run" in prompt:
+            return (
+                '{"measurable":true,"metric_name":"Run minutes","unit":"minutes",'
+                '"daily_target":180,"rationale":"Running volume is measurable each week."}'
+            )
+        return (
+            '{"measurable":false,"metric_name":null,"unit":null,'
+            '"daily_target":null,"rationale":"No measurable recommendation."}'
+        )
+
+
 def test_default_metrics_seeded_on_register(client: TestClient, auth_headers: dict) -> None:
     metrics = client.get("/api/metrics", headers=auth_headers).json()
     keys = {m["key"] for m in metrics}
@@ -171,6 +193,7 @@ def test_progress_coach_recommendation_accept_creates_metric_and_links_habit(
         assert body["habit_id"] == habit_id
         assert body["metric"]["key"].startswith(f"habit_{habit_id}_")
         assert body["metric"]["target"] == 10
+        assert body["metric"]["time_span"] == "day"
 
         # Recommendation is consumed.
         after = client.get("/api/metrics/progress-coach-recommendations", headers=auth_headers)
@@ -182,6 +205,46 @@ def test_progress_coach_recommendation_accept_creates_metric_and_links_habit(
         assert tasks.status_code == 200
         linked = next(item for item in tasks.json() if item["id"] == habit_id)
         assert body["metric"]["id"] in linked["linked_metric_ids"]
+    finally:
+        app.dependency_overrides.pop(get_provider, None)
+
+
+def test_progress_coach_accept_sets_week_time_span_for_weekly_habit(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    provider = WeeklyProgressMetricRecommendationProvider()
+    app.dependency_overrides[get_provider] = lambda: provider
+
+    try:
+        habit = client.post(
+            "/api/repetitive-tasks",
+            headers=auth_headers,
+            json={
+                "name": "Weekly Run",
+                "description": "Run 180 minutes weekly",
+                "frequencies": ["weekly"],
+                "priority": "high",
+            },
+        )
+        assert habit.status_code == 201
+
+        recommendations = client.get(
+            "/api/metrics/progress-coach-recommendations",
+            headers=auth_headers,
+        )
+        assert recommendations.status_code == 200
+        rows = recommendations.json()
+        assert len(rows) == 1
+        assert rows[0]["time_span"] == "week"
+
+        accepted = client.post(
+            f"/api/metrics/progress-coach-recommendations/{rows[0]['id']}/accept",
+            headers=auth_headers,
+        )
+        assert accepted.status_code == 200
+        body = accepted.json()
+        assert body["metric"]["time_span"] == "week"
     finally:
         app.dependency_overrides.pop(get_provider, None)
 
@@ -344,3 +407,55 @@ def test_metric_create_with_linked_habits(client: TestClient, auth_headers: dict
     assert created.status_code == 201
     metric = created.json()
     assert metric["linked_habit_ids"] == [habit_id]
+
+
+def test_metric_create_with_linked_habit_clears_pending_recommendation(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    provider = ProgressMetricRecommendationProvider()
+    app.dependency_overrides[get_provider] = lambda: provider
+
+    try:
+        habit = client.post(
+            "/api/repetitive-tasks",
+            headers=auth_headers,
+            json={
+                "name": "LeetCode practice",
+                "description": "Solve 10 problems daily",
+                "frequencies": ["daily"],
+                "priority": "critical",
+            },
+        )
+        assert habit.status_code == 201
+        habit_id = habit.json()["id"]
+
+        recommendations_before = client.get(
+            "/api/metrics/progress-coach-recommendations",
+            headers=auth_headers,
+        )
+        assert recommendations_before.status_code == 200
+        assert len(recommendations_before.json()) == 1
+
+        created = client.post(
+            "/api/metrics",
+            headers=auth_headers,
+            json={
+                "key": "habit_qa_linked_metric",
+                "label": "Problems solved",
+                "unit_text": "problems",
+                "time_span": "day",
+                "target": 10,
+                "linked_habit_ids": [habit_id],
+            },
+        )
+        assert created.status_code == 201
+
+        recommendations_after = client.get(
+            "/api/metrics/progress-coach-recommendations",
+            headers=auth_headers,
+        )
+        assert recommendations_after.status_code == 200
+        assert recommendations_after.json() == []
+    finally:
+        app.dependency_overrides.pop(get_provider, None)

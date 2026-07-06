@@ -795,6 +795,7 @@ export interface ProgressCoachRecommendation {
   metric_name: string;
   metric_key: string;
   unit: MetricUnit;
+  time_span: MetricTimeSpan;
   target: number;
   unit_hint: string | null;
   rationale: string;

@@ -559,6 +559,55 @@ def test_generate_today_uses_repetitive_description_for_prompt_and_timing(
         app.dependency_overrides.pop(get_provider, None)
 
 
+def test_generate_today_applies_repetitive_duration_hints_without_time_window(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    app.dependency_overrides[get_provider] = lambda: EmptyPlanProvider()
+
+    try:
+        first = client.post(
+            "/api/repetitive-tasks",
+            headers=auth_headers,
+            json={
+                "name": "LeetCode Problem of the day",
+                "description": "Solve one question. It will take 45mins.",
+                "frequencies": ["daily"],
+                "priority": "high",
+            },
+        )
+        assert first.status_code == 201
+
+        second = client.post(
+            "/api/repetitive-tasks",
+            headers=auth_headers,
+            json={
+                "name": "DSA Revision Block",
+                "description": "Daily revision; it can be any 2hr slot.",
+                "frequencies": ["daily"],
+                "priority": "medium",
+            },
+        )
+        assert second.status_code == 201
+
+        response = client.post("/api/plan/generate-today", headers=auth_headers, json={})
+        assert response.status_code == 200
+
+        tasks = response.json()["tasks"]
+
+        leetcode = next(task for task in tasks if task["title"] == "LeetCode Problem of the day")
+        assert leetcode["estimated_duration_minutes"] == 45
+        assert leetcode["suggested_start_time"] is None
+        assert leetcode["suggested_finish_by_time"] is None
+
+        revision = next(task for task in tasks if task["title"] == "DSA Revision Block")
+        assert revision["estimated_duration_minutes"] == 120
+        assert revision["suggested_start_time"] is None
+        assert revision["suggested_finish_by_time"] is None
+    finally:
+        app.dependency_overrides.pop(get_provider, None)
+
+
 def test_generate_today_does_not_set_fallback_timing_when_llm_returns_no_tasks(
     client: TestClient,
     auth_headers: dict[str, str],

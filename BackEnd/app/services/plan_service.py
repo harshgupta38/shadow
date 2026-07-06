@@ -80,6 +80,18 @@ _TIME_RANGE_RE = re.compile(
     rf"(?P<start>{_TIME_TOKEN_PATTERN})\s*(?:to|-)\s*(?P<end>{_TIME_TOKEN_PATTERN})",
     re.IGNORECASE,
 )
+_DURATION_HOUR_MIN_RE = re.compile(
+    r"(?P<hours>\d+(?:\.\d+)?)\s*(?:h|hr|hrs|hour|hours)\s*(?P<minutes>\d{1,2})\s*(?:m|min|mins|minute|minutes)\b",
+    re.IGNORECASE,
+)
+_DURATION_HOUR_RE = re.compile(
+    r"(?P<hours>\d+(?:\.\d+)?)\s*(?:h|hr|hrs|hour|hours)\b",
+    re.IGNORECASE,
+)
+_DURATION_MIN_RE = re.compile(
+    r"(?P<minutes>\d{1,3})\s*(?:m|min|mins|minute|minutes)\b",
+    re.IGNORECASE,
+)
 
 
 def _safe_timezone(name: str) -> ZoneInfo | timezone:
@@ -187,6 +199,60 @@ def _extract_time_window(description: str | None) -> tuple[str | None, str | Non
     if start is None or end is None:
         return (None, None)
     return (start, end)
+
+
+def _normalize_duration_hint_minutes(value: int) -> int | None:
+    if value < 5:
+        return None
+    return min(value, 360)
+
+
+def _extract_duration_hint_minutes(description: str | None) -> int | None:
+    if not description:
+        return None
+
+    text = description.lower()
+
+    combined_match = _DURATION_HOUR_MIN_RE.search(text)
+    if combined_match is not None:
+        try:
+            hours = float(combined_match.group("hours"))
+            minutes = int(combined_match.group("minutes"))
+        except (TypeError, ValueError):
+            return None
+        if minutes < 0 or minutes > 59:
+            return None
+        total_minutes = int(round(hours * 60)) + minutes
+        return _normalize_duration_hint_minutes(total_minutes)
+
+    candidates: list[tuple[int, int]] = []
+
+    hour_match = _DURATION_HOUR_RE.search(text)
+    if hour_match is not None:
+        try:
+            hours = float(hour_match.group("hours"))
+        except (TypeError, ValueError):
+            hours = 0
+        total_minutes = int(round(hours * 60))
+        normalized = _normalize_duration_hint_minutes(total_minutes)
+        if normalized is not None:
+            candidates.append((hour_match.start(), normalized))
+
+    minute_match = _DURATION_MIN_RE.search(text)
+    if minute_match is not None:
+        try:
+            minutes = int(minute_match.group("minutes"))
+        except (TypeError, ValueError):
+            minutes = 0
+        normalized = _normalize_duration_hint_minutes(minutes)
+        if normalized is not None:
+            candidates.append((minute_match.start(), normalized))
+
+    if not candidates:
+        return None
+
+    candidates.sort(key=lambda item: item[0])
+    return candidates[0][1]
 
 
 def _normalize_title(value: str) -> str:
@@ -1169,12 +1235,13 @@ def _apply_repetitive_time_hints(
     candidates: list[_GeneratedCandidate],
     due_repetitive: list[RepetitiveTask],
 ) -> None:
-    hints: list[tuple[str, str | None, str | None]] = []
+    hints: list[tuple[str, str | None, str | None, int | None]] = []
     for task in due_repetitive:
         start, end = _extract_time_window(task.description)
-        if start is None and end is None:
+        duration_minutes = _extract_duration_hint_minutes(task.description)
+        if start is None and end is None and duration_minutes is None:
             continue
-        hints.append((_normalize_title(task.name), start, end))
+        hints.append((_normalize_title(task.name), start, end, duration_minutes))
 
     if not hints:
         return
@@ -1184,7 +1251,7 @@ def _apply_repetitive_time_hints(
         if not title_key:
             continue
 
-        for hint_title, hint_start, hint_end in hints:
+        for hint_title, hint_start, hint_end, hint_duration_minutes in hints:
             if not hint_title:
                 continue
             if _title_keys_match(title_key, hint_title):
@@ -1201,6 +1268,8 @@ def _apply_repetitive_time_hints(
                     and finish_minutes > start_minutes
                 ):
                     row.task.estimated_duration_minutes = finish_minutes - start_minutes
+                elif hint_duration_minutes is not None:
+                    row.task.estimated_duration_minutes = hint_duration_minutes
                 break
 
 

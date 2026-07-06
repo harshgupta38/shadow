@@ -21,7 +21,7 @@ from app.agents.orchestrator import (
     repair_progress_metric_json,
 )
 from app.llm.base import LLMProvider
-from app.models.enums import MetricUnit, NotificationType
+from app.models.enums import MetricTimeSpan, MetricUnit, NotificationType
 from app.models.goal import Goal
 from app.models.metric import TrackedMetric
 from app.models.notification import Notification
@@ -806,7 +806,10 @@ def accept_pending(
                 key=payload.metric_key,
                 label=payload.metric_name,
                 unit=payload.unit,
+                unit_text=(payload.unit_hint or payload.unit.value),
+                time_span=MetricTimeSpan.day,
                 target=payload.target,
+                linked_habit_ids=[habit.id],
             ),
         )
     else:
@@ -815,6 +818,11 @@ def accept_pending(
             updates["label"] = payload.metric_name
         if metric.unit != payload.unit:
             updates["unit"] = payload.unit
+        expected_unit_text = payload.unit_hint or payload.unit.value
+        if (metric.unit_text or "").lower() != expected_unit_text.lower():
+            updates["unit_text"] = expected_unit_text
+        if metric.time_span != MetricTimeSpan.day:
+            updates["time_span"] = MetricTimeSpan.day
         if metric.target != payload.target:
             updates["target"] = payload.target
         if not metric.active:

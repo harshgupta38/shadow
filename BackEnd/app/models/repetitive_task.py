@@ -80,4 +80,4 @@ class RepetitiveTaskMetricLink(Base):
     )
 
     task: Mapped[RepetitiveTask] = relationship("RepetitiveTask", back_populates="metric_links")
-    metric: Mapped[TrackedMetric] = relationship("TrackedMetric")
+    metric: Mapped[TrackedMetric] = relationship("TrackedMetric", back_populates="task_links")

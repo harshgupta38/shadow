@@ -10,7 +10,7 @@ from datetime import date, datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import BaseModel, Field, ValidationError
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.agents.orchestrator import (
@@ -22,8 +22,11 @@ from app.agents.orchestrator import (
 from app.llm.base import LLMProvider
 from app.memory.context import compile_user_context
 from app.models.base import utcnow
+from app.models.activity import ActivityLog
 from app.models.enums import (
+    ActivitySource,
     GoalStatus,
+    MetricTimeSpan,
     NotificationType,
     PlannedTaskPriority,
     PlannedTaskSource,
@@ -31,9 +34,10 @@ from app.models.enums import (
     RepetitiveTaskStatus,
 )
 from app.models.goal import Goal
+from app.models.metric import TrackedMetric
 from app.models.notification import Notification
 from app.models.planned_task import PlannedTask
-from app.models.repetitive_task import RepetitiveTask
+from app.models.repetitive_task import RepetitiveTask, RepetitiveTaskMetricLink
 from app.models.user import User
 from app.schemas.plan import (
     PlanExecutionItem,
@@ -41,9 +45,11 @@ from app.schemas.plan import (
     PlanGeneratedTaskInput,
     PlanGenerationPayload,
     PlanInsightsRead,
+    PlanTaskLinkedMetricRead,
     PlanWorkspaceRead,
     PlanWorkspaceTaskRead,
     PlannedTaskCreate,
+    PlannedTaskProgressUpdate,
     PlannedTaskUpdate,
 )
 from app.services import settings_service
@@ -841,6 +847,122 @@ def _match_repetitive_task_by_title(
     return None
 
 
+def _linked_metrics_by_repetitive_id(
+    db: Session,
+    user: User,
+    *,
+    repetitive_tasks: list[RepetitiveTask],
+    on_date: date,
+) -> dict[int, list[PlanTaskLinkedMetricRead]]:
+    repetitive_ids = [task.id for task in repetitive_tasks]
+    if not repetitive_ids:
+        return {}
+
+    link_rows = list(
+        db.execute(
+            select(
+                RepetitiveTaskMetricLink.repetitive_task_id,
+                TrackedMetric.id,
+                TrackedMetric.label,
+                TrackedMetric.unit_text,
+                TrackedMetric.target,
+                TrackedMetric.time_span,
+                TrackedMetric.time_span_custom_text,
+            )
+            .join(TrackedMetric, TrackedMetric.id == RepetitiveTaskMetricLink.metric_id)
+            .where(
+                RepetitiveTaskMetricLink.repetitive_task_id.in_(repetitive_ids),
+                TrackedMetric.user_id == user.id,
+                TrackedMetric.active.is_(True),
+            )
+            .order_by(TrackedMetric.created_at, TrackedMetric.id)
+        )
+    )
+
+    metric_ids = sorted({int(row[1]) for row in link_rows})
+    totals_by_metric_id: dict[int, float] = {}
+    if metric_ids:
+        total_rows = db.execute(
+            select(ActivityLog.metric_id, func.coalesce(func.sum(ActivityLog.value), 0.0))
+            .where(
+                ActivityLog.user_id == user.id,
+                ActivityLog.date == on_date,
+                ActivityLog.metric_id.in_(metric_ids),
+            )
+            .group_by(ActivityLog.metric_id)
+        )
+        totals_by_metric_id = {int(metric_id): float(total) for metric_id, total in total_rows}
+
+    def _as_time_span(value: object) -> MetricTimeSpan:
+        if isinstance(value, MetricTimeSpan):
+            return value
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized.startswith("metrictimespan."):
+                normalized = normalized.split(".", 1)[1]
+            try:
+                return MetricTimeSpan(normalized)
+            except ValueError:
+                return MetricTimeSpan.day
+        return MetricTimeSpan.day
+
+    linked: dict[int, list[PlanTaskLinkedMetricRead]] = {}
+    for repetitive_task_id, metric_id, label, unit_text, target, time_span, custom_span in link_rows:
+        linked.setdefault(int(repetitive_task_id), []).append(
+            PlanTaskLinkedMetricRead(
+                metric_id=int(metric_id),
+                label=str(label),
+                unit_text=str(unit_text),
+                target=int(target) if target is not None else None,
+                time_span=_as_time_span(time_span),
+                time_span_custom_text=str(custom_span) if custom_span is not None else None,
+                logged_total=totals_by_metric_id.get(int(metric_id), 0.0),
+            )
+        )
+
+    for rows in linked.values():
+        rows.sort(key=lambda row: (row.label.lower(), row.metric_id))
+
+    return linked
+
+
+def _select_progress_metric_for_task(
+    db: Session,
+    user: User,
+    *,
+    task: PlannedTask,
+    metric_id: int | None,
+) -> TrackedMetric:
+    repetitive = _match_repetitive_task_by_title(task.title, _list_active_repetitive_tasks(db, user))
+    if repetitive is None:
+        raise AppError("This task is not linked to any habit yet.")
+
+    linked_metrics = list(
+        db.scalars(
+            select(TrackedMetric)
+            .join(RepetitiveTaskMetricLink, RepetitiveTaskMetricLink.metric_id == TrackedMetric.id)
+            .where(
+                RepetitiveTaskMetricLink.repetitive_task_id == repetitive.id,
+                TrackedMetric.user_id == user.id,
+                TrackedMetric.active.is_(True),
+            )
+            .order_by(TrackedMetric.created_at, TrackedMetric.id)
+        )
+    )
+    if not linked_metrics:
+        raise AppError("No linked metric found for this habit task yet.")
+
+    if metric_id is None:
+        if len(linked_metrics) > 1:
+            raise AppError("Multiple linked metrics found. Please choose one metric to update.")
+        return linked_metrics[0]
+
+    selected = next((metric for metric in linked_metrics if metric.id == metric_id), None)
+    if selected is None:
+        raise AppError("Selected metric is not linked to this task.")
+    return selected
+
+
 def _infer_task_category(
     task: PlannedTask,
     *,
@@ -865,6 +987,7 @@ def _build_workspace_task_rows(
     tasks: list[PlannedTask],
     goals_by_id: dict[int, Goal],
     repetitive_tasks: list[RepetitiveTask],
+    linked_metrics_by_repetitive_id: dict[int, list[PlanTaskLinkedMetricRead]],
     history_by_title: dict[str, list[PlannedTask]],
     missed_yesterday_title_keys: set[str],
     on_date: date,
@@ -912,6 +1035,12 @@ def _build_workspace_task_rows(
                     "missed_yesterday": bool(title_key and title_key in missed_yesterday_title_keys),
                     "overdue": overdue,
                     "completed_late": _completed_late(task, timezone_name=timezone_name),
+                    "repetitive_task_id": repetitive.id if repetitive is not None else None,
+                    "linked_metrics": (
+                        linked_metrics_by_repetitive_id.get(repetitive.id, [])
+                        if repetitive is not None
+                        else []
+                    ),
                     "current_habit_streak": (
                         habit_stats.current_streak_days
                         if habit_stats is not None
@@ -1574,6 +1703,70 @@ def delete_task(db: Session, user: User, task_id: int) -> None:
     db.commit()
 
 
+def log_task_progress(
+    db: Session,
+    user: User,
+    task_id: int,
+    data: PlannedTaskProgressUpdate,
+) -> PlanWorkspaceRead:
+    task = get_owned_or_404(db, PlannedTask, task_id, user.id, name="Task")
+    metric = _select_progress_metric_for_task(
+        db,
+        user,
+        task=task,
+        metric_id=data.metric_id,
+    )
+
+    current_total_raw = db.scalar(
+        select(func.coalesce(func.sum(ActivityLog.value), 0.0)).where(
+            ActivityLog.user_id == user.id,
+            ActivityLog.metric_id == metric.id,
+            ActivityLog.date == task.date,
+        )
+    )
+    current_total = float(current_total_raw or 0.0)
+
+    mode = data.mode
+    next_total = current_total
+    delta = 0.0
+
+    if mode == "set":
+        desired_total = float(data.value)
+        delta = desired_total - current_total
+        next_total = desired_total
+    else:
+        increment = float(data.value)
+        if increment <= 0:
+            raise AppError("Progress increment must be greater than zero.")
+        delta = increment
+        next_total = current_total + increment
+
+    if abs(delta) > 1e-9:
+        db.add(
+            ActivityLog(
+                user_id=user.id,
+                metric_id=metric.id,
+                date=task.date,
+                value=delta,
+                note=_clean_optional_text(data.note, max_length=500),
+                source=ActivitySource.manual,
+            )
+        )
+        db.flush()
+
+    if metric.time_span == MetricTimeSpan.day and metric.target is not None and metric.target > 0:
+        if next_total >= float(metric.target):
+            task.status = PlannedTaskStatus.done
+            if task.completed_at is None:
+                task.completed_at = utcnow()
+        else:
+            task.status = PlannedTaskStatus.planned
+            task.completed_at = None
+
+    db.commit()
+    return workspace_for_date(db, user, on_date=task.date)
+
+
 def workspace_for_date(
     db: Session,
     user: User,
@@ -1599,6 +1792,12 @@ def workspace_for_date(
 
     active_repetitive = _list_active_repetitive_tasks(db, user)
     due_repetitive = _list_due_repetitive_tasks(db, user, target_date)
+    linked_metrics_by_repetitive_id = _linked_metrics_by_repetitive_id(
+        db,
+        user,
+        repetitive_tasks=active_repetitive,
+        on_date=target_date,
+    )
 
     history_rows = _list_task_history_window(db, user, on_date=target_date)
     history_by_title = _group_history_by_title(history_rows)
@@ -1616,6 +1815,7 @@ def workspace_for_date(
         tasks=tasks,
         goals_by_id=goals_by_id,
         repetitive_tasks=active_repetitive,
+        linked_metrics_by_repetitive_id=linked_metrics_by_repetitive_id,
         history_by_title=history_by_title,
         missed_yesterday_title_keys=missed_yesterday_title_keys,
         on_date=target_date,

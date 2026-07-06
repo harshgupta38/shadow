@@ -353,6 +353,75 @@ def repair_goal_draft_json(
     ).strip()
 
 
+def generate_metric_draft_from_prompt(
+    provider: LLMProvider,
+    *,
+    prompt_text: str,
+    user_context: str = "",
+    model: str | None = None,
+) -> str:
+    """Convert a natural-language metric idea into strict JSON metric fields."""
+    system = _with_context(system_prompt(AgentType.progress_analyst), user_context)
+    prompt = (
+        "User metric idea:\n"
+        f"{prompt_text}\n\n"
+        "Extract one structured metric object from this idea.\n"
+        "Return valid JSON only with this exact schema:\n"
+        '{"label":"...","unit_text":"...","time_span":"day|week|month|year|custom","time_span_custom_text":"..."|null,"target":number|null,"rationale":"..."}\n'
+        "Rules:\n"
+        "- Label must be concise and user-facing.\n"
+        "- unit_text must be what the user tracks (for example minutes, hours, problems, km).\n"
+        "- time_span must be one of day, week, month, year, custom.\n"
+        "- Use time_span_custom_text only when time_span is custom.\n"
+        "- target can be null when not explicitly requested.\n"
+        "- Never use streak as a metric.\n"
+        "- Do not include markdown, prose, or extra keys."
+    )
+    return provider.generate(
+        [LLMMessage("user", prompt)],
+        system=system,
+        temperature=0.2,
+        max_tokens=300,
+        model=model,
+    ).strip()
+
+
+def repair_metric_draft_json(
+    provider: LLMProvider,
+    *,
+    prompt_text: str,
+    malformed_output: str,
+    user_context: str = "",
+    model: str | None = None,
+) -> str:
+    """Ask the model to re-emit a malformed metric draft as strict JSON."""
+    system = _with_context(system_prompt(AgentType.progress_analyst), user_context)
+    prompt = (
+        "The previous response did not follow the required JSON schema.\n"
+        "Rewrite it as strict JSON only.\n\n"
+        "User metric idea:\n"
+        f"{prompt_text}\n\n"
+        "Previous malformed output:\n"
+        f"{malformed_output}\n\n"
+        "Return valid JSON only with this exact schema:\n"
+        '{"label":"...","unit_text":"...","time_span":"day|week|month|year|custom","time_span_custom_text":"..."|null,"target":number|null,"rationale":"..."}\n'
+        "Rules:\n"
+        "- Label must be concise and user-facing.\n"
+        "- unit_text should describe what is counted/measured.\n"
+        "- Use time_span_custom_text only when time_span is custom.\n"
+        "- target can be null when unknown.\n"
+        "- Never use streak as a metric.\n"
+        "- Do not include markdown, prose, or extra keys."
+    )
+    return provider.generate(
+        [LLMMessage("user", prompt)],
+        system=system,
+        temperature=0,
+        max_tokens=300,
+        model=model,
+    ).strip()
+
+
 def generate_today_plan_json(
     provider: LLMProvider,
     *,

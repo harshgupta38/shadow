@@ -280,6 +280,30 @@ export function PlanPage() {
     }
   }
 
+  async function logTaskProgress(task: PlannedTask, value: number, metricId?: number) {
+    setBusyId(task.id);
+    try {
+      const workspace = await api.plan.logProgress(task.id, {
+        value,
+        mode: "set",
+        metric_id: metricId ?? null,
+      });
+      setData(workspace);
+
+      const updatedTask = workspace.tasks.find((row) => row.id === task.id);
+      if (updatedTask?.status === "done" && task.status !== "done") {
+        toast.success("Progress saved and task marked done.");
+      } else {
+        toast.success("Progress saved.");
+      }
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Couldn't log task progress.");
+      reload();
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   async function deleteTask(task: PlannedTask) {
     setBusyId(task.id);
     updateWorkspaceTasks((prev) => prev.filter((entry) => entry.id !== task.id));
@@ -486,6 +510,7 @@ export function PlanPage() {
                         task={task}
                         goalTitle={task.related_goal_id ? goalTitles.get(task.related_goal_id) : null}
                         onToggle={toggleTask}
+                        onLogProgress={logTaskProgress}
                         onDelete={deleteTask}
                         busy={busyId === task.id}
                         showPriority
@@ -504,6 +529,7 @@ export function PlanPage() {
                         task={task}
                         goalTitle={task.related_goal_id ? goalTitles.get(task.related_goal_id) : null}
                         onToggle={toggleTask}
+                        onLogProgress={logTaskProgress}
                         onDelete={deleteTask}
                         busy={busyId === task.id}
                       />

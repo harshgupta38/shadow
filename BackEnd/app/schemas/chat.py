@@ -12,6 +12,7 @@ from app.models.enums import (
     AssistantActionConfidence,
     AssistantActionModule,
     ChatRole,
+    MetricTimeSpan,
     MetricUnit,
     RepetitiveTaskPriority,
 )
@@ -76,8 +77,12 @@ class GoalsAddMilestoneArgs(BaseModel):
 class TrackCreateMetricArgs(BaseModel):
     key: str = Field(min_length=1, max_length=64, pattern=r"^[a-z0-9_]+$")
     label: str = Field(min_length=1, max_length=128)
-    unit: MetricUnit = MetricUnit.count
+    unit: MetricUnit | None = None
+    unit_text: str | None = Field(default=None, min_length=1, max_length=32)
+    time_span: MetricTimeSpan = MetricTimeSpan.day
+    time_span_custom_text: str | None = Field(default=None, min_length=1, max_length=64)
     target: int | None = Field(default=None, ge=0)
+    linked_habit_ids: list[int] = Field(default_factory=list)
 
 
 class TrackLogMetricArgs(BaseModel):

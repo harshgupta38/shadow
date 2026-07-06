@@ -27,6 +27,11 @@ class ProgressMetricRecommendationProvider(LLMProvider):
         model: str | None = None,
     ) -> str:
         prompt = messages[-1].content if messages else ""
+        if "User metric idea" in prompt:
+            return (
+                '{"label":"Problems solved","unit_text":"problems","time_span":"day",'
+                '"time_span_custom_text":null,"target":10,"rationale":"Daily count is measurable."}'
+            )
         if "Habit name" in prompt and "LeetCode" in prompt:
             return (
                 '{"measurable":true,"metric_name":"LeetCode solved","unit":"count",'
@@ -48,8 +53,18 @@ def test_create_metric_and_log_activity(client: TestClient, auth_headers: dict) 
     metric = client.post(
         "/api/metrics",
         headers=auth_headers,
-        json={"key": "leetcode_solved", "label": "LeetCode solved", "unit": "count"},
+        json={
+            "key": "leetcode_solved",
+            "label": "LeetCode solved",
+            "unit_text": "problems",
+            "time_span": "day",
+            "target": 10,
+        },
     ).json()
+    assert metric["unit"] == "count"
+    assert metric["unit_text"] == "problems"
+    assert metric["time_span"] == "day"
+    assert metric["target"] == 10
 
     log = client.post(
         f"/api/metrics/{metric['id']}/logs",
@@ -62,7 +77,12 @@ def test_create_metric_and_log_activity(client: TestClient, auth_headers: dict) 
 
 
 def test_duplicate_metric_key_conflicts(client: TestClient, auth_headers: dict) -> None:
-    payload = {"key": "gym", "label": "Gym sessions", "unit": "count"}
+    payload = {
+        "key": "gym",
+        "label": "Gym sessions",
+        "unit_text": "sessions",
+        "time_span": "week",
+    }
     client.post("/api/metrics", headers=auth_headers, json=payload)
     response = client.post("/api/metrics", headers=auth_headers, json=payload)
     assert response.status_code == 409
@@ -200,7 +220,8 @@ def test_progress_coach_accept_reuses_existing_metric_key(
             json={
                 "key": recommendation["metric_key"],
                 "label": "Old label",
-                "unit": "count",
+                "unit_text": "problems",
+                "time_span": "day",
                 "target": 1,
             },
         )
@@ -273,3 +294,53 @@ def test_progress_coach_list_hides_stale_non_quantifiable_recommendation(
     listed = client.get("/api/metrics/progress-coach-recommendations", headers=auth_headers)
     assert listed.status_code == 200
     assert listed.json() == []
+
+
+def test_metric_draft_from_shadow_prompt(client: TestClient, auth_headers: dict[str, str]) -> None:
+    provider = ProgressMetricRecommendationProvider()
+    app.dependency_overrides[get_provider] = lambda: provider
+
+    try:
+        drafted = client.post(
+            "/api/metrics/draft",
+            headers=auth_headers,
+            json={"prompt": "Track 10 LeetCode problems each day"},
+        )
+        assert drafted.status_code == 200
+        body = drafted.json()
+        assert body["label"]
+        assert body["unit_text"]
+        assert body["time_span"] in {"day", "week", "month", "year", "custom"}
+    finally:
+        app.dependency_overrides.pop(get_provider, None)
+
+
+def test_metric_create_with_linked_habits(client: TestClient, auth_headers: dict[str, str]) -> None:
+    habit = client.post(
+        "/api/repetitive-tasks",
+        headers=auth_headers,
+        json={
+            "name": "Solve LeetCode Problems",
+            "description": "Solve 10 problems daily",
+            "frequencies": ["daily"],
+            "priority": "high",
+        },
+    )
+    assert habit.status_code == 201
+    habit_id = habit.json()["id"]
+
+    created = client.post(
+        "/api/metrics",
+        headers=auth_headers,
+        json={
+            "key": "leetcode_problems",
+            "label": "Problems solved",
+            "unit_text": "problems",
+            "time_span": "day",
+            "target": 10,
+            "linked_habit_ids": [habit_id],
+        },
+    )
+    assert created.status_code == 201
+    metric = created.json()
+    assert metric["linked_habit_ids"] == [habit_id]

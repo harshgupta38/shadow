@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { CheckLg, ExclamationTriangleFill, Trash3 } from "react-bootstrap-icons";
 
 import type { PlannedTask } from "@/api";
@@ -16,6 +17,7 @@ interface TaskItemProps {
   task: PlannedTask;
   goalTitle?: string | null;
   onToggle: (task: PlannedTask) => void;
+  onLogProgress?: (task: PlannedTask, value: number, metricId?: number) => Promise<void> | void;
   onDelete?: (task: PlannedTask) => void;
   busy?: boolean;
   showPriority?: boolean;
@@ -47,11 +49,23 @@ export function TaskItem({
   task,
   goalTitle,
   onToggle,
+  onLogProgress,
   onDelete,
   busy,
   showPriority,
   executionHint,
 }: TaskItemProps) {
+  const [progressDraft, setProgressDraft] = useState("");
+
+  function formatAmount(value: number): string {
+    if (!Number.isFinite(value)) return "0";
+    const rounded = Math.round(value * 100) / 100;
+    if (Math.abs(rounded - Math.round(rounded)) < 1e-9) {
+      return String(Math.round(rounded));
+    }
+    return String(rounded);
+  }
+
   const categoryFromTask =
     typeof task.category === "string" && task.category.trim().length > 0
       ? task.category
@@ -82,6 +96,29 @@ export function TaskItem({
     ?? goalFromTask
     ?? "Not linked to a goal";
   const urgencyLabel = task.overdue ? "Overdue" : due;
+  const primaryLinkedMetric = task.linked_metrics?.[0] ?? null;
+  const isQuantifiableTask = primaryLinkedMetric !== null;
+  const metricUnitText = primaryLinkedMetric?.unit_text?.trim() || "units";
+  const metricLoggedTotal = primaryLinkedMetric ? Number(primaryLinkedMetric.logged_total || 0) : 0;
+  const metricTarget = primaryLinkedMetric?.target ?? null;
+  const metricRemainingValue =
+    metricTarget != null
+      ? Math.max(metricTarget - metricLoggedTotal, 0)
+      : null;
+  const metricProgressLabel =
+    primaryLinkedMetric == null
+      ? null
+      : metricRemainingValue != null
+        ? `${formatAmount(metricRemainingValue)} ${metricUnitText}`
+        : `${metricLoggedTotal} ${metricUnitText}`;
+
+  useEffect(() => {
+    if (!primaryLinkedMetric) {
+      setProgressDraft("");
+      return;
+    }
+    setProgressDraft(formatAmount(metricLoggedTotal));
+  }, [primaryLinkedMetric, metricLoggedTotal]);
 
   const scheduleLabel =
     executionHint?.suggested_start_time && executionHint?.suggested_finish_by_time
@@ -99,30 +136,46 @@ export function TaskItem({
       ? [scheduleLabel, urgencyLabel].filter(Boolean).join(" · ")
       : null;
 
+  async function submitProgress() {
+    if (!primaryLinkedMetric || !onLogProgress) return;
+    const numeric = Number(progressDraft);
+    if (!Number.isFinite(numeric) || numeric < 0) return;
+    await onLogProgress(task, numeric, primaryLinkedMetric.metric_id);
+  }
+
+  const parsedProgress = Number(progressDraft);
+  const hasProgressInput = progressDraft.trim().length > 0;
+  const hasValidProgressInput = Number.isFinite(parsedProgress) && parsedProgress >= 0;
+  const isProgressUnchanged = hasValidProgressInput
+    ? Math.abs(parsedProgress - metricLoggedTotal) < 1e-9
+    : false;
+
   return (
     <div className="surface-2 p-3 p-sm-4 mb-2">
       <div className="d-flex align-items-start gap-3">
-      <button
-        type="button"
-        className="btn p-0 flex-shrink-0"
-        onClick={() => onToggle(task)}
-        disabled={busy}
-        aria-label={done ? "Mark as not done" : "Mark as done"}
-        title={done ? "Mark as not done" : "Mark as done"}
-        style={{
-          width: 24,
-          height: 24,
-          borderRadius: "50%",
-          display: "grid",
-          placeItems: "center",
-          background: done ? "var(--jv-brand-gradient)" : "transparent",
-          border: done ? "none" : "2px solid var(--jv-brand-1)",
-          color: "#fff",
-          transition: "all 160ms ease",
-        }}
-      >
-        {done && <CheckLg size={14} />}
-      </button>
+        {!isQuantifiableTask && (
+          <button
+            type="button"
+            className="btn p-0 flex-shrink-0"
+            onClick={() => onToggle(task)}
+            disabled={busy}
+            aria-label={done ? "Mark as not done" : "Mark as done"}
+            title={done ? "Mark as not done" : "Mark as done"}
+            style={{
+              width: 24,
+              height: 24,
+              borderRadius: "50%",
+              display: "grid",
+              placeItems: "center",
+              background: done ? "var(--jv-brand-gradient)" : "transparent",
+              border: done ? "none" : "2px solid var(--jv-brand-1)",
+              color: "#fff",
+              transition: "all 160ms ease",
+            }}
+          >
+            {done && <CheckLg size={14} />}
+          </button>
+        )}
 
       <div className="flex-grow-1 min-w-0">
         <div className="d-flex align-items-start justify-content-between gap-2">
@@ -166,9 +219,55 @@ export function TaskItem({
           <span className="fw-semibold">Impact if skipped:</span> {impactIfSkipped}
         </div>
 
-        <div className="small text-muted-2 mt-1">
-          <span className="fw-semibold">Goal linked:</span> {linkedGoal}
-        </div>
+        {primaryLinkedMetric ? (
+          <div className="mt-1 d-flex flex-column flex-xl-row align-items-xl-start justify-content-between gap-2">
+            <div className="min-w-0">
+              <div className="small text-muted-2">
+                <span className="fw-semibold">Goal linked:</span> {linkedGoal}
+              </div>
+              <div className="small text-muted-2 mt-1">
+                <span className="fw-semibold">Remaining:</span> {metricProgressLabel}
+              </div>
+            </div>
+
+            {!done && onLogProgress && (
+              <div className="d-flex align-items-center gap-2 flex-wrap mt-2 mt-xl-0 flex-shrink-0">
+                <input
+                  type="number"
+                  min={0}
+                  step="any"
+                  className="form-control form-control-sm"
+                  style={{ width: 120 }}
+                  placeholder={metricUnitText}
+                  value={progressDraft}
+                  onChange={(event) => setProgressDraft(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      void submitProgress();
+                    }
+                  }}
+                  disabled={busy}
+                  aria-label="Progress amount"
+                />
+                <button
+                  type="button"
+                  className="btn btn-outline-secondary btn-sm"
+                  onClick={() => {
+                    void submitProgress();
+                  }}
+                  disabled={busy || !hasProgressInput || !hasValidProgressInput || isProgressUnchanged}
+                >
+                  Save
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="small text-muted-2 mt-1">
+            <span className="fw-semibold">Goal linked:</span> {linkedGoal}
+          </div>
+        )}
 
         {task.previous_completion_history && (
           <div className="small text-muted-2 mt-1">

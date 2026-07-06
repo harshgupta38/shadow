@@ -78,7 +78,12 @@ def _create_metric(
     response = client.post(
         "/api/metrics",
         headers=headers,
-        json={"key": key, "label": label, "unit": "count"},
+        json={
+            "key": key,
+            "label": label,
+            "unit_text": "count",
+            "time_span": "day",
+        },
     )
     assert response.status_code == 201
     return int(response.json()["id"])

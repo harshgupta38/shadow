@@ -113,6 +113,14 @@ class MetricUnit(str, enum.Enum):
     custom = "custom"
 
 
+class MetricTimeSpan(str, enum.Enum):
+    day = "day"
+    week = "week"
+    month = "month"
+    year = "year"
+    custom = "custom"
+
+
 class MetricType(str, enum.Enum):
     default = "default"
     custom = "custom"

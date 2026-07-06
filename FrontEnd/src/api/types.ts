@@ -47,6 +47,8 @@ export type NotificationType = "reminder" | "system" | "agent";
 
 export type MetricUnit = "count" | "minutes" | "hours" | "custom";
 
+export type MetricTimeSpan = "day" | "week" | "month" | "year" | "custom";
+
 export type MetricType = "default" | "custom";
 
 export type ActivitySource = "manual" | "integration";
@@ -585,6 +587,10 @@ export interface TrackCreateMetricActionArgs {
   key: string;
   label: string;
   unit?: MetricUnit;
+  unit_text?: string | null;
+  time_span?: MetricTimeSpan;
+  time_span_custom_text?: string | null;
+  linked_habit_ids?: number[];
   target?: number | null;
 }
 
@@ -721,8 +727,12 @@ export interface TrackedMetric {
   key: string;
   label: string;
   unit: MetricUnit;
+  unit_text?: string;
+  time_span?: MetricTimeSpan;
+  time_span_custom_text?: string | null;
   type: MetricType;
   target: number | null;
+  linked_habit_ids?: number[];
   active: boolean;
   created_at: string;
 }
@@ -731,13 +741,34 @@ export interface MetricCreate {
   key: string;
   label: string;
   unit?: MetricUnit;
+  unit_text?: string | null;
+  time_span?: MetricTimeSpan;
+  time_span_custom_text?: string | null;
   target?: number | null;
+  linked_habit_ids?: number[];
+}
+
+export interface MetricDraftRequest {
+  prompt: string;
+}
+
+export interface MetricDraft {
+  label: string;
+  unit_text: string;
+  time_span: MetricTimeSpan;
+  time_span_custom_text: string | null;
+  target: number | null;
+  rationale?: string | null;
 }
 
 export interface MetricUpdate {
   label?: string;
   unit?: MetricUnit;
+  unit_text?: string | null;
+  time_span?: MetricTimeSpan;
+  time_span_custom_text?: string | null;
   target?: number | null;
+  linked_habit_ids?: number[];
   active?: boolean;
 }
 
@@ -795,6 +826,8 @@ export interface PlannedTask {
   carried_from_date: string | null;
   generated_at: string | null;
   related_goal_id: number | null;
+  repetitive_task_id?: number | null;
+  linked_metrics?: PlanTaskLinkedMetric[];
   category?: string | null;
   goal_title?: string | null;
   missed_yesterday?: boolean;
@@ -804,6 +837,16 @@ export interface PlannedTask {
   previous_completion_history?: string | null;
   completed_at: string | null;
   created_at: string;
+}
+
+export interface PlanTaskLinkedMetric {
+  metric_id: number;
+  label: string;
+  unit_text: string;
+  target: number | null;
+  time_span: MetricTimeSpan;
+  time_span_custom_text: string | null;
+  logged_total: number;
 }
 
 export interface PlannedTaskCreate {
@@ -840,6 +883,13 @@ export interface PlannedTaskUpdate {
   execution_order?: number | null;
   carried_from_date?: string | null;
   generated_at?: string | null;
+}
+
+export interface PlannedTaskProgressUpdate {
+  value: number;
+  mode?: "add" | "set";
+  metric_id?: number | null;
+  note?: string | null;
 }
 
 export interface PlanGenerateRequest {

@@ -3,6 +3,7 @@ import type {
   JournalMood,
   MemoryCategory,
   MemorySource,
+  MetricTimeSpan,
   MetricUnit,
   MilestoneStatus,
 } from "@/api";
@@ -56,6 +57,14 @@ export const METRIC_UNIT_LABEL: Record<MetricUnit, string> = {
   count: "Count",
   minutes: "Minutes",
   hours: "Hours",
+  custom: "Custom",
+};
+
+export const METRIC_TIME_SPAN_LABEL: Record<MetricTimeSpan, string> = {
+  day: "Day",
+  week: "Week",
+  month: "Month",
+  year: "Year",
   custom: "Custom",
 };
 

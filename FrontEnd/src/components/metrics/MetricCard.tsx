@@ -9,7 +9,7 @@ import { Sparkbar } from "@/components/ui/Sparkbar";
 import { useToast } from "@/context/ToastContext";
 import { useAsync } from "@/hooks/useAsync";
 import { clampPercent, formatMetricValue } from "@/lib/format";
-import { METRIC_UNIT_LABEL } from "@/lib/labels";
+import { METRIC_TIME_SPAN_LABEL, METRIC_UNIT_LABEL } from "@/lib/labels";
 import { computeMetricStats } from "@/lib/metrics";
 
 interface MetricCardProps {
@@ -27,7 +27,19 @@ export function MetricCard({ metric, onEdit, onDelete }: MetricCardProps) {
   const [logging, setLogging] = useState(false);
 
   const stats = useMemo(() => computeMetricStats(logs ?? []), [logs]);
-  const targetPct = metric.target ? clampPercent((stats.todayTotal / metric.target) * 100) : null;
+  const unitLabel = (metric.unit_text ?? "").trim() || METRIC_UNIT_LABEL[metric.unit];
+  const timeSpan = metric.time_span ?? "day";
+  const timeSpanLabel =
+    timeSpan === "custom"
+      ? (metric.time_span_custom_text ?? "").trim() || "Custom"
+      : METRIC_TIME_SPAN_LABEL[timeSpan];
+  const primaryValue = timeSpan === "week" ? stats.weekTotal : stats.todayTotal;
+  const primaryLabel = timeSpan === "week" ? "this week" : "today";
+  const targetBaseValue = timeSpan === "day" ? stats.todayTotal : timeSpan === "week" ? stats.weekTotal : null;
+  const targetPct =
+    metric.target != null && targetBaseValue != null
+      ? clampPercent((targetBaseValue / metric.target) * 100)
+      : null;
 
   async function log(amount: number, withNote?: string) {
     if (amount <= 0 || Number.isNaN(amount)) return;
@@ -38,7 +50,7 @@ export function MetricCard({ metric, onEdit, onDelete }: MetricCardProps) {
       setNote("");
       setShowNote(false);
       reload();
-      toast.success(`Logged ${formatMetricValue(amount, metric.unit)} · ${metric.label}`);
+      toast.success(`Logged ${formatMetricValue(amount, metric.unit, metric.unit_text)} · ${metric.label}`);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Couldn't log activity.");
     } finally {
@@ -52,7 +64,7 @@ export function MetricCard({ metric, onEdit, onDelete }: MetricCardProps) {
         <div className="min-w-0">
           <h3 className="h6 fw-bold mb-1 text-truncate">{metric.label}</h3>
           <div className="d-flex align-items-center gap-2">
-            <Pill>{METRIC_UNIT_LABEL[metric.unit]}</Pill>
+            <Pill>{unitLabel}</Pill>
             {stats.streak > 0 && (
               <Pill variant="warn">
                 <Fire size={12} /> {stats.streak} day{stats.streak > 1 ? "s" : ""}
@@ -81,11 +93,13 @@ export function MetricCard({ metric, onEdit, onDelete }: MetricCardProps) {
 
       <div className="d-flex align-items-center gap-3 mb-3">
         <div className="flex-grow-1">
-          <div className="stat-value">{formatMetricValue(stats.todayTotal, metric.unit)}</div>
+          <div className="stat-value">{formatMetricValue(primaryValue, metric.unit, metric.unit_text)}</div>
           <div className="stat-label">
-            today
+            {primaryLabel}
             {metric.target != null && (
-              <> · target {formatMetricValue(metric.target, metric.unit)}</>
+              <>
+                {" "}· target {formatMetricValue(metric.target, metric.unit, metric.unit_text)} / {timeSpanLabel}
+              </>
             )}
           </div>
         </div>
@@ -93,7 +107,7 @@ export function MetricCard({ metric, onEdit, onDelete }: MetricCardProps) {
           <ProgressRing value={targetPct} size={62} stroke={7} />
         ) : (
           <div className="text-end">
-            <div className="fw-bold">{formatMetricValue(stats.weekTotal, metric.unit)}</div>
+            <div className="fw-bold">{formatMetricValue(stats.weekTotal, metric.unit, metric.unit_text)}</div>
             <div className="text-faint small">this week</div>
           </div>
         )}
@@ -115,7 +129,7 @@ export function MetricCard({ metric, onEdit, onDelete }: MetricCardProps) {
             type="number"
             min={0}
             step="any"
-            placeholder={`Add ${metric.unit === "minutes" ? "minutes" : "value"}…`}
+            placeholder={`Add ${metric.unit === "minutes" ? "minutes" : unitLabel.toLowerCase() || "value"}…`}
             value={value}
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={(e) => {

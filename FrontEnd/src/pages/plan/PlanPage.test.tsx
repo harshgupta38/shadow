@@ -25,6 +25,7 @@ vi.mock("@/api", async (importOriginal) => {
 				generateToday: vi.fn(),
 				create: vi.fn(),
 				update: vi.fn(),
+				logProgress: vi.fn(),
 				remove: vi.fn(),
 			},
 		},
@@ -40,6 +41,7 @@ const mockedPlanApi = api.plan as unknown as {
 	generateToday: Mock;
 	create: Mock;
 	update: Mock;
+	logProgress: Mock;
 	remove: Mock;
 };
 
@@ -134,6 +136,7 @@ describe("PlanPage", () => {
 		mockedPlanApi.generateToday.mockReset();
 		mockedPlanApi.create.mockReset();
 		mockedPlanApi.update.mockReset();
+		mockedPlanApi.logProgress.mockReset();
 		mockedPlanApi.remove.mockReset();
 
 		mockedGoalsApi.list.mockResolvedValue([]);
@@ -141,6 +144,7 @@ describe("PlanPage", () => {
 		mockedPlanApi.generateToday.mockResolvedValue(buildWorkspace());
 		mockedPlanApi.create.mockResolvedValue(buildTask({ id: 20, title: "New task" }));
 		mockedPlanApi.update.mockResolvedValue(buildTask({ status: "done" }));
+		mockedPlanApi.logProgress.mockResolvedValue(buildWorkspace());
 		mockedPlanApi.remove.mockResolvedValue(undefined);
 	});
 
@@ -279,5 +283,62 @@ describe("PlanPage", () => {
 		expect(await screen.findByText("Today's plan summary")).toBeInTheDocument();
 		expect(screen.getAllByText("Completed Retrospective").length).toBeGreaterThan(0);
 		expect(screen.getByText("Done")).toBeInTheDocument();
+	});
+
+	it("logs linked habit progress from task row", async () => {
+		const user = userEvent.setup();
+
+		mockedPlanApi.workspace.mockResolvedValue(
+			buildWorkspace({
+				tasks: [
+					buildTask({
+						linked_metrics: [
+							{
+								metric_id: 11,
+								label: "Problems solved",
+								unit_text: "problems",
+								target: 10,
+								time_span: "day",
+								time_span_custom_text: null,
+								logged_total: 0,
+							},
+						],
+					}),
+				],
+			}),
+		);
+
+		mockedPlanApi.logProgress.mockResolvedValue(
+			buildWorkspace({
+				tasks: [
+					buildTask({
+						linked_metrics: [
+							{
+								metric_id: 11,
+								label: "Problems solved",
+								unit_text: "problems",
+								target: 10,
+								time_span: "day",
+								time_span_custom_text: null,
+								logged_total: 7,
+							},
+						],
+					}),
+				],
+			}),
+		);
+
+		renderPage();
+
+		const amountInput = await screen.findByLabelText("Progress amount");
+		expect(screen.queryByRole("button", { name: "Mark as done" })).not.toBeInTheDocument();
+		await user.type(amountInput, "7");
+		await user.click(screen.getByRole("button", { name: "Save" }));
+
+		expect(mockedPlanApi.logProgress).toHaveBeenCalledWith(1, {
+			value: 7,
+			mode: "set",
+			metric_id: 11,
+		});
 	});
 });

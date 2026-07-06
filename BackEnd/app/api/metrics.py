@@ -4,10 +4,12 @@ from __future__ import annotations
 
 from fastapi import APIRouter, status
 
-from app.api.deps import CurrentUser, DbSession
+from app.api.deps import CurrentUser, DbSession, Provider
 from app.schemas.activity import ActivityLogCreate, ActivityLogRead
 from app.schemas.metric import (
     MetricCreate,
+    MetricDraftRead,
+    MetricDraftRequest,
     MetricRead,
     MetricUpdate,
     ProgressCoachRecommendationAcceptResponse,
@@ -28,6 +30,21 @@ def list_metrics(
 @router.post("", response_model=MetricRead, status_code=status.HTTP_201_CREATED)
 def create_metric(data: MetricCreate, db: DbSession, current_user: CurrentUser) -> MetricRead:
     return metric_service.create_metric(db, current_user, data)
+
+
+@router.post("/draft", response_model=MetricDraftRead)
+def draft_metric(
+    data: MetricDraftRequest,
+    db: DbSession,
+    current_user: CurrentUser,
+    provider: Provider,
+) -> MetricDraftRead:
+    return metric_service.draft_metric_from_prompt(
+        db,
+        current_user,
+        provider,
+        prompt=data.prompt,
+    )
 
 
 @router.put("/{metric_id}", response_model=MetricRead)

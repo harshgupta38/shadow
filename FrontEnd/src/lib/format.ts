@@ -93,9 +93,19 @@ export function formatMinutes(mins: number): string {
 }
 
 /** Value + unit, unit-aware (minutes render as "2h 40m"). */
-export function formatMetricValue(value: number, unit: string): string {
+export function formatMetricValue(value: number, unit: string, unitText?: string | null): string {
   if (unit === "minutes") return formatMinutes(value);
   if (unit === "hours") return `${compactNumber(value)}h`;
+  const normalizedUnitText = (unitText ?? "").trim();
+  if (
+    normalizedUnitText &&
+    unit !== "minutes" &&
+    unit !== "hours" &&
+    normalizedUnitText.toLowerCase() !== "count" &&
+    normalizedUnitText.toLowerCase() !== "custom"
+  ) {
+    return `${compactNumber(value)} ${normalizedUnitText}`;
+  }
   return compactNumber(value);
 }
 

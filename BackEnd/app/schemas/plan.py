@@ -3,10 +3,16 @@
 from __future__ import annotations
 
 import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from app.models.enums import PlannedTaskPriority, PlannedTaskSource, PlannedTaskStatus
+from app.models.enums import (
+    MetricTimeSpan,
+    PlannedTaskPriority,
+    PlannedTaskSource,
+    PlannedTaskStatus,
+)
 from app.schemas.common import ORMModel
 
 
@@ -84,12 +90,31 @@ class PlanGeneratedTaskInput(BaseModel):
     ai_confidence_score: int | None = Field(default=None, ge=0, le=100)
 
 
+class PlannedTaskProgressUpdate(BaseModel):
+    value: float = Field(ge=0)
+    mode: Literal["add", "set"] = "add"
+    metric_id: int | None = Field(default=None, ge=1)
+    note: str | None = Field(default=None, max_length=500)
+
+
+class PlanTaskLinkedMetricRead(BaseModel):
+    metric_id: int
+    label: str
+    unit_text: str
+    target: int | None
+    time_span: MetricTimeSpan
+    time_span_custom_text: str | None
+    logged_total: float = 0.0
+
+
 class PlanWorkspaceTaskRead(PlannedTaskRead):
     category: str | None = Field(default=None, max_length=64)
     goal_title: str | None = Field(default=None, max_length=255)
     missed_yesterday: bool = False
     overdue: bool = False
     completed_late: bool = False
+    repetitive_task_id: int | None = None
+    linked_metrics: list[PlanTaskLinkedMetricRead] = Field(default_factory=list)
     current_habit_streak: int | None = Field(default=None, ge=0)
     previous_completion_history: str | None = Field(default=None, max_length=255)
 

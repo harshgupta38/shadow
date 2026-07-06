@@ -668,3 +668,79 @@ def test_generate_today_estimates_missing_duration_with_llm_when_no_user_time_wi
         assert row["suggested_finish_by_time"] is None
     finally:
         app.dependency_overrides.pop(get_provider, None)
+
+
+def test_task_progress_updates_linked_metric_and_completes_when_target_reached(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    app.dependency_overrides[get_provider] = lambda: EmptyPlanProvider()
+
+    try:
+        metric = client.post(
+            "/api/metrics",
+            headers=auth_headers,
+            json={
+                "key": "leetcode_solved_today",
+                "label": "LeetCode solved",
+                "unit_text": "problems",
+                "time_span": "day",
+                "target": 10,
+            },
+        )
+        assert metric.status_code == 201
+        metric_id = int(metric.json()["id"])
+
+        repetitive = client.post(
+            "/api/repetitive-tasks",
+            headers=auth_headers,
+            json={
+                "name": "LeetCode Practice",
+                "description": "Solve coding problems daily.",
+                "frequencies": ["daily"],
+                "priority": "high",
+                "linked_metric_ids": [metric_id],
+            },
+        )
+        assert repetitive.status_code == 201
+
+        generated = client.post("/api/plan/generate-today", headers=auth_headers, json={})
+        assert generated.status_code == 200
+
+        task = next(row for row in generated.json()["tasks"] if row["title"] == "LeetCode Practice")
+        assert task["status"] == "planned"
+        assert task["linked_metrics"]
+        assert task["linked_metrics"][0]["metric_id"] == metric_id
+        assert float(task["linked_metrics"][0]["logged_total"]) == 0.0
+
+        first_progress = client.post(
+            f"/api/plan/{task['id']}/progress",
+            headers=auth_headers,
+            json={"value": 7},
+        )
+        assert first_progress.status_code == 200
+        first_task = next(row for row in first_progress.json()["tasks"] if row["id"] == task["id"])
+        assert first_task["status"] == "planned"
+        assert float(first_task["linked_metrics"][0]["logged_total"]) == 7.0
+
+        second_progress = client.post(
+            f"/api/plan/{task['id']}/progress",
+            headers=auth_headers,
+            json={"value": 3},
+        )
+        assert second_progress.status_code == 200
+        second_task = next(row for row in second_progress.json()["tasks"] if row["id"] == task["id"])
+        assert second_task["status"] == "done"
+        assert float(second_task["linked_metrics"][0]["logged_total"]) == 10.0
+
+        corrected_progress = client.post(
+            f"/api/plan/{task['id']}/progress",
+            headers=auth_headers,
+            json={"value": 8, "mode": "set"},
+        )
+        assert corrected_progress.status_code == 200
+        corrected_task = next(row for row in corrected_progress.json()["tasks"] if row["id"] == task["id"])
+        assert corrected_task["status"] == "planned"
+        assert float(corrected_task["linked_metrics"][0]["logged_total"]) == 8.0
+    finally:
+        app.dependency_overrides.pop(get_provider, None)

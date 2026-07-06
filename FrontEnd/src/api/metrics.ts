@@ -2,6 +2,8 @@ import { http } from "./client";
 import type {
   ActivityLog,
   ActivityLogCreate,
+  MetricDraft,
+  MetricDraftRequest,
   MetricCreate,
   ProgressCoachRecommendation,
   ProgressCoachRecommendationAcceptResponse,
@@ -18,6 +20,9 @@ export const metricsApi = {
   },
   async create(data: MetricCreate): Promise<TrackedMetric> {
     return http.post<TrackedMetric>("/metrics", data);
+  },
+  async draft(data: MetricDraftRequest): Promise<MetricDraft> {
+    return http.post<MetricDraft>("/metrics/draft", data);
   },
   async update(id: number, data: MetricUpdate): Promise<TrackedMetric> {
     return http.put<TrackedMetric>(`/metrics/${id}`, data);

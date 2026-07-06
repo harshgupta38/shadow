@@ -11,6 +11,7 @@ from app.schemas.plan import (
     PlanGenerateRequest,
     PlanWorkspaceRead,
     PlannedTaskCreate,
+    PlannedTaskProgressUpdate,
     PlannedTaskRead,
     PlannedTaskUpdate,
 )
@@ -60,6 +61,16 @@ def update_task(
     task_id: int, data: PlannedTaskUpdate, db: DbSession, current_user: CurrentUser
 ) -> PlannedTaskRead:
     return plan_service.update_task(db, current_user, task_id, data)
+
+
+@router.post("/{task_id}/progress", response_model=PlanWorkspaceRead)
+def log_task_progress(
+    task_id: int,
+    data: PlannedTaskProgressUpdate,
+    db: DbSession,
+    current_user: CurrentUser,
+) -> PlanWorkspaceRead:
+    return plan_service.log_task_progress(db, current_user, task_id, data)
 
 
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)

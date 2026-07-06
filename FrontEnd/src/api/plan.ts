@@ -4,6 +4,7 @@ import type {
   PlanWorkspace,
   PlannedTask,
   PlannedTaskCreate,
+  PlannedTaskProgressUpdate,
   PlannedTaskUpdate,
 } from "./types";
 
@@ -30,6 +31,9 @@ export const planApi = {
   },
   async update(id: number, data: PlannedTaskUpdate): Promise<PlannedTask> {
     return http.put<PlannedTask>(`/plan/${id}`, data);
+  },
+  async logProgress(id: number, data: PlannedTaskProgressUpdate): Promise<PlanWorkspace> {
+    return http.post<PlanWorkspace>(`/plan/${id}/progress`, data);
   },
   async remove(id: number): Promise<void> {
     return http.del(`/plan/${id}`);

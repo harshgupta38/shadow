@@ -96,6 +96,12 @@ class Settings(BaseSettings):
     open_meteo_base_url: str = "https://api.open-meteo.com/v1/forecast"
     open_meteo_timeout_seconds: float = 6.0
 
+    # ── Web Push (PWA notifications) ─────────────────────────
+    web_push_vapid_public_key: str = ""
+    web_push_vapid_private_key: str = ""
+    web_push_vapid_subject: str = "mailto:admin@example.com"
+    web_push_ttl_seconds: int = 120
+
     @property
     def cors_origins_list(self) -> list[str]:
         """Parse the comma-separated ``cors_origins`` into a clean list."""

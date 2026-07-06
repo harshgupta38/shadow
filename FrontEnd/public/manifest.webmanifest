@@ -1,0 +1,16 @@
+{
+  "name": "Shadow",
+  "short_name": "Shadow",
+  "description": "Shadow personal assistant web app",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#6d5efc",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

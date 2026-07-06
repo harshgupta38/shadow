@@ -16,6 +16,7 @@ from app.models.metric import TrackedMetric
 from app.models.milestone import Milestone
 from app.models.notification import Notification
 from app.models.planned_task import PlannedTask
+from app.models.push_subscription import PushSubscription
 from app.models.repetitive_task import (
     RepetitiveTask,
     RepetitiveTaskGoalLink,
@@ -44,6 +45,7 @@ __all__ = [
     "TrackedMetric",
     "ActivityLog",
     "PlannedTask",
+    "PushSubscription",
     "RepetitiveTask",
     "RepetitiveTaskGoalLink",
     "RepetitiveTaskMetricLink",

@@ -361,6 +361,25 @@ export interface NotificationSettingsUpdate {
   weekly_summary_enabled?: boolean;
 }
 
+export interface PushPublicKeyRead {
+  configured: boolean;
+  public_key: string | null;
+}
+
+export interface PushSubscriptionKeys {
+  p256dh: string;
+  auth: string;
+}
+
+export interface PushSubscriptionUpsert {
+  endpoint: string;
+  keys: PushSubscriptionKeys;
+}
+
+export interface PushSubscriptionDelete {
+  endpoint: string;
+}
+
 export interface AIBehaviorSettingsUpdate {
   ai_response_length?: AIResponseLength;
   ai_personality?: AIPersonality;

@@ -142,6 +142,50 @@ function sectionsEqual<T>(left: T, right: T): boolean {
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
+type PushDeviceStatus =
+  | "checking"
+  | "unsupported"
+  | "permission-denied"
+  | "not-subscribed"
+  | "subscribed";
+
+function supportsWebPush(): boolean {
+  if (typeof window === "undefined") return false;
+  return (
+    "Notification" in window &&
+    "serviceWorker" in navigator &&
+    "PushManager" in window
+  );
+}
+
+function base64UrlToArrayBuffer(base64Url: string): ArrayBuffer {
+  const normalized = base64Url.trim().replace(/-/g, "+").replace(/_/g, "/");
+  const padding = "=".repeat((4 - (normalized.length % 4)) % 4);
+  const binary = window.atob(`${normalized}${padding}`);
+  const arrayBuffer = new ArrayBuffer(binary.length);
+  const bytes = new Uint8Array(arrayBuffer);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return arrayBuffer;
+}
+
+function toPushSubscriptionPayload(
+  subscription: PushSubscription,
+): { endpoint: string; keys: { p256dh: string; auth: string } } | null {
+  const payload = subscription.toJSON();
+  if (!payload.endpoint || !payload.keys?.p256dh || !payload.keys?.auth) {
+    return null;
+  }
+  return {
+    endpoint: payload.endpoint,
+    keys: {
+      p256dh: payload.keys.p256dh,
+      auth: payload.keys.auth,
+    },
+  };
+}
+
 interface ToggleRowProps {
   id: string;
   label: string;
@@ -192,6 +236,8 @@ export function SettingsPage() {
   const [exportingData, setExportingData] = useState(false);
   const [clearingChat, setClearingChat] = useState(false);
   const [confirmClearChat, setConfirmClearChat] = useState(false);
+  const [pushDeviceStatus, setPushDeviceStatus] = useState<PushDeviceStatus>("checking");
+  const [pushSyncing, setPushSyncing] = useState(false);
 
   useEffect(() => {
     if (!settingsQuery.data || draft || baseline) return;
@@ -200,6 +246,39 @@ export function SettingsPage() {
     setDraft(normalized);
     setBaseline(normalized);
   }, [baseline, draft, settingsQuery.data]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function inspectPushStatus() {
+      if (!supportsWebPush()) {
+        if (!cancelled) setPushDeviceStatus("unsupported");
+        return;
+      }
+
+      if (Notification.permission === "denied") {
+        if (!cancelled) setPushDeviceStatus("permission-denied");
+        return;
+      }
+
+      try {
+        const registration = await navigator.serviceWorker.ready;
+        const subscription = await registration.pushManager.getSubscription();
+        if (!cancelled) {
+          setPushDeviceStatus(subscription ? "subscribed" : "not-subscribed");
+        }
+      } catch {
+        if (!cancelled) {
+          setPushDeviceStatus("not-subscribed");
+        }
+      }
+    }
+
+    void inspectPushStatus();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   function setSavingState(key: SaveKey, value: boolean) {
     setSaving((prev) => ({ ...prev, [key]: value }));
@@ -234,6 +313,131 @@ export function SettingsPage() {
   const isSavingAny = useMemo(() => Object.values(saving).some(Boolean), [saving]);
   const hasPendingChanges = dirtySections.length > 0;
 
+  const pushStatusMessage = useMemo(() => {
+    if (pushDeviceStatus === "checking") return "Checking device push support...";
+    if (pushDeviceStatus === "unsupported") {
+      return "This browser/device doesn't support Web Push. Use iPhone Safari and add Shadow to Home Screen.";
+    }
+    if (pushDeviceStatus === "permission-denied") {
+      return "Notification permission is blocked. Enable notifications for Shadow in browser settings.";
+    }
+    if (pushDeviceStatus === "subscribed") {
+      return "This device is connected for push notifications.";
+    }
+    return "This device is not connected yet.";
+  }, [pushDeviceStatus]);
+
+  async function ensurePushSubscriptionForDevice() {
+    if (!supportsWebPush()) {
+      setPushDeviceStatus("unsupported");
+      throw new Error("This device does not support Web Push notifications.");
+    }
+
+    if (Notification.permission === "denied") {
+      setPushDeviceStatus("permission-denied");
+      throw new Error("Notification permission is blocked for this app.");
+    }
+
+    const publicKeyPayload = await api.notifications.getPushPublicKey();
+    if (!publicKeyPayload.configured || !publicKeyPayload.public_key) {
+      throw new Error("Push notifications are not configured on the server yet.");
+    }
+
+    const permission =
+      Notification.permission === "granted"
+        ? "granted"
+        : await Notification.requestPermission();
+
+    if (permission !== "granted") {
+      setPushDeviceStatus("permission-denied");
+      throw new Error("Notification permission was not granted.");
+    }
+
+    const registration = await navigator.serviceWorker.ready;
+    let subscription = await registration.pushManager.getSubscription();
+    if (!subscription) {
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: base64UrlToArrayBuffer(publicKeyPayload.public_key),
+      });
+    }
+
+    const payload = toPushSubscriptionPayload(subscription);
+    if (!payload) {
+      throw new Error("Could not read browser push subscription keys.");
+    }
+
+    await api.notifications.subscribe(payload);
+    setPushDeviceStatus("subscribed");
+  }
+
+  async function removePushSubscriptionFromDevice() {
+    if (!supportsWebPush()) {
+      setPushDeviceStatus("unsupported");
+      return;
+    }
+
+    const registration = await navigator.serviceWorker.ready;
+    const subscription = await registration.pushManager.getSubscription();
+    if (!subscription) {
+      setPushDeviceStatus("not-subscribed");
+      return;
+    }
+
+    const endpoint = subscription.endpoint;
+    await api.notifications.unsubscribe({ endpoint });
+    await subscription.unsubscribe();
+    setPushDeviceStatus("not-subscribed");
+  }
+
+  async function connectThisDeviceForPush() {
+    if (pushSyncing) return;
+    setPushSyncing(true);
+    try {
+      await ensurePushSubscriptionForDevice();
+      setDraft((prev) =>
+        prev
+          ? {
+              ...prev,
+              notifications: {
+                ...prev.notifications,
+                push_notifications_enabled: true,
+              },
+            }
+          : prev,
+      );
+      toast.success("This device is ready for push. Save changes to activate account delivery.");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Couldn't connect this device for push.");
+    } finally {
+      setPushSyncing(false);
+    }
+  }
+
+  async function disconnectThisDeviceFromPush() {
+    if (pushSyncing) return;
+    setPushSyncing(true);
+    try {
+      await removePushSubscriptionFromDevice();
+      setDraft((prev) =>
+        prev
+          ? {
+              ...prev,
+              notifications: {
+                ...prev.notifications,
+                push_notifications_enabled: false,
+              },
+            }
+          : prev,
+      );
+      toast.success("This device was disconnected from push notifications.");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Couldn't disconnect this device from push.");
+    } finally {
+      setPushSyncing(false);
+    }
+  }
+
   async function saveChangedSections() {
     if (!draft || !baseline || isSavingAny || dirtySections.length === 0) return;
 
@@ -250,6 +454,16 @@ export function SettingsPage() {
             theme_preference: snapshot.appearance.theme_preference,
           });
         } else if (section === "notifications") {
+          const wasPushEnabled = baseline.notifications.push_notifications_enabled;
+          const willEnablePush = snapshot.notifications.push_notifications_enabled;
+
+          if (!wasPushEnabled && willEnablePush) {
+            await ensurePushSubscriptionForDevice();
+          }
+          if (wasPushEnabled && !willEnablePush) {
+            await removePushSubscriptionFromDevice();
+          }
+
           updated = await api.settings.updateNotifications(snapshot.notifications);
         } else if (section === "ai") {
           updated = await api.settings.updateAIBehavior(snapshot.ai_behavior);
@@ -524,6 +738,43 @@ export function SettingsPage() {
                   )
                 }
               />
+
+              <div className="surface-2 p-3 d-flex flex-column gap-2">
+                <div className="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                  <span className="fw-semibold">This device</span>
+                  <Pill variant={pushDeviceStatus === "subscribed" ? "success" : "muted"}>
+                    {pushDeviceStatus === "subscribed" ? "Connected" : "Not connected"}
+                  </Pill>
+                </div>
+                <div className="text-muted-2 small">{pushStatusMessage}</div>
+                <div className="d-flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className="btn btn-outline-secondary btn-sm"
+                    onClick={connectThisDeviceForPush}
+                    disabled={
+                      pushSyncing ||
+                      pushDeviceStatus === "unsupported" ||
+                      pushDeviceStatus === "permission-denied"
+                    }
+                  >
+                    {pushSyncing ? "Connecting..." : "Connect this device"}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-outline-secondary btn-sm"
+                    onClick={disconnectThisDeviceFromPush}
+                    disabled={pushSyncing || pushDeviceStatus !== "subscribed"}
+                  >
+                    Disconnect device
+                  </button>
+                </div>
+                <div className="text-muted-2 small">
+                  For iPhone: install Shadow to Home Screen, open it from there, allow
+                  notifications, connect this device, then save changes.
+                </div>
+              </div>
+
               <ToggleRow
                 id="notify-email"
                 label="Email notifications"

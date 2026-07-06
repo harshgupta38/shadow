@@ -14,7 +14,7 @@ from app.models.enums import NotificationType, ReportPeriod, ReportSource
 from app.models.notification import Notification
 from app.models.user import User
 from app.models.user_setting import UserSetting
-from app.services import report_service
+from app.services import push_service, report_service
 
 logger = logging.getLogger(__name__)
 
@@ -107,19 +107,31 @@ def _enqueue_auto_report_notification(
         return
 
     label = "Daily" if period == ReportPeriod.daily else "Weekly"
+    title = f"{label} Report Ready"
+    body = (
+        f"Your automatic {label.lower()} report is ready. "
+        "Open Reports to review insights and next steps."
+    )
     db.add(
         Notification(
             user_id=user.id,
-            title=f"{label} Report Ready",
-            body=(
-                f"Your automatic {label.lower()} report is ready. "
-                "Open Reports to review insights and next steps."
-            ),
+            title=title,
+            body=body,
             type=NotificationType.system,
             scheduled_at=now_utc,
         )
     )
     db.commit()
+
+    delivered = push_service.send_push_to_user(
+        db,
+        user,
+        title=title,
+        body=body,
+        url="/reports",
+    )
+    if delivered:
+        logger.info("Delivered %d web push report notification(s) for user_id=%s", delivered, user.id)
 
 
 def enqueue_daily_briefs(*, now_utc: datetime | None = None) -> int:

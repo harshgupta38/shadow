@@ -42,6 +42,12 @@ vi.mock("@/api", async (importOriginal) => {
         updateIntegrations: vi.fn(),
         updateAccessibility: vi.fn(),
       },
+      notifications: {
+        ...actual.api.notifications,
+        getPushPublicKey: vi.fn(),
+        subscribe: vi.fn(),
+        unsubscribe: vi.fn(),
+      },
       profile: {
         ...actual.api.profile,
         exportAccountData: vi.fn(),
@@ -65,6 +71,12 @@ const mockedSettingsApi = api.settings as unknown as {
 const mockedProfileApi = api.profile as unknown as {
   exportAccountData: Mock;
   clearChatHistory: Mock;
+};
+
+const mockedNotificationsApi = api.notifications as unknown as {
+  getPushPublicKey: Mock;
+  subscribe: Mock;
+  unsubscribe: Mock;
 };
 
 function buildSettings(): SettingsRead {
@@ -137,11 +149,21 @@ describe("SettingsPage", () => {
     mockedSettingsApi.updateIntegrations.mockReset();
     mockedSettingsApi.updateAccessibility.mockReset();
 
+    mockedNotificationsApi.getPushPublicKey.mockReset();
+    mockedNotificationsApi.subscribe.mockReset();
+    mockedNotificationsApi.unsubscribe.mockReset();
+
     mockedProfileApi.exportAccountData.mockReset();
     mockedProfileApi.clearChatHistory.mockReset();
 
     currentSettings = buildSettings();
     mockedSettingsApi.get.mockResolvedValue(currentSettings);
+    mockedNotificationsApi.getPushPublicKey.mockResolvedValue({
+      configured: true,
+      public_key: "BEl6Q5Yj98jxyQv6Tf2XnAcf3Q8r8A6fFK5_XhKfAovZJx5_W6kQ5u0Jg2yB9h3mG0qR3D2QX2s-9oM2I4mRwLQ",
+    });
+    mockedNotificationsApi.subscribe.mockResolvedValue(undefined);
+    mockedNotificationsApi.unsubscribe.mockResolvedValue(undefined);
 
     mockedSettingsApi.updateAppearance.mockImplementation(async (data) => {
       currentSettings = {
@@ -354,6 +376,75 @@ describe("SettingsPage", () => {
     await waitFor(() => {
       expect(screen.getByRole("button", { name: /save changes/i })).toBeEnabled();
     });
+  });
+
+  it("connects this device for push and saves notification preference", async () => {
+    const user = userEvent.setup();
+    currentSettings = buildSettings();
+    currentSettings.notifications.push_notifications_enabled = false;
+    mockedSettingsApi.get.mockResolvedValue(currentSettings);
+
+    const subscription = {
+      endpoint: "https://example.push/sub-1",
+      toJSON: () => ({
+        endpoint: "https://example.push/sub-1",
+        keys: {
+          p256dh: "test-p256dh",
+          auth: "test-auth",
+        },
+      }),
+      unsubscribe: vi.fn().mockResolvedValue(true),
+    } as unknown as PushSubscription;
+
+    const pushManager = {
+      getSubscription: vi.fn().mockResolvedValue(subscription),
+      subscribe: vi.fn().mockResolvedValue(subscription),
+    };
+
+    const originalServiceWorkerDescriptor = Object.getOwnPropertyDescriptor(
+      navigator,
+      "serviceWorker",
+    );
+
+    vi.stubGlobal("Notification", {
+      permission: "granted",
+      requestPermission: vi.fn().mockResolvedValue("granted"),
+    });
+    vi.stubGlobal("PushManager", function PushManager() {});
+    Object.defineProperty(navigator, "serviceWorker", {
+      configurable: true,
+      value: {
+        ready: Promise.resolve({ pushManager }),
+      },
+    });
+
+    try {
+      renderPage();
+
+      await user.click(await screen.findByRole("button", { name: /connect this device/i }));
+      await user.click(screen.getByRole("button", { name: /save changes/i }));
+
+      await waitFor(() => {
+        expect(mockedNotificationsApi.getPushPublicKey).toHaveBeenCalled();
+        expect(mockedNotificationsApi.subscribe).toHaveBeenCalledWith({
+          endpoint: "https://example.push/sub-1",
+          keys: {
+            p256dh: "test-p256dh",
+            auth: "test-auth",
+          },
+        });
+        expect(mockedSettingsApi.updateNotifications).toHaveBeenCalledWith(
+          expect.objectContaining({ push_notifications_enabled: true }),
+        );
+      });
+    } finally {
+      if (originalServiceWorkerDescriptor) {
+        Object.defineProperty(navigator, "serviceWorker", originalServiceWorkerDescriptor);
+      } else {
+        Reflect.deleteProperty(navigator, "serviceWorker");
+      }
+      vi.unstubAllGlobals();
+    }
   });
 
   it("keeps global save disabled when nothing changed", async () => {

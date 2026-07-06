@@ -5,10 +5,12 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 
 from app.database import SessionLocal
 from app.models.enums import NotificationType
 from app.models.notification import Notification
+from app.models.push_subscription import PushSubscription
 
 
 def test_journal_crud(client: TestClient, auth_headers: dict) -> None:
@@ -140,6 +142,53 @@ def test_notifications_flow(client: TestClient, auth_headers: dict) -> None:
         f"/api/notifications/{notification_id}/read", headers=auth_headers
     ).json()
     assert read["read"] is True
+
+
+def test_push_public_key_defaults_to_not_configured(
+    client: TestClient,
+    auth_headers: dict,
+) -> None:
+    response = client.get("/api/notifications/push/public-key", headers=auth_headers)
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["configured"] is False
+    assert payload["public_key"] is None
+
+
+def test_push_subscription_register_and_delete(
+    client: TestClient,
+    auth_headers: dict,
+) -> None:
+    endpoint = "https://example.push/endpoint-1"
+    register = client.post(
+        "/api/notifications/push/subscriptions",
+        headers=auth_headers,
+        json={
+            "endpoint": endpoint,
+            "keys": {
+                "p256dh": "p256dh-key",
+                "auth": "auth-key",
+            },
+        },
+    )
+    assert register.status_code == 204
+
+    with SessionLocal() as db:
+        subscriptions = list(db.scalars(select(PushSubscription)))
+    assert len(subscriptions) == 1
+    assert subscriptions[0].endpoint == endpoint
+
+    delete = client.request(
+        "DELETE",
+        "/api/notifications/push/subscriptions",
+        headers=auth_headers,
+        json={"endpoint": endpoint},
+    )
+    assert delete.status_code == 204
+
+    with SessionLocal() as db:
+        remaining = list(db.scalars(select(PushSubscription)))
+    assert remaining == []
 
 
 def test_notifications_respect_settings_switches(client: TestClient, auth_headers: dict) -> None:

@@ -57,7 +57,21 @@ def test_enqueue_weekly_summaries_catches_up_after_target_time(
 def test_enqueue_daily_reports_generates_once_per_day(
     client: TestClient,
     auth_headers: dict[str, str],
+    monkeypatch,
 ) -> None:
+    push_calls: list[dict[str, object]] = []
+
+    def fake_send_push(db, user, *, title: str, body: str, url: str = "/notifications") -> int:
+        push_calls.append({
+            "user_id": user.id,
+            "title": title,
+            "body": body,
+            "url": url,
+        })
+        return 1
+
+    monkeypatch.setattr(scheduler_jobs.push_service, "send_push_to_user", fake_send_push)
+
     created = scheduler_jobs.enqueue_daily_reports(
         now_utc=datetime(2026, 7, 5, 18, 25, tzinfo=timezone.utc),
     )
@@ -78,6 +92,9 @@ def test_enqueue_daily_reports_generates_once_per_day(
     notifications = client.get("/api/notifications", headers=auth_headers).json()
     daily_ready = [row for row in notifications if row["title"] == "Daily Report Ready"]
     assert len(daily_ready) == 1
+    assert len(push_calls) == 1
+    assert push_calls[0]["title"] == "Daily Report Ready"
+    assert push_calls[0]["url"] == "/reports"
 
     created_again = scheduler_jobs.enqueue_daily_reports(
         now_utc=datetime(2026, 7, 5, 18, 40, tzinfo=timezone.utc),
@@ -92,7 +109,21 @@ def test_enqueue_daily_reports_generates_once_per_day(
 def test_enqueue_weekly_reports_generates_once_per_week_window(
     client: TestClient,
     auth_headers: dict[str, str],
+    monkeypatch,
 ) -> None:
+    push_calls: list[dict[str, object]] = []
+
+    def fake_send_push(db, user, *, title: str, body: str, url: str = "/notifications") -> int:
+        push_calls.append({
+            "user_id": user.id,
+            "title": title,
+            "body": body,
+            "url": url,
+        })
+        return 1
+
+    monkeypatch.setattr(scheduler_jobs.push_service, "send_push_to_user", fake_send_push)
+
     created = scheduler_jobs.enqueue_weekly_reports(
         now_utc=datetime(2026, 7, 11, 18, 25, tzinfo=timezone.utc),
     )
@@ -113,6 +144,9 @@ def test_enqueue_weekly_reports_generates_once_per_week_window(
     notifications = client.get("/api/notifications", headers=auth_headers).json()
     weekly_ready = [row for row in notifications if row["title"] == "Weekly Report Ready"]
     assert len(weekly_ready) == 1
+    assert len(push_calls) == 1
+    assert push_calls[0]["title"] == "Weekly Report Ready"
+    assert push_calls[0]["url"] == "/reports"
 
     created_again = scheduler_jobs.enqueue_weekly_reports(
         now_utc=datetime(2026, 7, 11, 19, 0, tzinfo=timezone.utc),

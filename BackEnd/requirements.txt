@@ -25,6 +25,7 @@ python-multipart>=0.0.9
 
 # ── Scheduling ────────────────────────────────────────────────
 APScheduler>=3.10,<4.0
+pywebpush>=2.0
 
 # ── LLM (Google Gemini) ───────────────────────────────────────
 google-genai>=0.4

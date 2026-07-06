@@ -2,7 +2,13 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from fastapi.testclient import TestClient
+
+from app.database import SessionLocal
+from app.models.enums import NotificationType
+from app.models.notification import Notification
 
 
 def test_journal_crud(client: TestClient, auth_headers: dict) -> None:
@@ -183,6 +189,42 @@ def test_notifications_respect_settings_switches(client: TestClient, auth_header
         json={"title": "Weekly Summary", "type": "system"},
     )
     assert blocked_weekly.status_code == 409
+
+
+def test_notifications_list_excludes_internal_progress_recommendations(
+    client: TestClient,
+    auth_headers: dict,
+) -> None:
+    with SessionLocal() as db:
+        db.add(
+            Notification(
+                user_id=1,
+                title="__internal_progress_coach_metric_recommendation__:habit:7",
+                body='{"schema":"PROGRESS_COACH_RECOMMENDATION_V1"}',
+                type=NotificationType.system,
+                sent=True,
+                read=True,
+                created_at=datetime.now(timezone.utc),
+            )
+        )
+        db.add(
+            Notification(
+                user_id=1,
+                title="Visible reminder",
+                body="Ping",
+                type=NotificationType.reminder,
+                sent=True,
+                read=False,
+                created_at=datetime.now(timezone.utc),
+            )
+        )
+        db.commit()
+
+    listed = client.get("/api/notifications", headers=auth_headers)
+    assert listed.status_code == 200
+    titles = {row["title"] for row in listed.json()}
+    assert "Visible reminder" in titles
+    assert all("__internal_progress_coach_metric_recommendation__" not in title for title in titles)
 
 
 def test_profile_update(client: TestClient, auth_headers: dict) -> None:

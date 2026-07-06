@@ -9,13 +9,19 @@ from app.models.enums import NotificationType
 from app.models.notification import Notification
 from app.models.user import User
 from app.schemas.notification import NotificationCreate
+from app.services.progress_metric_recommendation_service import (
+    INTERNAL_PROGRESS_COACH_TITLE_PREFIX,
+)
 from app.services import settings_service
 from app.services.exceptions import ConflictError
 from app.services.utils import get_owned_or_404
 
 
 def list_notifications(db: Session, user: User, *, unread_only: bool = False) -> list[Notification]:
-    stmt = select(Notification).where(Notification.user_id == user.id)
+    stmt = select(Notification).where(
+        Notification.user_id == user.id,
+        ~Notification.title.startswith(INTERNAL_PROGRESS_COACH_TITLE_PREFIX),
+    )
     if unread_only:
         stmt = stmt.where(Notification.read.is_(False))
     return list(db.scalars(stmt.order_by(Notification.created_at.desc())))

@@ -757,6 +757,25 @@ export interface ActivityLogCreate {
   note?: string | null;
 }
 
+export interface ProgressCoachRecommendation {
+  id: number;
+  habit_id: number;
+  habit_name: string;
+  metric_name: string;
+  metric_key: string;
+  unit: MetricUnit;
+  target: number;
+  unit_hint: string | null;
+  rationale: string;
+  created_at: string;
+}
+
+export interface ProgressCoachRecommendationAcceptResponse {
+  recommendation_id: number;
+  habit_id: number;
+  metric: TrackedMetric;
+}
+
 // ── Plan ───────────────────────────────────────────────────────────────────
 export interface PlannedTask {
   id: number;

@@ -4,7 +4,58 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
+from app.api.deps import get_provider
+from app.llm.base import LLMMessage, LLMProvider
+from app.main import app
+
 from tests.conftest import register_and_login
+
+
+class ProgressMetricRecommendationProvider(LLMProvider):
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def generate(
+        self,
+        messages: list[LLMMessage],
+        *,
+        system: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+        model: str | None = None,
+    ) -> str:
+        self.calls += 1
+        prompt = messages[-1].content if messages else ""
+        if "Habit name" in prompt and "Drink Water" in prompt:
+            return (
+                '{"measurable":true,"metric_name":"Water intake","unit":"liter",'
+                '"daily_target":2.5,"rationale":"Hydration is quantifiable daily."}'
+            )
+        if "Habit name" in prompt and "LeetCode" in prompt:
+            return (
+                '{"measurable":true,"metric_name":"LeetCode solved","unit":"count",'
+                '"daily_target":10,"rationale":"Problems solved is directly measurable."}'
+            )
+        return (
+            '{"measurable":false,"metric_name":null,"unit":null,'
+            '"daily_target":null,"rationale":"Not quantifiable as a daily metric."}'
+        )
+
+
+class AlwaysMeasurableRecommendationProvider(LLMProvider):
+    def generate(
+        self,
+        messages: list[LLMMessage],
+        *,
+        system: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+        model: str | None = None,
+    ) -> str:
+        return (
+            '{"measurable":true,"metric_name":"Office attendance","unit":"count",'
+            '"daily_target":1,"rationale":"Daily completion count."}'
+        )
 
 
 def _create_goal(client: TestClient, headers: dict[str, str], title: str = "Google prep") -> int:
@@ -158,3 +209,168 @@ def test_repetitive_task_recommendations_are_api_backed_and_skip_existing(
     assert refreshed.status_code == 200
     refreshed_names = {item["name"] for item in refreshed.json()}
     assert first_name not in refreshed_names
+
+
+def test_create_habit_generates_progress_metric_recommendation(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    provider = ProgressMetricRecommendationProvider()
+    app.dependency_overrides[get_provider] = lambda: provider
+
+    try:
+        created = client.post(
+            "/api/repetitive-tasks",
+            headers=auth_headers,
+            json={
+                "name": "Drink Water",
+                "description": "Drink 2.5L per day",
+                "frequencies": ["daily"],
+                "priority": "high",
+            },
+        )
+        assert created.status_code == 201
+        habit_id = created.json()["id"]
+
+        recommendations = client.get(
+            "/api/metrics/progress-coach-recommendations",
+            headers=auth_headers,
+        )
+        assert recommendations.status_code == 200
+        rows = recommendations.json()
+        assert len(rows) == 1
+        assert rows[0]["habit_id"] == habit_id
+        assert rows[0]["unit"] == "custom"
+        assert rows[0]["unit_hint"] == "ml"
+        assert rows[0]["target"] == 2500
+
+        # Internal recommendation storage should never leak into notifications feed.
+        notifications = client.get("/api/notifications", headers=auth_headers)
+        assert notifications.status_code == 200
+        assert all("__internal_progress_coach_metric_recommendation__" not in row["title"] for row in notifications.json())
+    finally:
+        app.dependency_overrides.pop(get_provider, None)
+
+
+def test_update_habit_replaces_pending_progress_recommendation(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    provider = ProgressMetricRecommendationProvider()
+    app.dependency_overrides[get_provider] = lambda: provider
+
+    try:
+        created = client.post(
+            "/api/repetitive-tasks",
+            headers=auth_headers,
+            json={
+                "name": "Drink Water",
+                "description": "Drink 2.5L per day",
+                "frequencies": ["daily"],
+                "priority": "high",
+            },
+        )
+        assert created.status_code == 201
+        task_id = created.json()["id"]
+
+        initial = client.get("/api/metrics/progress-coach-recommendations", headers=auth_headers)
+        assert initial.status_code == 200
+        assert len(initial.json()) == 1
+
+        updated = client.put(
+            f"/api/repetitive-tasks/{task_id}",
+            headers=auth_headers,
+            json={
+                "name": "LeetCode practice",
+                "description": "Solve 10 daily",
+                "frequencies": ["daily"],
+                "priority": "critical",
+            },
+        )
+        assert updated.status_code == 200
+
+        refreshed = client.get("/api/metrics/progress-coach-recommendations", headers=auth_headers)
+        assert refreshed.status_code == 200
+        rows = refreshed.json()
+        assert len(rows) == 1
+        assert rows[0]["habit_id"] == task_id
+        assert rows[0]["metric_name"] == "LeetCode solved"
+        assert rows[0]["target"] == 10
+    finally:
+        app.dependency_overrides.pop(get_provider, None)
+
+
+def test_habit_update_with_active_linked_metric_clears_pending_without_new_one(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    provider = ProgressMetricRecommendationProvider()
+    app.dependency_overrides[get_provider] = lambda: provider
+
+    try:
+        created = client.post(
+            "/api/repetitive-tasks",
+            headers=auth_headers,
+            json={
+                "name": "Drink Water",
+                "description": "Drink 2.5L per day",
+                "frequencies": ["daily"],
+                "priority": "high",
+            },
+        )
+        assert created.status_code == 201
+        task_id = created.json()["id"]
+
+        # Accept recommendation to create and link the active metric.
+        rows = client.get("/api/metrics/progress-coach-recommendations", headers=auth_headers).json()
+        recommendation_id = rows[0]["id"]
+        accepted = client.post(
+            f"/api/metrics/progress-coach-recommendations/{recommendation_id}/accept",
+            headers=auth_headers,
+        )
+        assert accepted.status_code == 200
+
+        # Updating the habit should not create a new pending recommendation because
+        # the habit already has an active linked metric.
+        updated = client.put(
+            f"/api/repetitive-tasks/{task_id}",
+            headers=auth_headers,
+            json={"description": "Still daily hydration"},
+        )
+        assert updated.status_code == 200
+
+        refreshed = client.get("/api/metrics/progress-coach-recommendations", headers=auth_headers)
+        assert refreshed.status_code == 200
+        assert refreshed.json() == []
+    finally:
+        app.dependency_overrides.pop(get_provider, None)
+
+
+def test_non_quantifiable_habit_is_filtered_even_if_llm_marks_measurable(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    provider = AlwaysMeasurableRecommendationProvider()
+    app.dependency_overrides[get_provider] = lambda: provider
+
+    try:
+        created = client.post(
+            "/api/repetitive-tasks",
+            headers=auth_headers,
+            json={
+                "name": "Work from office",
+                "description": "Travel and attend office on weekdays",
+                "frequencies": ["weekdays"],
+                "priority": "medium",
+            },
+        )
+        assert created.status_code == 201
+
+        recommendations = client.get(
+            "/api/metrics/progress-coach-recommendations",
+            headers=auth_headers,
+        )
+        assert recommendations.status_code == 200
+        assert recommendations.json() == []
+    finally:
+        app.dependency_overrides.pop(get_provider, None)

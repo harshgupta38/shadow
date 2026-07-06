@@ -33,3 +33,22 @@ class MetricRead(ORMModel):
     target: int | None
     active: bool
     created_at: datetime
+
+
+class ProgressCoachRecommendationRead(BaseModel):
+    id: int
+    habit_id: int
+    habit_name: str
+    metric_name: str
+    metric_key: str
+    unit: MetricUnit
+    target: int
+    unit_hint: str | None = None
+    rationale: str
+    created_at: datetime
+
+
+class ProgressCoachRecommendationAcceptResponse(BaseModel):
+    recommendation_id: int
+    habit_id: int
+    metric: MetricRead

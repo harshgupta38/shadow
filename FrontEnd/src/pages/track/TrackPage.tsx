@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { GraphUpArrow, PlusLg } from "react-bootstrap-icons";
+import { GraphUpArrow, PlusLg, Stars } from "react-bootstrap-icons";
 
 import { api, ApiError, type TrackedMetric } from "@/api";
 import { MetricCard } from "@/components/metrics/MetricCard";
@@ -8,18 +8,31 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { Pill } from "@/components/ui/Pill";
+import { SectionCard } from "@/components/ui/SectionCard";
 import { useToast } from "@/context/ToastContext";
 import { useAsync } from "@/hooks/useAsync";
+import { formatMetricValue, relativeTime } from "@/lib/format";
+import { METRIC_UNIT_LABEL } from "@/lib/labels";
 
 export function TrackPage() {
   const toast = useToast();
   const { data, loading, error, reload, setData } = useAsync(() => api.metrics.list(), []);
+  const {
+    data: recommendationData,
+    loading: recommendationsLoading,
+    error: recommendationsError,
+    reload: reloadRecommendations,
+    setData: setRecommendationData,
+  } = useAsync(() => api.metrics.progressCoachRecommendations(), []);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<TrackedMetric | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<TrackedMetric | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [acceptingRecommendationId, setAcceptingRecommendationId] = useState<number | null>(null);
 
   const metrics = data ?? [];
+  const recommendations = recommendationData ?? [];
 
   function openNew() {
     setEditing(null);
@@ -53,6 +66,45 @@ export function TrackPage() {
     }
   }
 
+  function recommendationUnitLabel(unit: TrackedMetric["unit"], unitHint?: string | null): string {
+    if (unit === "custom" && unitHint && unitHint.trim()) {
+      return `${METRIC_UNIT_LABEL.custom} (${unitHint.trim()})`;
+    }
+    return METRIC_UNIT_LABEL[unit];
+  }
+
+  function recommendationTargetLabel(
+    target: number,
+    unit: TrackedMetric["unit"],
+    unitHint?: string | null,
+  ): string {
+    if (unit === "custom" && unitHint && unitHint.trim()) {
+      return `${target} ${unitHint.trim()}`;
+    }
+    return formatMetricValue(target, unit);
+  }
+
+  async function acceptRecommendation(recommendationId: number) {
+    setAcceptingRecommendationId(recommendationId);
+    try {
+      const result = await api.metrics.acceptProgressCoachRecommendation(recommendationId);
+      setRecommendationData((prev) =>
+        (prev ?? []).filter((item) => item.id !== recommendationId),
+      );
+      setData((prev) => {
+        const list = prev ?? [];
+        const existing = list.find((metric) => metric.id === result.metric.id);
+        if (!existing) return [...list, result.metric];
+        return list.map((metric) => (metric.id === result.metric.id ? result.metric : metric));
+      });
+      toast.success(`Added metric: ${result.metric.label}`);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Couldn't add this recommendation.");
+    } finally {
+      setAcceptingRecommendationId(null);
+    }
+  }
+
   return (
     <div>
       <PageHeader
@@ -65,6 +117,80 @@ export function TrackPage() {
           </button>
         }
       />
+
+      <SectionCard
+        className="mb-4"
+        title="Progress Coach recommendations"
+        subtitle="Metric suggestions generated from your latest habit create/update changes."
+        actions={
+          <Pill variant="brand" className="text-nowrap">
+            Triggered on Habit Updates
+          </Pill>
+        }
+      >
+        {recommendationsLoading ? (
+          <LoadingState full={false} label="Loading Progress Coach recommendations..." />
+        ) : recommendationsError ? (
+          <EmptyState
+            compact
+            icon={<Stars size={20} />}
+            title="Couldn't load recommendations"
+            message={recommendationsError}
+            action={
+              <button className="btn btn-brand btn-sm" onClick={reloadRecommendations}>
+                Retry
+              </button>
+            }
+          />
+        ) : recommendations.length === 0 ? (
+          <EmptyState
+            compact
+            icon={<Stars size={20} />}
+            title="No pending recommendations"
+            message="Create or update habits in the Habit Library to get measurable metric suggestions here."
+          />
+        ) : (
+          <div className="d-flex flex-column gap-2">
+            {recommendations.map((recommendation) => {
+              const busy = acceptingRecommendationId === recommendation.id;
+              return (
+                <article key={recommendation.id} className="surface-2 p-3">
+                  <div className="d-flex align-items-start justify-content-between gap-2 mb-2">
+                    <div className="min-w-0">
+                      <div className="fw-semibold text-truncate">{recommendation.metric_name}</div>
+                      <div className="small text-muted-2">{recommendation.rationale}</div>
+                    </div>
+                    <Stars size={16} className="text-faint flex-shrink-0" />
+                  </div>
+
+                  <div className="d-flex flex-wrap gap-2 mb-2">
+                    <Pill>{recommendationUnitLabel(recommendation.unit, recommendation.unit_hint)}</Pill>
+                    <Pill variant="info">
+                      Target: {recommendationTargetLabel(recommendation.target, recommendation.unit, recommendation.unit_hint)}
+                    </Pill>
+                  </div>
+
+                  <div className="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+                    <div className="small text-muted-2">
+                      From habit: <span className="fw-medium">{recommendation.habit_name}</span> · {relativeTime(recommendation.created_at)}
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-outline-secondary btn-sm"
+                      onClick={() => {
+                        void acceptRecommendation(recommendation.id);
+                      }}
+                      disabled={busy}
+                    >
+                      {busy ? "Adding..." : "Add this"}
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </SectionCard>
 
       {loading && <LoadingState label="Loading your metrics…" />}
 

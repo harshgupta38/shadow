@@ -535,6 +535,75 @@ def repair_today_task_durations_json(
     ).strip()
 
 
+def recommend_progress_metric_json(
+    provider: LLMProvider,
+    *,
+    habit_summary: str,
+    user_context: str = "",
+    model: str | None = None,
+) -> str:
+    """Infer whether a habit is measurable and propose a tracking metric as JSON."""
+    system = _with_context(system_prompt(AgentType.progress_analyst), user_context)
+    prompt = (
+        "Analyze this habit and decide if it should map to a daily tracked metric.\n\n"
+        "Habit details:\n"
+        f"{habit_summary}\n\n"
+        "Return valid JSON only (no markdown, no prose) with this exact schema:\n"
+        "{\"measurable\":true|false,\"metric_name\":\"...\"|null,\"unit\":\"count|minutes|hours|custom\"|null,\"daily_target\":number|null,\"rationale\":\"...\"}\n"
+        "Rules:\n"
+        "- If measurable=false, set metric_name/unit/daily_target to null and explain briefly in rationale.\n"
+        "- Only mark measurable=true when the habit can be quantified DAILY.\n"
+        "- Recommend metrics only for objective quantities (examples: water intake, workout minutes, problems solved, distance run).\n"
+        "- Do NOT recommend for binary attendance/consistency habits (examples: office attendance, commute, generic completion, streak, just showing up).\n"
+        "- Never use streak as a metric, and never output streak-based units or targets.\n"
+        "- metric_name must be concise and user-facing.\n"
+        "- unit must be one of count, minutes, hours, custom.\n"
+        "- daily_target must be a positive number when measurable=true.\n"
+        "- Prefer realistic targets from the habit text. If explicit numbers exist, preserve them.\n"
+        "- Do not include extra keys."
+    )
+    return provider.generate(
+        [LLMMessage("user", prompt)],
+        system=system,
+        temperature=0.1,
+        max_tokens=320,
+        model=model,
+    ).strip()
+
+
+def repair_progress_metric_json(
+    provider: LLMProvider,
+    *,
+    habit_summary: str,
+    malformed_output: str,
+    user_context: str = "",
+    model: str | None = None,
+) -> str:
+    """Repair malformed progress recommendation output into strict JSON schema."""
+    system = _with_context(system_prompt(AgentType.progress_analyst), user_context)
+    prompt = (
+        "The previous output for a habit-to-metric recommendation was malformed or incomplete. "
+        "Repair it into valid JSON only.\n\n"
+        "Habit details:\n"
+        f"{habit_summary}\n\n"
+        "Malformed output:\n"
+        f"{malformed_output}\n\n"
+        "Return exactly one valid JSON object and nothing else using this schema:\n"
+        "{\"measurable\":true|false,\"metric_name\":\"...\"|null,\"unit\":\"count|minutes|hours|custom\"|null,\"daily_target\":number|null,\"rationale\":\"...\"}\n"
+        "Rules:\n"
+        "- If unsure, return measurable=false with null metric fields.\n"
+        "- Never use streak or attendance-style metrics.\n"
+        "- Do not include extra keys."
+    )
+    return provider.generate(
+        [LLMMessage("user", prompt)],
+        system=system,
+        temperature=0,
+        max_tokens=260,
+        model=model,
+    ).strip()
+
+
 def generate_report_narrative(
     provider: LLMProvider,
     *,

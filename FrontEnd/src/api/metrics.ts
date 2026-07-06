@@ -3,6 +3,8 @@ import type {
   ActivityLog,
   ActivityLogCreate,
   MetricCreate,
+  ProgressCoachRecommendation,
+  ProgressCoachRecommendationAcceptResponse,
   MetricUpdate,
   TrackedMetric,
 } from "./types";
@@ -28,5 +30,15 @@ export const metricsApi = {
   },
   async addLog(metricId: number, data: ActivityLogCreate): Promise<ActivityLog> {
     return http.post<ActivityLog>(`/metrics/${metricId}/logs`, data);
+  },
+  async progressCoachRecommendations(): Promise<ProgressCoachRecommendation[]> {
+    return http.get<ProgressCoachRecommendation[]>("/metrics/progress-coach-recommendations");
+  },
+  async acceptProgressCoachRecommendation(
+    recommendationId: number,
+  ): Promise<ProgressCoachRecommendationAcceptResponse> {
+    return http.post<ProgressCoachRecommendationAcceptResponse>(
+      `/metrics/progress-coach-recommendations/${recommendationId}/accept`,
+    );
   },
 };

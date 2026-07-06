@@ -6,8 +6,14 @@ from fastapi import APIRouter, status
 
 from app.api.deps import CurrentUser, DbSession
 from app.schemas.activity import ActivityLogCreate, ActivityLogRead
-from app.schemas.metric import MetricCreate, MetricRead, MetricUpdate
-from app.services import metric_service
+from app.schemas.metric import (
+    MetricCreate,
+    MetricRead,
+    MetricUpdate,
+    ProgressCoachRecommendationAcceptResponse,
+    ProgressCoachRecommendationRead,
+)
+from app.services import metric_service, progress_metric_recommendation_service
 
 router = APIRouter(prefix="/metrics", tags=["metrics"])
 
@@ -50,3 +56,27 @@ def add_log(
     metric_id: int, data: ActivityLogCreate, db: DbSession, current_user: CurrentUser
 ) -> ActivityLogRead:
     return metric_service.add_log(db, current_user, metric_id, data)
+
+
+@router.get("/progress-coach-recommendations", response_model=list[ProgressCoachRecommendationRead])
+def list_progress_coach_recommendations(
+    db: DbSession,
+    current_user: CurrentUser,
+) -> list[ProgressCoachRecommendationRead]:
+    return progress_metric_recommendation_service.list_pending(db, current_user)
+
+
+@router.post(
+    "/progress-coach-recommendations/{recommendation_id}/accept",
+    response_model=ProgressCoachRecommendationAcceptResponse,
+)
+def accept_progress_coach_recommendation(
+    recommendation_id: int,
+    db: DbSession,
+    current_user: CurrentUser,
+) -> ProgressCoachRecommendationAcceptResponse:
+    return progress_metric_recommendation_service.accept_pending(
+        db,
+        current_user,
+        recommendation_id=recommendation_id,
+    )

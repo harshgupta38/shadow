@@ -230,4 +230,20 @@ describe("TrackPage", () => {
 
     expect(await screen.findByText("No pending recommendations")).toBeInTheDocument();
   });
+
+  it("keeps manual fields hidden in shadow mode until Shadow setup succeeds", async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(await screen.findByRole("button", { name: "New metric" }));
+
+    expect(await screen.findByLabelText("Tell Shadow what to track")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Name")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Create manually" }));
+    expect(await screen.findByLabelText("Name")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Let Shadow Setup" }));
+    expect(screen.queryByLabelText("Name")).not.toBeInTheDocument();
+  });
 });

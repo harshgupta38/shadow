@@ -15,6 +15,7 @@ import {
 import {
   api,
   ApiError,
+  type TrackedMetric,
   type RepetitiveTask,
   type RepetitiveTaskCreate,
   type RepetitiveTaskFrequency,
@@ -22,6 +23,7 @@ import {
   type RepetitiveTaskRecommendation,
   type RepetitiveTaskStatus,
 } from "@/api";
+import { MetricFormModal, type MetricFormInitialValues } from "@/components/metrics/MetricFormModal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadingState } from "@/components/ui/LoadingState";
@@ -159,6 +161,20 @@ function labelsForFrequencies(frequencies: RepetitiveTaskFrequency[]): string[] 
     .filter((label): label is string => Boolean(label));
 }
 
+function metricDraftPromptForTask(task: RepetitiveTask): string {
+  const description = task.description?.trim() || "None";
+  const frequencies = task.frequencies.join(", ");
+
+  return [
+    "Create one measurable metric draft for this repetitive habit.",
+    `Habit name: ${task.name}`,
+    `Habit description: ${description}`,
+    `Frequencies: ${frequencies}`,
+    `Priority: ${task.priority}`,
+    "Return the metric details only.",
+  ].join("\n");
+}
+
 export function RepetitiveTasksPage() {
   const toast = useToast();
   const tasksQuery = useAsync(() => api.repetitiveTasks.list(), []);
@@ -172,6 +188,12 @@ export function RepetitiveTasksPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [statusTaskId, setStatusTaskId] = useState<number | null>(null);
+  const [draftingMetricTaskId, setDraftingMetricTaskId] = useState<number | null>(null);
+  const [metricTargetTaskId, setMetricTargetTaskId] = useState<number | null>(null);
+  const [metricInitialValues, setMetricInitialValues] = useState<MetricFormInitialValues | null>(
+    null,
+  );
+  const [showMetricModal, setShowMetricModal] = useState(false);
   const [statusFilters, setStatusFilters] = useState<RepetitiveTaskStatus[]>([]);
   const [priorityFilters, setPriorityFilters] = useState<RepetitiveTaskPriority[]>([]);
   const [goalFilterIds, setGoalFilterIds] = useState<number[]>([]);
@@ -366,6 +388,63 @@ export function RepetitiveTasksPage() {
       } catch {
         // Ignore environments where programmatic scrolling is not supported.
       }
+    }
+  }
+
+  function closeMetricModal() {
+    setShowMetricModal(false);
+    setMetricInitialValues(null);
+    setMetricTargetTaskId(null);
+  }
+
+  function handleMetricSaved(metric: TrackedMetric) {
+    metricsQuery.setData((prev) => {
+      const list = prev ?? [];
+      const existing = list.find((entry) => entry.id === metric.id);
+      if (!existing) return [metric, ...list];
+      return list.map((entry) => (entry.id === metric.id ? metric : entry));
+    });
+
+    if (metricTargetTaskId !== null) {
+      tasksQuery.setData((prev) =>
+        (prev ?? []).map((entry) => {
+          if (entry.id !== metricTargetTaskId) return entry;
+          if (entry.linked_metric_ids.includes(metric.id)) {
+            return {
+              ...entry,
+              updated_at: new Date().toISOString(),
+            };
+          }
+          return {
+            ...entry,
+            linked_metric_ids: [...entry.linked_metric_ids, metric.id],
+            updated_at: new Date().toISOString(),
+          };
+        }),
+      );
+    }
+  }
+
+  async function createMetricDraftForTask(task: RepetitiveTask) {
+    setDraftingMetricTaskId(task.id);
+    try {
+      const draft = await api.metrics.draft({
+        prompt: metricDraftPromptForTask(task),
+      });
+      setMetricTargetTaskId(task.id);
+      setMetricInitialValues({
+        label: draft.label,
+        unitText: draft.unit_text,
+        timeSpan: draft.time_span,
+        timeSpanCustomText: draft.time_span_custom_text,
+        target: draft.target,
+        linkedHabitIds: [task.id],
+      });
+      setShowMetricModal(true);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Couldn't draft a metric for this habit.");
+    } finally {
+      setDraftingMetricTaskId(null);
     }
   }
 
@@ -963,6 +1042,7 @@ export function RepetitiveTasksPage() {
                     (metricId) => metricLabelById.get(metricId) ?? `Metric #${metricId}`,
                   );
                   const statusBusy = statusTaskId === task.id;
+                  const metricDraftBusy = draftingMetricTaskId === task.id;
                   const showFrequencyInFooter = frequencyLabels.length < 4;
 
                   return (
@@ -997,6 +1077,19 @@ export function RepetitiveTasksPage() {
                             >
                               <PencilSquare size={14} />
                               <span>Edit</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              className="dropdown-item d-flex align-items-center gap-2"
+                              onClick={() => {
+                                void createMetricDraftForTask(task);
+                              }}
+                              aria-label={`Create metric for ${task.name}`}
+                              disabled={metricDraftBusy}
+                            >
+                              <Stars size={14} />
+                              <span>{metricDraftBusy ? "Creating metric..." : "Create metric"}</span>
                             </button>
 
                             <button
@@ -1131,6 +1224,13 @@ export function RepetitiveTasksPage() {
           if (deleting) return;
           setDeleteTarget(null);
         }}
+      />
+
+      <MetricFormModal
+        show={showMetricModal}
+        initialValues={metricInitialValues}
+        onSaved={handleMetricSaved}
+        onClose={closeMetricModal}
       />
     </div>
   );

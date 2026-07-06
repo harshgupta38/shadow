@@ -3,7 +3,13 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 
-import { api, type RepetitiveTask, type RepetitiveTaskRecommendation } from "@/api";
+import {
+  api,
+  type MetricDraft,
+  type RepetitiveTask,
+  type RepetitiveTaskRecommendation,
+  type TrackedMetric,
+} from "@/api";
 import { ToastProvider } from "@/context/ToastContext";
 
 import { RepetitiveTasksPage } from "./RepetitiveTasksPage";
@@ -21,6 +27,8 @@ vi.mock("@/api", async (importOriginal) => {
       metrics: {
         ...actual.api.metrics,
         list: vi.fn(),
+        draft: vi.fn(),
+        create: vi.fn(),
       },
       repetitiveTasks: {
         ...actual.api.repetitiveTasks,
@@ -35,7 +43,11 @@ vi.mock("@/api", async (importOriginal) => {
 });
 
 const mockedGoalsApi = api.goals as unknown as { list: Mock };
-const mockedMetricsApi = api.metrics as unknown as { list: Mock };
+const mockedMetricsApi = api.metrics as unknown as {
+  list: Mock;
+  draft: Mock;
+  create: Mock;
+};
 const mockedRepetitiveTasksApi = api.repetitiveTasks as unknown as {
   list: Mock;
   recommendations: Mock;
@@ -75,6 +87,36 @@ function buildRecommendation(
   };
 }
 
+function buildMetric(overrides: Partial<TrackedMetric> = {}): TrackedMetric {
+  return {
+    id: 1,
+    key: "water_intake",
+    label: "Water intake",
+    unit: "custom",
+    unit_text: "ml",
+    time_span: "day",
+    time_span_custom_text: null,
+    type: "custom",
+    target: 2500,
+    linked_habit_ids: [],
+    active: true,
+    created_at: "2026-07-06T10:00:00.000Z",
+    ...overrides,
+  };
+}
+
+function buildMetricDraft(overrides: Partial<MetricDraft> = {}): MetricDraft {
+  return {
+    label: "Water intake",
+    unit_text: "ml",
+    time_span: "day",
+    time_span_custom_text: null,
+    target: 2500,
+    rationale: "Hydration is measurable daily.",
+    ...overrides,
+  };
+}
+
 function renderPage() {
   return render(
     <ToastProvider>
@@ -89,6 +131,8 @@ describe("RepetitiveTasksPage", () => {
   beforeEach(() => {
     mockedGoalsApi.list.mockReset();
     mockedMetricsApi.list.mockReset();
+    mockedMetricsApi.draft.mockReset();
+    mockedMetricsApi.create.mockReset();
     mockedRepetitiveTasksApi.list.mockReset();
     mockedRepetitiveTasksApi.recommendations.mockReset();
     mockedRepetitiveTasksApi.create.mockReset();
@@ -97,6 +141,8 @@ describe("RepetitiveTasksPage", () => {
 
     mockedGoalsApi.list.mockResolvedValue([]);
     mockedMetricsApi.list.mockResolvedValue([]);
+    mockedMetricsApi.draft.mockResolvedValue(buildMetricDraft());
+    mockedMetricsApi.create.mockResolvedValue(buildMetric());
     mockedRepetitiveTasksApi.list.mockResolvedValue([]);
     mockedRepetitiveTasksApi.recommendations.mockResolvedValue([buildRecommendation()]);
     mockedRepetitiveTasksApi.create.mockResolvedValue(buildTask({ id: 999 }));
@@ -439,5 +485,71 @@ describe("RepetitiveTasksPage", () => {
       linked_metric_ids: [],
     });
     expect(screen.getAllByTestId(/^repetitive-task-/).length).toBe(1);
+  });
+
+  it("creates a metric draft from task actions and saves it", async () => {
+    const user = userEvent.setup();
+    mockedRepetitiveTasksApi.list.mockResolvedValue([
+      buildTask({
+        id: 7,
+        name: "Hydration Habit",
+        description: "Drink 2500ml water daily",
+        frequencies: ["daily"],
+        priority: "high",
+      }),
+    ]);
+    mockedMetricsApi.draft.mockResolvedValue(
+      buildMetricDraft({
+        label: "Water intake",
+        unit_text: "ml",
+        time_span: "day",
+        target: 2500,
+      }),
+    );
+    mockedMetricsApi.create.mockResolvedValue(
+      buildMetric({
+        id: 33,
+        key: "hydration_habit_water_intake",
+        label: "Water intake",
+        unit_text: "ml",
+        target: 2500,
+        linked_habit_ids: [7],
+      }),
+    );
+
+    renderPage();
+
+    const card = await screen.findByTestId("repetitive-task-7");
+    await user.click(
+      within(card).getByRole("button", { name: /open actions for hydration habit/i }),
+    );
+    await user.click(screen.getByRole("button", { name: /create metric for hydration habit/i }));
+
+    expect(mockedMetricsApi.draft).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: expect.stringContaining("Habit name: Hydration Habit"),
+      }),
+    );
+
+    expect(await screen.findByLabelText("Name")).toHaveValue("Water intake");
+    expect(screen.getByLabelText("Unit")).toHaveValue("ml");
+    expect(screen.getByLabelText(/target \(optional\)/i)).toHaveValue(2500);
+
+    await user.click(screen.getByRole("button", { name: "Create metric" }));
+
+    expect(mockedMetricsApi.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        label: "Water intake",
+        unit_text: "ml",
+        time_span: "day",
+        time_span_custom_text: null,
+        target: 2500,
+        linked_habit_ids: [7],
+      }),
+    );
+
+    await waitFor(() => {
+      expect(within(card).getByText("Metrics: Water intake")).toBeInTheDocument();
+    });
   });
 });

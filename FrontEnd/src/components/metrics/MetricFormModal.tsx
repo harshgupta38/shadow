@@ -103,7 +103,7 @@ export function MetricFormModal({
         setTarget(initialValues?.target != null ? String(initialValues.target) : "");
         setLinkedHabitIds(initialValues?.linkedHabitIds ?? []);
         setCreationMode(initialValues ? "manual" : "shadow");
-        setShadowReady(Boolean(initialValues));
+        setShadowReady(false);
       }
       setShadowPrompt("");
       setShadowBusy(false);
@@ -460,14 +460,6 @@ export function MetricFormModal({
                   className={`nav-tab-jv ${creationMode === "shadow" ? "active" : ""}`}
                   onClick={() => {
                     setCreationMode("shadow");
-                    setShadowReady(
-                      !!(
-                        label.trim() ||
-                        unitText.trim() ||
-                        target.trim() ||
-                        linkedHabitIds.length > 0
-                      ),
-                    );
                   }}
                   disabled={busy || shadowBusy}
                 >
@@ -478,7 +470,6 @@ export function MetricFormModal({
                   className={`nav-tab-jv ${creationMode === "manual" ? "active" : ""}`}
                   onClick={() => {
                     setCreationMode("manual");
-                    setShadowReady(true);
                   }}
                   disabled={busy || shadowBusy}
                 >

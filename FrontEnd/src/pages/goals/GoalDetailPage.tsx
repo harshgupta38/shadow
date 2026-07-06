@@ -78,6 +78,26 @@ const REPETITIVE_STATUS_PILL: Record<GoalLinkedRepetitiveTask["status"], PillVar
   archived: "muted",
 };
 
+const REPETITIVE_FREQUENCY_LABEL: Record<
+  GoalLinkedRepetitiveTask["frequencies"][number],
+  string
+> = {
+  daily: "Daily",
+  weekly: "Weekly",
+  monthly: "Monthly",
+  weekdays: "Weekdays",
+  weekends: "Weekends",
+  sunday: "Sun",
+  monday: "Mon",
+  tuesday: "Tue",
+  wednesday: "Wed",
+  thursday: "Thu",
+  friday: "Fri",
+  saturday: "Sat",
+  first_of_month: "First of month",
+  end_of_month: "End of month",
+};
+
 const REPETITIVE_PRIORITY_SORT: Record<GoalLinkedRepetitiveTask["priority"], number> = {
   critical: 0,
   high: 1,
@@ -554,6 +574,9 @@ export function GoalDetailPage() {
             <div className="d-flex flex-column gap-2">
               {sortedLinkedTasks.map((task) => {
                 const statusBusy = updatingRepetitiveStatusId === task.id;
+                const frequencyLabels = task.frequencies.map(
+                  (frequency) => REPETITIVE_FREQUENCY_LABEL[frequency],
+                );
                 return (
                   <article key={task.id} className="surface-2 p-3">
                     <div className="d-flex align-items-start justify-content-between gap-2">
@@ -610,64 +633,71 @@ export function GoalDetailPage() {
                         </Pill>
                       </div>
                     </div>
-                    <div className="d-flex flex-wrap gap-2 mt-2">
-                      <Dropdown align="end" className="d-md-none">
-                        <Dropdown.Toggle
-                          as="button"
-                          type="button"
-                          className="btn p-0 border-0 bg-transparent shadow-none"
-                          aria-label={`Update status for ${task.name}`}
-                          disabled={statusBusy}
-                        >
-                          <Pill variant={REPETITIVE_STATUS_PILL[task.status]} dot>
-                            {REPETITIVE_STATUS_LABEL[task.status]}
-                          </Pill>
-                        </Dropdown.Toggle>
-                        <Dropdown.Menu>
-                          {task.status === "active" && (
-                            <Dropdown.Item
-                              onClick={() => void updateLinkedRepetitiveStatus(task, "paused")}
-                            >
-                              <PauseFill size={14} className="me-2" /> Pause
-                            </Dropdown.Item>
-                          )}
-                          {task.status === "paused" && (
-                            <Dropdown.Item
-                              onClick={() => void updateLinkedRepetitiveStatus(task, "active")}
-                            >
-                              <PlayFill size={14} className="me-2" /> Resume
-                            </Dropdown.Item>
-                          )}
-                          {task.status !== "archived" && (
-                            <Dropdown.Item
-                              onClick={() => void updateLinkedRepetitiveStatus(task, "archived")}
-                            >
-                              <Archive size={14} className="me-2" /> Archive
-                            </Dropdown.Item>
-                          )}
-                          {task.status === "archived" && (
-                            <Dropdown.Item
-                              onClick={() => void updateLinkedRepetitiveStatus(task, "active")}
-                            >
-                              <PlayFill size={14} className="me-2" /> Restore
-                            </Dropdown.Item>
-                          )}
-                        </Dropdown.Menu>
-                      </Dropdown>
-                      <Pill className="d-md-none" variant={REPETITIVE_PRIORITY_PILL[task.priority]}>
-                        {REPETITIVE_PRIORITY_LABEL[task.priority]}
-                      </Pill>
-                      <Pill variant="brand">{task.category || "Uncategorized"}</Pill>
-                      <Pill>
-                        <span className="d-none d-md-inline">Current streak:</span>
-                        <span className="d-md-none">Streak:</span>{" "}
-                        <span className="fw-semibold">{task.current_streak_days}d</span>
-                      </Pill>
-                      <Pill>
-                        <span className="d-none d-md-inline">Max streak:</span>
-                        <span className="d-md-none">Max:</span>{" "}
-                        <span className="fw-semibold">{task.max_streak_days}d</span>
-                      </Pill>
+                    <div className="d-flex flex-wrap align-items-start gap-2 mt-2">
+                      <div className="d-flex flex-wrap align-items-center gap-2">
+                        <Dropdown align="end" className="d-md-none">
+                          <Dropdown.Toggle
+                            as="button"
+                            type="button"
+                            className="btn p-0 border-0 bg-transparent shadow-none"
+                            aria-label={`Update status for ${task.name}`}
+                            disabled={statusBusy}
+                          >
+                            <Pill variant={REPETITIVE_STATUS_PILL[task.status]} dot>
+                              {REPETITIVE_STATUS_LABEL[task.status]}
+                            </Pill>
+                          </Dropdown.Toggle>
+                          <Dropdown.Menu>
+                            {task.status === "active" && (
+                              <Dropdown.Item
+                                onClick={() => void updateLinkedRepetitiveStatus(task, "paused")}
+                              >
+                                <PauseFill size={14} className="me-2" /> Pause
+                              </Dropdown.Item>
+                            )}
+                            {task.status === "paused" && (
+                              <Dropdown.Item
+                                onClick={() => void updateLinkedRepetitiveStatus(task, "active")}
+                              >
+                                <PlayFill size={14} className="me-2" /> Resume
+                              </Dropdown.Item>
+                            )}
+                            {task.status !== "archived" && (
+                              <Dropdown.Item
+                                onClick={() => void updateLinkedRepetitiveStatus(task, "archived")}
+                              >
+                                <Archive size={14} className="me-2" /> Archive
+                              </Dropdown.Item>
+                            )}
+                            {task.status === "archived" && (
+                              <Dropdown.Item
+                                onClick={() => void updateLinkedRepetitiveStatus(task, "active")}
+                              >
+                                <PlayFill size={14} className="me-2" /> Restore
+                              </Dropdown.Item>
+                            )}
+                          </Dropdown.Menu>
+                        </Dropdown>
+                        <Pill className="d-md-none" variant={REPETITIVE_PRIORITY_PILL[task.priority]}>
+                          {REPETITIVE_PRIORITY_LABEL[task.priority]}
+                        </Pill>
+                        <Pill variant="brand">{task.category || "Uncategorized"}</Pill>
+                        <Pill>
+                          <span className="d-none d-md-inline">Current streak:</span>
+                          <span className="d-md-none">Streak:</span>{" "}
+                          <span className="fw-semibold">{task.current_streak_days}d</span>
+                        </Pill>
+                        <Pill>
+                          <span className="d-none d-md-inline">Max streak:</span>
+                          <span className="d-md-none">Max:</span>{" "}
+                          <span className="fw-semibold">{task.max_streak_days}d</span>
+                        </Pill>
+                      </div>
+                      <div className="d-flex flex-wrap gap-2 ms-md-auto justify-content-start justify-content-md-end">
+                        {frequencyLabels.map((label) => (
+                          <Pill key={`${task.id}-${label}`}>{label}</Pill>
+                        ))}
+                      </div>
                     </div>
                   </article>
                 );

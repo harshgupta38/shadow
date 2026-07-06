@@ -248,6 +248,7 @@ def test_goal_linked_repetitive_tasks_include_streak_priority_and_category(
     assert len(rows) == 1
     row = rows[0]
     assert row["name"] == repetitive_name
+    assert row["frequencies"] == ["daily"]
     assert row["category"] == "Career"
     assert row["priority"] == "high"
     assert row["current_streak_days"] == 2

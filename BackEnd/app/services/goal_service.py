@@ -343,6 +343,7 @@ def list_linked_repetitive_tasks(
                 id=task.id,
                 name=task.name,
                 description=task.description,
+                frequencies=task.frequencies,
                 category=goal.category,
                 priority=task.priority,
                 status=task.status,

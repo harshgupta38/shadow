@@ -474,6 +474,7 @@ export interface GoalLinkedRepetitiveTask {
   id: number;
   name: string;
   description: string | null;
+  frequencies: RepetitiveTaskFrequency[];
   category: string | null;
   priority: RepetitiveTaskPriority;
   status: RepetitiveTaskStatus;

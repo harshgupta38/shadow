@@ -7,6 +7,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 from app.models.enums import GoalStatus, RepetitiveTaskPriority, RepetitiveTaskStatus
+from app.schemas.repetitive_task import RepetitiveTaskFrequency
 from app.schemas.common import ORMModel
 from app.schemas.milestone import MilestoneRead
 
@@ -44,6 +45,7 @@ class GoalLinkedRepetitiveTaskRead(BaseModel):
     id: int
     name: str
     description: str | None
+    frequencies: list[RepetitiveTaskFrequency] = Field(default_factory=list)
     category: str | None = Field(default=None, max_length=64)
     priority: RepetitiveTaskPriority
     status: RepetitiveTaskStatus

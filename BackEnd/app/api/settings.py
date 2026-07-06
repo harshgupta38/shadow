@@ -9,6 +9,7 @@ from app.schemas.settings import (
     AccessibilitySettingsUpdate,
     AIBehaviorSettingsUpdate,
     AppearanceSettingsUpdate,
+    DynamicAppearanceResolveRead,
     IntegrationSettingsUpdate,
     NotificationSettingsUpdate,
     PlannerSettingsUpdate,
@@ -32,6 +33,18 @@ def update_appearance(
     current_user: CurrentUser,
 ) -> SettingsRead:
     return settings_service.update_appearance(db, current_user, data)
+
+
+@router.get("/appearance/dynamic-resolve", response_model=DynamicAppearanceResolveRead)
+def resolve_dynamic_appearance(
+    latitude: float,
+    longitude: float,
+    _current_user: CurrentUser,
+) -> DynamicAppearanceResolveRead:
+    return settings_service.resolve_dynamic_appearance(
+        latitude=latitude,
+        longitude=longitude,
+    )
 
 
 @router.put("/notifications", response_model=SettingsRead)

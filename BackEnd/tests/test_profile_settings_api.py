@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 
 def test_profile_basic_and_ai_endpoints(client, auth_headers):
     basic = client.get("/api/profile/basic", headers=auth_headers)
@@ -227,6 +229,49 @@ def test_settings_endpoints_and_theme_sync(client, auth_headers):
     assert accessibility.json()["accessibility"]["reduced_motion"] is True
     assert accessibility.json()["accessibility"]["high_contrast"] is True
     assert accessibility.json()["accessibility"]["font_scale_percent"] == 115
+
+
+def test_dynamic_appearance_resolve_returns_effective_theme(client, auth_headers, monkeypatch):
+    from app.services import settings_service
+
+    def fake_fetch(*, latitude: float, longitude: float):
+        assert latitude == 28.6139
+        assert longitude == 77.209
+        return {
+            "timezone": "Asia/Kolkata",
+            "current": {"is_day": 0},
+            "daily": {
+                "time": ["2026-07-07", "2026-07-08"],
+                "sunrise": ["2026-07-07T05:28", "2026-07-08T05:29"],
+                "sunset": ["2026-07-07T19:22", "2026-07-08T19:22"],
+            },
+        }
+
+    monkeypatch.setattr(settings_service, "_fetch_open_meteo_dynamic_payload", fake_fetch)
+
+    response = client.get(
+        "/api/settings/appearance/dynamic-resolve",
+        headers=auth_headers,
+        params={"latitude": 28.6139, "longitude": 77.2090},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["effective_theme"] == "dark"
+    assert payload["timezone"] == "Asia/Kolkata"
+    assert payload["source"] == "open_meteo"
+    assert datetime.fromisoformat(payload["sunrise"])
+    assert datetime.fromisoformat(payload["sunset"])
+    assert datetime.fromisoformat(payload["next_transition_at"])
+
+
+def test_dynamic_appearance_resolve_rejects_invalid_coordinates(client, auth_headers):
+    response = client.get(
+        "/api/settings/appearance/dynamic-resolve",
+        headers=auth_headers,
+        params={"latitude": 120.0, "longitude": 77.2},
+    )
+    assert response.status_code == 400
+    assert "Latitude must be between -90 and 90" in response.json()["detail"]
 
 
 def test_account_security_export_and_clear_chat(client, auth_headers):

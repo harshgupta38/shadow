@@ -92,6 +92,10 @@ class Settings(BaseSettings):
     # Disable in tests to avoid spinning up background threads.
     enable_scheduler: bool = True
 
+    # ── External APIs ──────────────────────────────────────────
+    open_meteo_base_url: str = "https://api.open-meteo.com/v1/forecast"
+    open_meteo_timeout_seconds: float = 6.0
+
     @property
     def cors_origins_list(self) -> list[str]:
         """Parse the comma-separated ``cors_origins`` into a clean list."""

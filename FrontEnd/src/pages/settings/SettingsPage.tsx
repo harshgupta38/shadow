@@ -8,6 +8,7 @@ import {
   Globe,
   MoonStarsFill,
   Palette2,
+  Stars,
   SunFill,
 } from "react-bootstrap-icons";
 
@@ -444,6 +445,7 @@ export function SettingsPage() {
                   { value: "light" as ThemePreference, label: "Light", icon: SunFill },
                   { value: "dark" as ThemePreference, label: "Dark", icon: MoonStarsFill },
                   { value: "browser" as const, label: "Browser Default", icon: Display },
+                  { value: "dynamic" as const, label: "Dynamic", icon: Stars },
                 ].map((option) => {
                   const Icon = option.icon;
                   const active = draft.appearance.theme_preference === option.value;
@@ -472,6 +474,11 @@ export function SettingsPage() {
                     </div>
                   );
                 })}
+              </div>
+              <div className="text-muted-2 small mt-3">
+                Dynamic uses your device location to switch to dark mode after sunset and light
+                mode after sunrise. If location or weather lookup is unavailable, Shadow falls
+                back to Browser Default.
               </div>
             </form>
           </SectionCard>

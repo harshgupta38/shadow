@@ -7,6 +7,7 @@ import enum
 
 class ThemePreference(str, enum.Enum):
     browser = "browser"
+    dynamic = "dynamic"
     light = "light"
     dark = "dark"
 

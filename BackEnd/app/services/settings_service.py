@@ -2,11 +2,17 @@
 
 from __future__ import annotations
 
+from datetime import date, datetime, timedelta, timezone
 import re
+from typing import Any
+from zoneinfo import ZoneInfo
+
+import httpx
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.constant import settings
 from app.models.user import User
 from app.models.user_setting import UserSetting
 from app.schemas.settings import (
@@ -16,6 +22,7 @@ from app.schemas.settings import (
     AIBehaviorSettingsUpdate,
     AppearanceSettings,
     AppearanceSettingsUpdate,
+    DynamicAppearanceResolveRead,
     IntegrationSettings,
     IntegrationSettingsUpdate,
     NotificationSettings,
@@ -26,6 +33,7 @@ from app.schemas.settings import (
     PrivacySettingsUpdate,
     SettingsRead,
 )
+from app.services.exceptions import AppError
 
 _AUTO_MODEL = "auto"
 _DEFAULT_RUNTIME_GEMINI_MODEL = "gemini-2.5-flash"
@@ -37,6 +45,9 @@ _RETIRED_GEMINI_MODELS = {
     "gemini-2-flash",
     "gemini-2-flash-lite",
 }
+
+_DYNAMIC_APPEARANCE_CACHE_TTL_SECONDS = 300
+_DYNAMIC_APPEARANCE_CACHE: dict[str, tuple[datetime, DynamicAppearanceResolveRead]] = {}
 
 
 def normalize_ai_default_model(value: str | None) -> str:
@@ -135,6 +146,176 @@ def get_settings(db: Session, user: User) -> SettingsRead:
             font_scale_percent=settings.accessibility_font_scale_percent,
         ),
     )
+
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _build_dynamic_appearance_cache_key(latitude: float, longitude: float) -> str:
+    # ~100m precision keeps cache hits high while preserving local sunrise/sunset behavior.
+    return f"{round(latitude, 3)}:{round(longitude, 3)}"
+
+
+def _get_cached_dynamic_appearance(
+    *,
+    latitude: float,
+    longitude: float,
+) -> DynamicAppearanceResolveRead | None:
+    key = _build_dynamic_appearance_cache_key(latitude, longitude)
+    cached = _DYNAMIC_APPEARANCE_CACHE.get(key)
+    if cached is None:
+        return None
+
+    expires_at, payload = cached
+    if _utcnow() >= expires_at:
+        _DYNAMIC_APPEARANCE_CACHE.pop(key, None)
+        return None
+    return payload
+
+
+def _cache_dynamic_appearance(
+    *,
+    latitude: float,
+    longitude: float,
+    payload: DynamicAppearanceResolveRead,
+) -> None:
+    key = _build_dynamic_appearance_cache_key(latitude, longitude)
+    expires_at = _utcnow() + timedelta(seconds=_DYNAMIC_APPEARANCE_CACHE_TTL_SECONDS)
+    _DYNAMIC_APPEARANCE_CACHE[key] = (expires_at, payload)
+
+
+def _resolve_timezone(timezone_name: str) -> timezone | ZoneInfo:
+    try:
+        return ZoneInfo(timezone_name)
+    except Exception:
+        return timezone.utc
+
+
+def _parse_local_datetime(value: str, tz: timezone | ZoneInfo) -> datetime:
+    parsed = datetime.fromisoformat(value)
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=tz)
+    return parsed.astimezone(tz)
+
+
+def _extract_today_index(
+    *,
+    daily_dates: list[str],
+    now_local: datetime,
+) -> int:
+    if not daily_dates:
+        return 0
+
+    local_today = now_local.date()
+    for idx, value in enumerate(daily_dates):
+        try:
+            if date.fromisoformat(value) == local_today:
+                return idx
+        except ValueError:
+            continue
+    return 0
+
+
+def _extract_next_transition(
+    *,
+    is_day: bool,
+    now_local: datetime,
+    sunrise_values: list[datetime],
+    sunset_values: list[datetime],
+) -> datetime:
+    candidates = sunset_values if is_day else sunrise_values
+    future_candidates = [value for value in candidates if value > now_local]
+    if future_candidates:
+        return min(future_candidates)
+
+    # Should be rare with forecast_days=2; this keeps behavior stable on payload anomalies.
+    return now_local + timedelta(hours=12)
+
+
+def _fetch_open_meteo_dynamic_payload(*, latitude: float, longitude: float) -> dict[str, Any]:
+    try:
+        response = httpx.get(
+            settings.open_meteo_base_url,
+            params={
+                "latitude": latitude,
+                "longitude": longitude,
+                "current": "is_day",
+                "daily": "sunrise,sunset",
+                "timezone": "auto",
+                "forecast_days": 2,
+            },
+            timeout=settings.open_meteo_timeout_seconds,
+        )
+        response.raise_for_status()
+        payload = response.json()
+    except httpx.TimeoutException as exc:
+        raise AppError("Dynamic appearance lookup timed out. Please try again.") from exc
+    except httpx.HTTPError as exc:
+        raise AppError("Couldn't resolve sunrise/sunset right now.") from exc
+    except ValueError as exc:
+        raise AppError("Received an invalid response while resolving dynamic appearance.") from exc
+
+    if payload.get("error"):
+        raise AppError("Couldn't resolve sunrise/sunset for this location.")
+
+    return payload
+
+
+def resolve_dynamic_appearance(*, latitude: float, longitude: float) -> DynamicAppearanceResolveRead:
+    if latitude < -90 or latitude > 90:
+        raise AppError("Latitude must be between -90 and 90.")
+    if longitude < -180 or longitude > 180:
+        raise AppError("Longitude must be between -180 and 180.")
+
+    cached = _get_cached_dynamic_appearance(latitude=latitude, longitude=longitude)
+    if cached is not None:
+        return cached
+
+    payload = _fetch_open_meteo_dynamic_payload(latitude=latitude, longitude=longitude)
+
+    timezone_name = str(payload.get("timezone") or "UTC")
+    tz = _resolve_timezone(timezone_name)
+    now_local = _utcnow().astimezone(tz)
+
+    daily = payload.get("daily") or {}
+    sunrise_raw = daily.get("sunrise") or []
+    sunset_raw = daily.get("sunset") or []
+    daily_dates = daily.get("time") or []
+
+    if not sunrise_raw or not sunset_raw:
+        raise AppError("Sunrise/sunset data is unavailable for this location.")
+
+    sunrise_values = [_parse_local_datetime(value, tz) for value in sunrise_raw]
+    sunset_values = [_parse_local_datetime(value, tz) for value in sunset_raw]
+
+    current = payload.get("current") or {}
+    is_day_value = current.get("is_day")
+    if is_day_value in (0, 1):
+        is_day = bool(is_day_value)
+    else:
+        is_day = sunrise_values[0] <= now_local < sunset_values[0]
+
+    next_transition_at = _extract_next_transition(
+        is_day=is_day,
+        now_local=now_local,
+        sunrise_values=sunrise_values,
+        sunset_values=sunset_values,
+    )
+
+    today_idx = _extract_today_index(daily_dates=daily_dates, now_local=now_local)
+    sunrise_for_today = sunrise_values[min(today_idx, len(sunrise_values) - 1)]
+    sunset_for_today = sunset_values[min(today_idx, len(sunset_values) - 1)]
+
+    resolved = DynamicAppearanceResolveRead(
+        effective_theme="light" if is_day else "dark",
+        timezone=timezone_name,
+        sunrise=sunrise_for_today,
+        sunset=sunset_for_today,
+        next_transition_at=next_transition_at,
+    )
+    _cache_dynamic_appearance(latitude=latitude, longitude=longitude, payload=resolved)
+    return resolved
 
 
 def update_appearance(

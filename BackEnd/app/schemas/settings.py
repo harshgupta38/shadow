@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 from app.models.enums import (
@@ -20,6 +23,15 @@ class AppearanceSettings(BaseModel):
 
 class AppearanceSettingsUpdate(BaseModel):
     theme_preference: ThemePreference
+
+
+class DynamicAppearanceResolveRead(BaseModel):
+    effective_theme: Literal["light", "dark"]
+    timezone: str
+    sunrise: datetime
+    sunset: datetime
+    next_transition_at: datetime
+    source: Literal["open_meteo"] = "open_meteo"
 
 
 class NotificationSettings(BaseModel):

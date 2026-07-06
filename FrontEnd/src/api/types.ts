@@ -4,7 +4,7 @@
  */
 
 // ── Enums (string unions match backend `str, enum.Enum` values) ────────────
-export type ThemePreference = "browser" | "light" | "dark";
+export type ThemePreference = "browser" | "dynamic" | "light" | "dark";
 
 export type AIResponseLength = "short" | "balanced" | "detailed" | "very_detailed";
 export type AIPersonality =
@@ -331,6 +331,15 @@ export interface SettingsRead {
 
 export interface AppearanceSettingsUpdate {
   theme_preference: ThemePreference;
+}
+
+export interface DynamicAppearanceResolveResponse {
+  effective_theme: "light" | "dark";
+  timezone: string;
+  sunrise: string;
+  sunset: string;
+  next_transition_at: string;
+  source: "open_meteo";
 }
 
 export interface NotificationSettingsUpdate {

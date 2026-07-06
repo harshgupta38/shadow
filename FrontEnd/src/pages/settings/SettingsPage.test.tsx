@@ -314,6 +314,24 @@ describe("SettingsPage", () => {
     expect(setThemeMock).toHaveBeenCalledWith("browser");
   });
 
+  it("persists dynamic theme preference", async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(await screen.findByRole("button", { name: "Dynamic" }));
+    await user.click(screen.getByRole("button", { name: /save changes/i }));
+
+    await waitFor(() => {
+      expect(mockedSettingsApi.updateAppearance).toHaveBeenCalledTimes(1);
+    });
+
+    expect(mockedSettingsApi.updateAppearance).toHaveBeenCalledWith({
+      theme_preference: "dynamic",
+    });
+    expect(patchUserMock).toHaveBeenCalledWith({ theme_preference: "dynamic" });
+    expect(setThemeMock).toHaveBeenCalledWith("dynamic");
+  });
+
   it("continues saving remaining changed sections when one section fails", async () => {
     const user = userEvent.setup();
     mockedSettingsApi.updateNotifications.mockRejectedValueOnce(new Error("Network failure"));

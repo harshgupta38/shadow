@@ -3,6 +3,7 @@ import type {
   AccessibilitySettingsUpdate,
   AIBehaviorSettingsUpdate,
   AppearanceSettingsUpdate,
+  DynamicAppearanceResolveResponse,
   IntegrationSettingsUpdate,
   NotificationSettingsUpdate,
   PlannerSettingsUpdate,
@@ -34,5 +35,18 @@ export const settingsApi = {
   },
   async updatePrivacy(data: PrivacySettingsUpdate): Promise<SettingsRead> {
     return http.put<SettingsRead>("/settings/privacy", data);
+  },
+  async resolveDynamicAppearance(
+    latitude: number,
+    longitude: number,
+  ): Promise<DynamicAppearanceResolveResponse> {
+    return http.get<DynamicAppearanceResolveResponse>(
+      "/settings/appearance/dynamic-resolve",
+      { latitude, longitude },
+      {
+        // Keep this short so sunrise/sunset transitions can refresh naturally.
+        ttlMs: 60_000,
+      },
+    );
   },
 };

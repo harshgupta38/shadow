@@ -355,6 +355,20 @@ export function RepetitiveTasksPage() {
     }
   }
 
+  function startDuplicating(task: RepetitiveTask) {
+    setDraft(toDraftFromTask(task));
+    // Keep form prefilled, but force create mode so save creates a new task.
+    setEditingTaskId(null);
+    setFormError(null);
+    if (typeof window !== "undefined" && typeof window.scrollTo === "function") {
+      try {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      } catch {
+        // Ignore environments where programmatic scrolling is not supported.
+      }
+    }
+  }
+
   async function submitDraft(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -983,6 +997,16 @@ export function RepetitiveTasksPage() {
                             >
                               <PencilSquare size={14} />
                               <span>Edit</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              className="dropdown-item d-flex align-items-center gap-2"
+                              onClick={() => startDuplicating(task)}
+                              aria-label={`Duplicate ${task.name}`}
+                            >
+                              <PlusLg size={14} />
+                              <span>Duplicate</span>
                             </button>
 
                             {task.status === "active" && (

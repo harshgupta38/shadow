@@ -339,6 +339,58 @@ describe("RepetitiveTasksPage", () => {
     expect(mockedRepetitiveTasksApi.update).toHaveBeenCalledTimes(3);
   });
 
+  it("duplicates a task into create flow and saves as a new item", async () => {
+    const user = userEvent.setup();
+    const scrollToSpy = vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+
+    mockedRepetitiveTasksApi.list.mockResolvedValue([
+      buildTask({
+        id: 1,
+        name: "Hydration Goal",
+        description: "Drink water through the day",
+        frequencies: ["daily", "weekdays"],
+        priority: "medium",
+      }),
+    ]);
+    mockedRepetitiveTasksApi.create.mockResolvedValue(
+      buildTask({
+        id: 2,
+        name: "Hydration Goal",
+        description: "Drink water through the day",
+        frequencies: ["daily", "weekdays"],
+        priority: "medium",
+      }),
+    );
+
+    renderPage();
+
+    const card = await screen.findByTestId("repetitive-task-1");
+    await user.click(
+      within(card).getByRole("button", { name: /open actions for hydration goal/i }),
+    );
+    await user.click(screen.getByRole("button", { name: /duplicate hydration goal/i }));
+
+    const taskNameInput = screen.getByLabelText(/task name/i) as HTMLInputElement;
+    expect(taskNameInput.value).toBe("Hydration Goal");
+    expect(screen.getByRole("button", { name: /create repetitive task/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /update repetitive task/i })).not.toBeInTheDocument();
+    expect(scrollToSpy).toHaveBeenCalledWith({ top: 0, behavior: "smooth" });
+
+    await user.click(screen.getByRole("button", { name: /create repetitive task/i }));
+
+    expect(mockedRepetitiveTasksApi.create).toHaveBeenCalledWith({
+      name: "Hydration Goal",
+      description: "Drink water through the day",
+      frequencies: ["daily", "weekdays"],
+      priority: "medium",
+      linked_goal_ids: [],
+      linked_metric_ids: [],
+    });
+    expect(mockedRepetitiveTasksApi.update).not.toHaveBeenCalled();
+
+    scrollToSpy.mockRestore();
+  });
+
   it("deletes a task after confirmation", async () => {
     const user = userEvent.setup();
     mockedRepetitiveTasksApi.list.mockResolvedValue([buildTask({ id: 1 })]);

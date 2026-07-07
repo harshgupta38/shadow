@@ -397,7 +397,7 @@ describe("SettingsPage", () => {
     } as unknown as PushSubscription;
 
     const pushManager = {
-      getSubscription: vi.fn().mockResolvedValue(subscription),
+      getSubscription: vi.fn().mockResolvedValue(null),
       subscribe: vi.fn().mockResolvedValue(subscription),
     };
 
@@ -421,6 +421,7 @@ describe("SettingsPage", () => {
     try {
       renderPage();
 
+      await user.click(await screen.findByLabelText("Push notifications"));
       await user.click(await screen.findByRole("button", { name: /connect this device/i }));
       await user.click(screen.getByRole("button", { name: /save changes/i }));
 

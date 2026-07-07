@@ -19,6 +19,10 @@ from app.services import settings_service
 
 logger = logging.getLogger(__name__)
 
+# Endpoints returning these status codes are considered stale/invalid for
+# future sends and should be pruned from DB.
+STALE_SUBSCRIPTION_STATUS_CODES = {403, 404, 410}
+
 try:  # pragma: no cover - import behavior depends on runtime environment
     from pywebpush import WebPushException, webpush
 except Exception:  # pragma: no cover - graceful fallback when dependency missing
@@ -206,7 +210,7 @@ def send_push_to_user(
             sent += 1
         except WebPushException as exc:  # pragma: no cover - network dependent
             status_code = getattr(getattr(exc, "response", None), "status_code", None)
-            if status_code in {404, 410}:
+            if status_code in STALE_SUBSCRIPTION_STATUS_CODES:
                 stale_subscriptions.append(subscription)
                 continue
             logger.warning(

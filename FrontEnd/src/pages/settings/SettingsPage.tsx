@@ -728,59 +728,76 @@ export function SettingsPage() {
                   )
                 }
               />
-              <ToggleRow
-                id="notify-push"
-                label="Push notifications"
-                description="Get browser push notifications when enabled in your device."
-                checked={draft.notifications.push_notifications_enabled}
-                onChange={(checked) =>
-                  setDraft((prev) =>
-                    prev
-                      ? {
-                          ...prev,
-                          notifications: { ...prev.notifications, push_notifications_enabled: checked },
-                        }
-                      : prev,
-                  )
-                }
-              />
-
               <div className="surface-2 p-3 d-flex flex-column gap-2">
-                <div className="d-flex flex-wrap align-items-center justify-content-between gap-2">
-                  <span className="fw-semibold">This device</span>
-                  <Pill variant={pushDeviceStatus === "subscribed" ? "success" : "muted"}>
-                    {pushDeviceStatus === "subscribed" ? "Connected" : "Not connected"}
-                  </Pill>
+                <div className="d-flex align-items-start justify-content-between gap-3">
+                  <div>
+                    <label className="fw-semibold d-block mb-1" htmlFor="notify-push">
+                      Push notifications
+                    </label>
+                    <div className="text-muted-2 small">
+                      Get browser push notifications when enabled in your device.
+                    </div>
+                  </div>
+                  <div className="form-check form-switch m-0 pt-1">
+                    <input
+                      id="notify-push"
+                      className="form-check-input"
+                      type="checkbox"
+                      checked={draft.notifications.push_notifications_enabled}
+                      onChange={(e) =>
+                        setDraft((prev) =>
+                          prev
+                            ? {
+                                ...prev,
+                                notifications: {
+                                  ...prev.notifications,
+                                  push_notifications_enabled: e.target.checked,
+                                },
+                              }
+                            : prev,
+                        )
+                      }
+                    />
+                  </div>
                 </div>
-                <div className="text-muted-2 small">{pushStatusMessage}</div>
-                <div className="d-flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    className="btn btn-outline-secondary btn-sm"
-                    onClick={connectThisDeviceForPush}
-                    disabled={
-                      pushSyncing ||
-                      pushDeviceStatus === "unsupported" ||
-                      pushDeviceStatus === "permission-denied"
-                    }
-                  >
-                    {pushSyncing ? "Connecting..." : "Connect this device"}
-                  </button>
-                  {pushDeviceStatus === "subscribed" ? (
-                    <button
-                      type="button"
-                      className="btn btn-outline-secondary btn-sm"
-                      onClick={disconnectThisDeviceFromPush}
-                      disabled={pushSyncing}
-                    >
-                      Disconnect device
-                    </button>
-                  ) : null}
-                </div>
-                <div className="text-muted-2 small">
-                  For iPhone: install Shadow to Home Screen, open it from there, allow
-                  notifications, connect this device, then save changes.
-                </div>
+
+                {draft.notifications.push_notifications_enabled ? (
+                  <>
+                    <hr className="my-1" />
+                    <div className="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                      <span className="fw-semibold">This device</span>
+                      <Pill variant={pushDeviceStatus === "subscribed" ? "success" : "muted"}>
+                        {pushDeviceStatus === "subscribed" ? "Connected" : "Not connected"}
+                      </Pill>
+                    </div>
+                    <div className="text-muted-2 small">{pushStatusMessage}</div>
+                    <div className="d-flex flex-wrap gap-2">
+                      {pushDeviceStatus === "subscribed" ? (
+                        <button
+                          type="button"
+                          className="btn btn-outline-secondary btn-sm"
+                          onClick={disconnectThisDeviceFromPush}
+                          disabled={pushSyncing}
+                        >
+                          Disconnect device
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className="btn btn-outline-secondary btn-sm"
+                          onClick={connectThisDeviceForPush}
+                          disabled={
+                            pushSyncing ||
+                            pushDeviceStatus === "unsupported" ||
+                            pushDeviceStatus === "permission-denied"
+                          }
+                        >
+                          {pushSyncing ? "Connecting..." : "Connect this device"}
+                        </button>
+                      )}
+                    </div>
+                  </>
+                ) : null}
               </div>
 
               <ToggleRow

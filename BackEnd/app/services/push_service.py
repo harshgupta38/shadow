@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 # Endpoints returning these status codes are considered stale/invalid for
 # future sends and should be pruned from DB.
-STALE_SUBSCRIPTION_STATUS_CODES = {403, 404, 410}
+STALE_SUBSCRIPTION_STATUS_CODES = {404, 410}
 
 try:  # pragma: no cover - import behavior depends on runtime environment
     from pywebpush import WebPushException, webpush
@@ -50,6 +50,22 @@ def _decode_base64_any(value: str) -> bytes | None:
 
     try:
         return base64.b64decode(_with_base64_padding(normalized), validate=False)
+    except Exception:
+        return None
+
+
+def _response_text_or_none(response: object | None) -> str | None:
+    if response is None:
+        return None
+    try:
+        text = getattr(response, "text", None)
+        if text is None:
+            return None
+        if callable(text):
+            text = text()
+        if isinstance(text, bytes):
+            text = text.decode("utf-8", errors="replace")
+        return str(text)
     except Exception:
         return None
 
@@ -187,11 +203,13 @@ def send_push_to_user(
             "url": url,
         }
     )
-    vapid_claims = {"sub": settings.web_push_vapid_subject.strip()}
     stale_subscriptions: list[PushSubscription] = []
     sent = 0
 
     for subscription in subscriptions:
+        # pywebpush mutates claims (for example adds `aud`); use a fresh dict
+        # per endpoint to avoid cross-provider JWT contamination.
+        vapid_claims = {"sub": settings.web_push_vapid_subject.strip()}
         subscription_info = {
             "endpoint": subscription.endpoint,
             "keys": {
@@ -209,15 +227,19 @@ def send_push_to_user(
             )
             sent += 1
         except WebPushException as exc:  # pragma: no cover - network dependent
-            status_code = getattr(getattr(exc, "response", None), "status_code", None)
+            response = getattr(exc, "response", None)
+            status_code = getattr(response, "status_code", None)
             if status_code in STALE_SUBSCRIPTION_STATUS_CODES:
                 stale_subscriptions.append(subscription)
                 continue
+
+            response_text = _response_text_or_none(response)
             logger.warning(
-                "Web push delivery failed for user_id=%s endpoint=%s status=%s",
+                "Web push delivery failed for user_id=%s endpoint=%s status=%s body=%s",
                 user.id,
                 subscription.endpoint,
                 status_code,
+                response_text or str(exc),
             )
 
     if stale_subscriptions:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+from urllib.parse import urlparse
 
 from sqlalchemy import select
 
@@ -55,7 +56,7 @@ def test_get_public_key_payload_keeps_base64url_uncompressed_key(monkeypatch) ->
     assert payload["public_key"] == browser_compatible_key
 
 
-def test_send_push_prunes_forbidden_subscription(monkeypatch) -> None:
+def test_send_push_keeps_forbidden_subscription(monkeypatch) -> None:
     monkeypatch.setattr(
         settings,
         "web_push_vapid_public_key",
@@ -66,6 +67,7 @@ def test_send_push_prunes_forbidden_subscription(monkeypatch) -> None:
 
     class _Response:
         status_code = 403
+        text = "forbidden"
 
     class _ForbiddenPushError(Exception):
         def __init__(self) -> None:
@@ -105,4 +107,126 @@ def test_send_push_prunes_forbidden_subscription(monkeypatch) -> None:
         remaining = list(
             db.scalars(select(PushSubscription).where(PushSubscription.user_id == user.id))
         )
+        assert len(remaining) == 1
+
+
+def test_send_push_prunes_gone_subscription(monkeypatch) -> None:
+    monkeypatch.setattr(
+        settings,
+        "web_push_vapid_public_key",
+        "BMzfyxQN9W_qHDMQDdoTx9Cqn1YEQXWRHiEjzrXm4ZUd4yAuFDjYWUWFm8oDrkEHPCq_3B6AHjGCZdyAM1EEqhI",
+    )
+    monkeypatch.setattr(settings, "web_push_vapid_private_key", "dummy-private-key")
+    monkeypatch.setattr(settings, "web_push_vapid_subject", "mailto:test@example.com")
+
+    class _Response:
+        status_code = 410
+        text = "gone"
+
+    class _GonePushError(Exception):
+        def __init__(self) -> None:
+            super().__init__("gone")
+            self.response = _Response()
+
+    def _raise_gone(*args, **kwargs):
+        raise _GonePushError()
+
+    monkeypatch.setattr(push_service, "WebPushException", _GonePushError)
+    monkeypatch.setattr(push_service, "webpush", _raise_gone)
+
+    with SessionLocal() as db:
+        user = User(email="push-user-gone@example.com", hashed_password="x", name="Push User")
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+        db.add(
+            PushSubscription(
+                user_id=user.id,
+                endpoint="https://web.push.apple.com/test-endpoint-gone",
+                p256dh="test-p256dh",
+                auth="test-auth",
+            )
+        )
+        db.commit()
+
+        sent = push_service.send_push_to_user(
+            db,
+            user,
+            title="Test",
+            body="Body",
+        )
+        assert sent == 0
+
+        remaining = list(
+            db.scalars(select(PushSubscription).where(PushSubscription.user_id == user.id))
+        )
         assert remaining == []
+
+
+def test_send_push_uses_fresh_vapid_claims_per_endpoint(monkeypatch) -> None:
+    monkeypatch.setattr(
+        settings,
+        "web_push_vapid_public_key",
+        "BMzfyxQN9W_qHDMQDdoTx9Cqn1YEQXWRHiEjzrXm4ZUd4yAuFDjYWUWFm8oDrkEHPCq_3B6AHjGCZdyAM1EEqhI",
+    )
+    monkeypatch.setattr(settings, "web_push_vapid_private_key", "dummy-private-key")
+    monkeypatch.setattr(settings, "web_push_vapid_subject", "mailto:test@example.com")
+
+    class _Response:
+        status_code = 403
+        text = '{"reason":"BadJwtToken"}'
+
+    class _BadJwtPushError(Exception):
+        def __init__(self) -> None:
+            super().__init__("bad jwt")
+            self.response = _Response()
+
+    call_count = 0
+
+    def _fake_webpush(*, subscription_info, vapid_claims, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        expected_aud = f"https://{urlparse(subscription_info['endpoint']).netloc}"
+        existing_aud = vapid_claims.get("aud")
+        if existing_aud and existing_aud != expected_aud:
+            raise _BadJwtPushError()
+        # Mimic pywebpush mutating claims by persisting endpoint-specific audience.
+        vapid_claims["aud"] = expected_aud
+
+    monkeypatch.setattr(push_service, "WebPushException", _BadJwtPushError)
+    monkeypatch.setattr(push_service, "webpush", _fake_webpush)
+
+    with SessionLocal() as db:
+        user = User(email="push-user-aud@example.com", hashed_password="x", name="Push User")
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+        db.add_all(
+            [
+                PushSubscription(
+                    user_id=user.id,
+                    endpoint="https://fcm.googleapis.com/fcm/send/test-fcm",
+                    p256dh="test-p256dh-1",
+                    auth="test-auth-1",
+                ),
+                PushSubscription(
+                    user_id=user.id,
+                    endpoint="https://web.push.apple.com/test-apple",
+                    p256dh="test-p256dh-2",
+                    auth="test-auth-2",
+                ),
+            ]
+        )
+        db.commit()
+
+        sent = push_service.send_push_to_user(
+            db,
+            user,
+            title="Test",
+            body="Body",
+        )
+
+        assert sent == 2
+        assert call_count == 2

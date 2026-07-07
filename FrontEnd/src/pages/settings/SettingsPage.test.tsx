@@ -448,6 +448,180 @@ describe("SettingsPage", () => {
     }
   });
 
+  it("auto-syncs an existing device subscription on initial settings load", async () => {
+    const subscription = {
+      endpoint: "https://web.push.apple.com/sub-existing",
+      toJSON: () => ({
+        endpoint: "https://web.push.apple.com/sub-existing",
+        keys: {
+          p256dh: "existing-p256dh",
+          auth: "existing-auth",
+        },
+      }),
+      unsubscribe: vi.fn().mockResolvedValue(true),
+    } as unknown as PushSubscription;
+
+    const pushManager = {
+      getSubscription: vi.fn().mockResolvedValue(subscription),
+      subscribe: vi.fn(),
+    };
+
+    const originalServiceWorkerDescriptor = Object.getOwnPropertyDescriptor(
+      navigator,
+      "serviceWorker",
+    );
+
+    vi.stubGlobal("Notification", {
+      permission: "granted",
+      requestPermission: vi.fn().mockResolvedValue("granted"),
+    });
+    vi.stubGlobal("PushManager", function PushManager() {});
+    Object.defineProperty(navigator, "serviceWorker", {
+      configurable: true,
+      value: {
+        ready: Promise.resolve({ pushManager }),
+      },
+    });
+
+    try {
+      renderPage();
+
+      await waitFor(() => {
+        expect(mockedNotificationsApi.subscribe).toHaveBeenCalledWith({
+          endpoint: "https://web.push.apple.com/sub-existing",
+          keys: {
+            p256dh: "existing-p256dh",
+            auth: "existing-auth",
+          },
+        });
+      });
+
+      expect(await screen.findByText("Connected")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /disconnect device/i })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /connect this device/i })).not.toBeInTheDocument();
+      expect(pushManager.subscribe).not.toHaveBeenCalled();
+    } finally {
+      if (originalServiceWorkerDescriptor) {
+        Object.defineProperty(navigator, "serviceWorker", originalServiceWorkerDescriptor);
+      } else {
+        Reflect.deleteProperty(navigator, "serviceWorker");
+      }
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("auto-syncs when subscription keys come from getKey fallback", async () => {
+    const subscription = {
+      endpoint: "https://web.push.apple.com/sub-getkey",
+      toJSON: () => ({
+        endpoint: "https://web.push.apple.com/sub-getkey",
+      }),
+      getKey: vi.fn((name: string) => {
+        if (name === "p256dh") return Uint8Array.from([1, 2, 3]).buffer;
+        if (name === "auth") return Uint8Array.from([4, 5, 6]).buffer;
+        return null;
+      }),
+      unsubscribe: vi.fn().mockResolvedValue(true),
+    } as unknown as PushSubscription;
+
+    const pushManager = {
+      getSubscription: vi.fn().mockResolvedValue(subscription),
+      subscribe: vi.fn(),
+    };
+
+    const originalServiceWorkerDescriptor = Object.getOwnPropertyDescriptor(
+      navigator,
+      "serviceWorker",
+    );
+
+    vi.stubGlobal("Notification", {
+      permission: "granted",
+      requestPermission: vi.fn().mockResolvedValue("granted"),
+    });
+    vi.stubGlobal("PushManager", function PushManager() {});
+    Object.defineProperty(navigator, "serviceWorker", {
+      configurable: true,
+      value: {
+        ready: Promise.resolve({ pushManager }),
+      },
+    });
+
+    try {
+      renderPage();
+
+      await waitFor(() => {
+        expect(mockedNotificationsApi.subscribe).toHaveBeenCalledWith({
+          endpoint: "https://web.push.apple.com/sub-getkey",
+          keys: {
+            p256dh: "AQID",
+            auth: "BAUG",
+          },
+        });
+      });
+      expect(await screen.findByText("Connected")).toBeInTheDocument();
+    } finally {
+      if (originalServiceWorkerDescriptor) {
+        Object.defineProperty(navigator, "serviceWorker", originalServiceWorkerDescriptor);
+      } else {
+        Reflect.deleteProperty(navigator, "serviceWorker");
+      }
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("falls back to not connected when existing subscription sync fails on load", async () => {
+    mockedNotificationsApi.subscribe.mockRejectedValueOnce(new Error("sync failed"));
+
+    const subscription = {
+      endpoint: "https://web.push.apple.com/sub-existing",
+      toJSON: () => ({
+        endpoint: "https://web.push.apple.com/sub-existing",
+        keys: {
+          p256dh: "existing-p256dh",
+          auth: "existing-auth",
+        },
+      }),
+      unsubscribe: vi.fn().mockResolvedValue(true),
+    } as unknown as PushSubscription;
+
+    const pushManager = {
+      getSubscription: vi.fn().mockResolvedValue(subscription),
+      subscribe: vi.fn(),
+    };
+
+    const originalServiceWorkerDescriptor = Object.getOwnPropertyDescriptor(
+      navigator,
+      "serviceWorker",
+    );
+
+    vi.stubGlobal("Notification", {
+      permission: "granted",
+      requestPermission: vi.fn().mockResolvedValue("granted"),
+    });
+    vi.stubGlobal("PushManager", function PushManager() {});
+    Object.defineProperty(navigator, "serviceWorker", {
+      configurable: true,
+      value: {
+        ready: Promise.resolve({ pushManager }),
+      },
+    });
+
+    try {
+      renderPage();
+
+      expect(await screen.findByRole("button", { name: /connect this device/i })).toBeInTheDocument();
+      expect(screen.getByText("sync failed")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /disconnect device/i })).not.toBeInTheDocument();
+    } finally {
+      if (originalServiceWorkerDescriptor) {
+        Object.defineProperty(navigator, "serviceWorker", originalServiceWorkerDescriptor);
+      } else {
+        Reflect.deleteProperty(navigator, "serviceWorker");
+      }
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("keeps global save disabled when nothing changed", async () => {
     renderPage();
 

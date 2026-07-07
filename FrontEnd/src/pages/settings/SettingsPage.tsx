@@ -176,20 +176,53 @@ function base64UrlToArrayBuffer(base64Url: string): ArrayBuffer {
   return arrayBuffer;
 }
 
+function arrayBufferToBase64Url(value: ArrayBuffer): string {
+  const bytes = new Uint8Array(value);
+  let binary = "";
+  for (let index = 0; index < bytes.length; index += 1) {
+    binary += String.fromCharCode(bytes[index]);
+  }
+  const base64 = window.btoa(binary);
+  return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
 function toPushSubscriptionPayload(
   subscription: PushSubscription,
 ): { endpoint: string; keys: { p256dh: string; auth: string } } | null {
   const payload = subscription.toJSON();
-  if (!payload.endpoint || !payload.keys?.p256dh || !payload.keys?.auth) {
+  const endpoint = payload.endpoint ?? subscription.endpoint;
+
+  if (endpoint && payload.keys?.p256dh && payload.keys?.auth) {
+    return {
+      endpoint,
+      keys: {
+        p256dh: payload.keys.p256dh,
+        auth: payload.keys.auth,
+      },
+    };
+  }
+
+  const p256dhKey = subscription.getKey("p256dh");
+  const authKey = subscription.getKey("auth");
+  if (!endpoint || !p256dhKey || !authKey) {
     return null;
   }
+
   return {
-    endpoint: payload.endpoint,
+    endpoint,
     keys: {
-      p256dh: payload.keys.p256dh,
-      auth: payload.keys.auth,
+      p256dh: arrayBufferToBase64Url(p256dhKey),
+      auth: arrayBufferToBase64Url(authKey),
     },
   };
+}
+
+async function syncPushSubscriptionWithBackend(subscription: PushSubscription): Promise<void> {
+  const payload = toPushSubscriptionPayload(subscription);
+  if (!payload) {
+    throw new Error("Could not read browser push subscription keys.");
+  }
+  await api.notifications.subscribe(payload);
 }
 
 interface ToggleRowProps {
@@ -244,6 +277,7 @@ export function SettingsPage() {
   const [confirmClearChat, setConfirmClearChat] = useState(false);
   const [pushDeviceStatus, setPushDeviceStatus] = useState<PushDeviceStatus>("checking");
   const [pushSyncing, setPushSyncing] = useState(false);
+  const [pushSyncIssue, setPushSyncIssue] = useState<string | null>(null);
 
   useEffect(() => {
     if (!settingsQuery.data || draft || baseline) return;
@@ -258,24 +292,52 @@ export function SettingsPage() {
 
     async function inspectPushStatus() {
       if (!supportsWebPush()) {
-        if (!cancelled) setPushDeviceStatus("unsupported");
+        if (!cancelled) {
+          setPushDeviceStatus("unsupported");
+          setPushSyncIssue(null);
+        }
         return;
       }
 
       if (Notification.permission === "denied") {
-        if (!cancelled) setPushDeviceStatus("permission-denied");
+        if (!cancelled) {
+          setPushDeviceStatus("permission-denied");
+          setPushSyncIssue(null);
+        }
         return;
       }
 
       try {
         const registration = await navigator.serviceWorker.ready;
         const subscription = await registration.pushManager.getSubscription();
-        if (!cancelled) {
-          setPushDeviceStatus(subscription ? "subscribed" : "not-subscribed");
+        if (!subscription) {
+          if (!cancelled) {
+            setPushDeviceStatus("not-subscribed");
+            setPushSyncIssue(null);
+          }
+          return;
+        }
+
+        try {
+          await syncPushSubscriptionWithBackend(subscription);
+          if (!cancelled) {
+            setPushDeviceStatus("subscribed");
+            setPushSyncIssue(null);
+          }
+        } catch (err) {
+          const message = getErrorMessage(
+            err,
+            "Couldn't sync this device with your account. Tap Connect this device to retry.",
+          );
+          if (!cancelled) {
+            setPushDeviceStatus("not-subscribed");
+            setPushSyncIssue(message);
+          }
         }
       } catch {
         if (!cancelled) {
           setPushDeviceStatus("not-subscribed");
+          setPushSyncIssue(null);
         }
       }
     }
@@ -330,16 +392,21 @@ export function SettingsPage() {
     if (pushDeviceStatus === "subscribed") {
       return "This device is connected for push notifications.";
     }
+    if (pushSyncIssue) {
+      return pushSyncIssue;
+    }
     return "This device is not connected yet.";
-  }, [pushDeviceStatus]);
+  }, [pushDeviceStatus, pushSyncIssue]);
 
   async function ensurePushSubscriptionForDevice() {
     if (!supportsWebPush()) {
+      setPushSyncIssue(null);
       setPushDeviceStatus("unsupported");
       throw new Error("This device does not support Web Push notifications.");
     }
 
     if (Notification.permission === "denied") {
+      setPushSyncIssue(null);
       setPushDeviceStatus("permission-denied");
       throw new Error("Notification permission is blocked for this app.");
     }
@@ -355,6 +422,7 @@ export function SettingsPage() {
         : await Notification.requestPermission();
 
     if (permission !== "granted") {
+      setPushSyncIssue(null);
       setPushDeviceStatus("permission-denied");
       throw new Error("Notification permission was not granted.");
     }
@@ -368,17 +436,22 @@ export function SettingsPage() {
       });
     }
 
-    const payload = toPushSubscriptionPayload(subscription);
-    if (!payload) {
-      throw new Error("Could not read browser push subscription keys.");
+    try {
+      await syncPushSubscriptionWithBackend(subscription);
+    } catch (err) {
+      const message = getErrorMessage(err, "Couldn't register this device on the server.");
+      setPushDeviceStatus("not-subscribed");
+      setPushSyncIssue(message);
+      throw new Error(message);
     }
 
-    await api.notifications.subscribe(payload);
+    setPushSyncIssue(null);
     setPushDeviceStatus("subscribed");
   }
 
   async function removePushSubscriptionFromDevice() {
     if (!supportsWebPush()) {
+      setPushSyncIssue(null);
       setPushDeviceStatus("unsupported");
       return;
     }
@@ -386,6 +459,7 @@ export function SettingsPage() {
     const registration = await navigator.serviceWorker.ready;
     const subscription = await registration.pushManager.getSubscription();
     if (!subscription) {
+      setPushSyncIssue(null);
       setPushDeviceStatus("not-subscribed");
       return;
     }
@@ -393,12 +467,14 @@ export function SettingsPage() {
     const endpoint = subscription.endpoint;
     await api.notifications.unsubscribe({ endpoint });
     await subscription.unsubscribe();
+    setPushSyncIssue(null);
     setPushDeviceStatus("not-subscribed");
   }
 
   async function connectThisDeviceForPush() {
     if (pushSyncing) return;
     setPushSyncing(true);
+    setPushSyncIssue(null);
     try {
       await ensurePushSubscriptionForDevice();
       setDraft((prev) =>
@@ -414,6 +490,7 @@ export function SettingsPage() {
       );
       toast.success("This device is ready for push. Save changes to activate account delivery.");
     } catch (err) {
+      setPushDeviceStatus("not-subscribed");
       toast.error(getErrorMessage(err, "Couldn't connect this device for push."));
     } finally {
       setPushSyncing(false);

@@ -198,6 +198,85 @@ def test_push_subscription_register_and_delete(
     assert remaining == []
 
 
+def test_push_device_connected_alert_creates_notification_and_pushes_to_other_devices(
+    client: TestClient,
+    auth_headers: dict,
+    monkeypatch,
+) -> None:
+    endpoint_current = "https://web.push.apple.com/current-device"
+    endpoint_other = "https://fcm.googleapis.com/fcm/send/other-device"
+
+    register_current = client.post(
+        "/api/notifications/push/subscriptions",
+        headers=auth_headers,
+        json={
+            "endpoint": endpoint_current,
+            "keys": {
+                "p256dh": "p256dh-current",
+                "auth": "auth-current",
+            },
+        },
+    )
+    assert register_current.status_code == 204
+
+    register_other = client.post(
+        "/api/notifications/push/subscriptions",
+        headers=auth_headers,
+        json={
+            "endpoint": endpoint_other,
+            "keys": {
+                "p256dh": "p256dh-other",
+                "auth": "auth-other",
+            },
+        },
+    )
+    assert register_other.status_code == 204
+
+    import app.api.notifications as notifications_api
+
+    captured: dict[str, object] = {}
+
+    def _fake_send_push_to_user(
+        db,
+        user,
+        *,
+        title,
+        body,
+        url="/notifications",
+        exclude_endpoints=None,
+        ignore_push_enabled=False,
+    ):
+        captured["title"] = title
+        captured["body"] = body
+        captured["url"] = url
+        captured["exclude_endpoints"] = exclude_endpoints
+        captured["ignore_push_enabled"] = ignore_push_enabled
+        return 1
+
+    monkeypatch.setattr(notifications_api.push_service, "send_push_to_user", _fake_send_push_to_user)
+
+    response = client.post(
+        "/api/notifications/push/device-connected-alert",
+        headers=auth_headers,
+        json={"connected_endpoint": endpoint_current},
+    )
+    assert response.status_code == 204
+
+    with SessionLocal() as db:
+        rows = list(
+            db.scalars(
+                select(Notification).where(Notification.title == "New device connected")
+            )
+        )
+    assert len(rows) == 1
+
+    assert captured["title"] == "New device connected"
+    assert captured["body"] == "A new device has been connected to your account for push notifications."
+    assert captured["url"] == "/notifications"
+    assert captured["exclude_endpoints"] == {endpoint_current}
+    assert captured["ignore_push_enabled"] is True
+
+
 def test_notifications_respect_settings_switches(client: TestClient, auth_headers: dict) -> None:
     off = client.put(
         "/api/settings/notifications",

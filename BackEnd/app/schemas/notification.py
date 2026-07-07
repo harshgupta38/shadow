@@ -47,3 +47,7 @@ class PushSubscriptionUpsert(BaseModel):
 
 class PushSubscriptionDelete(BaseModel):
     endpoint: str = Field(min_length=1, max_length=1024)
+
+
+class DeviceConnectedAlertRequest(BaseModel):
+    connected_endpoint: str | None = Field(default=None, min_length=1, max_length=1024)

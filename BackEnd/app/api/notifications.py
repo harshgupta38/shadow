@@ -5,7 +5,9 @@ from __future__ import annotations
 from fastapi import APIRouter, Request, Response, status
 
 from app.api.deps import CurrentUser, DbSession
+from app.models.enums import NotificationType
 from app.schemas.notification import (
+    DeviceConnectedAlertRequest,
     NotificationCreate,
     NotificationRead,
     PushPublicKeyRead,
@@ -13,6 +15,7 @@ from app.schemas.notification import (
     PushSubscriptionUpsert,
 )
 from app.services import notification_service, push_service
+from app.services.exceptions import ConflictError
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
 
@@ -66,4 +69,38 @@ def remove_push_subscription(
     current_user: CurrentUser,
 ) -> Response:
     push_service.remove_subscription(db, current_user, endpoint=payload.endpoint)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/push/device-connected-alert", status_code=status.HTTP_204_NO_CONTENT)
+def notify_device_connected_alert(
+    payload: DeviceConnectedAlertRequest,
+    db: DbSession,
+    current_user: CurrentUser,
+) -> Response:
+    title = "New device connected"
+    body = "A new device has been connected to your account for push notifications."
+
+    try:
+        notification_service.create_notification(
+            db,
+            current_user,
+            NotificationCreate(title=title, body=body, type=NotificationType.system),
+        )
+    except ConflictError:
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+    exclude_endpoints = (
+        {payload.connected_endpoint} if payload.connected_endpoint else None
+    )
+    push_service.send_push_to_user(
+        db,
+        current_user,
+        title=title,
+        body=body,
+        url="/notifications",
+        exclude_endpoints=exclude_endpoints,
+        ignore_push_enabled=True,
+    )
+
     return Response(status_code=status.HTTP_204_NO_CONTENT)

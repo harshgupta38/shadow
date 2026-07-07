@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+from types import SimpleNamespace
 from urllib.parse import urlparse
 
 from sqlalchemy import select
@@ -230,3 +231,62 @@ def test_send_push_uses_fresh_vapid_claims_per_endpoint(monkeypatch) -> None:
 
         assert sent == 2
         assert call_count == 2
+
+
+def test_send_push_can_ignore_push_toggle_for_explicit_alert(monkeypatch) -> None:
+    monkeypatch.setattr(
+        settings,
+        "web_push_vapid_public_key",
+        "BMzfyxQN9W_qHDMQDdoTx9Cqn1YEQXWRHiEjzrXm4ZUd4yAuFDjYWUWFm8oDrkEHPCq_3B6AHjGCZdyAM1EEqhI",
+    )
+    monkeypatch.setattr(settings, "web_push_vapid_private_key", "dummy-private-key")
+    monkeypatch.setattr(settings, "web_push_vapid_subject", "mailto:test@example.com")
+
+    calls = {"count": 0}
+
+    def _fake_webpush(*args, **kwargs):
+        calls["count"] += 1
+
+    monkeypatch.setattr(push_service, "webpush", _fake_webpush)
+    monkeypatch.setattr(
+        push_service.settings_service,
+        "get_user_settings_row",
+        lambda db, user: SimpleNamespace(
+            notifications_enabled=True,
+            push_notifications_enabled=False,
+        ),
+    )
+
+    with SessionLocal() as db:
+        user = User(email="push-user-ignore-toggle@example.com", hashed_password="x", name="Push User")
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+        db.add(
+            PushSubscription(
+                user_id=user.id,
+                endpoint="https://fcm.googleapis.com/fcm/send/test-ignore-toggle",
+                p256dh="test-p256dh",
+                auth="test-auth",
+            )
+        )
+        db.commit()
+
+        sent_default = push_service.send_push_to_user(
+            db,
+            user,
+            title="Test",
+            body="Body",
+        )
+        assert sent_default == 0
+
+        sent_override = push_service.send_push_to_user(
+            db,
+            user,
+            title="Test",
+            body="Body",
+            ignore_push_enabled=True,
+        )
+        assert sent_override == 1
+        assert calls["count"] == 1

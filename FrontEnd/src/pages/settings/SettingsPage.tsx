@@ -398,7 +398,7 @@ export function SettingsPage() {
     return "This device is not connected yet.";
   }, [pushDeviceStatus, pushSyncIssue]);
 
-  async function ensurePushSubscriptionForDevice() {
+  async function ensurePushSubscriptionForDevice(): Promise<string> {
     if (!supportsWebPush()) {
       setPushSyncIssue(null);
       setPushDeviceStatus("unsupported");
@@ -447,6 +447,7 @@ export function SettingsPage() {
 
     setPushSyncIssue(null);
     setPushDeviceStatus("subscribed");
+    return subscription.endpoint;
   }
 
   async function removePushSubscriptionFromDevice() {
@@ -476,7 +477,7 @@ export function SettingsPage() {
     setPushSyncing(true);
     setPushSyncIssue(null);
     try {
-      await ensurePushSubscriptionForDevice();
+      const connectedEndpoint = await ensurePushSubscriptionForDevice();
       setDraft((prev) =>
         prev
           ? {
@@ -488,6 +489,16 @@ export function SettingsPage() {
             }
           : prev,
       );
+
+      // Do not block connection success if cross-device notification creation fails.
+      try {
+        await api.notifications.notifyDeviceConnected({
+          connected_endpoint: connectedEndpoint,
+        });
+      } catch {
+        // no-op
+      }
+
       toast.success("This device is ready for push. Save changes to activate account delivery.");
     } catch (err) {
       setPushDeviceStatus("not-subscribed");

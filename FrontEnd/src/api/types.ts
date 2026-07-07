@@ -380,6 +380,10 @@ export interface PushSubscriptionDelete {
   endpoint: string;
 }
 
+export interface DeviceConnectedAlertRequest {
+  connected_endpoint?: string;
+}
+
 export interface AIBehaviorSettingsUpdate {
   ai_response_length?: AIResponseLength;
   ai_personality?: AIPersonality;

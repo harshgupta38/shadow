@@ -45,6 +45,7 @@ vi.mock("@/api", async (importOriginal) => {
       notifications: {
         ...actual.api.notifications,
         getPushPublicKey: vi.fn(),
+        notifyDeviceConnected: vi.fn(),
         subscribe: vi.fn(),
         unsubscribe: vi.fn(),
       },
@@ -75,6 +76,7 @@ const mockedProfileApi = api.profile as unknown as {
 
 const mockedNotificationsApi = api.notifications as unknown as {
   getPushPublicKey: Mock;
+  notifyDeviceConnected: Mock;
   subscribe: Mock;
   unsubscribe: Mock;
 };
@@ -150,6 +152,7 @@ describe("SettingsPage", () => {
     mockedSettingsApi.updateAccessibility.mockReset();
 
     mockedNotificationsApi.getPushPublicKey.mockReset();
+    mockedNotificationsApi.notifyDeviceConnected.mockReset();
     mockedNotificationsApi.subscribe.mockReset();
     mockedNotificationsApi.unsubscribe.mockReset();
 
@@ -162,6 +165,7 @@ describe("SettingsPage", () => {
       configured: true,
       public_key: "BEl6Q5Yj98jxyQv6Tf2XnAcf3Q8r8A6fFK5_XhKfAovZJx5_W6kQ5u0Jg2yB9h3mG0qR3D2QX2s-9oM2I4mRwLQ",
     });
+    mockedNotificationsApi.notifyDeviceConnected.mockResolvedValue(undefined);
     mockedNotificationsApi.subscribe.mockResolvedValue(undefined);
     mockedNotificationsApi.unsubscribe.mockResolvedValue(undefined);
 
@@ -433,6 +437,9 @@ describe("SettingsPage", () => {
             p256dh: "test-p256dh",
             auth: "test-auth",
           },
+        });
+        expect(mockedNotificationsApi.notifyDeviceConnected).toHaveBeenCalledWith({
+          connected_endpoint: "https://example.push/sub-1",
         });
         expect(mockedSettingsApi.updateNotifications).toHaveBeenCalledWith(
           expect.objectContaining({ push_notifications_enabled: true }),

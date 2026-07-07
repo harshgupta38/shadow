@@ -180,6 +180,8 @@ def send_push_to_user(
     title: str,
     body: str,
     url: str = "/notifications",
+    exclude_endpoints: set[str] | None = None,
+    ignore_push_enabled: bool = False,
 ) -> int:
     if webpush is None:
         return 0
@@ -187,12 +189,23 @@ def send_push_to_user(
         return 0
 
     user_settings = settings_service.get_user_settings_row(db, user)
-    if not user_settings.notifications_enabled or not user_settings.push_notifications_enabled:
+    if not user_settings.notifications_enabled:
+        return 0
+    if not ignore_push_enabled and not user_settings.push_notifications_enabled:
         return 0
 
     subscriptions = list(
         db.scalars(select(PushSubscription).where(PushSubscription.user_id == user.id))
     )
+
+    excluded = {endpoint for endpoint in (exclude_endpoints or set()) if endpoint}
+    if excluded:
+        subscriptions = [
+            subscription
+            for subscription in subscriptions
+            if subscription.endpoint not in excluded
+        ]
+
     if not subscriptions:
         return 0
 

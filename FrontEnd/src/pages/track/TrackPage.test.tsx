@@ -271,6 +271,33 @@ describe("TrackPage", () => {
     expect(await screen.findByText(/0 week streak/i)).toBeInTheDocument();
   });
 
+  it("hides manual log controls for metrics linked to habits", async () => {
+    mockedMetricsApi.list.mockResolvedValue([
+      buildMetric({
+        id: 4,
+        label: "LeetCode POTD",
+        key: "leetcode_potd",
+        unit: "count",
+        unit_text: "count",
+        time_span: "day",
+        target: null,
+        linked_habit_ids: [42],
+      }),
+    ]);
+    mockedMetricsApi.logs.mockResolvedValue([]);
+
+    renderPage();
+
+    expect(await screen.findByText("LeetCode POTD")).toBeInTheDocument();
+    expect(
+      screen.getByText("This metric is linked to your habit flow and updates automatically."),
+    ).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("Add count...")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Log" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /\+\s*1/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "+ Add a note" })).not.toBeInTheDocument();
+  });
+
   it("keeps manual fields hidden in shadow mode until Shadow setup succeeds", async () => {
     const user = userEvent.setup();
     renderPage();

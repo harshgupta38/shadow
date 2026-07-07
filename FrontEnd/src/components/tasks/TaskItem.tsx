@@ -142,9 +142,11 @@ export function TaskItem({
       : null;
 
   async function submitProgress() {
-    if (!primaryLinkedMetric || !onLogProgress) return;
+    if (!primaryLinkedMetric || !onLogProgress || busy) return;
+    if (progressDraft.trim().length === 0) return;
     const numeric = Number(progressDraft);
     if (!Number.isFinite(numeric) || numeric < 0) return;
+    if (Math.abs(numeric - metricLoggedTotal) < 1e-9) return;
     await onLogProgress(task, numeric, primaryLinkedMetric.metric_id);
   }
 
@@ -154,6 +156,7 @@ export function TaskItem({
   const isProgressUnchanged = hasValidProgressInput
     ? Math.abs(parsedProgress - metricLoggedTotal) < 1e-9
     : false;
+  const canSubmitProgress = !busy && hasProgressInput && hasValidProgressInput && !isProgressUnchanged;
 
   return (
     <div className="surface-2 p-3 p-sm-4 mb-2">
@@ -257,16 +260,17 @@ export function TaskItem({
                   disabled={busy}
                   aria-label="Progress amount"
                 />
-                <button
-                  type="button"
-                  className="btn btn-outline-secondary btn-sm"
-                  onClick={() => {
-                    void submitProgress();
-                  }}
-                  disabled={busy || !hasProgressInput || !hasValidProgressInput || isProgressUnchanged}
-                >
-                  Save
-                </button>
+                {canSubmitProgress && (
+                  <button
+                    type="button"
+                    className="btn btn-brand btn-sm"
+                    onClick={() => {
+                      void submitProgress();
+                    }}
+                  >
+                    Save
+                  </button>
+                )}
               </div>
             )}
           </div>

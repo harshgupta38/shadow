@@ -357,8 +357,11 @@ describe("PlanPage", () => {
 
 		const amountInput = await screen.findByLabelText("Progress amount");
 		expect(screen.queryByRole("button", { name: "Mark as done" })).not.toBeInTheDocument();
+		expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
 		await user.type(amountInput, "7");
-		await user.click(screen.getByRole("button", { name: "Save" }));
+		const saveButton = await screen.findByRole("button", { name: "Save" });
+		expect(saveButton).toHaveClass("btn-brand");
+		await user.click(saveButton);
 
 		expect(mockedPlanApi.logProgress).toHaveBeenCalledWith(1, {
 			value: 7,

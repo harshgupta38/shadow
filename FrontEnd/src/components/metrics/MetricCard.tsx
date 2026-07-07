@@ -25,6 +25,7 @@ export function MetricCard({ metric, onEdit, onDelete }: MetricCardProps) {
   const [note, setNote] = useState("");
   const [showNote, setShowNote] = useState(false);
   const [logging, setLogging] = useState(false);
+  const isHabitLinkedMetric = (metric.linked_habit_ids?.length ?? 0) > 0;
 
   const timeSpan = metric.time_span ?? "day";
   const isDailyStreakMetric =
@@ -137,57 +138,65 @@ export function MetricCard({ metric, onEdit, onDelete }: MetricCardProps) {
 
       {/* Quick log */}
       <div className="mt-auto">
-        <div className="d-flex gap-2">
-          <input
-            className="form-control"
-            type="number"
-            min={0}
-            step="any"
-            placeholder={`Add ${metric.unit === "minutes" ? "minutes" : unitLabel.toLowerCase() || "value"}…`}
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                void log(Number(value), note);
-              }
-            }}
-          />
-          {(metric.unit === "count" || metric.unit === "custom") && (
-            <button
-              type="button"
-              className="btn btn-outline-secondary flex-shrink-0"
-              title="Add one"
-              onClick={() => log(1)}
-              disabled={logging}
-            >
-              <PlusLg size={16} /> 1
-            </button>
-          )}
-          <button
-            type="button"
-            className="btn btn-brand flex-shrink-0"
-            onClick={() => log(Number(value), note)}
-            disabled={logging || value.trim() === ""}
-          >
-            Log
-          </button>
-        </div>
-        {showNote ? (
-          <input
-            className="form-control mt-2"
-            placeholder="Optional note…"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-          />
+        {isHabitLinkedMetric ? (
+          <div className="text-faint small">
+            This metric is linked to your habit flow and updates automatically.
+          </div>
         ) : (
-          <button
-            type="button"
-            className="btn btn-ghost btn-sm mt-1 px-1 text-faint"
-            onClick={() => setShowNote(true)}
-          >
-            + Add a note
-          </button>
+          <>
+            <div className="d-flex gap-2">
+              <input
+                className="form-control"
+                type="number"
+                min={0}
+                step="any"
+                placeholder={`Add ${metric.unit === "minutes" ? "minutes" : unitLabel.toLowerCase() || "value"}…`}
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    void log(Number(value), note);
+                  }
+                }}
+              />
+              {(metric.unit === "count" || metric.unit === "custom") && (
+                <button
+                  type="button"
+                  className="btn btn-outline-secondary flex-shrink-0"
+                  title="Add one"
+                  onClick={() => log(1)}
+                  disabled={logging}
+                >
+                  <PlusLg size={16} /> 1
+                </button>
+              )}
+              <button
+                type="button"
+                className="btn btn-brand flex-shrink-0"
+                onClick={() => log(Number(value), note)}
+                disabled={logging || value.trim() === ""}
+              >
+                Log
+              </button>
+            </div>
+            {showNote ? (
+              <input
+                className="form-control mt-2"
+                placeholder="Optional note…"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+              />
+            ) : (
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm mt-1 px-1 text-faint"
+                onClick={() => setShowNote(true)}
+              >
+                + Add a note
+              </button>
+            )}
+          </>
         )}
       </div>
     </div>

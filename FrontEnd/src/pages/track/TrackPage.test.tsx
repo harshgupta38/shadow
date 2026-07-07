@@ -289,8 +289,9 @@ describe("TrackPage", () => {
     renderPage();
 
     expect(await screen.findByText("LeetCode POTD")).toBeInTheDocument();
+    expect(screen.getByText("Automatic")).toBeInTheDocument();
     expect(
-      screen.getByText("This metric is linked to your habit flow and updates automatically."),
+      screen.getByTitle("This metric is linked to your habit flow and updates automatically."),
     ).toBeInTheDocument();
     expect(screen.queryByPlaceholderText("Add count...")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Log" })).not.toBeInTheDocument();

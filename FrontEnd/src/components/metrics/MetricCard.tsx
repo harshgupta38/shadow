@@ -79,10 +79,17 @@ export function MetricCard({ metric, onEdit, onDelete }: MetricCardProps) {
         <div className="min-w-0">
           <h3 className="h6 fw-bold mb-1 text-truncate">{metric.label}</h3>
           <div className="d-flex align-items-center gap-2">
-            <Pill>{unitLabel}</Pill>
             {(isStreakMetric || stats.streak > 0) && (
               <Pill variant={stats.streak > 0 ? "warn" : "muted"}>
                 <Fire size={12} /> {stats.streak} {streakUnitLabel}{stats.streak > 1 ? "s" : ""} streak
+              </Pill>
+            )}
+            {isHabitLinkedMetric && (
+              <Pill
+                variant="info"
+                title="This metric is linked to your habit flow and updates automatically."
+              >
+                Automatic
               </Pill>
             )}
           </div>
@@ -128,7 +135,7 @@ export function MetricCard({ metric, onEdit, onDelete }: MetricCardProps) {
         )}
       </div>
 
-      <div className="mb-3">
+      <div>
         <Sparkbar values={loading ? [0, 0, 0, 0, 0, 0, 0] : stats.spark} />
         <div className="d-flex justify-content-between text-faint mt-1" style={{ fontSize: "0.68rem" }}>
           <span>7 days ago</span>
@@ -137,12 +144,8 @@ export function MetricCard({ metric, onEdit, onDelete }: MetricCardProps) {
       </div>
 
       {/* Quick log */}
-      <div className="mt-auto">
-        {isHabitLinkedMetric ? (
-          <div className="text-faint small">
-            This metric is linked to your habit flow and updates automatically.
-          </div>
-        ) : (
+      {!isHabitLinkedMetric && (
+      <div className="mt-3">
           <>
             <div className="d-flex gap-2">
               <input
@@ -197,8 +200,8 @@ export function MetricCard({ metric, onEdit, onDelete }: MetricCardProps) {
               </button>
             )}
           </>
-        )}
       </div>
+      )}
     </div>
   );
 }

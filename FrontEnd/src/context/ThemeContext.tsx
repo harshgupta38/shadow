@@ -12,6 +12,7 @@ import {
 import { ApiError, api, type ThemePreference } from "@/api";
 
 const THEME_STORAGE_KEY = "shadow.theme";
+const DYNAMIC_RESOLVE_RETRY_MS = 5 * 60 * 1000;
 type EffectiveTheme = Exclude<ThemePreference, "browser" | "dynamic">;
 
 interface ThemeContextValue {
@@ -55,6 +56,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [dynamicTheme, setDynamicTheme] = useState<EffectiveTheme>(resolveSystemTheme);
   const [dynamicFallbackToBrowser, setDynamicFallbackToBrowser] = useState(false);
   const dynamicTimerRef = useRef<number | null>(null);
+  const dynamicResolveInFlightRef = useRef<Promise<void> | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined" || !window.matchMedia) return;
@@ -100,44 +102,69 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   );
 
   const resolveDynamicTheme = useCallback(async (): Promise<void> => {
-    if (typeof window === "undefined" || !navigator.geolocation) {
-      setDynamicFallbackToBrowser(true);
-      clearDynamicTimer();
-      return;
+    if (dynamicResolveInFlightRef.current) {
+      return dynamicResolveInFlightRef.current;
     }
 
-    const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-      navigator.geolocation.getCurrentPosition(resolve, reject, {
-        enableHighAccuracy: false,
-        maximumAge: 10 * 60 * 1000,
-        timeout: 7_000,
-      });
-    }).catch(() => null);
+    let inFlight: Promise<void> | null = null;
 
-    if (!position) {
-      setDynamicFallbackToBrowser(true);
-      clearDynamicTimer();
-      return;
-    }
+    const run = async () => {
+      const scheduleRetry = () => {
+        clearDynamicTimer();
+        dynamicTimerRef.current = window.setTimeout(() => {
+          if (themePreference === "dynamic") {
+            void resolveDynamicTheme();
+          }
+        }, DYNAMIC_RESOLVE_RETRY_MS);
+      };
 
-    try {
-      const resolved = await api.settings.resolveDynamicAppearance(
-        position.coords.latitude,
-        position.coords.longitude,
-      );
-      setDynamicFallbackToBrowser(false);
-      setDynamicTheme(resolved.effective_theme);
-      scheduleDynamicRefresh(resolved.next_transition_at);
-    } catch (err) {
-      // Dynamic should degrade to Browser Default on lookup failure.
-      if (err instanceof ApiError) {
+      if (typeof window === "undefined" || !navigator.geolocation) {
         setDynamicFallbackToBrowser(true);
-      } else {
-        setDynamicFallbackToBrowser(true);
+        scheduleRetry();
+        return;
       }
-      clearDynamicTimer();
-    }
-  }, [clearDynamicTimer, scheduleDynamicRefresh]);
+
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: false,
+          maximumAge: 10 * 60 * 1000,
+          timeout: 7_000,
+        });
+      }).catch(() => null);
+
+      if (!position) {
+        setDynamicFallbackToBrowser(true);
+        scheduleRetry();
+        return;
+      }
+
+      try {
+        const resolved = await api.settings.resolveDynamicAppearance(
+          position.coords.latitude,
+          position.coords.longitude,
+        );
+        setDynamicFallbackToBrowser(false);
+        setDynamicTheme(resolved.effective_theme);
+        scheduleDynamicRefresh(resolved.next_transition_at);
+      } catch (err) {
+        // Dynamic degrades to Browser Default, but keeps retrying for recovery.
+        if (err instanceof ApiError) {
+          setDynamicFallbackToBrowser(true);
+        } else {
+          setDynamicFallbackToBrowser(true);
+        }
+        scheduleRetry();
+      }
+    };
+
+    inFlight = run().finally(() => {
+      if (dynamicResolveInFlightRef.current === inFlight) {
+        dynamicResolveInFlightRef.current = null;
+      }
+    });
+    dynamicResolveInFlightRef.current = inFlight;
+    return inFlight;
+  }, [clearDynamicTimer, scheduleDynamicRefresh, themePreference]);
 
   useEffect(() => {
     if (themePreference !== "dynamic") {
@@ -150,6 +177,28 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       clearDynamicTimer();
     };
   }, [clearDynamicTimer, resolveDynamicTheme, themePreference]);
+
+  useEffect(() => {
+    if (themePreference !== "dynamic") return;
+
+    const handleOnline = () => {
+      void resolveDynamicTheme();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void resolveDynamicTheme();
+      }
+    };
+
+    window.addEventListener("online", handleOnline);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [resolveDynamicTheme, themePreference]);
 
   const theme = useMemo<EffectiveTheme>(
     () =>
@@ -172,14 +221,24 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
   }, [theme, themePreference]);
 
-  const setTheme = useCallback((next: ThemePreference) => setThemePreference(next), []);
-  const toggleTheme = useCallback(
-    () =>
+  const setTheme = useCallback(
+    (next: ThemePreference) => {
       setThemePreference((prev) => {
-        const resolved = prev === "browser" ? systemTheme : prev;
-        return resolved === "dark" ? "light" : "dark";
-      }),
-    [systemTheme],
+        // Dynamic resolution can fail before auth/geolocation permission is ready.
+        // Retrying on re-select keeps local dev/login flows reliable.
+        if (next === "dynamic" && prev === "dynamic") {
+          void resolveDynamicTheme();
+        }
+        return next;
+      });
+    },
+    [resolveDynamicTheme],
+  );
+  const toggleTheme = useCallback(
+    () => {
+      setThemePreference(theme === "dark" ? "light" : "dark");
+    },
+    [theme],
   );
 
   const value = useMemo(

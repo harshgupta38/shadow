@@ -91,6 +91,7 @@ Authenticated + onboarded app shell:
 
 - /
 - /plan
+- /schedule
 - /goals
 - /goals/:goalId
 - /repetitive-tasks
@@ -123,6 +124,8 @@ Fallback:
 ## 8) Current UX Notes
 
 - Plan page now supports AI generation via `Generate Today's Plan`, workspace insights, and suggested execution order/scheduling alongside manual task CRUD.
+- Today page now includes `Plan +` CTA beside generation; users can open an Automatic/Manual modal to schedule future tasks.
+- New `/schedule` page lists future planned tasks with edit/delete/reschedule actions.
 - Repetitive Tasks page (`/repetitive-tasks`) is API-backed with persisted CRUD, lifecycle actions, and recommendation endpoints.
 - AI-first Today workspace redesign (SCRUM-11) is now partially implemented on `/plan` with backend-driven workspace and generation endpoints.
 - Settings page enforces Gemini-only model selection via dropdown.

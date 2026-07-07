@@ -4,18 +4,21 @@ from __future__ import annotations
 
 import json
 import re
+import datetime as dt
 from calendar import monthrange
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import BaseModel, Field, ValidationError
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.agents.orchestrator import (
     estimate_today_task_durations_json,
+    generate_schedule_task_draft_json,
     generate_today_plan_json,
+    repair_schedule_task_draft_json,
     repair_today_plan_json,
     repair_today_task_durations_json,
 )
@@ -28,6 +31,7 @@ from app.models.enums import (
     GoalStatus,
     MilestoneStatus,
     MetricTimeSpan,
+    MetricType,
     MetricUnit,
     NotificationType,
     PlannedTaskPriority,
@@ -44,6 +48,7 @@ from app.models.user import User
 from app.schemas.plan import (
     PlanExecutionItem,
     PlanHabitStreakItem,
+    PlanScheduleDraftRead,
     PlanGeneratedTaskInput,
     PlanGenerationPayload,
     PlanInsightsRead,
@@ -61,10 +66,13 @@ from app.services.utils import get_owned_or_404
 _MAX_GENERATED_TASKS = 8
 _MAX_CARRY_FORWARD = 4
 _MAX_TITLE_LENGTH = 255
+_MAX_TASK_DESCRIPTION_LENGTH = 5000
 _HISTORY_LOOKBACK_DAYS = 45
 _MAX_ACCOUNTABILITY_LENGTH = 255
 _MIN_ACCOUNTABILITY_COPY_LENGTH = 24
 _STREAK_SYNC_NOTE_PREFIX = "[auto-task-streak-sync]"
+_INTERNAL_MANUAL_METRIC_KEY_PREFIX = "manual_task_progress_"
+_INTERNAL_REPETITIVE_METRIC_KEY_PREFIX = "auto_habit_progress_"
 _PRIORITY_SORT = {
     PlannedTaskPriority.critical: 0,
     PlannedTaskPriority.high: 1,
@@ -101,6 +109,36 @@ _DURATION_MIN_RE = re.compile(
     r"(?P<minutes>\d{1,3})\s*(?:m|min|mins|minute|minutes)\b",
     re.IGNORECASE,
 )
+_HTML_TAG_RE = re.compile(r"<[^>]+>")
+_MANUAL_MEASURABLE_UNIT_RE = re.compile(
+    r"\b(?P<value>\d+(?:\.\d+)?)\s*"
+    r"(?P<unit>"
+    r"m|min|mins|minute|minutes|"
+    r"h|hr|hrs|hour|hours|"
+    r"problem|problems|question|questions|page|pages|step|steps|rep|reps|set|sets|"
+    r"session|sessions|round|rounds|"
+    r"km|kilometer|kilometers|mile|miles|"
+    r"ml|l|liter|liters|litre|litres|"
+    r"cup|cups|glass|glasses"
+    r")\b",
+    re.IGNORECASE,
+)
+
+
+class _ScheduleDraftPayload(BaseModel):
+    title: str = Field(min_length=1, max_length=_MAX_TITLE_LENGTH)
+    description: str | None = Field(default=None, max_length=_MAX_TASK_DESCRIPTION_LENGTH)
+    date: dt.date | None = None
+    priority: PlannedTaskPriority | None = None
+    linked_habit_id: int | None = Field(default=None, ge=1)
+    related_goal_id: int | None = Field(default=None, ge=1)
+
+
+@dataclass(frozen=True)
+class _ManualTaskMetricSpec:
+    unit: MetricUnit
+    unit_text: str
+    target: int
 
 
 def _safe_timezone(name: str) -> ZoneInfo | timezone:
@@ -128,6 +166,33 @@ def _strip_markdown_fence(raw: str) -> str:
     if len(lines) >= 3 and lines[0].startswith("```") and lines[-1].startswith("```"):
         return "\n".join(lines[1:-1]).strip()
     return text
+
+
+def _parse_json_dict(raw: str) -> dict | None:
+    text = _strip_markdown_fence(raw)
+    if not text:
+        return None
+
+    try:
+        parsed = json.loads(text)
+        if isinstance(parsed, dict):
+            return parsed
+    except json.JSONDecodeError:
+        pass
+
+    start = text.find("{")
+    end = text.rfind("}")
+    if start == -1 or end == -1 or end <= start:
+        return None
+
+    try:
+        parsed = json.loads(text[start : end + 1])
+    except json.JSONDecodeError:
+        return None
+
+    if isinstance(parsed, dict):
+        return parsed
+    return None
 
 
 def _hhmm_to_minutes(value: str | None) -> int | None:
@@ -264,6 +329,125 @@ def _extract_duration_hint_minutes(description: str | None) -> int | None:
     return candidates[0][1]
 
 
+def _normalize_description_text(value: str | None) -> str:
+    if not value:
+        return ""
+    without_tags = _HTML_TAG_RE.sub(" ", value)
+    return " ".join(without_tags.split()).lower()
+
+
+def _manual_task_metric_key(task_id: int) -> str:
+    return f"{_INTERNAL_MANUAL_METRIC_KEY_PREFIX}{task_id}"
+
+
+def _repetitive_task_metric_key(repetitive_task_id: int) -> str:
+    return f"{_INTERNAL_REPETITIVE_METRIC_KEY_PREFIX}{repetitive_task_id}"
+
+
+def _is_internal_manual_metric_key(key: str) -> bool:
+    return key.startswith(_INTERNAL_MANUAL_METRIC_KEY_PREFIX)
+
+
+def _is_internal_repetitive_metric_key(key: str) -> bool:
+    return key.startswith(_INTERNAL_REPETITIVE_METRIC_KEY_PREFIX)
+
+
+def _extract_measurable_metric_spec(description: str | None) -> _ManualTaskMetricSpec | None:
+    text = _normalize_description_text(description)
+    if not text:
+        return None
+
+    match = _MANUAL_MEASURABLE_UNIT_RE.search(text)
+    if match is None:
+        return None
+
+    try:
+        raw_value = float(match.group("value"))
+    except (TypeError, ValueError):
+        return None
+    if raw_value <= 0:
+        return None
+
+    unit_token = match.group("unit").lower()
+    if unit_token in {"h", "hr", "hrs", "hour", "hours"}:
+        target = int(round(raw_value * 60))
+        if target <= 0:
+            return None
+        return _ManualTaskMetricSpec(
+            unit=MetricUnit.minutes,
+            unit_text="minutes",
+            target=target,
+        )
+
+    if unit_token in {"m", "min", "mins", "minute", "minutes"}:
+        target = int(round(raw_value))
+        if target <= 0:
+            return None
+        return _ManualTaskMetricSpec(
+            unit=MetricUnit.minutes,
+            unit_text="minutes",
+            target=target,
+        )
+
+    if unit_token in {
+        "problem",
+        "problems",
+        "question",
+        "questions",
+        "page",
+        "pages",
+        "step",
+        "steps",
+        "rep",
+        "reps",
+        "set",
+        "sets",
+        "session",
+        "sessions",
+        "round",
+        "rounds",
+    }:
+        target = int(round(raw_value))
+        if target <= 0:
+            return None
+        return _ManualTaskMetricSpec(
+            unit=MetricUnit.count,
+            unit_text=unit_token if unit_token.endswith("s") else f"{unit_token}s",
+            target=target,
+        )
+
+    custom_unit = {
+        "km": "km",
+        "kilometer": "km",
+        "kilometers": "km",
+        "mile": "miles",
+        "miles": "miles",
+        "ml": "ml",
+        "l": "liters",
+        "liter": "liters",
+        "liters": "liters",
+        "litre": "liters",
+        "litres": "liters",
+        "cup": "cups",
+        "cups": "cups",
+        "glass": "glasses",
+        "glasses": "glasses",
+    }.get(unit_token)
+
+    if custom_unit is None:
+        return None
+
+    target = int(round(raw_value))
+    if target <= 0:
+        return None
+
+    return _ManualTaskMetricSpec(
+        unit=MetricUnit.custom,
+        unit_text=custom_unit,
+        target=target,
+    )
+
+
 def _normalize_title(value: str) -> str:
     return " ".join(value.strip().lower().split())
 
@@ -360,27 +544,55 @@ def _validate_related_goal_id(db: Session, user: User, goal_id: int | None) -> i
     return goal_id
 
 
-def _parse_generation_payload(raw: str) -> PlanGenerationPayload | None:
-    text = _strip_markdown_fence(raw)
-    if not text:
+def _get_owned_linked_habit(
+    db: Session,
+    user: User,
+    linked_habit_id: int | None,
+) -> RepetitiveTask | None:
+    if linked_habit_id is None:
         return None
 
-    payload: dict | None = None
-    try:
-        parsed = json.loads(text)
-        if isinstance(parsed, dict):
-            payload = parsed
-    except json.JSONDecodeError:
-        start = text.find("{")
-        end = text.rfind("}")
-        if start != -1 and end != -1 and end > start:
-            try:
-                parsed = json.loads(text[start : end + 1])
-                if isinstance(parsed, dict):
-                    payload = parsed
-            except json.JSONDecodeError:
-                payload = None
+    habit = db.scalar(
+        select(RepetitiveTask)
+        .options(selectinload(RepetitiveTask.goal_links))
+        .where(
+            RepetitiveTask.id == linked_habit_id,
+            RepetitiveTask.user_id == user.id,
+        )
+    )
+    if habit is None:
+        raise AppError("Linked habit not found.")
+    return habit
 
+
+def _default_goal_id_from_habit(habit: RepetitiveTask) -> int | None:
+    linked_goal_ids = sorted({int(link.goal_id) for link in habit.goal_links})
+    if not linked_goal_ids:
+        return None
+    return linked_goal_ids[0]
+
+
+def _ensure_schedule_date_not_past(task_date: date, *, today: date | None = None) -> None:
+    reference_date = today or date.today()
+    if task_date < reference_date:
+        raise AppError("Please choose today or a future date.")
+
+
+def _build_active_habits_summary(tasks: list[RepetitiveTask]) -> str:
+    if not tasks:
+        return "- none"
+
+    rows: list[str] = []
+    for task in tasks[:20]:
+        frequencies = ", ".join(task.frequencies)
+        rows.append(
+            f"- id={task.id}; name={task.name}; priority={task.priority.value}; frequencies={frequencies}"
+        )
+    return "\n".join(rows)
+
+
+def _parse_generation_payload(raw: str) -> PlanGenerationPayload | None:
+    payload = _parse_json_dict(raw)
     if payload is None:
         return None
 
@@ -400,31 +612,23 @@ class _DurationEstimatePayload(BaseModel):
 
 
 def _parse_duration_estimate_payload(raw: str) -> _DurationEstimatePayload | None:
-    text = _strip_markdown_fence(raw)
-    if not text:
-        return None
-
-    payload: dict | None = None
-    try:
-        parsed = json.loads(text)
-        if isinstance(parsed, dict):
-            payload = parsed
-    except json.JSONDecodeError:
-        start = text.find("{")
-        end = text.rfind("}")
-        if start != -1 and end != -1 and end > start:
-            try:
-                parsed = json.loads(text[start : end + 1])
-                if isinstance(parsed, dict):
-                    payload = parsed
-            except json.JSONDecodeError:
-                payload = None
-
+    payload = _parse_json_dict(raw)
     if payload is None:
         return None
 
     try:
         return _DurationEstimatePayload.model_validate(payload)
+    except ValidationError:
+        return None
+
+
+def _parse_schedule_draft_payload(raw: str) -> _ScheduleDraftPayload | None:
+    payload = _parse_json_dict(raw)
+    if payload is None:
+        return None
+
+    try:
+        return _ScheduleDraftPayload.model_validate(payload)
     except ValidationError:
         return None
 
@@ -436,6 +640,15 @@ def _clean_optional_text(value: str | None, *, max_length: int = 2000) -> str | 
     if not cleaned:
         return None
     return cleaned[:max_length]
+
+
+def _clean_task_description(value: str | None) -> str | None:
+    if value is None:
+        return None
+    cleaned = value.strip()
+    if not cleaned or cleaned == "<p><br></p>":
+        return None
+    return cleaned[:_MAX_TASK_DESCRIPTION_LENGTH]
 
 
 def _normalize_confidence_score(value: int | None) -> int | None:
@@ -850,6 +1063,235 @@ def _match_repetitive_task_by_title(
     return None
 
 
+def _is_internal_metric_key(key: str) -> bool:
+    return _is_internal_manual_metric_key(key) or _is_internal_repetitive_metric_key(key)
+
+
+def _metric_label_for_internal_progress(title: str) -> str:
+    cleaned = " ".join(title.split()).strip()
+    if not cleaned:
+        cleaned = "Task"
+    return f"{cleaned[:100]} progress"[:128]
+
+
+def _apply_internal_metric_spec(
+    metric: TrackedMetric,
+    *,
+    label: str,
+    spec: _ManualTaskMetricSpec,
+) -> bool:
+    changed = False
+
+    next_label = label[:128]
+    if metric.label != next_label:
+        metric.label = next_label
+        changed = True
+
+    next_unit_text = spec.unit_text[:32]
+    if metric.unit != spec.unit:
+        metric.unit = spec.unit
+        changed = True
+    if metric.unit_text != next_unit_text:
+        metric.unit_text = next_unit_text
+        changed = True
+    if metric.time_span != MetricTimeSpan.day:
+        metric.time_span = MetricTimeSpan.day
+        changed = True
+    if metric.time_span_custom_text is not None:
+        metric.time_span_custom_text = None
+        changed = True
+    if metric.type != MetricType.custom:
+        metric.type = MetricType.custom
+        changed = True
+    if metric.target != spec.target:
+        metric.target = spec.target
+        changed = True
+    if metric.active:
+        metric.active = False
+        changed = True
+
+    return changed
+
+
+def _upsert_internal_metric(
+    db: Session,
+    user: User,
+    *,
+    key: str,
+    label: str,
+    spec: _ManualTaskMetricSpec,
+) -> tuple[TrackedMetric, bool]:
+    metric = db.scalar(
+        select(TrackedMetric).where(
+            TrackedMetric.user_id == user.id,
+            TrackedMetric.key == key,
+        )
+    )
+    if metric is None:
+        metric = TrackedMetric(
+            user_id=user.id,
+            key=key,
+            label=label[:128],
+            unit=spec.unit,
+            unit_text=spec.unit_text[:32],
+            time_span=MetricTimeSpan.day,
+            time_span_custom_text=None,
+            type=MetricType.custom,
+            target=spec.target,
+            active=False,
+        )
+        db.add(metric)
+        db.flush()
+        return metric, True
+
+    changed = _apply_internal_metric_spec(metric, label=label, spec=spec)
+    return metric, changed
+
+
+def _ensure_internal_manual_metric_for_task(
+    db: Session,
+    user: User,
+    *,
+    task: PlannedTask,
+    spec: _ManualTaskMetricSpec,
+) -> tuple[TrackedMetric, bool]:
+    return _upsert_internal_metric(
+        db,
+        user,
+        key=_manual_task_metric_key(task.id),
+        label=_metric_label_for_internal_progress(task.title),
+        spec=spec,
+    )
+
+
+def _ensure_internal_repetitive_metric_for_task(
+    db: Session,
+    user: User,
+    *,
+    repetitive: RepetitiveTask,
+) -> bool:
+    spec = _extract_measurable_metric_spec(repetitive.description)
+    if spec is None:
+        return False
+
+    linked_metric_keys = [
+        str(row[0])
+        for row in db.execute(
+            select(TrackedMetric.key)
+            .join(RepetitiveTaskMetricLink, RepetitiveTaskMetricLink.metric_id == TrackedMetric.id)
+            .where(
+                RepetitiveTaskMetricLink.repetitive_task_id == repetitive.id,
+                TrackedMetric.user_id == user.id,
+            )
+        )
+    ]
+    if any(not _is_internal_repetitive_metric_key(key) for key in linked_metric_keys):
+        return False
+
+    metric, changed = _upsert_internal_metric(
+        db,
+        user,
+        key=_repetitive_task_metric_key(repetitive.id),
+        label=_metric_label_for_internal_progress(repetitive.name),
+        spec=spec,
+    )
+
+    has_link = db.scalar(
+        select(RepetitiveTaskMetricLink.metric_id).where(
+            RepetitiveTaskMetricLink.repetitive_task_id == repetitive.id,
+            RepetitiveTaskMetricLink.metric_id == metric.id,
+        )
+    )
+    if has_link is None:
+        db.add(
+            RepetitiveTaskMetricLink(
+                repetitive_task_id=repetitive.id,
+                metric_id=metric.id,
+            )
+        )
+        return True
+
+    return changed
+
+
+def _ensure_internal_repetitive_metrics_for_tasks(
+    db: Session,
+    user: User,
+    *,
+    repetitive_tasks: list[RepetitiveTask],
+) -> bool:
+    changed = False
+    for repetitive in repetitive_tasks:
+        changed = _ensure_internal_repetitive_metric_for_task(
+            db,
+            user,
+            repetitive=repetitive,
+        ) or changed
+    return changed
+
+
+def _manual_task_linked_metrics_by_task_id(
+    db: Session,
+    user: User,
+    *,
+    tasks: list[PlannedTask],
+    on_date: date,
+) -> tuple[dict[int, PlanTaskLinkedMetricRead], bool]:
+    metrics_by_task_id: dict[int, TrackedMetric] = {}
+    changed = False
+
+    for task in tasks:
+        if task.source != PlannedTaskSource.manual:
+            continue
+        spec = _extract_measurable_metric_spec(task.description)
+        if spec is None:
+            continue
+
+        metric, metric_changed = _ensure_internal_manual_metric_for_task(
+            db,
+            user,
+            task=task,
+            spec=spec,
+        )
+        changed = changed or metric_changed
+        metrics_by_task_id[task.id] = metric
+
+    if not metrics_by_task_id:
+        return {}, changed
+
+    metric_ids = [metric.id for metric in metrics_by_task_id.values()]
+    totals_rows = list(
+        db.execute(
+            select(
+                ActivityLog.metric_id,
+                func.coalesce(func.sum(ActivityLog.value), 0.0),
+            )
+            .where(
+                ActivityLog.user_id == user.id,
+                ActivityLog.metric_id.in_(metric_ids),
+                ActivityLog.date == on_date,
+            )
+            .group_by(ActivityLog.metric_id)
+        )
+    )
+    totals_by_metric_id = {int(row[0]): float(row[1] or 0.0) for row in totals_rows}
+
+    rows: dict[int, PlanTaskLinkedMetricRead] = {}
+    for task_id, metric in metrics_by_task_id.items():
+        rows[task_id] = PlanTaskLinkedMetricRead(
+            metric_id=metric.id,
+            label=metric.label,
+            unit_text=metric.unit_text,
+            target=metric.target,
+            time_span=metric.time_span,
+            time_span_custom_text=metric.time_span_custom_text,
+            logged_total=totals_by_metric_id.get(metric.id, 0.0),
+            is_streak_style=False,
+        )
+
+    return rows, changed
+
+
 def _linked_metrics_by_repetitive_id(
     db: Session,
     user: User,
@@ -866,6 +1308,7 @@ def _linked_metrics_by_repetitive_id(
             select(
                 RepetitiveTaskMetricLink.repetitive_task_id,
                 TrackedMetric.id,
+                TrackedMetric.key,
                 TrackedMetric.label,
                 TrackedMetric.unit,
                 TrackedMetric.unit_text,
@@ -877,11 +1320,34 @@ def _linked_metrics_by_repetitive_id(
             .where(
                 RepetitiveTaskMetricLink.repetitive_task_id.in_(repetitive_ids),
                 TrackedMetric.user_id == user.id,
-                TrackedMetric.active.is_(True),
+                or_(
+                    TrackedMetric.active.is_(True),
+                    TrackedMetric.key.startswith(
+                        _INTERNAL_REPETITIVE_METRIC_KEY_PREFIX,
+                        autoescape=True,
+                    ),
+                ),
             )
             .order_by(TrackedMetric.created_at, TrackedMetric.id)
         )
     )
+
+    grouped_link_rows: dict[int, list[tuple]] = {}
+    for row in link_rows:
+        grouped_link_rows.setdefault(int(row[0]), []).append(row)
+
+    filtered_rows: list[tuple] = []
+    for repetitive_task_id, rows in grouped_link_rows.items():
+        has_non_internal = any(
+            not _is_internal_repetitive_metric_key(str(row[2]))
+            for row in rows
+        )
+        if has_non_internal:
+            rows = [row for row in rows if not _is_internal_repetitive_metric_key(str(row[2]))]
+        filtered_rows.extend(rows)
+
+    if not filtered_rows:
+        return {}
 
     def _as_time_span(value: object) -> MetricTimeSpan:
         if isinstance(value, MetricTimeSpan):
@@ -919,10 +1385,10 @@ def _linked_metrics_by_repetitive_id(
         return on_date
 
     metric_time_spans: dict[int, MetricTimeSpan] = {}
-    for row in link_rows:
+    for row in filtered_rows:
         metric_id = int(row[1])
         if metric_id not in metric_time_spans:
-            metric_time_spans[metric_id] = _as_time_span(row[6])
+            metric_time_spans[metric_id] = _as_time_span(row[7])
 
     totals_by_metric_id: dict[int, float] = {}
     for metric_id, time_span in metric_time_spans.items():
@@ -941,13 +1407,14 @@ def _linked_metrics_by_repetitive_id(
     for (
         repetitive_task_id,
         metric_id,
+        metric_key,
         label,
         unit,
         unit_text,
         target,
         time_span,
         custom_span,
-    ) in link_rows:
+    ) in filtered_rows:
         normalized_time_span = _as_time_span(time_span)
         normalized_target = int(target) if target is not None else None
         normalized_unit = _as_metric_unit(unit)
@@ -960,10 +1427,14 @@ def _linked_metrics_by_repetitive_id(
                 time_span=normalized_time_span,
                 time_span_custom_text=str(custom_span) if custom_span is not None else None,
                 logged_total=totals_by_metric_id.get(int(metric_id), 0.0),
-                is_streak_style=_is_streak_style_metric_values(
-                    unit=normalized_unit,
-                    time_span=normalized_time_span,
-                    target=normalized_target,
+                is_streak_style=(
+                    False
+                    if _is_internal_repetitive_metric_key(str(metric_key))
+                    else _is_streak_style_metric_values(
+                        unit=normalized_unit,
+                        time_span=normalized_time_span,
+                        target=normalized_target,
+                    )
                 ),
             )
         )
@@ -975,22 +1446,60 @@ def _linked_metrics_by_repetitive_id(
 
 
 def _linked_metrics_for_task(db: Session, user: User, task: PlannedTask) -> list[TrackedMetric]:
-    repetitive = _match_repetitive_task_by_title(task.title, _list_active_repetitive_tasks(db, user))
+    if task.source == PlannedTaskSource.manual:
+        spec = _extract_measurable_metric_spec(task.description)
+        if spec is None:
+            return []
+        metric, _ = _ensure_internal_manual_metric_for_task(
+            db,
+            user,
+            task=task,
+            spec=spec,
+        )
+        return [metric]
+
+    active_repetitive = _list_active_repetitive_tasks(db, user)
+    repetitive_by_id = {row.id: row for row in active_repetitive}
+
+    repetitive = None
+    if task.linked_habit_id is not None:
+        repetitive = repetitive_by_id.get(task.linked_habit_id)
+    if repetitive is None:
+        repetitive = _match_repetitive_task_by_title(task.title, active_repetitive)
+
     if repetitive is None:
         return []
 
-    return list(
+    _ensure_internal_repetitive_metric_for_task(
+        db,
+        user,
+        repetitive=repetitive,
+    )
+
+    metrics = list(
         db.scalars(
             select(TrackedMetric)
             .join(RepetitiveTaskMetricLink, RepetitiveTaskMetricLink.metric_id == TrackedMetric.id)
             .where(
                 RepetitiveTaskMetricLink.repetitive_task_id == repetitive.id,
                 TrackedMetric.user_id == user.id,
-                TrackedMetric.active.is_(True),
+                or_(
+                    TrackedMetric.active.is_(True),
+                    TrackedMetric.key.startswith(
+                        _INTERNAL_REPETITIVE_METRIC_KEY_PREFIX,
+                        autoescape=True,
+                    ),
+                ),
             )
             .order_by(TrackedMetric.created_at, TrackedMetric.id)
         )
     )
+
+    has_non_internal = any(not _is_internal_repetitive_metric_key(metric.key) for metric in metrics)
+    if has_non_internal:
+        metrics = [metric for metric in metrics if not _is_internal_repetitive_metric_key(metric.key)]
+
+    return metrics
 
 
 def _select_progress_metric_for_task(
@@ -1002,7 +1511,7 @@ def _select_progress_metric_for_task(
 ) -> TrackedMetric:
     linked_metrics = _linked_metrics_for_task(db, user, task)
     if not linked_metrics:
-        raise AppError("This task is not linked to any habit yet.")
+        raise AppError("This task is not quantifiable yet.")
 
     if metric_id is None:
         if len(linked_metrics) > 1:
@@ -1039,6 +1548,8 @@ def _is_streak_style_metric_values(
 
 
 def _is_streak_style_metric(metric: TrackedMetric) -> bool:
+    if _is_internal_metric_key(metric.key):
+        return False
     return (
         _is_streak_style_metric_values(
             unit=metric.unit,
@@ -1151,19 +1662,25 @@ def _build_workspace_task_rows(
     goals_by_id: dict[int, Goal],
     repetitive_tasks: list[RepetitiveTask],
     linked_metrics_by_repetitive_id: dict[int, list[PlanTaskLinkedMetricRead]],
+    linked_metrics_by_manual_task_id: dict[int, PlanTaskLinkedMetricRead],
     history_by_title: dict[str, list[PlannedTask]],
     missed_yesterday_title_keys: set[str],
     on_date: date,
     timezone_name: str,
 ) -> list[PlanWorkspaceTaskRead]:
     repetitive_stats_cache: dict[int, _HabitStats] = {}
+    repetitive_by_id = {task.id: task for task in repetitive_tasks}
     rows: list[PlanWorkspaceTaskRead] = []
 
     for task in tasks:
         base = PlanWorkspaceTaskRead.model_validate(task)
         title_key = _normalize_title(task.title)
         goal = goals_by_id.get(task.related_goal_id) if task.related_goal_id is not None else None
-        repetitive = _match_repetitive_task_by_title(task.title, repetitive_tasks)
+        repetitive = None
+        if task.linked_habit_id is not None:
+            repetitive = repetitive_by_id.get(task.linked_habit_id)
+        if repetitive is None:
+            repetitive = _match_repetitive_task_by_title(task.title, repetitive_tasks)
 
         habit_stats: _HabitStats | None = None
         if repetitive is not None:
@@ -1183,6 +1700,16 @@ def _build_workspace_task_rows(
             repetitive=repetitive,
         )
 
+        task_linked_metrics: list[PlanTaskLinkedMetricRead] = (
+            [linked_metrics_by_manual_task_id[task.id]]
+            if task.id in linked_metrics_by_manual_task_id
+            else (
+                linked_metrics_by_repetitive_id.get(repetitive.id, [])
+                if repetitive is not None and task.source != PlannedTaskSource.manual
+                else []
+            )
+        )
+
         overdue = False
         if task.status != PlannedTaskStatus.done:
             if task.carried_from_date is not None and task.carried_from_date < on_date:
@@ -1200,9 +1727,7 @@ def _build_workspace_task_rows(
                     "completed_late": _completed_late(task, timezone_name=timezone_name),
                     "repetitive_task_id": repetitive.id if repetitive is not None else None,
                     "linked_metrics": (
-                        linked_metrics_by_repetitive_id.get(repetitive.id, [])
-                        if repetitive is not None
-                        else []
+                        task_linked_metrics
                     ),
                     "current_habit_streak": (
                         habit_stats.current_streak_days
@@ -1815,6 +2340,174 @@ def list_tasks(db: Session, user: User, *, on_date: date | None = None) -> list[
     )
 
 
+def list_scheduled_tasks(
+    db: Session,
+    user: User,
+    *,
+    from_date: date | None = None,
+) -> list[PlannedTask]:
+    start_date = from_date or (date.today() + timedelta(days=1))
+    return list(
+        db.scalars(
+            select(PlannedTask)
+            .where(
+                PlannedTask.user_id == user.id,
+                PlannedTask.date >= start_date,
+                PlannedTask.status == PlannedTaskStatus.planned,
+            )
+            .order_by(
+                PlannedTask.date,
+                PlannedTask.execution_order.is_(None),
+                PlannedTask.execution_order,
+                PlannedTask.id,
+            )
+        )
+    )
+
+
+def draft_scheduled_task_from_prompt(
+    db: Session,
+    user: User,
+    provider: LLMProvider,
+    *,
+    prompt: str,
+    on_date: date | None = None,
+) -> PlanScheduleDraftRead:
+    reference_date = on_date or date.today()
+    active_habits = _list_active_repetitive_tasks(db, user)
+    active_goals = list(
+        db.scalars(
+            select(Goal)
+            .where(
+                Goal.user_id == user.id,
+                Goal.status == GoalStatus.active,
+            )
+            .order_by(Goal.updated_at.desc(), Goal.id.desc())
+        )
+    )
+
+    preferred_model = settings_service.get_effective_ai_model(db, user)
+    user_context = compile_user_context(db, user)
+    active_habits_summary = _build_active_habits_summary(active_habits)
+    active_goals_summary = _build_goal_summary(active_goals)
+
+    raw = generate_schedule_task_draft_json(
+        provider,
+        prompt_text=prompt,
+        on_date=reference_date.isoformat(),
+        active_habits_summary=active_habits_summary,
+        active_goals_summary=active_goals_summary,
+        user_context=user_context,
+        model=preferred_model,
+    )
+    payload = _parse_schedule_draft_payload(raw)
+
+    if payload is None:
+        repaired = repair_schedule_task_draft_json(
+            provider,
+            prompt_text=prompt,
+            on_date=reference_date.isoformat(),
+            active_habits_summary=active_habits_summary,
+            active_goals_summary=active_goals_summary,
+            malformed_output=raw,
+            user_context=user_context,
+            model=preferred_model,
+        )
+        payload = _parse_schedule_draft_payload(repaired)
+
+    if payload is None:
+        retry_raw = generate_schedule_task_draft_json(
+            provider,
+            prompt_text=prompt,
+            on_date=reference_date.isoformat(),
+            active_habits_summary=active_habits_summary,
+            active_goals_summary=active_goals_summary,
+            user_context=user_context,
+            model=preferred_model,
+        )
+        payload = _parse_schedule_draft_payload(retry_raw)
+        if payload is None:
+            retry_repaired = repair_schedule_task_draft_json(
+                provider,
+                prompt_text=prompt,
+                on_date=reference_date.isoformat(),
+                active_habits_summary=active_habits_summary,
+                active_goals_summary=active_goals_summary,
+                malformed_output=retry_raw,
+                user_context=user_context,
+                model=preferred_model,
+            )
+            payload = _parse_schedule_draft_payload(retry_repaired)
+
+    if payload is None:
+        raise AppError("Shadow could not structure this task yet. Please try again.")
+
+    title = payload.title.strip()
+    if not title:
+        raise AppError("Shadow could not infer a task title. Please add more detail.")
+
+    linked_habit = _get_owned_linked_habit(db, user, payload.linked_habit_id)
+
+    related_goal_id: int | None = None
+    if payload.related_goal_id is not None:
+        try:
+            related_goal_id = _validate_related_goal_id(db, user, payload.related_goal_id)
+        except AppError:
+            related_goal_id = None
+
+    if related_goal_id is None and linked_habit is not None:
+        related_goal_id = _validate_related_goal_id(
+            db,
+            user,
+            _default_goal_id_from_habit(linked_habit),
+        )
+
+    draft_date = payload.date
+    if draft_date is not None and draft_date < reference_date:
+        draft_date = None
+
+    return PlanScheduleDraftRead(
+        title=title,
+        description=_clean_task_description(payload.description),
+        date=draft_date,
+        priority=payload.priority or PlannedTaskPriority.medium,
+        related_goal_id=related_goal_id,
+        linked_habit_id=linked_habit.id if linked_habit is not None else None,
+    )
+
+
+def create_scheduled_task(db: Session, user: User, data: PlannedTaskCreate) -> PlannedTask:
+    task_date = data.date or date.today()
+    _ensure_schedule_date_not_past(task_date)
+
+    schedule_source = data.source
+    if schedule_source is None or schedule_source == PlannedTaskSource.ai_generated:
+        schedule_source = PlannedTaskSource.manual
+
+    return create_task(
+        db,
+        user,
+        data.model_copy(
+            update={
+                "date": task_date,
+                "source": schedule_source,
+            }
+        ),
+    )
+
+
+def update_scheduled_task(
+    db: Session,
+    user: User,
+    task_id: int,
+    data: PlannedTaskUpdate,
+) -> PlannedTask:
+    task = get_owned_or_404(db, PlannedTask, task_id, user.id, name="Task")
+    target_date = data.date if data.date is not None else task.date
+    _ensure_schedule_date_not_past(target_date)
+    return update_task(db, user, task_id, data)
+
+
 def create_task(db: Session, user: User, data: PlannedTaskCreate) -> PlannedTask:
     settings = settings_service.get_user_settings_row(db, user)
     task_date = data.date or date.today()
@@ -1830,11 +2523,19 @@ def create_task(db: Session, user: User, data: PlannedTaskCreate) -> PlannedTask
     )
     source = data.source or PlannedTaskSource.manual
     priority = data.priority or PlannedTaskPriority.medium
+    linked_habit = _get_owned_linked_habit(db, user, data.linked_habit_id)
     related_goal_id = _validate_related_goal_id(db, user, data.related_goal_id)
+    if related_goal_id is None and linked_habit is not None:
+        related_goal_id = _validate_related_goal_id(
+            db,
+            user,
+            _default_goal_id_from_habit(linked_habit),
+        )
 
     task = PlannedTask(
         user_id=user.id,
         title=data.title,
+        description=_clean_task_description(data.description),
         date=task_date,
         reminder_time=reminder_time,
         estimated_duration_minutes=estimated_duration,
@@ -1851,8 +2552,20 @@ def create_task(db: Session, user: User, data: PlannedTaskCreate) -> PlannedTask
         if source == PlannedTaskSource.ai_generated
         else data.generated_at,
         related_goal_id=related_goal_id,
+        linked_habit_id=linked_habit.id if linked_habit is not None else None,
     )
     db.add(task)
+    db.flush()
+
+    if source == PlannedTaskSource.manual:
+        measurable_spec = _extract_measurable_metric_spec(task.description)
+        if measurable_spec is not None:
+            _ensure_internal_manual_metric_for_task(
+                db,
+                user,
+                task=task,
+                spec=measurable_spec,
+            )
 
     should_schedule_reminder = (
         source != PlannedTaskSource.ai_generated
@@ -1882,12 +2595,29 @@ def update_task(db: Session, user: User, task_id: int, data: PlannedTaskUpdate) 
     previous_status = task.status
     updates = data.model_dump(exclude_unset=True)
 
+    linked_habit = None
+    if "linked_habit_id" in updates:
+        linked_habit = _get_owned_linked_habit(db, user, updates["linked_habit_id"])
+        updates["linked_habit_id"] = linked_habit.id if linked_habit is not None else None
+
     if "related_goal_id" in updates:
         updates["related_goal_id"] = _validate_related_goal_id(
             db,
             user,
             updates["related_goal_id"],
         )
+    elif linked_habit is not None and task.related_goal_id is None:
+        updates["related_goal_id"] = _validate_related_goal_id(
+            db,
+            user,
+            _default_goal_id_from_habit(linked_habit),
+        )
+
+    if "description" in updates:
+        updates["description"] = _clean_task_description(updates["description"])
+
+    if "date" in updates and updates["date"] is None:
+        raise AppError("Task date is required.")
 
     if "ai_rationale" in updates and updates["ai_rationale"] is not None:
         updates["ai_rationale"] = _clean_optional_text(updates["ai_rationale"])
@@ -1920,6 +2650,16 @@ def update_task(db: Session, user: User, task_id: int, data: PlannedTaskUpdate) 
             previous_status=previous_status,
         )
 
+    if task.source == PlannedTaskSource.manual:
+        measurable_spec = _extract_measurable_metric_spec(task.description)
+        if measurable_spec is not None:
+            _ensure_internal_manual_metric_for_task(
+                db,
+                user,
+                task=task,
+                spec=measurable_spec,
+            )
+
     db.commit()
     db.refresh(task)
     return task
@@ -1927,6 +2667,23 @@ def update_task(db: Session, user: User, task_id: int, data: PlannedTaskUpdate) 
 
 def delete_task(db: Session, user: User, task_id: int) -> None:
     task = get_owned_or_404(db, PlannedTask, task_id, user.id, name="Task")
+
+    if task.source == PlannedTaskSource.manual:
+        internal_metric = db.scalar(
+            select(TrackedMetric).where(
+                TrackedMetric.user_id == user.id,
+                TrackedMetric.key == _manual_task_metric_key(task.id),
+            )
+        )
+        if internal_metric is not None:
+            db.execute(
+                delete(ActivityLog).where(
+                    ActivityLog.user_id == user.id,
+                    ActivityLog.metric_id == internal_metric.id,
+                )
+            )
+            db.delete(internal_metric)
+
     db.delete(task)
     db.commit()
 
@@ -2020,6 +2777,20 @@ def workspace_for_date(
 
     active_repetitive = _list_active_repetitive_tasks(db, user)
     due_repetitive = _list_due_repetitive_tasks(db, user, target_date)
+    repetitive_internal_changed = _ensure_internal_repetitive_metrics_for_tasks(
+        db,
+        user,
+        repetitive_tasks=due_repetitive,
+    )
+    manual_task_metrics_by_task_id, manual_internal_changed = _manual_task_linked_metrics_by_task_id(
+        db,
+        user,
+        tasks=tasks,
+        on_date=target_date,
+    )
+    if repetitive_internal_changed or manual_internal_changed:
+        db.flush()
+
     linked_metrics_by_repetitive_id = _linked_metrics_by_repetitive_id(
         db,
         user,
@@ -2044,6 +2815,7 @@ def workspace_for_date(
         goals_by_id=goals_by_id,
         repetitive_tasks=active_repetitive,
         linked_metrics_by_repetitive_id=linked_metrics_by_repetitive_id,
+        linked_metrics_by_manual_task_id=manual_task_metrics_by_task_id,
         history_by_title=history_by_title,
         missed_yesterday_title_keys=missed_yesterday_title_keys,
         on_date=target_date,
@@ -2075,6 +2847,9 @@ def workspace_for_date(
         ),
         default=None,
     )
+
+    if repetitive_internal_changed or manual_internal_changed:
+        db.commit()
 
     return PlanWorkspaceRead(
         date=target_date,

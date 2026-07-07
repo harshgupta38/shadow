@@ -137,8 +137,12 @@ Plan API currently includes CRUD plus AI workspace/generation endpoints:
 
 - GET /api/plan
 - POST /api/plan
+- GET /api/plan/schedule
+- POST /api/plan/schedule/draft
+- POST /api/plan/schedule
 - GET /api/plan/workspace
 - POST /api/plan/generate-today
+- PUT /api/plan/schedule/{task_id}
 - PUT /api/plan/{task_id}
 - DELETE /api/plan/{task_id}
 
@@ -169,9 +173,10 @@ Important entities:
 - JournalEntry
 - Notification
 
-Current Alembic head:
+Current Alembic heads:
 
-- f8b7a9d1334e - AI Today workspace fields on planned tasks
+- 1e4b7c9a2f6d - push subscription support
+- b2f7c4d9e1a8 - planned task schedule fields (description + linked_habit_id)
 
 Recent lineage includes journal, chat-goal, milestone-details, and repetitive-task branches:
 
@@ -184,12 +189,13 @@ Recent lineage includes journal, chat-goal, milestone-details, and repetitive-ta
 7. c18f6be4d2a1 - milestone details
 8. af72d620c5e1 - repetitive tasks
 9. f8b7a9d1334e - merge head + planned task AI metadata
+10. b2f7c4d9e1a8 - planned task schedule fields
 
 Commands:
 
 ```powershell
 cd BackEnd
-alembic upgrade head
+alembic upgrade heads
 alembic current
 ```
 

@@ -15,6 +15,10 @@ vi.mock("@/api", async (importOriginal) => {
 		...actual,
 		api: {
 			...actual.api,
+			repetitiveTasks: {
+				...actual.api.repetitiveTasks,
+				list: vi.fn(),
+			},
 			goals: {
 				...actual.api.goals,
 				list: vi.fn(),
@@ -23,7 +27,6 @@ vi.mock("@/api", async (importOriginal) => {
 				...actual.api.plan,
 				workspace: vi.fn(),
 				generateToday: vi.fn(),
-				create: vi.fn(),
 				update: vi.fn(),
 				logProgress: vi.fn(),
 				remove: vi.fn(),
@@ -36,10 +39,13 @@ const mockedGoalsApi = api.goals as unknown as {
 	list: Mock;
 };
 
+const mockedRepetitiveApi = api.repetitiveTasks as unknown as {
+	list: Mock;
+};
+
 const mockedPlanApi = api.plan as unknown as {
 	workspace: Mock;
 	generateToday: Mock;
-	create: Mock;
 	update: Mock;
 	logProgress: Mock;
 	remove: Mock;
@@ -133,17 +139,17 @@ describe("PlanPage", () => {
 	beforeEach(() => {
 		__resetPlanWorkspaceCacheForTests();
 		mockedGoalsApi.list.mockReset();
+		mockedRepetitiveApi.list.mockReset();
 		mockedPlanApi.workspace.mockReset();
 		mockedPlanApi.generateToday.mockReset();
-		mockedPlanApi.create.mockReset();
 		mockedPlanApi.update.mockReset();
 		mockedPlanApi.logProgress.mockReset();
 		mockedPlanApi.remove.mockReset();
 
 		mockedGoalsApi.list.mockResolvedValue([]);
+		mockedRepetitiveApi.list.mockResolvedValue([]);
 		mockedPlanApi.workspace.mockResolvedValue(buildWorkspace());
 		mockedPlanApi.generateToday.mockResolvedValue(buildWorkspace());
-		mockedPlanApi.create.mockResolvedValue(buildTask({ id: 20, title: "New task" }));
 		mockedPlanApi.update.mockResolvedValue(buildTask({ status: "done" }));
 		mockedPlanApi.logProgress.mockResolvedValue(buildWorkspace());
 		mockedPlanApi.remove.mockResolvedValue(undefined);
@@ -234,27 +240,15 @@ describe("PlanPage", () => {
 		expect((await screen.findAllByText(/AI Focus Block/i)).length).toBeGreaterThan(0);
 	});
 
-	it("supports manual task creation", async () => {
+	it("opens Schedule modal from Schedule CTA", async () => {
 		const user = userEvent.setup();
-
-		mockedGoalsApi.list.mockResolvedValue([{ id: 1, title: "Ship MVP" }]);
-		mockedPlanApi.workspace.mockResolvedValueOnce(buildWorkspace({ tasks: [] }));
-		mockedPlanApi.workspace.mockResolvedValueOnce(
-			buildWorkspace({
-				tasks: [buildTask({ id: 20, title: "New task" })],
-			}),
-		);
 
 		renderPage();
 
-		await user.type(await screen.findByPlaceholderText("What will you get done?"), "New task");
-		await user.click(screen.getByRole("button", { name: /add/i }));
+		await user.click(await screen.findByRole("button", { name: "Schedule" }));
 
-		expect(mockedPlanApi.create).toHaveBeenCalledWith({
-			title: "New task",
-			date: toISODate(),
-			related_goal_id: null,
-		});
+		expect(await screen.findByText("Plan a task")).toBeInTheDocument();
+		expect(mockedRepetitiveApi.list).toHaveBeenCalledTimes(1);
 	});
 
 	it("toggles completion without reloading workspace", async () => {

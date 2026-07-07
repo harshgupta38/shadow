@@ -1,6 +1,8 @@
 import { http, httpClient } from "./client";
 import type {
   PlanGenerateRequest,
+  PlanScheduleDraft,
+  PlanScheduleDraftRequest,
   PlanWorkspace,
   PlannedTask,
   PlannedTaskCreate,
@@ -32,6 +34,18 @@ export const planApi = {
   },
   async create(data: PlannedTaskCreate): Promise<PlannedTask> {
     return http.post<PlannedTask>("/plan", data);
+  },
+  async scheduleList(fromDate?: string): Promise<PlannedTask[]> {
+    return http.get<PlannedTask[]>("/plan/schedule", fromDate ? { from_date: fromDate } : undefined);
+  },
+  async draftScheduleTask(data: PlanScheduleDraftRequest): Promise<PlanScheduleDraft> {
+    return http.post<PlanScheduleDraft>("/plan/schedule/draft", data);
+  },
+  async createScheduled(data: PlannedTaskCreate): Promise<PlannedTask> {
+    return http.post<PlannedTask>("/plan/schedule", data);
+  },
+  async updateScheduled(id: number, data: PlannedTaskUpdate): Promise<PlannedTask> {
+    return http.put<PlannedTask>(`/plan/schedule/${id}`, data);
   },
   async update(id: number, data: PlannedTaskUpdate): Promise<PlannedTask> {
     return http.put<PlannedTask>(`/plan/${id}`, data);

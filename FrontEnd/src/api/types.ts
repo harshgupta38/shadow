@@ -849,6 +849,7 @@ export interface ProgressCoachRecommendationAcceptResponse {
 export interface PlannedTask {
   id: number;
   title: string;
+  description: string | null;
   date: string;
   reminder_time: string | null;
   estimated_duration_minutes: number | null;
@@ -864,6 +865,7 @@ export interface PlannedTask {
   carried_from_date: string | null;
   generated_at: string | null;
   related_goal_id: number | null;
+  linked_habit_id: number | null;
   repetitive_task_id?: number | null;
   linked_metrics?: PlanTaskLinkedMetric[];
   category?: string | null;
@@ -890,8 +892,10 @@ export interface PlanTaskLinkedMetric {
 
 export interface PlannedTaskCreate {
   title: string;
+  description?: string | null;
   date?: string | null;
   related_goal_id?: number | null;
+  linked_habit_id?: number | null;
   reminder_time?: string | null;
   estimated_duration_minutes?: number | null;
   source?: PlannedTaskSource;
@@ -908,8 +912,11 @@ export interface PlannedTaskCreate {
 
 export interface PlannedTaskUpdate {
   title?: string;
+  description?: string | null;
+  date?: string | null;
   status?: PlannedTaskStatus;
   related_goal_id?: number | null;
+  linked_habit_id?: number | null;
   reminder_time?: string | null;
   estimated_duration_minutes?: number | null;
   source?: PlannedTaskSource;
@@ -933,6 +940,20 @@ export interface PlannedTaskProgressUpdate {
 
 export interface PlanGenerateRequest {
   on_date?: string | null;
+}
+
+export interface PlanScheduleDraftRequest {
+  prompt: string;
+  on_date?: string | null;
+}
+
+export interface PlanScheduleDraft {
+  title: string;
+  description: string | null;
+  date: string | null;
+  priority: PlannedTaskPriority | null;
+  related_goal_id: number | null;
+  linked_habit_id: number | null;
 }
 
 export interface PlanExecutionItem {

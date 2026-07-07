@@ -422,6 +422,88 @@ def repair_metric_draft_json(
     ).strip()
 
 
+def generate_schedule_task_draft_json(
+    provider: LLMProvider,
+    *,
+    prompt_text: str,
+    on_date: str,
+    active_habits_summary: str,
+    active_goals_summary: str,
+    user_context: str = "",
+    model: str | None = None,
+) -> str:
+    """Convert a natural-language schedule prompt into strict JSON task fields."""
+    system = _with_context(system_prompt(AgentType.daily_checkin), user_context)
+    prompt = (
+        f"Planning context date: {on_date}\n\n"
+        "User request:\n"
+        f"{prompt_text}\n\n"
+        "Active habits (for linked_habit_id selection):\n"
+        f"{active_habits_summary}\n\n"
+        "Active goals (for related_goal_id selection):\n"
+        f"{active_goals_summary}\n\n"
+        "Extract one structured scheduled-task draft from the request.\n"
+        "Return valid JSON only with this exact schema:\n"
+        '{"title":"...","description":"..."|null,"date":"YYYY-MM-DD"|null,"priority":"critical|high|medium|low"|null,"linked_habit_id":123|null,"related_goal_id":456|null}\n'
+        "Rules:\n"
+        "- Title must be concise and actionable.\n"
+        "- description can include practical details; use null when none.\n"
+        "- date should be inferred when explicit (for example 'on friday'); else null.\n"
+        "- linked_habit_id must be one of provided habit ids when clearly matched; else null.\n"
+        "- related_goal_id must be one of provided goal ids when clearly matched; else null.\n"
+        "- Do not invent ids outside provided lists.\n"
+        "- Do not include markdown, prose, or extra keys."
+    )
+    return provider.generate(
+        [LLMMessage("user", prompt)],
+        system=system,
+        temperature=0.15,
+        max_tokens=360,
+        model=model,
+    ).strip()
+
+
+def repair_schedule_task_draft_json(
+    provider: LLMProvider,
+    *,
+    prompt_text: str,
+    on_date: str,
+    active_habits_summary: str,
+    active_goals_summary: str,
+    malformed_output: str,
+    user_context: str = "",
+    model: str | None = None,
+) -> str:
+    """Repair malformed schedule task draft output into strict JSON schema."""
+    system = _with_context(system_prompt(AgentType.daily_checkin), user_context)
+    prompt = (
+        "The previous output did not follow the required JSON schema.\n"
+        "Rewrite it as strict JSON only.\n\n"
+        f"Planning context date: {on_date}\n\n"
+        "User request:\n"
+        f"{prompt_text}\n\n"
+        "Active habits (for linked_habit_id selection):\n"
+        f"{active_habits_summary}\n\n"
+        "Active goals (for related_goal_id selection):\n"
+        f"{active_goals_summary}\n\n"
+        "Malformed output to repair:\n"
+        f"{malformed_output}\n\n"
+        "Return valid JSON only with this exact schema:\n"
+        '{"title":"...","description":"..."|null,"date":"YYYY-MM-DD"|null,"priority":"critical|high|medium|low"|null,"linked_habit_id":123|null,"related_goal_id":456|null}\n'
+        "Rules:\n"
+        "- linked_habit_id and related_goal_id must come only from provided lists, or be null.\n"
+        "- Use null when uncertain instead of guessing.\n"
+        "- Do not include markdown, prose, or extra keys."
+    )
+    return provider.generate(
+        [LLMMessage("user", prompt)],
+        system=system,
+        temperature=0,
+        max_tokens=360,
+        model=model,
+    ).strip()
+
+
 def generate_today_plan_json(
     provider: LLMProvider,
     *,

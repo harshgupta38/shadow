@@ -2,6 +2,7 @@ import type { ComponentType } from "react";
 import {
   ArrowRepeat,
   Bullseye,
+  Calendar3,
   CalendarCheckFill,
   ChatDotsFill,
   FileEarmarkBarGraphFill,
@@ -36,6 +37,7 @@ export const NAV_SECTIONS: NavSection[] = [
     label: "Core loop",
     items: [
       { to: "/plan", label: "Today", icon: CalendarCheckFill },
+      { to: "/schedule", label: "Schedule", icon: Calendar3 },
       { to: "/goals", label: "Goals", icon: Bullseye },
       { to: "/repetitive-tasks", label: "Habit Library", icon: ArrowRepeat },
       { to: "/track", label: "Track", icon: GraphUpArrow },

@@ -18,8 +18,10 @@ from app.schemas.common import ORMModel
 
 class PlannedTaskCreate(BaseModel):
     title: str = Field(min_length=1, max_length=255)
+    description: str | None = Field(default=None, max_length=5000)
     date: datetime.date | None = None  # defaults to today (server-side)
     related_goal_id: int | None = None
+    linked_habit_id: int | None = Field(default=None, ge=1)
     reminder_time: str | None = Field(default=None, pattern=r"^\d{2}:\d{2}$")
     estimated_duration_minutes: int | None = Field(default=None, ge=5, le=360)
     source: PlannedTaskSource | None = None
@@ -36,8 +38,11 @@ class PlannedTaskCreate(BaseModel):
 
 class PlannedTaskUpdate(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=255)
+    description: str | None = Field(default=None, max_length=5000)
+    date: datetime.date | None = None
     status: PlannedTaskStatus | None = None
     related_goal_id: int | None = None
+    linked_habit_id: int | None = Field(default=None, ge=1)
     reminder_time: str | None = Field(default=None, pattern=r"^\d{2}:\d{2}$")
     estimated_duration_minutes: int | None = Field(default=None, ge=5, le=360)
     source: PlannedTaskSource | None = None
@@ -55,6 +60,7 @@ class PlannedTaskUpdate(BaseModel):
 class PlannedTaskRead(ORMModel):
     id: int
     title: str
+    description: str | None
     date: datetime.date
     reminder_time: str | None
     estimated_duration_minutes: int | None
@@ -70,8 +76,23 @@ class PlannedTaskRead(ORMModel):
     carried_from_date: datetime.date | None
     generated_at: datetime.datetime | None
     related_goal_id: int | None
+    linked_habit_id: int | None
     completed_at: datetime.datetime | None
     created_at: datetime.datetime
+
+
+class PlanScheduleDraftRequest(BaseModel):
+    prompt: str = Field(min_length=3, max_length=1200)
+    on_date: datetime.date | None = None
+
+
+class PlanScheduleDraftRead(BaseModel):
+    title: str = Field(min_length=1, max_length=255)
+    description: str | None = Field(default=None, max_length=5000)
+    date: datetime.date | None = None
+    priority: PlannedTaskPriority | None = None
+    related_goal_id: int | None = None
+    linked_habit_id: int | None = Field(default=None, ge=1)
 
 
 class PlanGenerateRequest(BaseModel):

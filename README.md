@@ -48,6 +48,7 @@ Implemented in this repository:
 - Profile/Settings split with AI profile and dedicated memory center
 - Goals and milestones
 - Plan (daily task CRUD with defaults, reminders, completion)
+- Schedule (future task planning with manual and AI-assisted draft flow)
 - Repetitive Tasks (backend + frontend vertical slice with lifecycle controls and recommendations)
 - Metrics and activity logging
 - Daily/weekly AI reports
@@ -69,6 +70,11 @@ Important implementation reality:
   - `GET /api/plan/workspace`
   - `POST /api/plan/generate-today`
 - CRUD plan endpoints remain active (`GET/POST/PUT/DELETE /api/plan...`).
+- Schedule endpoints are active:
+  - `GET /api/plan/schedule`
+  - `POST /api/plan/schedule/draft`
+  - `POST /api/plan/schedule`
+  - `PUT /api/plan/schedule/{task_id}`
 - Repetitive Tasks APIs are active at `GET/POST/PUT/DELETE /api/repetitive-tasks` and `GET /api/repetitive-tasks/recommendations`.
 
 ---
@@ -258,8 +264,12 @@ All API routes are prefixed with `/api`.
 
 - `GET /api/plan`
 - `POST /api/plan`
+- `GET /api/plan/schedule`
+- `POST /api/plan/schedule/draft`
+- `POST /api/plan/schedule`
 - `GET /api/plan/workspace`
 - `POST /api/plan/generate-today`
+- `PUT /api/plan/schedule/{task_id}`
 - `PUT /api/plan/{task_id}`
 - `DELETE /api/plan/{task_id}`
 

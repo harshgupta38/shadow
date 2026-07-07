@@ -1682,6 +1682,13 @@ a {
   overflow-y: hidden;
 }
 
+.schedule-shadow-prompt-input {
+  min-height: 5.5rem !important;
+  max-height: 11rem;
+  resize: vertical;
+  overflow-y: auto;
+}
+
 .goal-shadow-refine-btn {
   display: inline-flex;
   align-items: center;

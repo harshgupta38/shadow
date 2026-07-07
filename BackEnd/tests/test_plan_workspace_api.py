@@ -222,6 +222,50 @@ class EmptyPlanWithDurationEstimateProvider(LLMProvider):
         )
 
 
+class ScheduleDraftProvider(LLMProvider):
+    """Returns a deterministic schedule draft payload."""
+
+    def __init__(self, draft_date: str) -> None:
+        self.draft_date = draft_date
+
+    def generate(
+        self,
+        messages: list[LLMMessage],
+        *,
+        system: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+        model: str | None = None,
+    ) -> str:
+        return (
+            "{"
+            '"title":"Meet Animesh",'
+            '"description":"Discuss sprint priorities and action items.",'
+            f'"date":"{self.draft_date}",'
+            '"priority":"high",'
+            '"linked_habit_id":null,'
+            '"related_goal_id":null'
+            "}"
+        )
+
+    def generate_stream(
+        self,
+        messages: list[LLMMessage],
+        *,
+        system: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+        model: str | None = None,
+    ) -> Iterator[str]:
+        yield self.generate(
+            messages,
+            system=system,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            model=model,
+        )
+
+
 def test_generate_today_blocks_when_smart_planning_disabled(
     client: TestClient,
     auth_headers: dict[str, str],
@@ -1049,3 +1093,345 @@ def test_task_progress_updates_linked_metric_and_completes_when_target_reached(
         assert float(corrected_task["linked_metrics"][0]["logged_total"]) == 8.0
     finally:
         app.dependency_overrides.pop(get_provider, None)
+
+
+def test_create_scheduled_task_rejects_past_date(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    yesterday = (date.today() - timedelta(days=1)).isoformat()
+
+    response = client.post(
+        "/api/plan/schedule",
+        headers=auth_headers,
+        json={
+            "title": "Past planning attempt",
+            "date": yesterday,
+            "priority": "medium",
+        },
+    )
+
+    assert response.status_code == 400
+    assert "future date" in response.json()["detail"].lower() or "today" in response.json()["detail"].lower()
+
+
+def test_schedule_list_returns_future_planned_tasks_only(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    today = date.today()
+    tomorrow = today + timedelta(days=1)
+    day_after = today + timedelta(days=2)
+
+    first = client.post(
+        "/api/plan/schedule",
+        headers=auth_headers,
+        json={"title": "Future task A", "date": tomorrow.isoformat(), "priority": "high"},
+    )
+    assert first.status_code == 201
+
+    second = client.post(
+        "/api/plan/schedule",
+        headers=auth_headers,
+        json={"title": "Future task B", "date": day_after.isoformat(), "priority": "medium"},
+    )
+    assert second.status_code == 201
+
+    done_future = client.post(
+        "/api/plan/schedule",
+        headers=auth_headers,
+        json={"title": "Future done task", "date": day_after.isoformat(), "priority": "low"},
+    )
+    assert done_future.status_code == 201
+    done_update = client.put(
+        f"/api/plan/{done_future.json()['id']}",
+        headers=auth_headers,
+        json={"status": "done"},
+    )
+    assert done_update.status_code == 200
+
+    today_row = client.post(
+        "/api/plan",
+        headers=auth_headers,
+        json={"title": "Today task", "date": today.isoformat(), "priority": "medium"},
+    )
+    assert today_row.status_code == 201
+
+    listed = client.get("/api/plan/schedule", headers=auth_headers)
+    assert listed.status_code == 200
+
+    titles = [row["title"] for row in listed.json()]
+    assert "Future task A" in titles
+    assert "Future task B" in titles
+    assert "Future done task" not in titles
+    assert "Today task" not in titles
+
+
+def test_schedule_draft_returns_structured_fields(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    draft_date = (date.today() + timedelta(days=2)).isoformat()
+    app.dependency_overrides[get_provider] = lambda: ScheduleDraftProvider(draft_date)
+
+    try:
+        response = client.post(
+            "/api/plan/schedule/draft",
+            headers=auth_headers,
+            json={"prompt": "i want to meet animesh on friday"},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["title"] == "Meet Animesh"
+        assert body["description"]
+        assert body["date"] == draft_date
+        assert body["priority"] == "high"
+    finally:
+        app.dependency_overrides.pop(get_provider, None)
+
+
+def test_create_scheduled_task_propagates_goal_from_linked_habit(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    tomorrow = (date.today() + timedelta(days=1)).isoformat()
+
+    goal = client.post(
+        "/api/goals",
+        headers=auth_headers,
+        json={"title": "Networking goal"},
+    )
+    assert goal.status_code == 201
+    goal_id = int(goal.json()["id"])
+
+    habit = client.post(
+        "/api/repetitive-tasks",
+        headers=auth_headers,
+        json={
+            "name": "Weekly networking",
+            "description": "Reach out to peers every week",
+            "frequencies": ["weekly"],
+            "priority": "medium",
+            "linked_goal_ids": [goal_id],
+        },
+    )
+    assert habit.status_code == 201
+    habit_id = int(habit.json()["id"])
+
+    scheduled = client.post(
+        "/api/plan/schedule",
+        headers=auth_headers,
+        json={
+            "title": "Meet senior engineer",
+            "description": "Prepare discussion points.",
+            "date": tomorrow,
+            "linked_habit_id": habit_id,
+            "priority": "high",
+        },
+    )
+    assert scheduled.status_code == 201
+    body = scheduled.json()
+    assert body["linked_habit_id"] == habit_id
+    assert body["related_goal_id"] == goal_id
+    assert body["description"] == "Prepare discussion points."
+
+
+def test_manual_scheduled_task_uses_description_as_quantifiable_source_of_truth(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    target_date = date.today() + timedelta(days=3)
+
+    metric = client.post(
+        "/api/metrics",
+        headers=auth_headers,
+        json={
+            "key": "coding_ninja_minutes",
+            "label": "Coding Ninja minutes",
+            "unit_text": "minutes",
+            "time_span": "day",
+            "target": 60,
+        },
+    )
+    assert metric.status_code == 201
+    metric_id = int(metric.json()["id"])
+
+    habit = client.post(
+        "/api/repetitive-tasks",
+        headers=auth_headers,
+        json={
+            "name": "Progress Coding Ninja Course",
+            "description": "Advance one lesson daily.",
+            "frequencies": ["daily"],
+            "priority": "high",
+            "linked_metric_ids": [metric_id],
+        },
+    )
+    assert habit.status_code == 201
+    habit_id = int(habit.json()["id"])
+
+    no_quantity_task = client.post(
+        "/api/plan/schedule",
+        headers=auth_headers,
+        json={
+            "title": "Take Coding Ninja Mock Interview",
+            "description": "Evening",
+            "date": target_date.isoformat(),
+            "linked_habit_id": habit_id,
+            "priority": "high",
+        },
+    )
+    assert no_quantity_task.status_code == 201
+    no_quantity_task_id = int(no_quantity_task.json()["id"])
+
+    quantified_task = client.post(
+        "/api/plan/schedule",
+        headers=auth_headers,
+        json={
+            "title": "Take Coding Ninja Timed Practice",
+            "description": "Practice for 120 minutes in the evening.",
+            "date": target_date.isoformat(),
+            "linked_habit_id": habit_id,
+            "priority": "high",
+        },
+    )
+    assert quantified_task.status_code == 201
+    quantified_task_id = int(quantified_task.json()["id"])
+
+    workspace = client.get(
+        f"/api/plan/workspace?on_date={target_date.isoformat()}",
+        headers=auth_headers,
+    )
+    assert workspace.status_code == 200
+
+    rows = workspace.json()["tasks"]
+    no_quantity_row = next(row for row in rows if row["id"] == no_quantity_task_id)
+    quantified_row = next(row for row in rows if row["id"] == quantified_task_id)
+
+    assert no_quantity_row["linked_metrics"] == []
+    assert quantified_row["linked_metrics"]
+    assert quantified_row["linked_metrics"][0]["metric_id"] != metric_id
+    assert quantified_row["linked_metrics"][0]["target"] == 120
+    assert quantified_row["linked_metrics"][0]["unit_text"] == "minutes"
+
+
+def test_generated_habit_without_linked_metric_becomes_quantifiable_from_description(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    app.dependency_overrides[get_provider] = lambda: EmptyPlanProvider()
+
+    try:
+        repetitive = client.post(
+            "/api/repetitive-tasks",
+            headers=auth_headers,
+            json={
+                "name": "DSA Practice",
+                "description": "Solve 8 problems today.",
+                "frequencies": ["daily"],
+                "priority": "high",
+            },
+        )
+        assert repetitive.status_code == 201
+
+        generated = client.post("/api/plan/generate-today", headers=auth_headers, json={})
+        assert generated.status_code == 200
+
+        task = next(row for row in generated.json()["tasks"] if row["title"] == "DSA Practice")
+        assert task["linked_metrics"]
+        linked_metric = task["linked_metrics"][0]
+        assert linked_metric["unit_text"] == "problems"
+        assert linked_metric["target"] == 8
+        assert linked_metric["is_streak_style"] is False
+
+        first_progress = client.post(
+            f"/api/plan/{task['id']}/progress",
+            headers=auth_headers,
+            json={"value": 5, "mode": "set"},
+        )
+        assert first_progress.status_code == 200
+        first_row = next(row for row in first_progress.json()["tasks"] if row["id"] == task["id"])
+        assert first_row["status"] == "planned"
+        assert float(first_row["linked_metrics"][0]["logged_total"]) == 5.0
+
+        second_progress = client.post(
+            f"/api/plan/{task['id']}/progress",
+            headers=auth_headers,
+            json={"value": 8, "mode": "set"},
+        )
+        assert second_progress.status_code == 200
+        second_row = next(row for row in second_progress.json()["tasks"] if row["id"] == task["id"])
+        assert second_row["status"] == "done"
+        assert float(second_row["linked_metrics"][0]["logged_total"]) == 8.0
+
+    finally:
+        app.dependency_overrides.pop(get_provider, None)
+
+
+def test_manual_measurable_task_logs_progress_and_tracks_description_target(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    target_date = date.today() + timedelta(days=2)
+
+    created = client.post(
+        "/api/plan/schedule",
+        headers=auth_headers,
+        json={
+            "title": "Deep work block",
+            "description": "Focus for 90 minutes in the evening.",
+            "date": target_date.isoformat(),
+            "priority": "high",
+        },
+    )
+    assert created.status_code == 201
+    task_id = int(created.json()["id"])
+
+    workspace = client.get(
+        f"/api/plan/workspace?on_date={target_date.isoformat()}",
+        headers=auth_headers,
+    )
+    assert workspace.status_code == 200
+
+    row = next(item for item in workspace.json()["tasks"] if item["id"] == task_id)
+    assert row["linked_metrics"]
+    assert row["linked_metrics"][0]["unit_text"] == "minutes"
+    assert row["linked_metrics"][0]["target"] == 90
+    assert row["linked_metrics"][0]["is_streak_style"] is False
+
+    first_progress = client.post(
+        f"/api/plan/{task_id}/progress",
+        headers=auth_headers,
+        json={"value": 45, "mode": "set"},
+    )
+    assert first_progress.status_code == 200
+    first_row = next(item for item in first_progress.json()["tasks"] if item["id"] == task_id)
+    assert first_row["status"] == "planned"
+    assert float(first_row["linked_metrics"][0]["logged_total"]) == 45.0
+
+    second_progress = client.post(
+        f"/api/plan/{task_id}/progress",
+        headers=auth_headers,
+        json={"value": 90, "mode": "set"},
+    )
+    assert second_progress.status_code == 200
+    second_row = next(item for item in second_progress.json()["tasks"] if item["id"] == task_id)
+    assert second_row["status"] == "done"
+    assert float(second_row["linked_metrics"][0]["logged_total"]) == 90.0
+
+    non_measurable_update = client.put(
+        f"/api/plan/{task_id}",
+        headers=auth_headers,
+        json={"description": "Evening"},
+    )
+    assert non_measurable_update.status_code == 200
+
+    refreshed_workspace = client.get(
+        f"/api/plan/workspace?on_date={target_date.isoformat()}",
+        headers=auth_headers,
+    )
+    assert refreshed_workspace.status_code == 200
+    refreshed_row = next(
+        item for item in refreshed_workspace.json()["tasks"] if item["id"] == task_id
+    )
+    assert refreshed_row["linked_metrics"] == []

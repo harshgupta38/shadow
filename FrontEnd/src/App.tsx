@@ -19,6 +19,7 @@ import { ProfilePage } from "@/pages/profile/ProfilePage";
 import { RepetitiveTasksPage } from "@/pages/repetitiveTasks/RepetitiveTasksPage";
 import { ReportsPage } from "@/pages/reports/ReportsPage";
 import { ReportViewerPage } from "@/pages/reports/ReportViewerPage";
+import { SchedulePage } from "@/pages/schedule/SchedulePage";
 import { SettingsPage } from "@/pages/settings/SettingsPage";
 import { TrackPage } from "@/pages/track/TrackPage";
 
@@ -48,6 +49,7 @@ export default function App() {
         <Route element={<AppLayout />}>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/plan" element={<PlanPage />} />
+          <Route path="/schedule" element={<SchedulePage />} />
           <Route path="/goals" element={<GoalsPage />} />
           <Route path="/goals/:goalId" element={<GoalDetailPage />} />
           <Route path="/repetitive-tasks" element={<RepetitiveTasksPage />} />

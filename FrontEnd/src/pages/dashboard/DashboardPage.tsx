@@ -161,7 +161,7 @@ export function DashboardPage() {
         actions={
           <>
             <Link to="/plan" className="btn btn-outline-secondary">
-              <PlusLg size={16} className="me-1" /> Plan today
+              <PlusLg size={16} className="me-1" /> Today's Plan
             </Link>
             <Link to="/reports" className="btn btn-brand">
               View reports

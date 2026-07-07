@@ -20,6 +20,7 @@ class PlannedTask(Base):
         ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
     )
     title: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
     date: Mapped[datetime.date] = mapped_column(Date, index=True, nullable=False)
     reminder_time: Mapped[str | None] = mapped_column(String(5), nullable=True)
     estimated_duration_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -49,6 +50,11 @@ class PlannedTask(Base):
     )
     related_goal_id: Mapped[int | None] = mapped_column(
         ForeignKey("goals.id", ondelete="SET NULL"), nullable=True
+    )
+    linked_habit_id: Mapped[int | None] = mapped_column(
+        ForeignKey("repetitive_tasks.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
     )
     completed_at: Mapped[datetime.datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True

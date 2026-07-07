@@ -14,6 +14,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Pill } from "@/components/ui/Pill";
+import { ScheduleTaskModal } from "@/components/plan/ScheduleTaskModal";
 import { ProgressRing } from "@/components/ui/ProgressRing";
 import { SectionCard } from "@/components/ui/SectionCard";
 import { TaskItem } from "@/components/tasks/TaskItem";
@@ -128,10 +129,8 @@ export function PlanPage() {
   const toast = useToast();
   const [date, setDate] = useState(toISODate());
   const [workspaceRequestNonce, setWorkspaceRequestNonce] = useState(0);
-  const [title, setTitle] = useState("");
-  const [goalId, setGoalId] = useState<string>("");
-  const [adding, setAdding] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [busyId, setBusyId] = useState<number | null>(null);
   const forceFreshWorkspaceRef = useRef(false);
 
@@ -278,6 +277,7 @@ export function PlanPage() {
   const doneCount = tasks.filter((t) => t.status === "done").length;
   const completion = tasks.length > 0 ? clampPercent((doneCount / tasks.length) * 100) : 0;
   const isToday = date === toISODate();
+  const scheduleDefaultDate = date < toISODate() ? toISODate() : date;
 
   const nextTaskTitle = useMemo(() => {
     const nextPending = planSummaryItems.find((item) => item.status !== "done");
@@ -308,26 +308,6 @@ export function PlanPage() {
 
   function updateWorkspaceTasks(update: (rows: PlannedTask[]) => PlannedTask[]) {
     setWorkspaceData((prev) => (prev ? { ...prev, tasks: update(prev.tasks) } : prev));
-  }
-
-  async function addTask() {
-    if (!title.trim()) return;
-    setAdding(true);
-    try {
-      const created = await api.plan.create({
-        title: title.trim(),
-        date,
-        related_goal_id: goalId ? Number(goalId) : null,
-      });
-      updateWorkspaceTasks((prev) => [...prev, created]);
-      setTitle("");
-      setGoalId("");
-      reloadWorkspace();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Couldn't add the task.");
-    } finally {
-      setAdding(false);
-    }
   }
 
   async function toggleTask(task: PlannedTask) {
@@ -400,6 +380,14 @@ export function PlanPage() {
     }
   }
 
+  function handleScheduledTaskSaved(task: PlannedTask) {
+    if (task.date === date) {
+      reloadWorkspace();
+      return;
+    }
+    toast.success(`Task scheduled for ${formatDate(`${task.date}T00:00:00`)}.`);
+  }
+
   return (
     <div>
       <PageHeader
@@ -440,6 +428,9 @@ export function PlanPage() {
               Jump to today
             </button>
           )}
+          <button className="btn btn-outline-secondary" onClick={() => setShowScheduleModal(true)}>
+            <PlusLg size={14} className="me-1" />Schedule
+          </button>
           <button className="btn btn-brand" onClick={generatePlan} disabled={generating}>
             <ArrowRepeat size={14} className="me-1" />
             {generating ? "Generating..." : isToday ? "Generate Today's Plan" : "Generate Plan"}
@@ -506,44 +497,6 @@ export function PlanPage() {
 
           <div className="mt-4">
           <SectionCard title={isToday ? "Today" : formatDate(`${date}T00:00:00`)}>
-            {/* Add task */}
-            <div className="d-flex flex-column flex-sm-row gap-2 mb-3">
-              <input
-                className="form-control"
-                placeholder="What will you get done?"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    void addTask();
-                  }
-                }}
-              />
-              {(goals?.length ?? 0) > 0 && (
-                <select
-                  className="form-select plan-goal-select"
-                  value={goalId}
-                  onChange={(e) => setGoalId(e.target.value)}
-                  aria-label="Link to goal"
-                >
-                  <option value="">No goal</option>
-                  {goals?.map((g) => (
-                    <option value={g.id} key={g.id}>
-                      {g.title}
-                    </option>
-                  ))}
-                </select>
-              )}
-              <button
-                className="btn btn-brand flex-shrink-0"
-                onClick={addTask}
-                disabled={adding || !title.trim()}
-              >
-                <PlusLg size={16} className="me-1" /> Add
-              </button>
-            </div>
-
             {loading && <LoadingState label="Loading your plan…" full={false} />}
 
             {error && !loading && (
@@ -565,7 +518,7 @@ export function PlanPage() {
                 compact
                 icon={<CalendarCheckFill size={22} />}
                 title="Nothing planned"
-                message="Add two or three meaningful tasks to build momentum."
+                message="Use Schedule to add tasks, then generate this day's plan."
               />
             )}
 
@@ -693,6 +646,15 @@ export function PlanPage() {
           </div>
         </div>
       </div>
+
+      {showScheduleModal && (
+        <ScheduleTaskModal
+          show={showScheduleModal}
+          initialDate={scheduleDefaultDate}
+          onClose={() => setShowScheduleModal(false)}
+          onSaved={handleScheduledTaskSaved}
+        />
+      )}
     </div>
   );
 }

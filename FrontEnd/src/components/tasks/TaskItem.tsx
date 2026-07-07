@@ -113,11 +113,9 @@ export function TaskItem({
       ? Math.max(metricTarget - metricLoggedTotal, 0)
       : null;
   const metricProgressLabel =
-    primaryLinkedMetric == null
+    primaryLinkedMetric == null || metricTarget == null
       ? null
-      : metricRemainingValue != null
-        ? `${formatAmount(metricRemainingValue)} ${metricUnitText}`
-        : `${metricLoggedTotal} ${metricUnitText}`;
+      : `${formatAmount(metricRemainingValue ?? 0)} ${metricUnitText}`;
 
   useEffect(() => {
     if (!primaryLinkedMetric) {
@@ -232,9 +230,11 @@ export function TaskItem({
               <div className="small text-muted-2">
                 <span className="fw-semibold">Goal linked:</span> {linkedGoal}
               </div>
-              <div className="small text-muted-2 mt-1">
-                <span className="fw-semibold">Remaining:</span> {metricProgressLabel}
-              </div>
+              {metricProgressLabel && (
+                <div className="small text-muted-2 mt-1">
+                  <span className="fw-semibold">Remaining:</span> {metricProgressLabel}
+                </div>
+              )}
             </div>
 
             {!done && isQuantifiableTask && onLogProgress && (

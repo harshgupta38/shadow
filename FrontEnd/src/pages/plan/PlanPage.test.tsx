@@ -415,6 +415,59 @@ describe("PlanPage", () => {
 		expect(mockedPlanApi.logProgress).not.toHaveBeenCalled();
 	});
 
+	it("uses checkbox toggle for no-target day linked metrics", async () => {
+		const user = userEvent.setup();
+
+		mockedPlanApi.workspace.mockResolvedValue(
+			buildWorkspace({
+				tasks: [
+					buildTask({
+						linked_metrics: [
+							{
+								metric_id: 27,
+								label: "LeetCode POTD",
+								unit_text: "count",
+								target: null,
+								time_span: "day",
+								time_span_custom_text: null,
+								logged_total: 0,
+								is_streak_style: true,
+							},
+						],
+					}),
+				],
+			}),
+		);
+
+		mockedPlanApi.update.mockResolvedValue(
+			buildTask({
+				status: "done",
+				linked_metrics: [
+					{
+						metric_id: 27,
+						label: "LeetCode POTD",
+						unit_text: "count",
+						target: null,
+						time_span: "day",
+						time_span_custom_text: null,
+						logged_total: 1,
+						is_streak_style: true,
+					},
+				],
+			}),
+		);
+
+		renderPage();
+
+		await screen.findByRole("button", { name: "Mark as done" });
+		expect(screen.queryByText("Logged:")).not.toBeInTheDocument();
+		expect(screen.queryByLabelText("Progress amount")).not.toBeInTheDocument();
+		await user.click(await screen.findByRole("button", { name: "Mark as done" }));
+
+		expect(mockedPlanApi.update).toHaveBeenCalledWith(1, { status: "done" });
+		expect(mockedPlanApi.logProgress).not.toHaveBeenCalled();
+	});
+
 	it("uses checkbox toggle for weekly streak-linked tasks", async () => {
 		const user = userEvent.setup();
 

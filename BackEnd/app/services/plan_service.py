@@ -1025,13 +1025,15 @@ def _is_streak_style_metric_values(
     time_span: MetricTimeSpan,
     target: int | None,
 ) -> bool:
-    if target is None or target <= 0:
-        return False
     if unit not in {MetricUnit.count, MetricUnit.custom}:
         return False
     if time_span == MetricTimeSpan.day:
+        if target is None:
+            return True
         return target == 1
     if time_span == MetricTimeSpan.week:
+        if target is None or target <= 0:
+            return False
         return True
     return False
 

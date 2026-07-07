@@ -147,7 +147,14 @@ def test_notifications_flow(client: TestClient, auth_headers: dict) -> None:
 def test_push_public_key_defaults_to_not_configured(
     client: TestClient,
     auth_headers: dict,
+    monkeypatch,
 ) -> None:
+    from app.constant import settings
+
+    monkeypatch.setattr(settings, "web_push_vapid_public_key", "")
+    monkeypatch.setattr(settings, "web_push_vapid_private_key", "")
+    monkeypatch.setattr(settings, "web_push_vapid_subject", "")
+
     response = client.get("/api/notifications/push/public-key", headers=auth_headers)
     assert response.status_code == 200
     payload = response.json()

@@ -142,6 +142,12 @@ function sectionsEqual<T>(left: T, right: T): boolean {
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
+function getErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof ApiError) return error.message;
+  if (error instanceof Error && error.message.trim()) return error.message;
+  return fallback;
+}
+
 type PushDeviceStatus =
   | "checking"
   | "unsupported"
@@ -408,7 +414,7 @@ export function SettingsPage() {
       );
       toast.success("This device is ready for push. Save changes to activate account delivery.");
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Couldn't connect this device for push.");
+      toast.error(getErrorMessage(err, "Couldn't connect this device for push."));
     } finally {
       setPushSyncing(false);
     }
@@ -432,7 +438,7 @@ export function SettingsPage() {
       );
       toast.success("This device was disconnected from push notifications.");
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Couldn't disconnect this device from push.");
+      toast.error(getErrorMessage(err, "Couldn't disconnect this device from push."));
     } finally {
       setPushSyncing(false);
     }
@@ -760,14 +766,16 @@ export function SettingsPage() {
                   >
                     {pushSyncing ? "Connecting..." : "Connect this device"}
                   </button>
-                  <button
-                    type="button"
-                    className="btn btn-outline-secondary btn-sm"
-                    onClick={disconnectThisDeviceFromPush}
-                    disabled={pushSyncing || pushDeviceStatus !== "subscribed"}
-                  >
-                    Disconnect device
-                  </button>
+                  {pushDeviceStatus === "subscribed" ? (
+                    <button
+                      type="button"
+                      className="btn btn-outline-secondary btn-sm"
+                      onClick={disconnectThisDeviceFromPush}
+                      disabled={pushSyncing}
+                    >
+                      Disconnect device
+                    </button>
+                  ) : null}
                 </div>
                 <div className="text-muted-2 small">
                   For iPhone: install Shadow to Home Screen, open it from there, allow

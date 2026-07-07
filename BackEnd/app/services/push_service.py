@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import base64
 import json
 import logging
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import ec
 
 from app.constant import settings
 from app.models.push_subscription import PushSubscription
@@ -22,19 +26,87 @@ except Exception:  # pragma: no cover - graceful fallback when dependency missin
     webpush = None  # type: ignore[assignment]
 
 
+def _with_base64_padding(value: str) -> str:
+    return value + ("=" * ((4 - (len(value) % 4)) % 4))
+
+
+def _to_base64url(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).decode("ascii").rstrip("=")
+
+
+def _decode_base64_any(value: str) -> bytes | None:
+    normalized = value.strip()
+    if not normalized:
+        return None
+
+    try:
+        return base64.urlsafe_b64decode(_with_base64_padding(normalized))
+    except Exception:
+        pass
+
+    try:
+        return base64.b64decode(_with_base64_padding(normalized), validate=False)
+    except Exception:
+        return None
+
+
+def _normalize_public_key_for_browser(raw_key: str) -> str:
+    value = raw_key.strip()
+    if not value:
+        return ""
+
+    decoded = _decode_base64_any(value)
+    if decoded:
+        # Already an uncompressed P-256 point for PushManager.
+        if len(decoded) == 65 and decoded[0] == 0x04:
+            return _to_base64url(decoded)
+
+        # Support SubjectPublicKeyInfo DER keys by converting to uncompressed point.
+        try:
+            parsed = serialization.load_der_public_key(decoded)
+            if isinstance(parsed, ec.EllipticCurvePublicKey):
+                point = parsed.public_bytes(
+                    encoding=serialization.Encoding.X962,
+                    format=serialization.PublicFormat.UncompressedPoint,
+                )
+                return _to_base64url(point)
+        except Exception:
+            pass
+
+    if "BEGIN PUBLIC KEY" in value:
+        try:
+            parsed = serialization.load_pem_public_key(value.encode("utf-8"))
+            if isinstance(parsed, ec.EllipticCurvePublicKey):
+                point = parsed.public_bytes(
+                    encoding=serialization.Encoding.X962,
+                    format=serialization.PublicFormat.UncompressedPoint,
+                )
+                return _to_base64url(point)
+        except Exception:
+            pass
+
+    return value
+
+
 def _is_vapid_configured() -> bool:
+    public_key = _normalize_public_key_for_browser(settings.web_push_vapid_public_key)
     return bool(
-        settings.web_push_vapid_public_key.strip()
+        public_key
         and settings.web_push_vapid_private_key.strip()
         and settings.web_push_vapid_subject.strip()
     )
 
 
 def get_public_key_payload() -> dict[str, bool | str | None]:
-    configured = _is_vapid_configured()
+    public_key = _normalize_public_key_for_browser(settings.web_push_vapid_public_key)
+    configured = bool(
+        public_key
+        and settings.web_push_vapid_private_key.strip()
+        and settings.web_push_vapid_subject.strip()
+    )
     return {
         "configured": configured,
-        "public_key": settings.web_push_vapid_public_key.strip() or None,
+        "public_key": public_key or None,
     }
 
 

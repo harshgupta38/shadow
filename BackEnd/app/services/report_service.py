@@ -200,9 +200,23 @@ def _as_utc(value: datetime) -> datetime:
     return value.astimezone(timezone.utc)
 
 
-def _history_date(created_at: datetime, timezone_name: str) -> date:
+def _created_history_date(created_at: datetime, timezone_name: str) -> date:
     tz = _safe_timezone(timezone_name)
     return _as_utc(created_at).astimezone(tz).date()
+
+
+def _period_history_date(report: Report) -> date:
+    if report.period == ReportPeriod.weekly:
+        return _as_utc(report.period_end).date()
+    return _as_utc(report.period_start).date()
+
+
+def _report_history_date(report: Report, timezone_name: str) -> date:
+    # Automatic reports should stay anchored to the report's target period date,
+    # even if generation completes after local midnight.
+    if report.source == ReportSource.automatic:
+        return _period_history_date(report)
+    return _created_history_date(report.created_at, timezone_name)
 
 
 def _narrative_snippet(text: str | None, *, limit: int = 180) -> str | None:
@@ -604,7 +618,7 @@ def list_report_history(
 ) -> list[dict]:
     grouped: dict[date, list[Report]] = {}
     for report in list_reports(db, user, period=period):
-        key = _history_date(report.created_at, user.timezone)
+        key = _report_history_date(report, user.timezone)
         grouped.setdefault(key, []).append(report)
 
     cards: list[dict] = []
@@ -639,7 +653,7 @@ def list_report_versions_for_date(
     versions = [
         report
         for report in list_reports(db, user, period=period)
-        if _history_date(report.created_at, user.timezone) == history_date
+        if _report_history_date(report, user.timezone) == history_date
     ]
     versions.sort(key=lambda row: _as_utc(row.created_at))
     return versions

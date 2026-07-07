@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 
 from fastapi.testclient import TestClient
 
 from app.api.deps import get_provider
+from app.database import SessionLocal
 from app.llm.base import LLMMessage, LLMProvider
+from app.llm.factory import get_llm_provider
 from app.main import app
+from app.models.enums import ReportPeriod, ReportSource
+from app.models.user import User
+from app.services import report_service
 
 
 class ModelCaptureProvider(LLMProvider):
@@ -844,6 +849,45 @@ def test_report_history_groups_versions_by_date(client: TestClient, auth_headers
     version_rows = versions.json()
     assert len(version_rows) == 3
     assert all(row["source"] == "manual" for row in version_rows)
+
+
+def test_automatic_report_history_date_uses_period_date_not_created_at(
+    client: TestClient,
+    auth_headers: dict,
+) -> None:
+    me = client.get("/api/auth/me", headers=auth_headers)
+    assert me.status_code == 200
+    user_id = int(me.json()["id"])
+
+    target_date = date.today() - timedelta(days=1)
+
+    with SessionLocal() as db:
+        user = db.get(User, user_id)
+        assert user is not None
+
+        report_service.generate_report(
+            db,
+            user,
+            get_llm_provider(),
+            period=ReportPeriod.daily,
+            on_date=target_date,
+            source=ReportSource.automatic,
+        )
+
+    history = client.get("/api/reports/history", headers=auth_headers)
+    assert history.status_code == 200
+    history_rows = history.json()
+    assert len(history_rows) == 1
+    assert history_rows[0]["history_date"] == target_date.isoformat()
+
+    versions = client.get(
+        f"/api/reports/history/{target_date.isoformat()}",
+        headers=auth_headers,
+    )
+    assert versions.status_code == 200
+    version_rows = versions.json()
+    assert len(version_rows) == 1
+    assert version_rows[0]["source"] == "automatic"
 
 
 def test_delete_report_version_removes_only_selected_version(

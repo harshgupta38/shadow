@@ -112,10 +112,22 @@ export function TaskItem({
     metricTarget != null
       ? Math.max(metricTarget - metricLoggedTotal, 0)
       : null;
+  const metricExtraValue =
+    metricTarget != null
+      ? Math.max(metricLoggedTotal - metricTarget, 0)
+      : null;
   const metricProgressLabel =
     primaryLinkedMetric == null || metricTarget == null
       ? null
       : `${formatAmount(metricRemainingValue ?? 0)} ${metricUnitText}`;
+  const metricCelebrationText =
+    metricTarget == null
+      ? null
+      : metricExtraValue != null && metricExtraValue > 0
+        ? `Awesome, you are killing it by doing extra ${formatAmount(metricExtraValue)}.`
+        : metricRemainingValue === 0
+          ? "Well done, you reached your daily target"
+          : null;
 
   useEffect(() => {
     if (!primaryLinkedMetric) {
@@ -238,9 +250,14 @@ export function TaskItem({
                   <span className="fw-semibold">Remaining:</span> {metricProgressLabel}
                 </div>
               )}
+              {metricCelebrationText && (
+                <div className="small fw-semibold mt-1" style={{ color: "var(--bs-success)" }}>
+                  {metricCelebrationText}
+                </div>
+              )}
             </div>
 
-            {!done && isQuantifiableTask && onLogProgress && (
+            {isQuantifiableTask && onLogProgress && (
               <div className="d-flex align-items-center gap-2 flex-wrap mt-2 mt-xl-0 flex-shrink-0">
                 <input
                   type="number"

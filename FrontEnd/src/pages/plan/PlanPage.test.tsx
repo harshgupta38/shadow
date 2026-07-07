@@ -370,6 +370,72 @@ describe("PlanPage", () => {
 		});
 	});
 
+	it("allows editing progress for completed quantifiable tasks", async () => {
+		const user = userEvent.setup();
+
+		mockedPlanApi.workspace.mockResolvedValue(
+			buildWorkspace({
+				tasks: [
+					buildTask({
+						status: "done",
+						linked_metrics: [
+							{
+								metric_id: 11,
+								label: "Problems solved",
+								unit_text: "problems",
+								target: 10,
+								time_span: "day",
+								time_span_custom_text: null,
+								logged_total: 10,
+							},
+						],
+					}),
+				],
+			}),
+		);
+
+		mockedPlanApi.logProgress.mockResolvedValue(
+			buildWorkspace({
+				tasks: [
+					buildTask({
+						id: 1,
+						status: "done",
+						linked_metrics: [
+							{
+								metric_id: 11,
+								label: "Problems solved",
+								unit_text: "problems",
+								target: 10,
+								time_span: "day",
+								time_span_custom_text: null,
+								logged_total: 12,
+							},
+						],
+					}),
+				],
+			}),
+		);
+
+		renderPage();
+
+		const amountInput = await screen.findByLabelText("Progress amount");
+		expect((amountInput as HTMLInputElement).value).toBe("10");
+		expect(screen.getByText("Well done, you reached your daily target")).toBeInTheDocument();
+		expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
+		await user.clear(amountInput);
+		await user.type(amountInput, "12");
+		await user.click(await screen.findByRole("button", { name: "Save" }));
+		expect(
+			await screen.findByText("Awesome, you are killing it by doing extra 2."),
+		).toBeInTheDocument();
+
+		expect(mockedPlanApi.logProgress).toHaveBeenCalledWith(1, {
+			value: 12,
+			mode: "set",
+			metric_id: 11,
+		});
+	});
+
 	it("uses checkbox toggle for 1/day streak-linked tasks", async () => {
 		const user = userEvent.setup();
 

@@ -644,4 +644,11 @@ describe("SettingsPage", () => {
       expect(screen.getByRole("button", { name: "Saved" })).toBeDisabled();
     });
   });
+
+  it("shows an automation entry linking to the dedicated automation page", async () => {
+    renderPage();
+
+    const link = await screen.findByRole("link", { name: "Show automation" });
+    expect(link).toHaveAttribute("href", "/automation");
+  });
 });

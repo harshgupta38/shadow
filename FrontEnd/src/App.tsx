@@ -7,6 +7,7 @@ import { RegisterPage } from "@/pages/auth/RegisterPage";
 import { VerifyEmailPage } from "@/pages/auth/VerifyEmailPage";
 import { ChatPage } from "@/pages/chat/ChatPage";
 import { DashboardPage } from "@/pages/dashboard/DashboardPage";
+import { AutomationPage } from "@/pages/automation/AutomationPage";
 import { GoalDetailPage } from "@/pages/goals/GoalDetailPage";
 import { GoalsPage } from "@/pages/goals/GoalsPage";
 import { JournalPage } from "@/pages/journal/JournalPage";
@@ -56,6 +57,7 @@ export default function App() {
           <Route path="/track" element={<TrackPage />} />
           <Route path="/reports" element={<ReportsPage />} />
           <Route path="/reports/day/:historyDate" element={<ReportViewerPage />} />
+          <Route path="/automation" element={<AutomationPage />} />
           <Route path="/assistant" element={<ChatPage />} />
           <Route path="/journal" element={<JournalPage />} />
           <Route path="/notifications" element={<NotificationsPage />} />

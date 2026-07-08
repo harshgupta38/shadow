@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta, timezone
 import re
 from typing import Any
@@ -13,6 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.constant import settings
+from app.models.enums import AIResponseLength, AIPersonality
 from app.models.user import User
 from app.models.user_setting import UserSetting
 from app.schemas.settings import (
@@ -55,6 +57,82 @@ _DEFAULT_IST_SUNRISE_MINUTE = 0
 _DEFAULT_IST_SUNSET_HOUR = 18
 _DEFAULT_IST_SUNSET_MINUTE = 30
 
+_AI_RESPONSE_MAX_TOKENS: dict[AIResponseLength, int] = {
+    AIResponseLength.short: 240,
+    AIResponseLength.balanced: 480,
+    AIResponseLength.detailed: 820,
+    AIResponseLength.very_detailed: 1200,
+}
+
+_AI_ACTIONS_MAX_TOKENS: dict[AIResponseLength, int] = {
+    AIResponseLength.short: 220,
+    AIResponseLength.balanced: 420,
+    AIResponseLength.detailed: 640,
+    AIResponseLength.very_detailed: 780,
+}
+
+_AI_REPORT_NARRATIVE_MAX_TOKENS: dict[AIResponseLength, int] = {
+    AIResponseLength.short: 220,
+    AIResponseLength.balanced: 360,
+    AIResponseLength.detailed: 520,
+    AIResponseLength.very_detailed: 700,
+}
+
+_AI_REPORT_NEXT_STEPS_MAX_TOKENS: dict[AIResponseLength, int] = {
+    AIResponseLength.short: 160,
+    AIResponseLength.balanced: 240,
+    AIResponseLength.detailed: 320,
+    AIResponseLength.very_detailed: 420,
+}
+
+_AI_RESPONSE_LENGTH_INSTRUCTIONS: dict[AIResponseLength, str] = {
+    AIResponseLength.short: (
+        "Keep responses compact and high-signal. Prefer 3-5 concise sentences unless the user "
+        "asks for depth."
+    ),
+    AIResponseLength.balanced: (
+        "Keep responses practical and clear. Prefer 5-8 sentences with direct recommendations."
+    ),
+    AIResponseLength.detailed: (
+        "Provide deeper explanations with concrete reasoning and examples. Prefer 8-12 sentences "
+        "when useful."
+    ),
+    AIResponseLength.very_detailed: (
+        "Provide thorough, structured guidance with clear rationale and trade-offs. Use detailed "
+        "responses when it improves outcomes."
+    ),
+}
+
+_AI_PERSONALITY_STYLE_INSTRUCTIONS: dict[AIPersonality, str] = {
+    AIPersonality.professional: (
+        "Tone: professional and direct. Use precise language and avoid filler."
+    ),
+    AIPersonality.friendly: (
+        "Tone: warm and supportive. Keep language approachable while still actionable."
+    ),
+    AIPersonality.coach: (
+        "Tone: accountability coach. Be motivating, outcome-focused, and action-oriented."
+    ),
+    AIPersonality.teacher: (
+        "Tone: teacher. Explain clearly, break concepts into steps, and check assumptions."
+    ),
+    AIPersonality.mentor: (
+        "Tone: mentor. Give pragmatic guidance with context, trade-offs, and next best steps."
+    ),
+    AIPersonality.minimal: (
+        "Tone: minimal. Keep responses very short and focused on essential actions only."
+    ),
+}
+
+
+@dataclass(frozen=True)
+class AIRuntimeControls:
+    response_max_tokens: int
+    actions_max_tokens: int
+    report_narrative_max_tokens: int
+    report_next_steps_max_tokens: int
+    response_style_instruction: str
+
 
 def normalize_ai_default_model(value: str | None) -> str:
     """Normalize user-entered model aliases to canonical slug form.
@@ -92,6 +170,50 @@ def get_effective_ai_model(db: Session, user: User) -> str | None:
     """Return the model override to pass to providers for this user."""
     settings = _get_or_create_settings(db, user)
     return resolve_runtime_ai_model(settings.ai_default_model)
+
+
+def build_ai_runtime_controls(user_settings: UserSetting) -> AIRuntimeControls:
+    """Map persisted AI settings into strict runtime controls."""
+    response_length = user_settings.ai_response_length
+    personality = user_settings.ai_personality
+
+    response_length_instruction = _AI_RESPONSE_LENGTH_INSTRUCTIONS.get(
+        response_length,
+        _AI_RESPONSE_LENGTH_INSTRUCTIONS[AIResponseLength.balanced],
+    )
+    personality_instruction = _AI_PERSONALITY_STYLE_INSTRUCTIONS.get(
+        personality,
+        _AI_PERSONALITY_STYLE_INSTRUCTIONS[AIPersonality.coach],
+    )
+
+    return AIRuntimeControls(
+        response_max_tokens=_AI_RESPONSE_MAX_TOKENS.get(
+            response_length,
+            _AI_RESPONSE_MAX_TOKENS[AIResponseLength.balanced],
+        ),
+        actions_max_tokens=_AI_ACTIONS_MAX_TOKENS.get(
+            response_length,
+            _AI_ACTIONS_MAX_TOKENS[AIResponseLength.balanced],
+        ),
+        report_narrative_max_tokens=_AI_REPORT_NARRATIVE_MAX_TOKENS.get(
+            response_length,
+            _AI_REPORT_NARRATIVE_MAX_TOKENS[AIResponseLength.balanced],
+        ),
+        report_next_steps_max_tokens=_AI_REPORT_NEXT_STEPS_MAX_TOKENS.get(
+            response_length,
+            _AI_REPORT_NEXT_STEPS_MAX_TOKENS[AIResponseLength.balanced],
+        ),
+        response_style_instruction=(
+            f"{personality_instruction}\n"
+            f"Response length preference: {response_length_instruction}"
+        ),
+    )
+
+
+def get_ai_runtime_controls(db: Session, user: User) -> AIRuntimeControls:
+    """Return strict AI runtime controls for the given user."""
+    user_settings = _get_or_create_settings(db, user)
+    return build_ai_runtime_controls(user_settings)
 
 
 def _get_or_create_settings(db: Session, user: User) -> UserSetting:

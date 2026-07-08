@@ -31,6 +31,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Pill } from "@/components/ui/Pill";
 import { SectionCard } from "@/components/ui/SectionCard";
 import { useAuth } from "@/context/AuthContext";
+import { emitRuntimeSettingsUpdated } from "@/context/RuntimeSettingsContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useToast } from "@/context/ToastContext";
 import { useAsync } from "@/hooks/useAsync";
@@ -630,6 +631,8 @@ export function SettingsPage() {
         const normalized = normalizeSettingsForEditor(updated);
         const field = SECTION_FIELD_BY_SAVE_KEY[section];
         const savedSectionValue = normalized[field];
+
+        emitRuntimeSettingsUpdated(normalized);
 
         setBaseline((prev) => (prev ? { ...prev, [field]: savedSectionValue } : prev));
         setDraft((prev) => (prev ? { ...prev, [field]: savedSectionValue } : prev));

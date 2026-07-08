@@ -760,7 +760,7 @@ describe("SettingsPage", () => {
   it("shows an automation entry linking to the dedicated automation page", async () => {
     renderPage();
 
-    const link = await screen.findByRole("link", { name: "Show automation" });
+    const link = await screen.findByRole("link", { name: "Show automations" });
     expect(link).toHaveAttribute("href", "/automation");
   });
 });

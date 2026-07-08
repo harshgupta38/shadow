@@ -155,13 +155,17 @@ def generate_chat_reply(
     history: list[LLMMessage],
     user_context: str = "",
     response_format_hint: str | None = None,
+    response_style_instruction: str | None = None,
+    max_tokens: int | None = None,
     model: str | None = None,
 ) -> str:
     """Produce an assistant reply for a chat session."""
     system = _with_context(system_prompt(agent_type), user_context)
+    if response_style_instruction:
+        system = f"{system}\n\n# Runtime response style\n{response_style_instruction.strip()}"
     if response_format_hint:
         system = f"{system}\n\n# Chat response contract\n{response_format_hint.strip()}"
-    return provider.generate(history, system=system, model=model).strip()
+    return provider.generate(history, system=system, max_tokens=max_tokens, model=model).strip()
 
 
 def generate_chat_title(
@@ -199,6 +203,7 @@ def propose_chat_actions(
     agent_type: AgentType,
     history: list[LLMMessage],
     user_context: str = "",
+    max_tokens: int | None = None,
     model: str | None = None,
 ) -> str:
     """Propose structured app actions from the latest chat turn as JSON text."""
@@ -235,7 +240,7 @@ def propose_chat_actions(
         [*recent_history, LLMMessage("user", prompt)],
         system=system,
         temperature=0.1,
-        max_tokens=420,
+        max_tokens=max_tokens if max_tokens is not None else 420,
         model=model,
     ).strip()
 
@@ -760,10 +765,15 @@ def generate_report_narrative(
     *,
     metrics_summary: str,
     user_context: str = "",
+    response_style_instruction: str | None = None,
+    narrative_max_tokens: int | None = None,
+    next_steps_max_tokens: int | None = None,
     model: str | None = None,
 ) -> tuple[str, str]:
     """Return ``(narrative, next_steps)`` for a progress report."""
     system = _with_context(system_prompt(AgentType.progress_analyst), user_context)
+    if response_style_instruction:
+        system = f"{system}\n\n# Runtime response style\n{response_style_instruction.strip()}"
     narrative = provider.generate(
         [
             LLMMessage(
@@ -774,6 +784,7 @@ def generate_report_narrative(
         ],
         system=system,
         temperature=0.5,
+        max_tokens=narrative_max_tokens,
         model=model,
     ).strip()
     next_steps = provider.generate(
@@ -786,6 +797,7 @@ def generate_report_narrative(
         ],
         system=system,
         temperature=0.5,
+        max_tokens=next_steps_max_tokens,
         model=model,
     ).strip()
     return narrative, next_steps

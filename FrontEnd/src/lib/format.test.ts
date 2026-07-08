@@ -1,16 +1,25 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
 import {
   clampPercent,
   compactNumber,
   dueLabel,
+  formatDate,
+  formatDateTime,
   formatMetricValue,
   formatMinutes,
+  formatTime,
+  getRuntimeFormatPreferences,
   greeting,
   initials,
   relativeTime,
+  setRuntimeFormatPreferences,
   toISODate,
 } from "./format";
+
+beforeEach(() => {
+  setRuntimeFormatPreferences(null);
+});
 
 describe("toISODate", () => {
   it("formats a date as local YYYY-MM-DD", () => {
@@ -32,6 +41,51 @@ describe("compactNumber", () => {
   it("keeps small integers as-is and compacts large numbers", () => {
     expect(compactNumber(42)).toBe("42");
     expect(compactNumber(1500)).toBe("1.5K");
+  });
+});
+
+describe("runtime format preferences", () => {
+  it("uses dd/mm/yyyy by default", () => {
+    expect(formatDate(new Date(2026, 6, 1))).toBe("01/07/2026");
+  });
+
+  it("supports mm/dd/yyyy and yyyy-mm-dd date formats", () => {
+    setRuntimeFormatPreferences({ dateFormat: "mm/dd/yyyy" });
+    expect(formatDate(new Date(2026, 6, 1))).toBe("07/01/2026");
+
+    setRuntimeFormatPreferences({ dateFormat: "yyyy-mm-dd" });
+    expect(formatDate(new Date(2026, 6, 1))).toBe("2026-07-01");
+  });
+
+  it("supports 12h and 24h time formats", () => {
+    const sample = new Date(2026, 6, 1, 13, 5);
+
+    setRuntimeFormatPreferences({ timeFormat: "24h" });
+    expect(formatTime(sample)).toBe("13:05");
+
+    setRuntimeFormatPreferences({ timeFormat: "12h" });
+    expect(formatTime(sample)).toMatch(/1:05/);
+  });
+
+  it("formats date time with active preferences", () => {
+    const sample = new Date(2026, 6, 1, 13, 5);
+    setRuntimeFormatPreferences({ dateFormat: "yyyy-mm-dd", timeFormat: "24h" });
+
+    expect(formatDateTime(sample)).toBe("2026-07-01 · 13:05");
+  });
+
+  it("can read currently active runtime preferences", () => {
+    setRuntimeFormatPreferences({
+      dateFormat: "yyyy-mm-dd",
+      timeFormat: "24h",
+      weekStartsOn: "sunday",
+    });
+
+    expect(getRuntimeFormatPreferences()).toEqual({
+      dateFormat: "yyyy-mm-dd",
+      timeFormat: "24h",
+      weekStartsOn: "sunday",
+    });
   });
 });
 

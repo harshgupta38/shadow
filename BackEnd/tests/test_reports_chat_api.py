@@ -33,6 +33,35 @@ class ModelCaptureProvider(LLMProvider):
         return "Captured response"
 
 
+class RuntimeControlCaptureProvider(LLMProvider):
+    def __init__(self) -> None:
+        self.calls: list[dict[str, object]] = []
+
+    def generate(
+        self,
+        messages: list[LLMMessage],
+        *,
+        system: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+        model: str | None = None,
+    ) -> str:
+        prompt = messages[-1].content if messages else ""
+        self.calls.append(
+            {
+                "prompt": prompt,
+                "system": system or "",
+                "max_tokens": max_tokens,
+                "model": model,
+            }
+        )
+        if max_tokens == 24:
+            return "Runtime Title"
+        if "Return valid JSON only" in prompt:
+            return '{"actions":[]}'
+        return "Runtime reply"
+
+
 class TitleProvider(LLMProvider):
     def __init__(self) -> None:
         self.calls = 0
@@ -1580,6 +1609,115 @@ def test_report_next_steps_respect_ai_suggestions_setting(
     )
     assert report.status_code == 200
     assert report.json()["next_steps"] == "Suggestions are disabled in AI behavior settings."
+
+
+def test_chat_proposed_actions_respect_ai_suggestions_setting(
+    client: TestClient,
+    auth_headers: dict,
+) -> None:
+    provider = MarkdownPlusJsonReplyProvider()
+    app.dependency_overrides[get_provider] = lambda: provider
+
+    try:
+        toggled = client.put(
+            "/api/settings/ai-behavior",
+            headers=auth_headers,
+            json={"ai_suggestions_enabled": False},
+        )
+        assert toggled.status_code == 200
+
+        session = client.post(
+            "/api/chat/sessions",
+            headers=auth_headers,
+            json={"agent_type": "general", "title": "Suggestions off"},
+        ).json()
+
+        response = client.post(
+            f"/api/chat/sessions/{session['id']}/messages",
+            headers=auth_headers,
+            json={"content": "Plan my week"},
+        )
+        assert response.status_code == 200
+        assert response.json()["proposed_actions"] == []
+    finally:
+        app.dependency_overrides.pop(get_provider, None)
+
+
+def test_chat_plan_actions_respect_smart_planning_setting(
+    client: TestClient,
+    auth_headers: dict,
+) -> None:
+    provider = ActionProposalProvider()
+    app.dependency_overrides[get_provider] = lambda: provider
+
+    try:
+        toggled = client.put(
+            "/api/settings/ai-behavior",
+            headers=auth_headers,
+            json={"smart_planning_enabled": False, "ai_suggestions_enabled": True},
+        )
+        assert toggled.status_code == 200
+
+        session = client.post(
+            "/api/chat/sessions",
+            headers=auth_headers,
+            json={"agent_type": "general", "title": "Planning off"},
+        ).json()
+
+        response = client.post(
+            f"/api/chat/sessions/{session['id']}/messages",
+            headers=auth_headers,
+            json={"content": "Please add a deep work plan task for today."},
+        )
+        assert response.status_code == 200
+        actions = response.json()["proposed_actions"]
+        assert all(action["module"] != "plan" for action in actions)
+    finally:
+        app.dependency_overrides.pop(get_provider, None)
+
+
+def test_chat_runtime_response_controls_apply_token_budget_and_style(
+    client: TestClient,
+    auth_headers: dict,
+) -> None:
+    provider = RuntimeControlCaptureProvider()
+    app.dependency_overrides[get_provider] = lambda: provider
+
+    try:
+        toggled = client.put(
+            "/api/settings/ai-behavior",
+            headers=auth_headers,
+            json={"ai_response_length": "short", "ai_personality": "mentor"},
+        )
+        assert toggled.status_code == 200
+
+        session = client.post(
+            "/api/chat/sessions",
+            headers=auth_headers,
+            json={"agent_type": "general", "title": "Runtime controls"},
+        ).json()
+
+        response = client.post(
+            f"/api/chat/sessions/{session['id']}/messages",
+            headers=auth_headers,
+            json={"content": "hello runtime controls"},
+        )
+        assert response.status_code == 200
+
+        chat_call = next(
+            call for call in provider.calls if call["prompt"] == "hello runtime controls"
+        )
+        assert chat_call["max_tokens"] == 240
+        assert "tone: mentor" in str(chat_call["system"]).lower()
+
+        action_call = next(
+            call
+            for call in provider.calls
+            if "Inspect this conversation and propose follow-up in-app actions." in str(call["prompt"])
+        )
+        assert action_call["max_tokens"] == 220
+    finally:
+        app.dependency_overrides.pop(get_provider, None)
 
 
 def test_chat_uses_normalized_model_override(client: TestClient, auth_headers: dict) -> None:

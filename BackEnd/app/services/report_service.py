@@ -577,11 +577,15 @@ def generate_report(
     summary_text = _summary_text(metrics_json, period, start_d, end_d)
 
     preferred_model = settings_service.resolve_runtime_ai_model(user_settings.ai_default_model)
+    ai_runtime = settings_service.build_ai_runtime_controls(user_settings)
 
     narrative, next_steps = generate_report_narrative(
         provider,
         metrics_summary=summary_text,
         user_context=compile_user_context(db, user),
+        response_style_instruction=ai_runtime.response_style_instruction,
+        narrative_max_tokens=ai_runtime.report_narrative_max_tokens,
+        next_steps_max_tokens=ai_runtime.report_next_steps_max_tokens,
         model=preferred_model,
     )
     if not user_settings.ai_suggestions_enabled:

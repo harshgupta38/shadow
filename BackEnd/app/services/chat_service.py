@@ -1974,7 +1974,9 @@ def send_message(
         )
     )
     history = [LLMMessage(role=row.role.value, content=row.content) for row in history_rows]
-    preferred_model = settings_service.get_effective_ai_model(db, user)
+    user_settings = settings_service.get_user_settings_row(db, user)
+    ai_runtime = settings_service.build_ai_runtime_controls(user_settings)
+    preferred_model = settings_service.resolve_runtime_ai_model(user_settings.ai_default_model)
     session_in_goal_discovery_mode = _session_has_goal_discovery_seed(history_rows)
     session_in_goal_repetitive_mode = _session_has_goal_repetitive_seed(history_rows)
     use_fresh_intake_context = fresh_intake_mode or session_in_goal_discovery_mode
@@ -1995,6 +1997,8 @@ def send_message(
             history=history,
             user_context=user_context,
             response_format_hint=_chat_response_format_hint(session.agent_type),
+            response_style_instruction=ai_runtime.response_style_instruction,
+            max_tokens=ai_runtime.response_max_tokens,
             model=preferred_model,
         )
         reply, structured_reply_payload = _extract_assistant_structured_payload(raw_reply)
@@ -2025,7 +2029,7 @@ def send_message(
             logger.warning("Failed to auto-generate chat title for session_id=%s", session.id)
 
     proposed_actions: list[AssistantProposedAction] = []
-    if used_model_reply:
+    if used_model_reply and user_settings.ai_suggestions_enabled:
         proposed_actions = _parse_structured_reply_actions(structured_reply_payload)
         if structured_reply_payload is None:
             raw_actions = ""
@@ -2035,6 +2039,7 @@ def send_message(
                     agent_type=session.agent_type,
                     history=reply_history,
                     user_context=user_context,
+                    max_tokens=ai_runtime.actions_max_tokens,
                     model=preferred_model,
                 )
             except Exception:
@@ -2120,6 +2125,13 @@ def send_message(
                 "Failed to synthesize goal repetitive task actions for session_id=%s",
                 session.id,
             )
+
+        if not user_settings.smart_planning_enabled:
+            proposed_actions = [
+                action
+                for action in proposed_actions
+                if action.module != AssistantActionModule.plan
+            ]
 
     db.commit()
     db.refresh(assistant_message)

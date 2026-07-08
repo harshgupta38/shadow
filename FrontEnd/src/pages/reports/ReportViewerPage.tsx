@@ -19,21 +19,11 @@ import { Pill } from "@/components/ui/Pill";
 import { SectionCard } from "@/components/ui/SectionCard";
 import { useToast } from "@/context/ToastContext";
 import { useAsync } from "@/hooks/useAsync";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatTime } from "@/lib/format";
 
 function parseReportPeriod(value: string | null): ReportPeriod | undefined {
   if (value === "daily" || value === "weekly") return value;
   return undefined;
-}
-
-function formatTimeOnly(input?: string | Date | null): string {
-  if (!input) return "";
-  const date = typeof input === "string" ? new Date(input) : input;
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleTimeString(undefined, {
-    hour: "numeric",
-    minute: "2-digit",
-  });
 }
 
 function reportTitle(report: Report | null): string {
@@ -97,7 +87,7 @@ export function ReportViewerPage() {
 
   const metaDate = useMemo(() => {
     if (!current) return "";
-    return `${formatDate(current.created_at)} • ${formatTimeOnly(current.created_at)}`;
+    return `${formatDate(current.created_at)} • ${formatTime(current.created_at)}`;
   }, [current]);
 
   function gotoIndex(nextIndex: number) {

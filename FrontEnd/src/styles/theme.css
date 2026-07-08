@@ -34,6 +34,7 @@
   /* Typography */
   --jv-font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --jv-font-display: "Sora", var(--jv-font-sans);
+  --shadow-font-scale-percent: 100;
 }
 
 /* ----------------------------------------------------------------------------
@@ -118,6 +119,40 @@
   --bs-primary-rgb: 139, 125, 255;
   --bs-link-color: var(--jv-brand-1);
   --bs-link-hover-color: #a99dff;
+}
+
+/* ----------------------------------------------------------------------------
+   3b. Accessibility overlays
+   -------------------------------------------------------------------------- */
+[data-bs-theme="light"][data-high-contrast="true"] {
+  --jv-text: #0f1117;
+  --jv-muted: #374151;
+  --jv-faint: #4b5563;
+  --jv-border: #c7ccd8;
+  --jv-border-strong: #9aa3b5;
+  --jv-surface: #ffffff;
+  --jv-surface-2: #f4f6fb;
+  --jv-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+[data-bs-theme="dark"][data-high-contrast="true"] {
+  --jv-text: #ffffff;
+  --jv-muted: #d1d9e6;
+  --jv-faint: #b3bfd3;
+  --jv-border: #4a556f;
+  --jv-border-strong: #6b7896;
+  --jv-surface: #111522;
+  --jv-surface-2: #171d2d;
+  --jv-shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 10px 30px rgba(0, 0, 0, 0.65);
+}
+
+html[data-reduced-motion="true"] *,
+html[data-reduced-motion="true"] *::before,
+html[data-reduced-motion="true"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
 }
 
 /* ----------------------------------------------------------------------------

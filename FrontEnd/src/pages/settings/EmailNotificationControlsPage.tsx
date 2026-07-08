@@ -25,6 +25,7 @@ type EmailPreferenceKey =
   | "password_changed_alert"
   | "new_device_alert"
   | "task_reminders"
+  | "today_plan_generated"
   | "daily_motivational_quote"
   | "daily_brief"
   | "weekly_summary"
@@ -83,7 +84,7 @@ const CATEGORY_META: Array<{
   {
     id: "reports_insights",
     title: "Reports and insights",
-    subtitle: "Updates when summaries and analyses are ready.",
+    subtitle: "Receive full report emails and AI insights in your inbox.",
     icon: <FileEarmarkBarGraphFill size={16} />,
   },
   {
@@ -121,6 +122,13 @@ const EMAIL_PREFERENCE_DEFS: EmailPreferenceDefinition[] = [
     category: "planning_reminders",
     label: "Task reminders",
     description: "Email reminders for scheduled task times.",
+    defaultEnabled: true,
+  },
+  {
+    key: "today_plan_generated",
+    category: "planning_reminders",
+    label: "Today's generated plan",
+    description: "Email today's full generated plan when Shadow creates it.",
     defaultEnabled: true,
   },
   {
@@ -168,15 +176,15 @@ const EMAIL_PREFERENCE_DEFS: EmailPreferenceDefinition[] = [
   {
     key: "daily_report_ready",
     category: "reports_insights",
-    label: "Daily report ready",
-    description: "Notification when your daily report is generated.",
+    label: "Daily report",
+    description: "Email your daily report as soon as it is generated.",
     defaultEnabled: true,
   },
   {
     key: "weekly_report_ready",
     category: "reports_insights",
-    label: "Weekly report ready",
-    description: "Notification when your weekly report is generated.",
+    label: "Weekly report",
+    description: "Email your weekly report as soon as it is generated.",
     defaultEnabled: true,
   },
   {

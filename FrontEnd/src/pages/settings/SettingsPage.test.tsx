@@ -741,6 +741,18 @@ describe("SettingsPage", () => {
     });
   });
 
+  it("shows email control CTA only after enabling email notifications", async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    expect(screen.queryByRole("link", { name: "Control what you see" })).not.toBeInTheDocument();
+
+    await user.click(await screen.findByLabelText("Email notifications"));
+
+    const cta = await screen.findByRole("link", { name: "Control what you see" });
+    expect(cta).toHaveAttribute("href", "/settings/email-controls");
+  });
+
   it("shows an automation entry linking to the dedicated automation page", async () => {
     renderPage();
 

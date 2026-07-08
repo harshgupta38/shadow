@@ -21,6 +21,7 @@ import { RepetitiveTasksPage } from "@/pages/repetitiveTasks/RepetitiveTasksPage
 import { ReportsPage } from "@/pages/reports/ReportsPage";
 import { ReportViewerPage } from "@/pages/reports/ReportViewerPage";
 import { SchedulePage } from "@/pages/schedule/SchedulePage";
+import { EmailNotificationControlsPage } from "@/pages/settings/EmailNotificationControlsPage";
 import { SettingsPage } from "@/pages/settings/SettingsPage";
 import { TrackPage } from "@/pages/track/TrackPage";
 
@@ -64,6 +65,7 @@ export default function App() {
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/memory-center" element={<MemoryCenterPage />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/settings/email-controls" element={<EmailNotificationControlsPage />} />
         </Route>
       </Route>
 

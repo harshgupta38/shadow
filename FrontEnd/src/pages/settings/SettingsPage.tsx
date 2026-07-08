@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import {
   BellFill,
@@ -262,9 +262,10 @@ interface ToggleRowProps {
   description: string;
   checked: boolean;
   onChange: (checked: boolean) => void;
+  extraContent?: ReactNode;
 }
 
-function ToggleRow({ id, label, description, checked, onChange }: ToggleRowProps) {
+function ToggleRow({ id, label, description, checked, onChange, extraContent }: ToggleRowProps) {
   return (
     <div className="d-flex align-items-start justify-content-between gap-3 surface-2 p-3">
       <div>
@@ -272,6 +273,7 @@ function ToggleRow({ id, label, description, checked, onChange }: ToggleRowProps
           {label}
         </label>
         <div className="text-muted-2 small">{description}</div>
+        {extraContent ? <div className="mt-2">{extraContent}</div> : null}
       </div>
       <div className="form-check form-switch m-0 pt-1">
         <input
@@ -961,6 +963,13 @@ export function SettingsPage() {
                         }
                       : prev,
                   )
+                }
+                extraContent={
+                  draft.notifications.email_notifications_enabled ? (
+                    <Link to="/settings/email-controls" className="btn btn-outline-secondary btn-sm">
+                      Control what you see
+                    </Link>
+                  ) : null
                 }
               />
               <ToggleRow

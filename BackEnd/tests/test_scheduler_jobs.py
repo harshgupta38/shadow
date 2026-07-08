@@ -54,6 +54,58 @@ def test_enqueue_weekly_summaries_catches_up_after_target_time(
     assert any(row["title"] == "Weekly Summary" for row in rows)
 
 
+def test_enqueue_daily_motivational_quotes_sends_once_per_day(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    monkeypatch,
+) -> None:
+    enabled = client.put(
+        "/api/settings/notifications",
+        headers=auth_headers,
+        json={"email_notifications_enabled": True},
+    )
+    assert enabled.status_code == 200
+
+    controls = client.put(
+        "/api/settings/email-notifications",
+        headers=auth_headers,
+        json={
+            "daily_motivational_quote": True,
+            "daily_motivational_quote_time": "07:00",
+        },
+    )
+    assert controls.status_code == 200
+
+    calls: list[dict[str, object]] = []
+
+    def _fake_send_notification_email(db, user, *, template_key, context=None, force=False):
+        calls.append(
+            {
+                "user_id": user.id,
+                "template_key": template_key,
+                "force": force,
+            }
+        )
+        return True
+
+    monkeypatch.setattr(
+        scheduler_jobs.email_notification_service,
+        "send_notification_email",
+        _fake_send_notification_email,
+    )
+
+    created = scheduler_jobs.enqueue_daily_motivational_quotes(
+        now_utc=datetime(2026, 7, 5, 1, 31, tzinfo=timezone.utc),
+    )
+    assert created == 1
+    assert any(call["template_key"] == "daily_motivational_quote" for call in calls)
+
+    created_again = scheduler_jobs.enqueue_daily_motivational_quotes(
+        now_utc=datetime(2026, 7, 5, 1, 45, tzinfo=timezone.utc),
+    )
+    assert created_again == 0
+
+
 def test_enqueue_daily_reports_generates_once_per_day(
     client: TestClient,
     auth_headers: dict[str, str],

@@ -173,6 +173,31 @@ def test_settings_endpoints_and_theme_sync(client, auth_headers):
     assert notifications_json["email_notifications_enabled"] is True
     assert notifications_json["weekly_summary_enabled"] is False
 
+    email_controls_initial = client.get("/api/settings/email-notifications", headers=auth_headers)
+    assert email_controls_initial.status_code == 200
+    assert "task_reminders" in email_controls_initial.json()
+
+    email_controls_updated = client.put(
+        "/api/settings/email-notifications",
+        headers=auth_headers,
+        json={
+            "task_reminders": False,
+            "daily_motivational_quote": True,
+            "daily_motivational_quote_time": "07:15",
+            "weekly_report_ready": False,
+        },
+    )
+    assert email_controls_updated.status_code == 200
+    controls_json = email_controls_updated.json()
+    assert controls_json["task_reminders"] is False
+    assert controls_json["daily_motivational_quote"] is True
+    assert controls_json["daily_motivational_quote_time"] == "07:15"
+    assert controls_json["weekly_report_ready"] is False
+
+    # Shared fields stay synchronized with legacy notification settings.
+    synced_notifications = client.get("/api/settings", headers=auth_headers).json()["notifications"]
+    assert synced_notifications["reminder_notifications_enabled"] is False
+
     ai_behavior = client.put(
         "/api/settings/ai-behavior",
         headers=auth_headers,

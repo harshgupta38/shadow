@@ -13,19 +13,25 @@ from app.agents.orchestrator import generate_goal_draft_from_prompt, repair_goal
 from app.llm.base import LLMProvider
 from app.memory.context import compile_user_context
 from app.models.base import utcnow
-from app.models.enums import GoalStatus, MilestoneStatus, PlannedTaskStatus
+from app.models.enums import GoalStatus, MilestoneStatus, NotificationType, PlannedTaskStatus
 from app.models.goal import Goal
 from app.models.milestone import Milestone
+from app.models.notification import Notification
 from app.models.planned_task import PlannedTask
 from app.models.repetitive_task import RepetitiveTask, RepetitiveTaskGoalLink
 from app.models.user import User
 from app.schemas.goal import GoalCreate, GoalDraftRead, GoalLinkedRepetitiveTaskRead, GoalUpdate
 from app.schemas.milestone import MilestoneCreate, MilestoneUpdate
-from app.services import settings_service
-from app.services.exceptions import AppError, NotFoundError
+from app.schemas.notification import NotificationCreate
+from app.services import notification_service, settings_service
+from app.services.exceptions import AppError, ConflictError, NotFoundError
 from app.services.utils import get_owned_or_404
 
 _HISTORY_LOOKBACK_DAYS = 45
+_MILESTONE_DUE_SOON_DAYS = 3
+_GOAL_TARGET_RISK_DAYS = 14
+_GOAL_TARGET_RISK_PROGRESS_THRESHOLD = 70
+_ALERT_SUPPRESSION_HOURS = 12
 
 
 def _strip_markdown_fence(raw: str) -> str:
@@ -89,6 +95,126 @@ def _parse_target_date(value: str | None) -> datetime.datetime | None:
     if parsed.tzinfo is None:
         return parsed.replace(tzinfo=datetime.timezone.utc)
     return parsed.astimezone(datetime.timezone.utc)
+
+
+def _to_utc(value: datetime.datetime | None) -> datetime.datetime | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=datetime.timezone.utc)
+    return value.astimezone(datetime.timezone.utc)
+
+
+def _has_recent_alert(
+    db: Session,
+    *,
+    user_id: int,
+    related_goal_id: int,
+    title_prefix: str,
+) -> bool:
+    cutoff = utcnow() - datetime.timedelta(hours=_ALERT_SUPPRESSION_HOURS)
+    existing = db.scalar(
+        select(Notification.id).where(
+            Notification.user_id == user_id,
+            Notification.related_goal_id == related_goal_id,
+            Notification.title.startswith(title_prefix),
+            Notification.created_at >= cutoff,
+        )
+    )
+    return existing is not None
+
+
+def _emit_goal_alert(
+    db: Session,
+    user: User,
+    *,
+    related_goal_id: int,
+    title: str,
+    body: str,
+) -> None:
+    try:
+        notification_service.create_notification(
+            db,
+            user,
+            NotificationCreate(
+                title=title,
+                body=body,
+                type=NotificationType.system,
+                related_goal_id=related_goal_id,
+            ),
+        )
+    except ConflictError:
+        # Respect notification settings without failing source domain operations.
+        return
+
+
+def _emit_goal_target_risk_if_needed(db: Session, user: User, goal: Goal) -> None:
+    if goal.status != GoalStatus.active:
+        return
+
+    target_date = _to_utc(goal.target_date)
+    if target_date is None:
+        return
+
+    days_until_target = (target_date.date() - utcnow().date()).days
+    if days_until_target < 0 or days_until_target > _GOAL_TARGET_RISK_DAYS:
+        return
+    if goal.progress >= _GOAL_TARGET_RISK_PROGRESS_THRESHOLD:
+        return
+    if _has_recent_alert(
+        db,
+        user_id=user.id,
+        related_goal_id=goal.id,
+        title_prefix="Goal target risk",
+    ):
+        return
+
+    _emit_goal_alert(
+        db,
+        user,
+        related_goal_id=goal.id,
+        title=f"Goal target risk: {goal.title}",
+        body=(
+            f"Goal progress is at {goal.progress}% with target date in "
+            f"{max(days_until_target, 0)} day(s)."
+        ),
+    )
+
+
+def _emit_milestone_due_soon_if_needed(
+    db: Session,
+    user: User,
+    goal: Goal,
+    milestone: Milestone,
+) -> None:
+    if milestone.status == MilestoneStatus.done:
+        return
+
+    due_date = _to_utc(milestone.due_date)
+    if due_date is None:
+        return
+
+    days_until_due = (due_date.date() - utcnow().date()).days
+    if days_until_due < 0 or days_until_due > _MILESTONE_DUE_SOON_DAYS:
+        return
+    if _has_recent_alert(
+        db,
+        user_id=user.id,
+        related_goal_id=goal.id,
+        title_prefix="Milestone due soon",
+    ):
+        return
+
+    _emit_goal_alert(
+        db,
+        user,
+        related_goal_id=goal.id,
+        title=f"Milestone due soon: {milestone.title}",
+        body=(
+            f"Milestone for goal \"{goal.title}\" is due in "
+            f"{max(days_until_due, 0)} day(s)."
+        ),
+    )
 
 
 def _normalize_task_name(value: str) -> str:
@@ -272,6 +398,7 @@ def create_goal(db: Session, user: User, data: GoalCreate) -> Goal:
     db.add(goal)
     db.commit()
     db.refresh(goal)
+    _emit_goal_target_risk_if_needed(db, user, goal)
     return goal
 
 
@@ -361,6 +488,7 @@ def update_goal(db: Session, user: User, goal_id: int, data: GoalUpdate) -> Goal
         setattr(goal, field, value)
     db.commit()
     db.refresh(goal)
+    _emit_goal_target_risk_if_needed(db, user, goal)
     return goal
 
 
@@ -420,6 +548,10 @@ def add_milestone(db: Session, user: User, goal_id: int, data: MilestoneCreate) 
     db.commit()
     db.refresh(milestone)
     recompute_progress(db, goal.id)
+    refreshed_goal = db.get(Goal, goal.id)
+    if refreshed_goal is not None:
+        _emit_milestone_due_soon_if_needed(db, user, refreshed_goal, milestone)
+        _emit_goal_target_risk_if_needed(db, user, refreshed_goal)
     return milestone
 
 
@@ -440,6 +572,10 @@ def update_milestone(db: Session, user: User, milestone_id: int, data: Milestone
     db.commit()
     db.refresh(milestone)
     recompute_progress(db, milestone.goal_id)
+    goal = db.get(Goal, milestone.goal_id)
+    if goal is not None:
+        _emit_milestone_due_soon_if_needed(db, user, goal, milestone)
+        _emit_goal_target_risk_if_needed(db, user, goal)
     return milestone
 
 
@@ -449,3 +585,6 @@ def delete_milestone(db: Session, user: User, milestone_id: int) -> None:
     db.delete(milestone)
     db.commit()
     recompute_progress(db, goal_id)
+    goal = db.get(Goal, goal_id)
+    if goal is not None:
+        _emit_goal_target_risk_if_needed(db, user, goal)

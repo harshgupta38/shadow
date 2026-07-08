@@ -604,8 +604,26 @@ def update_notifications(
     db: Session, user: User, data: NotificationSettingsUpdate
 ) -> SettingsRead:
     settings = _get_or_create_settings(db, user)
-    for field, value in data.model_dump(exclude_unset=True).items():
+    updates = data.model_dump(exclude_unset=True)
+    for field, value in updates.items():
         setattr(settings, field, value)
+
+    if (
+        "reminder_notifications_enabled" in updates
+        or "daily_brief_enabled" in updates
+        or "weekly_summary_enabled" in updates
+    ):
+        # Local import avoids a circular dependency at module import time.
+        from app.services import email_notification_service
+
+        email_notification_service.sync_with_notification_settings(
+            db,
+            user,
+            task_reminders=updates.get("reminder_notifications_enabled"),
+            daily_brief=updates.get("daily_brief_enabled"),
+            weekly_summary=updates.get("weekly_summary_enabled"),
+        )
+
     db.commit()
     db.refresh(settings)
     return get_settings(db, user)

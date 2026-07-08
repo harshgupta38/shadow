@@ -27,7 +27,7 @@ from app.models.user_setting import UserSetting
 from app.models.user import User
 from app.models.metric import TrackedMetric
 from app.schemas.report import ReportAutomationRead, ReportAutomationUpdate
-from app.services import metric_service, settings_service
+from app.services import email_notification_service, metric_service, settings_service
 from app.services.utils import get_owned_or_404
 
 
@@ -604,6 +604,18 @@ def generate_report(
     db.add(report)
     db.commit()
     db.refresh(report)
+
+    if source == ReportSource.manual:
+        template_key = (
+            "daily_report_ready" if period == ReportPeriod.daily else "weekly_report_ready"
+        )
+        email_notification_service.send_notification_email(
+            db,
+            user,
+            template_key=template_key,
+            context={"report_id": report.id},
+        )
+
     return report
 
 

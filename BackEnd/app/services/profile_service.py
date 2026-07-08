@@ -28,6 +28,7 @@ from app.schemas.profile import (
     BasicProfileUpdate,
     ChatHistoryClearResult,
 )
+from app.services import email_notification_service
 from app.services.auth_service import get_email_verification_retry_after_seconds
 from app.services.exceptions import ConflictError
 
@@ -200,7 +201,16 @@ def export_account_data(db: Session, user: User) -> AccountDataExportRead:
             "reports": len(reports),
         },
     }
-    return AccountDataExportRead(exported_at=datetime.now(timezone.utc), data=data)
+    exported_at = datetime.now(timezone.utc)
+
+    email_notification_service.send_notification_email(
+        db,
+        user,
+        template_key="export_ready",
+        context={"exported_at": exported_at.isoformat()},
+    )
+
+    return AccountDataExportRead(exported_at=exported_at, data=data)
 
 
 def delete_account(db: Session, user: User, *, confirmation_text: str) -> None:

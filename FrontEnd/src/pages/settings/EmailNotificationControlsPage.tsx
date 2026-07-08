@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   BellFill,
   CalendarWeek,
@@ -8,6 +8,7 @@ import {
   Stars,
 } from "react-bootstrap-icons";
 
+import { api, type EmailNotificationControls, type EmailNotificationPreferenceKey } from "@/api";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Pill } from "@/components/ui/Pill";
 import { SectionCard } from "@/components/ui/SectionCard";
@@ -20,22 +21,7 @@ type EmailCategory =
   | "reports_insights"
   | "data_events";
 
-type EmailPreferenceKey =
-  | "verification_reminders"
-  | "password_changed_alert"
-  | "new_device_alert"
-  | "task_reminders"
-  | "today_plan_generated"
-  | "daily_motivational_quote"
-  | "daily_brief"
-  | "weekly_summary"
-  | "streak_risk_alert"
-  | "milestone_due_soon"
-  | "goal_target_risk"
-  | "daily_report_ready"
-  | "weekly_report_ready"
-  | "progress_coach_recommendations"
-  | "export_ready";
+type EmailPreferenceKey = EmailNotificationPreferenceKey;
 
 type EmailPreferenceState = Record<EmailPreferenceKey, boolean>;
 
@@ -47,7 +33,6 @@ interface EmailPreferenceDefinition {
   defaultEnabled: boolean;
 }
 
-const STORAGE_KEY = "shadow.emailNotificationControls.v1";
 const DEFAULT_DAILY_MOTIVATIONAL_QUOTE_TIME = "07:00";
 const HHMM_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 
@@ -203,20 +188,9 @@ const EMAIL_PREFERENCE_DEFS: EmailPreferenceDefinition[] = [
   },
 ];
 
-interface EmailControlStoragePayload {
+interface EmailControlDraft {
   preferences: EmailPreferenceState;
   dailyMotivationalQuoteTime: string;
-}
-
-function buildDefaultPreferences(): EmailPreferenceState {
-  return EMAIL_PREFERENCE_DEFS.reduce((acc, item) => {
-    acc[item.key] = item.defaultEnabled;
-    return acc;
-  }, {} as EmailPreferenceState);
-}
-
-function isPreferenceKey(value: string): value is EmailPreferenceKey {
-  return EMAIL_PREFERENCE_DEFS.some((item) => item.key === value);
 }
 
 function sanitizeDailyMotivationalQuoteTime(value: unknown): string {
@@ -226,66 +200,41 @@ function sanitizeDailyMotivationalQuoteTime(value: unknown): string {
   return DEFAULT_DAILY_MOTIVATIONAL_QUOTE_TIME;
 }
 
-function loadStoredPreferences(): EmailControlStoragePayload {
-  const fallback = buildDefaultPreferences();
-  if (typeof window === "undefined") {
-    return {
-      preferences: fallback,
-      dailyMotivationalQuoteTime: DEFAULT_DAILY_MOTIVATIONAL_QUOTE_TIME,
-    };
-  }
-
-  const raw = window.localStorage.getItem(STORAGE_KEY);
-  if (!raw) {
-    return {
-      preferences: fallback,
-      dailyMotivationalQuoteTime: DEFAULT_DAILY_MOTIVATIONAL_QUOTE_TIME,
-    };
-  }
-
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    const parsedObject =
-      parsed && typeof parsed === "object" && !Array.isArray(parsed)
-        ? (parsed as Record<string, unknown>)
-        : {};
-    const parsedPreferences =
-      parsedObject.preferences &&
-      typeof parsedObject.preferences === "object" &&
-      !Array.isArray(parsedObject.preferences)
-        ? (parsedObject.preferences as Record<string, unknown>)
-        : parsedObject;
-
-    const hydrated = { ...fallback };
-    for (const [key, value] of Object.entries(parsedPreferences)) {
-      if (!isPreferenceKey(key)) continue;
-      if (typeof value !== "boolean") continue;
-      hydrated[key] = value;
-    }
-
-    return {
-      preferences: hydrated,
-      dailyMotivationalQuoteTime: sanitizeDailyMotivationalQuoteTime(
-        parsedObject.daily_motivational_quote_time,
-      ),
-    };
-  } catch {
-    return {
-      preferences: fallback,
-      dailyMotivationalQuoteTime: DEFAULT_DAILY_MOTIVATIONAL_QUOTE_TIME,
-    };
-  }
+function buildDefaultPreferences(): EmailPreferenceState {
+  return EMAIL_PREFERENCE_DEFS.reduce((acc, item) => {
+    acc[item.key] = item.defaultEnabled;
+    return acc;
+  }, {} as EmailPreferenceState);
 }
 
-function persistPreferences(preferences: EmailPreferenceState, dailyMotivationalQuoteTime: string): void {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(
-    STORAGE_KEY,
-    JSON.stringify({
-      preferences,
-      daily_motivational_quote_time: dailyMotivationalQuoteTime,
-    }),
-  );
+function buildDefaultControls(): EmailControlDraft {
+  return {
+    preferences: buildDefaultPreferences(),
+    dailyMotivationalQuoteTime: DEFAULT_DAILY_MOTIVATIONAL_QUOTE_TIME,
+  };
+}
+
+function toDraft(controls: EmailNotificationControls): EmailControlDraft {
+  const preferences = EMAIL_PREFERENCE_DEFS.reduce((acc, item) => {
+    acc[item.key] = Boolean(controls[item.key]);
+    return acc;
+  }, {} as EmailPreferenceState);
+
+  return {
+    preferences,
+    dailyMotivationalQuoteTime: sanitizeDailyMotivationalQuoteTime(
+      controls.daily_motivational_quote_time,
+    ),
+  };
+}
+
+function toPayload(draft: EmailControlDraft): EmailNotificationControls {
+  return {
+    ...draft.preferences,
+    daily_motivational_quote_time: sanitizeDailyMotivationalQuoteTime(
+      draft.dailyMotivationalQuoteTime,
+    ),
+  };
 }
 
 function preferencesEqual(left: EmailPreferenceState, right: EmailPreferenceState): boolean {
@@ -333,20 +282,45 @@ function EmailToggleRow({
 
 export function EmailNotificationControlsPage() {
   const toast = useToast();
-  const initialPreferencesRef = useRef<EmailControlStoragePayload>(loadStoredPreferences());
+  const [loading, setLoading] = useState<boolean>(true);
+  const [saving, setSaving] = useState<boolean>(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [draftState, setDraftState] = useState<EmailControlDraft>(buildDefaultControls());
+  const [baselineState, setBaselineState] = useState<EmailControlDraft>(buildDefaultControls());
 
-  const [draft, setDraft] = useState<EmailPreferenceState>(
-    initialPreferencesRef.current.preferences,
-  );
-  const [baseline, setBaseline] = useState<EmailPreferenceState>(
-    initialPreferencesRef.current.preferences,
-  );
-  const [dailyMotivationalQuoteTime, setDailyMotivationalQuoteTime] = useState<string>(
-    initialPreferencesRef.current.dailyMotivationalQuoteTime,
-  );
-  const [baselineDailyMotivationalQuoteTime, setBaselineDailyMotivationalQuoteTime] = useState<string>(
-    initialPreferencesRef.current.dailyMotivationalQuoteTime,
-  );
+  const draft = draftState.preferences;
+  const baseline = baselineState.preferences;
+  const dailyMotivationalQuoteTime = draftState.dailyMotivationalQuoteTime;
+  const baselineDailyMotivationalQuoteTime = baselineState.dailyMotivationalQuoteTime;
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    async function loadControls() {
+      setLoading(true);
+      try {
+        const controls = await api.settings.getEmailNotificationControls();
+        if (isCancelled) return;
+        const nextState = toDraft(controls);
+        setDraftState(nextState);
+        setBaselineState(nextState);
+        setLoadError(null);
+      } catch {
+        if (isCancelled) return;
+        setLoadError("Could not load email controls. Showing defaults.");
+        toast.error("Could not load email controls from server.");
+      } finally {
+        if (!isCancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void loadControls();
+    return () => {
+      isCancelled = true;
+    };
+  }, [toast]);
 
   const enabledCount = useMemo(
     () => EMAIL_PREFERENCE_DEFS.filter((item) => draft[item.key]).length,
@@ -360,37 +334,51 @@ export function EmailNotificationControlsPage() {
   );
 
   function setCategoryEnabled(categoryId: EmailCategory, enabled: boolean) {
-    setDraft((prev) => {
-      const next = { ...prev };
+    setDraftState((prev) => {
+      const next = { ...prev.preferences };
       for (const item of EMAIL_PREFERENCE_DEFS) {
         if (item.category === categoryId) {
           next[item.key] = enabled;
         }
       }
-      return next;
+      return {
+        ...prev,
+        preferences: next,
+      };
     });
   }
 
   function setAllEnabled(enabled: boolean) {
-    setDraft((prev) => {
-      const next = { ...prev };
+    setDraftState((prev) => {
+      const next = { ...prev.preferences };
       for (const item of EMAIL_PREFERENCE_DEFS) {
         next[item.key] = enabled;
       }
-      return next;
+      return {
+        ...prev,
+        preferences: next,
+      };
     });
   }
 
   function resetToDefaults() {
-    setDraft(buildDefaultPreferences());
-    setDailyMotivationalQuoteTime(DEFAULT_DAILY_MOTIVATIONAL_QUOTE_TIME);
+    setDraftState(buildDefaultControls());
   }
 
-  function saveLocalPreferences() {
-    persistPreferences(draft, dailyMotivationalQuoteTime);
-    setBaseline(draft);
-    setBaselineDailyMotivationalQuoteTime(dailyMotivationalQuoteTime);
-    toast.success("Email controls saved locally.");
+  async function savePreferences() {
+    if (saving || loading) return;
+    setSaving(true);
+    try {
+      const updated = await api.settings.updateEmailNotificationControls(toPayload(draftState));
+      const nextState = toDraft(updated);
+      setDraftState(nextState);
+      setBaselineState(nextState);
+      toast.success("Email controls saved.");
+    } catch {
+      toast.error("Could not save email controls.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -403,10 +391,12 @@ export function EmailNotificationControlsPage() {
           <button
             type="button"
             className={`btn ${hasChanges ? "btn-brand" : "btn-outline-secondary"}`}
-            onClick={saveLocalPreferences}
-            disabled={!hasChanges}
+            onClick={() => {
+              void savePreferences();
+            }}
+            disabled={loading || saving || !hasChanges}
           >
-            {hasChanges ? "Save preferences" : "Saved"}
+            {loading ? "Loading..." : saving ? "Saving..." : hasChanges ? "Save preferences" : "Saved"}
           </button>
         }
       />
@@ -442,11 +432,7 @@ export function EmailNotificationControlsPage() {
               </button>
             </div>
           </div>
-
-          <p className="text-muted-2 small mb-0">
-            These controls are currently frontend-only and saved locally in this browser until backend
-            preference sync is wired.
-          </p>
+          {loadError ? <p className="text-warning small mb-0">{loadError}</p> : null}
         </div>
       </SectionCard>
 
@@ -506,9 +492,12 @@ export function EmailNotificationControlsPage() {
                           description={item.description}
                           checked={draft[item.key]}
                           onChange={(checked) =>
-                            setDraft((prev) => ({
+                            setDraftState((prev) => ({
                               ...prev,
-                              [item.key]: checked,
+                              preferences: {
+                                ...prev.preferences,
+                                [item.key]: checked,
+                              },
                             }))
                           }
                           extraContent={
@@ -521,9 +510,12 @@ export function EmailNotificationControlsPage() {
                                   style={{ width: 140 }}
                                   value={dailyMotivationalQuoteTime}
                                   onChange={(event) =>
-                                    setDailyMotivationalQuoteTime(
-                                      sanitizeDailyMotivationalQuoteTime(event.target.value),
-                                    )
+                                    setDraftState((prev) => ({
+                                      ...prev,
+                                      dailyMotivationalQuoteTime: sanitizeDailyMotivationalQuoteTime(
+                                        event.target.value,
+                                      ),
+                                    }))
                                   }
                                 />
                               </div>

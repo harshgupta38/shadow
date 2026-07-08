@@ -59,7 +59,7 @@ from app.schemas.plan import (
     PlannedTaskProgressUpdate,
     PlannedTaskUpdate,
 )
-from app.services import settings_service
+from app.services import email_notification_service, settings_service
 from app.services.exceptions import AppError
 from app.services.utils import get_owned_or_404
 
@@ -3049,6 +3049,17 @@ def generate_today_plan(
         )
 
     db.commit()
+
+    email_notification_service.send_notification_email(
+        db,
+        user,
+        template_key="today_plan_generated",
+        context={
+            "plan_date": target_date.isoformat(),
+            "task_titles": [row.task.title for row in filtered[:5]],
+        },
+    )
+
     return workspace_for_date(db, user, on_date=target_date)
 
 

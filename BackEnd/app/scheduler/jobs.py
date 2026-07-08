@@ -14,7 +14,7 @@ from app.models.enums import NotificationType, ReportPeriod, ReportSource
 from app.models.notification import Notification
 from app.models.user import User
 from app.models.user_setting import UserSetting
-from app.services import push_service, report_service
+from app.services import email_notification_service, push_service, report_service
 
 logger = logging.getLogger(__name__)
 
@@ -225,6 +225,66 @@ def enqueue_weekly_summaries(*, now_utc: datetime | None = None) -> int:
     return created
 
 
+def enqueue_daily_motivational_quotes(*, now_utc: datetime | None = None) -> int:
+    """Deliver one motivational quote email per eligible user each local day."""
+    now = (now_utc or datetime.now(timezone.utc)).replace(second=0, microsecond=0)
+    created = 0
+
+    with SessionLocal() as db:
+        settings_rows = list(
+            db.scalars(
+                select(UserSetting).where(
+                    UserSetting.notifications_enabled.is_(True),
+                    UserSetting.email_notifications_enabled.is_(True),
+                )
+            )
+        )
+
+        for settings in settings_rows:
+            user = db.get(User, settings.user_id)
+            if user is None:
+                continue
+
+            controls = email_notification_service.get_email_notification_controls(db, user)
+            if not controls.daily_motivational_quote:
+                continue
+
+            if not _at_or_after_local_time(now, user.timezone, controls.daily_motivational_quote_time):
+                continue
+
+            if _already_created_today(
+                db,
+                user_id=user.id,
+                title_prefix="Daily Motivation",
+                timezone_name=user.timezone,
+                now_utc=now,
+            ):
+                continue
+
+            email_notification_service.send_notification_email(
+                db,
+                user,
+                template_key="daily_motivational_quote",
+            )
+            db.add(
+                Notification(
+                    user_id=user.id,
+                    title="Daily Motivation",
+                    body="Your motivational quote email is ready.",
+                    type=NotificationType.system,
+                    scheduled_at=now,
+                    sent=True,
+                )
+            )
+            created += 1
+
+        if created:
+            db.commit()
+            logger.info("Delivered %d daily motivational quote email(s)", created)
+
+    return created
+
+
 def enqueue_daily_reports(*, now_utc: datetime | None = None) -> int:
     """Create one automatic daily report per eligible user after configured local time."""
     now = (now_utc or datetime.now(timezone.utc)).replace(second=0, microsecond=0)
@@ -344,7 +404,7 @@ def process_due_notifications() -> int:
     """Mark notifications whose ``scheduled_at`` has passed as ``sent``.
 
     Returns the number of notifications dispatched. Kept simple for the MVP
-    (in-app delivery); FCM push can hook in here later.
+    and deliver eligible email notifications.
     """
     now = datetime.now(timezone.utc)
     with SessionLocal() as db:
@@ -372,6 +432,19 @@ def process_due_notifications() -> int:
                 continue
             if notification.title.startswith("Weekly Summary") and not settings.weekly_summary_enabled:
                 continue
+
+            template_key = email_notification_service.resolve_template_key_for_notification(notification)
+            if template_key is not None:
+                user = db.get(User, notification.user_id)
+                if user is not None:
+                    context = email_notification_service.context_from_notification(notification)
+                    email_notification_service.send_notification_email(
+                        db,
+                        user,
+                        template_key=template_key,
+                        context=context,
+                    )
+
             notification.sent = True
         if due:
             db.commit()

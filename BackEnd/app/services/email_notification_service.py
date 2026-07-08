@@ -1,0 +1,690 @@
+"""Granular email notification preferences and HTML email delivery."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import date, datetime, timezone
+from html import escape
+import re
+from typing import Any, Literal
+
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.constant import settings
+from app.models.email_notification_preference import EmailNotificationPreference
+from app.models.enums import NotificationType
+from app.models.notification import Notification
+from app.models.user import User
+from app.schemas.settings import EmailNotificationControls, EmailNotificationControlsUpdate
+from app.services import email_service, settings_service
+
+EmailTemplateKey = Literal[
+    "verification_reminders",
+    "password_changed_alert",
+    "new_device_alert",
+    "task_reminders",
+    "today_plan_generated",
+    "daily_motivational_quote",
+    "daily_brief",
+    "weekly_summary",
+    "streak_risk_alert",
+    "milestone_due_soon",
+    "goal_target_risk",
+    "daily_report_ready",
+    "weekly_report_ready",
+    "progress_coach_recommendations",
+    "export_ready",
+]
+
+DEFAULT_DAILY_MOTIVATIONAL_QUOTE_TIME = "07:00"
+_HHMM_PATTERN = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
+
+
+@dataclass(frozen=True)
+class _TemplateSpec:
+    badge: str
+    title: str
+    intro: str
+    highlights: tuple[tuple[str, str], ...]
+    items: tuple[tuple[str, str, str], ...]
+    footer: str
+
+
+_TEMPLATE_SPECS: dict[EmailTemplateKey, _TemplateSpec] = {
+    "verification_reminders": _TemplateSpec(
+        badge="Account Security",
+        title="Verify your email to secure your account",
+        intro="Verifying your email keeps account recovery and security alerts reliable.",
+        highlights=(("Status", "Pending verification"), ("Time needed", "Under 20 seconds")),
+        items=(
+            ("Recovery safety", "Password recovery relies on verified email.", "Important"),
+            ("Critical notices", "Security alerts are delivered to your inbox.", "Recommended"),
+            ("Trust signals", "Verified accounts have stronger integrity checks.", "Automatic"),
+        ),
+        footer="This email is required for account security and verification.",
+    ),
+    "password_changed_alert": _TemplateSpec(
+        badge="Security Alert",
+        title="Password changed successfully",
+        intro="Your Shadow password was updated. Review activity if this was unexpected.",
+        highlights=(("Event", "Password updated"), ("Risk", "Low when expected")),
+        items=(
+            ("Review sessions", "Check active devices and revoke unknown sessions.", "2 min"),
+            ("Confirm backup email", "Ensure recovery email is still correct.", "1 min"),
+            ("Enable MFA", "Add extra sign-in protection if available.", "Optional"),
+        ),
+        footer="If you did not make this change, rotate credentials immediately.",
+    ),
+    "new_device_alert": _TemplateSpec(
+        badge="Security Alert",
+        title="New device connected to your account",
+        intro="A new device was used for your Shadow account recently.",
+        highlights=(("Detection", "New device sign-in"), ("Action", "Review sessions")),
+        items=(
+            ("Confirm device", "Verify this sign-in belongs to you.", "Immediate"),
+            ("Revoke unknown access", "Sign out any unexpected sessions.", "Priority"),
+            ("Update password", "Reset password if account access is uncertain.", "Recommended"),
+        ),
+        footer="Ignore this email if you recognize the new device.",
+    ),
+    "task_reminders": _TemplateSpec(
+        badge="Planning Reminder",
+        title="Upcoming task reminder",
+        intro="A planned task is due soon. Prepare context now and start on time.",
+        highlights=(("Focus", "Execution block"), ("Intent", "Close one meaningful loop")),
+        items=(
+            ("Open resources", "Keep docs and checklist ready before start.", "Now"),
+            ("Define output", "Lock one concrete deliverable.", "2 min"),
+            ("Protect focus", "Mute distractions during the task window.", "Recommended"),
+        ),
+        footer="Task reminders follow your planning settings and schedule.",
+    ),
+    "today_plan_generated": _TemplateSpec(
+        badge="Daily Planning",
+        title="Today's generated plan is ready",
+        intro="Your AI-generated plan is prepared with focused blocks for execution.",
+        highlights=(("Mode", "AI generated"), ("Goal", "High-impact execution")),
+        items=(
+            ("Start strong", "Begin with your highest-leverage task.", "Morning"),
+            ("Preserve momentum", "Keep transitions short between blocks.", "All day"),
+            ("Reflect quickly", "Close with a one-minute review.", "Evening"),
+        ),
+        footer="You can regenerate your plan anytime from the planner workspace.",
+    ),
+    "daily_motivational_quote": _TemplateSpec(
+        badge="Daily Motivation",
+        title="Your daily momentum reset",
+        intro="Small, consistent actions compound faster than occasional intensity.",
+        highlights=(("Focus", "Progress over perfection"), ("Move", "One meaningful action first")),
+        items=(
+            ("Pick one outcome", "Choose one result that must happen today.", "1 min"),
+            ("Start now", "Take the smallest next step immediately.", "Immediate"),
+            ("Close the loop", "Finish one high-impact block before noon.", "Priority"),
+        ),
+        footer="You can adjust your motivation email timing in Email Controls.",
+    ),
+    "daily_brief": _TemplateSpec(
+        badge="Daily Brief",
+        title="Your daily brief is ready",
+        intro="Here is a concise snapshot to align priorities and execution.",
+        highlights=(("Priority blocks", "3"), ("Carry forward", "1 item")),
+        items=(
+            ("Anchor task", "Complete your toughest task before noon.", "High impact"),
+            ("Support task", "Move one dependency that unblocks progress.", "Important"),
+            ("Quick close", "Review wins and misses in one line tonight.", "2 min"),
+        ),
+        footer="Daily brief content adapts to your recent planning behavior.",
+    ),
+    "weekly_summary": _TemplateSpec(
+        badge="Weekly Summary",
+        title="Your weekly summary is ready",
+        intro="Review progress trends and set the next week's strongest focus.",
+        highlights=(("Week health", "Momentum maintained"), ("Direction", "Execution-first")),
+        items=(
+            ("Biggest win", "Capture one repeatable pattern that worked.", "Retain"),
+            ("Biggest leak", "Identify one drag to eliminate next week.", "Fix"),
+            ("Next commitment", "Define two non-negotiable focus blocks.", "Plan"),
+        ),
+        footer="Weekly summaries are generated from your goals, tasks, and journals.",
+    ),
+    "streak_risk_alert": _TemplateSpec(
+        badge="Streak Alert",
+        title="Your streak is at risk",
+        intro="One small action today can preserve momentum.",
+        highlights=(("Status", "Streak risk detected"), ("Recovery", "1 completed block")),
+        items=(
+            ("Minimum viable win", "Finish one focused 25-minute sprint.", "Today"),
+            ("Lower friction", "Start with the easiest visible step.", "Immediate"),
+            ("Mark completion", "Log progress before day ends.", "Before sleep"),
+        ),
+        footer="Streak alerts are sent only when action can still recover momentum.",
+    ),
+    "milestone_due_soon": _TemplateSpec(
+        badge="Milestone Alert",
+        title="Milestone due soon",
+        intro="An active milestone deadline is approaching.",
+        highlights=(("Urgency", "High"), ("Focus", "Finish sprint")),
+        items=(
+            ("Freeze scope", "Pause low-impact additions until completion.", "Now"),
+            ("Resolve blockers", "Assign ownership for each dependency.", "Today"),
+            ("Protect time", "Reserve one uninterrupted deep-work block.", "Priority"),
+        ),
+        footer="Milestone reminders are based on deadlines and completion trend.",
+    ),
+    "goal_target_risk": _TemplateSpec(
+        badge="Goal Risk",
+        title="Goal target risk detected",
+        intro="Current progress trend may miss your target date unless adjusted.",
+        highlights=(("Signal", "Behind trajectory"), ("Action", "Correct this week")),
+        items=(
+            ("Re-prioritize", "Move one low-impact task out of this week.", "Immediate"),
+            ("Increase cadence", "Add one extra deep-work session.", "Recommended"),
+            ("Track signal", "Review progress metric each evening.", "5 min/day"),
+        ),
+        footer="Risk detection uses velocity versus target-date trajectory.",
+    ),
+    "daily_report_ready": _TemplateSpec(
+        badge="Daily Report",
+        title="Your daily report is ready",
+        intro="Today's performance summary and AI insights are available.",
+        highlights=(("Coverage", "Tasks, goals, and metrics"), ("View", "Reports workspace")),
+        items=(
+            ("Top insight", "Use the strongest recommendation first tomorrow.", "High leverage"),
+            ("Pattern", "Identify one behavior to repeat.", "Retain"),
+            ("Correction", "Choose one inefficiency to remove.", "Improve"),
+        ),
+        footer="Daily reports are generated from your latest progress data.",
+    ),
+    "weekly_report_ready": _TemplateSpec(
+        badge="Weekly Report",
+        title="Your weekly report is ready",
+        intro="A week-level breakdown with trends and next-step guidance is available.",
+        highlights=(("Coverage", "Weekly performance"), ("View", "Reports workspace")),
+        items=(
+            ("What worked", "Double down on the highest-yield behavior.", "Strength"),
+            ("What slipped", "Address one recurring bottleneck.", "Gap"),
+            ("Next-week anchor", "Protect two morning deep-work blocks.", "Plan"),
+        ),
+        footer="Weekly reports compare trend direction against recent history.",
+    ),
+    "progress_coach_recommendations": _TemplateSpec(
+        badge="Progress Coach",
+        title="New coach recommendations",
+        intro="AI suggestions are ready to improve your execution rhythm.",
+        highlights=(("Recommendation count", "3"), ("Impact", "High")),
+        items=(
+            ("Morning anchor", "Start with one non-negotiable block.", "Behavioral"),
+            ("Context control", "Batch similar tasks to reduce switching.", "Operational"),
+            ("Feedback loop", "Log one-line reflection daily.", "Compounding"),
+        ),
+        footer="Recommendations are generated from your activity signals.",
+    ),
+    "export_ready": _TemplateSpec(
+        badge="Data Export",
+        title="Your account export is ready",
+        intro="The requested export package has been prepared.",
+        highlights=(("Format", "ZIP"), ("Availability", "Limited retention window")),
+        items=(
+            ("Store securely", "Save the file only in trusted locations.", "Important"),
+            ("Encrypt locally", "Use device encryption where possible.", "Recommended"),
+            ("Cleanup", "Delete stale copies after use.", "Good practice"),
+        ),
+        footer="If this request was unexpected, review account security immediately.",
+    ),
+}
+
+
+def _sanitize_hhmm(value: str | None, fallback: str = DEFAULT_DAILY_MOTIVATIONAL_QUOTE_TIME) -> str:
+    candidate = (value or "").strip()
+    if _HHMM_PATTERN.fullmatch(candidate):
+        return candidate
+    return fallback
+
+
+def _frontend_url(path: str) -> str:
+    base = (settings.public_frontend_base_url or "http://localhost:5173").rstrip("/")
+    return f"{base}/{path.lstrip('/')}"
+
+
+def _get_or_create_preferences(db: Session, user: User) -> EmailNotificationPreference:
+    row = db.scalar(
+        select(EmailNotificationPreference).where(EmailNotificationPreference.user_id == user.id)
+    )
+    if row is not None:
+        return row
+
+    row = EmailNotificationPreference(user_id=user.id)
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+def _to_controls(row: EmailNotificationPreference) -> EmailNotificationControls:
+    return EmailNotificationControls(
+        verification_reminders=row.verification_reminders,
+        password_changed_alert=row.password_changed_alert,
+        new_device_alert=row.new_device_alert,
+        task_reminders=row.task_reminders,
+        today_plan_generated=row.today_plan_generated,
+        daily_motivational_quote=row.daily_motivational_quote,
+        daily_motivational_quote_time=_sanitize_hhmm(row.daily_motivational_quote_time),
+        daily_brief=row.daily_brief,
+        weekly_summary=row.weekly_summary,
+        streak_risk_alert=row.streak_risk_alert,
+        milestone_due_soon=row.milestone_due_soon,
+        goal_target_risk=row.goal_target_risk,
+        daily_report_ready=row.daily_report_ready,
+        weekly_report_ready=row.weekly_report_ready,
+        progress_coach_recommendations=row.progress_coach_recommendations,
+        export_ready=row.export_ready,
+    )
+
+
+def get_email_notification_controls(db: Session, user: User) -> EmailNotificationControls:
+    row = _get_or_create_preferences(db, user)
+    return _to_controls(row)
+
+
+def update_email_notification_controls(
+    db: Session,
+    user: User,
+    data: EmailNotificationControlsUpdate,
+) -> EmailNotificationControls:
+    row = _get_or_create_preferences(db, user)
+    updates = data.model_dump(exclude_unset=True)
+
+    if "daily_motivational_quote_time" in updates:
+        updates["daily_motivational_quote_time"] = _sanitize_hhmm(
+            updates["daily_motivational_quote_time"],
+            fallback=row.daily_motivational_quote_time,
+        )
+
+    for field, value in updates.items():
+        setattr(row, field, value)
+
+    # Keep legacy notification flags aligned where fields overlap.
+    settings_row = settings_service.get_user_settings_row(db, user)
+    if "task_reminders" in updates:
+        settings_row.reminder_notifications_enabled = bool(updates["task_reminders"])
+    if "daily_brief" in updates:
+        settings_row.daily_brief_enabled = bool(updates["daily_brief"])
+    if "weekly_summary" in updates:
+        settings_row.weekly_summary_enabled = bool(updates["weekly_summary"])
+
+    db.commit()
+    db.refresh(row)
+    return _to_controls(row)
+
+
+def sync_with_notification_settings(
+    db: Session,
+    user: User,
+    *,
+    task_reminders: bool | None = None,
+    daily_brief: bool | None = None,
+    weekly_summary: bool | None = None,
+) -> None:
+    if task_reminders is None and daily_brief is None and weekly_summary is None:
+        return
+
+    row = _get_or_create_preferences(db, user)
+    if task_reminders is not None:
+        row.task_reminders = bool(task_reminders)
+    if daily_brief is not None:
+        row.daily_brief = bool(daily_brief)
+    if weekly_summary is not None:
+        row.weekly_summary = bool(weekly_summary)
+
+
+def is_template_enabled(db: Session, user: User, template_key: EmailTemplateKey) -> bool:
+    settings_row = settings_service.get_user_settings_row(db, user)
+    if not settings_row.notifications_enabled:
+        return False
+    if not settings_row.email_notifications_enabled:
+        return False
+
+    row = _get_or_create_preferences(db, user)
+    return bool(getattr(row, template_key))
+
+
+def send_notification_email(
+    db: Session,
+    user: User,
+    *,
+    template_key: EmailTemplateKey,
+    context: dict[str, Any] | None = None,
+    force: bool = False,
+) -> bool:
+    if not force and not is_template_enabled(db, user, template_key):
+        return False
+
+    subject, text_body, html_body = _render_template(
+        template_key=template_key,
+        recipient_name=user.name,
+        context=context or {},
+    )
+    return email_service.send_email(
+        to_email=user.email,
+        subject=subject,
+        text_body=text_body,
+        html_body=html_body,
+    )
+
+
+def resolve_template_key_for_notification(notification: Notification) -> EmailTemplateKey | None:
+    title = (notification.title or "").strip().lower()
+
+    if notification.type == NotificationType.reminder and title.startswith("task reminder"):
+        return "task_reminders"
+    if title.startswith("daily brief"):
+        return "daily_brief"
+    if title.startswith("weekly summary"):
+        return "weekly_summary"
+    if title.startswith("daily report ready"):
+        return "daily_report_ready"
+    if title.startswith("weekly report ready"):
+        return "weekly_report_ready"
+    if "streak" in title and "risk" in title:
+        return "streak_risk_alert"
+    if "milestone" in title and "due" in title:
+        return "milestone_due_soon"
+    if "goal" in title and "risk" in title:
+        return "goal_target_risk"
+    if title.startswith("progress coach"):
+        return "progress_coach_recommendations"
+    if "export" in title and "ready" in title:
+        return "export_ready"
+    if "verification" in title:
+        return "verification_reminders"
+
+    return None
+
+
+def context_from_notification(notification: Notification) -> dict[str, Any]:
+    return {
+        "notification_title": notification.title,
+        "notification_body": notification.body,
+    }
+
+
+def _render_template(
+    *,
+    template_key: EmailTemplateKey,
+    recipient_name: str,
+    context: dict[str, Any],
+) -> tuple[str, str, str]:
+    safe_name = recipient_name.strip() or "Shadow User"
+    spec = _TEMPLATE_SPECS[template_key]
+
+    subject = spec.title
+    highlights = list(spec.highlights)
+    items = list(spec.items)
+    quote: tuple[str, str] | None = None
+    cta_label = "Open Shadow"
+    cta_url = _frontend_url("")
+
+    if template_key == "verification_reminders":
+        verification_url = str(context.get("verification_url") or _frontend_url("settings/account"))
+        expires_minutes = int(context.get("expires_minutes") or 24 * 60)
+        subject = "Verify your Shadow account email"
+        highlights = [("Verification link", "Ready"), ("Expires in", f"{expires_minutes} minutes")]
+        cta_label = "Verify email"
+        cta_url = verification_url
+        items = [
+            ("One-click verify", "Open the verification link to activate trusted delivery.", "Now"),
+            ("Recovery readiness", "Verified email keeps password recovery reliable.", "Important"),
+            ("Security posture", "Critical alerts stay actionable and timely.", "Automatic"),
+        ]
+    elif template_key == "task_reminders":
+        task_title = str(context.get("task_title") or "Upcoming task")
+        scheduled_for = str(context.get("scheduled_for") or "Soon")
+        subject = f"Task reminder: {task_title}"
+        highlights = [("Task", task_title), ("Scheduled", scheduled_for)]
+        cta_label = "Open planner"
+        cta_url = _frontend_url("planner")
+    elif template_key == "today_plan_generated":
+        plan_date = str(context.get("plan_date") or date.today().isoformat())
+        task_titles = [str(item) for item in context.get("task_titles") or []]
+        subject = "Today's generated plan is ready"
+        highlights = [("Plan date", plan_date), ("Tasks generated", str(max(1, len(task_titles))))]
+        if task_titles:
+            items = [
+                (title, "Generated by Shadow planning engine.", "Planned")
+                for title in task_titles[:5]
+            ]
+        quote_text = str(
+            context.get("quote")
+            or "Consistency compounds. Start with one meaningful block and build momentum."
+        )
+        quote_author = str(context.get("quote_author") or "Shadow")
+        quote = (quote_text, quote_author)
+        cta_label = "Open today's plan"
+        cta_url = _frontend_url("plan")
+    elif template_key == "daily_motivational_quote":
+        quote_text = str(
+            context.get("quote")
+            or "Discipline is choosing what you want most over what you want now."
+        )
+        quote_author = str(context.get("quote_author") or "Abraham Lincoln")
+        quote = (quote_text, quote_author)
+        subject = "Your daily momentum reset"
+        highlights = [("Date", datetime.now(timezone.utc).date().isoformat()), ("Mode", "Daily motivation")]
+        cta_label = "Open workspace"
+        cta_url = _frontend_url("plan")
+    elif template_key == "daily_brief":
+        subject = "Your daily brief is ready"
+        cta_label = "Open daily brief"
+        cta_url = _frontend_url("dashboard")
+    elif template_key == "weekly_summary":
+        subject = "Your weekly summary is ready"
+        cta_label = "Open weekly summary"
+        cta_url = _frontend_url("dashboard")
+    elif template_key == "daily_report_ready":
+        report_id = context.get("report_id")
+        subject = "Your daily report is ready"
+        cta_label = "Open report"
+        cta_url = _frontend_url(f"reports/{report_id}") if report_id else _frontend_url("reports")
+    elif template_key == "weekly_report_ready":
+        report_id = context.get("report_id")
+        subject = "Your weekly report is ready"
+        cta_label = "Open report"
+        cta_url = _frontend_url(f"reports/{report_id}") if report_id else _frontend_url("reports")
+    elif template_key == "export_ready":
+        subject = "Your account export is ready"
+        exported_at = str(context.get("exported_at") or datetime.now(timezone.utc).isoformat())
+        highlights = [("Status", "Ready"), ("Generated", exported_at)]
+        cta_label = "Open account settings"
+        cta_url = _frontend_url("settings")
+    elif template_key == "new_device_alert":
+        device_label = str(context.get("device_label") or "A new device")
+        highlights = [("Event", "New device connected"), ("Device", device_label)]
+        cta_label = "Review sessions"
+        cta_url = _frontend_url("settings/security")
+    elif template_key == "password_changed_alert":
+        changed_at = str(context.get("changed_at") or datetime.now(timezone.utc).isoformat())
+        highlights = [("Event", "Password changed"), ("At", changed_at)]
+        cta_label = "Review security"
+        cta_url = _frontend_url("settings/security")
+
+    title = context.get("notification_title") or spec.title
+    intro = context.get("notification_body") or spec.intro
+
+    return _render_shell(
+        subject=subject,
+        recipient_name=safe_name,
+        badge=spec.badge,
+        title=str(title),
+        intro=str(intro),
+        highlights=tuple((str(label), str(value)) for label, value in highlights),
+        items=tuple((str(item_title), str(detail), str(meta)) for item_title, detail, meta in items),
+        footer=spec.footer,
+        cta_label=cta_label,
+        cta_url=cta_url,
+        quote=quote,
+    )
+
+
+def _render_shell(
+    *,
+    subject: str,
+    recipient_name: str,
+    badge: str,
+    title: str,
+    intro: str,
+    highlights: tuple[tuple[str, str], ...],
+    items: tuple[tuple[str, str, str], ...],
+    footer: str,
+    cta_label: str,
+    cta_url: str,
+    quote: tuple[str, str] | None,
+) -> tuple[str, str, str]:
+    text_lines = [
+        f"Hi {recipient_name},",
+        "",
+        intro,
+        "",
+        "Highlights:",
+    ]
+    for label, value in highlights:
+        text_lines.append(f"- {label}: {value}")
+
+    text_lines.extend(["", "Action plan:"])
+    for item_title, detail, meta in items:
+        text_lines.append(f"- {item_title}: {detail} ({meta})")
+
+    if quote:
+        text_lines.extend(["", f"Quote: \"{quote[0]}\" - {quote[1]}"])
+
+    text_lines.extend(["", f"Open: {cta_url}", "", footer, "", "Team Shadow"])
+    text_body = "\n".join(text_lines)
+
+    safe_subject = escape(subject)
+    safe_name = escape(recipient_name)
+    safe_badge = escape(badge)
+    safe_title = escape(title)
+    safe_intro = escape(intro)
+    safe_footer = escape(footer)
+    safe_cta_label = escape(cta_label)
+    safe_cta_url = escape(cta_url)
+
+    highlight_rows = "".join(_render_highlight_row(index, row[0], row[1]) for index, row in enumerate(highlights))
+    item_rows = "".join(_render_item_row(*row) for row in items)
+    quote_block = _render_quote_block(quote) if quote else ""
+
+    html_body = f"""<!doctype html>
+<html lang=\"en\">
+  <head>
+    <meta charset=\"utf-8\" />
+    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />
+    <title>{safe_subject}</title>
+  </head>
+  <body style=\"margin:0;padding:0;background:#edf2f7;font-family:Verdana, Geneva, Tahoma, sans-serif;color:#1a202c;\">
+    <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" width=\"100%\" style=\"background:#edf2f7;padding:28px 0;\">
+      <tr>
+        <td align=\"center\">
+          <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" width=\"620\" style=\"max-width:620px;background:#ffffff;border:1px solid #d8e1ea;border-radius:16px;overflow:hidden;\">
+            <tr>
+              <td style=\"background:#0f172a;padding:26px 30px;\">
+                <div style=\"font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:#93c5fd;font-weight:700;\">{safe_badge}</div>
+                <h1 style=\"margin:10px 0 8px;color:#f8fafc;font-size:26px;line-height:1.2;\">{safe_title}</h1>
+                <p style=\"margin:0;color:#cbd5e1;font-size:15px;line-height:1.6;\">Hi {safe_name}, {safe_intro}</p>
+              </td>
+            </tr>
+
+            <tr>
+              <td style=\"padding:20px 30px 6px;\">
+                <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" width=\"100%\" style=\"border-collapse:separate;border-spacing:0 10px;\">
+                  {highlight_rows}
+                </table>
+              </td>
+            </tr>
+
+            <tr>
+              <td style=\"padding:8px 30px 0;\">
+                <h2 style=\"margin:0 0 10px;font-size:18px;color:#0f172a;\">Action plan</h2>
+                <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" width=\"100%\" style=\"border-collapse:separate;border-spacing:0 10px;\">
+                  {item_rows}
+                </table>
+              </td>
+            </tr>
+
+            {quote_block}
+
+            <tr>
+              <td style=\"padding:18px 30px 8px;\">
+                <a href=\"{safe_cta_url}\" style=\"display:inline-block;background:#0f172a;color:#f8fafc;text-decoration:none;padding:12px 16px;border-radius:10px;font-weight:700;font-size:14px;\">{safe_cta_label}</a>
+              </td>
+            </tr>
+
+            <tr>
+              <td style=\"padding:14px 30px 28px;\">
+                <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" width=\"100%\" style=\"background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;\">
+                  <tr>
+                    <td style=\"padding:14px 16px;font-size:13px;line-height:1.6;color:#334155;\">{safe_footer}</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+"""
+
+    return subject, text_body, html_body
+
+
+def _render_highlight_row(index: int, label: str, value: str) -> str:
+    palettes = (
+        ("#f8fafc", "#e2e8f0", "#475569", "#0f172a"),
+        ("#fff7ed", "#fed7aa", "#9a3412", "#7c2d12"),
+        ("#eff6ff", "#bfdbfe", "#1d4ed8", "#1e3a8a"),
+    )
+    bg, border, label_color, value_color = palettes[index % len(palettes)]
+    safe_label = escape(label)
+    safe_value = escape(value)
+    return (
+        "<tr>"
+        f"<td style=\"background:{bg};border:1px solid {border};border-radius:12px;padding:14px 16px;\">"
+        f"<div style=\"font-size:12px;color:{label_color};font-weight:700;text-transform:uppercase;letter-spacing:0.8px;\">{safe_label}</div>"
+        f"<div style=\"font-size:16px;color:{value_color};font-weight:700;margin-top:6px;\">{safe_value}</div>"
+        "</td>"
+        "</tr>"
+    )
+
+
+def _render_item_row(title: str, detail: str, meta: str) -> str:
+    safe_title = escape(title)
+    safe_detail = escape(detail)
+    safe_meta = escape(meta)
+    return (
+        "<tr>"
+        "<td style=\"background:#ffffff;border:1px solid #dbe6f2;border-radius:12px;padding:14px 16px;\">"
+        f"<div style=\"font-size:15px;color:#0f172a;font-weight:700;line-height:1.35;\">{safe_title}</div>"
+        f"<div style=\"margin-top:6px;font-size:13px;color:#334155;\">{safe_detail}</div>"
+        f"<div style=\"margin-top:10px;font-size:12px;color:#475569;font-weight:700;letter-spacing:0.3px;\">{safe_meta}</div>"
+        "</td>"
+        "</tr>"
+    )
+
+
+def _render_quote_block(quote: tuple[str, str]) -> str:
+    quote_text = escape(quote[0])
+    quote_author = escape(quote[1])
+    return (
+        "<tr>"
+        "<td style=\"padding:18px 30px 10px;\">"
+        "<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" width=\"100%\" "
+        "style=\"background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;\">"
+        "<tr><td style=\"padding:14px 16px;\">"
+        "<div style=\"font-size:12px;color:#166534;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;\">Daily Motivation</div>"
+        f"<p style=\"margin:8px 0 4px;font-size:17px;line-height:1.45;color:#14532d;font-weight:700;\">\"{quote_text}\"</p>"
+        f"<p style=\"margin:0;font-size:13px;color:#166534;\">- {quote_author}</p>"
+        "</td></tr></table>"
+        "</td>"
+        "</tr>"
+    )

@@ -14,7 +14,7 @@ from app.schemas.notification import (
     PushSubscriptionDelete,
     PushSubscriptionUpsert,
 )
-from app.services import notification_service, push_service
+from app.services import email_notification_service, notification_service, push_service
 from app.services.exceptions import ConflictError
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
@@ -101,6 +101,13 @@ def notify_device_connected_alert(
         url="/notifications",
         exclude_endpoints=exclude_endpoints,
         ignore_push_enabled=True,
+    )
+
+    email_notification_service.send_notification_email(
+        db,
+        current_user,
+        template_key="new_device_alert",
+        context={"device_label": "Current browser session"},
     )
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)

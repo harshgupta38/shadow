@@ -10,13 +10,15 @@ from app.schemas.settings import (
     AIBehaviorSettingsUpdate,
     AppearanceSettingsUpdate,
     DynamicAppearanceResolveRead,
+    EmailNotificationControls,
+    EmailNotificationControlsUpdate,
     IntegrationSettingsUpdate,
     NotificationSettingsUpdate,
     PlannerSettingsUpdate,
     PrivacySettingsUpdate,
     SettingsRead,
 )
-from app.services import settings_service
+from app.services import email_notification_service, settings_service
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 
@@ -54,6 +56,23 @@ def update_notifications(
     current_user: CurrentUser,
 ) -> SettingsRead:
     return settings_service.update_notifications(db, current_user, data)
+
+
+@router.get("/email-notifications", response_model=EmailNotificationControls)
+def get_email_notification_controls(
+    db: DbSession,
+    current_user: CurrentUser,
+) -> EmailNotificationControls:
+    return email_notification_service.get_email_notification_controls(db, current_user)
+
+
+@router.put("/email-notifications", response_model=EmailNotificationControls)
+def update_email_notification_controls(
+    data: EmailNotificationControlsUpdate,
+    db: DbSession,
+    current_user: CurrentUser,
+) -> EmailNotificationControls:
+    return email_notification_service.update_email_notification_controls(db, current_user, data)
 
 
 @router.put("/ai-behavior", response_model=SettingsRead)

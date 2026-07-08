@@ -20,7 +20,7 @@ from app.models.user_profile import UserProfile
 from app.models.user_setting import UserSetting
 from app.schemas.auth import EmailVerificationDispatch, RegisterRequest
 from app.services import security
-from app.services import email_service
+from app.services import email_notification_service
 from app.services.exceptions import AuthError, ConflictError
 from app.services.metric_service import ensure_default_metrics
 
@@ -86,6 +86,13 @@ def change_password(db: Session, user: User, *, current_password: str, new_passw
     user.last_password_changed_at = utcnow()
     db.commit()
     db.refresh(user)
+
+    email_notification_service.send_notification_email(
+        db,
+        user,
+        template_key="password_changed_alert",
+        context={"changed_at": user.last_password_changed_at.isoformat()},
+    )
     return user
 
 
@@ -166,25 +173,15 @@ def request_email_verification(db: Session, user: User) -> EmailVerificationDisp
     db.commit()
 
     verification_url = _build_verification_url(raw_token)
-    email_subject = "Verify your Shadow account email"
-    email_text = (
-        "Welcome to Shadow.\n\n"
-        "Please verify your email by opening this link:\n"
-        f"{verification_url}\n\n"
-        f"This link expires in {settings.email_verification_token_ttl_minutes} minutes."
-    )
-    email_html = (
-        "<p>Welcome to Shadow.</p>"
-        "<p>Please verify your email by clicking the link below:</p>"
-        f"<p><a href=\"{verification_url}\">Verify my email</a></p>"
-        f"<p>This link expires in {settings.email_verification_token_ttl_minutes} minutes.</p>"
-    )
-
-    email_sent = email_service.send_email(
-        to_email=user.email,
-        subject=email_subject,
-        text_body=email_text,
-        html_body=email_html,
+    email_sent = email_notification_service.send_notification_email(
+        db,
+        user,
+        template_key="verification_reminders",
+        force=True,
+        context={
+            "verification_url": verification_url,
+            "expires_minutes": settings.email_verification_token_ttl_minutes,
+        },
     )
 
     preview_url = verification_url if settings.environment.lower() != "production" else None

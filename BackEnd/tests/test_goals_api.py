@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from fastapi.testclient import TestClient
 
@@ -183,6 +183,56 @@ def test_milestone_completion_updates_progress(client: TestClient, auth_headers:
     goal = client.get(f"/api/goals/{goal_id}", headers=auth_headers).json()
     assert goal["progress"] == 50
     assert len(goal["milestones"]) == 2
+
+
+def test_goal_target_risk_notification_emitted_from_goal_service(
+    client: TestClient,
+    auth_headers: dict,
+) -> None:
+    target_date = (datetime.now(timezone.utc) + timedelta(days=5)).isoformat()
+    response = client.post(
+        "/api/goals",
+        headers=auth_headers,
+        json={
+            "title": "Launch portfolio site",
+            "category": "career",
+            "target_date": target_date,
+        },
+    )
+    assert response.status_code == 201
+
+    notifications = client.get("/api/notifications", headers=auth_headers)
+    assert notifications.status_code == 200
+    assert any(
+        "goal target risk" in row["title"].lower() for row in notifications.json()
+    )
+
+
+def test_milestone_due_soon_notification_emitted_from_goal_service(
+    client: TestClient,
+    auth_headers: dict,
+) -> None:
+    goal = client.post(
+        "/api/goals",
+        headers=auth_headers,
+        json={"title": "Ship MVP", "category": "product"},
+    )
+    assert goal.status_code == 201
+    goal_id = int(goal.json()["id"])
+
+    due_date = (datetime.now(timezone.utc) + timedelta(days=2)).isoformat()
+    milestone = client.post(
+        f"/api/goals/{goal_id}/milestones",
+        headers=auth_headers,
+        json={"title": "Finish onboarding flow", "due_date": due_date},
+    )
+    assert milestone.status_code == 201
+
+    notifications = client.get("/api/notifications", headers=auth_headers)
+    assert notifications.status_code == 200
+    assert any(
+        "milestone due soon" in row["title"].lower() for row in notifications.json()
+    )
 
 
 def test_delete_goal(client: TestClient, auth_headers: dict) -> None:

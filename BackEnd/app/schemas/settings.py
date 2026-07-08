@@ -54,6 +54,63 @@ class NotificationSettingsUpdate(BaseModel):
     weekly_summary_enabled: bool | None = None
 
 
+EmailNotificationPreferenceKey = Literal[
+    "verification_reminders",
+    "password_changed_alert",
+    "new_device_alert",
+    "task_reminders",
+    "today_plan_generated",
+    "daily_motivational_quote",
+    "daily_brief",
+    "weekly_summary",
+    "streak_risk_alert",
+    "milestone_due_soon",
+    "goal_target_risk",
+    "daily_report_ready",
+    "weekly_report_ready",
+    "progress_coach_recommendations",
+    "export_ready",
+]
+
+
+class EmailNotificationControls(BaseModel):
+    verification_reminders: bool
+    password_changed_alert: bool
+    new_device_alert: bool
+    task_reminders: bool
+    today_plan_generated: bool
+    daily_motivational_quote: bool
+    daily_motivational_quote_time: str = Field(pattern=r"^\d{2}:\d{2}$")
+    daily_brief: bool
+    weekly_summary: bool
+    streak_risk_alert: bool
+    milestone_due_soon: bool
+    goal_target_risk: bool
+    daily_report_ready: bool
+    weekly_report_ready: bool
+    progress_coach_recommendations: bool
+    export_ready: bool
+
+
+class EmailNotificationControlsUpdate(BaseModel):
+    verification_reminders: bool | None = None
+    password_changed_alert: bool | None = None
+    new_device_alert: bool | None = None
+    task_reminders: bool | None = None
+    today_plan_generated: bool | None = None
+    daily_motivational_quote: bool | None = None
+    daily_motivational_quote_time: str | None = Field(default=None, pattern=r"^\d{2}:\d{2}$")
+    daily_brief: bool | None = None
+    weekly_summary: bool | None = None
+    streak_risk_alert: bool | None = None
+    milestone_due_soon: bool | None = None
+    goal_target_risk: bool | None = None
+    daily_report_ready: bool | None = None
+    weekly_report_ready: bool | None = None
+    progress_coach_recommendations: bool | None = None
+    export_ready: bool | None = None
+
+
 class AIBehaviorSettings(BaseModel):
     ai_response_length: AIResponseLength
     ai_personality: AIPersonality

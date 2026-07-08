@@ -321,6 +321,7 @@ export function PlanPage() {
       updateWorkspaceTasks((prev) =>
         prev.map((entry) => (entry.id === task.id ? updated : entry)),
       );
+      toast.success(nextStatus === "done" ? "Task marked done." : "Task marked as not done.");
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Couldn't update the task.");
       reloadWorkspace();

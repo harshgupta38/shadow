@@ -44,8 +44,9 @@ export const settingsApi = {
       "/settings/appearance/dynamic-resolve",
       { latitude, longitude },
       {
-        // Keep this short so sunrise/sunset transitions can refresh naturally.
-        ttlMs: 60_000,
+        // Dynamic polling should always hit the backend decision endpoint.
+        bypassCache: true,
+        ttlMs: 0,
       },
     );
   },

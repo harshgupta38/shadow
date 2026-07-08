@@ -1,5 +1,6 @@
+import { useEffect, useState } from "react";
 import { Dropdown } from "react-bootstrap";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { BellFill, InfoCircleFill, Stars } from "react-bootstrap-icons";
 
 import { api, type NotificationType } from "@/api";
@@ -20,14 +21,27 @@ const TYPE_COLOR: Record<NotificationType, string> = {
 
 /** Bell icon linking to the notifications page, with an unread badge. */
 export function NotificationsBell() {
+  const location = useLocation();
   const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
   const { data, loading, error } = useAsync(() => api.notifications.list(), []);
   const notifications = data ?? [];
   const unread = notifications.filter((notification) => !notification.read).length;
   const latestNotifications = notifications.slice(0, 10);
 
+  useEffect(() => {
+    if (location.pathname === "/notifications") {
+      setOpen(false);
+    }
+  }, [location.pathname]);
+
+  function goToNotifications() {
+    setOpen(false);
+    navigate("/notifications");
+  }
+
   return (
-    <Dropdown align="end">
+    <Dropdown align="end" show={open} onToggle={(nextShow) => setOpen(nextShow)}>
       <Dropdown.Toggle
         as="button"
         type="button"
@@ -104,7 +118,7 @@ export function NotificationsBell() {
           <button
             type="button"
             className="btn btn-soft btn-sm w-100"
-            onClick={() => navigate("/notifications")}
+            onClick={goToNotifications}
           >
             Show all notifications
           </button>

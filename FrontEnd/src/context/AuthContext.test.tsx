@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 
 import { api, tokenStore, type User } from "@/api";
 import { ThemeProvider } from "./ThemeContext";
+import { ToastProvider } from "./ToastContext";
 import { AuthProvider, useAuth } from "./AuthContext";
 
 vi.mock("@/api", async (importOriginal) => {
@@ -54,11 +55,13 @@ function Consumer() {
 
 function renderConsumer() {
   return render(
-    <ThemeProvider>
-      <AuthProvider>
-        <Consumer />
-      </AuthProvider>
-    </ThemeProvider>,
+    <ToastProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <Consumer />
+        </AuthProvider>
+      </ThemeProvider>
+    </ToastProvider>,
   );
 }
 

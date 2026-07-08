@@ -303,20 +303,18 @@ export function MemoryCenterPage() {
   }
 
   return (
-    <div className="memory-center-page page-fill-height">
+    <div className="memory-center-page">
       <PageHeader
         title="Your Information"
         subtitle="What Shadow knows about you. This information is used to personalize responses."
         icon={<Stars size={20} />}
       />
 
-      <div className="row g-4 flex-grow-1" style={{ minHeight: 0 }}>
-        <div className="col-12 d-flex flex-column" style={{ minHeight: 0 }}>
+      <div className="row g-4">
+        <div className="col-12">
           <SectionCard
             title="Your Information"
             subtitle="What Shadow knows about you. This information is used to personalize responses."
-            className="h-100 d-flex flex-column"
-            bodyClassName="d-flex flex-column flex-grow-1"
             actions={
               <button
                 type="button"

@@ -234,6 +234,8 @@ def test_settings_endpoints_and_theme_sync(client, auth_headers):
 def test_dynamic_appearance_resolve_returns_effective_theme(client, auth_headers, monkeypatch):
     from app.services import settings_service
 
+    settings_service._DYNAMIC_APPEARANCE_CACHE.clear()
+
     def fake_fetch(*, latitude: float, longitude: float):
         assert latitude == 28.6139
         assert longitude == 77.209
@@ -272,6 +274,78 @@ def test_dynamic_appearance_resolve_rejects_invalid_coordinates(client, auth_hea
     )
     assert response.status_code == 400
     assert "Latitude must be between -90 and 90" in response.json()["detail"]
+
+
+def test_dynamic_appearance_resolve_uses_backup_api_when_open_meteo_fails(
+    client,
+    auth_headers,
+    monkeypatch,
+):
+    from app.services import settings_service
+    from app.services.exceptions import AppError
+
+    settings_service._DYNAMIC_APPEARANCE_CACHE.clear()
+
+    def fail_open_meteo(*, latitude: float, longitude: float):
+        raise AppError("open-meteo unavailable")
+
+    def fake_backup(*, latitude: float, longitude: float, date_iso: str | None = None):
+        return {
+            "status": "OK",
+            "results": {
+                "sunrise": "2026-07-08T00:30:00+00:00",
+                "sunset": "2026-07-08T13:30:00+00:00",
+            },
+        }
+
+    monkeypatch.setattr(settings_service, "_fetch_open_meteo_dynamic_payload", fail_open_meteo)
+    monkeypatch.setattr(settings_service, "_fetch_sunrise_sunset_payload", fake_backup)
+
+    response = client.get(
+        "/api/settings/appearance/dynamic-resolve",
+        headers=auth_headers,
+        params={"latitude": 28.6139, "longitude": 77.2090},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["source"] == "sunrise_sunset"
+    assert payload["timezone"] == "UTC"
+    assert datetime.fromisoformat(payload["sunrise"].replace("Z", "+00:00"))
+    assert datetime.fromisoformat(payload["sunset"].replace("Z", "+00:00"))
+    assert datetime.fromisoformat(payload["next_transition_at"].replace("Z", "+00:00"))
+
+
+def test_dynamic_appearance_resolve_uses_default_ist_when_all_apis_fail(
+    client,
+    auth_headers,
+    monkeypatch,
+):
+    from app.services import settings_service
+    from app.services.exceptions import AppError
+
+    settings_service._DYNAMIC_APPEARANCE_CACHE.clear()
+
+    def fail_open_meteo(*, latitude: float, longitude: float):
+        raise AppError("open-meteo unavailable")
+
+    def fail_backup(*, latitude: float, longitude: float, date_iso: str | None = None):
+        raise AppError("sunrise-sunset unavailable")
+
+    monkeypatch.setattr(settings_service, "_fetch_open_meteo_dynamic_payload", fail_open_meteo)
+    monkeypatch.setattr(settings_service, "_fetch_sunrise_sunset_payload", fail_backup)
+
+    response = client.get(
+        "/api/settings/appearance/dynamic-resolve",
+        headers=auth_headers,
+        params={"latitude": 28.6139, "longitude": 77.2090},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["source"] == "default_ist"
+    assert payload["timezone"] == "Asia/Kolkata"
+    assert datetime.fromisoformat(payload["sunrise"])
+    assert datetime.fromisoformat(payload["sunset"])
+    assert datetime.fromisoformat(payload["next_transition_at"])
 
 
 def test_account_security_export_and_clear_chat(client, auth_headers):

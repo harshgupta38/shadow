@@ -247,7 +247,7 @@ describe("PlanPage", () => {
 
 		await user.click(await screen.findByRole("button", { name: "Schedule" }));
 
-		expect(await screen.findByText("Plan a task")).toBeInTheDocument();
+		expect(await screen.findByText("Schedule a task")).toBeInTheDocument();
 		expect(mockedRepetitiveApi.list).toHaveBeenCalledTimes(1);
 	});
 
@@ -263,11 +263,30 @@ describe("PlanPage", () => {
 
 		expect(mockedPlanApi.update).toHaveBeenCalledWith(1, { status: "done" });
 		expect(mockedPlanApi.workspace).toHaveBeenCalledTimes(1);
+		expect(await screen.findByText("Task marked done.")).toBeInTheDocument();
 		expect(
 			await screen.findByText("All planned work is complete. Keep this momentum going."),
 		).toBeInTheDocument();
 		expect(screen.getByText(/Max streak:\s*5d/i)).toBeInTheDocument();
 		expect(screen.getByText(/Current streak:\s*5d/i)).toBeInTheDocument();
+	});
+
+	it("shows toast when marking task as not done", async () => {
+		const user = userEvent.setup();
+
+		mockedPlanApi.workspace.mockResolvedValue(
+			buildWorkspace({
+				tasks: [buildTask({ status: "done", completed_at: "2026-07-08T09:30:00.000Z" })],
+			}),
+		);
+		mockedPlanApi.update.mockResolvedValue(buildTask({ status: "planned", completed_at: null }));
+
+		renderPage();
+
+		await user.click(await screen.findByRole("button", { name: "Mark as not done" }));
+
+		expect(mockedPlanApi.update).toHaveBeenCalledWith(1, { status: "planned" });
+		expect(await screen.findByText("Task marked as not done.")).toBeInTheDocument();
 	});
 
 	it("keeps completed tasks visible in today's plan summary", async () => {

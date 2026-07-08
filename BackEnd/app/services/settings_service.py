@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 import re
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -48,6 +48,12 @@ _RETIRED_GEMINI_MODELS = {
 
 _DYNAMIC_APPEARANCE_CACHE_TTL_SECONDS = 300
 _DYNAMIC_APPEARANCE_CACHE: dict[str, tuple[datetime, DynamicAppearanceResolveRead]] = {}
+_SUNRISE_SUNSET_BASE_URL = "https://api.sunrise-sunset.org/json"
+_DEFAULT_IST_TIMEZONE = "Asia/Kolkata"
+_DEFAULT_IST_SUNRISE_HOUR = 6
+_DEFAULT_IST_SUNRISE_MINUTE = 0
+_DEFAULT_IST_SUNSET_HOUR = 18
+_DEFAULT_IST_SUNSET_MINUTE = 30
 
 
 def normalize_ai_default_model(value: str | None) -> str:
@@ -262,16 +268,53 @@ def _fetch_open_meteo_dynamic_payload(*, latitude: float, longitude: float) -> d
     return payload
 
 
-def resolve_dynamic_appearance(*, latitude: float, longitude: float) -> DynamicAppearanceResolveRead:
-    if latitude < -90 or latitude > 90:
-        raise AppError("Latitude must be between -90 and 90.")
-    if longitude < -180 or longitude > 180:
-        raise AppError("Longitude must be between -180 and 180.")
+def _parse_utc_datetime(value: str) -> datetime:
+    normalized = value.strip().replace("Z", "+00:00")
+    parsed = datetime.fromisoformat(normalized)
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
 
-    cached = _get_cached_dynamic_appearance(latitude=latitude, longitude=longitude)
-    if cached is not None:
-        return cached
 
+def _fetch_sunrise_sunset_payload(
+    *,
+    latitude: float,
+    longitude: float,
+    date_iso: str | None = None,
+) -> dict[str, Any]:
+    params: dict[str, Any] = {
+        "lat": latitude,
+        "lng": longitude,
+        "formatted": 0,
+    }
+    if date_iso:
+        params["date"] = date_iso
+
+    try:
+        response = httpx.get(
+            _SUNRISE_SUNSET_BASE_URL,
+            params=params,
+            timeout=settings.open_meteo_timeout_seconds,
+        )
+        response.raise_for_status()
+        payload = response.json()
+    except httpx.TimeoutException as exc:
+        raise AppError("Backup sunrise/sunset lookup timed out.") from exc
+    except httpx.HTTPError as exc:
+        raise AppError("Backup sunrise/sunset lookup failed.") from exc
+    except ValueError as exc:
+        raise AppError("Backup sunrise/sunset response was invalid.") from exc
+
+    if payload.get("status") != "OK":
+        raise AppError("Backup sunrise/sunset lookup failed.")
+    return payload
+
+
+def _resolve_dynamic_appearance_with_open_meteo(
+    *,
+    latitude: float,
+    longitude: float,
+) -> DynamicAppearanceResolveRead:
     payload = _fetch_open_meteo_dynamic_payload(latitude=latitude, longitude=longitude)
 
     timezone_name = str(payload.get("timezone") or "UTC")
@@ -307,13 +350,117 @@ def resolve_dynamic_appearance(*, latitude: float, longitude: float) -> DynamicA
     sunrise_for_today = sunrise_values[min(today_idx, len(sunrise_values) - 1)]
     sunset_for_today = sunset_values[min(today_idx, len(sunset_values) - 1)]
 
-    resolved = DynamicAppearanceResolveRead(
+    return DynamicAppearanceResolveRead(
         effective_theme="light" if is_day else "dark",
         timezone=timezone_name,
         sunrise=sunrise_for_today,
         sunset=sunset_for_today,
         next_transition_at=next_transition_at,
+        source="open_meteo",
     )
+
+
+def _resolve_dynamic_appearance_with_sunrise_sunset(
+    *,
+    latitude: float,
+    longitude: float,
+) -> DynamicAppearanceResolveRead:
+    payload = _fetch_sunrise_sunset_payload(latitude=latitude, longitude=longitude)
+    results = payload.get("results") or {}
+
+    sunrise_raw = results.get("sunrise")
+    sunset_raw = results.get("sunset")
+    if not sunrise_raw or not sunset_raw:
+        raise AppError("Backup sunrise/sunset data is unavailable.")
+
+    sunrise = _parse_utc_datetime(str(sunrise_raw))
+    sunset = _parse_utc_datetime(str(sunset_raw))
+    now_utc = _utcnow()
+    is_day = sunrise <= now_utc < sunset
+
+    if is_day:
+        next_transition_at = sunset
+    elif now_utc < sunrise:
+        next_transition_at = sunrise
+    else:
+        tomorrow_payload = _fetch_sunrise_sunset_payload(
+            latitude=latitude,
+            longitude=longitude,
+            date_iso=(now_utc + timedelta(days=1)).date().isoformat(),
+        )
+        tomorrow_results = tomorrow_payload.get("results") or {}
+        tomorrow_sunrise_raw = tomorrow_results.get("sunrise")
+        if not tomorrow_sunrise_raw:
+            raise AppError("Backup sunrise/sunset data is unavailable.")
+        next_transition_at = _parse_utc_datetime(str(tomorrow_sunrise_raw))
+
+    return DynamicAppearanceResolveRead(
+        effective_theme="light" if is_day else "dark",
+        timezone="UTC",
+        sunrise=sunrise,
+        sunset=sunset,
+        next_transition_at=next_transition_at,
+        source="sunrise_sunset",
+    )
+
+
+def _resolve_dynamic_appearance_default_ist() -> DynamicAppearanceResolveRead:
+    tz = _resolve_timezone(_DEFAULT_IST_TIMEZONE)
+    now_local = _utcnow().astimezone(tz)
+
+    sunrise = datetime.combine(
+        now_local.date(),
+        time(hour=_DEFAULT_IST_SUNRISE_HOUR, minute=_DEFAULT_IST_SUNRISE_MINUTE),
+        tzinfo=tz,
+    )
+    sunset = datetime.combine(
+        now_local.date(),
+        time(hour=_DEFAULT_IST_SUNSET_HOUR, minute=_DEFAULT_IST_SUNSET_MINUTE),
+        tzinfo=tz,
+    )
+    is_day = sunrise <= now_local < sunset
+
+    if is_day:
+        next_transition_at = sunset
+    elif now_local < sunrise:
+        next_transition_at = sunrise
+    else:
+        next_transition_at = sunrise + timedelta(days=1)
+
+    return DynamicAppearanceResolveRead(
+        effective_theme="light" if is_day else "dark",
+        timezone=_DEFAULT_IST_TIMEZONE,
+        sunrise=sunrise,
+        sunset=sunset,
+        next_transition_at=next_transition_at,
+        source="default_ist",
+    )
+
+
+def resolve_dynamic_appearance(*, latitude: float, longitude: float) -> DynamicAppearanceResolveRead:
+    if latitude < -90 or latitude > 90:
+        raise AppError("Latitude must be between -90 and 90.")
+    if longitude < -180 or longitude > 180:
+        raise AppError("Longitude must be between -180 and 180.")
+
+    cached = _get_cached_dynamic_appearance(latitude=latitude, longitude=longitude)
+    if cached is not None:
+        return cached
+
+    try:
+        resolved = _resolve_dynamic_appearance_with_open_meteo(
+            latitude=latitude,
+            longitude=longitude,
+        )
+    except AppError:
+        try:
+            resolved = _resolve_dynamic_appearance_with_sunrise_sunset(
+                latitude=latitude,
+                longitude=longitude,
+            )
+        except AppError:
+            resolved = _resolve_dynamic_appearance_default_ist()
+
     _cache_dynamic_appearance(latitude=latitude, longitude=longitude, payload=resolved)
     return resolved
 

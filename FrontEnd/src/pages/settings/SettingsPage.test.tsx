@@ -87,7 +87,6 @@ const mockedSettingsApi = api.settings as unknown as {
   updateAIBehavior: Mock;
   updatePlanner: Mock;
   updatePrivacy: Mock;
-  updateIntegrations: Mock;
   updateAccessibility: Mock;
 };
 
@@ -179,7 +178,6 @@ describe("SettingsPage", () => {
     mockedSettingsApi.updateAIBehavior.mockReset();
     mockedSettingsApi.updatePlanner.mockReset();
     mockedSettingsApi.updatePrivacy.mockReset();
-    mockedSettingsApi.updateIntegrations.mockReset();
     mockedSettingsApi.updateAccessibility.mockReset();
 
     mockedNotificationsApi.getPushPublicKey.mockReset();
@@ -255,17 +253,6 @@ describe("SettingsPage", () => {
       return currentSettings;
     });
 
-    mockedSettingsApi.updateIntegrations.mockImplementation(async (data) => {
-      currentSettings = {
-        ...currentSettings,
-        integrations: {
-          ...currentSettings.integrations,
-          ...data,
-        },
-      };
-      return currentSettings;
-    });
-
     mockedSettingsApi.updateAccessibility.mockImplementation(async (data) => {
       currentSettings = {
         ...currentSettings,
@@ -297,7 +284,6 @@ describe("SettingsPage", () => {
     expect(screen.queryByRole("button", { name: /save appearance/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /save notifications/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /save privacy/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /save integrations/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /save accessibility/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /save ai behavior/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /save planner defaults/i })).not.toBeInTheDocument();
@@ -318,7 +304,6 @@ describe("SettingsPage", () => {
     expect(mockedSettingsApi.updateAIBehavior).not.toHaveBeenCalled();
     expect(mockedSettingsApi.updatePlanner).not.toHaveBeenCalled();
     expect(mockedSettingsApi.updatePrivacy).not.toHaveBeenCalled();
-    expect(mockedSettingsApi.updateIntegrations).not.toHaveBeenCalled();
     expect(mockedSettingsApi.updateAccessibility).not.toHaveBeenCalled();
 
     await waitFor(() => {
@@ -343,7 +328,6 @@ describe("SettingsPage", () => {
     expect(mockedSettingsApi.updateNotifications).not.toHaveBeenCalled();
     expect(mockedSettingsApi.updatePlanner).not.toHaveBeenCalled();
     expect(mockedSettingsApi.updatePrivacy).not.toHaveBeenCalled();
-    expect(mockedSettingsApi.updateIntegrations).not.toHaveBeenCalled();
     expect(mockedSettingsApi.updateAccessibility).not.toHaveBeenCalled();
 
     expect(patchUserMock).toHaveBeenCalledWith({ theme_preference: "dark" });

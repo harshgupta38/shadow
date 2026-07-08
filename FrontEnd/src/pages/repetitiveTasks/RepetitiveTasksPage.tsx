@@ -569,7 +569,7 @@ export function RepetitiveTasksPage() {
       <div className="row g-4">
         <div className="col-xl-5 d-flex flex-column gap-4">
           <SectionCard
-            title={editingTaskId ? "Edit repetitive task" : "Create repetitive task"}
+            title={editingTaskId ? "Edit habit" : "Create new habit"}
             subtitle="Define what should repeat and why it matters."
           >
             <form onSubmit={submitDraft} className="d-flex flex-column gap-3" autoComplete="off">
@@ -778,7 +778,7 @@ export function RepetitiveTasksPage() {
               <div className="d-flex gap-2">
                 <button type="submit" className="btn btn-brand" disabled={submitting}>
                   <PlusLg size={14} className="me-1" />
-                  {editingTaskId ? "Update repetitive task" : "Create repetitive task"}
+                  {editingTaskId ? "Update habit" : "Create new habit"}
                 </button>
                 {!editingTaskId && (
                   <button

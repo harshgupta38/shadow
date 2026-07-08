@@ -284,7 +284,7 @@ describe("RepetitiveTasksPage", () => {
 
     await user.type(screen.getByLabelText(/task name/i), "Meditation");
     await user.click(screen.getByRole("button", { name: "Daily" }));
-    await user.click(screen.getByRole("button", { name: /create repetitive task/i }));
+    await user.click(screen.getByRole("button", { name: /create new habit/i }));
 
     expect(mockedRepetitiveTasksApi.create).toHaveBeenCalledWith({
       name: "Meditation",
@@ -418,11 +418,11 @@ describe("RepetitiveTasksPage", () => {
 
     const taskNameInput = screen.getByLabelText(/task name/i) as HTMLInputElement;
     expect(taskNameInput.value).toBe("Hydration Goal");
-    expect(screen.getByRole("button", { name: /create repetitive task/i })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /update repetitive task/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /create new habit/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /update habit/i })).not.toBeInTheDocument();
     expect(scrollToSpy).toHaveBeenCalledWith({ top: 0, behavior: "smooth" });
 
-    await user.click(screen.getByRole("button", { name: /create repetitive task/i }));
+    await user.click(screen.getByRole("button", { name: /create new habit/i }));
 
     expect(mockedRepetitiveTasksApi.create).toHaveBeenCalledWith({
       name: "Hydration Goal",

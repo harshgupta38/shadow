@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
+from functools import lru_cache
 from html import escape
+from pathlib import Path
 import re
 from typing import Any, Literal
 
@@ -39,6 +41,26 @@ EmailTemplateKey = Literal[
 
 DEFAULT_DAILY_MOTIVATIONAL_QUOTE_TIME = "07:00"
 _HHMM_PATTERN = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
+_TEMPLATE_TOKEN_PATTERN = re.compile(r"{{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*}}")
+_EMAIL_TEMPLATE_DIR = Path(__file__).resolve().parents[1] / "templates" / "email"
+
+
+@lru_cache(maxsize=32)
+def _load_email_template(template_name: str) -> str:
+    template_path = _EMAIL_TEMPLATE_DIR / template_name
+    return template_path.read_text(encoding="utf-8")
+
+
+def _render_email_template(template_name: str, context: dict[str, str]) -> str:
+    template = _load_email_template(template_name)
+
+    def _replace_placeholder(match: re.Match[str]) -> str:
+        key = match.group(1)
+        if key not in context:
+            raise KeyError(f"Missing template placeholder '{key}' in '{template_name}'")
+        return context[key]
+
+    return _TEMPLATE_TOKEN_PATTERN.sub(_replace_placeholder, template)
 
 
 @dataclass(frozen=True)
@@ -500,13 +522,31 @@ def _render_template(
     elif template_key == "new_device_alert":
         device_label = str(context.get("device_label") or "A new device")
         highlights = [("Event", "New device connected"), ("Device", device_label)]
-        cta_label = "Review sessions"
+        cta_label = "Secure My Account"
         cta_url = _frontend_url("settings/security")
     elif template_key == "password_changed_alert":
         changed_at = str(context.get("changed_at") or datetime.now(timezone.utc).isoformat())
         highlights = [("Event", "Password changed"), ("At", changed_at)]
         cta_label = "Review security"
         cta_url = _frontend_url("settings/security")
+
+    if template_key == "new_device_alert":
+        return _render_new_device_alert_shell(
+            subject=subject,
+            recipient_name=safe_name,
+            title=str(context.get("notification_title") or spec.title),
+            intro=str(context.get("notification_body") or spec.intro),
+            device_label=str(context.get("device_label") or "Current browser session"),
+            browser=str(context.get("browser") or "Unknown browser"),
+            operating_system=str(context.get("operating_system") or "Unknown OS"),
+            location=str(context.get("location") or "Unknown location"),
+            detected_at=str(context.get("detected_at") or datetime.now(timezone.utc).strftime("%b %d, %Y %I:%M %p UTC")),
+            ip_address=str(context.get("ip_address") or "Unavailable"),
+            cta_label=str(context.get("cta_label") or cta_label),
+            cta_url=cta_url,
+            footer=spec.footer,
+            support_email=str(context.get("support_email") or "support@shadow.app"),
+        )
 
     title = context.get("notification_title") or spec.title
     intro = context.get("notification_body") or spec.intro
@@ -524,6 +564,189 @@ def _render_template(
         cta_url=cta_url,
         quote=quote,
     )
+
+
+def _render_new_device_alert_shell(
+        *,
+        subject: str,
+        recipient_name: str,
+        title: str,
+        intro: str,
+        device_label: str,
+        browser: str,
+        operating_system: str,
+        location: str,
+        detected_at: str,
+        ip_address: str,
+        cta_label: str,
+        cta_url: str,
+        footer: str,
+        support_email: str,
+) -> tuple[str, str, str]:
+        text_lines = [
+                f"Hi {recipient_name},",
+                "",
+                intro,
+                "",
+                "Device sign-in details:",
+                f"- Device: {device_label}",
+                f"- Browser: {browser}",
+                f"- Operating system: {operating_system}",
+                f"- Location: {location}",
+                f"- Time: {detected_at}",
+                f"- IP address: {ip_address}",
+                "",
+                "Was this you?",
+                "- Yes, it was me -> no action needed.",
+                "- No, this wasn't me -> secure your account now.",
+                "",
+                f"Open: {cta_url}",
+                "",
+                f"Need help? Contact support at {support_email}",
+                "",
+                footer,
+                "",
+                "Team Shadow",
+        ]
+        text_body = "\n".join(text_lines)
+
+        safe_subject = escape(subject)
+        safe_name = escape(recipient_name)
+        safe_title = escape(title)
+        safe_intro = escape(intro)
+        safe_device_label = escape(device_label)
+        safe_browser = escape(browser)
+        safe_os = escape(operating_system)
+        safe_location = escape(location)
+        safe_detected_at = escape(detected_at)
+        safe_ip = escape(ip_address)
+        safe_cta_label = escape(cta_label)
+        safe_cta_url = escape(cta_url)
+        safe_footer = escape(footer)
+        safe_support_email = escape(support_email)
+
+        # Inline SVG icons render more reliably than emoji/glyph fallbacks.
+        icon_device = (
+            '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" '
+            'xmlns="http://www.w3.org/2000/svg" style="display:block;margin:0 auto;">'
+            '<rect x="3.5" y="4.5" width="17" height="12" rx="2" stroke="#6b5cff" stroke-width="1.8"/>'
+            '<path d="M9 20h6" stroke="#6b5cff" stroke-width="1.8" stroke-linecap="round"/>'
+            '<path d="M12 16.5v3" stroke="#6b5cff" stroke-width="1.8" stroke-linecap="round"/>'
+            '</svg>'
+        )
+        icon_browser = (
+            '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" '
+            'xmlns="http://www.w3.org/2000/svg" style="display:block;margin:0 auto;">'
+            '<circle cx="12" cy="12" r="8" stroke="#6b5cff" stroke-width="1.8"/>'
+            '<path d="M4 12h16" stroke="#6b5cff" stroke-width="1.6"/>'
+            '<path d="M12 4c2.8 2.3 2.8 13.7 0 16" stroke="#6b5cff" stroke-width="1.6"/>'
+            '<path d="M12 4c-2.8 2.3-2.8 13.7 0 16" stroke="#6b5cff" stroke-width="1.6"/>'
+            '</svg>'
+        )
+        icon_os = (
+            '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" '
+            'xmlns="http://www.w3.org/2000/svg" style="display:block;margin:0 auto;">'
+            '<rect x="4" y="5" width="16" height="10" rx="2" stroke="#6b5cff" stroke-width="1.8"/>'
+            '<path d="M2.5 19h19" stroke="#6b5cff" stroke-width="1.8" stroke-linecap="round"/>'
+            '</svg>'
+        )
+        icon_location = (
+            '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" '
+            'xmlns="http://www.w3.org/2000/svg" style="display:block;margin:0 auto;">'
+            '<path d="M12 21s6-5.8 6-10a6 6 0 1 0-12 0c0 4.2 6 10 6 10Z" stroke="#6b5cff" stroke-width="1.8"/>'
+            '<circle cx="12" cy="11" r="2.2" stroke="#6b5cff" stroke-width="1.6"/>'
+            '</svg>'
+        )
+        icon_time = (
+            '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" '
+            'xmlns="http://www.w3.org/2000/svg" style="display:block;margin:0 auto;">'
+            '<circle cx="12" cy="12" r="8" stroke="#6b5cff" stroke-width="1.8"/>'
+            '<path d="M12 8v4.2l3 1.8" stroke="#6b5cff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>'
+            '</svg>'
+        )
+        icon_ip = (
+            '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" '
+            'xmlns="http://www.w3.org/2000/svg" style="display:block;margin:0 auto;">'
+            '<circle cx="6" cy="6" r="2" stroke="#6b5cff" stroke-width="1.6"/>'
+            '<circle cx="18" cy="6" r="2" stroke="#6b5cff" stroke-width="1.6"/>'
+            '<circle cx="6" cy="18" r="2" stroke="#6b5cff" stroke-width="1.6"/>'
+            '<circle cx="18" cy="18" r="2" stroke="#6b5cff" stroke-width="1.6"/>'
+            '<path d="M8 6h8M6 8v8M18 8v8M8 18h8" stroke="#6b5cff" stroke-width="1.4"/>'
+            '</svg>'
+        )
+        icon_lock_cta = (
+            '<svg width="15" height="15" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" '
+            'style="vertical-align:-2px;margin-right:7px;fill:#5e50ff;">'
+            '<path d="M8 1a3 3 0 0 0-3 3v2H4a1 1 0 0 0-1 1v6a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V7a1 1 0 0 0-1-1h-1V4a3 3 0 0 0-3-3Zm-2 5V4a2 2 0 1 1 4 0v2H6Z"/>'
+            '</svg>'
+        )
+        icon_arrow_cta = (
+            '<svg width="15" height="15" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" '
+            'style="vertical-align:-2px;margin-left:7px;fill:none;stroke:#5e50ff;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;">'
+            '<path d="M2 8H12"/><path d="M8.5 4.5L12 8L8.5 11.5"/>'
+            '</svg>'
+        )
+        icon_tip_header = (
+            '<svg width="13" height="13" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" '
+            'style="vertical-align:-2px;margin-right:6px;fill:none;stroke:#5f4bff;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;">'
+            '<path d="M8 1.5 13 3.5V7.3c0 3.1-2.1 5.8-5 6.8-2.9-1-5-3.7-5-6.8V3.5l5-2Z"/>'
+            '</svg>'
+        )
+        icon_tip_password = (
+            '<svg width="14" height="14" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" '
+            'style="display:block;margin:0 auto 5px;fill:none;stroke:#7a6bff;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;">'
+            '<rect x="3.5" y="7" width="9" height="7" rx="1.3"/><path d="M5.5 7V5.5a2.5 2.5 0 1 1 5 0V7"/>'
+            '</svg>'
+        )
+        icon_tip_2fa = (
+            '<svg width="14" height="14" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" '
+            'style="display:block;margin:0 auto 5px;fill:none;stroke:#7a6bff;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;">'
+            '<path d="M8 1.5 13 3.5V7.3c0 3.1-2.1 5.8-5 6.8-2.9-1-5-3.7-5-6.8V3.5l5-2Z"/><path d="m5.8 8 1.4 1.4L10.4 6.2"/>'
+            '</svg>'
+        )
+        icon_tip_devices = (
+            '<svg width="14" height="14" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" '
+            'style="display:block;margin:0 auto 5px;fill:none;stroke:#7a6bff;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round;">'
+            '<rect x="2" y="2.5" width="8.5" height="6.5" rx="1.2"/><path d="M1.5 11.5h9.5"/><circle cx="11.7" cy="10.5" r="2.2"/><path d="m13.2 12 1.3 1.3"/>'
+            '</svg>'
+        )
+        safe_yes_url = escape(_frontend_url("notifications"))
+        safe_no_url = escape(_frontend_url("settings/security"))
+        html_body = _render_email_template(
+            "new_device_alert.html",
+            {
+                "safe_subject": safe_subject,
+                "safe_name": safe_name,
+                "safe_title": safe_title,
+                "safe_intro": safe_intro,
+                "safe_device_label": safe_device_label,
+                "safe_browser": safe_browser,
+                "safe_os": safe_os,
+                "safe_location": safe_location,
+                "safe_detected_at": safe_detected_at,
+                "safe_ip": safe_ip,
+                "safe_cta_label": safe_cta_label,
+                "safe_cta_url": safe_cta_url,
+                "safe_footer": safe_footer,
+                "safe_support_email": safe_support_email,
+                "safe_yes_url": safe_yes_url,
+                "safe_no_url": safe_no_url,
+                "icon_device": icon_device,
+                "icon_browser": icon_browser,
+                "icon_os": icon_os,
+                "icon_location": icon_location,
+                "icon_time": icon_time,
+                "icon_ip": icon_ip,
+                "icon_lock_cta": icon_lock_cta,
+                "icon_arrow_cta": icon_arrow_cta,
+                "icon_tip_header": icon_tip_header,
+                "icon_tip_password": icon_tip_password,
+                "icon_tip_2fa": icon_tip_2fa,
+                "icon_tip_devices": icon_tip_devices,
+            },
+        )
+
+        return subject, text_body, html_body
 
 
 def _render_shell(

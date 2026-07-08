@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
 import {
   BellFill,
   CalendarWeek,
@@ -149,23 +148,32 @@ function getErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
-function formatDynamicTime(value: string, timezone: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
+function formatDynamicTransitionTime(value: string | null): string | null {
+  if (!value) return null;
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
 
   try {
-    return new Intl.DateTimeFormat(undefined, {
+    const formatter = new Intl.DateTimeFormat("en-IN", {
       hour: "2-digit",
       minute: "2-digit",
       hour12: true,
-      timeZone: timezone,
-    }).format(date);
+      timeZone: "Asia/Kolkata",
+    });
+
+    const parts = formatter.formatToParts(parsed);
+    const hour = parts.find((part) => part.type === "hour")?.value;
+    const minute = parts.find((part) => part.type === "minute")?.value;
+    const dayPeriod = parts.find((part) => part.type === "dayPeriod")?.value;
+
+    if (hour && minute && dayPeriod) {
+      return `${hour}:${minute} ${dayPeriod.toUpperCase()} IST`;
+    }
+
+    return `${formatter.format(parsed).toUpperCase()} IST`;
   } catch {
-    return new Intl.DateTimeFormat(undefined, {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    }).format(date);
+    return null;
   }
 }
 
@@ -278,7 +286,7 @@ function ToggleRow({ id, label, description, checked, onChange }: ToggleRowProps
 
 export function SettingsPage() {
   const { patchUser } = useAuth();
-  const { setTheme, dynamicThemeInfo } = useTheme();
+  const { setTheme, theme, dynamicThemeInfo } = useTheme();
   const toast = useToast();
 
   const settingsQuery = useAsync(() => api.settings.get(), []);
@@ -402,35 +410,31 @@ export function SettingsPage() {
   const isSavingAny = useMemo(() => Object.values(saving).some(Boolean), [saving]);
   const hasPendingChanges = dirtySections.length > 0;
 
-  const dynamicThemeDescription = useMemo(() => {
-    if (draft?.appearance.theme_preference !== "dynamic") {
-      return null;
+  const dynamicThemeMessage = useMemo(() => {
+    if (!draft || draft.appearance.theme_preference !== "dynamic") return null;
+
+    if (dynamicThemeInfo.mode === "location-unavailable") {
+      return "Dynamic theme is enabled, but location access is not available. Using standard Indian sunrise and sunset timings.";
     }
 
-    if (
-      dynamicThemeInfo.mode === "live" &&
-      dynamicThemeInfo.sunrise &&
-      dynamicThemeInfo.sunset &&
-      dynamicThemeInfo.timezone
-    ) {
-      const sunrise = formatDynamicTime(dynamicThemeInfo.sunrise, dynamicThemeInfo.timezone);
-      const sunset = formatDynamicTime(dynamicThemeInfo.sunset, dynamicThemeInfo.timezone);
-      const sourceLabel =
-        dynamicThemeInfo.source === "open_meteo" ? "Open-Meteo" : "Sunrise-Sunset";
-
-      return `Dynamic is active. Theme switches at sunrise (${sunrise}) and sunset (${sunset}) in ${dynamicThemeInfo.timezone}. Source: ${sourceLabel}.`;
+    if (dynamicThemeInfo.mode === "api-failed") {
+      return "Dynamic theme is enabled, but unable to fetch sunrise/sunset data. Using standard Indian sunrise and sunset timings.";
     }
 
-    if (dynamicThemeInfo.mode === "default_permission") {
-      return "Location permission is unavailable, so Shadow is using default Indian timings to mimic dynamic behavior (light from 6:00 AM IST, dark from 6:30 PM IST).";
+    if (dynamicThemeInfo.mode === "success") {
+      const transitionLabel = theme === "light" ? "sunset" : "sunrise";
+      const formattedTime = formatDynamicTransitionTime(dynamicThemeInfo.nextTransitionAt);
+
+      if (formattedTime) {
+        const themeLabel = theme === "light" ? "Light" : "Dark";
+        return `${themeLabel} theme till ${transitionLabel} at ${formattedTime}.`;
+      }
+
+      return "Dynamic theme is enabled and following sunrise/sunset timing.";
     }
 
-    if (dynamicThemeInfo.mode === "default_backend") {
-      return "Live sunrise/sunset lookup is unavailable right now, so Shadow is using default Indian timings to mimic dynamic behavior (light from 6:00 AM IST, dark from 6:30 PM IST).";
-    }
-
-    return "Dynamic is enabled. Shadow is fetching sunrise/sunset timings for your location.";
-  }, [draft?.appearance.theme_preference, dynamicThemeInfo]);
+    return "Dynamic theme is enabled. Resolving sunrise and sunset timing for your location...";
+  }, [draft, dynamicThemeInfo, theme]);
 
   const pushStatusMessage = useMemo(() => {
     if (pushDeviceStatus === "checking") return "Checking device push support...";
@@ -834,8 +838,10 @@ export function SettingsPage() {
                   );
                 })}
               </div>
-              {dynamicThemeDescription ? (
-                <div className="text-muted-2 small mt-3">{dynamicThemeDescription}</div>
+              {draft.appearance.theme_preference === "dynamic" ? (
+                <div className="text-muted-2 small mt-3" data-testid="dynamic-theme-message">
+                  {dynamicThemeMessage}
+                </div>
               ) : null}
             </form>
           </SectionCard>
@@ -1092,6 +1098,43 @@ export function SettingsPage() {
                   Clear chat history
                 </button>
               </div>
+            </form>
+          </SectionCard>
+
+          <SectionCard title="Integrations" subtitle="Connected services and sync preferences.">
+            <form onSubmit={preventSubmit} className="d-flex flex-column gap-2">
+              <ToggleRow
+                id="integration-google-calendar"
+                label="Google Calendar"
+                description="Allow Shadow to sync plan reminders with Google Calendar."
+                checked={draft.integrations.google_calendar_enabled}
+                onChange={(checked) =>
+                  setDraft((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          integrations: { ...prev.integrations, google_calendar_enabled: checked },
+                        }
+                      : prev,
+                  )
+                }
+              />
+              <ToggleRow
+                id="integration-slack"
+                label="Slack"
+                description="Allow Shadow to deliver system updates to your Slack workspace."
+                checked={draft.integrations.slack_enabled}
+                onChange={(checked) =>
+                  setDraft((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          integrations: { ...prev.integrations, slack_enabled: checked },
+                        }
+                      : prev,
+                  )
+                }
+              />
             </form>
           </SectionCard>
 
@@ -1465,57 +1508,6 @@ export function SettingsPage() {
               </div>
 
             </form>
-          </SectionCard>
-
-          <SectionCard title="Integrations" subtitle="Connected services and sync preferences.">
-            <form onSubmit={preventSubmit} className="d-flex flex-column gap-2">
-              <ToggleRow
-                id="integration-google-calendar"
-                label="Google Calendar"
-                description="Allow Shadow to sync plan reminders with Google Calendar."
-                checked={draft.integrations.google_calendar_enabled}
-                onChange={(checked) =>
-                  setDraft((prev) =>
-                    prev
-                      ? {
-                          ...prev,
-                          integrations: { ...prev.integrations, google_calendar_enabled: checked },
-                        }
-                      : prev,
-                  )
-                }
-              />
-              <ToggleRow
-                id="integration-slack"
-                label="Slack"
-                description="Allow Shadow to deliver system updates to your Slack workspace."
-                checked={draft.integrations.slack_enabled}
-                onChange={(checked) =>
-                  setDraft((prev) =>
-                    prev
-                      ? {
-                          ...prev,
-                          integrations: { ...prev.integrations, slack_enabled: checked },
-                        }
-                      : prev,
-                  )
-                }
-              />
-            </form>
-          </SectionCard>
-
-          <SectionCard title="Automation" subtitle="Manage background workflows and schedules.">
-            <div className="surface-2 p-3 d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-3">
-              <div>
-                <div className="fw-semibold mb-1">Automation workflows</div>
-                <div className="text-muted-2 small">
-                  Configure and manage automations from one place. New automation modules will appear here as they are added.
-                </div>
-              </div>
-              <Link to="/automation" className="btn btn-outline-secondary">
-                Show automation
-              </Link>
-            </div>
           </SectionCard>
 
           <SectionCard title="Current Snapshot" subtitle="Quick view of active behavior config.">

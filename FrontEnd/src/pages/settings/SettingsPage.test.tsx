@@ -8,9 +8,27 @@ import { ToastProvider } from "@/context/ToastContext";
 
 import { SettingsPage } from "./SettingsPage";
 
-const { patchUserMock, setThemeMock } = vi.hoisted(() => ({
+const { patchUserMock, setThemeMock, themeRuntimeState } = vi.hoisted(() => ({
   patchUserMock: vi.fn(),
   setThemeMock: vi.fn(),
+  themeRuntimeState: {
+    theme: "light" as "light" | "dark",
+    dynamicThemeInfo: {
+      mode: "idle",
+      source: null,
+      sunrise: null,
+      sunset: null,
+      nextTransitionAt: null,
+      timezone: null,
+    } as {
+      mode: "idle" | "resolving" | "success" | "location-unavailable" | "api-failed";
+      source: "open_meteo" | "sunrise_sunset" | "default_ist" | null;
+      sunrise: string | null;
+      sunset: string | null;
+      nextTransitionAt: string | null;
+      timezone: string | null;
+    },
+  },
 }));
 
 vi.mock("@/context/AuthContext", () => ({
@@ -21,15 +39,11 @@ vi.mock("@/context/AuthContext", () => ({
 
 vi.mock("@/context/ThemeContext", () => ({
   useTheme: () => ({
+    theme: themeRuntimeState.theme,
+    themePreference: "light",
     setTheme: setThemeMock,
-    dynamicThemeInfo: {
-      mode: "unknown",
-      source: null,
-      sunrise: null,
-      sunset: null,
-      nextTransitionAt: null,
-      timezone: null,
-    },
+    toggleTheme: vi.fn(),
+    dynamicThemeInfo: themeRuntimeState.dynamicThemeInfo,
   }),
 }));
 
@@ -149,6 +163,15 @@ describe("SettingsPage", () => {
   beforeEach(() => {
     patchUserMock.mockReset();
     setThemeMock.mockReset();
+    themeRuntimeState.theme = "light";
+    themeRuntimeState.dynamicThemeInfo = {
+      mode: "idle",
+      source: null,
+      sunrise: null,
+      sunset: null,
+      nextTransitionAt: null,
+      timezone: null,
+    };
 
     mockedSettingsApi.get.mockReset();
     mockedSettingsApi.updateAppearance.mockReset();
@@ -364,6 +387,95 @@ describe("SettingsPage", () => {
     });
     expect(patchUserMock).toHaveBeenCalledWith({ theme_preference: "dynamic" });
     expect(setThemeMock).toHaveBeenCalledWith("dynamic");
+  });
+
+  it("shows dynamic info message only when dynamic theme is selected", async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    expect(screen.queryByTestId("dynamic-theme-message")).not.toBeInTheDocument();
+
+    await user.click(await screen.findByRole("button", { name: "Dynamic" }));
+
+    expect(await screen.findByTestId("dynamic-theme-message")).toBeInTheDocument();
+  });
+
+  it("shows fallback message when location access is not available", async () => {
+    const user = userEvent.setup();
+    themeRuntimeState.dynamicThemeInfo = {
+      mode: "location-unavailable",
+      source: null,
+      sunrise: null,
+      sunset: null,
+      nextTransitionAt: null,
+      timezone: null,
+    };
+
+    renderPage();
+    await user.click(await screen.findByRole("button", { name: "Dynamic" }));
+
+    expect(await screen.findByText(/location access is not available/i)).toBeInTheDocument();
+    expect(screen.getByText(/standard indian sunrise and sunset timings/i)).toBeInTheDocument();
+  });
+
+  it("shows fallback message when dynamic API lookup fails", async () => {
+    const user = userEvent.setup();
+    themeRuntimeState.dynamicThemeInfo = {
+      mode: "api-failed",
+      source: null,
+      sunrise: null,
+      sunset: null,
+      nextTransitionAt: null,
+      timezone: null,
+    };
+
+    renderPage();
+    await user.click(await screen.findByRole("button", { name: "Dynamic" }));
+
+    expect(await screen.findByText(/unable to fetch sunrise\/sunset data/i)).toBeInTheDocument();
+    expect(screen.getByText(/standard indian sunrise and sunset timings/i)).toBeInTheDocument();
+  });
+
+  it("shows light-mode transition message when dynamic resolve succeeds", async () => {
+    const user = userEvent.setup();
+    themeRuntimeState.theme = "light";
+    themeRuntimeState.dynamicThemeInfo = {
+      mode: "success",
+      source: "open_meteo",
+      sunrise: "2026-07-08T05:29:00+05:30",
+      sunset: "2026-07-08T19:22:00+05:30",
+      nextTransitionAt: "2026-07-08T19:22:00+05:30",
+      timezone: "Asia/Kolkata",
+    };
+
+    renderPage();
+    await user.click(await screen.findByRole("button", { name: "Dynamic" }));
+
+    const message = await screen.findByText(/^Light theme till sunset at/i);
+    expect(message).toBeInTheDocument();
+    expect(message.textContent).toMatch(/\bAM\b|\bPM\b/);
+    expect(message.textContent).toMatch(/\bIST\b/);
+  });
+
+  it("shows dark-mode transition message when dynamic resolve succeeds", async () => {
+    const user = userEvent.setup();
+    themeRuntimeState.theme = "dark";
+    themeRuntimeState.dynamicThemeInfo = {
+      mode: "success",
+      source: "open_meteo",
+      sunrise: "2026-07-09T05:29:00+05:30",
+      sunset: "2026-07-08T19:22:00+05:30",
+      nextTransitionAt: "2026-07-09T05:29:00+05:30",
+      timezone: "Asia/Kolkata",
+    };
+
+    renderPage();
+    await user.click(await screen.findByRole("button", { name: "Dynamic" }));
+
+    const message = await screen.findByText(/^Dark theme till sunrise at/i);
+    expect(message).toBeInTheDocument();
+    expect(message.textContent).toMatch(/\bAM\b|\bPM\b/);
+    expect(message.textContent).toMatch(/\bIST\b/);
   });
 
   it("continues saving remaining changed sections when one section fails", async () => {

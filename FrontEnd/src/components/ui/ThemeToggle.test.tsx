@@ -22,6 +22,14 @@ function mockThemeState(
     themePreference,
     setTheme: vi.fn(),
     toggleTheme,
+    dynamicThemeInfo: {
+      mode: "idle",
+      source: null,
+      sunrise: null,
+      sunset: null,
+      nextTransitionAt: null,
+      timezone: null,
+    },
   } as ReturnType<typeof useTheme>);
 }
 

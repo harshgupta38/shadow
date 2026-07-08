@@ -7,10 +7,10 @@ import { ToastProvider } from "./ToastContext";
 /** Composes every app-wide provider in the correct order. */
 export function AppProviders({ children }: { children: ReactNode }) {
   return (
-    <ThemeProvider>
-      <ToastProvider>
+    <ToastProvider>
+      <ThemeProvider>
         <AuthProvider>{children}</AuthProvider>
-      </ToastProvider>
-    </ThemeProvider>
+      </ThemeProvider>
+    </ToastProvider>
   );
 }

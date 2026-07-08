@@ -348,7 +348,7 @@ export interface DynamicAppearanceResolveResponse {
   sunrise: string;
   sunset: string;
   next_transition_at: string;
-  source: "open_meteo";
+  source: "open_meteo" | "sunrise_sunset" | "default_ist";
 }
 
 export interface NotificationSettingsUpdate {

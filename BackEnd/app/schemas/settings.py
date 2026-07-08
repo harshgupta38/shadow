@@ -31,7 +31,7 @@ class DynamicAppearanceResolveRead(BaseModel):
     sunrise: datetime
     sunset: datetime
     next_transition_at: datetime
-    source: Literal["open_meteo"] = "open_meteo"
+    source: Literal["open_meteo", "sunrise_sunset", "default_ist"] = "open_meteo"
 
 
 class NotificationSettings(BaseModel):

@@ -148,6 +148,26 @@ function getErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
+function formatDynamicTime(value: string, timezone: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+
+  try {
+    return new Intl.DateTimeFormat(undefined, {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+      timeZone: timezone,
+    }).format(date);
+  } catch {
+    return new Intl.DateTimeFormat(undefined, {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    }).format(date);
+  }
+}
+
 type PushDeviceStatus =
   | "checking"
   | "unsupported"
@@ -257,7 +277,7 @@ function ToggleRow({ id, label, description, checked, onChange }: ToggleRowProps
 
 export function SettingsPage() {
   const { patchUser } = useAuth();
-  const { setTheme } = useTheme();
+  const { setTheme, dynamicThemeInfo } = useTheme();
   const toast = useToast();
 
   const settingsQuery = useAsync(() => api.settings.get(), []);
@@ -380,6 +400,36 @@ export function SettingsPage() {
 
   const isSavingAny = useMemo(() => Object.values(saving).some(Boolean), [saving]);
   const hasPendingChanges = dirtySections.length > 0;
+
+  const dynamicThemeDescription = useMemo(() => {
+    if (draft?.appearance.theme_preference !== "dynamic") {
+      return null;
+    }
+
+    if (
+      dynamicThemeInfo.mode === "live" &&
+      dynamicThemeInfo.sunrise &&
+      dynamicThemeInfo.sunset &&
+      dynamicThemeInfo.timezone
+    ) {
+      const sunrise = formatDynamicTime(dynamicThemeInfo.sunrise, dynamicThemeInfo.timezone);
+      const sunset = formatDynamicTime(dynamicThemeInfo.sunset, dynamicThemeInfo.timezone);
+      const sourceLabel =
+        dynamicThemeInfo.source === "open_meteo" ? "Open-Meteo" : "Sunrise-Sunset";
+
+      return `Dynamic is active. Theme switches at sunrise (${sunrise}) and sunset (${sunset}) in ${dynamicThemeInfo.timezone}. Source: ${sourceLabel}.`;
+    }
+
+    if (dynamicThemeInfo.mode === "default_permission") {
+      return "Location permission is unavailable, so Shadow is using default Indian timings to mimic dynamic behavior (light from 6:00 AM IST, dark from 6:30 PM IST).";
+    }
+
+    if (dynamicThemeInfo.mode === "default_backend") {
+      return "Live sunrise/sunset lookup is unavailable right now, so Shadow is using default Indian timings to mimic dynamic behavior (light from 6:00 AM IST, dark from 6:30 PM IST).";
+    }
+
+    return "Dynamic is enabled. Shadow is fetching sunrise/sunset timings for your location.";
+  }, [draft?.appearance.theme_preference, dynamicThemeInfo]);
 
   const pushStatusMessage = useMemo(() => {
     if (pushDeviceStatus === "checking") return "Checking device push support...";
@@ -783,11 +833,9 @@ export function SettingsPage() {
                   );
                 })}
               </div>
-              <div className="text-muted-2 small mt-3">
-                Dynamic uses your device location to switch to dark mode after sunset and light
-                mode after sunrise. If location or weather lookup is unavailable, Shadow falls
-                back to Browser Default.
-              </div>
+              {dynamicThemeDescription ? (
+                <div className="text-muted-2 small mt-3">{dynamicThemeDescription}</div>
+              ) : null}
             </form>
           </SectionCard>
 

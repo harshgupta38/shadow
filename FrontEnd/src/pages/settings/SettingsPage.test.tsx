@@ -22,6 +22,14 @@ vi.mock("@/context/AuthContext", () => ({
 vi.mock("@/context/ThemeContext", () => ({
   useTheme: () => ({
     setTheme: setThemeMock,
+    dynamicThemeInfo: {
+      mode: "unknown",
+      source: null,
+      sunrise: null,
+      sunset: null,
+      nextTransitionAt: null,
+      timezone: null,
+    },
   }),
 }));
 

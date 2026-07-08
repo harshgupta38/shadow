@@ -141,7 +141,7 @@ describe("ScheduleTaskModal", () => {
       "schedule-shadow-prompt-input",
     );
 
-    await user.click(screen.getByRole("button", { name: "Manual" }));
+    await user.click(screen.getByRole("button", { name: "Setup Manually" }));
 
     expect(screen.getByLabelText("Title")).toBeEnabled();
     expect(screen.getByLabelText("Date")).toBeEnabled();
@@ -152,10 +152,10 @@ describe("ScheduleTaskModal", () => {
 
     renderModal();
 
-    await user.click(screen.getByRole("button", { name: "Manual" }));
+    await user.click(screen.getByRole("button", { name: "Setup Manually" }));
     expect(screen.getByLabelText("Title")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Automatic" }));
+    await user.click(screen.getByRole("button", { name: "Tell Shadow" }));
     expect(screen.queryByLabelText("Title")).not.toBeInTheDocument();
   });
 
@@ -176,7 +176,7 @@ describe("ScheduleTaskModal", () => {
 
     renderModal();
 
-    await user.click(screen.getByRole("button", { name: "Manual" }));
+    await user.click(screen.getByRole("button", { name: "Setup Manually" }));
     await user.type(screen.getByLabelText("Title"), "Backfill something");
     const dateInput = screen.getByLabelText("Date") as HTMLInputElement;
     expect(dateInput.min).toBe(toISODate());

@@ -247,7 +247,7 @@ describe("PlanPage", () => {
 
 		await user.click(await screen.findByRole("button", { name: "Schedule" }));
 
-		expect(await screen.findByText("Plan a task")).toBeInTheDocument();
+		expect(await screen.findByText("Schedule a task")).toBeInTheDocument();
 		expect(mockedRepetitiveApi.list).toHaveBeenCalledTimes(1);
 	});
 

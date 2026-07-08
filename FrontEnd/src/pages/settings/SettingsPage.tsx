@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
 import {
   BellFill,
   CalendarWeek,
@@ -1101,43 +1102,6 @@ export function SettingsPage() {
             </form>
           </SectionCard>
 
-          <SectionCard title="Integrations" subtitle="Connected services and sync preferences.">
-            <form onSubmit={preventSubmit} className="d-flex flex-column gap-2">
-              <ToggleRow
-                id="integration-google-calendar"
-                label="Google Calendar"
-                description="Allow Shadow to sync plan reminders with Google Calendar."
-                checked={draft.integrations.google_calendar_enabled}
-                onChange={(checked) =>
-                  setDraft((prev) =>
-                    prev
-                      ? {
-                          ...prev,
-                          integrations: { ...prev.integrations, google_calendar_enabled: checked },
-                        }
-                      : prev,
-                  )
-                }
-              />
-              <ToggleRow
-                id="integration-slack"
-                label="Slack"
-                description="Allow Shadow to deliver system updates to your Slack workspace."
-                checked={draft.integrations.slack_enabled}
-                onChange={(checked) =>
-                  setDraft((prev) =>
-                    prev
-                      ? {
-                          ...prev,
-                          integrations: { ...prev.integrations, slack_enabled: checked },
-                        }
-                      : prev,
-                  )
-                }
-              />
-            </form>
-          </SectionCard>
-
           <SectionCard title="Accessibility" subtitle="Readability and motion preferences.">
             <form onSubmit={preventSubmit} className="d-flex flex-column gap-2">
               <ToggleRow
@@ -1508,6 +1472,49 @@ export function SettingsPage() {
               </div>
 
             </form>
+          </SectionCard>
+
+          <SectionCard title="Integrations" subtitle="Connected services and sync preferences.">
+            <form onSubmit={preventSubmit} className="d-flex flex-column gap-2">
+              <ToggleRow
+                id="integration-google-calendar"
+                label="Google Calendar"
+                description="Allow Shadow to sync plan reminders with Google Calendar."
+                checked={draft.integrations.google_calendar_enabled}
+                onChange={(checked) =>
+                  setDraft((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          integrations: { ...prev.integrations, google_calendar_enabled: checked },
+                        }
+                      : prev,
+                  )
+                }
+              />
+              <ToggleRow
+                id="integration-slack"
+                label="Slack"
+                description="Allow Shadow to deliver system updates to your Slack workspace."
+                checked={draft.integrations.slack_enabled}
+                onChange={(checked) =>
+                  setDraft((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          integrations: { ...prev.integrations, slack_enabled: checked },
+                        }
+                      : prev,
+                  )
+                }
+              />
+            </form>
+          </SectionCard>
+
+          <SectionCard title="Automation" subtitle="Manage background workflows and schedules.">
+              <Link to="/automation" className="btn btn-outline-secondary">
+                Show automations
+              </Link>
           </SectionCard>
 
           <SectionCard title="Current Snapshot" subtitle="Quick view of active behavior config.">

@@ -395,7 +395,7 @@ def _render_template(
             task_title = task_title.split(":", 1)[1].strip() or "Upcoming task"
         subject = f"Task reminder: {task_title}"
         cta_label = "Open planner"
-        cta_url = _frontend_url("planner")
+        cta_url = _frontend_url("plan")
     elif template_key == "today_plan_generated":
         subject = "Today's generated plan is ready"
         cta_label = "Open today's plan"
@@ -407,11 +407,11 @@ def _render_template(
     elif template_key == "daily_brief":
         subject = "Your daily brief is ready"
         cta_label = "Open daily brief"
-        cta_url = _frontend_url("dashboard")
+        cta_url = _frontend_url("")
     elif template_key == "weekly_summary":
         subject = "Your weekly summary is ready"
         cta_label = "Open weekly summary"
-        cta_url = _frontend_url("dashboard")
+        cta_url = _frontend_url("track")
     elif template_key == "daily_report_ready":
         report_path = str(context.get("report_path") or "").strip()
         subject = "Your daily report is ready"

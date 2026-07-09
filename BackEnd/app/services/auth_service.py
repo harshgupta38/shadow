@@ -8,6 +8,7 @@ import math
 import secrets
 from datetime import datetime, timedelta, timezone
 from urllib.parse import quote
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
@@ -20,13 +21,14 @@ from app.models.user_profile import UserProfile
 from app.models.user_setting import UserSetting
 from app.schemas.auth import EmailVerificationDispatch, RegisterRequest
 from app.services import security
-from app.services import email_service
+from app.services import email_notification_service
 from app.services.exceptions import AuthError, ConflictError
 from app.services.metric_service import ensure_default_metrics
 
 logger = logging.getLogger(__name__)
 
 EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS = 60
+_IST_ZONE = ZoneInfo("Asia/Kolkata")
 
 
 def get_user_by_email(db: Session, email: str) -> User | None:
@@ -86,6 +88,18 @@ def change_password(db: Session, user: User, *, current_password: str, new_passw
     user.last_password_changed_at = utcnow()
     db.commit()
     db.refresh(user)
+
+    changed_at = user.last_password_changed_at
+    if changed_at.tzinfo is None:
+        changed_at = changed_at.replace(tzinfo=timezone.utc)
+    changed_at_ist = changed_at.astimezone(_IST_ZONE).strftime("%b %d, %Y - %I:%M %p IST")
+
+    email_notification_service.send_notification_email(
+        db,
+        user,
+        template_key="password_changed_alert",
+        context={"changed_at": changed_at_ist},
+    )
     return user
 
 
@@ -166,25 +180,15 @@ def request_email_verification(db: Session, user: User) -> EmailVerificationDisp
     db.commit()
 
     verification_url = _build_verification_url(raw_token)
-    email_subject = "Verify your Shadow account email"
-    email_text = (
-        "Welcome to Shadow.\n\n"
-        "Please verify your email by opening this link:\n"
-        f"{verification_url}\n\n"
-        f"This link expires in {settings.email_verification_token_ttl_minutes} minutes."
-    )
-    email_html = (
-        "<p>Welcome to Shadow.</p>"
-        "<p>Please verify your email by clicking the link below:</p>"
-        f"<p><a href=\"{verification_url}\">Verify my email</a></p>"
-        f"<p>This link expires in {settings.email_verification_token_ttl_minutes} minutes.</p>"
-    )
-
-    email_sent = email_service.send_email(
-        to_email=user.email,
-        subject=email_subject,
-        text_body=email_text,
-        html_body=email_html,
+    email_sent = email_notification_service.send_notification_email(
+        db,
+        user,
+        template_key="verification_reminders",
+        force=True,
+        context={
+            "verification_url": verification_url,
+            "expires_minutes": settings.email_verification_token_ttl_minutes,
+        },
     )
 
     preview_url = verification_url if settings.environment.lower() != "production" else None

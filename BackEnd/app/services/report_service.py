@@ -27,7 +27,7 @@ from app.models.user_setting import UserSetting
 from app.models.user import User
 from app.models.metric import TrackedMetric
 from app.schemas.report import ReportAutomationRead, ReportAutomationUpdate
-from app.services import metric_service, settings_service
+from app.services import email_notification_service, metric_service, settings_service
 from app.services.utils import get_owned_or_404
 
 
@@ -549,6 +549,78 @@ def _summary_text(metrics_json: dict, period: ReportPeriod, start_d: date, end_d
     return "\n".join(lines)
 
 
+def _compact_text(value: str | None, *, limit: int = 1200) -> str:
+    if not value:
+        return ""
+    compact = "\n".join(line.strip() for line in value.splitlines() if line.strip())
+    if len(compact) <= limit:
+        return compact
+    return f"{compact[: limit - 1].rstrip()}..."
+
+
+def _format_decimal(value: object) -> str:
+    if isinstance(value, int):
+        return str(value)
+    if isinstance(value, float):
+        if value.is_integer():
+            return str(int(value))
+        return f"{value:.2f}".rstrip("0").rstrip(".")
+    return str(value)
+
+
+def _build_report_email_context(report: Report, *, history_date: date) -> dict[str, object]:
+    metrics_json = report.metrics_json if isinstance(report.metrics_json, dict) else {}
+    tasks = metrics_json.get("tasks") if isinstance(metrics_json.get("tasks"), dict) else {}
+    metrics = metrics_json.get("metrics") if isinstance(metrics_json.get("metrics"), list) else []
+
+    task_planned_raw = tasks.get("planned", 0)
+    task_completed_raw = tasks.get("completed", 0)
+    tasks_planned = int(task_planned_raw) if isinstance(task_planned_raw, int | float) else 0
+    tasks_completed = int(task_completed_raw) if isinstance(task_completed_raw, int | float) else 0
+
+    metric_rows: list[dict[str, object]] = []
+    for row in metrics[:10]:
+        if not isinstance(row, dict):
+            continue
+        total_value = row.get("total", 0)
+        target_value = row.get("target")
+        metric_rows.append(
+            {
+                "key": str(row.get("key") or "metric"),
+                "label": str(row.get("label") or "Metric"),
+                "total": _format_decimal(total_value),
+                "unit": str(row.get("unit") or ""),
+                "target": (
+                    _format_decimal(target_value)
+                    if isinstance(target_value, int | float)
+                    else None
+                ),
+                "streak_days": int(row.get("streak_days", 0))
+                if isinstance(row.get("streak_days", 0), int | float)
+                else 0,
+            }
+        )
+
+    period_label = "Weekly" if report.period == ReportPeriod.weekly else "Daily"
+    date_range = (
+        f"{report.period_start.date().isoformat()} -> {report.period_end.date().isoformat()}"
+        if report.period == ReportPeriod.weekly
+        else report.period_start.date().isoformat()
+    )
+
+    return {
+        "report_id": report.id,
+        "report_path": f"reports/day/{history_date.isoformat()}?reportId={report.id}",
+        "period_label": period_label,
+        "date_range": date_range,
+        "tasks_planned": tasks_planned,
+        "tasks_completed": tasks_completed,
+        "metric_rows": metric_rows,
+        "narrative": _compact_text(report.narrative),
+        "next_steps": _compact_text(report.next_steps),
+    }
+
+
 def generate_report(
     db: Session,
     user: User,
@@ -604,6 +676,19 @@ def generate_report(
     db.add(report)
     db.commit()
     db.refresh(report)
+
+    if source == ReportSource.manual:
+        template_key = (
+            "daily_report_ready" if period == ReportPeriod.daily else "weekly_report_ready"
+        )
+        history_date = _report_history_date(report, user.timezone)
+        email_notification_service.send_notification_email(
+            db,
+            user,
+            template_key=template_key,
+            context=_build_report_email_context(report, history_date=history_date),
+        )
+
     return report
 
 

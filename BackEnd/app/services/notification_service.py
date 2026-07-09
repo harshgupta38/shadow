@@ -12,7 +12,7 @@ from app.schemas.notification import NotificationCreate
 from app.services.progress_metric_recommendation_service import (
     INTERNAL_PROGRESS_COACH_TITLE_PREFIX,
 )
-from app.services import settings_service
+from app.services import email_notification_service, settings_service
 from app.services.exceptions import ConflictError
 from app.services.utils import get_owned_or_404
 
@@ -57,6 +57,17 @@ def create_notification(db: Session, user: User, data: NotificationCreate) -> No
     db.add(notification)
     db.commit()
     db.refresh(notification)
+
+    if notification.scheduled_at is None:
+        template_key = email_notification_service.resolve_template_key_for_notification(notification)
+        if template_key is not None:
+            email_notification_service.send_notification_email(
+                db,
+                user,
+                template_key=template_key,
+                context=email_notification_service.context_from_notification(notification),
+            )
+
     return notification
 
 

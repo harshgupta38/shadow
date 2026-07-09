@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
+import json
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -28,6 +29,7 @@ from app.schemas.profile import (
     BasicProfileUpdate,
     ChatHistoryClearResult,
 )
+from app.services import email_notification_service
 from app.services.auth_service import get_email_verification_retry_after_seconds
 from app.services.exceptions import ConflictError
 
@@ -152,6 +154,9 @@ def clear_chat_history(db: Session, user: User) -> ChatHistoryClearResult:
 
 
 def export_account_data(db: Session, user: User) -> AccountDataExportRead:
+    if not user.email_verified:
+        raise ConflictError("Please verify your email before exporting account data")
+
     profile = _get_or_create_profile(db, user)
 
     goals = list(db.scalars(select(Goal).where(Goal.user_id == user.id)))
@@ -200,7 +205,39 @@ def export_account_data(db: Session, user: User) -> AccountDataExportRead:
             "reports": len(reports),
         },
     }
-    return AccountDataExportRead(exported_at=datetime.now(timezone.utc), data=data)
+    exported_at = datetime.now(timezone.utc)
+
+    def _json_default(value: object) -> str:
+        if isinstance(value, datetime | date):
+            return value.isoformat()
+        return str(value)
+
+    export_filename = f"shadow-account-export-{exported_at.strftime('%Y%m%d-%H%M%SZ')}.json"
+    export_bytes = json.dumps(
+        data,
+        ensure_ascii=True,
+        indent=2,
+        default=_json_default,
+    ).encode("utf-8")
+
+    email_notification_service.send_notification_email(
+        db,
+        user,
+        template_key="export_ready",
+        context={
+            "exported_at": exported_at.isoformat(),
+            "export_filename": export_filename,
+            "email_attachments": [
+                {
+                    "filename": export_filename,
+                    "content": export_bytes,
+                    "mime_type": "application/json",
+                }
+            ],
+        },
+    )
+
+    return AccountDataExportRead(exported_at=exported_at, data=data)
 
 
 def delete_account(db: Session, user: User, *, confirmation_text: str) -> None:

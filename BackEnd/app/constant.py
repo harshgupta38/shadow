@@ -95,6 +95,9 @@ class Settings(BaseSettings):
     # ── External APIs ──────────────────────────────────────────
     open_meteo_base_url: str = "https://api.open-meteo.com/v1/forecast"
     open_meteo_timeout_seconds: float = 6.0
+    ip_geolocation_enabled: bool = False
+    ip_geolocation_base_url: str = "http://ip-api.com/json/{ip}?fields=status,country,regionName,city"
+    ip_geolocation_timeout_seconds: float = 2.5
 
     # ── Web Push (PWA notifications) ─────────────────────────
     web_push_vapid_public_key: str = ""

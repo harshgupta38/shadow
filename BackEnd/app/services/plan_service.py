@@ -59,7 +59,7 @@ from app.schemas.plan import (
     PlannedTaskProgressUpdate,
     PlannedTaskUpdate,
 )
-from app.services import settings_service
+from app.services import email_notification_service, settings_service
 from app.services.exceptions import AppError
 from app.services.utils import get_owned_or_404
 
@@ -3049,6 +3049,38 @@ def generate_today_plan(
         )
 
     db.commit()
+
+    email_notification_service.send_notification_email(
+        db,
+        user,
+        template_key="today_plan_generated",
+        context={
+            "plan_date": target_date.isoformat(),
+            "task_titles": [row.task.title for row in filtered[:5]],
+            "tasks": [
+                {
+                    "title": row.task.title,
+                    "why_today": row.task.ai_rationale or "Focus on this task to move key outcomes forward.",
+                    "impact_if_skipped": row.task.ai_impact_if_skipped or "Skipping may reduce consistency and momentum.",
+                    "goal_linked": (
+                        goals_by_id.get(row.task.related_goal_id).title
+                        if row.task.related_goal_id and goals_by_id.get(row.task.related_goal_id) is not None
+                        else "General growth"
+                    ),
+                    "remaining": (
+                        f"{row.task.estimated_duration_minutes} minutes"
+                        if row.task.estimated_duration_minutes
+                        else "Not set"
+                    ),
+                    "priority": row.task.priority.title() if row.task.priority else "Medium",
+                    "badge": "Habit" if _is_repetitive_title(row.task.title, due_repetitive) else "Plan",
+                    "due": "Due today",
+                }
+                for row in filtered[:8]
+            ],
+        },
+    )
+
     return workspace_for_date(db, user, on_date=target_date)
 
 

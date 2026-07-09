@@ -6,8 +6,12 @@ from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 
 import app.scheduler.jobs as scheduler_jobs
+from app.database import SessionLocal
+from app.models.email_verification_token import EmailVerificationToken
+from app.models.user import User
 
 
 def test_enqueue_daily_briefs_catches_up_after_target_time(
@@ -52,6 +56,58 @@ def test_enqueue_weekly_summaries_catches_up_after_target_time(
 
     rows = client.get("/api/notifications", headers=auth_headers).json()
     assert any(row["title"] == "Weekly Summary" for row in rows)
+
+
+def test_enqueue_daily_motivational_quotes_sends_once_per_day(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    monkeypatch,
+) -> None:
+    enabled = client.put(
+        "/api/settings/notifications",
+        headers=auth_headers,
+        json={"email_notifications_enabled": True},
+    )
+    assert enabled.status_code == 200
+
+    controls = client.put(
+        "/api/settings/email-notifications",
+        headers=auth_headers,
+        json={
+            "daily_motivational_quote": True,
+            "daily_motivational_quote_time": "07:00",
+        },
+    )
+    assert controls.status_code == 200
+
+    calls: list[dict[str, object]] = []
+
+    def _fake_send_notification_email(db, user, *, template_key, context=None, force=False):
+        calls.append(
+            {
+                "user_id": user.id,
+                "template_key": template_key,
+                "force": force,
+            }
+        )
+        return True
+
+    monkeypatch.setattr(
+        scheduler_jobs.email_notification_service,
+        "send_notification_email",
+        _fake_send_notification_email,
+    )
+
+    created = scheduler_jobs.enqueue_daily_motivational_quotes(
+        now_utc=datetime(2026, 7, 5, 1, 31, tzinfo=timezone.utc),
+    )
+    assert created == 1
+    assert any(call["template_key"] == "daily_motivational_quote" for call in calls)
+
+    created_again = scheduler_jobs.enqueue_daily_motivational_quotes(
+        now_utc=datetime(2026, 7, 5, 1, 45, tzinfo=timezone.utc),
+    )
+    assert created_again == 0
 
 
 def test_enqueue_daily_reports_generates_once_per_day(
@@ -229,3 +285,97 @@ def test_enqueue_weekly_reports_respects_configured_day_and_time(
     assert len(versions) == 1
     assert versions[0]["period"] == "weekly"
     assert versions[0]["source"] == "automatic"
+
+
+def test_enqueue_weekly_verification_reminders_sends_for_unverified_users(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    monkeypatch,
+) -> None:
+    enabled = client.put(
+        "/api/settings/notifications",
+        headers=auth_headers,
+        json={"notifications_enabled": True, "email_notifications_enabled": True},
+    )
+    assert enabled.status_code == 200
+
+    controls = client.put(
+        "/api/settings/email-notifications",
+        headers=auth_headers,
+        json={"verification_reminders": True},
+    )
+    assert controls.status_code == 200
+
+    sent_for: list[int] = []
+
+    class _Dispatch:
+        email_sent = True
+
+    def _fake_request_email_verification(db, user):
+        sent_for.append(user.id)
+        return _Dispatch()
+
+    monkeypatch.setattr(
+        scheduler_jobs.auth_service,
+        "request_email_verification",
+        _fake_request_email_verification,
+    )
+
+    created = scheduler_jobs.enqueue_weekly_verification_reminders(
+        now_utc=datetime(2026, 7, 9, 10, 0, tzinfo=timezone.utc),
+    )
+    assert created == 1
+    assert len(sent_for) == 1
+
+
+def test_enqueue_weekly_verification_reminders_respects_seven_day_window(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    monkeypatch,
+) -> None:
+    enabled = client.put(
+        "/api/settings/notifications",
+        headers=auth_headers,
+        json={"notifications_enabled": True, "email_notifications_enabled": True},
+    )
+    assert enabled.status_code == 200
+
+    controls = client.put(
+        "/api/settings/email-notifications",
+        headers=auth_headers,
+        json={"verification_reminders": True},
+    )
+    assert controls.status_code == 200
+
+    with SessionLocal() as db:
+        user = db.scalar(select(User).where(User.email == "user@example.com"))
+        assert user is not None
+        db.add(
+            EmailVerificationToken(
+                user_id=user.id,
+                token_hash="test-hash",
+                expires_at=datetime(2026, 7, 20, tzinfo=timezone.utc),
+            )
+        )
+        db.commit()
+
+    class _Dispatch:
+        email_sent = True
+
+    called = {"value": False}
+
+    def _fake_request_email_verification(db, user):
+        called["value"] = True
+        return _Dispatch()
+
+    monkeypatch.setattr(
+        scheduler_jobs.auth_service,
+        "request_email_verification",
+        _fake_request_email_verification,
+    )
+
+    created = scheduler_jobs.enqueue_weekly_verification_reminders(
+        now_utc=datetime(2026, 7, 9, 10, 0, tzinfo=timezone.utc),
+    )
+    assert created == 0
+    assert called["value"] is False

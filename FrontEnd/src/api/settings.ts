@@ -4,6 +4,8 @@ import type {
   AIBehaviorSettingsUpdate,
   AppearanceSettingsUpdate,
   DynamicAppearanceResolveResponse,
+  EmailNotificationControls,
+  EmailNotificationControlsUpdate,
   IntegrationSettingsUpdate,
   NotificationSettingsUpdate,
   PlannerSettingsUpdate,
@@ -20,6 +22,14 @@ export const settingsApi = {
   },
   async updateNotifications(data: NotificationSettingsUpdate): Promise<SettingsRead> {
     return http.put<SettingsRead>("/settings/notifications", data);
+  },
+  async getEmailNotificationControls(): Promise<EmailNotificationControls> {
+    return http.get<EmailNotificationControls>("/settings/email-notifications");
+  },
+  async updateEmailNotificationControls(
+    data: EmailNotificationControlsUpdate,
+  ): Promise<EmailNotificationControls> {
+    return http.put<EmailNotificationControls>("/settings/email-notifications", data);
   },
   async updateAIBehavior(data: AIBehaviorSettingsUpdate): Promise<SettingsRead> {
     return http.put<SettingsRead>("/settings/ai-behavior", data);

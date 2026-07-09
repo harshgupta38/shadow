@@ -221,11 +221,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const setTheme = useCallback((next: ThemePreference) => setThemePreference(next), []);
   const toggleTheme = useCallback(
     () =>
-      setThemePreference((prev) => {
-        const resolved = prev === "browser" ? systemTheme : prev;
-        return resolved === "dark" ? "light" : "dark";
+      setThemePreference(() => {
+        return theme === "dark" ? "light" : "dark";
       }),
-    [systemTheme],
+    [theme],
   );
 
   const value = useMemo(

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import {
   BellFill,
@@ -103,9 +103,7 @@ const TIME_FORMAT_OPTIONS: Array<{ value: TimeFormat; label: string }> = [
 ];
 
 const DATE_FORMAT_OPTIONS: Array<{ value: DateFormat; label: string }> = [
-  { value: "dd/mm/yyyy", label: "DD/MM/YYYY" },
-  { value: "mm/dd/yyyy", label: "MM/DD/YYYY" },
-  { value: "yyyy-mm-dd", label: "YYYY-MM-DD" },
+  { value: "dd/mm/yyyy", label: "MMM D, YYYY" },
 ];
 
 const GEMINI_MODEL_OPTIONS: Array<{ value: string; label: string }> = [
@@ -262,9 +260,11 @@ interface ToggleRowProps {
   description: string;
   checked: boolean;
   onChange: (checked: boolean) => void;
+  disabled?: boolean;
+  extraContent?: ReactNode;
 }
 
-function ToggleRow({ id, label, description, checked, onChange }: ToggleRowProps) {
+function ToggleRow({ id, label, description, checked, onChange, disabled = false, extraContent }: ToggleRowProps) {
   return (
     <div className="d-flex align-items-start justify-content-between gap-3 surface-2 p-3">
       <div>
@@ -272,6 +272,7 @@ function ToggleRow({ id, label, description, checked, onChange }: ToggleRowProps
           {label}
         </label>
         <div className="text-muted-2 small">{description}</div>
+        {extraContent ? <div className="mt-2">{extraContent}</div> : null}
       </div>
       <div className="form-check form-switch m-0 pt-1">
         <input
@@ -279,6 +280,8 @@ function ToggleRow({ id, label, description, checked, onChange }: ToggleRowProps
           className="form-check-input"
           type="checkbox"
           checked={checked}
+          disabled={disabled}
+          style={disabled ? { cursor: "not-allowed", pointerEvents: "none" } : undefined}
           onChange={(e) => onChange(e.target.checked)}
         />
       </div>
@@ -287,9 +290,10 @@ function ToggleRow({ id, label, description, checked, onChange }: ToggleRowProps
 }
 
 export function SettingsPage() {
-  const { patchUser } = useAuth();
+  const { patchUser, user } = useAuth();
   const { setTheme, theme, dynamicThemeInfo } = useTheme();
   const toast = useToast();
+  const isEmailVerified = Boolean(user?.email_verified);
 
   const settingsQuery = useAsync(() => api.settings.get(), []);
   const [draft, setDraft] = useState<SettingsRead | null>(null);
@@ -682,6 +686,11 @@ export function SettingsPage() {
   }
 
   async function exportData() {
+    if (!isEmailVerified) {
+      toast.error("Verify your email first to export account data.");
+      return;
+    }
+
     setExportingData(true);
     try {
       const payload = await api.profile.exportAccountData();
@@ -951,16 +960,30 @@ export function SettingsPage() {
                 id="notify-email"
                 label="Email notifications"
                 description="Receive reminder emails for important planning events."
-                checked={draft.notifications.email_notifications_enabled}
+                checked={isEmailVerified && draft.notifications.email_notifications_enabled}
+                disabled={!isEmailVerified}
                 onChange={(checked) =>
-                  setDraft((prev) =>
-                    prev
-                      ? {
-                          ...prev,
-                          notifications: { ...prev.notifications, email_notifications_enabled: checked },
-                        }
-                      : prev,
-                  )
+                  setDraft((prev) => {
+                    if (!prev) return prev;
+                    return {
+                      ...prev,
+                      notifications: { ...prev.notifications, email_notifications_enabled: checked },
+                    };
+                  })
+                }
+                extraContent={
+                  <>
+                    {!isEmailVerified ? (
+                      <div className="text-warning small" role="status">
+                        Verify your email to enable email notifications.
+                      </div>
+                    ) : null}
+                    {isEmailVerified && draft.notifications.email_notifications_enabled ? (
+                      <Link to="/settings/email-controls" className="btn btn-outline-secondary btn-sm">
+                        Control what you see
+                      </Link>
+                    ) : null}
+                  </>
                 }
               />
               <ToggleRow

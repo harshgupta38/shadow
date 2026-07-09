@@ -10,13 +10,15 @@ from sqlalchemy import and_, or_, select
 
 from app.database import SessionLocal
 from app.llm.factory import get_llm_provider
+from app.models.email_verification_token import EmailVerificationToken
 from app.models.enums import NotificationType, ReportPeriod, ReportSource
 from app.models.notification import Notification
 from app.models.user import User
 from app.models.user_setting import UserSetting
-from app.services import push_service, report_service
+from app.services import auth_service, email_notification_service, push_service, report_service
 
 logger = logging.getLogger(__name__)
+_VERIFICATION_REMINDER_INTERVAL = timedelta(days=7)
 
 
 def _safe_timezone(name: str) -> ZoneInfo | timezone:
@@ -225,6 +227,113 @@ def enqueue_weekly_summaries(*, now_utc: datetime | None = None) -> int:
     return created
 
 
+def enqueue_daily_motivational_quotes(*, now_utc: datetime | None = None) -> int:
+    """Deliver one motivational quote email per eligible user each local day."""
+    now = (now_utc or datetime.now(timezone.utc)).replace(second=0, microsecond=0)
+    created = 0
+
+    with SessionLocal() as db:
+        settings_rows = list(
+            db.scalars(
+                select(UserSetting).where(
+                    UserSetting.notifications_enabled.is_(True),
+                    UserSetting.email_notifications_enabled.is_(True),
+                )
+            )
+        )
+
+        for settings in settings_rows:
+            user = db.get(User, settings.user_id)
+            if user is None:
+                continue
+
+            controls = email_notification_service.get_email_notification_controls(db, user)
+            if not controls.daily_motivational_quote:
+                continue
+
+            if not _at_or_after_local_time(now, user.timezone, controls.daily_motivational_quote_time):
+                continue
+
+            if _already_created_today(
+                db,
+                user_id=user.id,
+                title_prefix="Daily Motivation",
+                timezone_name=user.timezone,
+                now_utc=now,
+            ):
+                continue
+
+            email_notification_service.send_notification_email(
+                db,
+                user,
+                template_key="daily_motivational_quote",
+            )
+            db.add(
+                Notification(
+                    user_id=user.id,
+                    title="Daily Motivation",
+                    body="Your motivational quote email is ready.",
+                    type=NotificationType.system,
+                    scheduled_at=now,
+                    sent=True,
+                )
+            )
+            created += 1
+
+        if created:
+            db.commit()
+            logger.info("Delivered %d daily motivational quote email(s)", created)
+
+    return created
+
+
+def enqueue_weekly_verification_reminders(*, now_utc: datetime | None = None) -> int:
+    """Send verification reminder emails once every 7 days for unverified users."""
+    now = (now_utc or datetime.now(timezone.utc)).replace(second=0, microsecond=0)
+    sent = 0
+
+    with SessionLocal() as db:
+        users = list(db.scalars(select(User).where(User.email_verified.is_(False))))
+        for user in users:
+            settings = db.scalar(select(UserSetting).where(UserSetting.user_id == user.id))
+            if settings is None:
+                continue
+            if not settings.notifications_enabled or not settings.email_notifications_enabled:
+                continue
+
+            controls = email_notification_service.get_email_notification_controls(db, user)
+            if not controls.verification_reminders:
+                continue
+
+            latest_token = db.scalar(
+                select(EmailVerificationToken)
+                .where(EmailVerificationToken.user_id == user.id)
+                .order_by(EmailVerificationToken.created_at.desc())
+            )
+            if latest_token is not None:
+                last_created = latest_token.created_at
+                if last_created.tzinfo is None:
+                    last_created = last_created.replace(tzinfo=timezone.utc)
+                else:
+                    last_created = last_created.astimezone(timezone.utc)
+                if now - last_created < _VERIFICATION_REMINDER_INTERVAL:
+                    continue
+
+            try:
+                dispatch = auth_service.request_email_verification(db, user)
+            except Exception:  # pragma: no cover - defensive scheduler guard
+                logger.exception("Failed weekly verification reminder for user_id=%s", user.id)
+                continue
+
+            if dispatch.email_sent:
+                sent += 1
+
+        if sent:
+            logger.info("Delivered %d weekly verification reminder email(s)", sent)
+
+    return sent
+
+
 def enqueue_daily_reports(*, now_utc: datetime | None = None) -> int:
     """Create one automatic daily report per eligible user after configured local time."""
     now = (now_utc or datetime.now(timezone.utc)).replace(second=0, microsecond=0)
@@ -344,7 +453,7 @@ def process_due_notifications() -> int:
     """Mark notifications whose ``scheduled_at`` has passed as ``sent``.
 
     Returns the number of notifications dispatched. Kept simple for the MVP
-    (in-app delivery); FCM push can hook in here later.
+    and deliver eligible email notifications.
     """
     now = datetime.now(timezone.utc)
     with SessionLocal() as db:
@@ -372,6 +481,19 @@ def process_due_notifications() -> int:
                 continue
             if notification.title.startswith("Weekly Summary") and not settings.weekly_summary_enabled:
                 continue
+
+            template_key = email_notification_service.resolve_template_key_for_notification(notification)
+            if template_key is not None:
+                user = db.get(User, notification.user_id)
+                if user is not None:
+                    context = email_notification_service.context_from_notification(notification)
+                    email_notification_service.send_notification_email(
+                        db,
+                        user,
+                        template_key=template_key,
+                        context=context,
+                    )
+
             notification.sent = True
         if due:
             db.commit()

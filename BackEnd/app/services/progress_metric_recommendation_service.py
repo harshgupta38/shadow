@@ -7,6 +7,7 @@ internally without schema changes.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import timedelta
 import json
 import logging
 import re
@@ -21,6 +22,7 @@ from app.agents.orchestrator import (
     repair_progress_metric_json,
 )
 from app.llm.base import LLMProvider
+from app.models.base import utcnow
 from app.models.enums import MetricTimeSpan, MetricUnit, NotificationType
 from app.models.goal import Goal
 from app.models.metric import TrackedMetric
@@ -38,14 +40,17 @@ from app.schemas.metric import (
     ProgressCoachRecommendationAcceptResponse,
     ProgressCoachRecommendationRead,
 )
-from app.services import metric_service
-from app.services.exceptions import NotFoundError
+from app.schemas.notification import NotificationCreate
+from app.services import metric_service, notification_service
+from app.services.exceptions import ConflictError, NotFoundError
 from app.services.utils import get_owned_or_404
 
 logger = logging.getLogger(__name__)
 
 INTERNAL_PROGRESS_COACH_TITLE_PREFIX = "__internal_progress_coach_metric_recommendation__:habit:"
+PROGRESS_COACH_RECOMMENDATION_TITLE_PREFIX = "Progress Coach recommendation:"
 _RECOMMENDATION_SCHEMA = "PROGRESS_COACH_RECOMMENDATION_V1"
+_RECOMMENDATION_ALERT_SUPPRESSION_HOURS = 12
 
 _WEEKLY_FREQUENCIES = {
     "weekly",
@@ -230,6 +235,60 @@ class _NormalizedRecommendation:
 
 def _title_for_habit(habit_id: int) -> str:
     return f"{INTERNAL_PROGRESS_COACH_TITLE_PREFIX}{habit_id}"
+
+
+def _public_title_for_habit(habit_name: str) -> str:
+    return f"{PROGRESS_COACH_RECOMMENDATION_TITLE_PREFIX} {habit_name.strip()}"
+
+
+def _has_recent_public_recommendation_alert(
+    db: Session,
+    *,
+    user_id: int,
+    title: str,
+) -> bool:
+    cutoff = utcnow() - timedelta(hours=_RECOMMENDATION_ALERT_SUPPRESSION_HOURS)
+    existing = db.scalar(
+        select(Notification.id).where(
+            Notification.user_id == user_id,
+            Notification.type == NotificationType.system,
+            Notification.title == title,
+            Notification.created_at >= cutoff,
+        )
+    )
+    return existing is not None
+
+
+def _emit_public_recommendation_notification(
+    db: Session,
+    user: User,
+    *,
+    habit_name: str,
+    metric_name: str,
+    target: int,
+    unit_hint: str | None,
+) -> None:
+    title = _public_title_for_habit(habit_name)
+    if _has_recent_public_recommendation_alert(db, user_id=user.id, title=title):
+        return
+
+    body = (
+        f"We found a measurable metric for {habit_name}: "
+        f"{metric_name} target {target} {unit_hint or ''}."
+    ).strip()
+    try:
+        notification_service.create_notification(
+            db,
+            user,
+            NotificationCreate(
+                title=title,
+                body=body,
+                type=NotificationType.system,
+            ),
+        )
+    except ConflictError:
+        # Respect user notification settings without failing the source workflow.
+        return
 
 
 def _strip_markdown_fence(raw: str) -> str:
@@ -768,6 +827,14 @@ def refresh_for_habit(
         )
     )
     db.commit()
+    _emit_public_recommendation_notification(
+        db,
+        user,
+        habit_name=habit.name,
+        metric_name=normalized.metric_name,
+        target=normalized.target,
+        unit_hint=normalized.unit_hint,
+    )
 
 
 def list_pending(db: Session, user: User) -> list[ProgressCoachRecommendationRead]:

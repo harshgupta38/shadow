@@ -205,10 +205,14 @@ def test_push_device_connected_alert_creates_notification_and_pushes_to_other_de
 ) -> None:
     endpoint_current = "https://web.push.apple.com/current-device"
     endpoint_other = "https://fcm.googleapis.com/fcm/send/other-device"
+    browser_user_agent = (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"
+    )
 
     register_current = client.post(
         "/api/notifications/push/subscriptions",
-        headers=auth_headers,
+        headers={**auth_headers, "user-agent": browser_user_agent},
         json={
             "endpoint": endpoint_current,
             "keys": {
@@ -253,7 +257,25 @@ def test_push_device_connected_alert_creates_notification_and_pushes_to_other_de
         captured["ignore_push_enabled"] = ignore_push_enabled
         return 1
 
+    def _fake_send_notification_email(
+        db,
+        user,
+        *,
+        template_key,
+        context=None,
+        force=False,
+    ):
+        captured["email_template_key"] = template_key
+        captured["email_context"] = context or {}
+        captured["email_force"] = force
+        return True
+
     monkeypatch.setattr(notifications_api.push_service, "send_push_to_user", _fake_send_push_to_user)
+    monkeypatch.setattr(
+        notifications_api.email_notification_service,
+        "send_notification_email",
+        _fake_send_notification_email,
+    )
 
     response = client.post(
         "/api/notifications/push/device-connected-alert",
@@ -275,6 +297,97 @@ def test_push_device_connected_alert_creates_notification_and_pushes_to_other_de
     assert captured["url"] == "/notifications"
     assert captured["exclude_endpoints"] == {endpoint_current}
     assert captured["ignore_push_enabled"] is True
+
+    assert captured["email_template_key"] == "new_device_alert"
+    email_context = captured["email_context"]
+    assert email_context["device_label"] == "Windows PC"
+    assert email_context["browser"] == "Google Chrome 139.0.0.0"
+    assert email_context["operating_system"] == "Windows 10/11"
+    assert email_context["detected_at"].endswith("IST")
+    assert email_context["ip_address"]
+    assert email_context["cta_label"] == "Secure My Account"
+
+
+def test_push_device_connected_alert_uses_ip_geolocation_fallback_when_headers_missing(
+    client: TestClient,
+    auth_headers: dict,
+    monkeypatch,
+) -> None:
+    import app.api.notifications as notifications_api
+
+    captured: dict[str, object] = {}
+
+    class _FakeGeoResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict[str, str]:
+            return {
+                "status": "success",
+                "city": "Kolkata",
+                "regionName": "West Bengal",
+                "country": "India",
+            }
+
+    def _fake_geo_get(url: str, timeout: float):
+        captured["geo_url"] = url
+        captured["geo_timeout"] = timeout
+        return _FakeGeoResponse()
+
+    def _fake_send_push_to_user(
+        db,
+        user,
+        *,
+        title,
+        body,
+        url="/notifications",
+        exclude_endpoints=None,
+        ignore_push_enabled=False,
+    ):
+        return 1
+
+    def _fake_send_notification_email(
+        db,
+        user,
+        *,
+        template_key,
+        context=None,
+        force=False,
+    ):
+        captured["email_template_key"] = template_key
+        captured["email_context"] = context or {}
+        return True
+
+    monkeypatch.setattr(notifications_api.settings, "ip_geolocation_enabled", True)
+    monkeypatch.setattr(notifications_api.settings, "ip_geolocation_base_url", "https://geo.test/{ip}")
+    monkeypatch.setattr(notifications_api.settings, "ip_geolocation_timeout_seconds", 1.2)
+    monkeypatch.setattr(notifications_api.httpx, "get", _fake_geo_get)
+    monkeypatch.setattr(notifications_api.push_service, "send_push_to_user", _fake_send_push_to_user)
+    monkeypatch.setattr(
+        notifications_api.email_notification_service,
+        "send_notification_email",
+        _fake_send_notification_email,
+    )
+
+    response = client.post(
+        "/api/notifications/push/device-connected-alert",
+        headers={
+            **auth_headers,
+            "x-forwarded-for": "8.8.8.8",
+            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/139.0.0.0",
+        },
+        json={"connected_endpoint": None},
+    )
+    assert response.status_code == 204
+
+    assert captured["geo_url"] == "https://geo.test/8.8.8.8"
+    assert captured["geo_timeout"] == 1.2
+    assert captured["email_template_key"] == "new_device_alert"
+
+    email_context = captured["email_context"]
+    assert email_context["location"] == "Kolkata, West Bengal, India"
+    assert email_context["ip_address"] == "8.8.8.8"
+    assert email_context["detected_at"].endswith("IST")
 
 
 def test_notifications_respect_settings_switches(client: TestClient, auth_headers: dict) -> None:

@@ -361,6 +361,34 @@ export interface NotificationSettingsUpdate {
   weekly_summary_enabled?: boolean;
 }
 
+export type EmailNotificationPreferenceKey =
+  | "verification_reminders"
+  | "password_changed_alert"
+  | "new_device_alert"
+  | "task_reminders"
+  | "today_plan_generated"
+  | "daily_motivational_quote"
+  | "daily_brief"
+  | "weekly_summary"
+  | "streak_risk_alert"
+  | "milestone_due_soon"
+  | "goal_target_risk"
+  | "daily_report_ready"
+  | "weekly_report_ready"
+  | "progress_coach_recommendations"
+  | "export_ready";
+
+export type EmailNotificationPreferences = Record<EmailNotificationPreferenceKey, boolean>;
+
+export interface EmailNotificationControls extends EmailNotificationPreferences {
+  daily_motivational_quote_time: string;
+}
+
+export interface EmailNotificationControlsUpdate
+  extends Partial<EmailNotificationPreferences> {
+  daily_motivational_quote_time?: string;
+}
+
 export interface PushPublicKeyRead {
   configured: boolean;
   public_key: string | null;

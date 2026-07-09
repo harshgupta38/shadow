@@ -9,6 +9,8 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from app.scheduler.jobs import (
     enqueue_daily_reports,
     enqueue_daily_briefs,
+    enqueue_daily_motivational_quotes,
+    enqueue_weekly_verification_reminders,
     enqueue_weekly_reports,
     enqueue_weekly_summaries,
     process_due_notifications,
@@ -41,10 +43,24 @@ def start_scheduler() -> BackgroundScheduler:
         replace_existing=True,
     )
     _scheduler.add_job(
+        enqueue_daily_motivational_quotes,
+        trigger="interval",
+        minutes=1,
+        id="enqueue_daily_motivational_quotes",
+        replace_existing=True,
+    )
+    _scheduler.add_job(
         enqueue_weekly_summaries,
         trigger="interval",
         minutes=1,
         id="enqueue_weekly_summaries",
+        replace_existing=True,
+    )
+    _scheduler.add_job(
+        enqueue_weekly_verification_reminders,
+        trigger="interval",
+        minutes=1,
+        id="enqueue_weekly_verification_reminders",
         replace_existing=True,
     )
     _scheduler.add_job(

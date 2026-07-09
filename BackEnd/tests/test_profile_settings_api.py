@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from urllib.parse import parse_qs, urlparse
 
 
 def test_profile_basic_and_ai_endpoints(client, auth_headers):
@@ -172,6 +173,31 @@ def test_settings_endpoints_and_theme_sync(client, auth_headers):
     assert notifications_json["daily_brief_time"] == "09:30"
     assert notifications_json["email_notifications_enabled"] is True
     assert notifications_json["weekly_summary_enabled"] is False
+
+    email_controls_initial = client.get("/api/settings/email-notifications", headers=auth_headers)
+    assert email_controls_initial.status_code == 200
+    assert "task_reminders" in email_controls_initial.json()
+
+    email_controls_updated = client.put(
+        "/api/settings/email-notifications",
+        headers=auth_headers,
+        json={
+            "task_reminders": False,
+            "daily_motivational_quote": True,
+            "daily_motivational_quote_time": "07:15",
+            "weekly_report_ready": False,
+        },
+    )
+    assert email_controls_updated.status_code == 200
+    controls_json = email_controls_updated.json()
+    assert controls_json["task_reminders"] is False
+    assert controls_json["daily_motivational_quote"] is True
+    assert controls_json["daily_motivational_quote_time"] == "07:15"
+    assert controls_json["weekly_report_ready"] is False
+
+    # Shared fields stay synchronized with legacy notification settings.
+    synced_notifications = client.get("/api/settings", headers=auth_headers).json()["notifications"]
+    assert synced_notifications["reminder_notifications_enabled"] is False
 
     ai_behavior = client.put(
         "/api/settings/ai-behavior",
@@ -382,6 +408,15 @@ def test_account_security_export_and_clear_chat(client, auth_headers):
     )
     assert sent.status_code == 200
 
+    verify_dispatch = client.post("/api/auth/request-email-verification", headers=auth_headers)
+    assert verify_dispatch.status_code == 200
+    verify_payload = verify_dispatch.json()
+    assert verify_payload["verification_url_preview"]
+    parsed = urlparse(verify_payload["verification_url_preview"])
+    token = parse_qs(parsed.query)["token"][0]
+    verify_done = client.get(f"/api/auth/verify-email?token={token}")
+    assert verify_done.status_code == 200
+
     export = client.get("/api/profile/export", headers=auth_headers)
     assert export.status_code == 200
     assert "counts" in export.json()["data"]
@@ -411,3 +446,9 @@ def test_delete_account_requires_confirmation_text(client, auth_headers):
 
     me_after_delete = client.get("/api/auth/me", headers=auth_headers)
     assert me_after_delete.status_code == 401
+
+
+def test_export_requires_verified_email(client, auth_headers):
+    export = client.get("/api/profile/export", headers=auth_headers)
+    assert export.status_code == 409
+    assert export.json()["detail"] == "Please verify your email before exporting account data"

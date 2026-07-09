@@ -294,7 +294,14 @@ def test_create_habit_generates_progress_metric_recommendation(
         # Internal recommendation storage should never leak into notifications feed.
         notifications = client.get("/api/notifications", headers=auth_headers)
         assert notifications.status_code == 200
-        assert all("__internal_progress_coach_metric_recommendation__" not in row["title"] for row in notifications.json())
+        assert all(
+            "__internal_progress_coach_metric_recommendation__" not in row["title"]
+            for row in notifications.json()
+        )
+        assert any(
+            row["title"].startswith("Progress Coach recommendation:")
+            for row in notifications.json()
+        )
     finally:
         app.dependency_overrides.pop(get_provider, None)
 

@@ -10,13 +10,15 @@ from sqlalchemy import and_, or_, select
 
 from app.database import SessionLocal
 from app.llm.factory import get_llm_provider
+from app.models.email_verification_token import EmailVerificationToken
 from app.models.enums import NotificationType, ReportPeriod, ReportSource
 from app.models.notification import Notification
 from app.models.user import User
 from app.models.user_setting import UserSetting
-from app.services import email_notification_service, push_service, report_service
+from app.services import auth_service, email_notification_service, push_service, report_service
 
 logger = logging.getLogger(__name__)
+_VERIFICATION_REMINDER_INTERVAL = timedelta(days=7)
 
 
 def _safe_timezone(name: str) -> ZoneInfo | timezone:
@@ -283,6 +285,53 @@ def enqueue_daily_motivational_quotes(*, now_utc: datetime | None = None) -> int
             logger.info("Delivered %d daily motivational quote email(s)", created)
 
     return created
+
+
+def enqueue_weekly_verification_reminders(*, now_utc: datetime | None = None) -> int:
+    """Send verification reminder emails once every 7 days for unverified users."""
+    now = (now_utc or datetime.now(timezone.utc)).replace(second=0, microsecond=0)
+    sent = 0
+
+    with SessionLocal() as db:
+        users = list(db.scalars(select(User).where(User.email_verified.is_(False))))
+        for user in users:
+            settings = db.scalar(select(UserSetting).where(UserSetting.user_id == user.id))
+            if settings is None:
+                continue
+            if not settings.notifications_enabled or not settings.email_notifications_enabled:
+                continue
+
+            controls = email_notification_service.get_email_notification_controls(db, user)
+            if not controls.verification_reminders:
+                continue
+
+            latest_token = db.scalar(
+                select(EmailVerificationToken)
+                .where(EmailVerificationToken.user_id == user.id)
+                .order_by(EmailVerificationToken.created_at.desc())
+            )
+            if latest_token is not None:
+                last_created = latest_token.created_at
+                if last_created.tzinfo is None:
+                    last_created = last_created.replace(tzinfo=timezone.utc)
+                else:
+                    last_created = last_created.astimezone(timezone.utc)
+                if now - last_created < _VERIFICATION_REMINDER_INTERVAL:
+                    continue
+
+            try:
+                dispatch = auth_service.request_email_verification(db, user)
+            except Exception:  # pragma: no cover - defensive scheduler guard
+                logger.exception("Failed weekly verification reminder for user_id=%s", user.id)
+                continue
+
+            if dispatch.email_sent:
+                sent += 1
+
+        if sent:
+            logger.info("Delivered %d weekly verification reminder email(s)", sent)
+
+    return sent
 
 
 def enqueue_daily_reports(*, now_utc: datetime | None = None) -> int:

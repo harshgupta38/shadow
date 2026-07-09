@@ -428,10 +428,10 @@ def _render_template(
         cta_url = _frontend_url("settings")
     elif template_key == "new_device_alert":
         cta_label = "Secure My Account"
-        cta_url = _frontend_url("settings/security")
+        cta_url = _frontend_url("settings")
     elif template_key == "password_changed_alert":
         cta_label = "Review security"
-        cta_url = _frontend_url("settings/security")
+        cta_url = _frontend_url("settings")
 
     if template_key == "verification_reminders":
         return _render_verification_reminder_shell(

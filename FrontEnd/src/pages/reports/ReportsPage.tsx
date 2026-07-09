@@ -20,7 +20,7 @@ import { Pill } from "@/components/ui/Pill";
 import { SectionCard } from "@/components/ui/SectionCard";
 import { useToast } from "@/context/ToastContext";
 import { useAsync } from "@/hooks/useAsync";
-import { formatDate, relativeTime } from "@/lib/format";
+import { formatDateLong, relativeTime } from "@/lib/format";
 
 type Filter = "all" | ReportPeriod;
 
@@ -41,7 +41,7 @@ function formatHistoryDate(value: string): string {
   const month = Number(monthText);
   const day = Number(dayText);
   if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return value;
-  return formatDate(new Date(year, month - 1, day, 12));
+  return formatDateLong(new Date(year, month - 1, day, 12));
 }
 
 function buildViewerPath(historyDate: string, reportId: number, period?: ReportPeriod): string {
@@ -67,7 +67,7 @@ function HistoryCard({ card, onOpen }: { card: ReportHistoryCard; onOpen: () => 
       </div>
 
       <div className="fw-bold mb-1">{formatHistoryDate(card.history_date)}</div>
-      <div className="small text-muted-2 mb-2">Latest generated {formatDate(card.latest_created_at)}</div>
+      <div className="small text-muted-2 mb-2">Latest generated {formatDateLong(card.latest_created_at)}</div>
       {card.latest_narrative_snippet && (
         <p className="text-muted-2 small line-clamp-2 mb-0">{card.latest_narrative_snippet}</p>
       )}

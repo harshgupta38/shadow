@@ -45,16 +45,16 @@ describe("compactNumber", () => {
 });
 
 describe("runtime format preferences", () => {
-  it("uses dd/mm/yyyy by default", () => {
-    expect(formatDate(new Date(2026, 6, 1))).toBe("01/07/2026");
+  it("uses MMM D, YYYY by default", () => {
+    expect(formatDate(new Date(2026, 6, 1))).toBe("Jul 1, 2026");
   });
 
-  it("supports mm/dd/yyyy and yyyy-mm-dd date formats", () => {
+  it("keeps MMM D, YYYY regardless of stored date format preference", () => {
     setRuntimeFormatPreferences({ dateFormat: "mm/dd/yyyy" });
-    expect(formatDate(new Date(2026, 6, 1))).toBe("07/01/2026");
+    expect(formatDate(new Date(2026, 6, 1))).toBe("Jul 1, 2026");
 
     setRuntimeFormatPreferences({ dateFormat: "yyyy-mm-dd" });
-    expect(formatDate(new Date(2026, 6, 1))).toBe("2026-07-01");
+    expect(formatDate(new Date(2026, 6, 1))).toBe("Jul 1, 2026");
   });
 
   it("supports 12h and 24h time formats", () => {
@@ -71,7 +71,7 @@ describe("runtime format preferences", () => {
     const sample = new Date(2026, 6, 1, 13, 5);
     setRuntimeFormatPreferences({ dateFormat: "yyyy-mm-dd", timeFormat: "24h" });
 
-    expect(formatDateTime(sample)).toBe("2026-07-01 · 13:05");
+    expect(formatDateTime(sample)).toBe("Jul 1, 2026 · 13:05");
   });
 
   it("can read currently active runtime preferences", () => {

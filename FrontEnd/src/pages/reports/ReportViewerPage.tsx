@@ -19,7 +19,7 @@ import { Pill } from "@/components/ui/Pill";
 import { SectionCard } from "@/components/ui/SectionCard";
 import { useToast } from "@/context/ToastContext";
 import { useAsync } from "@/hooks/useAsync";
-import { formatDate, formatTime } from "@/lib/format";
+import { formatDateLong, formatTime } from "@/lib/format";
 
 function parseReportPeriod(value: string | null): ReportPeriod | undefined {
   if (value === "daily" || value === "weekly") return value;
@@ -87,7 +87,7 @@ export function ReportViewerPage() {
 
   const metaDate = useMemo(() => {
     if (!current) return "";
-    return `${formatDate(current.created_at)} • ${formatTime(current.created_at)}`;
+    return `${formatDateLong(current.created_at)} • ${formatTime(current.created_at)}`;
   }, [current]);
 
   function gotoIndex(nextIndex: number) {

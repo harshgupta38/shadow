@@ -43,13 +43,12 @@ function pad2(value: number): string {
 }
 
 function formatDateByPreference(date: Date, preference: RuntimeDateFormat): string {
-  const year = date.getFullYear();
-  const month = pad2(date.getMonth() + 1);
-  const day = pad2(date.getDate());
-
-  if (preference === "mm/dd/yyyy") return `${month}/${day}/${year}`;
-  if (preference === "yyyy-mm-dd") return `${year}-${month}-${day}`;
-  return `${day}/${month}/${year}`;
+  void preference;
+  return date.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
 }
 
 /** Local YYYY-MM-DD (avoids UTC off-by-one from `toISOString`). */
@@ -79,6 +78,14 @@ export function relativeTime(input: string | Date): string {
 
 /** Date rendered with the user's preferred planner date format. */
 export function formatDate(input?: string | Date | null): string {
+  if (!input) return "";
+  const date = typeof input === "string" ? new Date(input) : input;
+  if (Number.isNaN(date.getTime())) return "";
+  return formatDateByPreference(date, runtimeFormatPreferences.dateFormat);
+}
+
+/** Legacy long date style used by reports: "Jul 9, 2026". */
+export function formatDateLong(input?: string | Date | null): string {
   if (!input) return "";
   const date = typeof input === "string" ? new Date(input) : input;
   if (Number.isNaN(date.getTime())) return "";

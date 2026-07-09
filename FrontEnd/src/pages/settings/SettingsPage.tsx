@@ -103,9 +103,7 @@ const TIME_FORMAT_OPTIONS: Array<{ value: TimeFormat; label: string }> = [
 ];
 
 const DATE_FORMAT_OPTIONS: Array<{ value: DateFormat; label: string }> = [
-  { value: "dd/mm/yyyy", label: "DD/MM/YYYY" },
-  { value: "mm/dd/yyyy", label: "MM/DD/YYYY" },
-  { value: "yyyy-mm-dd", label: "YYYY-MM-DD" },
+  { value: "dd/mm/yyyy", label: "MMM D, YYYY" },
 ];
 
 const GEMINI_MODEL_OPTIONS: Array<{ value: string; label: string }> = [

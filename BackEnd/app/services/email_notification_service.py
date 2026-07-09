@@ -658,6 +658,23 @@ def _render_template(
             support_email=str(context.get("support_email") or "support@shadow.app"),
         )
 
+    if template_key == "progress_coach_recommendations":
+        return _render_progress_coach_recommendations_shell(
+            subject=subject,
+            recipient_name=safe_name,
+            title=str(context.get("notification_title") or spec.title),
+            intro=str(context.get("notification_body") or spec.intro),
+            recommendation_count=str(context.get("recommendation_count") or "3"),
+            impact=str(context.get("impact") or "High"),
+            morning_anchor=str(context.get("morning_anchor") or "Start with one non-negotiable block."),
+            context_control=str(context.get("context_control") or "Batch similar tasks to reduce switching."),
+            feedback_loop=str(context.get("feedback_loop") or "Log one-line reflection daily."),
+            cta_label=str(context.get("cta_label") or cta_label),
+            cta_url=cta_url,
+            footer=spec.footer,
+            support_email=str(context.get("support_email") or "support@shadow.app"),
+        )
+
     if template_key == "password_changed_alert":
         return _render_password_changed_alert_shell(
             subject=subject,
@@ -1211,6 +1228,82 @@ def _render_goal_target_risk_shell(
             "safe_reprioritize": safe_reprioritize,
             "safe_increase_cadence": safe_increase_cadence,
             "safe_track_signal": safe_track_signal,
+            "safe_cta_label": safe_cta_label,
+            "safe_cta_url": safe_cta_url,
+            "safe_footer": safe_footer,
+            "safe_support_email": safe_support_email,
+        },
+    )
+
+    return subject, text_body, html_body
+
+
+def _render_progress_coach_recommendations_shell(
+    *,
+    subject: str,
+    recipient_name: str,
+    title: str,
+    intro: str,
+    recommendation_count: str,
+    impact: str,
+    morning_anchor: str,
+    context_control: str,
+    feedback_loop: str,
+    cta_label: str,
+    cta_url: str,
+    footer: str,
+    support_email: str,
+) -> tuple[str, str, str]:
+    text_lines = [
+        f"Hi {recipient_name},",
+        "",
+        intro,
+        "",
+        "Progress coach snapshot:",
+        f"- Recommendation count: {recommendation_count}",
+        f"- Impact: {impact}",
+        "",
+        "Execution plan:",
+        f"- Morning anchor: {morning_anchor}",
+        f"- Context control: {context_control}",
+        f"- Feedback loop: {feedback_loop}",
+        "",
+        f"Open: {cta_url}",
+        "",
+        f"Need help? Contact support at {support_email}",
+        "",
+        footer,
+        "",
+        "Team Shadow",
+    ]
+    text_body = "\n".join(text_lines)
+
+    safe_subject = escape(subject)
+    safe_name = escape(recipient_name)
+    safe_title = escape(title)
+    safe_intro = escape(intro)
+    safe_recommendation_count = escape(recommendation_count)
+    safe_impact = escape(impact)
+    safe_morning_anchor = escape(morning_anchor)
+    safe_context_control = escape(context_control)
+    safe_feedback_loop = escape(feedback_loop)
+    safe_cta_label = escape(cta_label)
+    safe_cta_url = escape(cta_url)
+    safe_footer = escape(footer)
+    safe_support_email = escape(support_email)
+
+    html_body = _render_email_template(
+        "progress_coach_recommendations.html",
+        {
+            "safe_subject": safe_subject,
+            "safe_name": safe_name,
+            "safe_title": safe_title,
+            "safe_intro": safe_intro,
+            "safe_recommendation_count": safe_recommendation_count,
+            "safe_impact": safe_impact,
+            "safe_morning_anchor": safe_morning_anchor,
+            "safe_context_control": safe_context_control,
+            "safe_feedback_loop": safe_feedback_loop,
             "safe_cta_label": safe_cta_label,
             "safe_cta_url": safe_cta_url,
             "safe_footer": safe_footer,

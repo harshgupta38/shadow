@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from urllib.parse import parse_qs, urlparse
 
 
 def test_profile_basic_and_ai_endpoints(client, auth_headers):
@@ -407,6 +408,15 @@ def test_account_security_export_and_clear_chat(client, auth_headers):
     )
     assert sent.status_code == 200
 
+    verify_dispatch = client.post("/api/auth/request-email-verification", headers=auth_headers)
+    assert verify_dispatch.status_code == 200
+    verify_payload = verify_dispatch.json()
+    assert verify_payload["verification_url_preview"]
+    parsed = urlparse(verify_payload["verification_url_preview"])
+    token = parse_qs(parsed.query)["token"][0]
+    verify_done = client.get(f"/api/auth/verify-email?token={token}")
+    assert verify_done.status_code == 200
+
     export = client.get("/api/profile/export", headers=auth_headers)
     assert export.status_code == 200
     assert "counts" in export.json()["data"]
@@ -436,3 +446,9 @@ def test_delete_account_requires_confirmation_text(client, auth_headers):
 
     me_after_delete = client.get("/api/auth/me", headers=auth_headers)
     assert me_after_delete.status_code == 401
+
+
+def test_export_requires_verified_email(client, auth_headers):
+    export = client.get("/api/profile/export", headers=auth_headers)
+    assert export.status_code == 409
+    assert export.json()["detail"] == "Please verify your email before exporting account data"

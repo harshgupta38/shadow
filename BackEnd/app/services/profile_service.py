@@ -154,6 +154,9 @@ def clear_chat_history(db: Session, user: User) -> ChatHistoryClearResult:
 
 
 def export_account_data(db: Session, user: User) -> AccountDataExportRead:
+    if not user.email_verified:
+        raise ConflictError("Please verify your email before exporting account data")
+
     profile = _get_or_create_profile(db, user)
 
     goals = list(db.scalars(select(Goal).where(Goal.user_id == user.id)))

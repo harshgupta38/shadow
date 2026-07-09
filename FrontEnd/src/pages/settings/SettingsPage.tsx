@@ -262,10 +262,11 @@ interface ToggleRowProps {
   description: string;
   checked: boolean;
   onChange: (checked: boolean) => void;
+  disabled?: boolean;
   extraContent?: ReactNode;
 }
 
-function ToggleRow({ id, label, description, checked, onChange, extraContent }: ToggleRowProps) {
+function ToggleRow({ id, label, description, checked, onChange, disabled = false, extraContent }: ToggleRowProps) {
   return (
     <div className="d-flex align-items-start justify-content-between gap-3 surface-2 p-3">
       <div>
@@ -281,6 +282,8 @@ function ToggleRow({ id, label, description, checked, onChange, extraContent }: 
           className="form-check-input"
           type="checkbox"
           checked={checked}
+          disabled={disabled}
+          style={disabled ? { cursor: "not-allowed", pointerEvents: "none" } : undefined}
           onChange={(e) => onChange(e.target.checked)}
         />
       </div>
@@ -289,9 +292,10 @@ function ToggleRow({ id, label, description, checked, onChange, extraContent }: 
 }
 
 export function SettingsPage() {
-  const { patchUser } = useAuth();
+  const { patchUser, user } = useAuth();
   const { setTheme, theme, dynamicThemeInfo } = useTheme();
   const toast = useToast();
+  const isEmailVerified = Boolean(user?.email_verified);
 
   const settingsQuery = useAsync(() => api.settings.get(), []);
   const [draft, setDraft] = useState<SettingsRead | null>(null);
@@ -684,6 +688,11 @@ export function SettingsPage() {
   }
 
   async function exportData() {
+    if (!isEmailVerified) {
+      toast.error("Verify your email first to export account data.");
+      return;
+    }
+
     setExportingData(true);
     try {
       const payload = await api.profile.exportAccountData();
@@ -953,23 +962,30 @@ export function SettingsPage() {
                 id="notify-email"
                 label="Email notifications"
                 description="Receive reminder emails for important planning events."
-                checked={draft.notifications.email_notifications_enabled}
+                checked={isEmailVerified && draft.notifications.email_notifications_enabled}
+                disabled={!isEmailVerified}
                 onChange={(checked) =>
-                  setDraft((prev) =>
-                    prev
-                      ? {
-                          ...prev,
-                          notifications: { ...prev.notifications, email_notifications_enabled: checked },
-                        }
-                      : prev,
-                  )
+                  setDraft((prev) => {
+                    if (!prev) return prev;
+                    return {
+                      ...prev,
+                      notifications: { ...prev.notifications, email_notifications_enabled: checked },
+                    };
+                  })
                 }
                 extraContent={
-                  draft.notifications.email_notifications_enabled ? (
-                    <Link to="/settings/email-controls" className="btn btn-outline-secondary btn-sm">
-                      Control what you see
-                    </Link>
-                  ) : null
+                  <>
+                    {!isEmailVerified ? (
+                      <div className="text-warning small" role="status">
+                        Verify your email to enable email notifications.
+                      </div>
+                    ) : null}
+                    {isEmailVerified && draft.notifications.email_notifications_enabled ? (
+                      <Link to="/settings/email-controls" className="btn btn-outline-secondary btn-sm">
+                        Control what you see
+                      </Link>
+                    ) : null}
+                  </>
                 }
               />
               <ToggleRow

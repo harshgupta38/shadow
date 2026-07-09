@@ -8,9 +8,25 @@ import { ToastProvider } from "@/context/ToastContext";
 
 import { SettingsPage } from "./SettingsPage";
 
-const { patchUserMock, setThemeMock, themeRuntimeState } = vi.hoisted(() => ({
+const { patchUserMock, setThemeMock, themeRuntimeState, authRuntimeState } = vi.hoisted(() => ({
   patchUserMock: vi.fn(),
   setThemeMock: vi.fn(),
+  authRuntimeState: {
+    user: {
+      id: 1,
+      email: "user@example.com",
+      name: "Test User",
+      timezone: "Asia/Kolkata",
+      theme_preference: "light",
+      subscription_plan: "free",
+      email_verified: true,
+      auth_provider: "password",
+      last_password_changed_at: "2026-07-01T00:00:00.000Z",
+      onboarding_completed: true,
+      created_at: "2026-07-01T00:00:00.000Z",
+      updated_at: "2026-07-01T00:00:00.000Z",
+    },
+  },
   themeRuntimeState: {
     theme: "light" as "light" | "dark",
     dynamicThemeInfo: {
@@ -33,6 +49,7 @@ const { patchUserMock, setThemeMock, themeRuntimeState } = vi.hoisted(() => ({
 
 vi.mock("@/context/AuthContext", () => ({
   useAuth: () => ({
+    user: authRuntimeState.user,
     patchUser: patchUserMock,
   }),
 }));
@@ -160,6 +177,21 @@ describe("SettingsPage", () => {
   let currentSettings: SettingsRead;
 
   beforeEach(() => {
+    authRuntimeState.user = {
+      id: 1,
+      email: "user@example.com",
+      name: "Test User",
+      timezone: "Asia/Kolkata",
+      theme_preference: "light",
+      subscription_plan: "free",
+      email_verified: true,
+      auth_provider: "password",
+      last_password_changed_at: "2026-07-01T00:00:00.000Z",
+      onboarding_completed: true,
+      created_at: "2026-07-01T00:00:00.000Z",
+      updated_at: "2026-07-01T00:00:00.000Z",
+    };
+
     patchUserMock.mockReset();
     setThemeMock.mockReset();
     themeRuntimeState.theme = "light";
@@ -751,6 +783,37 @@ describe("SettingsPage", () => {
 
     const cta = await screen.findByRole("link", { name: "Control what you see" });
     expect(cta).toHaveAttribute("href", "/settings/email-controls");
+  });
+
+  it("blocks enabling email notifications when email is not verified", async () => {
+    authRuntimeState.user = {
+      ...authRuntimeState.user,
+      email_verified: false,
+    };
+    currentSettings.notifications.email_notifications_enabled = true;
+    const user = userEvent.setup();
+    renderPage();
+
+    expect(
+      await screen.findByText("Verify your email to enable email notifications."),
+    ).toBeInTheDocument();
+
+    const emailToggle = await screen.findByLabelText("Email notifications");
+    expect(emailToggle).toBeDisabled();
+    expect(emailToggle).not.toBeChecked();
+    expect(screen.queryByRole("link", { name: "Control what you see" })).not.toBeInTheDocument();
+  });
+
+  it("does not call export API when email is not verified", async () => {
+    authRuntimeState.user = {
+      ...authRuntimeState.user,
+      email_verified: false,
+    };
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(await screen.findByRole("button", { name: "Export my data" }));
+    expect(mockedProfileApi.exportAccountData).not.toHaveBeenCalled();
   });
 
   it("shows an automation entry linking to the dedicated automation page", async () => {

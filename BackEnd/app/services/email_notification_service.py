@@ -563,6 +563,37 @@ def _render_template(
             support_email=str(context.get("support_email") or "support@shadow.app"),
         )
 
+    if template_key == "today_plan_generated":
+        plan_date = str(context.get("plan_date") or date.today().isoformat())
+        task_titles = [str(item).strip() for item in context.get("task_titles") or [] if str(item).strip()]
+        tasks_generated = str(max(1, len(task_titles)))
+        default_plan_steps = [
+            "Start with your highest-leverage task.",
+            "Keep transitions short between blocks.",
+            "Close with a one-minute reflection.",
+        ]
+        plan_steps = (task_titles[:3] + default_plan_steps)[:3]
+        focus_note = str(
+            context.get("quote")
+            or "Consistency compounds. Start with one meaningful block and build momentum."
+        )
+        return _render_today_plan_generated_shell(
+            subject=subject,
+            recipient_name=safe_name,
+            title=str(context.get("notification_title") or spec.title),
+            intro=str(context.get("notification_body") or spec.intro),
+            plan_date=plan_date,
+            tasks_generated=tasks_generated,
+            first_task=plan_steps[0],
+            second_task=plan_steps[1],
+            third_task=plan_steps[2],
+            focus_note=focus_note,
+            cta_label=str(context.get("cta_label") or cta_label),
+            cta_url=cta_url,
+            footer=spec.footer,
+            support_email=str(context.get("support_email") or "support@shadow.app"),
+        )
+
     if template_key == "daily_brief":
         priority_blocks = str(context.get("priority_blocks") or context.get("priority_block_count") or "3")
         carry_forward_raw = context.get("carry_forward") or context.get("carry_forward_count")
@@ -1304,6 +1335,87 @@ def _render_progress_coach_recommendations_shell(
             "safe_morning_anchor": safe_morning_anchor,
             "safe_context_control": safe_context_control,
             "safe_feedback_loop": safe_feedback_loop,
+            "safe_cta_label": safe_cta_label,
+            "safe_cta_url": safe_cta_url,
+            "safe_footer": safe_footer,
+            "safe_support_email": safe_support_email,
+        },
+    )
+
+    return subject, text_body, html_body
+
+
+def _render_today_plan_generated_shell(
+    *,
+    subject: str,
+    recipient_name: str,
+    title: str,
+    intro: str,
+    plan_date: str,
+    tasks_generated: str,
+    first_task: str,
+    second_task: str,
+    third_task: str,
+    focus_note: str,
+    cta_label: str,
+    cta_url: str,
+    footer: str,
+    support_email: str,
+) -> tuple[str, str, str]:
+    text_lines = [
+        f"Hi {recipient_name},",
+        "",
+        intro,
+        "",
+        "Today's plan snapshot:",
+        f"- Plan date: {plan_date}",
+        f"- Tasks generated: {tasks_generated}",
+        "",
+        "Execution plan:",
+        f"- Task 1: {first_task}",
+        f"- Task 2: {second_task}",
+        f"- Task 3: {third_task}",
+        "",
+        f"Focus note: {focus_note}",
+        "",
+        f"Open: {cta_url}",
+        "",
+        f"Need help? Contact support at {support_email}",
+        "",
+        footer,
+        "",
+        "Team Shadow",
+    ]
+    text_body = "\n".join(text_lines)
+
+    safe_subject = escape(subject)
+    safe_name = escape(recipient_name)
+    safe_title = escape(title)
+    safe_intro = escape(intro)
+    safe_plan_date = escape(plan_date)
+    safe_tasks_generated = escape(tasks_generated)
+    safe_first_task = escape(first_task)
+    safe_second_task = escape(second_task)
+    safe_third_task = escape(third_task)
+    safe_focus_note = escape(focus_note)
+    safe_cta_label = escape(cta_label)
+    safe_cta_url = escape(cta_url)
+    safe_footer = escape(footer)
+    safe_support_email = escape(support_email)
+
+    html_body = _render_email_template(
+        "today_plan_generated.html",
+        {
+            "safe_subject": safe_subject,
+            "safe_name": safe_name,
+            "safe_title": safe_title,
+            "safe_intro": safe_intro,
+            "safe_plan_date": safe_plan_date,
+            "safe_tasks_generated": safe_tasks_generated,
+            "safe_first_task": safe_first_task,
+            "safe_second_task": safe_second_task,
+            "safe_third_task": safe_third_task,
+            "safe_focus_note": safe_focus_note,
             "safe_cta_label": safe_cta_label,
             "safe_cta_url": safe_cta_url,
             "safe_footer": safe_footer,

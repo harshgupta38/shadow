@@ -9,6 +9,7 @@ from html import escape
 from pathlib import Path
 import re
 from typing import Any, Literal
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -43,6 +44,7 @@ DEFAULT_DAILY_MOTIVATIONAL_QUOTE_TIME = "07:00"
 _HHMM_PATTERN = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
 _TEMPLATE_TOKEN_PATTERN = re.compile(r"{{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*}}")
 _EMAIL_TEMPLATE_DIR = Path(__file__).resolve().parents[1] / "templates" / "email"
+_IST = ZoneInfo("Asia/Kolkata")
 
 
 @lru_cache(maxsize=32)
@@ -244,8 +246,8 @@ _TEMPLATE_SPECS: dict[EmailTemplateKey, _TemplateSpec] = {
     ),
     "export_ready": _TemplateSpec(
         badge="Data Export",
-        title="Your account export is ready",
-        intro="The requested export package has been prepared.",
+        title="Your account details exported.",
+        intro="Please check the attached JSON file for your account data.",
         highlights=(("Format", "ZIP"), ("Availability", "Limited retention window")),
         items=(
             ("Store securely", "Save the file only in trusted locations.", "Important"),
@@ -267,6 +269,30 @@ def _sanitize_hhmm(value: str | None, fallback: str = DEFAULT_DAILY_MOTIVATIONAL
 def _frontend_url(path: str) -> str:
     base = (settings.public_frontend_base_url or "http://localhost:5173").rstrip("/")
     return f"{base}/{path.lstrip('/')}"
+
+
+def _format_ist_datetime(value: Any) -> str:
+    """Render any date/datetime-like value as 'Mon DD, YYYY HH:MM AM IST'."""
+    if isinstance(value, datetime):
+        dt = value
+    elif isinstance(value, date):
+        dt = datetime.combine(value, datetime.min.time(), tzinfo=_IST)
+    elif isinstance(value, str):
+        raw = value.strip()
+        if not raw:
+            dt = datetime.now(timezone.utc)
+        else:
+            try:
+                dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+            except ValueError:
+                # Keep unknown non-ISO strings intact instead of corrupting user-provided text.
+                return raw
+    else:
+        dt = datetime.now(timezone.utc)
+
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(_IST).strftime("%b %d, %Y %I:%M %p IST")
 
 
 def _get_or_create_preferences(db: Session, user: User) -> EmailNotificationPreference:
@@ -387,11 +413,33 @@ def send_notification_email(
         recipient_name=user.name,
         context=context or {},
     )
+    raw_context = context or {}
+    raw_attachments = raw_context.get("email_attachments")
+    attachments: list[email_service.EmailAttachment] = []
+    if isinstance(raw_attachments, list):
+        for item in raw_attachments:
+            if not isinstance(item, dict):
+                continue
+            filename = item.get("filename")
+            content = item.get("content")
+            mime_type = item.get("mime_type") or "application/octet-stream"
+            if not isinstance(filename, str) or not filename.strip():
+                continue
+            if not isinstance(content, bytes):
+                continue
+            attachments.append(
+                {
+                    "filename": filename.strip(),
+                    "content": content,
+                    "mime_type": str(mime_type),
+                }
+            )
     return email_service.send_email(
         to_email=user.email,
         subject=subject,
         text_body=text_body,
         html_body=html_body,
+        attachments=attachments,
     )
 
 
@@ -463,13 +511,14 @@ def _render_template(
         task_title = str(context.get("task_title") or context.get("notification_title") or "Upcoming task")
         if task_title.lower().startswith("task reminder:"):
             task_title = task_title.split(":", 1)[1].strip() or "Upcoming task"
-        scheduled_for = str(context.get("scheduled_for") or "Soon")
+        scheduled_raw = context.get("scheduled_for")
+        scheduled_for = _format_ist_datetime(scheduled_raw) if scheduled_raw else "Soon"
         subject = f"Task reminder: {task_title}"
         highlights = [("Task", task_title), ("Scheduled", scheduled_for)]
         cta_label = "Open planner"
         cta_url = _frontend_url("planner")
     elif template_key == "today_plan_generated":
-        plan_date = str(context.get("plan_date") or date.today().isoformat())
+        plan_date = _format_ist_datetime(context.get("plan_date") or datetime.now(timezone.utc))
         task_titles = [str(item) for item in context.get("task_titles") or []]
         subject = "Today's generated plan is ready"
         highlights = [("Plan date", plan_date), ("Tasks generated", str(max(1, len(task_titles))))]
@@ -494,7 +543,7 @@ def _render_template(
         quote_author = str(context.get("quote_author") or "Abraham Lincoln")
         quote = (quote_text, quote_author)
         subject = "Your daily momentum reset"
-        highlights = [("Date", datetime.now(timezone.utc).date().isoformat()), ("Mode", "Daily motivation")]
+        highlights = [("Date", _format_ist_datetime(datetime.now(timezone.utc))), ("Mode", "Daily motivation")]
         cta_label = "Open workspace"
         cta_url = _frontend_url("plan")
     elif template_key == "daily_brief":
@@ -517,7 +566,7 @@ def _render_template(
         cta_url = _frontend_url(report_path) if report_path else _frontend_url("reports")
     elif template_key == "export_ready":
         subject = "Your account export is ready"
-        exported_at = str(context.get("exported_at") or datetime.now(timezone.utc).isoformat())
+        exported_at = _format_ist_datetime(context.get("exported_at") or datetime.now(timezone.utc))
         highlights = [("Status", "Ready"), ("Generated", exported_at)]
         cta_label = "Open account settings"
         cta_url = _frontend_url("settings")
@@ -527,7 +576,7 @@ def _render_template(
         cta_label = "Secure My Account"
         cta_url = _frontend_url("settings/security")
     elif template_key == "password_changed_alert":
-        changed_at = str(context.get("changed_at") or datetime.now(timezone.utc).strftime("%b %d, %Y %I:%M %p UTC"))
+        changed_at = _format_ist_datetime(context.get("changed_at") or datetime.now(timezone.utc))
         highlights = [("Event", "Password changed"), ("At", changed_at)]
         cta_label = "Review security"
         cta_url = _frontend_url("settings/security")
@@ -550,13 +599,15 @@ def _render_template(
         task_title = str(context.get("task_title") or context.get("notification_title") or "Upcoming task")
         if task_title.lower().startswith("task reminder:"):
             task_title = task_title.split(":", 1)[1].strip() or "Upcoming task"
+        scheduled_raw = context.get("scheduled_for")
+        scheduled_for = _format_ist_datetime(scheduled_raw) if scheduled_raw else "Soon"
         return _render_task_reminder_shell(
             subject=subject,
             recipient_name=safe_name,
             title=str(context.get("notification_title") or spec.title),
             intro=str(context.get("notification_body") or spec.intro),
             task_title=task_title,
-            scheduled_for=str(context.get("scheduled_for") or "Soon"),
+            scheduled_for=scheduled_for,
             cta_label=str(context.get("cta_label") or cta_label),
             cta_url=cta_url,
             footer=spec.footer,
@@ -564,7 +615,7 @@ def _render_template(
         )
 
     if template_key == "today_plan_generated":
-        plan_date = str(context.get("plan_date") or date.today().isoformat())
+        plan_date = _format_ist_datetime(context.get("plan_date") or datetime.now(timezone.utc))
         raw_tasks = context.get("tasks") or []
         task_cards: list[dict[str, str]] = []
         for raw in raw_tasks[:8]:
@@ -649,7 +700,7 @@ def _render_template(
             intro=str(context.get("notification_body") or spec.intro),
             quote_text=quote_text,
             quote_author=quote_author,
-            quote_date=str(context.get("quote_date") or datetime.now(timezone.utc).date().isoformat()),
+            quote_date=_format_ist_datetime(context.get("quote_date") or datetime.now(timezone.utc)),
             cta_label=str(context.get("cta_label") or cta_label),
             cta_url=cta_url,
             footer=spec.footer,
@@ -797,13 +848,26 @@ def _render_template(
             support_email=str(context.get("support_email") or "support@shadow.app"),
         )
 
+    if template_key == "export_ready":
+        return _render_export_ready_shell(
+            subject=subject,
+            recipient_name=safe_name,
+            title=str(context.get("notification_title") or spec.title),
+            intro=str(context.get("notification_body") or spec.intro),
+            exported_at=_format_ist_datetime(context.get("exported_at") or datetime.now(timezone.utc)),
+            cta_label=str(context.get("cta_label") or cta_label),
+            cta_url=cta_url,
+            footer=spec.footer,
+            support_email=str(context.get("support_email") or "support@shadow.app"),
+        )
+
     if template_key == "password_changed_alert":
         return _render_password_changed_alert_shell(
             subject=subject,
             recipient_name=safe_name,
             title=str(context.get("notification_title") or spec.title),
             intro=str(context.get("notification_body") or spec.intro),
-            changed_at=str(context.get("changed_at") or datetime.now(timezone.utc).strftime("%b %d, %Y %I:%M %p UTC")),
+            changed_at=_format_ist_datetime(context.get("changed_at") or datetime.now(timezone.utc)),
             cta_label=str(context.get("cta_label") or cta_label),
             cta_url=cta_url,
             footer=spec.footer,
@@ -820,7 +884,7 @@ def _render_template(
             browser=str(context.get("browser") or "Unknown browser"),
             operating_system=str(context.get("operating_system") or "Unknown OS"),
             location=str(context.get("location") or "Unknown location"),
-            detected_at=str(context.get("detected_at") or datetime.now(timezone.utc).strftime("%b %d, %Y %I:%M %p UTC")),
+            detected_at=_format_ist_datetime(context.get("detected_at") or datetime.now(timezone.utc)),
             ip_address=str(context.get("ip_address") or "Unavailable"),
             cta_label=str(context.get("cta_label") or cta_label),
             cta_url=cta_url,
@@ -1754,6 +1818,71 @@ def _render_daily_motivational_quote_shell(
             "safe_quote_text": safe_quote_text,
             "safe_quote_author": safe_quote_author,
             "safe_quote_date": safe_quote_date,
+            "safe_cta_label": safe_cta_label,
+            "safe_cta_url": safe_cta_url,
+            "safe_footer": safe_footer,
+            "safe_support_email": safe_support_email,
+        },
+    )
+
+    return subject, text_body, html_body
+
+
+def _render_export_ready_shell(
+    *,
+    subject: str,
+    recipient_name: str,
+    title: str,
+    intro: str,
+    exported_at: str,
+    cta_label: str,
+    cta_url: str,
+    footer: str,
+    support_email: str,
+) -> tuple[str, str, str]:
+    exported_display = _format_ist_datetime(exported_at)
+
+    text_lines = [
+        f"Hi {recipient_name},",
+        "",
+        intro,
+        "",
+        "Export details:",
+        f"- Generated at: {exported_display}",
+        "",
+        "Security tips:",
+        "- Store the file in a trusted location",
+        "- Keep local encryption enabled",
+        "- Delete stale copies when no longer needed",
+        "",
+        f"Open: {cta_url}",
+        "",
+        f"Need help? Contact support at {support_email}",
+        "",
+        footer,
+        "",
+        "Team Shadow",
+    ]
+    text_body = "\n".join(text_lines)
+
+    safe_subject = escape(subject)
+    safe_name = escape(recipient_name)
+    safe_title = escape(title)
+    safe_intro = escape(intro)
+    safe_exported_at = escape(exported_display)
+    safe_cta_label = escape(cta_label)
+    safe_cta_url = escape(cta_url)
+    safe_footer = escape(footer)
+    safe_support_email = escape(support_email)
+
+    html_body = _render_email_template(
+        "export_ready.html",
+        {
+            "safe_subject": safe_subject,
+            "safe_name": safe_name,
+            "safe_title": safe_title,
+            "safe_intro": safe_intro,
+            "safe_exported_at": safe_exported_at,
             "safe_cta_label": safe_cta_label,
             "safe_cta_url": safe_cta_url,
             "safe_footer": safe_footer,

@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
+import json
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -203,11 +204,34 @@ def export_account_data(db: Session, user: User) -> AccountDataExportRead:
     }
     exported_at = datetime.now(timezone.utc)
 
+    def _json_default(value: object) -> str:
+        if isinstance(value, datetime | date):
+            return value.isoformat()
+        return str(value)
+
+    export_filename = f"shadow-account-export-{exported_at.strftime('%Y%m%d-%H%M%SZ')}.json"
+    export_bytes = json.dumps(
+        data,
+        ensure_ascii=True,
+        indent=2,
+        default=_json_default,
+    ).encode("utf-8")
+
     email_notification_service.send_notification_email(
         db,
         user,
         template_key="export_ready",
-        context={"exported_at": exported_at.isoformat()},
+        context={
+            "exported_at": exported_at.isoformat(),
+            "export_filename": export_filename,
+            "email_attachments": [
+                {
+                    "filename": export_filename,
+                    "content": export_bytes,
+                    "mime_type": "application/json",
+                }
+            ],
+        },
     )
 
     return AccountDataExportRead(exported_at=exported_at, data=data)

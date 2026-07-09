@@ -506,15 +506,15 @@ def _render_template(
         cta_label = "Open weekly summary"
         cta_url = _frontend_url("dashboard")
     elif template_key == "daily_report_ready":
-        report_id = context.get("report_id")
+        report_path = str(context.get("report_path") or "").strip()
         subject = "Your daily report is ready"
         cta_label = "Open report"
-        cta_url = _frontend_url(f"reports/{report_id}") if report_id else _frontend_url("reports")
+        cta_url = _frontend_url(report_path) if report_path else _frontend_url("reports")
     elif template_key == "weekly_report_ready":
-        report_id = context.get("report_id")
+        report_path = str(context.get("report_path") or "").strip()
         subject = "Your weekly report is ready"
         cta_label = "Open report"
-        cta_url = _frontend_url(f"reports/{report_id}") if report_id else _frontend_url("reports")
+        cta_url = _frontend_url(report_path) if report_path else _frontend_url("reports")
     elif template_key == "export_ready":
         subject = "Your account export is ready"
         exported_at = str(context.get("exported_at") or datetime.now(timezone.utc).isoformat())
@@ -742,6 +742,35 @@ def _render_template(
             morning_anchor=str(context.get("morning_anchor") or "Start with one non-negotiable block."),
             context_control=str(context.get("context_control") or "Batch similar tasks to reduce switching."),
             feedback_loop=str(context.get("feedback_loop") or "Log one-line reflection daily."),
+            cta_label=str(context.get("cta_label") or cta_label),
+            cta_url=cta_url,
+            footer=spec.footer,
+            support_email=str(context.get("support_email") or "support@shadow.app"),
+        )
+
+    if template_key in {"daily_report_ready", "weekly_report_ready"}:
+        period_label = "Weekly" if template_key == "weekly_report_ready" else "Daily"
+        metrics_payload = context.get("metric_rows")
+        metric_rows = metrics_payload if isinstance(metrics_payload, list) else []
+        tasks_planned_raw = context.get("tasks_planned")
+        tasks_completed_raw = context.get("tasks_completed")
+        tasks_planned = int(tasks_planned_raw) if isinstance(tasks_planned_raw, int | float) else 0
+        tasks_completed = int(tasks_completed_raw) if isinstance(tasks_completed_raw, int | float) else 0
+        date_range = str(context.get("date_range") or "Current period")
+        template_name = "weekly_report_ready.html" if template_key == "weekly_report_ready" else "daily_report_ready.html"
+        return _render_report_ready_shell(
+            template_name=template_name,
+            subject=subject,
+            recipient_name=safe_name,
+            title=str(context.get("notification_title") or spec.title),
+            intro=str(context.get("notification_body") or spec.intro),
+            period_label=period_label,
+            date_range=date_range,
+            tasks_planned=tasks_planned,
+            tasks_completed=tasks_completed,
+            metric_rows=tuple(metric_rows),
+            narrative=str(context.get("narrative") or ""),
+            next_steps=str(context.get("next_steps") or ""),
             cta_label=str(context.get("cta_label") or cta_label),
             cta_url=cta_url,
             footer=spec.footer,
@@ -1489,6 +1518,155 @@ def _render_today_plan_generated_shell(
             "safe_tasks_generated": safe_tasks_generated,
             "safe_task_cards_html": safe_task_cards_html,
             "safe_focus_note": safe_focus_note,
+            "safe_cta_label": safe_cta_label,
+            "safe_cta_url": safe_cta_url,
+            "safe_footer": safe_footer,
+            "safe_support_email": safe_support_email,
+        },
+    )
+
+    return subject, text_body, html_body
+
+
+def _render_report_ready_shell(
+    *,
+    template_name: str,
+    subject: str,
+    recipient_name: str,
+    title: str,
+    intro: str,
+    period_label: str,
+    date_range: str,
+    tasks_planned: int,
+    tasks_completed: int,
+    metric_rows: tuple[dict[str, Any], ...],
+    narrative: str,
+    next_steps: str,
+    cta_label: str,
+    cta_url: str,
+    footer: str,
+    support_email: str,
+) -> tuple[str, str, str]:
+    completion_percent = int((tasks_completed / tasks_planned) * 100) if tasks_planned > 0 else 0
+
+    text_lines = [
+        f"Hi {recipient_name},",
+        "",
+        intro,
+        "",
+        "Report summary:",
+        f"- Period: {period_label}",
+        f"- Date range: {date_range}",
+        f"- Tasks completed: {tasks_completed}/{tasks_planned} ({completion_percent}%)",
+        "",
+        "Tracked metrics:",
+    ]
+    if metric_rows:
+        for row in metric_rows[:10]:
+            label = str(row.get("label") or "Metric")
+            total = row.get("total")
+            unit = str(row.get("unit") or "")
+            target = row.get("target")
+            if target is not None:
+                text_lines.append(f"- {label}: {total} {unit} / {target} {unit}")
+            else:
+                text_lines.append(f"- {label}: {total} {unit}")
+    else:
+        text_lines.append("- No tracked metrics for this period.")
+
+    if narrative.strip():
+        text_lines.extend(["", "Summary:", narrative.strip()])
+    if next_steps.strip():
+        text_lines.extend(["", "Next steps:", next_steps.strip()])
+
+    text_lines.extend([
+        "",
+        f"Open: {cta_url}",
+        "",
+        f"Need help? Contact support at {support_email}",
+        "",
+        footer,
+        "",
+        "Team Shadow",
+    ])
+    text_body = "\n".join(text_lines)
+
+    safe_subject = escape(subject)
+    safe_name = escape(recipient_name)
+    safe_title = escape(title)
+    safe_intro = escape(intro)
+    safe_period_label = escape(period_label)
+    safe_date_range = escape(date_range)
+    safe_tasks_completed = escape(str(tasks_completed))
+    safe_tasks_planned = escape(str(tasks_planned))
+    safe_completion_percent = max(0, min(completion_percent, 100))
+
+    def _to_float(value: Any) -> float | None:
+        if isinstance(value, int | float):
+            return float(value)
+        if isinstance(value, str):
+            try:
+                return float(value.strip())
+            except ValueError:
+                return None
+        return None
+
+    metric_rows_html_parts: list[str] = []
+    for row in metric_rows[:10]:
+        label = escape(str(row.get("label") or "Metric"))
+        total_raw = row.get("total") if row.get("total") is not None else 0
+        total = escape(str(total_raw))
+        unit = escape(str(row.get("unit") or ""))
+        target = row.get("target")
+        total_num = _to_float(total_raw)
+        target_num = _to_float(target)
+        progress_html = ""
+        target_text = ""
+        value_text = f"{total}{f' {unit}' if unit else ''}"
+        if target_num is not None and target_num > 0:
+            pct_base = (total_num or 0.0) / target_num
+            pct = max(0, min(int(pct_base * 100), 100))
+            target_text = f" / {escape(str(target))} {unit}"
+            progress_html = (
+                '<div style="margin-top:6px;background:#e5e7eb;border-radius:999px;height:5px;">'
+                f'<div style="width:{pct}%;height:5px;border-radius:999px;background:#5f4bff;"></div>'
+                "</div>"
+            )
+        metric_rows_html_parts.append(
+            "<div style=\"margin-top:10px;\">"
+            "<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" width=\"100%\" style=\"font-size:12px;\">"
+            "<tr>"
+            f"<td style=\"font-weight:700;color:#111827;padding:0 8px 0 0;\">{label}</td>"
+            f"<td align=\"right\" style=\"color:#4b5563;white-space:nowrap;\">{value_text}{target_text}</td>"
+            "</tr>"
+            "</table>"
+            f"{progress_html}"
+            "</div>"
+        )
+    safe_metric_rows_html = "".join(metric_rows_html_parts) or "<div style=\"font-size:12px;color:#4b5563;\">No tracked metrics for this period.</div>"
+
+    safe_narrative_html = escape(narrative.strip()).replace("\n", "<br />") if narrative.strip() else ""
+    safe_next_steps_html = escape(next_steps.strip()).replace("\n", "<br />") if next_steps.strip() else ""
+    safe_cta_label = escape(cta_label)
+    safe_cta_url = escape(cta_url)
+    safe_footer = escape(footer)
+    safe_support_email = escape(support_email)
+
+    html_body = _render_email_template(
+        template_name,
+        {
+            "safe_subject": safe_subject,
+            "safe_name": safe_name,
+            "safe_title": safe_title,
+            "safe_intro": safe_intro,
+            "safe_period_label": safe_period_label,
+            "safe_date_range": safe_date_range,
+            "safe_tasks_completed": safe_tasks_completed,
+            "safe_tasks_planned": safe_tasks_planned,
+            "safe_completion_percent": str(safe_completion_percent),
+            "safe_metric_rows_html": safe_metric_rows_html,
+            "safe_narrative_html": safe_narrative_html,
+            "safe_next_steps_html": safe_next_steps_html,
             "safe_cta_label": safe_cta_label,
             "safe_cta_url": safe_cta_url,
             "safe_footer": safe_footer,

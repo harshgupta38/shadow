@@ -1,7 +1,12 @@
 import { Route, Routes } from "react-router-dom";
 
 import { AppLayout } from "@/components/layout/AppLayout";
-import { PublicOnly, RequireAuth, RequireOnboarded } from "@/components/routing/Guards";
+import {
+  PublicOnly,
+  RequireAuth,
+  RequireOnboarded,
+  RequireVerifiedEmail,
+} from "@/components/routing/Guards";
 import { LoginPage } from "@/pages/auth/LoginPage";
 import { RegisterPage } from "@/pages/auth/RegisterPage";
 import { VerifyEmailPage } from "@/pages/auth/VerifyEmailPage";
@@ -65,7 +70,14 @@ export default function App() {
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/memory-center" element={<MemoryCenterPage />} />
           <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/settings/email-controls" element={<EmailNotificationControlsPage />} />
+          <Route
+            path="/settings/email-controls"
+            element={
+              <RequireVerifiedEmail>
+                <EmailNotificationControlsPage />
+              </RequireVerifiedEmail>
+            }
+          />
         </Route>
       </Route>
 

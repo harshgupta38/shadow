@@ -42,6 +42,21 @@ export function RequireOnboarded({ children }: { children?: ReactNode }) {
   return children ? <>{children}</> : <Outlet />;
 }
 
+/** Requires a signed-in user with a verified email address. */
+export function RequireVerifiedEmail({ children }: { children?: ReactNode }) {
+  const { status, isAuthenticated, user } = useAuth();
+  const location = useLocation();
+
+  if (status === "loading") return <AuthSplash />;
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace state={{ from: location }} />;
+  }
+  if (!user?.email_verified) {
+    return <Navigate to="/settings" replace />;
+  }
+  return children ? <>{children}</> : <Outlet />;
+}
+
 /** For /login and /register — redirects signed-in users away. */
 export function PublicOnly({ children }: { children?: ReactNode }) {
   const { status, isAuthenticated, user } = useAuth();

@@ -624,6 +624,23 @@ def _render_template(
             support_email=str(context.get("support_email") or "support@shadow.app"),
         )
 
+    if template_key == "milestone_due_soon":
+        return _render_milestone_due_soon_shell(
+            subject=subject,
+            recipient_name=safe_name,
+            title=str(context.get("notification_title") or spec.title),
+            intro=str(context.get("notification_body") or spec.intro),
+            urgency=str(context.get("urgency") or "High"),
+            focus=str(context.get("focus") or "Finish sprint"),
+            freeze_scope=str(context.get("freeze_scope") or "Pause low-impact additions until completion."),
+            resolve_blockers=str(context.get("resolve_blockers") or "Assign ownership for each dependency."),
+            protect_time=str(context.get("protect_time") or "Reserve one uninterrupted deep-work block."),
+            cta_label=str(context.get("cta_label") or cta_label),
+            cta_url=cta_url,
+            footer=spec.footer,
+            support_email=str(context.get("support_email") or "support@shadow.app"),
+        )
+
     if template_key == "password_changed_alert":
         return _render_password_changed_alert_shell(
             subject=subject,
@@ -1025,6 +1042,82 @@ def _render_streak_risk_alert_shell(
             "safe_minimum_viable_win": safe_minimum_viable_win,
             "safe_lower_friction": safe_lower_friction,
             "safe_mark_completion": safe_mark_completion,
+            "safe_cta_label": safe_cta_label,
+            "safe_cta_url": safe_cta_url,
+            "safe_footer": safe_footer,
+            "safe_support_email": safe_support_email,
+        },
+    )
+
+    return subject, text_body, html_body
+
+
+def _render_milestone_due_soon_shell(
+    *,
+    subject: str,
+    recipient_name: str,
+    title: str,
+    intro: str,
+    urgency: str,
+    focus: str,
+    freeze_scope: str,
+    resolve_blockers: str,
+    protect_time: str,
+    cta_label: str,
+    cta_url: str,
+    footer: str,
+    support_email: str,
+) -> tuple[str, str, str]:
+    text_lines = [
+        f"Hi {recipient_name},",
+        "",
+        intro,
+        "",
+        "Milestone snapshot:",
+        f"- Urgency: {urgency}",
+        f"- Focus: {focus}",
+        "",
+        "Execution plan:",
+        f"- Freeze scope: {freeze_scope}",
+        f"- Resolve blockers: {resolve_blockers}",
+        f"- Protect time: {protect_time}",
+        "",
+        f"Open: {cta_url}",
+        "",
+        f"Need help? Contact support at {support_email}",
+        "",
+        footer,
+        "",
+        "Team Shadow",
+    ]
+    text_body = "\n".join(text_lines)
+
+    safe_subject = escape(subject)
+    safe_name = escape(recipient_name)
+    safe_title = escape(title)
+    safe_intro = escape(intro)
+    safe_urgency = escape(urgency)
+    safe_focus = escape(focus)
+    safe_freeze_scope = escape(freeze_scope)
+    safe_resolve_blockers = escape(resolve_blockers)
+    safe_protect_time = escape(protect_time)
+    safe_cta_label = escape(cta_label)
+    safe_cta_url = escape(cta_url)
+    safe_footer = escape(footer)
+    safe_support_email = escape(support_email)
+
+    html_body = _render_email_template(
+        "milestone_due_soon.html",
+        {
+            "safe_subject": safe_subject,
+            "safe_name": safe_name,
+            "safe_title": safe_title,
+            "safe_intro": safe_intro,
+            "safe_urgency": safe_urgency,
+            "safe_focus": safe_focus,
+            "safe_freeze_scope": safe_freeze_scope,
+            "safe_resolve_blockers": safe_resolve_blockers,
+            "safe_protect_time": safe_protect_time,
             "safe_cta_label": safe_cta_label,
             "safe_cta_url": safe_cta_url,
             "safe_footer": safe_footer,

@@ -271,6 +271,65 @@ describe("TrackPage", () => {
     expect(await screen.findByText(/0 week streak/i)).toBeInTheDocument();
   });
 
+  it("shows Due for streak-style cards when not completed today", async () => {
+    mockedMetricsApi.list.mockResolvedValue([
+      buildMetric({
+        id: 31,
+        label: "LeetCode POTD",
+        key: "leetcode_potd",
+        unit: "count",
+        unit_text: "count",
+        time_span: "day",
+        target: null,
+        linked_habit_ids: [42],
+      }),
+    ]);
+    mockedMetricsApi.logs.mockResolvedValue([]);
+
+    renderPage();
+
+    expect(await screen.findByText("LeetCode POTD")).toBeInTheDocument();
+    expect(screen.getByText("Due")).toBeInTheDocument();
+  });
+
+  it("shows Done for streak-style cards when completed today", async () => {
+    mockedMetricsApi.list.mockResolvedValue([
+      buildMetric({
+        id: 32,
+        label: "Wakeup Early",
+        key: "wakeup_early",
+        unit: "count",
+        unit_text: "count",
+        time_span: "day",
+        target: null,
+        linked_habit_ids: [99],
+      }),
+    ]);
+
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, "0");
+    const dd = String(today.getDate()).padStart(2, "0");
+    const todayIso = `${yyyy}-${mm}-${dd}`;
+
+    mockedMetricsApi.logs.mockResolvedValue([
+      {
+        id: 1,
+        metric_id: 32,
+        date: todayIso,
+        value: 1,
+        note: null,
+        source: "manual",
+        created_at: `${todayIso}T08:00:00.000Z`,
+      },
+    ]);
+
+    renderPage();
+
+    expect(await screen.findByText("Wakeup Early")).toBeInTheDocument();
+    expect(screen.getByText("Done")).toBeInTheDocument();
+  });
+
   it("hides manual log controls for metrics linked to habits", async () => {
     mockedMetricsApi.list.mockResolvedValue([
       buildMetric({

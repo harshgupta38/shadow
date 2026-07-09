@@ -55,6 +55,15 @@ export function MetricCard({ metric, onEdit, onDelete }: MetricCardProps) {
     metric.target != null && targetBaseValue != null
       ? clampPercent((targetBaseValue / metric.target) * 100)
       : null;
+  const isStreakStatusCard =
+    isStreakMetric
+    || (isHabitLinkedMetric && targetPct === null && (metric.unit === "count" || metric.unit === "custom"));
+  const isStreakStatusDone = isWeeklyStreakMetric
+    ? (metric.target != null && stats.weekTotal >= metric.target)
+    : stats.todayTotal > 0;
+  const primaryDisplayValue = isStreakStatusCard
+    ? (isStreakStatusDone ? "Done" : "Due")
+    : formatMetricValue(primaryValue, metric.unit, metric.unit_text);
 
   async function log(amount: number, withNote?: string) {
     if (amount <= 0 || Number.isNaN(amount)) return;
@@ -115,7 +124,7 @@ export function MetricCard({ metric, onEdit, onDelete }: MetricCardProps) {
 
       <div className="d-flex align-items-center gap-3 mb-3">
         <div className="flex-grow-1">
-          <div className="stat-value">{formatMetricValue(primaryValue, metric.unit, metric.unit_text)}</div>
+          <div className="stat-value">{primaryDisplayValue}</div>
           <div className="stat-label">
             {primaryLabel}
             {metric.target != null && (

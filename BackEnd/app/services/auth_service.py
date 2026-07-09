@@ -8,6 +8,7 @@ import math
 import secrets
 from datetime import datetime, timedelta, timezone
 from urllib.parse import quote
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
@@ -27,6 +28,7 @@ from app.services.metric_service import ensure_default_metrics
 logger = logging.getLogger(__name__)
 
 EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS = 60
+_IST_ZONE = ZoneInfo("Asia/Kolkata")
 
 
 def get_user_by_email(db: Session, email: str) -> User | None:
@@ -87,11 +89,16 @@ def change_password(db: Session, user: User, *, current_password: str, new_passw
     db.commit()
     db.refresh(user)
 
+    changed_at = user.last_password_changed_at
+    if changed_at.tzinfo is None:
+        changed_at = changed_at.replace(tzinfo=timezone.utc)
+    changed_at_ist = changed_at.astimezone(_IST_ZONE).strftime("%b %d, %Y - %I:%M %p IST")
+
     email_notification_service.send_notification_email(
         db,
         user,
         template_key="password_changed_alert",
-        context={"changed_at": user.last_password_changed_at.isoformat()},
+        context={"changed_at": changed_at_ist},
     )
     return user
 

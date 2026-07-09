@@ -256,6 +256,22 @@ def test_settings_endpoints_and_theme_sync(client, auth_headers):
     assert accessibility.json()["accessibility"]["high_contrast"] is True
     assert accessibility.json()["accessibility"]["font_scale_percent"] == 115
 
+    planner = client.put(
+        "/api/settings/planner",
+        headers=auth_headers,
+        json={"date_format": "mm-dd-yyyy"},
+    )
+    assert planner.status_code == 200
+    assert planner.json()["planner"]["date_format"] == "mm-dd-yyyy"
+
+    planner_mmm = client.put(
+        "/api/settings/planner",
+        headers=auth_headers,
+        json={"date_format": "mmm d, yyyy"},
+    )
+    assert planner_mmm.status_code == 200
+    assert planner_mmm.json()["planner"]["date_format"] == "mmm d, yyyy"
+
 
 def test_dynamic_appearance_resolve_returns_effective_theme(client, auth_headers, monkeypatch):
     from app.services import settings_service

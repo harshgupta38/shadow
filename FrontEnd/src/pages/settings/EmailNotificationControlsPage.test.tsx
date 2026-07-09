@@ -89,7 +89,7 @@ describe("EmailNotificationControlsPage", () => {
     expect(mockedSettingsApi.getEmailNotificationControls).toHaveBeenCalledTimes(1);
 
     expect(screen.getByLabelText("Daily motivational quote")).not.toBeChecked();
-    expect(screen.queryByLabelText("Inspire me daily at")).not.toBeInTheDocument();
+    expect(document.querySelector("#daily-motivational-quote-time")).not.toBeInTheDocument();
   });
 
   it("shows daily quote time editor only when motivational quote is enabled", async () => {
@@ -97,11 +97,13 @@ describe("EmailNotificationControlsPage", () => {
     renderPage();
 
     await screen.findByLabelText("Daily motivational quote");
-    expect(screen.queryByLabelText("Inspire me daily at")).not.toBeInTheDocument();
+    expect(document.querySelector("#daily-motivational-quote-time")).not.toBeInTheDocument();
 
     await user.click(screen.getByLabelText("Daily motivational quote"));
 
-    expect(await screen.findByLabelText("Inspire me daily at")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(document.querySelector("#daily-motivational-quote-time")).toBeInTheDocument();
+    });
   });
 
   it("enables save when preferences change and persists to backend", async () => {

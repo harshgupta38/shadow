@@ -41,6 +41,9 @@ class TimeFormat(str, enum.Enum):
 class DateFormat(str, enum.Enum):
     dd_mm_yyyy = "dd/mm/yyyy"
     mm_dd_yyyy = "mm/dd/yyyy"
+    dd_mm_yyyy_dash = "dd-mm-yyyy"
+    mm_dd_yyyy_dash = "mm-dd-yyyy"
+    mmm_d_yyyy = "mmm d, yyyy"
     yyyy_mm_dd = "yyyy-mm-dd"
 
 

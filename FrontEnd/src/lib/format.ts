@@ -1,6 +1,12 @@
 /** Small, pure formatting helpers shared across the app. */
 
-type RuntimeDateFormat = "dd/mm/yyyy" | "mm/dd/yyyy" | "yyyy-mm-dd";
+type RuntimeDateFormat =
+  | "dd/mm/yyyy"
+  | "mm/dd/yyyy"
+  | "dd-mm-yyyy"
+  | "mm-dd-yyyy"
+  | "mmm d, yyyy"
+  | "yyyy-mm-dd";
 type RuntimeTimeFormat = "12h" | "24h";
 type RuntimeWeekStartsOn = "monday" | "sunday";
 
@@ -43,12 +49,22 @@ function pad2(value: number): string {
 }
 
 function formatDateByPreference(date: Date, preference: RuntimeDateFormat): string {
-  void preference;
-  return date.toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
+  const year = date.getFullYear();
+  const month = pad2(date.getMonth() + 1);
+  const day = pad2(date.getDate());
+
+  if (preference === "mm/dd/yyyy") return `${month}/${day}/${year}`;
+  if (preference === "dd-mm-yyyy") return `${day}-${month}-${year}`;
+  if (preference === "mm-dd-yyyy") return `${month}-${day}-${year}`;
+  if (preference === "mmm d, yyyy") {
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  }
+  if (preference === "yyyy-mm-dd") return `${year}-${month}-${day}`;
+  return `${day}/${month}/${year}`;
 }
 
 /** Local YYYY-MM-DD (avoids UTC off-by-one from `toISOString`). */

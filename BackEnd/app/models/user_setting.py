@@ -17,6 +17,13 @@ from app.models.enums import (
 )
 
 
+DATE_FORMAT_ENUM = SAEnum(
+    DateFormat,
+    values_callable=lambda enum_cls: [member.value for member in enum_cls],
+    name="dateformat",
+)
+
+
 class UserSetting(Base, TimestampMixin):
     __tablename__ = "user_settings"
 
@@ -60,7 +67,7 @@ class UserSetting(Base, TimestampMixin):
         SAEnum(TimeFormat), default=TimeFormat.h12, nullable=False
     )
     date_format: Mapped[DateFormat] = mapped_column(
-        SAEnum(DateFormat), default=DateFormat.dd_mm_yyyy, nullable=False
+        DATE_FORMAT_ENUM, default=DateFormat.dd_mm_yyyy, nullable=False
     )
 
     # Privacy

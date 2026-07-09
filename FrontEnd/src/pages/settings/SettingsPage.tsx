@@ -103,7 +103,11 @@ const TIME_FORMAT_OPTIONS: Array<{ value: TimeFormat; label: string }> = [
 ];
 
 const DATE_FORMAT_OPTIONS: Array<{ value: DateFormat; label: string }> = [
-  { value: "dd/mm/yyyy", label: "MMM D, YYYY" },
+  { value: "dd/mm/yyyy", label: "DD/MM/YYYY" },
+  { value: "mm/dd/yyyy", label: "MM/DD/YYYY" },
+  { value: "dd-mm-yyyy", label: "DD-MM-YYYY" },
+  { value: "mm-dd-yyyy", label: "MM-DD-YYYY" },
+  { value: "mmm d, yyyy", label: "MMM D, YYYY" },
 ];
 
 const GEMINI_MODEL_OPTIONS: Array<{ value: string; label: string }> = [
@@ -129,11 +133,18 @@ function normalizeSettingsForEditor(settings: SettingsRead): SettingsRead {
     ? settings.ai_behavior.ai_default_model
     : DEFAULT_GEMINI_MODEL;
 
+  const normalizedDateFormat: DateFormat =
+    settings.planner.date_format === "yyyy-mm-dd" ? "dd-mm-yyyy" : settings.planner.date_format;
+
   return {
     ...settings,
     ai_behavior: {
       ...settings.ai_behavior,
       ai_default_model: aiDefaultModel,
+    },
+    planner: {
+      ...settings.planner,
+      date_format: normalizedDateFormat,
     },
   };
 }

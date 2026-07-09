@@ -16,7 +16,13 @@ export type AIPersonality =
   | "minimal";
 export type WeekStartsOn = "monday" | "sunday";
 export type TimeFormat = "12h" | "24h";
-export type DateFormat = "dd/mm/yyyy" | "mm/dd/yyyy" | "yyyy-mm-dd";
+export type DateFormat =
+  | "dd/mm/yyyy"
+  | "mm/dd/yyyy"
+  | "dd-mm-yyyy"
+  | "mm-dd-yyyy"
+  | "mmm d, yyyy"
+  | "yyyy-mm-dd";
 
 export type MemoryCategory =
   | "daily"

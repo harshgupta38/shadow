@@ -607,6 +607,23 @@ def _render_template(
             support_email=str(context.get("support_email") or "support@shadow.app"),
         )
 
+    if template_key == "streak_risk_alert":
+        return _render_streak_risk_alert_shell(
+            subject=subject,
+            recipient_name=safe_name,
+            title=str(context.get("notification_title") or spec.title),
+            intro=str(context.get("notification_body") or spec.intro),
+            status=str(context.get("status") or "Streak risk detected"),
+            recovery=str(context.get("recovery") or "1 completed block"),
+            minimum_viable_win=str(context.get("minimum_viable_win") or "Finish one focused 25-minute sprint."),
+            lower_friction=str(context.get("lower_friction") or "Start with the easiest visible step."),
+            mark_completion=str(context.get("mark_completion") or "Log progress before day ends."),
+            cta_label=str(context.get("cta_label") or cta_label),
+            cta_url=cta_url,
+            footer=spec.footer,
+            support_email=str(context.get("support_email") or "support@shadow.app"),
+        )
+
     if template_key == "password_changed_alert":
         return _render_password_changed_alert_shell(
             subject=subject,
@@ -932,6 +949,82 @@ def _render_weekly_summary_shell(
             "safe_biggest_win": safe_biggest_win,
             "safe_biggest_leak": safe_biggest_leak,
             "safe_next_commitment": safe_next_commitment,
+            "safe_cta_label": safe_cta_label,
+            "safe_cta_url": safe_cta_url,
+            "safe_footer": safe_footer,
+            "safe_support_email": safe_support_email,
+        },
+    )
+
+    return subject, text_body, html_body
+
+
+def _render_streak_risk_alert_shell(
+    *,
+    subject: str,
+    recipient_name: str,
+    title: str,
+    intro: str,
+    status: str,
+    recovery: str,
+    minimum_viable_win: str,
+    lower_friction: str,
+    mark_completion: str,
+    cta_label: str,
+    cta_url: str,
+    footer: str,
+    support_email: str,
+) -> tuple[str, str, str]:
+    text_lines = [
+        f"Hi {recipient_name},",
+        "",
+        intro,
+        "",
+        "Streak risk snapshot:",
+        f"- Status: {status}",
+        f"- Recovery: {recovery}",
+        "",
+        "Execution plan:",
+        f"- Minimum viable win: {minimum_viable_win}",
+        f"- Lower friction: {lower_friction}",
+        f"- Mark completion: {mark_completion}",
+        "",
+        f"Open: {cta_url}",
+        "",
+        f"Need help? Contact support at {support_email}",
+        "",
+        footer,
+        "",
+        "Team Shadow",
+    ]
+    text_body = "\n".join(text_lines)
+
+    safe_subject = escape(subject)
+    safe_name = escape(recipient_name)
+    safe_title = escape(title)
+    safe_intro = escape(intro)
+    safe_status = escape(status)
+    safe_recovery = escape(recovery)
+    safe_minimum_viable_win = escape(minimum_viable_win)
+    safe_lower_friction = escape(lower_friction)
+    safe_mark_completion = escape(mark_completion)
+    safe_cta_label = escape(cta_label)
+    safe_cta_url = escape(cta_url)
+    safe_footer = escape(footer)
+    safe_support_email = escape(support_email)
+
+    html_body = _render_email_template(
+        "streak_risk_alert.html",
+        {
+            "safe_subject": safe_subject,
+            "safe_name": safe_name,
+            "safe_title": safe_title,
+            "safe_intro": safe_intro,
+            "safe_status": safe_status,
+            "safe_recovery": safe_recovery,
+            "safe_minimum_viable_win": safe_minimum_viable_win,
+            "safe_lower_friction": safe_lower_friction,
+            "safe_mark_completion": safe_mark_completion,
             "safe_cta_label": safe_cta_label,
             "safe_cta_url": safe_cta_url,
             "safe_footer": safe_footer,

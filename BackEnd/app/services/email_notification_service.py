@@ -636,6 +636,26 @@ def _render_template(
             support_email=str(context.get("support_email") or "support@shadow.app"),
         )
 
+    if template_key == "daily_motivational_quote":
+        quote_text = str(
+            context.get("quote")
+            or "Discipline is choosing what you want most over what you want now."
+        )
+        quote_author = str(context.get("quote_author") or "Abraham Lincoln")
+        return _render_daily_motivational_quote_shell(
+            subject=subject,
+            recipient_name=safe_name,
+            title=str(context.get("notification_title") or spec.title),
+            intro=str(context.get("notification_body") or spec.intro),
+            quote_text=quote_text,
+            quote_author=quote_author,
+            quote_date=str(context.get("quote_date") or datetime.now(timezone.utc).date().isoformat()),
+            cta_label=str(context.get("cta_label") or cta_label),
+            cta_url=cta_url,
+            footer=spec.footer,
+            support_email=str(context.get("support_email") or "support@shadow.app"),
+        )
+
     if template_key == "daily_brief":
         priority_blocks = str(context.get("priority_blocks") or context.get("priority_block_count") or "3")
         carry_forward_raw = context.get("carry_forward") or context.get("carry_forward_count")
@@ -1667,6 +1687,73 @@ def _render_report_ready_shell(
             "safe_metric_rows_html": safe_metric_rows_html,
             "safe_narrative_html": safe_narrative_html,
             "safe_next_steps_html": safe_next_steps_html,
+            "safe_cta_label": safe_cta_label,
+            "safe_cta_url": safe_cta_url,
+            "safe_footer": safe_footer,
+            "safe_support_email": safe_support_email,
+        },
+    )
+
+    return subject, text_body, html_body
+
+
+def _render_daily_motivational_quote_shell(
+    *,
+    subject: str,
+    recipient_name: str,
+    title: str,
+    intro: str,
+    quote_text: str,
+    quote_author: str,
+    quote_date: str,
+    cta_label: str,
+    cta_url: str,
+    footer: str,
+    support_email: str,
+) -> tuple[str, str, str]:
+    text_lines = [
+        f"Hi {recipient_name},",
+        "",
+        intro,
+        "",
+        "Daily quote:",
+        f'"{quote_text}"',
+        f"- {quote_author}",
+        "",
+        f"Date: {quote_date}",
+        "",
+        f"Open: {cta_url}",
+        "",
+        f"Need help? Contact support at {support_email}",
+        "",
+        footer,
+        "",
+        "Team Shadow",
+    ]
+    text_body = "\n".join(text_lines)
+
+    safe_subject = escape(subject)
+    safe_name = escape(recipient_name)
+    safe_title = escape(title)
+    safe_intro = escape(intro)
+    safe_quote_text = escape(quote_text)
+    safe_quote_author = escape(quote_author)
+    safe_quote_date = escape(quote_date)
+    safe_cta_label = escape(cta_label)
+    safe_cta_url = escape(cta_url)
+    safe_footer = escape(footer)
+    safe_support_email = escape(support_email)
+
+    html_body = _render_email_template(
+        "daily_motivational_quote.html",
+        {
+            "safe_subject": safe_subject,
+            "safe_name": safe_name,
+            "safe_title": safe_title,
+            "safe_intro": safe_intro,
+            "safe_quote_text": safe_quote_text,
+            "safe_quote_author": safe_quote_author,
+            "safe_quote_date": safe_quote_date,
             "safe_cta_label": safe_cta_label,
             "safe_cta_url": safe_cta_url,
             "safe_footer": safe_footer,

@@ -563,6 +563,33 @@ def _render_template(
             support_email=str(context.get("support_email") or "support@shadow.app"),
         )
 
+    if template_key == "daily_brief":
+        priority_blocks = str(context.get("priority_blocks") or context.get("priority_block_count") or "3")
+        carry_forward_raw = context.get("carry_forward") or context.get("carry_forward_count")
+        if carry_forward_raw is None:
+            carry_forward = "1 item"
+        else:
+            carry_forward_value = str(carry_forward_raw).strip()
+            if carry_forward_value.isdigit():
+                carry_forward = f"{carry_forward_value} item" if carry_forward_value == "1" else f"{carry_forward_value} items"
+            else:
+                carry_forward = carry_forward_value
+        return _render_daily_brief_shell(
+            subject=subject,
+            recipient_name=safe_name,
+            title=str(context.get("notification_title") or spec.title),
+            intro=str(context.get("notification_body") or spec.intro),
+            priority_blocks=priority_blocks,
+            carry_forward=carry_forward,
+            anchor_task=str(context.get("anchor_task") or "Complete your toughest task before noon."),
+            support_task=str(context.get("support_task") or "Move one dependency that unlocks progress."),
+            quick_close=str(context.get("quick_close") or "Review wins and misses in one line tonight."),
+            cta_label=str(context.get("cta_label") or cta_label),
+            cta_url=cta_url,
+            footer=spec.footer,
+            support_email=str(context.get("support_email") or "support@shadow.app"),
+        )
+
     if template_key == "password_changed_alert":
         return _render_password_changed_alert_shell(
             subject=subject,
@@ -744,6 +771,82 @@ def _render_task_reminder_shell(
         )
 
         return subject, text_body, html_body
+
+
+def _render_daily_brief_shell(
+    *,
+    subject: str,
+    recipient_name: str,
+    title: str,
+    intro: str,
+    priority_blocks: str,
+    carry_forward: str,
+    anchor_task: str,
+    support_task: str,
+    quick_close: str,
+    cta_label: str,
+    cta_url: str,
+    footer: str,
+    support_email: str,
+) -> tuple[str, str, str]:
+    text_lines = [
+        f"Hi {recipient_name},",
+        "",
+        intro,
+        "",
+        "Daily brief snapshot:",
+        f"- Priority blocks: {priority_blocks}",
+        f"- Carry forward: {carry_forward}",
+        "",
+        "Execution plan:",
+        f"- Anchor task: {anchor_task}",
+        f"- Support task: {support_task}",
+        f"- Quick close: {quick_close}",
+        "",
+        f"Open: {cta_url}",
+        "",
+        f"Need help? Contact support at {support_email}",
+        "",
+        footer,
+        "",
+        "Team Shadow",
+    ]
+    text_body = "\n".join(text_lines)
+
+    safe_subject = escape(subject)
+    safe_name = escape(recipient_name)
+    safe_title = escape(title)
+    safe_intro = escape(intro)
+    safe_priority_blocks = escape(priority_blocks)
+    safe_carry_forward = escape(carry_forward)
+    safe_anchor_task = escape(anchor_task)
+    safe_support_task = escape(support_task)
+    safe_quick_close = escape(quick_close)
+    safe_cta_label = escape(cta_label)
+    safe_cta_url = escape(cta_url)
+    safe_footer = escape(footer)
+    safe_support_email = escape(support_email)
+
+    html_body = _render_email_template(
+        "daily_brief.html",
+        {
+        "safe_subject": safe_subject,
+        "safe_name": safe_name,
+        "safe_title": safe_title,
+        "safe_intro": safe_intro,
+        "safe_priority_blocks": safe_priority_blocks,
+        "safe_carry_forward": safe_carry_forward,
+        "safe_anchor_task": safe_anchor_task,
+        "safe_support_task": safe_support_task,
+        "safe_quick_close": safe_quick_close,
+        "safe_cta_label": safe_cta_label,
+        "safe_cta_url": safe_cta_url,
+        "safe_footer": safe_footer,
+        "safe_support_email": safe_support_email,
+        },
+    )
+
+    return subject, text_body, html_body
 
 
 def _render_password_changed_alert_shell(

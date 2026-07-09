@@ -460,7 +460,9 @@ def _render_template(
             ("Security posture", "Critical alerts stay actionable and timely.", "Automatic"),
         ]
     elif template_key == "task_reminders":
-        task_title = str(context.get("task_title") or "Upcoming task")
+        task_title = str(context.get("task_title") or context.get("notification_title") or "Upcoming task")
+        if task_title.lower().startswith("task reminder:"):
+            task_title = task_title.split(":", 1)[1].strip() or "Upcoming task"
         scheduled_for = str(context.get("scheduled_for") or "Soon")
         subject = f"Task reminder: {task_title}"
         highlights = [("Task", task_title), ("Scheduled", scheduled_for)]
@@ -538,6 +540,23 @@ def _render_template(
             intro=str(context.get("notification_body") or spec.intro),
             expires_minutes=int(context.get("expires_minutes") or 24 * 60),
             verification_url=str(context.get("verification_url") or cta_url),
+            cta_label=str(context.get("cta_label") or cta_label),
+            cta_url=cta_url,
+            footer=spec.footer,
+            support_email=str(context.get("support_email") or "support@shadow.app"),
+        )
+
+    if template_key == "task_reminders":
+        task_title = str(context.get("task_title") or context.get("notification_title") or "Upcoming task")
+        if task_title.lower().startswith("task reminder:"):
+            task_title = task_title.split(":", 1)[1].strip() or "Upcoming task"
+        return _render_task_reminder_shell(
+            subject=subject,
+            recipient_name=safe_name,
+            title=str(context.get("notification_title") or spec.title),
+            intro=str(context.get("notification_body") or spec.intro),
+            task_title=task_title,
+            scheduled_for=str(context.get("scheduled_for") or "Soon"),
             cta_label=str(context.get("cta_label") or cta_label),
             cta_url=cta_url,
             footer=spec.footer,
@@ -650,6 +669,73 @@ def _render_verification_reminder_shell(
                 "safe_intro": safe_intro,
                 "safe_expires_minutes": safe_expires_minutes,
                 "safe_verification_url": safe_verification_url,
+                "safe_cta_label": safe_cta_label,
+                "safe_cta_url": safe_cta_url,
+                "safe_footer": safe_footer,
+                "safe_support_email": safe_support_email,
+            },
+        )
+
+        return subject, text_body, html_body
+
+
+def _render_task_reminder_shell(
+        *,
+        subject: str,
+        recipient_name: str,
+        title: str,
+        intro: str,
+        task_title: str,
+        scheduled_for: str,
+        cta_label: str,
+        cta_url: str,
+        footer: str,
+        support_email: str,
+) -> tuple[str, str, str]:
+        text_lines = [
+                f"Hi {recipient_name},",
+                "",
+                intro,
+                "",
+                "Task reminder details:",
+                f"- Task: {task_title}",
+                f"- Scheduled: {scheduled_for}",
+                "",
+                "Quick execution plan:",
+                "- Open your planner",
+                "- Start with one focused block",
+                "- Mark completion to keep momentum",
+                "",
+                f"Open: {cta_url}",
+                "",
+                f"Need help? Contact support at {support_email}",
+                "",
+                footer,
+                "",
+                "Team Shadow",
+        ]
+        text_body = "\n".join(text_lines)
+
+        safe_subject = escape(subject)
+        safe_name = escape(recipient_name)
+        safe_title = escape(title)
+        safe_intro = escape(intro)
+        safe_task_title = escape(task_title)
+        safe_scheduled_for = escape(scheduled_for)
+        safe_cta_label = escape(cta_label)
+        safe_cta_url = escape(cta_url)
+        safe_footer = escape(footer)
+        safe_support_email = escape(support_email)
+
+        html_body = _render_email_template(
+            "task_reminder.html",
+            {
+                "safe_subject": safe_subject,
+                "safe_name": safe_name,
+                "safe_title": safe_title,
+                "safe_intro": safe_intro,
+                "safe_task_title": safe_task_title,
+                "safe_scheduled_for": safe_scheduled_for,
                 "safe_cta_label": safe_cta_label,
                 "safe_cta_url": safe_cta_url,
                 "safe_footer": safe_footer,

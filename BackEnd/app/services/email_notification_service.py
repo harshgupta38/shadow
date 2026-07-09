@@ -530,6 +530,20 @@ def _render_template(
         cta_label = "Review security"
         cta_url = _frontend_url("settings/security")
 
+    if template_key == "verification_reminders":
+        return _render_verification_reminder_shell(
+            subject=subject,
+            recipient_name=safe_name,
+            title=str(context.get("notification_title") or spec.title),
+            intro=str(context.get("notification_body") or spec.intro),
+            expires_minutes=int(context.get("expires_minutes") or 24 * 60),
+            verification_url=str(context.get("verification_url") or cta_url),
+            cta_label=str(context.get("cta_label") or cta_label),
+            cta_url=cta_url,
+            footer=spec.footer,
+            support_email=str(context.get("support_email") or "support@shadow.app"),
+        )
+
     if template_key == "password_changed_alert":
         return _render_password_changed_alert_shell(
             subject=subject,
@@ -577,6 +591,73 @@ def _render_template(
         cta_url=cta_url,
         quote=quote,
     )
+
+
+def _render_verification_reminder_shell(
+        *,
+        subject: str,
+        recipient_name: str,
+        title: str,
+        intro: str,
+        expires_minutes: int,
+        verification_url: str,
+        cta_label: str,
+        cta_url: str,
+        footer: str,
+        support_email: str,
+) -> tuple[str, str, str]:
+        text_lines = [
+                f"Hi {recipient_name},",
+                "",
+                intro,
+                "",
+                "Verification details:",
+                "- Link status: Ready",
+                f"- Expires in: {expires_minutes} minutes",
+                "",
+                "Why verify now:",
+                "- Keep password recovery reliable",
+                "- Receive critical account alerts",
+                "- Maintain account security trust",
+                "",
+                f"Verify now: {verification_url}",
+                "",
+                f"Need help? Contact support at {support_email}",
+                "",
+                footer,
+                "",
+                "Team Shadow",
+        ]
+        text_body = "\n".join(text_lines)
+
+        safe_subject = escape(subject)
+        safe_name = escape(recipient_name)
+        safe_title = escape(title)
+        safe_intro = escape(intro)
+        safe_expires_minutes = escape(str(expires_minutes))
+        safe_verification_url = escape(verification_url)
+        safe_cta_label = escape(cta_label)
+        safe_cta_url = escape(cta_url)
+        safe_footer = escape(footer)
+        safe_support_email = escape(support_email)
+
+        html_body = _render_email_template(
+            "verification_reminder.html",
+            {
+                "safe_subject": safe_subject,
+                "safe_name": safe_name,
+                "safe_title": safe_title,
+                "safe_intro": safe_intro,
+                "safe_expires_minutes": safe_expires_minutes,
+                "safe_verification_url": safe_verification_url,
+                "safe_cta_label": safe_cta_label,
+                "safe_cta_url": safe_cta_url,
+                "safe_footer": safe_footer,
+                "safe_support_email": safe_support_email,
+            },
+        )
+
+        return subject, text_body, html_body
 
 
 def _render_password_changed_alert_shell(

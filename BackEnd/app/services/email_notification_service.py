@@ -124,7 +124,7 @@ _TEMPLATE_SPECS: dict[EmailTemplateKey, _TemplateSpec] = {
     ),
     "today_plan_generated": _TemplateSpec(
         badge="Daily Planning",
-        title="Today's generated plan is ready",
+        title="Today's plan is ready",
         intro="Your AI-generated plan is prepared with focused blocks for execution.",
         highlights=(("Mode", "AI generated"), ("Goal", "High-impact execution")),
         items=(
@@ -565,14 +565,58 @@ def _render_template(
 
     if template_key == "today_plan_generated":
         plan_date = str(context.get("plan_date") or date.today().isoformat())
-        task_titles = [str(item).strip() for item in context.get("task_titles") or [] if str(item).strip()]
-        tasks_generated = str(max(1, len(task_titles)))
-        default_plan_steps = [
-            "Start with your highest-leverage task.",
-            "Keep transitions short between blocks.",
-            "Close with a one-minute reflection.",
-        ]
-        plan_steps = (task_titles[:3] + default_plan_steps)[:3]
+        raw_tasks = context.get("tasks") or []
+        task_cards: list[dict[str, str]] = []
+        for raw in raw_tasks[:8]:
+            if not isinstance(raw, dict):
+                continue
+            title = str(raw.get("title") or "Planned task").strip()
+            if not title:
+                title = "Planned task"
+            task_cards.append(
+                {
+                    "title": title,
+                    "why_today": str(raw.get("why_today") or "Focus on one meaningful step today.").strip(),
+                    "impact_if_skipped": str(raw.get("impact_if_skipped") or "Skipping may reduce progress momentum.").strip(),
+                    "goal_linked": str(raw.get("goal_linked") or "General growth").strip(),
+                    "remaining": str(raw.get("remaining") or "Not set").strip(),
+                    "priority": str(raw.get("priority") or "Medium").strip().title(),
+                    "badge": str(raw.get("badge") or "Plan").strip().title(),
+                    "due": str(raw.get("due") or "Due today").strip(),
+                }
+            )
+
+        if not task_cards:
+            task_titles = [str(item).strip() for item in context.get("task_titles") or [] if str(item).strip()]
+            task_cards = [
+                {
+                    "title": title,
+                    "why_today": "Keep momentum with a focused execution block.",
+                    "impact_if_skipped": "Skipping may reduce progress momentum.",
+                    "goal_linked": "General growth",
+                    "remaining": "Not set",
+                    "priority": "Medium",
+                    "badge": "Plan",
+                    "due": "Due today",
+                }
+                for title in task_titles[:8]
+            ]
+
+        if not task_cards:
+            task_cards = [
+                {
+                    "title": "Your first focus block",
+                    "why_today": "Start with one meaningful action to build momentum.",
+                    "impact_if_skipped": "Skipping may delay your daily execution rhythm.",
+                    "goal_linked": "General growth",
+                    "remaining": "Not set",
+                    "priority": "Medium",
+                    "badge": "Plan",
+                    "due": "Due today",
+                }
+            ]
+
+        tasks_generated = str(len(task_cards))
         focus_note = str(
             context.get("quote")
             or "Consistency compounds. Start with one meaningful block and build momentum."
@@ -584,9 +628,7 @@ def _render_template(
             intro=str(context.get("notification_body") or spec.intro),
             plan_date=plan_date,
             tasks_generated=tasks_generated,
-            first_task=plan_steps[0],
-            second_task=plan_steps[1],
-            third_task=plan_steps[2],
+            task_cards=tuple(task_cards),
             focus_note=focus_note,
             cta_label=str(context.get("cta_label") or cta_label),
             cta_url=cta_url,
@@ -1353,9 +1395,7 @@ def _render_today_plan_generated_shell(
     intro: str,
     plan_date: str,
     tasks_generated: str,
-    first_task: str,
-    second_task: str,
-    third_task: str,
+    task_cards: tuple[dict[str, str], ...],
     focus_note: str,
     cta_label: str,
     cta_url: str,
@@ -1371,10 +1411,21 @@ def _render_today_plan_generated_shell(
         f"- Plan date: {plan_date}",
         f"- Tasks generated: {tasks_generated}",
         "",
-        "Execution plan:",
-        f"- Task 1: {first_task}",
-        f"- Task 2: {second_task}",
-        f"- Task 3: {third_task}",
+        "Today's tasks:",
+    ]
+    for index, item in enumerate(task_cards, start=1):
+        text_lines.extend(
+            [
+                f"- {index}. {item['title']}",
+                f"  Why today: {item['why_today']}",
+                f"  Impact if skipped: {item['impact_if_skipped']}",
+                f"  Goal linked: {item['goal_linked']}",
+                f"  Remaining: {item['remaining']}",
+                f"  Priority: {item['priority']} | Badge: {item['badge']} | {item['due']}",
+            ]
+        )
+
+    text_lines.extend([
         "",
         f"Focus note: {focus_note}",
         "",
@@ -1385,7 +1436,7 @@ def _render_today_plan_generated_shell(
         footer,
         "",
         "Team Shadow",
-    ]
+    ])
     text_body = "\n".join(text_lines)
 
     safe_subject = escape(subject)
@@ -1394,9 +1445,33 @@ def _render_today_plan_generated_shell(
     safe_intro = escape(intro)
     safe_plan_date = escape(plan_date)
     safe_tasks_generated = escape(tasks_generated)
-    safe_first_task = escape(first_task)
-    safe_second_task = escape(second_task)
-    safe_third_task = escape(third_task)
+    safe_task_cards_html_parts: list[str] = []
+    for index, item in enumerate(task_cards, start=1):
+        safe_title_item = escape(item.get("title", "Planned task"))
+        safe_why_today = escape(item.get("why_today", "Focus on one meaningful step today."))
+        safe_impact = escape(item.get("impact_if_skipped", "Skipping may reduce progress momentum."))
+        safe_goal = escape(item.get("goal_linked", "General growth"))
+        safe_remaining = escape(item.get("remaining", "Not set"))
+        safe_priority = escape(item.get("priority", "Medium"))
+        safe_badge = escape(item.get("badge", "Plan"))
+        safe_due = escape(item.get("due", "Due today"))
+        safe_task_cards_html_parts.append(
+            "<tr><td style=\"padding:10px 40px 0;\">"
+            "<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" width=\"100%\" style=\"border:1px solid #e5e7eb;border-radius:12px;background:#ffffff;\">"
+            "<tr><td style=\"padding:14px 16px;font-size:12px;line-height:1.55;color:#4b5563;\">"
+            f"<div style=\"font-size:22px;color:#111827;font-weight:700;line-height:1.2;\">{index}. {safe_title_item}</div>"
+            f"<div style=\"margin-top:8px;\"><span style=\"font-weight:700;color:#374151;\">Why today:</span> {safe_why_today}</div>"
+            f"<div style=\"margin-top:4px;\"><span style=\"font-weight:700;color:#374151;\">Impact if skipped:</span> {safe_impact}</div>"
+            f"<div style=\"margin-top:4px;\"><span style=\"font-weight:700;color:#374151;\">Goal linked:</span> {safe_goal}</div>"
+            f"<div style=\"margin-top:4px;\"><span style=\"font-weight:700;color:#374151;\">Remaining:</span> {safe_remaining}</div>"
+            "<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" width=\"100%\" style=\"margin-top:10px;\"><tr>"
+            f"<td align=\"left\" style=\"font-size:12px;color:#4b5563;\"><span style=\"display:inline-block;padding:2px 8px;border-radius:999px;background:#fff7ed;color:#9a3412;font-weight:700;\">{safe_priority}</span> <span style=\"display:inline-block;margin-left:6px;padding:2px 8px;border-radius:999px;background:#ede9ff;color:#5f4bff;font-weight:700;\">{safe_badge}</span></td>"
+            f"<td align=\"right\" style=\"font-size:12px;color:#6b7280;font-weight:700;\">{safe_due}</td>"
+            "</tr></table>"
+            "</td></tr></table>"
+            "</td></tr>"
+        )
+    safe_task_cards_html = "".join(safe_task_cards_html_parts)
     safe_focus_note = escape(focus_note)
     safe_cta_label = escape(cta_label)
     safe_cta_url = escape(cta_url)
@@ -1412,9 +1487,7 @@ def _render_today_plan_generated_shell(
             "safe_intro": safe_intro,
             "safe_plan_date": safe_plan_date,
             "safe_tasks_generated": safe_tasks_generated,
-            "safe_first_task": safe_first_task,
-            "safe_second_task": safe_second_task,
-            "safe_third_task": safe_third_task,
+            "safe_task_cards_html": safe_task_cards_html,
             "safe_focus_note": safe_focus_note,
             "safe_cta_label": safe_cta_label,
             "safe_cta_url": safe_cta_url,

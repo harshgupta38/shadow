@@ -67,193 +67,85 @@ def _render_email_template(template_name: str, context: dict[str, str]) -> str:
 
 @dataclass(frozen=True)
 class _TemplateSpec:
-    badge: str
     title: str
     intro: str
-    highlights: tuple[tuple[str, str], ...]
-    items: tuple[tuple[str, str, str], ...]
     footer: str
 
 
 _TEMPLATE_SPECS: dict[EmailTemplateKey, _TemplateSpec] = {
     "verification_reminders": _TemplateSpec(
-        badge="Account Security",
         title="Verify your email to secure your account",
         intro="Verifying your email keeps account recovery and security alerts reliable.",
-        highlights=(("Status", "Pending verification"), ("Time needed", "Under 20 seconds")),
-        items=(
-            ("Recovery safety", "Password recovery relies on verified email.", "Important"),
-            ("Critical notices", "Security alerts are delivered to your inbox.", "Recommended"),
-            ("Trust signals", "Verified accounts have stronger integrity checks.", "Automatic"),
-        ),
         footer="This email is required for account security and verification.",
     ),
     "password_changed_alert": _TemplateSpec(
-        badge="Security Alert",
         title="Password changed successfully",
         intro="Your Shadow password was updated. Review activity if this was unexpected.",
-        highlights=(("Event", "Password updated"), ("Risk", "Low when expected")),
-        items=(
-            ("Review sessions", "Check active devices and revoke unknown sessions.", "2 min"),
-            ("Confirm backup email", "Ensure recovery email is still correct.", "1 min"),
-            ("Enable MFA", "Add extra sign-in protection if available.", "Optional"),
-        ),
         footer="If you did not make this change, rotate credentials immediately.",
     ),
     "new_device_alert": _TemplateSpec(
-        badge="Security Alert",
         title="New device connected to your account",
         intro="A new device was used for your Shadow account recently.",
-        highlights=(("Detection", "New device sign-in"), ("Action", "Review sessions")),
-        items=(
-            ("Confirm device", "Verify this sign-in belongs to you.", "Immediate"),
-            ("Revoke unknown access", "Sign out any unexpected sessions.", "Priority"),
-            ("Update password", "Reset password if account access is uncertain.", "Recommended"),
-        ),
         footer="Ignore this email if you recognize the new device.",
     ),
     "task_reminders": _TemplateSpec(
-        badge="Planning Reminder",
         title="Upcoming task reminder",
         intro="A planned task is due soon. Prepare context now and start on time.",
-        highlights=(("Focus", "Execution block"), ("Intent", "Close one meaningful loop")),
-        items=(
-            ("Open resources", "Keep docs and checklist ready before start.", "Now"),
-            ("Define output", "Lock one concrete deliverable.", "2 min"),
-            ("Protect focus", "Mute distractions during the task window.", "Recommended"),
-        ),
         footer="Task reminders follow your planning settings and schedule.",
     ),
     "today_plan_generated": _TemplateSpec(
-        badge="Daily Planning",
         title="Today's plan is ready",
         intro="Your AI-generated plan is prepared with focused blocks for execution.",
-        highlights=(("Mode", "AI generated"), ("Goal", "High-impact execution")),
-        items=(
-            ("Start strong", "Begin with your highest-leverage task.", "Morning"),
-            ("Preserve momentum", "Keep transitions short between blocks.", "All day"),
-            ("Reflect quickly", "Close with a one-minute review.", "Evening"),
-        ),
         footer="You can regenerate your plan anytime from the planner workspace.",
     ),
     "daily_motivational_quote": _TemplateSpec(
-        badge="Daily Motivation",
         title="Your daily momentum reset",
         intro="Small, consistent actions compound faster than occasional intensity.",
-        highlights=(("Focus", "Progress over perfection"), ("Move", "One meaningful action first")),
-        items=(
-            ("Pick one outcome", "Choose one result that must happen today.", "1 min"),
-            ("Start now", "Take the smallest next step immediately.", "Immediate"),
-            ("Close the loop", "Finish one high-impact block before noon.", "Priority"),
-        ),
         footer="You can adjust your motivation email timing in Email Controls.",
     ),
     "daily_brief": _TemplateSpec(
-        badge="Daily Brief",
         title="Your daily brief is ready",
         intro="Here is a concise snapshot to align priorities and execution.",
-        highlights=(("Priority blocks", "3"), ("Carry forward", "1 item")),
-        items=(
-            ("Anchor task", "Complete your toughest task before noon.", "High impact"),
-            ("Support task", "Move one dependency that unblocks progress.", "Important"),
-            ("Quick close", "Review wins and misses in one line tonight.", "2 min"),
-        ),
         footer="Daily brief content adapts to your recent planning behavior.",
     ),
     "weekly_summary": _TemplateSpec(
-        badge="Weekly Summary",
         title="Your weekly summary is ready",
         intro="Review progress trends and set the next week's strongest focus.",
-        highlights=(("Week health", "Momentum maintained"), ("Direction", "Execution-first")),
-        items=(
-            ("Biggest win", "Capture one repeatable pattern that worked.", "Retain"),
-            ("Biggest leak", "Identify one drag to eliminate next week.", "Fix"),
-            ("Next commitment", "Define two non-negotiable focus blocks.", "Plan"),
-        ),
         footer="Weekly summaries are generated from your goals, tasks, and journals.",
     ),
     "streak_risk_alert": _TemplateSpec(
-        badge="Streak Alert",
         title="Your streak is at risk",
         intro="One small action today can preserve momentum.",
-        highlights=(("Status", "Streak risk detected"), ("Recovery", "1 completed block")),
-        items=(
-            ("Minimum viable win", "Finish one focused 25-minute sprint.", "Today"),
-            ("Lower friction", "Start with the easiest visible step.", "Immediate"),
-            ("Mark completion", "Log progress before day ends.", "Before sleep"),
-        ),
         footer="Streak alerts are sent only when action can still recover momentum.",
     ),
     "milestone_due_soon": _TemplateSpec(
-        badge="Milestone Alert",
         title="Milestone due soon",
         intro="An active milestone deadline is approaching.",
-        highlights=(("Urgency", "High"), ("Focus", "Finish sprint")),
-        items=(
-            ("Freeze scope", "Pause low-impact additions until completion.", "Now"),
-            ("Resolve blockers", "Assign ownership for each dependency.", "Today"),
-            ("Protect time", "Reserve one uninterrupted deep-work block.", "Priority"),
-        ),
         footer="Milestone reminders are based on deadlines and completion trend.",
     ),
     "goal_target_risk": _TemplateSpec(
-        badge="Goal Risk",
         title="Goal target risk detected",
         intro="Current progress trend may miss your target date unless adjusted.",
-        highlights=(("Signal", "Behind trajectory"), ("Action", "Correct this week")),
-        items=(
-            ("Re-prioritize", "Move one low-impact task out of this week.", "Immediate"),
-            ("Increase cadence", "Add one extra deep-work session.", "Recommended"),
-            ("Track signal", "Review progress metric each evening.", "5 min/day"),
-        ),
         footer="Risk detection uses velocity versus target-date trajectory.",
     ),
     "daily_report_ready": _TemplateSpec(
-        badge="Daily Report",
         title="Your daily report is ready",
         intro="Today's performance summary and AI insights are available.",
-        highlights=(("Coverage", "Tasks, goals, and metrics"), ("View", "Reports workspace")),
-        items=(
-            ("Top insight", "Use the strongest recommendation first tomorrow.", "High leverage"),
-            ("Pattern", "Identify one behavior to repeat.", "Retain"),
-            ("Correction", "Choose one inefficiency to remove.", "Improve"),
-        ),
         footer="Daily reports are generated from your latest progress data.",
     ),
     "weekly_report_ready": _TemplateSpec(
-        badge="Weekly Report",
         title="Your weekly report is ready",
         intro="A week-level breakdown with trends and next-step guidance is available.",
-        highlights=(("Coverage", "Weekly performance"), ("View", "Reports workspace")),
-        items=(
-            ("What worked", "Double down on the highest-yield behavior.", "Strength"),
-            ("What slipped", "Address one recurring bottleneck.", "Gap"),
-            ("Next-week anchor", "Protect two morning deep-work blocks.", "Plan"),
-        ),
         footer="Weekly reports compare trend direction against recent history.",
     ),
     "progress_coach_recommendations": _TemplateSpec(
-        badge="Progress Coach",
         title="New coach recommendations",
         intro="AI suggestions are ready to improve your execution rhythm.",
-        highlights=(("Recommendation count", "3"), ("Impact", "High")),
-        items=(
-            ("Morning anchor", "Start with one non-negotiable block.", "Behavioral"),
-            ("Context control", "Batch similar tasks to reduce switching.", "Operational"),
-            ("Feedback loop", "Log one-line reflection daily.", "Compounding"),
-        ),
         footer="Recommendations are generated from your activity signals.",
     ),
     "export_ready": _TemplateSpec(
-        badge="Data Export",
         title="Your account details exported.",
         intro="Please check the attached JSON file for your account data.",
-        highlights=(("Format", "ZIP"), ("Availability", "Limited retention window")),
-        items=(
-            ("Store securely", "Save the file only in trusted locations.", "Important"),
-            ("Encrypt locally", "Use device encryption where possible.", "Recommended"),
-            ("Cleanup", "Delete stale copies after use.", "Good practice"),
-        ),
         footer="If this request was unexpected, review account security immediately.",
     ),
 }

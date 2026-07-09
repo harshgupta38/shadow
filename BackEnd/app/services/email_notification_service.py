@@ -590,6 +590,23 @@ def _render_template(
             support_email=str(context.get("support_email") or "support@shadow.app"),
         )
 
+    if template_key == "weekly_summary":
+        return _render_weekly_summary_shell(
+            subject=subject,
+            recipient_name=safe_name,
+            title=str(context.get("notification_title") or spec.title),
+            intro=str(context.get("notification_body") or spec.intro),
+            week_health=str(context.get("week_health") or "Momentum maintained"),
+            direction=str(context.get("direction") or "Execution-first"),
+            biggest_win=str(context.get("biggest_win") or "Capture one repeatable pattern that worked."),
+            biggest_leak=str(context.get("biggest_leak") or "Identify one drag to eliminate next week."),
+            next_commitment=str(context.get("next_commitment") or "Define two non-negotiable focus blocks."),
+            cta_label=str(context.get("cta_label") or cta_label),
+            cta_url=cta_url,
+            footer=spec.footer,
+            support_email=str(context.get("support_email") or "support@shadow.app"),
+        )
+
     if template_key == "password_changed_alert":
         return _render_password_changed_alert_shell(
             subject=subject,
@@ -843,6 +860,82 @@ def _render_daily_brief_shell(
         "safe_cta_url": safe_cta_url,
         "safe_footer": safe_footer,
         "safe_support_email": safe_support_email,
+        },
+    )
+
+    return subject, text_body, html_body
+
+
+def _render_weekly_summary_shell(
+    *,
+    subject: str,
+    recipient_name: str,
+    title: str,
+    intro: str,
+    week_health: str,
+    direction: str,
+    biggest_win: str,
+    biggest_leak: str,
+    next_commitment: str,
+    cta_label: str,
+    cta_url: str,
+    footer: str,
+    support_email: str,
+) -> tuple[str, str, str]:
+    text_lines = [
+        f"Hi {recipient_name},",
+        "",
+        intro,
+        "",
+        "Weekly summary snapshot:",
+        f"- Week health: {week_health}",
+        f"- Direction: {direction}",
+        "",
+        "Execution plan:",
+        f"- Biggest win: {biggest_win}",
+        f"- Biggest leak: {biggest_leak}",
+        f"- Next commitment: {next_commitment}",
+        "",
+        f"Open: {cta_url}",
+        "",
+        f"Need help? Contact support at {support_email}",
+        "",
+        footer,
+        "",
+        "Team Shadow",
+    ]
+    text_body = "\n".join(text_lines)
+
+    safe_subject = escape(subject)
+    safe_name = escape(recipient_name)
+    safe_title = escape(title)
+    safe_intro = escape(intro)
+    safe_week_health = escape(week_health)
+    safe_direction = escape(direction)
+    safe_biggest_win = escape(biggest_win)
+    safe_biggest_leak = escape(biggest_leak)
+    safe_next_commitment = escape(next_commitment)
+    safe_cta_label = escape(cta_label)
+    safe_cta_url = escape(cta_url)
+    safe_footer = escape(footer)
+    safe_support_email = escape(support_email)
+
+    html_body = _render_email_template(
+        "weekly_summary.html",
+        {
+            "safe_subject": safe_subject,
+            "safe_name": safe_name,
+            "safe_title": safe_title,
+            "safe_intro": safe_intro,
+            "safe_week_health": safe_week_health,
+            "safe_direction": safe_direction,
+            "safe_biggest_win": safe_biggest_win,
+            "safe_biggest_leak": safe_biggest_leak,
+            "safe_next_commitment": safe_next_commitment,
+            "safe_cta_label": safe_cta_label,
+            "safe_cta_url": safe_cta_url,
+            "safe_footer": safe_footer,
+            "safe_support_email": safe_support_email,
         },
     )
 

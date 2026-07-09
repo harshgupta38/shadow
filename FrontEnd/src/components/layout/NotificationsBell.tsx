@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Dropdown } from "react-bootstrap";
 import { useLocation, useNavigate } from "react-router-dom";
 import { BellFill, InfoCircleFill, Stars } from "react-bootstrap-icons";
 
-import { api, type NotificationType } from "@/api";
+import { api, type Notification, type NotificationType } from "@/api";
 import { useAsync } from "@/hooks/useAsync";
 import { relativeTime } from "@/lib/format";
 
@@ -24,10 +24,19 @@ export function NotificationsBell() {
   const location = useLocation();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const { data, loading, error } = useAsync(() => api.notifications.list(), []);
+  const [visibleNotifications, setVisibleNotifications] = useState<Notification[]>([]);
+  const inFlightAutoReadIdsRef = useRef<Set<number>>(new Set());
+  const shouldRefreshOnCloseRef = useRef(false);
+  const openRef = useRef(false);
+  const { data, loading, error, reload } = useAsync(() => api.notifications.list(), []);
   const notifications = data ?? [];
-  const unread = notifications.filter((notification) => !notification.read).length;
-  const latestNotifications = notifications.slice(0, 10);
+  const unreadNotifications = notifications.filter((notification) => !notification.read);
+  const unread = unreadNotifications.length;
+  const latestUnreadNotifications = unreadNotifications.slice(0, 10);
+
+  useEffect(() => {
+    openRef.current = open;
+  }, [open]);
 
   useEffect(() => {
     if (location.pathname === "/notifications") {
@@ -35,13 +44,60 @@ export function NotificationsBell() {
     }
   }, [location.pathname]);
 
+  useEffect(() => {
+    if (!open || loading || !!error || visibleNotifications.length === 0) {
+      return;
+    }
+
+    const unreadVisibleIds = visibleNotifications
+      .filter(
+        (notification) =>
+          !notification.read && !inFlightAutoReadIdsRef.current.has(notification.id),
+      )
+      .map((notification) => notification.id);
+
+    if (unreadVisibleIds.length === 0) {
+      return;
+    }
+
+    unreadVisibleIds.forEach((id) => inFlightAutoReadIdsRef.current.add(id));
+
+    void Promise.allSettled(unreadVisibleIds.map((id) => api.notifications.markRead(id)))
+      .finally(() => {
+        if (openRef.current) {
+          shouldRefreshOnCloseRef.current = true;
+        } else {
+          shouldRefreshOnCloseRef.current = false;
+          reload();
+        }
+      })
+      .finally(() => {
+        unreadVisibleIds.forEach((id) => inFlightAutoReadIdsRef.current.delete(id));
+      });
+  }, [error, loading, open, reload, visibleNotifications]);
+
+  function onToggle(nextShow: boolean) {
+    setOpen(nextShow);
+    if (nextShow) {
+      setVisibleNotifications(latestUnreadNotifications);
+      return;
+    }
+
+    setVisibleNotifications([]);
+    if (shouldRefreshOnCloseRef.current) {
+      shouldRefreshOnCloseRef.current = false;
+      reload();
+    }
+  }
+
   function goToNotifications() {
     setOpen(false);
+    setVisibleNotifications([]);
     navigate("/notifications");
   }
 
   return (
-    <Dropdown align="end" show={open} onToggle={(nextShow) => setOpen(nextShow)}>
+    <Dropdown align="end" show={open} onToggle={onToggle}>
       <Dropdown.Toggle
         as="button"
         type="button"
@@ -82,13 +138,13 @@ export function NotificationsBell() {
           <div className="px-3 py-3 small text-muted-2">Couldn't load notifications.</div>
         )}
 
-        {!loading && !error && latestNotifications.length === 0 && (
-          <div className="px-3 py-3 small text-muted-2">No notifications yet.</div>
+        {!loading && !error && visibleNotifications.length === 0 && (
+          <div className="px-3 py-3 small text-muted-2">No unread notifications.</div>
         )}
 
-        {!loading && !error && latestNotifications.length > 0 && (
+        {!loading && !error && visibleNotifications.length > 0 && (
           <div className="notifications-bell-list">
-            {latestNotifications.map((notification) => {
+            {visibleNotifications.map((notification) => {
               const Icon = TYPE_ICON[notification.type];
               return (
                 <div

@@ -19,6 +19,10 @@ from app.models import Base  # noqa: F401 — ensures all models are registered
 from app.scheduler import shutdown_scheduler, start_scheduler
 from app.services.exceptions import AppError
 
+from pathlib import Path
+from fastapi import HTTPException
+from fastapi.responses import PlainTextResponse
+
 logging.basicConfig(level=logging.INFO)
 # Keep scheduler internals quiet in dev/prod logs while preserving warnings/errors.
 logging.getLogger("apscheduler").setLevel(logging.WARNING)
@@ -122,7 +126,7 @@ def get_battery():
 async def health() -> dict:
 
     message = "Shadow is up and running."
-    
+
     battery = get_battery()
     if battery != "Unknown":
         message = message + " " + battery
@@ -131,6 +135,23 @@ async def health() -> dict:
         "status": "ok",
         "message": message,
     }
+
+
+@app.get(
+    "/server/log",
+    tags=["admin"],
+    response_class=PlainTextResponse,
+)
+async def get_server_log():
+    log_file = Path("server.log")
+
+    if not log_file.exists():
+        raise HTTPException(
+            status_code=404,
+            detail="server.log not found.",
+        )
+
+    return log_file.read_text(encoding="utf-8")
 
 
 app.include_router(api_router, prefix=settings.api_prefix)

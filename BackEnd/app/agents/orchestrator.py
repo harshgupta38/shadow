@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import datetime
 
+from BackEnd.app.services.plan_service import _MAX_GENERATED_TASKS
 from app.agents.personas import (
     manual_memory_refiner_prompt,
     manual_memory_validator_prompt,
@@ -536,7 +537,7 @@ def generate_today_plan_json(
         "Return valid JSON only (no markdown, no prose) with this exact schema:\n"
         "{\"tasks\":[{\"title\":\"...\",\"related_goal_id\":123|null,\"priority\":\"critical|high|medium|low\",\"estimated_duration_minutes\":45|null,\"suggested_start_time\":\"HH:MM\"|null,\"suggested_finish_by_time\":\"HH:MM\"|null,\"ai_rationale\":\"...\",\"ai_impact_if_skipped\":\"...\"|null,\"ai_confidence_score\":75|null}]}\n"
         "Rules:\n"
-        "- Maximum 8 tasks.\n"
+        f"- Maximum {_MAX_GENERATED_TASKS} tasks.\n"
         "- Never duplicate manual tasks already listed.\n"
         "- Prefer carry-forward and high-value goal work.\n"
         "- Treat recurring-task descriptions as constraints; when they mention fixed time windows, preserve them in suggested_start_time and suggested_finish_by_time.\n"
@@ -592,7 +593,7 @@ def repair_today_plan_json(
         "Return valid JSON only (no markdown, no prose) with this exact schema:\n"
         "{\"tasks\":[{\"title\":\"...\",\"related_goal_id\":123|null,\"priority\":\"critical|high|medium|low\",\"estimated_duration_minutes\":45|null,\"suggested_start_time\":\"HH:MM\"|null,\"suggested_finish_by_time\":\"HH:MM\"|null,\"ai_rationale\":\"...\",\"ai_impact_if_skipped\":\"...\"|null,\"ai_confidence_score\":75|null}]}\n"
         "Rules:\n"
-        "- Maximum 8 tasks.\n"
+        f"- Maximum {_MAX_GENERATED_TASKS} tasks.\n"
         "- Never duplicate manual tasks already listed.\n"
         "- Prefer carry-forward and high-value goal work.\n"
         "- Treat recurring-task descriptions as constraints; when they mention fixed time windows, preserve them in suggested_start_time and suggested_finish_by_time.\n"

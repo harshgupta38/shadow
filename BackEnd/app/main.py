@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 import subprocess
@@ -68,15 +69,35 @@ def root() -> dict:
     return {"name": APP_NAME, "version": VERSION, "status": "ok"}
 
 
-def get_battery_percentage():
+def get_battery():
     try:
-        output = subprocess.check_output(["termux-battery-status"], text=True)
+        data = subprocess.check_output(["termux-battery-status"])
+        battery = json.loads(data)
 
-        match = re.search(r'"percentage":\s*(\d+)', output)
-        if match:
-            return int(match.group(1))
+        health = battery.get("health", "Unknown").replace("_", " ").title()
+        battery_percent = battery.get("percentage", "Unknown")
+        charging_status = battery.get("status", "Unknown").replace("_", " ").title()
+        if battery.get("plugged") == "UNPLUGGED":
+            charging_status = "Not Charging"
+        temperature = battery.get("temperature", "Unknown")
+        power = battery.get("current", "Unknown")
 
-        return "Unknown"
+        if power != "Unknown":
+            if power <= 400:
+                power_status = "Idle power"
+            elif 400 < power <= 800:
+                power_status = "Light server workload"
+            elif 800 < power <= 1200:
+                power_status = "Heavy server workload"
+            else:
+                power_status = "Critical server workload"
+        else:
+            power_status = "Unknown"
+
+        return (
+            f"We are currently {charging_status.lower()} with {battery_percent}% battery, "
+            f"and temperature is {temperature}°C with {health} battery health on {power_status}."
+        )
 
     except Exception as e:
         return "Unknown"
@@ -85,15 +106,12 @@ def get_battery_percentage():
 @app.get("/health", tags=["health"])
 async def health() -> dict:
 
-    battery = get_battery_percentage()
+    message = "Shadow is up and running."
+    
+    battery = get_battery()
     if battery != "Unknown":
-        battery_status = f"{battery}%"
-        message = f"Your agents is up and running with {battery_status} power."
-    else:
-        battery_status = "Unknown"
-        message = "Your agents is up and running. Power status is unavailable."
+        message = message + " " + battery
 
-    print("")
     return {
         "status": "ok",
         "message": message,

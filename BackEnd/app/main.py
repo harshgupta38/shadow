@@ -83,6 +83,7 @@ def get_battery():
         power = battery.get("current", "Unknown")
 
         if power != "Unknown":
+            power = power // 1000
             if power <= 400:
                 power_status = "Idle power"
             elif 400 < power <= 800:

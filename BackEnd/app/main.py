@@ -91,6 +91,7 @@ def get_battery():
                 power_status = "Heavy server workload"
             else:
                 power_status = "Critical server workload"
+            power_status = f"{power_status} ({power} mA)"
         else:
             power_status = "Unknown"
 

@@ -61,6 +61,7 @@ export function MetricCard({ metric, onEdit, onDelete }: MetricCardProps) {
   const isStreakStatusDone = isWeeklyStreakMetric
     ? (metric.target != null && stats.weekTotal >= metric.target)
     : stats.todayTotal > 0;
+  const isStreakStatusDueWithZeroStreak = isStreakStatusCard && !isStreakStatusDone && stats.streak === 0;
   const primaryDisplayValue = isStreakStatusCard
     ? (isStreakStatusDone ? "Done" : "Due")
     : formatMetricValue(primaryValue, metric.unit, metric.unit_text);
@@ -124,7 +125,15 @@ export function MetricCard({ metric, onEdit, onDelete }: MetricCardProps) {
 
       <div className="d-flex align-items-center gap-3 mb-3">
         <div className="flex-grow-1">
-          <div className="stat-value">{primaryDisplayValue}</div>
+          <div
+            className={[
+              "stat-value",
+              isStreakStatusCard && isStreakStatusDone ? "stat-value-done" : "",
+              isStreakStatusDueWithZeroStreak ? "stat-value-due-zero-streak" : "",
+            ].filter(Boolean).join(" ")}
+          >
+            {primaryDisplayValue}
+          </div>
           <div className="stat-label">
             {primaryLabel}
             {metric.target != null && (

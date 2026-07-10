@@ -858,6 +858,14 @@ a {
   line-height: 1.1;
   letter-spacing: -0.03em;
 }
+.stat-value-done {
+  color: var(--jv-success);
+  text-shadow: 0 0 14px color-mix(in srgb, var(--jv-success) 35%, transparent);
+}
+.stat-value-due-zero-streak {
+  color: var(--jv-danger);
+  text-shadow: 0 0 14px color-mix(in srgb, var(--jv-danger) 30%, transparent);
+}
 .stat-label {
   color: var(--jv-muted);
   font-size: 0.82rem;

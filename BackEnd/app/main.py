@@ -82,6 +82,19 @@ def get_battery():
         temperature = battery.get("temperature", "Unknown")
         power = battery.get("current", "Unknown")
 
+        if temperature != "Unknown":
+            if temperature < 35:
+                temperature_status = "Excellent"
+            elif 35 <= temperature <= 40:
+                temperature_status = "Normal"
+            elif 40 < temperature <= 43:
+                temperature_status = "Warm"
+            elif 43 < temperature <= 45:
+                temperature_status = "Hot"
+            else:
+                temperature_status = "Too Hot"
+            temperature = f"{temperature_status} ({temperature}°C)"
+
         if power != "Unknown":
             power = power // 1000
             if power <= 400:
@@ -98,7 +111,7 @@ def get_battery():
 
         return (
             f"We are currently {charging_status.lower()} with {battery_percent}% battery, "
-            f"and temperature is {temperature}°C with {health} battery health on {power_status}."
+            f"and temperature is {temperature} with {health} battery health on {power_status}."
         )
 
     except Exception as e:

@@ -831,6 +831,95 @@ def test_task_status_toggle_syncs_daily_streak_metric_logs(
         app.dependency_overrides.pop(get_provider, None)
 
 
+def test_task_status_toggle_clears_stale_daily_streak_sync_logs(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    app.dependency_overrides[get_provider] = lambda: EmptyPlanProvider()
+
+    try:
+        metric = client.post(
+            "/api/metrics",
+            headers=auth_headers,
+            json={
+                "key": "habit_done_today_regression",
+                "label": "Habit done",
+                "unit_text": "count",
+                "time_span": "day",
+                "target": 1,
+            },
+        )
+        assert metric.status_code == 201
+        metric_id = int(metric.json()["id"])
+
+        repetitive = client.post(
+            "/api/repetitive-tasks",
+            headers=auth_headers,
+            json={
+                "name": "Habit done",
+                "description": "Daily habit.",
+                "frequencies": ["daily"],
+                "priority": "high",
+                "linked_metric_ids": [metric_id],
+            },
+        )
+        assert repetitive.status_code == 201
+
+        generated_first = client.post("/api/plan/generate-today", headers=auth_headers, json={})
+        assert generated_first.status_code == 200
+        task_first = next(
+            row for row in generated_first.json()["tasks"] if row["title"] == "Habit done"
+        )
+
+        first_done = client.put(
+            f"/api/plan/{task_first['id']}",
+            headers=auth_headers,
+            json={"status": "done"},
+        )
+        assert first_done.status_code == 200
+
+        delete_first = client.delete(f"/api/plan/{task_first['id']}", headers=auth_headers)
+        assert delete_first.status_code == 204
+
+        filler = client.post(
+            "/api/plan",
+            headers=auth_headers,
+            json={
+                "title": "Filler task",
+                "date": task_first["date"],
+            },
+        )
+        assert filler.status_code == 201
+
+        generated_second = client.post("/api/plan/generate-today", headers=auth_headers, json={})
+        assert generated_second.status_code == 200
+        task_second = next(
+            row for row in generated_second.json()["tasks"] if row["title"] == "Habit done"
+        )
+        assert task_second["id"] != task_first["id"]
+
+        second_done = client.put(
+            f"/api/plan/{task_second['id']}",
+            headers=auth_headers,
+            json={"status": "done"},
+        )
+        assert second_done.status_code == 200
+
+        second_undo = client.put(
+            f"/api/plan/{task_second['id']}",
+            headers=auth_headers,
+            json={"status": "planned"},
+        )
+        assert second_undo.status_code == 200
+
+        logs_after_undo = client.get(f"/api/metrics/{metric_id}/logs", headers=auth_headers)
+        assert logs_after_undo.status_code == 200
+        today_total_after_undo = sum(float(row["value"]) for row in logs_after_undo.json())
+        assert today_total_after_undo == 0.0
+    finally:
+        app.dependency_overrides.pop(get_provider, None)
+
+
 def test_task_status_toggle_syncs_no_target_daily_count_metric_logs(
     client: TestClient,
     auth_headers: dict[str, str],

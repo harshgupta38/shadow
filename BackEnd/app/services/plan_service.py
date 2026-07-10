@@ -1580,24 +1580,26 @@ def _sync_streak_style_metrics_with_task_status(
         return
 
     sync_note = _streak_sync_note(task.id)
+    sync_note_prefix = f"{_STREAK_SYNC_NOTE_PREFIX}%"
     for metric in streak_metrics:
+        is_daily_streak_style = metric.time_span == MetricTimeSpan.day
         if is_done:
-            existing_auto_log_ids = list(
-                db.scalars(
-                    select(ActivityLog.id).where(
-                        ActivityLog.user_id == user.id,
-                        ActivityLog.metric_id == metric.id,
-                        ActivityLog.date == task.date,
-                        ActivityLog.source == ActivitySource.integration,
-                        ActivityLog.note == sync_note,
+            value_to_add = 1.0
+            if is_daily_streak_style:
+                stale_auto_logs = list(
+                    db.scalars(
+                        select(ActivityLog).where(
+                            ActivityLog.user_id == user.id,
+                            ActivityLog.metric_id == metric.id,
+                            ActivityLog.date == task.date,
+                            ActivityLog.source == ActivitySource.integration,
+                            ActivityLog.note.like(sync_note_prefix),
+                        )
                     )
                 )
-            )
-            if existing_auto_log_ids:
-                continue
+                for log in stale_auto_logs:
+                    db.delete(log)
 
-            value_to_add = 1.0
-            if metric.time_span == MetricTimeSpan.day:
                 current_total_raw = db.scalar(
                     select(func.coalesce(func.sum(ActivityLog.value), 0.0)).where(
                         ActivityLog.user_id == user.id,
@@ -1607,6 +1609,20 @@ def _sync_streak_style_metrics_with_task_status(
                 )
                 current_total = float(current_total_raw or 0.0)
                 value_to_add = max(1.0 - current_total, 0.0)
+            else:
+                existing_auto_log_ids = list(
+                    db.scalars(
+                        select(ActivityLog.id).where(
+                            ActivityLog.user_id == user.id,
+                            ActivityLog.metric_id == metric.id,
+                            ActivityLog.date == task.date,
+                            ActivityLog.source == ActivitySource.integration,
+                            ActivityLog.note == sync_note,
+                        )
+                    )
+                )
+                if existing_auto_log_ids:
+                    continue
 
             if value_to_add <= 0:
                 continue
@@ -1629,7 +1645,11 @@ def _sync_streak_style_metrics_with_task_status(
                         ActivityLog.metric_id == metric.id,
                         ActivityLog.date == task.date,
                         ActivityLog.source == ActivitySource.integration,
-                        ActivityLog.note == sync_note,
+                        (
+                            ActivityLog.note.like(sync_note_prefix)
+                            if is_daily_streak_style
+                            else ActivityLog.note == sync_note
+                        ),
                     )
                 )
             )

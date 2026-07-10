@@ -63,7 +63,7 @@ from app.services import email_notification_service, settings_service
 from app.services.exceptions import AppError
 from app.services.utils import get_owned_or_404
 
-_MAX_GENERATED_TASKS = 100
+_MAX_GENERATED_TASKS = 100 # also update the value in orchestrator.py if you change this
 _MAX_CARRY_FORWARD = 4
 _MAX_TITLE_LENGTH = 255
 _MAX_TASK_DESCRIPTION_LENGTH = 5000

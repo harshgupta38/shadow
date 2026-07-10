@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import datetime
 
-from BackEnd.app.services.plan_service import _MAX_GENERATED_TASKS
 from app.agents.personas import (
     manual_memory_refiner_prompt,
     manual_memory_validator_prompt,
@@ -17,6 +16,9 @@ from app.agents.personas import (
 )
 from app.llm.base import LLMMessage, LLMProvider
 from app.models.enums import AgentType, MemoryCategory
+
+
+_MAX_GENERATED_TASKS = 100 # also update the value in plan_service.py if you change this
 
 
 def _with_context(system: str, user_context: str) -> str:

@@ -216,7 +216,17 @@ def _report_history_date(report: Report, timezone_name: str) -> date:
     # even if generation completes after local midnight.
     if report.source == ReportSource.automatic:
         return _period_history_date(report)
-    return _created_history_date(report.created_at, timezone_name)
+
+    created_date = _created_history_date(report.created_at, timezone_name)
+
+    # Manual daily reports can be generated for a past selected date from the UI.
+    # When that happens, history must be grouped by the selected report date.
+    if report.period == ReportPeriod.daily:
+        period_date = _period_history_date(report)
+        if period_date != created_date:
+            return period_date
+
+    return created_date
 
 
 def _narrative_snippet(text: str | None, *, limit: int = 180) -> str | None:

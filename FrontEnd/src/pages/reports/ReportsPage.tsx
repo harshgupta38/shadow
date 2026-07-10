@@ -30,6 +30,15 @@ const FILTERS: { value: Filter; label: string }[] = [
   { value: "weekly", label: "Weekly" },
 ];
 
+type GenerateMode = ReportPeriod | "custom";
+
+function localDateInputValue(day: Date): string {
+  const year = day.getFullYear();
+  const month = String(day.getMonth() + 1).padStart(2, "0");
+  const date = String(day.getDate()).padStart(2, "0");
+  return `${year}-${month}-${date}`;
+}
+
 function parseFilter(value: string | null): Filter {
   if (value === "daily" || value === "weekly") return value;
   return "all";
@@ -81,8 +90,11 @@ export function ReportsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const filter = parseFilter(searchParams.get("period"));
-  const [genPeriod, setGenPeriod] = useState<ReportPeriod>("daily");
+  const [generateMode, setGenerateMode] = useState<GenerateMode>("daily");
+  const [customDate, setCustomDate] = useState("");
+  const [editingCustomDate, setEditingCustomDate] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const todayInputMax = localDateInputValue(new Date());
 
   const { data, loading, error, reload, setData } = useAsync(
     () => api.reports.history(filter === "all" ? undefined : filter),
@@ -101,10 +113,42 @@ export function ReportsPage() {
   async function generate() {
     setGenerating(true);
     try {
-      const report = await api.reports.generate({ period: genPeriod });
+      let payload: { period: ReportPeriod; on_date?: string } = {
+        period: generateMode === "weekly" ? "weekly" : "daily",
+      };
+
+      if (generateMode === "custom") {
+        if (!customDate) {
+          toast.error("Please select a custom date first.");
+          return;
+        }
+        if (customDate > todayInputMax) {
+          toast.error("Future date is not allowed.");
+          return;
+        }
+
+        const tasksForDate = await api.plan.list(customDate);
+        if (tasksForDate.length === 0) {
+          toast.error("No tasks found for the selected date. Please choose another date.");
+          return;
+        }
+
+        payload = {
+          period: "daily",
+          on_date: customDate,
+        };
+      }
+
+      const report = await api.reports.generate(payload);
       const refreshed = await api.reports.history();
       setData(refreshed);
-      toast.success(`${genPeriod === "weekly" ? "Weekly" : "Daily"} report ready.`);
+      toast.success(
+        generateMode === "weekly"
+          ? "Weekly report ready."
+          : generateMode === "custom"
+            ? "Custom date report ready."
+            : "Daily report ready.",
+      );
 
       const target = refreshed.find((card) => card.latest_report_id === report.id);
       if (target) {
@@ -135,14 +179,23 @@ export function ReportsPage() {
           </div>
           <div className="d-flex align-items-center gap-2">
             <div className="nav-tabs-jv">
-              {(["daily", "weekly"] as ReportPeriod[]).map((period) => (
+              {(["daily", "weekly", "custom"] as GenerateMode[]).map((period) => (
                 <button
                   key={period}
                   type="button"
-                  className={`nav-tab-jv ${genPeriod === period ? "active" : ""}`}
-                  onClick={() => setGenPeriod(period)}
+                  className={`nav-tab-jv ${generateMode === period ? "active" : ""}`}
+                  onClick={() => {
+                    setGenerateMode(period);
+                    if (period === "custom") {
+                      setEditingCustomDate(!customDate);
+                    }
+                  }}
                 >
-                  {period === "daily" ? "Daily" : "Weekly"}
+                  {period === "daily"
+                    ? "Daily"
+                    : period === "weekly"
+                      ? "Weekly"
+                      : customDate ? formatHistoryDate(customDate) : "Custom Date"}
                 </button>
               ))}
             </div>
@@ -152,6 +205,34 @@ export function ReportsPage() {
             </button>
           </div>
         </div>
+        {generateMode === "custom" && (
+          <div className="mt-3">
+            {editingCustomDate || !customDate ? (
+              <div className="d-flex flex-column gap-2" style={{ maxWidth: 260 }}>
+                <input
+                  id="custom-report-date"
+                  type="date"
+                  className="form-control"
+                  value={customDate}
+                  max={todayInputMax}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setCustomDate(value);
+                    if (value) setEditingCustomDate(false);
+                  }}
+                />
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm px-0"
+                onClick={() => setEditingCustomDate(true)}
+              >
+                Generate report for {formatHistoryDate(customDate)}. Click to change date.
+              </button>
+            )}
+          </div>
+        )}
       </SectionCard>
 
       <div className="nav-tabs-jv mb-4">

@@ -919,6 +919,45 @@ def test_automatic_report_history_date_uses_period_date_not_created_at(
     assert version_rows[0]["source"] == "automatic"
 
 
+def test_manual_daily_report_history_date_uses_selected_on_date(
+    client: TestClient,
+    auth_headers: dict,
+) -> None:
+    me = client.get("/api/auth/me", headers=auth_headers)
+    assert me.status_code == 200
+    user_id = int(me.json()["id"])
+
+    target_date = date.today() - timedelta(days=1)
+
+    with SessionLocal() as db:
+        user = db.get(User, user_id)
+        assert user is not None
+
+        report_service.generate_report(
+            db,
+            user,
+            get_llm_provider(),
+            period=ReportPeriod.daily,
+            on_date=target_date,
+            source=ReportSource.manual,
+        )
+
+    history = client.get("/api/reports/history", headers=auth_headers)
+    assert history.status_code == 200
+    history_rows = history.json()
+    assert len(history_rows) == 1
+    assert history_rows[0]["history_date"] == target_date.isoformat()
+
+    versions = client.get(
+        f"/api/reports/history/{target_date.isoformat()}",
+        headers=auth_headers,
+    )
+    assert versions.status_code == 200
+    version_rows = versions.json()
+    assert len(version_rows) == 1
+    assert version_rows[0]["source"] == "manual"
+
+
 def test_delete_report_version_removes_only_selected_version(
     client: TestClient, auth_headers: dict
 ) -> None:

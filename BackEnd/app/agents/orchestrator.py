@@ -784,8 +784,8 @@ def generate_report_narrative(
         ],
         system=system,
         temperature=0.5,
-        max_tokens=narrative_max_tokens,
-        model=model,
+        # max_tokens=narrative_max_tokens,
+        # model=model, # temporary patch to fix incomplete report generationg issue
     ).strip()
     next_steps = provider.generate(
         [
@@ -797,8 +797,8 @@ def generate_report_narrative(
         ],
         system=system,
         temperature=0.5,
-        max_tokens=next_steps_max_tokens,
-        model=model,
+        # max_tokens=next_steps_max_tokens,
+        # model=model,
     ).strip()
     return narrative, next_steps
 

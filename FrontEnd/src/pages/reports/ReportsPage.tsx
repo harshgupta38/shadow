@@ -170,14 +170,14 @@ export function ReportsPage() {
       />
 
       <SectionCard className="mb-4">
-        <div className="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3">
+        <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
           <div>
             <h2 className="h6 fw-bold mb-1">Generate a report</h2>
             <p className="text-muted-2 small mb-0">
               Create a fresh reflection now. Automatic reports are generated in the background at night.
             </p>
           </div>
-          <div className="d-flex align-items-center gap-2">
+          <div className="d-flex align-items-center gap-2 flex-wrap flex-sm-nowrap">
             <div className="nav-tabs-jv">
               {(["daily", "weekly", "custom"] as GenerateMode[]).map((period) => (
                 <button
@@ -195,7 +195,7 @@ export function ReportsPage() {
                     ? "Daily"
                     : period === "weekly"
                       ? "Weekly"
-                      : customDate ? formatHistoryDate(customDate) : "Custom Date"}
+                      : customDate ? formatHistoryDate(customDate) : "Custom"}
                 </button>
               ))}
             </div>

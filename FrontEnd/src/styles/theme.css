@@ -911,9 +911,9 @@ a {
 }
 
 /* Goal cards need stronger empty-track contrast so 0% remains visible. */
-.goal-progress-track {
+.goal-progress-track, .report-progress-track {
   background: var(--jv-border);
-  border: 1px solid var(--jv-border-strong);
+  /* border: 1px solid var(--jv-border-strong); */
 }
 
 [data-bs-theme="dark"] .goal-progress-track {
@@ -1699,6 +1699,11 @@ a {
   border-radius: var(--jv-radius-pill);
   border: 1px solid var(--jv-border);
 }
+@media (max-width: 450px) {
+  .nav-tab-jv {
+    padding: 0.4rem 0.75rem !important;
+  }
+}
 .nav-tab-jv {
   padding: 0.4rem 0.95rem;
   border-radius: var(--jv-radius-pill);
@@ -1873,5 +1878,13 @@ a {
 @media (min-width: 992px) {
   .topbar-menu-btn {
     display: none !important;
+  }
+}
+@media (max-width: 450px) {
+  .page-title {
+    font-size: 1.2rem;
+  }
+  .page-subtitle {
+    font-size: 0.775rem;
   }
 }

@@ -35,7 +35,7 @@ export function SectionCard({
       )}
       <div
         className={`${
-          padding ? `px-3 px-sm-4 pb-3 pb-sm-3 pt-1 ${hasHeader ? "" : "pt-sm-4"}` : ""
+          padding ? `px-3 px-sm-4 pb-3 pb-sm-3 pt-3 ${hasHeader ? "" : "pt-sm-4"}` : ""
         } ${bodyClassName}`.trim()}
       >
         {children}

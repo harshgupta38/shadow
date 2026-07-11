@@ -72,7 +72,7 @@ export function ReportDetail({ report }: { report: Report }) {
                         </span>
                       </div>
                       {pct !== null && (
-                        <div className="progress mt-1" style={{ height: 5 }}>
+                        <div className="progress mt-1 report-progress-track" style={{ height: 5 }}>
                           <div className="progress-bar" style={{ width: `${pct}%` }} />
                         </div>
                       )}

@@ -188,22 +188,26 @@ export function ReportViewerPage() {
           </div>
 
           <div className="d-flex align-items-center gap-2 flex-wrap">
-            <button
-              type="button"
-              className="btn btn-outline-secondary"
-              onClick={() => gotoIndex(selectedIndex - 1)}
-              disabled={!canGoPrevious}
-            >
-              <ChevronLeft size={14} className="me-1" /> Previous
-            </button>
-            <button
-              type="button"
-              className="btn btn-outline-secondary"
-              onClick={() => gotoIndex(selectedIndex + 1)}
-              disabled={!canGoNext}
-            >
-              Next <ChevronRight size={14} className="ms-1" />
-            </button>
+            {canGoPrevious && (
+              <button
+                type="button"
+                className="btn btn-outline-secondary"
+                onClick={() => gotoIndex(selectedIndex - 1)}
+                disabled={!canGoPrevious}
+              >
+                <ChevronLeft size={14} className="me-1" /> Previous
+              </button>
+            )}
+            {canGoNext && (
+              <button
+                type="button"
+                className="btn btn-outline-secondary"
+                onClick={() => gotoIndex(selectedIndex + 1)}
+                disabled={!canGoNext}
+              >
+                Next <ChevronRight size={14} className="ms-1" />
+              </button>
+            )}
             <button type="button" className="btn btn-danger" onClick={() => setConfirmDelete(true)}>
               <Trash3 size={14} className="me-1" /> Delete
             </button>

@@ -11,6 +11,7 @@ import { useAsync } from "@/hooks/useAsync";
 import { clampPercent, formatMetricValue } from "@/lib/format";
 import { METRIC_TIME_SPAN_LABEL, METRIC_UNIT_LABEL } from "@/lib/labels";
 import { computeMetricStats } from "@/lib/metrics";
+import { SkeletonLoadingState } from "../ui/SkeletonLoadingState";
 
 interface MetricCardProps {
   metric: TrackedMetric;
@@ -85,140 +86,146 @@ export function MetricCard({ metric, onEdit, onDelete }: MetricCardProps) {
 
   return (
     <div className="surface p-4 h-100 d-flex flex-column">
-      <div className="d-flex align-items-start justify-content-between gap-2 mb-3">
-        <div className="min-w-0">
-          <h3 className="h6 fw-bold mb-1 text-truncate">{metric.label}</h3>
-          <div className="d-flex align-items-center gap-2">
-            {(isStreakMetric || stats.streak > 0) && (
-              <Pill variant={stats.streak > 0 ? "warn" : "muted"}>
-                <Fire size={12} /> {stats.streak} {streakUnitLabel}{stats.streak > 1 ? "s" : ""} streak
-              </Pill>
-            )}
-            {isHabitLinkedMetric && (
-              <Pill
-                variant="info"
-                title="This metric is linked to your habit flow and updates automatically."
-              >
-                Automatic
-              </Pill>
-            )}
-          </div>
-        </div>
-        <Dropdown align="end">
-          <Dropdown.Toggle
-            as="button"
-            className="btn btn-ghost btn-icon border-0"
-            style={{ width: 34, height: 34 }}
-          >
-            <ThreeDotsVertical size={16} />
-          </Dropdown.Toggle>
-          <Dropdown.Menu>
-            <Dropdown.Item onClick={() => onEdit(metric)}>
-              <PencilSquare size={14} className="me-2" /> Edit
-            </Dropdown.Item>
-            <Dropdown.Item className="text-danger" onClick={() => onDelete(metric)}>
-              <Trash3 size={14} className="me-2" /> Delete
-            </Dropdown.Item>
-          </Dropdown.Menu>
-        </Dropdown>
-      </div>
+      {loading && <SkeletonLoadingState for={"metricCard"} />}
 
-      <div className="d-flex align-items-center gap-3 mb-3">
-        <div className="flex-grow-1">
-          <div
-            className={[
-              "stat-value",
-              isStreakStatusCard && isStreakStatusDone ? "stat-value-done" : "",
-              isStreakStatusDueWithZeroStreak ? "stat-value-due-zero-streak" : "",
-            ].filter(Boolean).join(" ")}
-          >
-            {primaryDisplayValue}
-          </div>
-          <div className="stat-label">
-            {primaryLabel}
-            {metric.target != null && (
-              <>
-                {" "}· target {formatMetricValue(metric.target, metric.unit, metric.unit_text)} / {timeSpanLabel}
-              </>
-            )}
-          </div>
-        </div>
-        {targetPct !== null ? (
-          <ProgressRing value={targetPct} size={62} stroke={7} />
-        ) : (
-          <div className="text-end">
-            <div className="fw-bold">{formatMetricValue(stats.weekTotal, metric.unit, metric.unit_text)}</div>
-            <div className="text-faint small">this week</div>
-          </div>
-        )}
-      </div>
-
-      <div>
-        <Sparkbar values={loading ? [0, 0, 0, 0, 0, 0, 0] : stats.spark} />
-        <div className="d-flex justify-content-between text-faint mt-1" style={{ fontSize: "0.68rem" }}>
-          <span>7 days ago</span>
-          <span>Today</span>
-        </div>
-      </div>
-
-      {/* Quick log */}
-      {!isHabitLinkedMetric && (
-      <div className="mt-3">
-          <>
-            <div className="d-flex gap-2">
-              <input
-                className="form-control"
-                type="number"
-                min={0}
-                step="any"
-                placeholder={`Add ${metric.unit === "minutes" ? "minutes" : unitLabel.toLowerCase() || "value"}…`}
-                value={value}
-                onChange={(e) => setValue(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    void log(Number(value), note);
-                  }
-                }}
-              />
-              {(metric.unit === "count" || metric.unit === "custom") && (
-                <button
-                  type="button"
-                  className="btn btn-outline-secondary flex-shrink-0"
-                  title="Add one"
-                  onClick={() => log(1)}
-                  disabled={logging}
-                >
-                  <PlusLg size={16} /> 1
-                </button>
-              )}
-              <button
-                type="button"
-                className="btn btn-brand flex-shrink-0"
-                onClick={() => log(Number(value), note)}
-                disabled={logging || value.trim() === ""}
-              >
-                Log
-              </button>
+      {!loading && (
+        <div>
+          <div className="d-flex align-items-start justify-content-between gap-2 mb-3">
+            <div className="min-w-0">
+              <h3 className="h6 fw-bold mb-1 text-truncate">{metric.label}</h3>
+              <div className="d-flex align-items-center gap-2">
+                {(isStreakMetric || stats.streak > 0) && (
+                  <Pill variant={stats.streak > 0 ? "warn" : "muted"}>
+                    <Fire size={12} /> {stats.streak} {streakUnitLabel}{stats.streak > 1 ? "s" : ""} streak
+                  </Pill>
+                )}
+                {isHabitLinkedMetric && (
+                  <Pill
+                    variant="info"
+                    title="This metric is linked to your habit flow and updates automatically."
+                  >
+                    Automatic
+                  </Pill>
+                )}
+              </div>
             </div>
-            {showNote ? (
-              <input
-                className="form-control mt-2"
-                placeholder="Optional note…"
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-              />
-            ) : (
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm mt-1 px-1 text-faint"
-                onClick={() => setShowNote(true)}
+            <Dropdown align="end">
+              <Dropdown.Toggle
+                as="button"
+                className="btn btn-ghost btn-icon border-0"
+                style={{ width: 34, height: 34 }}
               >
-                + Add a note
-              </button>
+                <ThreeDotsVertical size={16} />
+              </Dropdown.Toggle>
+              <Dropdown.Menu>
+                <Dropdown.Item onClick={() => onEdit(metric)}>
+                  <PencilSquare size={14} className="me-2" /> Edit
+                </Dropdown.Item>
+                <Dropdown.Item className="text-danger" onClick={() => onDelete(metric)}>
+                  <Trash3 size={14} className="me-2" /> Delete
+                </Dropdown.Item>
+              </Dropdown.Menu>
+            </Dropdown>
+          </div>
+
+          <div className="d-flex align-items-center gap-3 mb-3">
+            <div className="flex-grow-1">
+              <div
+                className={[
+                  "stat-value",
+                  isStreakStatusCard && isStreakStatusDone ? "stat-value-done" : "",
+                  isStreakStatusDueWithZeroStreak ? "stat-value-due-zero-streak" : "",
+                ].filter(Boolean).join(" ")}
+              >
+                {primaryDisplayValue}
+              </div>
+              <div className="stat-label">
+                {primaryLabel}
+                {metric.target != null && (
+                  <>
+                    {" "}· target {formatMetricValue(metric.target, metric.unit, metric.unit_text)} / {timeSpanLabel}
+                  </>
+                )}
+              </div>
+            </div>
+            {targetPct !== null ? (
+              <ProgressRing value={targetPct} size={62} stroke={7} />
+            ) : (
+              <div className="text-end">
+                <div className="fw-bold">{formatMetricValue(stats.weekTotal, metric.unit, metric.unit_text)}</div>
+                <div className="text-faint small">this week</div>
+              </div>
             )}
-          </>
-      </div>
+          </div>
+
+          <div>
+            <Sparkbar values={loading ? [0, 0, 0, 0, 0, 0, 0] : stats.spark} />
+            <div className="d-flex justify-content-between text-faint mt-1" style={{ fontSize: "0.68rem" }}>
+              <span>7 days ago</span>
+              <span>Today</span>
+            </div>
+          </div>
+
+          {/* Quick log */}
+          {!isHabitLinkedMetric && (
+            <div className="mt-3">
+              <>
+                <div className="d-flex gap-2">
+                  <input
+                    className="form-control"
+                    type="number"
+                    min={0}
+                    step="any"
+                    placeholder={`Add ${metric.unit === "minutes" ? "minutes" : unitLabel.toLowerCase() || "value"}…`}
+                    value={value}
+                    onChange={(e) => setValue(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        void log(Number(value), note);
+                      }
+                    }}
+                  />
+                  {(metric.unit === "count" || metric.unit === "custom") && (
+                    <button
+                      type="button"
+                      className="btn btn-outline-secondary flex-shrink-0"
+                      title="Add one"
+                      onClick={() => log(1)}
+                      disabled={logging}
+                    >
+                      <PlusLg size={16} /> 1
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="btn btn-brand flex-shrink-0"
+                    onClick={() => log(Number(value), note)}
+                    disabled={logging || value.trim() === ""}
+                  >
+                    Log
+                  </button>
+                </div>
+                {showNote ? (
+                  <input
+                    className="form-control mt-2"
+                    placeholder="Optional note…"
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm mt-1 px-1 text-faint"
+                    onClick={() => setShowNote(true)}
+                  >
+                    + Add a note
+                  </button>
+                )}
+              </>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

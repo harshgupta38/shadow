@@ -55,7 +55,7 @@ def generate_onboarding_understanding(
         [LLMMessage("user", prompt)],
         system=system,
         temperature=0.4,
-        model=model,
+        # model=model,
     ).strip()
 
 
@@ -105,8 +105,8 @@ def generate_manual_memory_understanding(
         [LLMMessage("user", prompt)],
         system=system,
         temperature=0.1,
-        max_tokens=900,
-        model=model,
+        # max_tokens=900,
+        # model=model,
     ).strip()
 
 
@@ -133,8 +133,8 @@ def validate_manual_memory_understanding(
         [LLMMessage("user", prompt)],
         system=manual_memory_validator_prompt(),
         temperature=0,
-        max_tokens=240,
-        model=model,
+        # max_tokens=240,
+        # model=model,
     ).strip()
 
     normalized = verdict.strip()
@@ -195,8 +195,8 @@ def generate_chat_title(
         [*recent_history, LLMMessage("user", prompt)],
         system=system,
         temperature=0.2,
-        max_tokens=24,
-        model=model,
+        # max_tokens=24,
+        # model=model,
     ).strip()
 
 
@@ -243,8 +243,8 @@ def propose_chat_actions(
         [*recent_history, LLMMessage("user", prompt)],
         system=system,
         temperature=0.1,
-        max_tokens=max_tokens if max_tokens is not None else 420,
-        model=model,
+        # max_tokens=max_tokens if max_tokens is not None else 420,
+        # model=model,
     ).strip()
 
 
@@ -265,7 +265,7 @@ def suggest_goal_title(
         [LLMMessage("user", prompt)],
         system=system,
         temperature=0.8,
-        model=model,
+        # model=model,
     ).strip()
 
 
@@ -289,7 +289,7 @@ def suggest_milestones(
         [LLMMessage("user", prompt)],
         system=system,
         temperature=0.6,
-        model=model,
+        # model=model,
     )
     lines = [line.strip(" -•\t") for line in text.splitlines()]
     return [line for line in lines if line][:count]
@@ -321,8 +321,8 @@ def generate_goal_draft_from_prompt(
         [LLMMessage("user", prompt)],
         system=system,
         temperature=0.2,
-        max_tokens=260,
-        model=model,
+        # max_tokens=260,
+        # model=model,
     ).strip()
 
 
@@ -356,8 +356,8 @@ def repair_goal_draft_json(
         [LLMMessage("user", prompt)],
         system=system,
         temperature=0,
-        max_tokens=260,
-        model=model,
+        # max_tokens=260,
+        # model=model,
     ).strip()
 
 
@@ -389,8 +389,8 @@ def generate_metric_draft_from_prompt(
         [LLMMessage("user", prompt)],
         system=system,
         temperature=0.2,
-        max_tokens=300,
-        model=model,
+        # max_tokens=300,
+        # model=model,
     ).strip()
 
 
@@ -425,8 +425,8 @@ def repair_metric_draft_json(
         [LLMMessage("user", prompt)],
         system=system,
         temperature=0,
-        max_tokens=300,
-        model=model,
+        # max_tokens=300,
+        # model=model,
     ).strip()
 
 
@@ -466,8 +466,8 @@ def generate_schedule_task_draft_json(
         [LLMMessage("user", prompt)],
         system=system,
         temperature=0.15,
-        max_tokens=360,
-        model=model,
+        # max_tokens=360,
+        # model=model,
     ).strip()
 
 
@@ -507,8 +507,8 @@ def repair_schedule_task_draft_json(
         [LLMMessage("user", prompt)],
         system=system,
         temperature=0,
-        max_tokens=360,
-        model=model,
+        # max_tokens=360,
+        # model=model,
     ).strip()
 
 
@@ -559,8 +559,8 @@ def generate_today_plan_json(
         [LLMMessage("user", prompt)],
         system=system,
         temperature=0.2,
-        max_tokens=980,
-        model=model,
+        # max_tokens=980,
+        # model=model,
     ).strip()
 
 
@@ -615,8 +615,8 @@ def repair_today_plan_json(
         [LLMMessage("user", prompt)],
         system=system,
         temperature=0,
-        max_tokens=980,
-        model=model,
+        # max_tokens=980,
+        # model=model,
     ).strip()
 
 
@@ -650,8 +650,8 @@ def estimate_today_task_durations_json(
         [LLMMessage("user", prompt)],
         system=system,
         temperature=0.1,
-        max_tokens=420,
-        model=model,
+        # max_tokens=420,
+        # model=model,
     ).strip()
 
 
@@ -689,8 +689,8 @@ def repair_today_task_durations_json(
         [LLMMessage("user", prompt)],
         system=system,
         temperature=0,
-        max_tokens=420,
-        model=model,
+        # max_tokens=420,
+        # model=model,
     ).strip()
 
 
@@ -725,8 +725,8 @@ def recommend_progress_metric_json(
         [LLMMessage("user", prompt)],
         system=system,
         temperature=0.1,
-        max_tokens=1200,
-        model=model,
+        # max_tokens=1200,
+        # model=model,
     ).strip()
 
 
@@ -758,8 +758,8 @@ def repair_progress_metric_json(
         [LLMMessage("user", prompt)],
         system=system,
         temperature=0,
-        max_tokens=1200,
-        model=model,
+        # max_tokens=1200,
+        # model=model,
     ).strip()
 
 
@@ -825,7 +825,7 @@ def distill_behavior_signal(
         [LLMMessage("user", prompt)],
         system=system,
         temperature=0.3,
-        model=model,
+        # model=model,
     ).strip()
 
 
@@ -855,8 +855,8 @@ def generate_journal_reflection(
         [LLMMessage("user", prompt)],
         system=system,
         temperature=0.45,
-        max_tokens=320,
-        model=model,
+        # max_tokens=320,
+        # model=model,
     ).strip()
 
 
@@ -889,8 +889,8 @@ def generate_journal_goal_alignment(
         [LLMMessage("user", prompt)],
         system=system,
         temperature=0.3,
-        max_tokens=260,
-        model=model,
+        # max_tokens=260,
+        # model=model,
     ).strip()
 
 
@@ -919,6 +919,6 @@ def extract_journal_memory_insights(
         [LLMMessage("user", prompt)],
         system=system,
         temperature=0.2,
-        max_tokens=420,
-        model=model,
+        # max_tokens=420,
+        # model=model,
     ).strip()

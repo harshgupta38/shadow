@@ -1,0 +1,174 @@
+﻿FrontEnd
+|-- .pytest_cache
+|   |-- v
+|   |   |-- cache
+|   |   |   |-- nodeids
+|   |-- .gitignore
+|   |-- CACHEDIR.TAG
+|   |-- README.md
+|-- public
+|   |-- favicon.svg
+|   |-- manifest.webmanifest
+|   |-- sw.js
+|-- src
+|   |-- api
+|   |   |-- auth.ts
+|   |   |-- chat.ts
+|   |   |-- client.test.ts
+|   |   |-- client.ts
+|   |   |-- dashboard.ts
+|   |   |-- goals.ts
+|   |   |-- index.ts
+|   |   |-- journal.ts
+|   |   |-- metrics.ts
+|   |   |-- notifications.ts
+|   |   |-- onboarding.ts
+|   |   |-- plan.ts
+|   |   |-- profile.ts
+|   |   |-- repetitiveTasks.ts
+|   |   |-- reports.ts
+|   |   |-- settings.ts
+|   |   |-- types.ts
+|   |-- app
+|   |   |-- auth
+|   |   |-- core
+|   |   |-- layout
+|   |   |-- pages
+|   |-- components
+|   |   |-- chat
+|   |   |   |-- AgentAvatar.tsx
+|   |   |   |-- MarkdownMessage.test.tsx
+|   |   |   |-- MarkdownMessage.tsx
+|   |   |-- goals
+|   |   |   |-- GoalCard.tsx
+|   |   |   |-- GoalFormModal.test.tsx
+|   |   |   |-- GoalFormModal.tsx
+|   |   |   |-- MilestoneEditModal.tsx
+|   |   |-- layout
+|   |   |   |-- AppLayout.tsx
+|   |   |   |-- AuthLayout.tsx
+|   |   |   |-- NotificationsBell.test.tsx
+|   |   |   |-- NotificationsBell.tsx
+|   |   |   |-- Sidebar.tsx
+|   |   |   |-- Topbar.tsx
+|   |   |-- metrics
+|   |   |   |-- MetricCard.tsx
+|   |   |   |-- MetricFormModal.tsx
+|   |   |-- plan
+|   |   |   |-- ScheduleTaskModal.test.tsx
+|   |   |   |-- ScheduleTaskModal.tsx
+|   |   |-- reports
+|   |   |   |-- ReportDetail.tsx
+|   |   |-- routing
+|   |   |   |-- Guards.test.tsx
+|   |   |   |-- Guards.tsx
+|   |   |-- tasks
+|   |   |   |-- TaskItem.tsx
+|   |   |-- ui
+|   |   |   |-- Avatar.tsx
+|   |   |   |-- Brand.tsx
+|   |   |   |-- ConfirmDialog.tsx
+|   |   |   |-- EmptyState.tsx
+|   |   |   |-- LoadingState.tsx
+|   |   |   |-- PageHeader.tsx
+|   |   |   |-- Pill.tsx
+|   |   |   |-- ProgressRing.test.tsx
+|   |   |   |-- ProgressRing.tsx
+|   |   |   |-- SectionCard.tsx
+|   |   |   |-- SkeletonLoadingState.tsx
+|   |   |   |-- Sparkbar.tsx
+|   |   |   |-- StatCard.tsx
+|   |   |   |-- TextField.tsx
+|   |   |   |-- ThemeToggle.test.tsx
+|   |   |   |-- ThemeToggle.tsx
+|   |-- context
+|   |   |-- AppProviders.tsx
+|   |   |-- AuthContext.test.tsx
+|   |   |-- AuthContext.tsx
+|   |   |-- LogoutConfirmContext.tsx
+|   |   |-- RuntimeSettingsContext.tsx
+|   |   |-- ThemeContext.test.tsx
+|   |   |-- ThemeContext.tsx
+|   |   |-- ToastContext.tsx
+|   |-- environments
+|   |-- hooks
+|   |   |-- useAsync.ts
+|   |-- lib
+|   |   |-- agents.tsx
+|   |   |-- format.test.ts
+|   |   |-- format.ts
+|   |   |-- labels.ts
+|   |   |-- metrics.test.ts
+|   |   |-- metrics.ts
+|   |   |-- nav.tsx
+|   |-- pages
+|   |   |-- auth
+|   |   |   |-- LoginPage.test.tsx
+|   |   |   |-- LoginPage.tsx
+|   |   |   |-- RegisterPage.tsx
+|   |   |   |-- VerifyEmailPage.tsx
+|   |   |-- automation
+|   |   |   |-- AutomationPage.test.tsx
+|   |   |   |-- AutomationPage.tsx
+|   |   |-- chat
+|   |   |   |-- ChatPage.test.tsx
+|   |   |   |-- ChatPage.tsx
+|   |   |-- dashboard
+|   |   |   |-- DashboardPage.tsx
+|   |   |-- goals
+|   |   |   |-- GoalDetailPage.tsx
+|   |   |   |-- GoalsPage.test.tsx
+|   |   |   |-- GoalsPage.tsx
+|   |   |-- journal
+|   |   |   |-- JournalPage.tsx
+|   |   |-- notifications
+|   |   |   |-- NotificationsPage.tsx
+|   |   |-- onboarding
+|   |   |   |-- OnboardingPage.tsx
+|   |   |-- plan
+|   |   |   |-- PlanPage.test.tsx
+|   |   |   |-- PlanPage.tsx
+|   |   |-- profile
+|   |   |   |-- MemoryCenterPage.tsx
+|   |   |   |-- ProfilePage.tsx
+|   |   |-- repetitiveTasks
+|   |   |   |-- RepetitiveTasksPage.test.tsx
+|   |   |   |-- RepetitiveTasksPage.tsx
+|   |   |-- reports
+|   |   |   |-- ReportsPage.test.tsx
+|   |   |   |-- ReportsPage.tsx
+|   |   |   |-- ReportViewerPage.test.tsx
+|   |   |   |-- ReportViewerPage.tsx
+|   |   |-- schedule
+|   |   |   |-- SchedulePage.test.tsx
+|   |   |   |-- SchedulePage.tsx
+|   |   |-- settings
+|   |   |   |-- EmailNotificationControlsPage.test.tsx
+|   |   |   |-- EmailNotificationControlsPage.tsx
+|   |   |   |-- SettingsPage.test.tsx
+|   |   |   |-- SettingsPage.tsx
+|   |   |-- track
+|   |   |   |-- TrackPage.test.tsx
+|   |   |   |-- TrackPage.tsx
+|   |   |-- NotFoundPage.tsx
+|   |-- styles
+|   |   |-- theme.css
+|   |-- test
+|   |   |-- setup.ts
+|   |-- App.tsx
+|   |-- main.tsx
+|   |-- vite-env.d.ts
+|-- .env
+|-- .env.example
+|-- .firebaserc
+|-- .gitignore
+|-- firebase.json
+|-- index.html
+|-- package.json
+|-- README.md
+|-- tree.ps1
+|-- tsconfig.app.json
+|-- tsconfig.json
+|-- tsconfig.node.json
+|-- tsconfig.vitest.json
+|-- vite.config.ts

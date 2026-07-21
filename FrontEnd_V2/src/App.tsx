@@ -1,8 +1,7 @@
-export default function App() {
+import { AppRoutes } from "./routes/AppRoutes";
 
-  return (
-    <>
-      Hello Harsh
-    </>
-  );
+function App() {
+  return <AppRoutes />;
 }
+
+export default App;

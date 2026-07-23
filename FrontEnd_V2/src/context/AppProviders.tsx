@@ -1,12 +1,7 @@
-import type { ReactNode } from "react";
-
 import { AuthProvider } from "./AuthContext";
+import { ChildProps } from "@/api";
 
-interface AppProvidersProps {
-  children: ReactNode;
-}
-
-export function AppProviders({ children }: AppProvidersProps) {
+export function AppProviders({ children }: ChildProps) {
   return (
     <AuthProvider>
       {children}

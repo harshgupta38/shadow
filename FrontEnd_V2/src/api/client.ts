@@ -9,6 +9,7 @@
  * modules in `src/api/*` which use this client.
  */
 import axios, { AxiosError, AxiosInstance } from "axios";
+import { ApiErrorShape } from "./types";
 
 const TOKEN_STORAGE_KEY = "shadow.token";
 
@@ -33,7 +34,7 @@ function createClient(): AxiosInstance {
         (response) => response,
         (error: AxiosError) => {
             if (error.response?.status === 401) {
-                // emitUnauthorized();
+                // emitUnauthorized(); // TODO
             }
             return Promise.reject(error);
         },
@@ -102,3 +103,24 @@ export const tokenStore = {
         }
     },
 };
+
+/**
+ * Standard error object used throughout the application.
+ *
+ * Converts low-level Axios and backend errors into a consistent,
+ * user-friendly format that the UI can safely consume.
+ *
+ * Every API request throws an `ApiError`, allowing pages to handle
+ * errors without knowing about Axios or backend response formats.
+ */
+export class ApiError extends Error implements ApiErrorShape {
+    status?: number;
+    fieldErrors?: Record<string, string>;
+
+    constructor(shape: ApiErrorShape) {
+        super(shape.message);
+        this.name = "ApiError";
+        this.status = shape.status;
+        this.fieldErrors = shape.fieldErrors;
+    }
+}

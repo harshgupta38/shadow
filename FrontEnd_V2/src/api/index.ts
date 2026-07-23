@@ -8,9 +8,11 @@ export * from "./types";
 export { tokenStore } from "./client";
 
 import { authApi } from "./auth";
+import { appearanceApi } from "./appearance";
 
 export const api = {
   auth: authApi,
+  theme: appearanceApi
 };
 
 export type Api = typeof api;

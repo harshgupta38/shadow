@@ -8,7 +8,7 @@
  * Components never import axios directly — they go through the typed endpoint
  * modules in `src/api/*` which use this client.
  */
-import axios, { AxiosError, AxiosInstance } from "axios";
+import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from "axios";
 import { ApiErrorShape } from "./types";
 
 const TOKEN_STORAGE_KEY = "shadow.token";
@@ -53,8 +53,11 @@ const httpClient = createClient();
  * Plain HTTP client for making API requests to any third party server
  */
 export const http = {
-    async get<T>(url: string): Promise<T> {
-        const response = await httpClient.get<T>(url);
+    async get<T>(
+        url: string,
+        config?: AxiosRequestConfig
+    ): Promise<T> {
+        const response = await httpClient.get<T>(url, config);
         return response.data;
     },
     async post<T>(url: string, body?: unknown): Promise<T> {

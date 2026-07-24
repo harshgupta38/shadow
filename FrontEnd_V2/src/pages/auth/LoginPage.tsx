@@ -5,6 +5,7 @@ import { Calendar3, EnvelopeFill, Eye, EyeSlash, LockFill, Stars } from "react-b
 import { ApiError } from "@/api/client";
 import { AuthLayout } from "@/components/layout/AuthLayout";
 import { useAuth } from "@/context/AuthContext";
+import { TextField } from "@/components/ui/TextField";
 import { ROUTES } from "@/routes/RoutePaths";
 
 export function LoginPage() {
@@ -42,6 +43,21 @@ export function LoginPage() {
         }
     }
 
+    function clearFieldError(field: keyof typeof fieldErrors) {
+        setFieldErrors((current) => {
+            if (!current[field])
+                return current;
+
+            const next = { ...current };
+            delete next[field];
+
+            const remainingErrors = Object.values(next);
+            setError(remainingErrors.length > 0 ? remainingErrors[0] : null);
+
+            return next;
+        });
+    }
+
     return (
         <AuthLayout>
             <div className="login-mobile-hero d-md-none">
@@ -73,7 +89,7 @@ export function LoginPage() {
             )}
 
             <form onSubmit={handleSubmit} noValidate>
-                {/* <TextField
+                <TextField
                     label="Email"
                     name="email"
                     type="email"
@@ -82,6 +98,7 @@ export function LoginPage() {
                     icon={<EnvelopeFill size={15} />}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    onClearError={() => clearFieldError("email")}
                     error={fieldErrors.email}
                     required
                     autoFocus
@@ -95,12 +112,13 @@ export function LoginPage() {
                     icon={<LockFill size={15} />}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    onClearError={() => clearFieldError("password")}
                     error={fieldErrors.password}
                     required
                     trailing={
                         <button
                             type="button"
-                            className="btn btn-ghost btn-icon"
+                            className={`btn btn-ghost btn-icon ${fieldErrors.password ? "me-4" : ""}`}
                             style={{ width: 34, height: 34 }}
                             onClick={() => setShowPassword((v) => !v)}
                             aria-label={showPassword ? "Hide password" : "Show password"}
@@ -109,7 +127,7 @@ export function LoginPage() {
                             {showPassword ? <EyeSlash size={16} /> : <Eye size={16} />}
                         </button>
                     }
-                /> */}
+                />
 
                 <div className="text-end d-md-none mb-2">
                     <a href="#" className="small fw-semibold">

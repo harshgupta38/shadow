@@ -36,7 +36,7 @@ function createClient(): AxiosInstance {
             if (error.response?.status === 401) {
                 // emitUnauthorized(); // TODO
             }
-            return Promise.reject(error);
+            return Promise.reject(normaliseError(error));
         },
     );
 
@@ -126,4 +126,38 @@ export class ApiError extends Error implements ApiErrorShape {
         this.status = shape.status;
         this.fieldErrors = shape.fieldErrors;
     }
+}
+
+/** Convert an unknown thrown value into a friendly `ApiError`. */
+function normaliseError(error: unknown): ApiError {
+    if (error instanceof ApiError) return error;
+
+    const axiosError = error as AxiosError<unknown>;
+    if (!axiosError?.isAxiosError) 
+        return new ApiError({ message: "Something went wrong. Please try again." });
+
+    const status = axiosError.response?.status;
+    const data = axiosError.response?.data as
+        | { detail?: unknown }
+        | undefined;
+
+    // FastAPI validation errors → { detail: [{ loc, msg, type }] }
+    if (Array.isArray(data?.detail)) {
+        const fieldErrors: Record<string, string> = {};
+        let firstMsg = "Please check the highlighted fields.";
+        for (const item of data.detail as Array<{ loc?: unknown[]; msg?: string }>) {
+            const field = Array.isArray(item.loc) ? String(item.loc[item.loc.length - 1]) : "";
+            const msg = item.msg ?? "Invalid value";
+            if (field) fieldErrors[field] = msg;
+            if (firstMsg === "Please check the highlighted fields.") firstMsg = msg;
+        }
+        return new ApiError({ message: firstMsg, status, fieldErrors });
+    }
+
+    // Service errors → { detail: "message" }
+    if (typeof data?.detail === "string") 
+        return new ApiError({ message: data.detail, status });
+
+    const fallback = status && status >= 500 ? "The server ran into a problem. Please try again shortly." : "Request failed. Please try again.";
+    return new ApiError({ message: fallback, status });
 }

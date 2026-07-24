@@ -1,7 +1,7 @@
 import { Route, Routes } from "react-router-dom";
 
 // Guards
-import { RequireAuth } from "./Guards";
+import { PublicOnly, RequireAuth } from "./Guards";
 
 // Route paths
 import { ROUTES } from "./RoutePaths";
@@ -15,8 +15,10 @@ import { NotFoundPage } from "@/pages/NotFoundPage";
 export function AppRoutes() {
 	return (
 		<Routes>
-			<Route path={ROUTES.LOGIN} element={<LoginPage />} />
-			<Route path={ROUTES.REGISTER} element={<RegisterPage />} />
+			<Route element={<PublicOnly />}>
+				<Route path={ROUTES.LOGIN} element={<LoginPage />} />
+				<Route path={ROUTES.REGISTER} element={<RegisterPage />} />
+			</Route>
 
 			<Route element={<RequireAuth />}>
 				<Route path={ROUTES.DASHBOARD} element={<DashboardPage />} />

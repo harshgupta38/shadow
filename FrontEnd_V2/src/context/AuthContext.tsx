@@ -72,11 +72,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const value = useMemo<AuthContextValue>(
         () => ({
-            user,
-            status,
+            user, // provides the current user object (or null if not logged in)
+            status, // provides the current authentication status ("loading", "authenticated", or "unauthenticated")
             isAuthenticated: status === "authenticated" && !!user,
-            login,
-            logout,
+            login, // login user, which updates the user state and authentication status
+            logout, // logout user, which clears the user state and sets the authentication status to "unauthenticated"
         }),
         [user, status, login, logout], // We declare that when these three items update, create a new object
     );

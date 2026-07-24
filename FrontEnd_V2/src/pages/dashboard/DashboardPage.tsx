@@ -1,3 +1,7 @@
+import { useAuth } from "@/context/AuthContext";
+
 export function DashboardPage() {
-  return <h1>Dashboard</h1>;
+  const {logout} = useAuth();
+
+  return <h1 onClick={logout}>Dashboard</h1>;
 }

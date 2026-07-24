@@ -2,6 +2,8 @@ export interface User {
   id: number;
   name: string;
   email: string;
+
+  onboarding_completed: boolean;
 }
 
 export interface LoginRequest {
@@ -15,7 +17,7 @@ export interface Token {
 }
 
 export interface ChildProps {
-  children: React.ReactNode;
+  children?: React.ReactNode;
 }
 
 export interface ApiErrorShape {

@@ -25,9 +25,3 @@ class User(Base):
         String(255),
         nullable=False,
     )
-
-    timezone: Mapped[str] = mapped_column(
-        String(64),
-        default="Asia/Kolkata",
-        nullable=False,
-    )

@@ -1,7 +1,8 @@
 export const ENDPOINTS = {
     AUTH: {
         LOGIN: "/auth/login",
-        ME: "/auth/me",
+        REGISTER: "/auth/register",
+        USER_DATA: "/auth/me",
     },
     // DEMO: {
     //     DETAIL: (id: string) => `/demo/${id}`,

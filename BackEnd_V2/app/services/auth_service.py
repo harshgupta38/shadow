@@ -27,10 +27,10 @@ def login_user(
     user = _get_user_by_email(db, email)
 
     if user is None:
-        raise AuthError("Invalid email or password.")
+        raise AuthError()
 
     if not security.verify_password(password, user.hashed_password):
-        raise Exception("Invalid email or password.")
+        raise AuthError()
 
     return user
 

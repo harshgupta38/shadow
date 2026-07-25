@@ -11,9 +11,7 @@ export interface LoginRequest {
   password: string;
 }
 
-export interface RegisterRequest {
-  email: string;
-  password: string;
+export interface RegisterRequest extends LoginRequest {
   name: string;
 }
 
@@ -30,6 +28,11 @@ export interface ApiErrorShape {
   message: string;
   status?: number;
   fieldErrors?: Record<string, string>;
+}
+
+export interface FieldError {
+  message?: string;
+  errors?: Record<string, string>;
 }
 
 export type ThemePreference = "browser" | "dynamic" | "light" | "dark";

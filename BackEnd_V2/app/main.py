@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
 
 from app.api.router import api_router
 from app.core.config import settings
@@ -41,6 +42,30 @@ app.add_middleware(
 @app.exception_handler(AppError)
 async def handle_app_error(_request: Request, exc: AppError) -> JSONResponse:
     return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+
+
+@app.exception_handler(RequestValidationError)
+async def handle_validation_error(
+    _request: Request, exc: RequestValidationError
+) -> JSONResponse:
+    errors: dict[str, str] = {}
+
+    for error in exc.errors():
+        field = str(error["loc"][-1])
+        message = error["msg"]
+
+        if message.startswith("Value error, "):
+            message = message.removeprefix("Value error, ")
+
+        errors[field] = message
+
+    return JSONResponse(
+        status_code=400,
+        content={
+            "message": "Please correct the highlighted fields.",
+            "errors": errors,
+        },
+    )
 
 
 app.include_router(api_router, prefix=settings.api_prefix)

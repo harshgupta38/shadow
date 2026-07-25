@@ -9,7 +9,7 @@
  * modules in `src/api/*` which use this client.
  */
 import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from "axios";
-import { ApiErrorShape } from "./types";
+import { ApiErrorShape, FieldError } from "./types";
 
 const TOKEN_STORAGE_KEY = "shadow.token";
 
@@ -134,26 +134,15 @@ function normaliseError(error: unknown): ApiError {
         return new ApiError({ message: "Something went wrong. Please try again." });
 
     const status = axiosError.response?.status;
-    const data = axiosError.response?.data as
-        | { detail?: unknown }
-        | undefined;
+    const data = axiosError.response?.data as FieldError | undefined;
 
-    // FastAPI validation errors → { detail: [{ loc, msg, type }] }
-    if (Array.isArray(data?.detail)) {
-        const fieldErrors: Record<string, string> = {};
-        let firstMsg = "Please check the highlighted fields.";
-        for (const item of data.detail as Array<{ loc?: unknown[]; msg?: string }>) {
-            const field = Array.isArray(item.loc) ? String(item.loc[item.loc.length - 1]) : "";
-            const msg = item.msg ?? "Invalid value";
-            if (field) fieldErrors[field] = msg;
-            if (firstMsg === "Please check the highlighted fields.") firstMsg = msg;
-        }
-        return new ApiError({ message: firstMsg, status, fieldErrors });
+    if (typeof data?.message === "string") {
+        return new ApiError({
+            message: data.message,
+            status,
+            fieldErrors: data.errors,
+        });
     }
-
-    // Service errors → { detail: "message" }
-    if (typeof data?.detail === "string")
-        return new ApiError({ message: data.detail, status });
 
     const fallback = status && status >= 500 ? "The server ran into a problem. Please try again shortly." : "Request failed. Please try again.";
     return new ApiError({ message: fallback, status });

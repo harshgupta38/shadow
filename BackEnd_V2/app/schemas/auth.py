@@ -1,22 +1,22 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, field_validator
 
-
-class LoginRequest(BaseModel):
-    email: EmailStr
-    password: str = Field(min_length=8, max_length=128)
-
+from app.validators.email import validate_email_address
+from app.validators.password import validate_password
+from app.validators.name import validate_name
 
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
 
 
-class RegisterRequest(BaseModel):
-    name: str = Field(min_length=1, max_length=120)
-    email: EmailStr
-    password: str = Field(min_length=8, max_length=128)
-
-
 class LoginRequest(BaseModel):
-    email: EmailStr
-    password: str = Field(min_length=8, max_length=128)
+    email: str
+    password: str
+    
+    _validate_email = field_validator("email")(validate_email_address)
+    _validate_password = field_validator("password")(validate_password)
+
+class RegisterRequest(LoginRequest):
+    name: str
+
+    _validate_name = field_validator("name")(validate_name)

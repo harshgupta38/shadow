@@ -28,7 +28,7 @@ def get_current_user(
     token = credentials.credentials
     
     try:
-        payload = security.decode_token(token)
+        payload = security.decode_access_token(token)
         user_id = int(payload.get("sub", ""))
     except (security.JWTError, TypeError, ValueError):
         raise _CREDENTIALS_EXC

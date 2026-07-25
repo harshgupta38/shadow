@@ -9,7 +9,7 @@ import { ROUTES } from "./RoutePaths";
 // Pages
 import { LoginPage } from "@/pages/auth/LoginPage";
 import { RegisterPage } from "@/pages/auth/RegisterPage";
-import { DashboardPage } from "@/pages/dashboard/DashboardPage";
+import { DashboardPage } from "@/pages/DashboardPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 
 export function AppRoutes() {

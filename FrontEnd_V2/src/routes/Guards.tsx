@@ -26,7 +26,7 @@ export function PublicOnly({ children }: ChildProps) {
 	return null; // TODO: In future we will implement a splach screen for this
   
   if (isAuthenticated) 
-    return <Navigate to={user && !user.onboarding_completed ? ROUTES.ONGOING : ROUTES.DASHBOARD} replace />;
+    return <Navigate to={user && !user.onboarding_completed ? ROUTES.ONBOARDING : ROUTES.DASHBOARD} replace />;
 
   return children ? <>{children}</> : <Outlet />;
 }

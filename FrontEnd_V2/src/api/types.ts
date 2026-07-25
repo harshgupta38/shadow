@@ -1,4 +1,4 @@
-export interface User {
+export interface UserData {
   id: number;
   name: string;
   email: string;
@@ -11,7 +11,13 @@ export interface LoginRequest {
   password: string;
 }
 
-export interface Token {
+export interface RegisterRequest {
+  email: string;
+  password: string;
+  name: string;
+}
+
+export interface TokenResponse {
   access_token: string;
   token_type: string;
 }

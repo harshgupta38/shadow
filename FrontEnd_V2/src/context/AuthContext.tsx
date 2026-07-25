@@ -8,22 +8,23 @@ import {
     type ReactNode,
 } from "react";
 
-import { api, tokenStore, LoginRequest, type User } from "@/api";
+import { api, tokenStore, LoginRequest, RegisterRequest, type UserData } from "@/api";
 
 type AuthStatus = "loading" | "authenticated" | "unauthenticated";
 
 interface AuthContextValue {
-    user: User | null;
+    user: UserData | null;
     status: AuthStatus;
     isAuthenticated: boolean;
-    login: (data: LoginRequest) => Promise<User>;
+    login: (data: LoginRequest) => Promise<UserData>;
     logout: () => void;
+    register: (data: RegisterRequest) => Promise<UserData>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-    const [user, setUser] = useState<User | null>(null);
+    const [user, setUser] = useState<UserData | null>(null);
     const [status, setStatus] = useState<AuthStatus>("loading");
 
     /**
@@ -47,6 +48,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         api.auth.logout();
         setUser(null);
         setStatus("unauthenticated");
+    }, []);
+
+    const register = useCallback(async (data: RegisterRequest) => {
+        await api.auth.register(data);
+        const user = await api.auth.me();
+        setUser(user);
+        setStatus("authenticated");
+        return user;
     }, []);
 
     useEffect(() => {
@@ -77,8 +86,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             isAuthenticated: status === "authenticated" && !!user,
             login, // login user, which updates the user state and authentication status
             logout, // logout user, which clears the user state and sets the authentication status to "unauthenticated"
+            register, // register user, which updates the user state and authentication status
         }),
-        [user, status, login, logout], // We declare that when these three items update, create a new object
+        [user, status, login, logout, register], // We declare that when these items update, create a new object
     );
 
     return (

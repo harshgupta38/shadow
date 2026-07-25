@@ -53,10 +53,7 @@ const httpClient = createClient();
  * Plain HTTP client for making API requests to any third party server
  */
 export const http = {
-    async get<T>(
-        url: string,
-        config?: AxiosRequestConfig
-    ): Promise<T> {
+    async get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
         const response = await httpClient.get<T>(url, config);
         return response.data;
     },
@@ -133,7 +130,7 @@ function normaliseError(error: unknown): ApiError {
     if (error instanceof ApiError) return error;
 
     const axiosError = error as AxiosError<unknown>;
-    if (!axiosError?.isAxiosError) 
+    if (!axiosError?.isAxiosError)
         return new ApiError({ message: "Something went wrong. Please try again." });
 
     const status = axiosError.response?.status;
@@ -155,7 +152,7 @@ function normaliseError(error: unknown): ApiError {
     }
 
     // Service errors → { detail: "message" }
-    if (typeof data?.detail === "string") 
+    if (typeof data?.detail === "string")
         return new ApiError({ message: data.detail, status });
 
     const fallback = status && status >= 500 ? "The server ran into a problem. Please try again shortly." : "Request failed. Please try again.";

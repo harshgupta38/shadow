@@ -9,10 +9,10 @@ export function RequireAuth({ children }: ChildProps) {
 	const { status, isAuthenticated } = useAuth();
 	const location = useLocation(); // this gives us the location user came from, so that after login we go this page instead of default homepage
 
-	if (status === "loading") 
+	if (status === "loading")
 		return null; // TODO: In future we will implement a splach screen for this
 
-	if (!isAuthenticated) 
+	if (!isAuthenticated)
 		return <Navigate to={ROUTES.LOGIN} replace state={{ from: location }} />;
 
 	return children ? <>{children}</> : <Outlet />;
@@ -20,13 +20,30 @@ export function RequireAuth({ children }: ChildProps) {
 
 /** For /login and /register — redirects signed-in users away. */
 export function PublicOnly({ children }: ChildProps) {
-  const { status, isAuthenticated, user } = useAuth();
+	const { status, isAuthenticated, user } = useAuth();
 
-  if (status === "loading") 
-	return null; // TODO: In future we will implement a splach screen for this
-  
-  if (isAuthenticated) 
-    return <Navigate to={user && !user.onboarding_completed ? ROUTES.ONBOARDING : ROUTES.DASHBOARD} replace />;
+	if (status === "loading")
+		return null; // TODO: In future we will implement a splach screen for this
 
-  return children ? <>{children}</> : <Outlet />;
+	if (isAuthenticated)
+		return <Navigate to={user && !user.onboarding_completed ? ROUTES.ONBOARDING : ROUTES.DASHBOARD} replace />;
+
+	return children ? <>{children}</> : <Outlet />;
+}
+
+/** Requires a signed-in user who has finished onboarding. */
+export function RequireOnboarded({ children }: ChildProps) {
+	const { status, isAuthenticated, user } = useAuth();
+	const location = useLocation();
+
+	if (status === "loading")
+		return null; // TODO: In future we will implement a splach screen for this
+
+	if (!isAuthenticated)
+		return <Navigate to={ROUTES.LOGIN} replace state={{ from: location }} />;
+
+	if (user && !user.onboarding_completed)
+		return <Navigate to={ROUTES.ONBOARDING} replace />;
+
+	return children ? <>{children}</> : <Outlet />;
 }

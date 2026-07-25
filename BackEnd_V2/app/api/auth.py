@@ -7,7 +7,7 @@ from app.schemas.auth import LoginRequest, TokenResponse, RegisterRequest
 from app.services import auth_service
 from app.core import security
 
-router = APIRouter(prefix="/auth", tags=["Authentication"])
+router = APIRouter(prefix=ENDPOINTS.AUTH.PREFIX, tags=["Authentication"])
 
 
 @router.post(ENDPOINTS.AUTH.LOGIN, response_model=TokenResponse)

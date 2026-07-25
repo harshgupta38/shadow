@@ -6,6 +6,7 @@
 |   |   |-- router.py
 |   |-- core
 |   |   |-- config.py
+|   |   |-- endpoints.py
 |   |   |-- exceptions.py
 |   |   |-- security.py
 |   |-- db
@@ -19,6 +20,10 @@
 |   |   |-- user.py
 |   |-- services
 |   |   |-- auth_service.py
+|   |-- validators
+|   |   |-- email.py
+|   |   |-- name.py
+|   |   |-- password.py
 |   |-- main.py
 |-- .env
 |-- .env.example

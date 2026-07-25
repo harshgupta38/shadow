@@ -15,6 +15,10 @@ def _get_user_by_email(db: Session, email: str) -> User | None:
     )
 
 
+def get_user_by_id(db: Session, user_id: int) -> User | None:
+    return db.get(User, user_id)
+
+
 def login_user(
     db: Session,
     email: str,
@@ -31,10 +35,7 @@ def login_user(
     return user
 
 
-def register_user(
-    db: Session,
-    data: RegisterRequest
-) -> User:
+def register_user(db: Session, data: RegisterRequest) -> User:
     existing_user = _get_user_by_email(db, str(data.email))
     if existing_user is not None:
         raise ConflictError("An account with this email already exists.")

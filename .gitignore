@@ -4,3 +4,6 @@ _test_shadow.db
 */node_modules
 pending work.txt
 data.txt
+*.env
+*.pyc
+*.db

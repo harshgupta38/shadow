@@ -19,6 +19,7 @@ interface AuthContextValue {
     login: (data: LoginRequest) => Promise<UserData>;
     logout: () => void;
     register: (data: RegisterRequest) => Promise<UserData>;
+    refreshUser: () => Promise<UserData>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -58,6 +59,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return user;
     }, []);
 
+    const refreshUser = useCallback(async () => {
+        const user = await api.auth.me();
+        setUser(user);
+        setStatus("authenticated");
+        return user;
+    }, []);
+
     useEffect(() => {
         if (!tokenStore.get()) {
             setStatus("unauthenticated");
@@ -87,8 +95,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             login, // login user, which updates the user state and authentication status
             logout, // logout user, which clears the user state and sets the authentication status to "unauthenticated"
             register, // register user, which updates the user state and authentication status
+            refreshUser,
         }),
-        [user, status, login, logout, register], // We declare that when these items update, create a new object
+        [user, status, login, logout, register, refreshUser], // We declare that when these items update, create a new object
     );
 
     return (

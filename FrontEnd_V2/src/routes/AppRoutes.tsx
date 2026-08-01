@@ -11,7 +11,7 @@ import { LoginPage } from "@/pages/auth/LoginPage";
 import { RegisterPage } from "@/pages/auth/RegisterPage";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
-import { OnboardingPage } from "@/pages/OnboardingPage";
+import { OnboardingPage } from "@/pages/onboarding/OnboardingPage";
 
 export function AppRoutes() {
 	return (

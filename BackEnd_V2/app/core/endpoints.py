@@ -7,6 +7,6 @@ class Endpoints:
 
     class ONBOARDING:
         PREFIX = "/onboarding"
-        QUESTION = "/question"
+        FOUNDATION = "/foundation"
 
 ENDPOINTS = Endpoints()

@@ -50,3 +50,14 @@ export interface UserLocation {
   latitude: number;
   longitude: number;
 }
+
+export type Gender = "male" | "female" | "";
+
+export interface FoundationData {
+  name: string;
+  gender: Exclude<Gender, "">;
+
+  birthDay: string;
+  birthMonth: string;
+  birthYear: string;
+}

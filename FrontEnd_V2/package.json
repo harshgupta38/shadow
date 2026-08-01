@@ -1,0 +1,49 @@
+{
+  "name": "shadow-frontend-v2",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Shadow — personal life & career assistant web app (React + TypeScript + Vite).",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "build:dev": "tsc -b && vite build --mode development",
+    "build:stg": "tsc -b && vite build --mode staging",
+    "build:prod": "tsc -b && vite build --mode production",
+    "preview": "vite preview",
+    "lint": "tsc --noEmit -p tsconfig.app.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "deploy": "npm run build:prod && npx firebase-tools deploy --only hosting",
+    "deploy-stg": "npm run build:prod && firebase hosting:channel:deploy stg1 --expires 30d",
+    "deploy-dev": "npm run build:prod && firebase hosting:channel:deploy dev1 --expires 7d"
+  },
+  "dependencies": {
+    "axios": "^1.7.7",
+    "bootstrap": "^5.3.3",
+    "react": "^18.3.1",
+    "react-bootstrap": "^2.10.5",
+    "react-bootstrap-icons": "^1.11.4",
+    "react-dom": "^18.3.1",
+    "react-markdown": "^9.0.1",
+    "react-quill": "^2.0.0",
+    "react-router-dom": "^6.26.2",
+    "remark-gfm": "^4.0.0",
+    "sass": "^1.101.6"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.5.0",
+    "@testing-library/react": "^16.0.1",
+    "@testing-library/user-event": "^14.5.2",
+    "@types/node": "^22.7.4",
+    "@types/react": "^18.3.11",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.2",
+    "@vitest/coverage-v8": "^2.1.2",
+    "jsdom": "^25.0.1",
+    "typescript": "^5.6.2",
+    "vite": "^5.4.8",
+    "vitest": "^2.1.2"
+  }
+}

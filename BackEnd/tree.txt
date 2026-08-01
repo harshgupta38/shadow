@@ -1,0 +1,159 @@
+﻿BackEnd
+|-- app
+|   |-- agents
+|   |   |-- __init__.py
+|   |   |-- orchestrator.py
+|   |   |-- personas.py
+|   |-- api
+|   |   |-- __init__.py
+|   |   |-- auth.py
+|   |   |-- chat.py
+|   |   |-- dashboard.py
+|   |   |-- deps.py
+|   |   |-- goals.py
+|   |   |-- journal.py
+|   |   |-- metrics.py
+|   |   |-- milestones.py
+|   |   |-- notifications.py
+|   |   |-- onboarding.py
+|   |   |-- plan.py
+|   |   |-- profile.py
+|   |   |-- repetitive_tasks.py
+|   |   |-- reports.py
+|   |   |-- router.py
+|   |   |-- settings.py
+|   |-- llm
+|   |   |-- __init__.py
+|   |   |-- base.py
+|   |   |-- factory.py
+|   |   |-- fake_provider.py
+|   |   |-- gemini_provider.py
+|   |-- memory
+|   |   |-- __init__.py
+|   |   |-- behavior.py
+|   |   |-- context.py
+|   |-- models
+|   |   |-- __init__.py
+|   |   |-- activity.py
+|   |   |-- base.py
+|   |   |-- chat.py
+|   |   |-- email_notification_preference.py
+|   |   |-- email_verification_token.py
+|   |   |-- enums.py
+|   |   |-- goal.py
+|   |   |-- journal.py
+|   |   |-- memory.py
+|   |   |-- metric.py
+|   |   |-- milestone.py
+|   |   |-- notification.py
+|   |   |-- planned_task.py
+|   |   |-- push_subscription.py
+|   |   |-- repetitive_task.py
+|   |   |-- report.py
+|   |   |-- user.py
+|   |   |-- user_profile.py
+|   |   |-- user_setting.py
+|   |-- scheduler
+|   |   |-- __init__.py
+|   |   |-- jobs.py
+|   |-- schemas
+|   |   |-- __init__.py
+|   |   |-- activity.py
+|   |   |-- auth.py
+|   |   |-- chat.py
+|   |   |-- common.py
+|   |   |-- dashboard.py
+|   |   |-- goal.py
+|   |   |-- journal.py
+|   |   |-- memory.py
+|   |   |-- metric.py
+|   |   |-- milestone.py
+|   |   |-- notification.py
+|   |   |-- onboarding.py
+|   |   |-- plan.py
+|   |   |-- profile.py
+|   |   |-- repetitive_task.py
+|   |   |-- report.py
+|   |   |-- settings.py
+|   |   |-- user.py
+|   |-- services
+|   |   |-- __init__.py
+|   |   |-- auth_service.py
+|   |   |-- chat_service.py
+|   |   |-- dashboard_service.py
+|   |   |-- email_notification_service.py
+|   |   |-- email_service.py
+|   |   |-- exceptions.py
+|   |   |-- goal_service.py
+|   |   |-- journal_service.py
+|   |   |-- memory_service.py
+|   |   |-- metric_service.py
+|   |   |-- notification_service.py
+|   |   |-- onboarding_service.py
+|   |   |-- plan_service.py
+|   |   |-- profile_service.py
+|   |   |-- progress_metric_recommendation_service.py
+|   |   |-- push_service.py
+|   |   |-- repetitive_task_service.py
+|   |   |-- report_service.py
+|   |   |-- security.py
+|   |   |-- settings_service.py
+|   |   |-- utils.py
+|   |-- templates
+|   |   |-- email
+|   |   |   |-- daily_brief.html
+|   |   |   |-- daily_motivational_quote.html
+|   |   |   |-- daily_report_ready.html
+|   |   |   |-- export_ready.html
+|   |   |   |-- goal_target_risk.html
+|   |   |   |-- milestone_due_soon.html
+|   |   |   |-- new_device_alert.html
+|   |   |   |-- password_changed_alert.html
+|   |   |   |-- progress_coach_recommendations.html
+|   |   |   |-- streak_risk_alert.html
+|   |   |   |-- task_reminder.html
+|   |   |   |-- today_plan_generated.html
+|   |   |   |-- verification_reminder.html
+|   |   |   |-- weekly_report_ready.html
+|   |   |   |-- weekly_summary.html
+|   |-- __init__.py
+|   |-- constant.py
+|   |-- database.py
+|   |-- main.py
+|-- scripts
+|-- tests
+|   |-- __init__.py
+|   |-- conftest.py
+|   |-- test_auth_api.py
+|   |-- test_config.py
+|   |-- test_email_notifications_integration.py
+|   |-- test_goals_api.py
+|   |-- test_health.py
+|   |-- test_journal_notifications_api.py
+|   |-- test_llm_factory.py
+|   |-- test_llm_provider.py
+|   |-- test_manual_memory_refinement.py
+|   |-- test_memory_behavior.py
+|   |-- test_metrics_api.py
+|   |-- test_onboarding_api.py
+|   |-- test_plan_workspace_api.py
+|   |-- test_profile_settings_api.py
+|   |-- test_push_service.py
+|   |-- test_repetitive_tasks_api.py
+|   |-- test_repetitive_tasks_chat_actions.py
+|   |-- test_reports_chat_api.py
+|   |-- test_scheduler_jobs.py
+|   |-- test_security.py
+|-- .env
+|-- .env.example
+|-- .gitignore
+|-- _test_shadow.db
+|-- alembic.ini
+|-- deploy.sh
+|-- pyproject.toml
+|-- README.md
+|-- requirement2.txt
+|-- requirements.txt
+|-- shadow.db
+|-- tree.ps1
+|-- webhook_listener.py

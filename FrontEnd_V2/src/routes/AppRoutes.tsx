@@ -1,0 +1,35 @@
+import { Route, Routes } from "react-router-dom";
+
+// Guards
+import { PublicOnly, RequireAuth, RequireOnboarded } from "./Guards";
+
+// Route paths
+import { ROUTES } from "./RoutePaths";
+
+// Pages
+import { LoginPage } from "@/pages/auth/LoginPage";
+import { RegisterPage } from "@/pages/auth/RegisterPage";
+import { DashboardPage } from "@/pages/DashboardPage";
+import { NotFoundPage } from "@/pages/NotFoundPage";
+import { OnboardingPage } from "@/pages/OnboardingPage";
+
+export function AppRoutes() {
+	return (
+		<Routes>
+			<Route element={<PublicOnly />}>
+				<Route path={ROUTES.LOGIN} element={<LoginPage />} />
+				<Route path={ROUTES.REGISTER} element={<RegisterPage />} />
+			</Route>
+
+			<Route element={<RequireAuth />}>
+				<Route path={ROUTES.ONBOARDING} element={<OnboardingPage />} />
+			</Route>
+
+			<Route element={<RequireOnboarded />}>
+				<Route path={ROUTES.DASHBOARD} element={<DashboardPage />} />
+			</Route>
+
+			<Route path="*" element={<NotFoundPage />} />
+		</Routes>
+	);
+}

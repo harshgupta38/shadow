@@ -139,7 +139,7 @@ export function RegisterPage() {
 
             <p className="text-center text-muted-2 mt-4 mb-0">
                 Already have an account?{" "}
-                <Link to="/login" className="fw-semibold">
+                <Link to={ROUTES.LOGIN} className="fw-semibold">
                     Sign in
                 </Link>
             </p>

@@ -147,7 +147,7 @@ export function LoginPage() {
                     <div className="auth-or-divider">
                         <span>or</span>
                     </div>
-                    <Link to="/register" className="btn login-mobile-create w-100 fw-semibold">
+                    <Link to={ROUTES.REGISTER} className="btn login-mobile-create w-100 fw-semibold">
                         Create an account
                     </Link>
 
@@ -180,7 +180,7 @@ export function LoginPage() {
 
             <p className="text-center text-muted-2 mt-4 mb-0 d-none d-md-block">
                 New to Shadow?{" "}
-                <Link to="/register" className="fw-semibold">
+                <Link to={ROUTES.REGISTER} className="fw-semibold">
                     Create an account
                 </Link>
             </p>

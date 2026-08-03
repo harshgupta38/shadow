@@ -7,6 +7,7 @@ import { PublicOnly, RequireAuth } from "./Guards";
 import { ROUTES } from "./RoutePaths";
 
 // Pages
+import { LandingPage } from "@/pages/landing_page/LandingPage";
 import { LoginPage } from "@/pages/auth/LoginPage";
 import { RegisterPage } from "@/pages/auth/RegisterPage";
 import { DashboardPage } from "@/pages/DashboardPage";
@@ -16,6 +17,7 @@ export function AppRoutes() {
 	return (
 		<Routes>
 			<Route element={<PublicOnly />}>
+				<Route path={ROUTES.LANDING} element={<LandingPage />} />
 				<Route path={ROUTES.LOGIN} element={<LoginPage />} />
 				<Route path={ROUTES.REGISTER} element={<RegisterPage />} />
 			</Route>

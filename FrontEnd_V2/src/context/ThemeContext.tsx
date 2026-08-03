@@ -53,23 +53,24 @@ export function ThemeProvider({ children }: ChildProps) {
 	}, []);
 
 	useEffect(() => {
-		switch (themePreference) {
-			case "light":
-				setEffectiveTheme("light");
-				break;
+		setEffectiveTheme("light");
+		// switch (themePreference) {
+		// 	case "light":
+		// 		setEffectiveTheme("light");
+		// 		break;
 
-			case "dark":
-				setEffectiveTheme("dark");
-				break;
+		// 	case "dark":
+		// 		setEffectiveTheme("dark");
+		// 		break;
 
-			case "browser":
-				setEffectiveTheme(getBrowserTheme());
-				break;
+		// 	case "browser":
+		// 		setEffectiveTheme(getBrowserTheme());
+		// 		break;
 
-			case "dynamic":
-				loadDynamicTheme();
-				break;
-		}
+		// 	case "dynamic":
+		// 		loadDynamicTheme();
+		// 		break;
+		// }
 	}, [themePreference, loadDynamicTheme]);
 
 	useEffect(() => {

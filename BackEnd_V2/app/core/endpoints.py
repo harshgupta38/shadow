@@ -5,8 +5,4 @@ class Endpoints:
         REGISTER = "/register"
         USER_DATA = "/me"
 
-    class ONBOARDING:
-        PREFIX = "/onboarding"
-        FOUNDATION = "/foundation"
-
 ENDPOINTS = Endpoints()

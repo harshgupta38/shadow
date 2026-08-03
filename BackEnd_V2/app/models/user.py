@@ -25,29 +25,3 @@ class User(Base):
         String(255),
         nullable=False,
     )
-
-    birth_day: Mapped[str | None] = mapped_column(
-        String(2),
-        nullable=True,
-    )
-
-    birth_month: Mapped[str | None] = mapped_column(
-        String(2),
-        nullable=True,
-    )
-
-    birth_year: Mapped[str | None] = mapped_column(
-        String(4),
-        nullable=True,
-    )
-
-    gender: Mapped[str | None] = mapped_column(
-        String(16),
-        nullable=True,
-    )
-
-    onboarding_completed: Mapped[bool] = mapped_column(
-        Boolean,
-        default=False,
-        nullable=False,
-    )

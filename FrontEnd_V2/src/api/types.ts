@@ -2,8 +2,6 @@ export interface UserData {
   id: number;
   name: string;
   email: string;
-
-  onboarding_completed: boolean;
 }
 
 export interface LoginRequest {
@@ -51,13 +49,3 @@ export interface UserLocation {
   longitude: number;
 }
 
-export type Gender = "male" | "female" | "";
-
-export interface FoundationData {
-  name: string;
-  gender: Exclude<Gender, "">;
-
-  birthDay: string;
-  birthMonth: string;
-  birthYear: string;
-}

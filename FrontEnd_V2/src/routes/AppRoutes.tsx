@@ -1,7 +1,7 @@
 import { Route, Routes } from "react-router-dom";
 
 // Guards
-import { PublicOnly, RequireAuth, RequireOnboarded } from "./Guards";
+import { PublicOnly, RequireAuth } from "./Guards";
 
 // Route paths
 import { ROUTES } from "./RoutePaths";
@@ -11,7 +11,6 @@ import { LoginPage } from "@/pages/auth/LoginPage";
 import { RegisterPage } from "@/pages/auth/RegisterPage";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
-import { OnboardingPage } from "@/pages/onboarding/OnboardingPage";
 
 export function AppRoutes() {
 	return (
@@ -22,10 +21,6 @@ export function AppRoutes() {
 			</Route>
 
 			<Route element={<RequireAuth />}>
-				<Route path={ROUTES.ONBOARDING} element={<OnboardingPage />} />
-			</Route>
-
-			<Route element={<RequireOnboarded />}>
 				<Route path={ROUTES.DASHBOARD} element={<DashboardPage />} />
 			</Route>
 

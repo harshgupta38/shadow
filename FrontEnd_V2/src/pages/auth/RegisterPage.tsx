@@ -35,7 +35,7 @@ export function RegisterPage() {
 
         try {
             await register(payload);
-            navigate(ROUTES.ONBOARDING, { replace: true });
+            navigate(ROUTES.DASHBOARD, { replace: true });
         } catch (error) {
             if (error instanceof ApiError) {
                 setError(error.message);

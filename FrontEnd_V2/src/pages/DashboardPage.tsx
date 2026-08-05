@@ -1,7 +1,8 @@
-import { useAuth } from "@/context/AuthContext";
-
 export function DashboardPage() {
-  const {logout} = useAuth();
-
-  return <h1 onClick={logout}>Dashboard</h1>;
+  return (
+    <section className="surface p-4 p-lg-5">
+      <h1 className="h3 fw-bold mb-2">Dashboard</h1>
+      <p className="text-muted-2 mb-0">Main dashboard content will be added in the next step.</p>
+    </section>
+  );
 }

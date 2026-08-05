@@ -6,6 +6,9 @@ import { PublicOnly, RequireAuth } from "./Guards";
 // Route paths
 import { ROUTES } from "./RoutePaths";
 
+//layout
+import { AppLayout } from "@/components/layout/AppLayout";
+
 // Pages
 import { LandingPage } from "@/pages/landing_page/LandingPage";
 import { LoginPage } from "@/pages/auth/LoginPage";
@@ -23,7 +26,9 @@ export function AppRoutes() {
 			</Route>
 
 			<Route element={<RequireAuth />}>
-				<Route path={ROUTES.DASHBOARD} element={<DashboardPage />} />
+				<Route element={<AppLayout />}>
+					<Route path={ROUTES.DASHBOARD} element={<DashboardPage />} />
+				</Route>
 			</Route>
 
 			<Route path="*" element={<NotFoundPage />} />

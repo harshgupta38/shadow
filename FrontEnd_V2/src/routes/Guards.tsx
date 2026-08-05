@@ -13,7 +13,7 @@ export function RequireAuth({ children }: ChildProps) {
 		return null; // TODO: In future we will implement a splach screen for this
 
 	if (!isAuthenticated)
-		return <Navigate to={ROUTES.LOGIN} replace state={{ from: location }} />;
+		return <Navigate to={ROUTES.LANDING} replace state={{ from: location }} />;
 
 	return children ? <>{children}</> : <Outlet />;
 }

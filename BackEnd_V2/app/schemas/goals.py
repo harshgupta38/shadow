@@ -67,11 +67,6 @@ class UnderstandGoalRequest(BaseModel):
         return value
 
 
-class Milestone(BaseModel):
-    title: str = Field(description="Short milestone title")
-    description: str = Field(description="Brief explanation of the milestone")
-
-
 class UnderstandGoalResponse(BaseModel):
     # Goal Summary
     title: str = Field(description="A concise title for the user's goal.")
@@ -91,14 +86,6 @@ class UnderstandGoalResponse(BaseModel):
         "Travel",
         "Other",
     ] = Field(description="The most appropriate category for the goal.")
-
-    goal_type: Literal[
-        "Outcome Goal",
-        "Habit Goal",
-        "Skill Goal",
-        "Project Goal",
-        "Milestone Goal",
-    ] = Field(description="The type of goal.")
 
     # Goal Analysis
     motivation: str = Field(
@@ -120,20 +107,12 @@ class UnderstandGoalResponse(BaseModel):
     )
 
     # Planning
-    estimated_duration: str = Field(
-        description="Estimated time required to achieve the goal."
-    )
-
-    difficulty: Literal["Easy", "Medium", "Hard", "Expert"] = Field(
-        description="Estimated difficulty level."
+    target_date: str = Field(
+        description="The target completion date for the goal in YYYY-MM-DD format."
     )
 
     success_metrics: List[str] = Field(
         description="Specific measurable indicators of success."
-    )
-
-    milestones: List[Milestone] = Field(
-        description="High-level milestones to achieve the goal."
     )
 
     # AI Insights

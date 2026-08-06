@@ -57,3 +57,30 @@ export interface UnderstandGoalRequest {
   obstacles: string;
 }
 
+export type GoalCategory =
+  | "Career"
+  | "Business"
+  | "Finance"
+  | "Health"
+  | "Fitness"
+  | "Education"
+  | "Relationships"
+  | "Productivity"
+  | "Personal Growth"
+  | "Travel"
+  | "Other";
+
+export interface UnderstandGoalResponse {
+  title: string;
+  summary: string;
+  category: GoalCategory;
+  motivation: string;
+  success_definition: string;
+  current_state: string;
+  challenges: string[];
+  strengths: string[];
+  target_date: string;
+  success_metrics: string[];
+  insights: string[];
+}
+

@@ -7,6 +7,7 @@ export const ENDPOINTS = {
     GOALS: {
         PREFIX: "/goal",
         REFINE: "/refine",
+        SAVE: "/save",
     },
     // DEMO: {
     //     DETAIL: (id: string) => `/demo/${id}`,

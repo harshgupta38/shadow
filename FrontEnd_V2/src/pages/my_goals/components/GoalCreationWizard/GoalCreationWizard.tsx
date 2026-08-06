@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import {
-    ClockHistory,
     X,
 } from "react-bootstrap-icons";
 
 import { api } from "@/api";
 import { ApiError } from "@/api/client";
-import type { UnderstandGoalRequest } from "@/api/types";
+import type { UnderstandGoalRequest, UnderstandGoalResponse } from "@/api/types";
 import { ThemeToggle } from "@/components/ui/ThemeToggle/ThemeToggle";
 
 import {
@@ -30,6 +29,12 @@ const ORDERED_STEP_KEYS = STEPS.map((step) => step.key);
 type WizardPhase = "questions" | "understanding" | "review";
 type GoalWizardAnswers = Record<GoalWizardStepKey, string>;
 type GoalWizardStepErrors = Partial<Record<GoalWizardStepKey, string>>;
+
+const PHASE_TITLES: Record<WizardPhase, string[]> = {
+    questions: ["Build Your Goal"],
+    understanding: ["Understanding Your Goal", "We're turning your answers into a structured brief step by step."],
+    review: ["Review Your Goal", "Your coach has organized your ideas into a structured goal. Review it, make any changes if needed, and save it."],
+};
 
 function getNextStepValidationError(answers: GoalWizardAnswers, stepKey: GoalWizardStepKey): string | null {
     return answers[stepKey].trim() ? null : "Please provide your answer before continuing.";
@@ -96,7 +101,7 @@ function mapFieldErrorsToStepErrors(
 interface GoalCreationWizardProps {
     open: boolean;
     onClose: () => void;
-    onSubmitted?: (response: unknown) => void | Promise<void>;
+    onSubmitted?: (response: UnderstandGoalResponse) => void | Promise<void>;
 }
 
 export function GoalCreationWizard({ open, onClose, onSubmitted }: GoalCreationWizardProps) {
@@ -112,13 +117,11 @@ export function GoalCreationWizard({ open, onClose, onSubmitted }: GoalCreationW
     const [loaderIndex, setLoaderIndex] = useState(0);
     const [error, setError] = useState<string | null>(null);
     const [stepErrors, setStepErrors] = useState<GoalWizardStepErrors>({});
-    const [understoodGoal, setUnderstoodGoal] = useState<unknown>(null);
+    const [understoodGoal, setUnderstoodGoal] = useState<UnderstandGoalResponse | null>(null);
     const boyStepTimerRef = useRef<number | null>(null);
     const boyFadeTimerRef = useRef<number | null>(null);
-
-    const goalPreview = answers.goal.trim() || "Your goal summary will appear here.";
-    const whyPreview = answers.why.trim() || "Your motivation summary will appear here.";
-    const successPreview = answers.success.trim() || "Your success criteria summary will appear here.";
+    const currentTitle = PHASE_TITLES[phase][0];
+    const currentSubtitle = PHASE_TITLES[phase][1] ?? null;
 
     function clearBoyStepTimer() {
         if (boyStepTimerRef.current !== null) {
@@ -381,8 +384,8 @@ export function GoalCreationWizard({ open, onClose, onSubmitted }: GoalCreationW
         }
     }
 
-    async function handleConfirmGoal() {
-        if (understoodGoal === null) {
+    async function handleConfirmGoal(goalToSave: UnderstandGoalResponse) {
+        if (!goalToSave) {
             return;
         }
 
@@ -390,7 +393,8 @@ export function GoalCreationWizard({ open, onClose, onSubmitted }: GoalCreationW
         setError(null);
 
         try {
-            await onSubmitted?.(understoodGoal);
+            const savedGoal = await api.goals.saveGoal(goalToSave);
+            await onSubmitted?.(savedGoal);
             onClose();
         } catch (saveError) {
             if (saveError instanceof ApiError) {
@@ -422,7 +426,10 @@ export function GoalCreationWizard({ open, onClose, onSubmitted }: GoalCreationW
                             >
                                 <X size={30} />
                             </button>
-                            <h3 id="goal-wizard-title">Build Your Goal</h3>
+                            <div className="goal-wizard-header-copy">
+                                <h3 id="goal-wizard-title">{currentTitle}</h3>
+                                {currentSubtitle && <p>{currentSubtitle}</p>}
+                            </div>
                         </div>
                     </header>
 
@@ -446,16 +453,6 @@ export function GoalCreationWizard({ open, onClose, onSubmitted }: GoalCreationW
                     {phase === "understanding" ? (
                         <div className="goal-wizard-body">
                             <div className="goal-wizard-loader">
-                                <div className="goal-wizard-loader-head">
-                                    <div className="goal-wizard-loader-badge">
-                                        <ClockHistory size={16} />
-                                    </div>
-                                    <div>
-                                        <h3>Understanding your goal</h3>
-                                        <p>We're turning your answers into a structured brief step by step.</p>
-                                    </div>
-                                </div>
-
                                 <div className="goal-wizard-loader-message">
                                     <span className="spinner-border spinner-border-sm" aria-hidden="true" />
                                     <span>{loaderMessage}</span>

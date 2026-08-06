@@ -15,6 +15,8 @@ import { PageFooter } from "@/components/ui/PageFooter/PageFooter";
 import type { PageHeaderAction } from "@/components/ui/PageHeader/PageHeader";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 
+import { GoalCreationWizard } from "./components/GoalCreationWizard/GoalCreationWizard";
+
 import "./MyGoalsPage.scss";
 
 type GoalFilterLabel = "All" | "Active" | "Paused" | "Completed";
@@ -71,7 +73,16 @@ const FILTER_CONTENT: Record<GoalFilterLabel, FilterData> = {
 
 export function MyGoalsPage() {
   const [activeFilter, setActiveFilter] = useState<GoalFilterLabel>("All");
+  const [goalWizardOpen, setGoalWizardOpen] = useState(false);
   const currentContent = FILTER_CONTENT[activeFilter];
+
+  if (goalWizardOpen) {
+    return (
+      <section className="my-goals-page">
+        <GoalCreationWizard open={goalWizardOpen} onClose={() => setGoalWizardOpen(false)} />
+      </section>
+    );
+  }
 
   const headerActions: PageHeaderAction[] = [
     {
@@ -81,6 +92,7 @@ export function MyGoalsPage() {
       desktopTone: "brand",
       mobileTone: "none",
       className: "goals-vision-cta",
+      onClick: () => setGoalWizardOpen(true),
     },
     {
       key: "goal-coach",
@@ -140,7 +152,7 @@ export function MyGoalsPage() {
         </div>
 
         <div className="d-flex flex-wrap gap-2 goals-vision-actions">
-          <button type="button" className="btn btn-brand goals-vision-cta">
+          <button type="button" className="btn btn-brand goals-vision-cta" onClick={() => setGoalWizardOpen(true)}>
             <PlusLg size={16} className="me-1" /> New Goal
           </button>
           <button type="button" className="btn btn-soft goals-vision-cta goals-vision-coach-btn">

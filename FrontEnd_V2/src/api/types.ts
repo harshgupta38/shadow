@@ -49,3 +49,11 @@ export interface UserLocation {
   longitude: number;
 }
 
+export interface UnderstandGoalRequest {
+  goal: string;
+  why: string;
+  success: string;
+  reality: string;
+  obstacles: string;
+}
+

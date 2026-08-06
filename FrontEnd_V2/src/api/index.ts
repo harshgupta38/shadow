@@ -9,10 +9,12 @@ export { tokenStore } from "./client";
 
 import { authApi } from "./auth";
 import { appearanceApi } from "./appearance";
+import { goalsApi } from "./goals";
 
 export const api = {
   auth: authApi,
   theme: appearanceApi,
+  goals: goalsApi,
 };
 
 export type Api = typeof api;

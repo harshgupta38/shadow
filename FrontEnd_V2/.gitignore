@@ -40,3 +40,5 @@ coverage
 # Firebase
 .firebase
 firebase-debug.log
+
+assets_ignore/

@@ -14,13 +14,15 @@ export function GoalWizardReview({ goalData, saving, error, onBack, onConfirm }:
     return (
         <div className="goal-wizard-body">
             <div className="goal-wizard-review" aria-live="polite">
-                <div className="goal-wizard-success-icon">
-                    <Check2Circle size={28} />
-                </div>
+                <div className="goal-wizard-review-head">
+                    <div className="goal-wizard-success-icon">
+                        <Check2Circle size={28} />
+                    </div>
 
-                <div className="goal-wizard-stage-header">
-                    <h3>Review the generated goal JSON</h3>
-                    <p>AI has structured your goal. Confirm to save and create this goal.</p>
+                    <div className="goal-wizard-stage-header">
+                        <h3>Review the generated goal JSON</h3>
+                        <p>AI has structured your goal. Confirm to save and create this goal.</p>
+                    </div>
                 </div>
 
                 {error && <div className="alert alert-danger py-2 px-3 small mb-0">{error}</div>}

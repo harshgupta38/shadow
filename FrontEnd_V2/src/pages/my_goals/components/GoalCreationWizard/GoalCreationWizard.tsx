@@ -25,8 +25,73 @@ import "./GoalCreationWizard.scss";
 const MAX_ANSWER_LINES = 8;
 const BOY_MULTI_STEP_INTERVAL_MS = 260;
 const BOY_BACKWARD_FADE_MS = 200;
+const ORDERED_STEP_KEYS = STEPS.map((step) => step.key);
 
 type WizardPhase = "questions" | "understanding" | "review";
+type GoalWizardAnswers = Record<GoalWizardStepKey, string>;
+type GoalWizardStepErrors = Partial<Record<GoalWizardStepKey, string>>;
+
+function getNextStepValidationError(answers: GoalWizardAnswers, stepKey: GoalWizardStepKey): string | null {
+    return answers[stepKey].trim() ? null : "Please provide your answer before continuing.";
+}
+
+function validateSubmitAnswers(
+    answers: GoalWizardAnswers,
+    orderedStepKeys: GoalWizardStepKey[],
+): { stepErrors: GoalWizardStepErrors; firstMissingStepKey: GoalWizardStepKey | null } {
+    const stepErrors: GoalWizardStepErrors = {};
+
+    for (const stepKey of orderedStepKeys) {
+        if (!answers[stepKey].trim()) {
+            stepErrors[stepKey] = "Please complete this section before shaping your goal.";
+        }
+    }
+
+    const firstMissingStepKey = orderedStepKeys.find((stepKey) => stepErrors[stepKey]) ?? null;
+
+    return {
+        stepErrors,
+        firstMissingStepKey,
+    };
+}
+
+function buildUnderstandGoalPayload(answers: GoalWizardAnswers): UnderstandGoalRequest {
+    return {
+        goal: answers.goal.trim(),
+        why: answers.why.trim(),
+        success: answers.success.trim(),
+        reality: answers.reality.trim(),
+        obstacles: answers.obstacles.trim(),
+    };
+}
+
+function findFirstFieldErrorStepKey(
+    fieldErrors: Partial<Record<string, string>>,
+    orderedStepKeys: GoalWizardStepKey[],
+): GoalWizardStepKey | null {
+    return (
+        orderedStepKeys.find((stepKey) => {
+            const fieldMessage = fieldErrors[stepKey];
+            return typeof fieldMessage === "string" && fieldMessage.trim().length > 0;
+        }) ?? null
+    );
+}
+
+function mapFieldErrorsToStepErrors(
+    fieldErrors: Partial<Record<string, string>>,
+    orderedStepKeys: GoalWizardStepKey[],
+): GoalWizardStepErrors {
+    const stepErrors: GoalWizardStepErrors = {};
+
+    for (const stepKey of orderedStepKeys) {
+        const fieldMessage = fieldErrors[stepKey];
+        if (typeof fieldMessage === "string" && fieldMessage.trim().length > 0) {
+            stepErrors[stepKey] = fieldMessage;
+        }
+    }
+
+    return stepErrors;
+}
 
 interface GoalCreationWizardProps {
     open: boolean;
@@ -41,12 +106,12 @@ export function GoalCreationWizard({ open, onClose, onSubmitted }: GoalCreationW
     const [isBoyVisible, setIsBoyVisible] = useState(true);
     const [phase, setPhase] = useState<WizardPhase>("questions");
     
-    const [answers, setAnswers] = useState<Record<GoalWizardStepKey, string>>(EMPTY_ANSWERS);
+    const [answers, setAnswers] = useState<GoalWizardAnswers>(EMPTY_ANSWERS);
     const [submitting, setSubmitting] = useState(false);
     const [savingGoal, setSavingGoal] = useState(false);
     const [loaderIndex, setLoaderIndex] = useState(0);
     const [error, setError] = useState<string | null>(null);
-    const [stepErrors, setStepErrors] = useState<Partial<Record<GoalWizardStepKey, string>>>({});
+    const [stepErrors, setStepErrors] = useState<GoalWizardStepErrors>({});
     const [understoodGoal, setUnderstoodGoal] = useState<unknown>(null);
     const boyStepTimerRef = useRef<number | null>(null);
     const boyFadeTimerRef = useRef<number | null>(null);
@@ -234,18 +299,48 @@ export function GoalCreationWizard({ open, onClose, onSubmitted }: GoalCreationW
     }
 
     function goNextFrom(stepIndex: number) {
+        const stepKey = STEPS[stepIndex].key;
+        const validationError = getNextStepValidationError(answers, stepKey);
+
+        if (validationError) {
+            setStepErrors((current) => ({
+                ...current,
+                [stepKey]: validationError,
+            }));
+            setCurrentStepIndex(stepIndex);
+            return;
+        }
+
+        setStepErrors((current) => {
+            if (!current[stepKey]) {
+                return current;
+            }
+
+            const next = { ...current };
+            delete next[stepKey];
+            return next;
+        });
+
         setError(null);
         setCurrentStepIndex(Math.min(stepIndex + 1, STEPS.length - 1));
     }
 
     async function handleSubmit() {
-        const payload: UnderstandGoalRequest = {
-            goal: answers.goal.trim(),
-            why: answers.why.trim(),
-            success: answers.success.trim(),
-            reality: answers.reality.trim(),
-            obstacles: answers.obstacles.trim(),
-        };
+        const { stepErrors: nextStepErrors, firstMissingStepKey } = validateSubmitAnswers(answers, ORDERED_STEP_KEYS);
+
+        if (firstMissingStepKey) {
+            setStepErrors(nextStepErrors);
+            setError(null);
+
+            const nextStepIndex = STEPS.findIndex((step) => step.key === firstMissingStepKey);
+            if (nextStepIndex >= 0) {
+                setCurrentStepIndex(nextStepIndex);
+            }
+
+            return;
+        }
+
+        const payload = buildUnderstandGoalPayload(answers);
 
         setPhase("understanding");
         setSubmitting(true);
@@ -261,21 +356,10 @@ export function GoalCreationWizard({ open, onClose, onSubmitted }: GoalCreationW
         } catch (submissionError) {
             if (submissionError instanceof ApiError) {
                 const fieldErrors = submissionError.fieldErrors ?? {};
-                const orderedStepKeys = STEPS.map((step) => step.key);
-                const missingField = orderedStepKeys.find((stepKey) => {
-                    const fieldMessage = fieldErrors[stepKey];
-                    return typeof fieldMessage === "string" && fieldMessage.trim().length > 0;
-                });
+                const missingField = findFirstFieldErrorStepKey(fieldErrors, ORDERED_STEP_KEYS);
 
                 if (missingField) {
-                    const nextStepErrors: Partial<Record<GoalWizardStepKey, string>> = {};
-
-                    for (const stepKey of orderedStepKeys) {
-                        const fieldMessage = fieldErrors[stepKey];
-                        if (typeof fieldMessage === "string" && fieldMessage.trim().length > 0) {
-                            nextStepErrors[stepKey] = fieldMessage;
-                        }
-                    }
+                    const nextStepErrors = mapFieldErrorsToStepErrors(fieldErrors, ORDERED_STEP_KEYS);
 
                     setStepErrors(nextStepErrors);
                     setError(null);
@@ -412,7 +496,11 @@ export function GoalCreationWizard({ open, onClose, onSubmitted }: GoalCreationW
                     ) : null}
                 </div>
 
-                <GoalWizardVisual boyStepIndex={boyStepIndex} isBoyVisible={isBoyVisible} />
+                <GoalWizardVisual
+                    mode={phase === "understanding" ? "thinking" : phase === "review" ? "gotIt" : "journey"}
+                    boyStepIndex={boyStepIndex}
+                    isBoyVisible={isBoyVisible}
+                />
             </section>
         </div>
     );

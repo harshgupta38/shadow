@@ -34,6 +34,7 @@ export function GoalWizardStepper({
                 {STEPS.map((step, index) => {
                     const isActive = index === currentStepIndex;
                     const isDone = index < currentStepIndex;
+                    const hasInput = answers[step.key].trim().length > 0;
                     const ctaError = stepErrors[step.key] ?? (isActive ? fallbackError : null);
 
                     return (
@@ -71,11 +72,11 @@ export function GoalWizardStepper({
 
                                     <div className="goal-wizard-footer">
                                         {index < STEPS.length - 1 ? (
-                                            <button type="button" className="btn btn-brand btn-brand-custom" onClick={() => onNextFrom(index)} disabled={!isActive || disabled}>
+                                            <button type="button" className="btn btn-brand btn-brand-custom" onClick={() => onNextFrom(index)} disabled={!isActive || disabled || !hasInput}>
                                                 Next <ArrowRight size={16} className="ms-1" />
                                             </button>
                                         ) : (
-                                            <button type="button" className="btn btn-brand btn-brand-custom" onClick={onSubmit} disabled={!isActive || disabled}>
+                                            <button type="button" className="btn btn-brand btn-brand-custom" onClick={onSubmit} disabled={!isActive || disabled || !hasInput}>
                                                 Shape My Goal <Stars size={16} className="ms-1" />
                                             </button>
                                         )}

@@ -57,8 +57,6 @@ export function GoalWizardStepper({
                                         <p>{step.helper}</p>
                                     </div>
 
-                                    {error && <div className="alert alert-danger py-2 px-3 small mb-3">{error}</div>}
-
                                     <textarea
                                         id={`goal-wizard-${step.key}`}
                                         className="form-control goal-wizard-answer"
@@ -78,6 +76,8 @@ export function GoalWizardStepper({
                                                 Shape My Goal <Stars size={16} className="ms-1" />
                                             </button>
                                         )}
+
+                                        {error && index === STEPS.length - 1 ? <div className="alert alert-danger goal-wizard-inline-error mb-0">{error}</div> : null}
                                     </div>
                                 </div>
                             </div>

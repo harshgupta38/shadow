@@ -7,6 +7,7 @@ import {
 import { api } from "@/api";
 import { ApiError } from "@/api/client";
 import type { UnderstandGoalRequest } from "@/api/types";
+import { ThemeToggle } from "@/components/ui/ThemeToggle/ThemeToggle";
 
 import {
     EMPTY_ANSWERS,
@@ -277,6 +278,10 @@ export function GoalCreationWizard({ open, onClose, onSubmitted }: GoalCreationW
 
     return (
         <div className="goal-wizard-backdrop">
+            <div className="goal-wizard-page-theme-toggle">
+                <ThemeToggle />
+            </div>
+
             <section className="goal-wizard-shell" aria-labelledby="goal-wizard-title">
                 <div className="goal-wizard-main">
                     <header className="goal-wizard-header">

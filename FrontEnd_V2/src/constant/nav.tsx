@@ -6,10 +6,8 @@ import {
     CalendarCheckFill,
     ChatDotsFill,
     FileEarmarkBarGraphFill,
-    GearFill,
     Grid1x2Fill,
     GraphUpArrow,
-    PersonBadgeFill,
     type IconProps,
 } from "react-bootstrap-icons";
 

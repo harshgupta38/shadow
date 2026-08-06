@@ -1880,8 +1880,8 @@ a {
   transition: background var(--jv-transition), color var(--jv-transition);
 }
 .nav-tab-jv.active {
-  background: var(--jv-surface);
-  color: var(--jv-text);
+  background: color-mix(in srgb, var(--jv-brand-soft) 58%, var(--jv-surface) 42%);
+  color: var(--jv-brand-1);
   box-shadow: var(--jv-shadow);
 }
 
@@ -2042,13 +2042,5 @@ a {
 @media (min-width: 992px) {
   .topbar-menu-btn {
     display: none !important;
-  }
-}
-@media (max-width: 450px) {
-  .page-title {
-    font-size: 1.2rem;
-  }
-  .page-subtitle {
-    font-size: 0.775rem;
   }
 }

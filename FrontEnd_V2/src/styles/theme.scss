@@ -210,6 +210,26 @@ a {
   font-family: var(--jv-font-display);
 }
 
+.page-shell {
+  background: var(--jv-surface);
+  border: 1px solid var(--jv-border);
+  border-radius: var(--jv-radius);
+  box-shadow: var(--jv-shadow);
+  padding: 1.5rem;
+}
+
+.page-title {
+  margin: 0 0 0.45rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--jv-text);
+}
+
+.page-subtitle {
+  margin: 0;
+  color: var(--jv-muted);
+}
+
 /* Utility used in many flex rows to allow text truncation. */
 .min-w-0 {
   min-width: 0 !important;

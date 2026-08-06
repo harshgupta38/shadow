@@ -46,14 +46,14 @@ export const NAV_SECTIONS: NavSection[] = [
         items: [
             { to: ROUTES.TRACK_PROGRESS, label: "Track Progress", icon: GraphUpArrow },
             { to: ROUTES.REPORTS, label: "Reports", icon: FileEarmarkBarGraphFill },
-            { to: ROUTES.ASSISTANT, label: "Assistant", icon: ChatDotsFill },
+            { to: ROUTES.COACH, label: "Coach", icon: ChatDotsFill },
         ],
     },
-    {
-        label: "You",
-        items: [
-            { to: ROUTES.PROFILE, label: "Profile", icon: PersonBadgeFill },
-            { to: ROUTES.SETTINGS, label: "Settings", icon: GearFill },
-        ],
-    },
+    // {
+    //     label: "You",
+    //     items: [
+    //         { to: ROUTES.PROFILE, label: "Profile", icon: PersonBadgeFill },
+    //         { to: ROUTES.SETTINGS, label: "Settings", icon: GearFill },
+    //     ],
+    // },
 ];

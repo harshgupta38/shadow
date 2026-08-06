@@ -10,7 +10,7 @@ export const ROUTES = {
     HABIT_LIBRARY: "/habit-library",
     TRACK_PROGRESS: "/track-progress",
     REPORTS: "/reports",
-    ASSISTANT: "/assistant",
+    COACH: "/coach",
     PROFILE: "/profile",
     SETTINGS: "/settings",
 }

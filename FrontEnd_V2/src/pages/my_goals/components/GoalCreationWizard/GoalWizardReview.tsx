@@ -14,14 +14,13 @@ export function GoalWizardReview({ goalData, saving, error, onBack, onConfirm }:
     return (
         <div className="goal-wizard-body">
             <div className="goal-wizard-review" aria-live="polite">
-                <div className="goal-wizard-review-head">
+                <div className="goal-wizard-loader-head goal-wizard-review-head">
                     <div className="goal-wizard-success-icon">
                         <Check2Circle size={28} />
                     </div>
-
-                    <div className="goal-wizard-stage-header">
-                        <h3>Review the generated goal JSON</h3>
-                        <p>AI has structured your goal. Confirm to save and create this goal.</p>
+                    <div className="goal-wizard-review-copy goal-wizard-stage-header">
+                        <h3>Review Your Goal</h3>
+                        <p>Your coach has organized your ideas into a structured goal. Review it, make any changes if needed, and save it.</p>
                     </div>
                 </div>
 

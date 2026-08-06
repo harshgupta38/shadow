@@ -469,15 +469,6 @@ export function GoalCreationWizard({ open, onClose, onSubmitted }: GoalCreationW
                                         />
                                     ))}
                                 </div>
-
-                                <div className="goal-wizard-loader-card">
-                                    <div className="goal-wizard-loader-card-title">Working with your answers</div>
-                                    <ul>
-                                        <li>{goalPreview}</li>
-                                        <li>{whyPreview}</li>
-                                        <li>{successPreview}</li>
-                                    </ul>
-                                </div>
                             </div>
                         </div>
                     ) : null}

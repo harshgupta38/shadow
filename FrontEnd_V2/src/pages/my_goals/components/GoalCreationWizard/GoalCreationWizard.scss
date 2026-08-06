@@ -324,17 +324,6 @@ $wizard-heading-size-sm: 1.35rem;
         align-items: flex-start;
         gap: 0.95rem;
         max-width: 840px;
-
-        &-head {
-            display: flex;
-            align-items: flex-start;
-            gap: 0.75rem;
-            min-width: 0;
-
-            .goal-wizard-stage-header {
-                min-width: 0;
-            }
-        }
     }
 
     &-loader {
@@ -410,6 +399,18 @@ $wizard-heading-size-sm: 1.35rem;
         }
     }
 
+    &-review {
+        &-head {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+
+        &-copy {
+            min-width: 0;
+        }
+    }
+
     &-success {
         align-items: flex-start;
         justify-content: center;
@@ -481,6 +482,23 @@ $wizard-heading-size-sm: 1.35rem;
             width: auto;
         }
 
+        &-layer {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 420ms ease-in-out;
+            will-change: opacity;
+
+            &.is-active {
+                opacity: 1;
+            }
+
+            &.is-exiting {
+                opacity: 0;
+            }
+        }
+
         &-image {
             width: 100%;
             height: 100%;
@@ -491,36 +509,17 @@ $wizard-heading-size-sm: 1.35rem;
             object-fit: contain;
         }
 
-        &-poster {
+        &-poster-image {
             width: 100%;
             height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 2rem;
-
-            &-image {
-                max-width: min(100%, 480px);
-                max-height: 88%;
-                width: auto;
-                height: auto;
-                object-fit: contain;
-            }
-
-            &.is-gotIt .goal-wizard-visual-poster-image {
-                max-width: min(100%, 500px);
-            }
-
-            &.is-thinking .goal-wizard-visual-poster-image {
-                max-width: min(100%, 440px);
-            }
+            object-fit: contain;
         }
 
         &-boy {
             position: absolute;
             pointer-events: none;
             z-index: 2;
-            transition: left 420ms ease, top 420ms ease, transform 420ms ease, opacity 220ms ease;
+            transition: left 420ms ease-in-out, top 420ms ease-in-out, transform 420ms ease-in-out, opacity 220ms ease-in-out;
             will-change: left, top, transform, opacity;
 
             &-image {

@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 import { ThreeDotsVertical } from "react-bootstrap-icons";
 
@@ -38,6 +39,31 @@ const MOBILE_TONE_CLASS: Record<PageHeaderActionTone, string> = {
 };
 
 export function PageHeader({ title, subtitle, icon, actions }: PageHeaderProps) {
+    const mobileMenuRef = useRef<HTMLDetailsElement>(null);
+
+    const closeMobileMenu = () => {
+        mobileMenuRef.current?.removeAttribute("open");
+    };
+
+    useEffect(() => {
+        const handleOutsideClick = (event: MouseEvent) => {
+            const menu = mobileMenuRef.current;
+            if (!menu?.open) {
+                return;
+            }
+
+            const target = event.target;
+            if (target instanceof Node && !menu.contains(target)) {
+                closeMobileMenu();
+            }
+        };
+
+        document.addEventListener("click", handleOutsideClick);
+        return () => {
+            document.removeEventListener("click", handleOutsideClick);
+        };
+    }, []);
+
     return (
         <div className="page-header-jv d-flex flex-nowrap align-items-center justify-content-between gap-3 mb-3 mb-sm-4">
             <div className="page-header-jv-main d-flex align-items-center gap-3 min-w-0">
@@ -69,7 +95,7 @@ export function PageHeader({ title, subtitle, icon, actions }: PageHeaderProps) 
             )}
 
             {!!actions?.length && (
-                <details className="page-header-mobile-menu d-lg-none">
+                <details ref={mobileMenuRef} className="page-header-mobile-menu d-lg-none">
                     <summary className="btn btn-ghost btn-icon" aria-label="Open page actions">
                         <ThreeDotsVertical size={18} />
                     </summary>
@@ -83,7 +109,10 @@ export function PageHeader({ title, subtitle, icon, actions }: PageHeaderProps) 
                                     type="button"
                                     role="menuitem"
                                     className={`page-header-mobile-action-item p-0 ${MOBILE_TONE_CLASS[mobileTone]}`.trim()}
-                                    onClick={action.onClick}
+                                    onClick={() => {
+                                        action.onClick?.();
+                                        closeMobileMenu();
+                                    }}
                                 >
                                     {action.icon && <span className="page-header-mobile-action-icon">{action.icon}</span>}
                                     <span>{action.label}</span>

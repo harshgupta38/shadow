@@ -11,9 +11,9 @@ import {
 } from "react-bootstrap-icons";
 import { useState } from "react";
 
-import { PageFooter } from "@/components/ui/PageFooter";
-import type { PageHeaderAction } from "@/components/ui/PageHeader";
-import { PageHeader } from "@/components/ui/PageHeader";
+import { PageFooter } from "@/components/ui/PageFooter/PageFooter";
+import type { PageHeaderAction } from "@/components/ui/PageHeader/PageHeader";
+import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 
 import "./MyGoalsPage.scss";
 

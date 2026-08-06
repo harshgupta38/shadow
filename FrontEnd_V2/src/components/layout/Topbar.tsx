@@ -1,7 +1,7 @@
 import { BoxArrowRight, List, PersonCircle } from "react-bootstrap-icons";
 
-import { ThemeToggle } from "@/components/ui/ThemeToggle";
-import { Brand } from "@/components/ui/Brand";
+import { ThemeToggle } from "@/components/ui/ThemeToggle/ThemeToggle";
+import { Brand } from "@/components/ui/Brand/Brand";
 import { useAuth } from "@/context/AuthContext";
 
 interface TopbarProps {

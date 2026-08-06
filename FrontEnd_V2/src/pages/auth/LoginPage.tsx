@@ -5,7 +5,7 @@ import { Calendar3, EnvelopeFill, Eye, EyeSlash, LockFill, Stars } from "react-b
 import { ApiError } from "@/api/client";
 import { AuthLayout } from "@/components/layout/AuthLayout";
 import { useAuth } from "@/context/AuthContext";
-import { TextField } from "@/components/ui/TextField";
+import { TextField } from "@/components/ui/TextField/TextField";
 import { ROUTES } from "@/routes/RoutePaths";
 
 export function LoginPage() {

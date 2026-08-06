@@ -5,7 +5,7 @@ import { EnvelopeFill, Eye, EyeSlash, LockFill, PersonFill } from "react-bootstr
 import { ApiError } from "@/api/client";
 import { type RegisterRequest } from "@/api";
 import { AuthLayout } from "@/components/layout/AuthLayout";
-import { TextField } from "@/components/ui/TextField";
+import { TextField } from "@/components/ui/TextField/TextField";
 import { useAuth } from "@/context/AuthContext";
 import { ROUTES } from "@/routes/RoutePaths";
 

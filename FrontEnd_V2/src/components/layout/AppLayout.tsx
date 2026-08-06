@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Offcanvas } from "react-bootstrap";
 import { Outlet } from "react-router-dom";
 
-import { Brand } from "@/components/ui/Brand";
+import { Brand } from "@/components/ui/Brand/Brand";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Topbar } from "@/components/layout/Topbar";
 

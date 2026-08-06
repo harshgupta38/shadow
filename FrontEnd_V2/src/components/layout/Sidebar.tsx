@@ -1,7 +1,7 @@
 import { NavLink } from "react-router-dom";
 
 import { NAV_SECTIONS } from "@/constant/nav";
-import { Brand } from "@/components/ui/Brand";
+import { Brand } from "@/components/ui/Brand/Brand";
 
 interface SidebarProps {
   onNavigate?: () => void;

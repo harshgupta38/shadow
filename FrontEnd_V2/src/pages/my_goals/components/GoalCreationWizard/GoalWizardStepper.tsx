@@ -9,7 +9,8 @@ interface GoalWizardStepperProps {
     currentStepIndex: number;
     disabled: boolean;
     answers: Record<GoalWizardStepKey, string>;
-    error: string | null;
+    stepErrors: Partial<Record<GoalWizardStepKey, string>>;
+    fallbackError: string | null;
     onSelectStep: (index: number) => void;
     onAnswerChange: (stepKey: GoalWizardStepKey, value: string, textarea: HTMLTextAreaElement) => void;
     onNextFrom: (index: number) => void;
@@ -20,7 +21,8 @@ export function GoalWizardStepper({
     currentStepIndex,
     disabled,
     answers,
-    error,
+    stepErrors,
+    fallbackError,
     onSelectStep,
     onAnswerChange,
     onNextFrom,
@@ -32,6 +34,7 @@ export function GoalWizardStepper({
                 {STEPS.map((step, index) => {
                     const isActive = index === currentStepIndex;
                     const isDone = index < currentStepIndex;
+                    const ctaError = stepErrors[step.key] ?? (isActive ? fallbackError : null);
 
                     return (
                         <div
@@ -76,8 +79,8 @@ export function GoalWizardStepper({
                                                 Shape My Goal <Stars size={16} className="ms-1" />
                                             </button>
                                         )}
-
-                                        {error && index === STEPS.length - 1 ? <div className="alert alert-danger goal-wizard-inline-error mb-0">{error}</div> : null}
+                                        
+                                        {ctaError ? <div className="alert alert-danger goal-wizard-inline-error mb-0">{ctaError}</div> : null}
                                     </div>
                                 </div>
                             </div>

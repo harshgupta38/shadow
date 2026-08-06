@@ -5,7 +5,8 @@ export const ENDPOINTS = {
         USER_DATA: "/auth/me",
     },
     GOALS: {
-        UNDERSTAND: "/understand-goal",
+        PREFIX: "/goal",
+        REFINE: "/refine",
     },
     // DEMO: {
     //     DETAIL: (id: string) => `/demo/${id}`,

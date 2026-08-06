@@ -46,6 +46,7 @@ export function GoalCreationWizard({ open, onClose, onSubmitted }: GoalCreationW
     const [savingGoal, setSavingGoal] = useState(false);
     const [loaderIndex, setLoaderIndex] = useState(0);
     const [error, setError] = useState<string | null>(null);
+    const [stepErrors, setStepErrors] = useState<Partial<Record<GoalWizardStepKey, string>>>({});
     const [understoodGoal, setUnderstoodGoal] = useState<unknown>(null);
     const boyStepTimerRef = useRef<number | null>(null);
     const boyFadeTimerRef = useRef<number | null>(null);
@@ -84,6 +85,7 @@ export function GoalCreationWizard({ open, onClose, onSubmitted }: GoalCreationW
         setLoaderIndex(0);
         setUnderstoodGoal(null);
         setError(null);
+        setStepErrors({});
     }, [open]);
 
     useEffect(() => {
@@ -217,6 +219,18 @@ export function GoalCreationWizard({ open, onClose, onSubmitted }: GoalCreationW
             ...current,
             [stepKey]: value,
         }));
+
+        setStepErrors((current) => {
+            if (!current[stepKey]) {
+                return current;
+            }
+
+            const next = { ...current };
+            delete next[stepKey];
+            return next;
+        });
+
+        setError(null);
     }
 
     function goNextFrom(stepIndex: number) {
@@ -237,6 +251,7 @@ export function GoalCreationWizard({ open, onClose, onSubmitted }: GoalCreationW
         setSubmitting(true);
         setLoaderIndex(0);
         setError(null);
+        setStepErrors({});
 
         try {
             const response = await api.goals.understandGoal(payload);
@@ -245,9 +260,37 @@ export function GoalCreationWizard({ open, onClose, onSubmitted }: GoalCreationW
             setSubmitting(false);
         } catch (submissionError) {
             if (submissionError instanceof ApiError) {
-                setError(submissionError.message);
+                const fieldErrors = submissionError.fieldErrors ?? {};
+                const orderedStepKeys = STEPS.map((step) => step.key);
+                const missingField = orderedStepKeys.find((stepKey) => {
+                    const fieldMessage = fieldErrors[stepKey];
+                    return typeof fieldMessage === "string" && fieldMessage.trim().length > 0;
+                });
+
+                if (missingField) {
+                    const nextStepErrors: Partial<Record<GoalWizardStepKey, string>> = {};
+
+                    for (const stepKey of orderedStepKeys) {
+                        const fieldMessage = fieldErrors[stepKey];
+                        if (typeof fieldMessage === "string" && fieldMessage.trim().length > 0) {
+                            nextStepErrors[stepKey] = fieldMessage;
+                        }
+                    }
+
+                    setStepErrors(nextStepErrors);
+                    setError(null);
+
+                    const nextStepIndex = STEPS.findIndex((step) => step.key === missingField);
+                    if (nextStepIndex >= 0) {
+                        setCurrentStepIndex(nextStepIndex);
+                    }
+                } else {
+                    setStepErrors({});
+                    setError(submissionError.message);
+                }
             } else {
                 setError("We could not understand the goal right now. Please try again.");
+                setStepErrors({});
             }
             setPhase("questions");
             setSubmitting(false);
@@ -304,7 +347,8 @@ export function GoalCreationWizard({ open, onClose, onSubmitted }: GoalCreationW
                             currentStepIndex={currentStepIndex}
                             disabled={submitting || savingGoal}
                             answers={answers}
-                            error={error}
+                            stepErrors={stepErrors}
+                            fallbackError={error}
                             onSelectStep={setCurrentStepIndex}
                             onAnswerChange={(stepKey, value, textarea) => {
                                 updateAnswer(stepKey, value);

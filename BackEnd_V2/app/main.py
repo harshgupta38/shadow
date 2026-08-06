@@ -41,7 +41,13 @@ app.add_middleware(
 
 @app.exception_handler(AppError)
 async def handle_app_error(_request: Request, exc: AppError) -> JSONResponse:
-    return JSONResponse(status_code=exc.status_code, content={"message": exc.detail})
+    payload: dict[str, object] = {"message": exc.detail}
+
+    errors = getattr(exc, "errors", None)
+    if isinstance(errors, dict) and errors:
+        payload["errors"] = errors
+
+    return JSONResponse(status_code=exc.status_code, content=payload)
 
 
 @app.exception_handler(RequestValidationError)

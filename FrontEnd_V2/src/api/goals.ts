@@ -5,6 +5,6 @@ import { UnderstandGoalRequest } from "./types";
 
 export const goalsApi = {
     async understandGoal(data: UnderstandGoalRequest): Promise<unknown> {
-        return http.post<unknown>(ENDPOINTS.GOALS.UNDERSTAND, data);
+        return http.post<unknown>(`${ENDPOINTS.GOALS.PREFIX}${ENDPOINTS.GOALS.REFINE}`, data);
     },
 };

@@ -8,6 +8,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { IllustratedErrorState } from "@/components/ui/IllustratedErrorState/IllustratedErrorState";
 import { ProgressRing } from "@/components/ui/ProgressRing/ProgressRing";
 import { ROUTES } from "@/routes/RoutePaths";
+import { useToast } from "@/context/ToastContext";
 
 import "./GoalDetailPage.scss";
 
@@ -58,6 +59,8 @@ export function GoalDetailPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
 
+  const toast = useToast();
+
   const numericGoalId = Number(goalId);
 
   const handleDeleteConfirm = async () => {
@@ -68,6 +71,7 @@ export function GoalDetailPage() {
     } catch {
       setDeleteBusy(false);
       setShowDeleteConfirm(false);
+      toast.error("Failed to delete goal. Please try again.");
     }
   };
 

@@ -24,6 +24,7 @@ import { ROUTES } from "@/routes/RoutePaths";
 
 import { GoalCreationWizard } from "./components/GoalCreationWizard/GoalCreationWizard";
 import { GoalLoadingSkeleton } from "./components/GoalLoadingSkeleton/GoalLoadingSkeleton";
+import { useToast } from "@/context/ToastContext";
 
 import "./MyGoalsPage.scss";
 
@@ -80,6 +81,7 @@ const FILTER_CONTENT: Record<GoalFilterLabel, FilterData> = {
 };
 
 export function MyGoalsPage() {
+  const toast = useToast();
   const [activeFilter, setActiveFilter] = useState<GoalFilterLabel>("Active");
   const [goalWizardOpen, setGoalWizardOpen] = useState(false);
   const [goals, setGoals] = useState<GoalListItemResponse[]>([]);
@@ -130,6 +132,7 @@ export function MyGoalsPage() {
           onClose={() => setGoalWizardOpen(false)}
           onSubmitted={async () => {
             await loadGoals(activeFilter);
+            toast.success("Goal created successfully.");
           }}
         />
       </section>

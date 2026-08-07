@@ -34,24 +34,6 @@ class LLMService:
 
         return provider_cls(settings=settings)
 
-    # def _with_system_prompt(self, request: ChatRequest) -> ChatRequest:
-    #     return ChatRequest(
-    #         model=request.model,
-    #         temperature=request.temperature,
-    #         max_tokens=request.max_tokens,
-    #         messages=[
-    #             ChatMessage(role=ChatRole.SYSTEM, content=self._settings.llm_system_prompt),
-    #             *request.messages,
-    #         ],
-    #     )
-
-    # async def chat(self, request: ChatRequest) -> ChatResponse:
-    #     return await self._provider.chat(self._with_system_prompt(request))
-
-    # async def stream_chat(self, request: ChatRequest) -> AsyncIterator[str]:
-    #     async for chunk in self._provider.stream_chat(self._with_system_prompt(request)):
-    #         yield chunk
-
     async def health_check(self) -> bool:
         return await self._provider.health_check()
 

@@ -15,7 +15,7 @@ from app.schemas.goals import (
 
 
 def understand_goal(data: UnderstandGoalRequest) -> UnderstandGoalResponse:
-    time.sleep(3)
+    # time.sleep(3)
 
     # return UnderstandGoalResponse(
     #     title=data.goal.strip(),
@@ -107,7 +107,7 @@ def save_goal(
     current_user: User,
     data: UnderstandGoalResponse,
 ) -> UnderstandGoalResponse:
-    time.sleep(5)
+    # time.sleep(5)
 
     goal = Goal(
         user_id=current_user.id,
@@ -154,7 +154,7 @@ def get_goal_list(
     current_user: User,
     status: GoalListStatusFilter,
 ) -> list[GoalListItemResponse]:
-    time.sleep(2)
+    # time.sleep(2)
     # raise RuntimeError("Forced test error in get_goal_list")
 
     query = db.query(Goal).filter(Goal.user_id == current_user.id)
@@ -187,7 +187,7 @@ def get_goal_detail(
     current_user: User,
     goal_id: int,
 ) -> GoalDetailResponse:
-    time.sleep(2)
+    # time.sleep(2)
     # raise RuntimeError("Forced test error in get_goal_list")
 
     goal = (
@@ -210,8 +210,8 @@ def delete_goal(
     current_user: User,
     goal_id: int,
 ) -> None:
-    time.sleep(2)
-    raise RuntimeError("Forced test error in get_goal_list")
+    # time.sleep(2)
+    # raise RuntimeError("Forced test error in get_goal_list")
 
     goal = (
         db.query(Goal)

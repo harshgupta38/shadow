@@ -7,6 +7,7 @@ export const ROUTES = {
     PLAN: "/plan",
     SCHEDULE: "/schedule",
     MY_GOALS: "/my-goals",
+    MY_GOAL_DETAIL: "/my-goals/:goalId",
     HABIT_LIBRARY: "/habit-library",
     TRACK_PROGRESS: "/track-progress",
     REPORTS: "/reports",

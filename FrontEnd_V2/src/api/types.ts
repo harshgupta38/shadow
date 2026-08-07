@@ -88,11 +88,33 @@ export type GoalListStatusFilter = "All" | "Active" | "Paused" | "Completed";
 export type GoalItemStatus = Exclude<GoalListStatusFilter, "All">;
 
 export interface GoalListItemResponse {
+  id: number;
   title: string;
   summary: string;
   category: GoalCategory;
   status: GoalItemStatus;
   target_date: string;
+  progress_percent: number;
+  milestones_total: number;
+  milestones_completed: number;
+  habits_total: number;
+  habits_active: number;
+}
+
+export interface GoalDetailResponse {
+  id: number;
+  title: string;
+  summary: string;
+  category: GoalCategory;
+  status: GoalItemStatus;
+  motivation: string;
+  success_definition: string;
+  current_state: string;
+  challenges: string[];
+  strengths: string[];
+  target_date: string;
+  success_metrics: string[];
+  insights: string[];
   progress_percent: number;
   milestones_total: number;
   milestones_completed: number;

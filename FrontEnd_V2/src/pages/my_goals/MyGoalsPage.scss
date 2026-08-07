@@ -10,6 +10,39 @@
     display: flex;
     flex-direction: column;
     min-height: 205px;
+    transition:
+      transform var(--jv-transition),
+      box-shadow var(--jv-transition),
+      border-color var(--jv-transition);
+  }
+
+  .goal-summary-card-link {
+    display: block;
+    height: 100%;
+    color: inherit;
+    text-decoration: none;
+
+    &:hover .goal-summary-card,
+    &:focus-visible .goal-summary-card {
+      border-color: var(--jv-border-strong);
+      box-shadow: var(--jv-shadow-lg);
+      transform: translateY(-2px);
+    }
+
+    &:hover .goal-summary-title,
+    &:focus-visible .goal-summary-title {
+      color: var(--jv-brand-1);
+      transform: translateY(-1px);
+    }
+
+    &:hover .goal-summary-meta,
+    &:focus-visible .goal-summary-meta {
+      transform: translateY(-1px);
+    }
+
+    &:focus-visible {
+      outline: none;
+    }
   }
 
   .goal-summary-card-head {
@@ -63,6 +96,7 @@
     line-height: 1.25;
     letter-spacing: -0.01em;
     color: var(--jv-text);
+    transition: color var(--jv-transition), transform var(--jv-transition);
   }
 
   .goal-summary-text {
@@ -100,6 +134,7 @@
     font-size: 0.76rem;
     color: var(--jv-faint);
     flex-wrap: nowrap;
+    transition: transform var(--jv-transition), color var(--jv-transition);
 
     .goal-summary-meta-left {
       display: inline-flex;

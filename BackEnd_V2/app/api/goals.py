@@ -5,6 +5,7 @@ from app.core.endpoints import ENDPOINTS
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.goals import (
+    GoalDetailResponse,
     GoalListItemResponse,
     GoalListStatusFilter,
     UnderstandGoalRequest,
@@ -36,3 +37,12 @@ def get_goal_list(
     current_user: User = Depends(get_current_user),
 ) -> list[GoalListItemResponse]:
     return goals_service.get_goal_list(db, current_user, status)
+
+
+@router.get(ENDPOINTS.GOALS.DETAIL, response_model=GoalDetailResponse)
+def get_goal_detail(
+    goal_id: int,
+    db = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> GoalDetailResponse:
+    return goals_service.get_goal_detail(db, current_user, goal_id)

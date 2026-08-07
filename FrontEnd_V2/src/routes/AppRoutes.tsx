@@ -17,6 +17,7 @@ import { DashboardPage } from "@/pages/dashboard/DashboardPage";
 import { PlanPage } from "@/pages/plan/PlanPage";
 import { SchedulePage } from "@/pages/schedule/SchedulePage";
 import { MyGoalsPage } from "@/pages/my_goals/MyGoalsPage";
+import { GoalDetailPage } from "@/pages/my_goals/GoalDetailPage";
 import { HabitLibraryPage } from "@/pages/habit_library/HabitLibraryPage";
 import { TrackProgressPage } from "@/pages/track_progress/TrackProgressPage";
 import { ReportsPage } from "@/pages/reports/ReportsPage";
@@ -40,6 +41,7 @@ export function AppRoutes() {
 					<Route path={ROUTES.PLAN} element={<PlanPage />} />
 					<Route path={ROUTES.SCHEDULE} element={<SchedulePage />} />
 					<Route path={ROUTES.MY_GOALS} element={<MyGoalsPage />} />
+					<Route path={ROUTES.MY_GOAL_DETAIL} element={<GoalDetailPage />} />
 					<Route path={ROUTES.HABIT_LIBRARY} element={<HabitLibraryPage />} />
 					<Route path={ROUTES.TRACK_PROGRESS} element={<TrackProgressPage />} />
 					<Route path={ROUTES.REPORTS} element={<ReportsPage />} />

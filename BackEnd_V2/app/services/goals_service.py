@@ -1,9 +1,12 @@
 from datetime import date
 import time
 
+from fastapi import HTTPException, status
+
 from app.models.goal import Goal
 from app.models.user import User
 from app.schemas.goals import (
+    GoalDetailResponse,
     GoalListItemResponse,
     GoalListStatusFilter,
     UnderstandGoalRequest,
@@ -12,7 +15,7 @@ from app.schemas.goals import (
 
 
 def understand_goal(data: UnderstandGoalRequest) -> UnderstandGoalResponse:
-    time.sleep(5)
+    time.sleep(3)
 
     # return UnderstandGoalResponse(
     #     title=data.goal.strip(),
@@ -76,6 +79,29 @@ def _clean_list(values: list[str]) -> list[str]:
     return [item.strip() for item in values if item.strip()]
 
 
+def _serialize_goal_detail(goal: Goal) -> GoalDetailResponse:
+    return GoalDetailResponse(
+        id=goal.id,
+        title=goal.title,
+        summary=goal.summary,
+        category=goal.category,
+        status=goal.status,
+        motivation=goal.motivation,
+        success_definition=goal.success_definition,
+        current_state=goal.current_state,
+        challenges=goal.challenges,
+        strengths=goal.strengths,
+        target_date=goal.target_date.isoformat(),
+        success_metrics=goal.success_metrics,
+        insights=goal.insights,
+        progress_percent=goal.progress_percent,
+        milestones_total=goal.milestones_total,
+        milestones_completed=goal.milestones_completed,
+        habits_total=goal.habits_total,
+        habits_active=goal.habits_active,
+    )
+
+
 def save_goal(
     db,
     current_user: User,
@@ -128,7 +154,8 @@ def get_goal_list(
     current_user: User,
     status: GoalListStatusFilter,
 ) -> list[GoalListItemResponse]:
-    time.sleep(5)
+    time.sleep(2)
+    # raise RuntimeError("Forced test error in get_goal_list")
 
     query = db.query(Goal).filter(Goal.user_id == current_user.id)
 
@@ -139,6 +166,7 @@ def get_goal_list(
 
     return [
         GoalListItemResponse(
+            id=goal.id,
             title=goal.title,
             summary=goal.summary,
             category=goal.category,
@@ -152,3 +180,23 @@ def get_goal_list(
         )
         for goal in goals
     ]
+
+
+def get_goal_detail(
+    db,
+    current_user: User,
+    goal_id: int,
+) -> GoalDetailResponse:
+    goal = (
+        db.query(Goal)
+        .filter(Goal.id == goal_id, Goal.user_id == current_user.id)
+        .first()
+    )
+
+    if goal is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Goal not found.",
+        )
+
+    return _serialize_goal_detail(goal)

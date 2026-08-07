@@ -11,6 +11,7 @@ import {
   Stars,
 } from "react-bootstrap-icons";
 import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 
 import { api, type GoalListItemResponse } from "@/api";
 import { ApiError } from "@/api/client";
@@ -19,6 +20,7 @@ import { IllustratedErrorState } from "@/components/ui/IllustratedErrorState/Ill
 import { PageFooter } from "@/components/ui/PageFooter/PageFooter";
 import type { PageHeaderAction } from "@/components/ui/PageHeader/PageHeader";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
+import { ROUTES } from "@/routes/RoutePaths";
 
 import { GoalCreationWizard } from "./components/GoalCreationWizard/GoalCreationWizard";
 import { GoalLoadingSkeleton } from "./components/GoalLoadingSkeleton/GoalLoadingSkeleton";
@@ -196,37 +198,39 @@ export function MyGoalsPage() {
         <div className="row g-3 my-goals-grid">
           {goals.map((goal, index) => (
             <div className="col-md-6 col-xl-4" key={`${goal.title}-${goal.target_date}-${index}`}>
-              <article className="surface goal-summary-card h-100">
-                <div className="goal-summary-card-head">
-                  <span className="goal-summary-category">{goal.category}</span>
-                  <span className={`goal-summary-status goal-summary-status-${goal.status.toLowerCase()}`}>{goal.status}</span>
-                </div>
+              <Link to={ROUTES.MY_GOAL_DETAIL.replace(":goalId", String(goal.id))} className="goal-summary-card-link">
+                <article className="surface goal-summary-card h-100">
+                  <div className="goal-summary-card-head">
+                    <span className="goal-summary-category">{goal.category}</span>
+                    <span className={`goal-summary-status goal-summary-status-${goal.status.toLowerCase()}`}>{goal.status}</span>
+                  </div>
 
-                <h3 className="goal-summary-title">{goal.title}</h3>
-                <p className="goal-summary-text">{goal.summary}</p>
+                  <h3 className="goal-summary-title">{goal.title}</h3>
+                  <p className="goal-summary-text">{goal.summary}</p>
 
-                <div className="goal-summary-progress-row">
-                  <span>Progress</span>
-                  <strong>{goal.progress_percent}%</strong>
-                </div>
-                <div className="progress goal-progress-track mb-3" style={{ height: 7 }}>
-                  <div className="progress-bar" style={{ width: `${goal.progress_percent}%` }} />
-                </div>
+                  <div className="goal-summary-progress-row">
+                    <span>Progress</span>
+                    <strong>{goal.progress_percent}%</strong>
+                  </div>
+                  <div className="progress goal-progress-track mb-3" style={{ height: 7 }}>
+                    <div className="progress-bar" style={{ width: `${goal.progress_percent}%` }} />
+                  </div>
 
-                <div className="goal-summary-meta">
-                  <div className="goal-summary-meta-left">
-                    <span>
-                      <Diagram3 size={13} /> {goal.milestones_completed}/{goal.milestones_total}
-                    </span>
-                    <span>
-                      <Compass size={13} /> {goal.habits_active}/{goal.habits_total}
+                  <div className="goal-summary-meta">
+                    <div className="goal-summary-meta-left">
+                      <span>
+                        <Diagram3 size={13} /> {goal.milestones_completed}/{goal.milestones_total}
+                      </span>
+                      <span>
+                        <Compass size={13} /> {goal.habits_active}/{goal.habits_total}
+                      </span>
+                    </div>
+                    <span className="goal-summary-meta-date">
+                      <CalendarCheck size={13} /> {formatGoalDate(goal.target_date)}
                     </span>
                   </div>
-                  <span className="goal-summary-meta-date">
-                    <CalendarCheck size={13} /> {formatGoalDate(goal.target_date)}
-                  </span>
-                </div>
-              </article>
+                </article>
+              </Link>
             </div>
           ))}
         </div>

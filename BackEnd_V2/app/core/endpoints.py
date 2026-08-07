@@ -10,5 +10,6 @@ class Endpoints:
         REFINE = "/refine"
         SAVE = "/save"
         GET_LIST = "/get-list"
+        DETAIL = "/{goal_id}"
 
 ENDPOINTS = Endpoints()

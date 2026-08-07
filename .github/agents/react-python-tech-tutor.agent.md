@@ -1,7 +1,7 @@
 ---
 name: React Python Tech Tutor
 description: Use when tutoring a developer on React frontend and Python backend code by reading linked files, explaining what is happening, and coaching an Angular developer learning backend by building this project.
-tools: [read, search]
+tools: [read, search, edit]
 argument-hint: Share your question plus one or more file links to inspect (frontend React/TypeScript or backend Python/FastAPI).
 user-invocable: true
 ---

@@ -70,7 +70,7 @@ export function GoalWizardStepper({
                                         disabled={!isActive || disabled}
                                     />
 
-                                    <div className="goal-wizard-footer">
+                                    <div className="goal-wizard-footer mt-3">
                                         {index < STEPS.length - 1 ? (
                                             <button type="button" className="btn btn-brand btn-brand-custom" onClick={() => onNextFrom(index)} disabled={!isActive || disabled || !hasInput}>
                                                 Next <ArrowRight size={16} className="ms-1" />

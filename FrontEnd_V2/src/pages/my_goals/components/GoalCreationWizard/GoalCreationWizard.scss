@@ -527,32 +527,45 @@ $wizard-heading-size-sm: 1.35rem;
 
     &-review-tabbed-list {
         display: grid;
-        gap: 0.9rem;
+        gap: 0;
     }
 
     &-review-tabs {
         display: flex;
         flex-wrap: wrap;
-        gap: 0.6rem;
+        align-items: flex-end;
+        gap: 0.2rem;
+        padding: 0;
+        overflow: visible;
+        border-bottom: 1px solid var(--jv-border);
     }
 
     &-review-tab {
         display: inline-flex;
         align-items: center;
         gap: 0.55rem;
-        border: 1px solid var(--jv-border);
-        border-radius: 999px;
-        background: var(--jv-surface);
+        border: 1px solid transparent;
+        border-bottom: 0;
+        border-radius: 12px 12px 0 0;
+        background: color-mix(in srgb, var(--jv-surface-2) 90%, var(--jv-border) 10%);
         color: var(--jv-muted);
-        padding: 0.45rem 0.8rem;
+        padding: 0.5rem 0.88rem;
+        margin-bottom: -1px;
+        white-space: nowrap;
         font-size: 0.88rem;
         font-weight: 600;
         transition: border-color 180ms ease, background-color 180ms ease, color 180ms ease;
 
+        &:hover:not(:disabled),
+        &:focus-visible {
+            color: var(--jv-text);
+            background: color-mix(in srgb, var(--jv-surface) 88%, var(--jv-border) 12%);
+        }
+
         &.is-active {
-            border-color: transparent;
-            background: var(--jv-brand-soft);
-            color: var(--jv-brand-1);
+            border-color: var(--jv-border);
+            background: var(--jv-surface);
+            color: var(--jv-text);
         }
     }
 
@@ -564,7 +577,8 @@ $wizard-heading-size-sm: 1.35rem;
         align-items: center;
         justify-content: center;
         padding: 0 0.35rem;
-        background: rgba(255, 255, 255, 0.06);
+        background: color-mix(in srgb, var(--jv-brand-soft) 72%, var(--jv-surface) 28%);
+        color: var(--jv-brand-1);
         font-size: 0.76rem;
         line-height: 1;
     }
@@ -572,6 +586,11 @@ $wizard-heading-size-sm: 1.35rem;
     &-review-tab-panel {
         display: grid;
         gap: 0.55rem;
+        margin-top: -1px;
+        padding: 0.9rem;
+        border: 1px solid var(--jv-border);
+        border-radius: 0 12px 12px 12px;
+        background: var(--jv-surface);
     }
 
     &-review-list {
@@ -815,7 +834,17 @@ $wizard-heading-size-sm: 1.35rem;
         }
 
         &-review-tabs {
+            min-height: 43px;
             gap: 0.45rem;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            overflow-y: hidden;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: thin;
+        }
+
+        &-review-tab {
+            flex: 0 0 auto;
         }
 
         &-review-grid-two,
@@ -868,8 +897,7 @@ $wizard-heading-size-sm: 1.35rem;
 @media (max-width: 425px) {
     .goal-wizard {
         &-review-tab {
-            width: 100%;
-            justify-content: space-between;
+            width: auto;
         }
     }
 }

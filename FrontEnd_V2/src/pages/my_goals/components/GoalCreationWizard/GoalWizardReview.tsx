@@ -21,6 +21,7 @@ const CATEGORY_OPTIONS: GoalCategory[] = [
 ];
 
 const MAX_TEXTAREA_LINES = 8;
+const MAX_LIST_TEXTAREA_LINES = 4;
 
 type ListFieldKey = "challenges" | "strengths" | "success_metrics" | "insights";
 
@@ -43,6 +44,7 @@ export function GoalWizardReview({ goalData, saving, error, onBack, onConfirm }:
     const [editableGoal, setEditableGoal] = useState<UnderstandGoalResponse>(goalData);
     const [activeListTab, setActiveListTab] = useState<ListFieldKey>("challenges");
     const textareaRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
+    const textareaMaxLinesRefs = useRef<Record<string, number>>({});
 
     useEffect(() => {
         setEditableGoal(goalData);
@@ -50,19 +52,20 @@ export function GoalWizardReview({ goalData, saving, error, onBack, onConfirm }:
     }, [goalData]);
 
     useEffect(() => {
-        Object.values(textareaRefs.current).forEach((textarea) => {
+        Object.entries(textareaRefs.current).forEach(([key, textarea]) => {
             if (textarea) {
-                resizeTextarea(textarea);
+                const maxLines = textareaMaxLinesRefs.current[key] ?? MAX_TEXTAREA_LINES;
+                resizeTextarea(textarea, maxLines);
             }
         });
     }, [editableGoal]);
 
-    function resizeTextarea(textarea: HTMLTextAreaElement) {
+    function resizeTextarea(textarea: HTMLTextAreaElement, maxLines: number = MAX_TEXTAREA_LINES) {
         const computedStyle = window.getComputedStyle(textarea);
         const lineHeight = Number.parseFloat(computedStyle.lineHeight) || 24;
         const verticalPadding = Number.parseFloat(computedStyle.paddingTop) + Number.parseFloat(computedStyle.paddingBottom);
         const verticalBorder = Number.parseFloat(computedStyle.borderTopWidth) + Number.parseFloat(computedStyle.borderBottomWidth);
-        const maxHeight = (lineHeight * MAX_TEXTAREA_LINES) + verticalPadding + verticalBorder;
+        const maxHeight = (lineHeight * maxLines) + verticalPadding + verticalBorder;
 
         textarea.style.height = "auto";
         const nextHeight = Math.min(textarea.scrollHeight, maxHeight);
@@ -70,12 +73,13 @@ export function GoalWizardReview({ goalData, saving, error, onBack, onConfirm }:
         textarea.style.overflowY = textarea.scrollHeight > maxHeight ? "auto" : "hidden";
     }
 
-    function registerTextareaRef(key: string) {
+    function registerTextareaRef(key: string, maxLines: number = MAX_TEXTAREA_LINES) {
         return (textarea: HTMLTextAreaElement | null) => {
             textareaRefs.current[key] = textarea;
+            textareaMaxLinesRefs.current[key] = maxLines;
 
             if (textarea) {
-                resizeTextarea(textarea);
+                resizeTextarea(textarea, maxLines);
             }
         };
     }
@@ -129,7 +133,7 @@ export function GoalWizardReview({ goalData, saving, error, onBack, onConfirm }:
 
     return (
         <div className="goal-wizard-body">
-            <div className="goal-wizard-review" aria-live="polite">
+            <div className="goal-wizard-review pb-2" aria-live="polite">
                 <div className="goal-wizard-review-form">
                     <div>
                         <label className="form-label">Title</label>
@@ -259,7 +263,6 @@ export function GoalWizardReview({ goalData, saving, error, onBack, onConfirm }:
                             className="goal-wizard-review-tab-panel"
                             aria-labelledby={`goal-wizard-review-tab-${activeListConfig.key}`}
                         >
-                            <label className="form-label">{activeListConfig.label}</label>
                             <div className="goal-wizard-review-list">
                                 {activeListItems.map((item, index) => (
                                     <div key={`${activeListConfig.key}-${index}`} className="goal-wizard-review-list-item">
@@ -269,9 +272,9 @@ export function GoalWizardReview({ goalData, saving, error, onBack, onConfirm }:
                                             value={item}
                                             onChange={(event) => {
                                                 updateListField(activeListConfig.key, index, event.target.value);
-                                                resizeTextarea(event.currentTarget);
+                                                resizeTextarea(event.currentTarget, MAX_LIST_TEXTAREA_LINES);
                                             }}
-                                            ref={registerTextareaRef(`${activeListConfig.key}-${index}`)}
+                                            ref={registerTextareaRef(`${activeListConfig.key}-${index}`, MAX_LIST_TEXTAREA_LINES)}
                                             disabled={saving}
                                         />
                                         <button
@@ -303,7 +306,7 @@ export function GoalWizardReview({ goalData, saving, error, onBack, onConfirm }:
                         <ChevronLeft size={16} className="me-1" /> Edit Answers
                     </button>
                     <button type="button" className="btn btn-brand" onClick={handleSave} disabled={saving}>
-                        {saving ? "Saving Goal..." : "Save Goal"}
+                        {saving ? "Saving..." : "Save"}
                     </button>
                     {error && <div className="alert alert-danger py-2 px-3 small mb-0">{error}</div>}
                 </div>

@@ -32,7 +32,7 @@ type GoalWizardStepErrors = Partial<Record<GoalWizardStepKey, string>>;
 
 const PHASE_TITLES: Record<WizardPhase, string[]> = {
     questions: ["Build Your Goal"],
-    understanding: ["Understanding Your Goal", "We're turning your answers into a structured brief step by step."],
+    understanding: ["Analyzing Your Goal", "We're turning your answers into a structured brief step by step."],
     review: ["Review Your Goal", "Your coach has organized your ideas into a structured goal. Review it, make any changes if needed, and save it."],
 };
 

@@ -84,6 +84,7 @@ def save_goal(
         title=data.title.strip(),
         summary=data.summary.strip(),
         category=data.category,
+        status="Active",
         motivation=data.motivation.strip(),
         success_definition=data.success_definition.strip(),
         current_state=data.current_state.strip(),

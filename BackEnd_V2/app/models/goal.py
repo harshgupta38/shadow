@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from sqlalchemy import Date, DateTime, ForeignKey, JSON, String, func  # pyright: ignore[reportMissingImports]
+from sqlalchemy import CheckConstraint, Date, DateTime, ForeignKey, JSON, String, func, text  # pyright: ignore[reportMissingImports]
 from sqlalchemy.orm import Mapped, mapped_column  # pyright: ignore[reportMissingImports]
 
 from app.models.base import Base
@@ -8,6 +8,12 @@ from app.models.base import Base
 
 class Goal(Base):
     __tablename__ = "goals"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('Active', 'Paused', 'Completed')",
+            name="ck_goals_status",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
 
@@ -20,6 +26,13 @@ class Goal(Base):
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     summary: Mapped[str] = mapped_column(String(2000), nullable=False)
     category: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(16),
+        index=True,
+        nullable=False,
+        default="Active",
+        server_default=text("'Active'"),
+    )
 
     motivation: Mapped[str] = mapped_column(String(2000), nullable=False)
     success_definition: Mapped[str] = mapped_column(String(2000), nullable=False)

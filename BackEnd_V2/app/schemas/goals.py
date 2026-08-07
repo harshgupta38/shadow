@@ -3,6 +3,10 @@ from pydantic import BaseModel, Field, field_validator
 from typing import Any, List, Literal
 
 
+GoalStatus = Literal["Active", "Paused", "Completed"]
+GoalListStatusFilter = Literal["All", "Active", "Paused", "Completed"]
+
+
 class UnderstandGoalRequest(BaseModel):
     """Raw user inputs captured from the 5-step goal discovery wizard."""
 
@@ -208,3 +212,16 @@ class UnderstandGoalResponse(BaseModel):
             )
 
         return value
+
+
+class GoalListItemResponse(BaseModel):
+    title: str
+    summary: str
+    category: str
+    status: GoalStatus
+    target_date: str
+    progress_percent: int
+    milestones_total: int
+    milestones_completed: int
+    habits_total: int
+    habits_active: int

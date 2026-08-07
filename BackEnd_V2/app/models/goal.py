@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from sqlalchemy import CheckConstraint, Date, DateTime, ForeignKey, JSON, String, func, text  # pyright: ignore[reportMissingImports]
+from sqlalchemy import CheckConstraint, Date, DateTime, ForeignKey, Integer, JSON, String, func, text  # pyright: ignore[reportMissingImports]
 from sqlalchemy.orm import Mapped, mapped_column  # pyright: ignore[reportMissingImports]
 
 from app.models.base import Base
@@ -12,6 +12,10 @@ class Goal(Base):
         CheckConstraint(
             "status IN ('Active', 'Paused', 'Completed')",
             name="ck_goals_status",
+        ),
+        CheckConstraint(
+            "progress_percent >= 0 AND progress_percent <= 100",
+            name="ck_goals_progress_percent",
         ),
     )
 
@@ -44,6 +48,44 @@ class Goal(Base):
     insights: Mapped[list[str]] = mapped_column(JSON, nullable=False)
 
     target_date: Mapped[date] = mapped_column(Date, index=True, nullable=False)
+    paused_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    progress_percent: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default=text("0"),
+    )
+    progress_updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+
+    milestones_total: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default=text("0"),
+    )
+    milestones_completed: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default=text("0"),
+    )
+    habits_total: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default=text("0"),
+    )
+    habits_active: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default=text("0"),
+    )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

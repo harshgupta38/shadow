@@ -4,6 +4,8 @@ import time
 from app.models.goal import Goal
 from app.models.user import User
 from app.schemas.goals import (
+    GoalListItemResponse,
+    GoalListStatusFilter,
     UnderstandGoalRequest,
     UnderstandGoalResponse,
 )
@@ -79,6 +81,8 @@ def save_goal(
     current_user: User,
     data: UnderstandGoalResponse,
 ) -> UnderstandGoalResponse:
+    time.sleep(5)
+
     goal = Goal(
         user_id=current_user.id,
         title=data.title.strip(),
@@ -93,6 +97,11 @@ def save_goal(
         success_metrics=_clean_list(data.success_metrics),
         insights=_clean_list(data.insights),
         target_date=date.fromisoformat(data.target_date),
+        progress_percent=0,
+        milestones_total=0,
+        milestones_completed=0,
+        habits_total=0,
+        habits_active=0,
     )
 
     db.add(goal)
@@ -112,3 +121,34 @@ def save_goal(
         success_metrics=goal.success_metrics,
         insights=goal.insights,
     )
+
+
+def get_goal_list(
+    db,
+    current_user: User,
+    status: GoalListStatusFilter,
+) -> list[GoalListItemResponse]:
+    time.sleep(5)
+
+    query = db.query(Goal).filter(Goal.user_id == current_user.id)
+
+    if status != "All":
+        query = query.filter(Goal.status == status)
+
+    goals = query.order_by(Goal.updated_at.desc()).all()
+
+    return [
+        GoalListItemResponse(
+            title=goal.title,
+            summary=goal.summary,
+            category=goal.category,
+            status=goal.status,
+            target_date=goal.target_date.isoformat(),
+            progress_percent=goal.progress_percent,
+            milestones_total=goal.milestones_total,
+            milestones_completed=goal.milestones_completed,
+            habits_total=goal.habits_total,
+            habits_active=goal.habits_active,
+        )
+        for goal in goals
+    ]

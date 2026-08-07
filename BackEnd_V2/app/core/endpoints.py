@@ -9,5 +9,6 @@ class Endpoints:
         PREFIX = "/goal"
         REFINE = "/refine"
         SAVE = "/save"
+        GET_LIST = "/get-list"
 
 ENDPOINTS = Endpoints()

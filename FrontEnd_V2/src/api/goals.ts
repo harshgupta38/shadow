@@ -1,7 +1,7 @@
 import { ENDPOINTS } from "@/constant/shadow-endpoints";
 
 import { http } from "./client";
-import { UnderstandGoalRequest, UnderstandGoalResponse } from "./types";
+import { GoalListItemResponse, GoalListStatusFilter, UnderstandGoalRequest, UnderstandGoalResponse } from "./types";
 
 export const goalsApi = {
     async understandGoal(data: UnderstandGoalRequest): Promise<UnderstandGoalResponse> {
@@ -10,5 +10,11 @@ export const goalsApi = {
 
     async saveGoal(data: UnderstandGoalResponse): Promise<UnderstandGoalResponse> {
         return http.post<UnderstandGoalResponse>(`${ENDPOINTS.GOALS.PREFIX}${ENDPOINTS.GOALS.SAVE}`, data);
+    },
+
+    async getList(status: GoalListStatusFilter): Promise<GoalListItemResponse[]> {
+        return http.get<GoalListItemResponse[]>(`${ENDPOINTS.GOALS.PREFIX}${ENDPOINTS.GOALS.GET_LIST}`, {
+            params: { status },
+        });
     },
 };

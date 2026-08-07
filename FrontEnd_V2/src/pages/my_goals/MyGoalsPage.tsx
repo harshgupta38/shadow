@@ -3,13 +3,17 @@ import {
   CalendarCheck,
   Check2Circle,
   Compass,
+  Diagram3,
   Grid1x2,
   PauseCircle,
   PlayCircle,
   PlusLg,
   Stars,
 } from "react-bootstrap-icons";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+
+import { api, type GoalListItemResponse } from "@/api";
+import { ApiError } from "@/api/client";
 
 import { PageFooter } from "@/components/ui/PageFooter/PageFooter";
 import type { PageHeaderAction } from "@/components/ui/PageHeader/PageHeader";
@@ -72,14 +76,57 @@ const FILTER_CONTENT: Record<GoalFilterLabel, FilterData> = {
 };
 
 export function MyGoalsPage() {
-  const [activeFilter, setActiveFilter] = useState<GoalFilterLabel>("All");
+  const [activeFilter, setActiveFilter] = useState<GoalFilterLabel>("Active");
   const [goalWizardOpen, setGoalWizardOpen] = useState(false);
+  const [goals, setGoals] = useState<GoalListItemResponse[]>([]);
+  const [loadingGoals, setLoadingGoals] = useState(false);
+  const [goalsError, setGoalsError] = useState<string | null>(null);
   const currentContent = FILTER_CONTENT[activeFilter];
+
+  const loadGoals = useCallback(async (status: GoalFilterLabel) => {
+    setLoadingGoals(true);
+    setGoalsError(null);
+
+    try {
+      const response = await api.goals.getList(status);
+      setGoals(response);
+    } catch (error) {
+      if (error instanceof ApiError) {
+        setGoalsError(error.message);
+      } else {
+        setGoalsError("Could not load goals right now. Please try again.");
+      }
+      setGoals([]);
+    } finally {
+      setLoadingGoals(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadGoals(activeFilter);
+  }, [activeFilter, loadGoals]);
+
+  function formatGoalDate(value: string): string {
+    const parsed = Date.parse(value);
+    if (Number.isNaN(parsed)) {
+      return value;
+    }
+
+    return new Date(parsed).toLocaleDateString();
+  }
+
+  const showGoalCards = goals.length > 0;
 
   if (goalWizardOpen) {
     return (
       <section className="my-goals-page">
-        <GoalCreationWizard open={goalWizardOpen} onClose={() => setGoalWizardOpen(false)} />
+        <GoalCreationWizard
+          open={goalWizardOpen}
+          onClose={() => setGoalWizardOpen(false)}
+          onSubmitted={async () => {
+            await loadGoals(activeFilter);
+          }}
+        />
       </section>
     );
   }
@@ -132,34 +179,95 @@ export function MyGoalsPage() {
         </div>
       </div>
 
-      <div className="surface goals-vision">
-        <h2 className="goals-vision-title">{currentContent.title}</h2>
-        <p className="goals-vision-subtitle">{currentContent.subtitle}</p>
+      {loadingGoals ? (
+        <div className="surface goals-vision">
+          <h2 className="goals-vision-title">Loading your goals...</h2>
+          <p className="goals-vision-subtitle">Hold on, we are bringing your goal board up to date.</p>
+        </div>
+      ) : null}
 
-        <div className="goals-vision-points">
-          <div className="goals-point">
-            <Compass size={16} />
-            <span>{currentContent.points[0]}</span>
-          </div>
-          <div className="goals-point">
-            <CalendarCheck size={16} />
-            <span>{currentContent.points[1]}</span>
-          </div>
-          <div className="goals-point">
-            <Check2Circle size={16} />
-            <span>{currentContent.points[2]}</span>
+      {!loadingGoals && goalsError ? (
+        <div className="surface goals-vision">
+          <h2 className="goals-vision-title">Could not load goals</h2>
+          <p className="goals-vision-subtitle">{goalsError}</p>
+          <div className="d-flex flex-wrap gap-2 goals-vision-actions">
+            <button type="button" className="btn btn-brand goals-vision-cta" onClick={() => void loadGoals(activeFilter)}>
+              Retry
+            </button>
           </div>
         </div>
+      ) : null}
 
-        <div className="d-flex flex-wrap gap-2 goals-vision-actions">
-          <button type="button" className="btn btn-brand goals-vision-cta" onClick={() => setGoalWizardOpen(true)}>
-            <PlusLg size={16} className="me-1" /> New Goal
-          </button>
-          <button type="button" className="btn btn-soft goals-vision-cta goals-vision-coach-btn">
-            <Stars size={16} className="me-1" /> Ask Goal Coach
-          </button>
+      {!loadingGoals && !goalsError && showGoalCards ? (
+        <div className="row g-3 my-goals-grid">
+          {goals.map((goal, index) => (
+            <div className="col-md-6 col-xl-4" key={`${goal.title}-${goal.target_date}-${index}`}>
+              <article className="surface goal-summary-card h-100">
+                <div className="goal-summary-card-head">
+                  <span className="goal-summary-category">{goal.category}</span>
+                  <span className={`goal-summary-status goal-summary-status-${goal.status.toLowerCase()}`}>{goal.status}</span>
+                </div>
+
+                <h3 className="goal-summary-title">{goal.title}</h3>
+                <p className="goal-summary-text">{goal.summary}</p>
+
+                <div className="goal-summary-progress-row">
+                  <span>Progress</span>
+                  <strong>{goal.progress_percent}%</strong>
+                </div>
+                <div className="progress goal-progress-track mb-3" style={{ height: 7 }}>
+                  <div className="progress-bar" style={{ width: `${goal.progress_percent}%` }} />
+                </div>
+
+                <div className="goal-summary-meta">
+                  <div className="goal-summary-meta-left">
+                    <span>
+                      <Diagram3 size={13} /> {goal.milestones_completed}/{goal.milestones_total}
+                    </span>
+                    <span>
+                      <Compass size={13} /> {goal.habits_active}/{goal.habits_total}
+                    </span>
+                  </div>
+                  <span className="goal-summary-meta-date">
+                    <CalendarCheck size={13} /> {formatGoalDate(goal.target_date)}
+                  </span>
+                </div>
+              </article>
+            </div>
+          ))}
         </div>
-      </div>
+      ) : null}
+
+      {!loadingGoals && !goalsError && !showGoalCards ? (
+        <div className="surface goals-vision">
+          <h2 className="goals-vision-title">{currentContent.title}</h2>
+          <p className="goals-vision-subtitle">{currentContent.subtitle}</p>
+
+          <div className="goals-vision-points">
+            <div className="goals-point">
+              <Compass size={16} />
+              <span>{currentContent.points[0]}</span>
+            </div>
+            <div className="goals-point">
+              <CalendarCheck size={16} />
+              <span>{currentContent.points[1]}</span>
+            </div>
+            <div className="goals-point">
+              <Check2Circle size={16} />
+              <span>{currentContent.points[2]}</span>
+            </div>
+          </div>
+
+          <div className="d-flex flex-wrap gap-2 goals-vision-actions">
+            <button type="button" className="btn btn-brand goals-vision-cta" onClick={() => setGoalWizardOpen(true)}>
+              <PlusLg size={16} className="me-1" /> New Goal
+            </button>
+            <button type="button" className="btn btn-soft goals-vision-cta goals-vision-coach-btn">
+              <Stars size={16} className="me-1" /> Ask Goal Coach
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       <PageFooter
         ariaLabel="Goals quick actions"

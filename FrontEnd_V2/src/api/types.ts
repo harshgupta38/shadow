@@ -84,3 +84,19 @@ export interface UnderstandGoalResponse {
   insights: string[];
 }
 
+export type GoalListStatusFilter = "All" | "Active" | "Paused" | "Completed";
+export type GoalItemStatus = Exclude<GoalListStatusFilter, "All">;
+
+export interface GoalListItemResponse {
+  title: string;
+  summary: string;
+  category: GoalCategory;
+  status: GoalItemStatus;
+  target_date: string;
+  progress_percent: number;
+  milestones_total: number;
+  milestones_completed: number;
+  habits_total: number;
+  habits_active: number;
+}
+

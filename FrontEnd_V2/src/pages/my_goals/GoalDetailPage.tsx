@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, CalendarCheck, ChevronDown, ChevronUp, PencilSquare, Trash3 } from "react-bootstrap-icons";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { api, type GoalDetailResponse } from "@/api";
 import { ApiError } from "@/api/client";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { IllustratedErrorState } from "@/components/ui/IllustratedErrorState/IllustratedErrorState";
 import { ProgressRing } from "@/components/ui/ProgressRing/ProgressRing";
 import { ROUTES } from "@/routes/RoutePaths";
@@ -49,12 +50,26 @@ function formatDueLabel(value: string): string {
 
 export function GoalDetailPage() {
   const { goalId } = useParams();
+  const navigate = useNavigate();
   const [goal, setGoal] = useState<GoalDetailResponse | null>(null);
   const [loadingGoal, setLoadingGoal] = useState(false);
   const [goalError, setGoalError] = useState<string | null>(null);
   const [isDetailsExpanded, setIsDetailsExpanded] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
 
   const numericGoalId = Number(goalId);
+
+  const handleDeleteConfirm = async () => {
+    setDeleteBusy(true);
+    try {
+      await api.goals.deleteGoal(numericGoalId);
+      navigate(ROUTES.MY_GOALS);
+    } catch {
+      setDeleteBusy(false);
+      setShowDeleteConfirm(false);
+    }
+  };
 
   const loadGoal = useCallback(async () => {
     if (!Number.isInteger(numericGoalId) || numericGoalId <= 0) {
@@ -139,7 +154,7 @@ export function GoalDetailPage() {
                     <button type="button" className="btn btn-ghost btn-icon goal-detail-action-btn goal-detail-action-btn-desktop" aria-label="Edit goal">
                       <PencilSquare size={16} />
                     </button>
-                    <button type="button" className="btn btn-ghost btn-icon text-danger goal-detail-action-btn-delete goal-detail-action-btn-desktop" aria-label="Delete goal">
+                    <button type="button" className="btn btn-ghost btn-icon text-danger goal-detail-action-btn-delete goal-detail-action-btn-desktop" aria-label="Delete goal" onClick={() => setShowDeleteConfirm(true)}>
                       <Trash3 size={16} />
                     </button>
                   </div>
@@ -168,7 +183,7 @@ export function GoalDetailPage() {
                 <button type="button" className="btn btn-ghost btn-icon goal-detail-action-btn" aria-label="Edit goal">
                   <PencilSquare size={16} />
                 </button>
-                <button type="button" className="btn btn-ghost btn-icon text-danger goal-detail-action-btn-delete" aria-label="Delete goal">
+                <button type="button" className="btn btn-ghost btn-icon text-danger goal-detail-action-btn-delete" aria-label="Delete goal" onClick={() => setShowDeleteConfirm(true)}>
                   <Trash3 size={16} />
                 </button>
               </div>
@@ -203,6 +218,17 @@ export function GoalDetailPage() {
           </section>
         </>
       ) : null}
+
+      <ConfirmDialog
+        show={showDeleteConfirm}
+        title="Delete this goal?"
+        message="This will permanently remove the goal and all its data. This cannot be undone."
+        confirmLabel="Delete"
+        destructive
+        busy={deleteBusy}
+        onConfirm={() => void handleDeleteConfirm()}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
     </section>
   );
 }

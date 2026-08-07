@@ -9,6 +9,7 @@ export const ENDPOINTS = {
         REFINE: "/refine",
         SAVE: "/save",
         GET_LIST: "/get-list",
+        DETAIL: (id: number) => `/${id}`,
     },
     // DEMO: {
     //     DETAIL: (id: string) => `/demo/${id}`,

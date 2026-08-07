@@ -49,6 +49,7 @@
     radial-gradient(1000px 500px at -10% 0%, rgba(79, 139, 255, 0.08), transparent 55%);
   --jv-surface: #ffffff;
   --jv-surface-2: #f8f9fe;
+  --jv-surface-3: #f1f3fb;
   --jv-elevated: #ffffff;
   --jv-text: #191b23;
   --jv-muted: #6b7180;
@@ -93,6 +94,7 @@
     radial-gradient(1000px 500px at -10% 0%, rgba(79, 139, 255, 0.10), transparent 55%);
   --jv-surface: #151824;
   --jv-surface-2: #1a1e2c;
+  --jv-surface-3: #1e2230;
   --jv-elevated: #1c2130;
   --jv-text: #e9ebf3;
   --jv-muted: #9aa2b4;
@@ -302,7 +304,7 @@ a {
   border: none;
 }
 .btn-ghost:hover {
-  background: var(--jv-surface-2);
+  background: var(--jv-surface-3);
   color: var(--jv-text);
 }
 

@@ -203,3 +203,26 @@ def get_goal_detail(
         )
 
     return _serialize_goal_detail(goal)
+
+
+def delete_goal(
+    db,
+    current_user: User,
+    goal_id: int,
+) -> None:
+    time.sleep(2)
+    
+    goal = (
+        db.query(Goal)
+        .filter(Goal.id == goal_id, Goal.user_id == current_user.id)
+        .first()
+    )
+
+    if goal is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Goal not found.",
+        )
+
+    db.delete(goal)
+    db.commit()

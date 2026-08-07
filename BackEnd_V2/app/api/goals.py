@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, status as http_status
 
 from app.api.deps import get_current_user
 from app.core.endpoints import ENDPOINTS
@@ -46,3 +46,12 @@ def get_goal_detail(
     current_user: User = Depends(get_current_user),
 ) -> GoalDetailResponse:
     return goals_service.get_goal_detail(db, current_user, goal_id)
+
+
+@router.delete(ENDPOINTS.GOALS.DETAIL, status_code=http_status.HTTP_204_NO_CONTENT)
+def delete_goal(
+    goal_id: int,
+    db = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> None:
+    goals_service.delete_goal(db, current_user, goal_id)

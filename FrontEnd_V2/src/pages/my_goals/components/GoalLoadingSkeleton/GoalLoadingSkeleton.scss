@@ -1,0 +1,101 @@
+.goal-summary-card-skeleton {
+  pointer-events: none;
+}
+
+.goal-skeleton {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--jv-border) 78%, var(--jv-surface) 22%);
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      color-mix(in srgb, #fff 56%, transparent) 50%,
+      transparent 100%
+    );
+    animation: goal-skeleton-shimmer 1.4s ease-in-out infinite;
+  }
+
+  &-pill {
+    height: 1.55rem;
+  }
+
+  &-category {
+    width: 4.7rem;
+  }
+
+  &-status {
+    width: 3.8rem;
+  }
+
+  &-title {
+    width: 82%;
+    height: 1.7rem;
+    border-radius: 0.7rem;
+  }
+
+  &-text {
+    width: 100%;
+    height: 0.78rem;
+    margin-top: 0.55rem;
+    border-radius: 0.45rem;
+
+    &-short {
+      width: 76%;
+      margin-top: 0.42rem;
+      margin-bottom: 0.65rem;
+    }
+  }
+
+  &-label {
+    width: 4.4rem;
+    height: 0.72rem;
+    border-radius: 0.4rem;
+  }
+
+  &-value {
+    width: 2rem;
+    height: 0.82rem;
+    border-radius: 0.4rem;
+  }
+
+  &-track {
+    height: 7px;
+    margin-bottom: 0.35rem;
+    overflow: hidden;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--jv-border) 68%, var(--jv-surface) 32%);
+  }
+
+  &-bar {
+    width: 54%;
+    height: 100%;
+    border-radius: inherit;
+    background: color-mix(in srgb, var(--jv-brand-1) 22%, var(--jv-border) 78%);
+  }
+
+  &-meta {
+    width: 2.4rem;
+    height: 0.72rem;
+    border-radius: 0.4rem;
+  }
+
+  &-date {
+    width: 4.2rem;
+    height: 0.72rem;
+    border-radius: 0.4rem;
+  }
+}
+
+@keyframes goal-skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}

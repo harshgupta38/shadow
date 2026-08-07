@@ -14,12 +14,14 @@ import { useCallback, useEffect, useState } from "react";
 
 import { api, type GoalListItemResponse } from "@/api";
 import { ApiError } from "@/api/client";
+import { IllustratedErrorState } from "@/components/ui/IllustratedErrorState/IllustratedErrorState";
 
 import { PageFooter } from "@/components/ui/PageFooter/PageFooter";
 import type { PageHeaderAction } from "@/components/ui/PageHeader/PageHeader";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 
 import { GoalCreationWizard } from "./components/GoalCreationWizard/GoalCreationWizard";
+import { GoalLoadingSkeleton } from "./components/GoalLoadingSkeleton/GoalLoadingSkeleton";
 
 import "./MyGoalsPage.scss";
 
@@ -116,6 +118,7 @@ export function MyGoalsPage() {
   }
 
   const showGoalCards = goals.length > 0;
+  const showHeaderActions = !loadingGoals && showGoalCards;
 
   if (goalWizardOpen) {
     return (
@@ -131,24 +134,26 @@ export function MyGoalsPage() {
     );
   }
 
-  const headerActions: PageHeaderAction[] = [
-    {
-      key: "new-goal",
-      label: "New Goal",
-      icon: <PlusLg size={16} />,
-      desktopTone: "brand",
-      mobileTone: "none",
-      className: "goals-vision-cta",
-      onClick: () => setGoalWizardOpen(true),
-    },
-    {
-      key: "goal-coach",
-      label: "Ask Goal Coach",
-      icon: <Stars size={16} />,
-      tone: "soft",
-      className: "goals-vision-cta goals-vision-coach-btn",
-    },
-  ];
+  const headerActions: PageHeaderAction[] = showHeaderActions
+    ? [
+        {
+          key: "new-goal",
+          label: "New Goal",
+          icon: <PlusLg size={16} />,
+          desktopTone: "brand",
+          mobileTone: "none",
+          className: "goals-vision-cta",
+          onClick: () => setGoalWizardOpen(true),
+        },
+        {
+          key: "goal-coach",
+          label: "Ask Goal Coach",
+          icon: <Stars size={16} />,
+          tone: "soft",
+          className: "goals-vision-cta goals-vision-coach-btn",
+        },
+      ]
+    : [];
 
   return (
     <section className="my-goals-page">
@@ -180,22 +185,11 @@ export function MyGoalsPage() {
       </div>
 
       {loadingGoals ? (
-        <div className="surface goals-vision">
-          <h2 className="goals-vision-title">Loading your goals...</h2>
-          <p className="goals-vision-subtitle">Hold on, we are bringing your goal board up to date.</p>
-        </div>
+        <GoalLoadingSkeleton count={2} />
       ) : null}
 
       {!loadingGoals && goalsError ? (
-        <div className="surface goals-vision">
-          <h2 className="goals-vision-title">Could not load goals</h2>
-          <p className="goals-vision-subtitle">{goalsError}</p>
-          <div className="d-flex flex-wrap gap-2 goals-vision-actions">
-            <button type="button" className="btn btn-brand goals-vision-cta" onClick={() => void loadGoals(activeFilter)}>
-              Retry
-            </button>
-          </div>
-        </div>
+        <IllustratedErrorState onRetry={() => void loadGoals(activeFilter)} />
       ) : null}
 
       {!loadingGoals && !goalsError && showGoalCards ? (

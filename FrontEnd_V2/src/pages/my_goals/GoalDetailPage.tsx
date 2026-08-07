@@ -124,29 +124,36 @@ export function GoalDetailPage() {
                   <span className="goal-detail-due-pill">
                     <CalendarCheck size={12} /> {formatDueLabel(goal.target_date)}
                   </span>
+
+                  <div className="goal-detail-hero-actions ms-auto" aria-label="Goal actions">
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-icon goal-detail-action-btn"
+                      aria-label={isDetailsExpanded ? "Collapse goal details" : "Expand goal details"}
+                      aria-expanded={isDetailsExpanded}
+                      aria-controls="goal-detail-sections"
+                      onClick={() => setIsDetailsExpanded((prev) => !prev)}
+                    >
+                      {isDetailsExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    </button>
+                    <button type="button" className="btn btn-ghost btn-icon goal-detail-action-btn goal-detail-action-btn-desktop" aria-label="Edit goal">
+                      <PencilSquare size={16} />
+                    </button>
+                    <button type="button" className="btn btn-ghost btn-icon text-danger goal-detail-action-btn-delete goal-detail-action-btn-desktop" aria-label="Delete goal">
+                      <Trash3 size={16} />
+                    </button>
+                  </div>
                 </div>
 
                 <h1 className="goal-detail-title h3 fw-bold mb-2">{goal.title}</h1>
                 <p className="goal-detail-summary text-muted-2 mb-0">{goal.summary}</p>
-              </div>
 
-              <div className="goal-detail-hero-actions" aria-label="Goal actions">
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-icon goal-detail-action-btn"
-                  aria-label={isDetailsExpanded ? "Collapse goal details" : "Expand goal details"}
-                  aria-expanded={isDetailsExpanded}
-                  aria-controls="goal-detail-sections"
-                  onClick={() => setIsDetailsExpanded((prev) => !prev)}
-                >
-                  {isDetailsExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                </button>
-                <button type="button" className="btn btn-ghost btn-icon goal-detail-action-btn" aria-label="Edit goal">
-                  <PencilSquare size={16} />
-                </button>
-                <button type="button" className="btn btn-ghost btn-icon text-danger goal-detail-action-btn-delete" aria-label="Delete goal">
-                  <Trash3 size={16} />
-                </button>
+                <div className="goal-detail-progress-bar-wrap" aria-label={`${goal.progress_percent}% complete`}>
+                  <div className="goal-detail-progress-bar-track">
+                    <div className="goal-detail-progress-bar-fill" style={{ width: `${goal.progress_percent}%` }} />
+                  </div>
+                  <span className="goal-detail-progress-bar-label">{goal.progress_percent}%</span>
+                </div>
               </div>
             </div>
           </div>
@@ -157,6 +164,14 @@ export function GoalDetailPage() {
             aria-hidden={!isDetailsExpanded}
           >
             <div className="goal-detail-details-shell-inner">
+              <div className="goal-detail-mobile-edit-actions" aria-label="Goal actions">
+                <button type="button" className="btn btn-ghost btn-icon goal-detail-action-btn" aria-label="Edit goal">
+                  <PencilSquare size={16} />
+                </button>
+                <button type="button" className="btn btn-ghost btn-icon text-danger goal-detail-action-btn-delete" aria-label="Delete goal">
+                  <Trash3 size={16} />
+                </button>
+              </div>
               <div className="goal-detail-outline">
                 <section className="goal-detail-outline-item">
                   <h2 className="goal-detail-section-title">Why this goal matters</h2>

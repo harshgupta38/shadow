@@ -215,11 +215,33 @@ class UnderstandGoalResponse(BaseModel):
 
 
 class GoalListItemResponse(BaseModel):
+    id: int
     title: str
     summary: str
     category: str
     status: GoalStatus
     target_date: str
+    progress_percent: int
+    milestones_total: int
+    milestones_completed: int
+    habits_total: int
+    habits_active: int
+
+
+class GoalDetailResponse(BaseModel):
+    id: int
+    title: str
+    summary: str
+    category: str
+    status: GoalStatus
+    motivation: str
+    success_definition: str
+    current_state: str
+    challenges: list[str]
+    strengths: list[str]
+    target_date: str
+    success_metrics: list[str]
+    insights: list[str]
     progress_percent: int
     milestones_total: int
     milestones_completed: int

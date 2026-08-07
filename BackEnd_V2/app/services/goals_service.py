@@ -187,6 +187,9 @@ def get_goal_detail(
     current_user: User,
     goal_id: int,
 ) -> GoalDetailResponse:
+    time.sleep(2)
+    # raise RuntimeError("Forced test error in get_goal_list")
+
     goal = (
         db.query(Goal)
         .filter(Goal.id == goal_id, Goal.user_id == current_user.id)

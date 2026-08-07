@@ -1,0 +1,195 @@
+.goal-detail-page {
+  .goal-detail-back-link {
+    width: fit-content;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin-bottom: 1rem;
+    color: var(--jv-brand-1);
+    font-weight: 700;
+    text-decoration: none;
+  }
+
+  .goal-detail-loading {
+    min-height: 240px;
+    padding: 1.4rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    border: 1px solid color-mix(in srgb, var(--jv-border) 82%, var(--jv-brand-1) 18%);
+    border-radius: var(--jv-radius);
+  }
+
+  .goal-detail-loading-title,
+  .goal-detail-section-title {
+    margin: 0;
+    font-family: var(--jv-font-display);
+    font-size: 1.2rem;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+  }
+
+  .goal-detail-loading-text,
+  .goal-detail-copy {
+    margin: 0.2rem 0 0;
+    color: var(--jv-muted);
+    line-height: 1.6;
+  }
+
+  .goal-detail-hero,
+  .goal-detail-details-shell {
+    border: 1px solid color-mix(in srgb, var(--jv-border) 82%, var(--jv-brand-1) 18%);
+    border-radius: var(--jv-radius);
+  }
+
+  .goal-detail-hero {
+    position: relative;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .goal-detail-hero-progress {
+    flex-shrink: 0;
+  }
+
+  .goal-detail-hero-head {
+    margin-bottom: 0;
+  }
+
+  .goal-detail-category,
+  .goal-detail-status,
+  .goal-detail-due-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.22rem 0.6rem;
+    border-radius: var(--jv-radius-pill);
+    font-size: 0.76rem;
+    font-weight: 700;
+    gap: 0.28rem;
+  }
+
+  .goal-detail-category {
+    color: var(--jv-brand-1);
+    background: var(--jv-brand-soft);
+  }
+
+  .goal-detail-status-active {
+    color: #0f7a37;
+    background: color-mix(in srgb, #0f7a37 16%, transparent);
+  }
+
+  .goal-detail-status-paused {
+    color: #8b5e00;
+    background: color-mix(in srgb, #8b5e00 16%, transparent);
+  }
+
+  .goal-detail-status-completed {
+    color: #2f57d0;
+    background: color-mix(in srgb, #2f57d0 16%, transparent);
+  }
+
+  .goal-detail-due-pill {
+    color: var(--jv-faint);
+    background: color-mix(in srgb, var(--jv-border) 58%, var(--jv-surface) 42%);
+  }
+
+  .goal-detail-title {
+    margin: 0;
+    font-family: var(--jv-font-display);
+    font-size: 1.75rem;
+    line-height: 1.2;
+    letter-spacing: -0.03em;
+    color: var(--jv-text);
+  }
+
+  .goal-detail-summary {
+    margin: 0;
+    color: var(--jv-muted);
+    line-height: 1.5;
+  }
+
+  .goal-detail-action-btn,
+  .goal-detail-action-btn-delete {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    padding: 0;
+  }
+
+  .goal-detail-hero-actions {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .goal-detail-details-shell {
+    display: grid;
+    grid-template-rows: 0fr;
+    opacity: 0;
+    padding: 0 1.5rem;
+    border-color: transparent;
+    transition:
+      grid-template-rows 260ms var(--jv-ease),
+      opacity 220ms var(--jv-ease),
+      padding 260ms var(--jv-ease),
+      border-color 260ms var(--jv-ease);
+
+    &.is-expanded {
+      grid-template-rows: 1fr;
+      opacity: 1;
+      padding: 1rem 1.5rem;
+      border-color: color-mix(in srgb, var(--jv-border) 82%, var(--jv-brand-1) 18%);
+    }
+  }
+
+  .goal-detail-details-shell-inner {
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .goal-detail-outline {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .goal-detail-outline-item {
+    padding: 0.4rem 0;
+  }
+
+  .goal-detail-outline-item .goal-detail-section-title {
+    font-size: 1.05rem;
+    letter-spacing: -0.01em;
+  }
+
+  .goal-detail-outline-item .goal-detail-copy,
+  .goal-detail-outline-item .goal-detail-list {
+    padding-left: 1.45rem;
+  }
+
+  .goal-detail-list {
+    margin: 0.3rem 0 0;
+    padding-left: 1rem;
+    color: var(--jv-muted);
+
+    li + li {
+      margin-top: 0.2rem;
+    }
+  }
+}
+
+@media (max-width: 991.98px) {
+  .goal-detail-page {
+    .goal-detail-hero {
+      padding-top: 3.5rem;
+    }
+
+    .goal-detail-title {
+      font-size: 1.65rem;
+    }
+  }
+}

@@ -17,7 +17,7 @@ const MARK_SIZE: Record<NonNullable<BrandProps["size"]>, number> = {
 /** The Shadow logo: a gradient mark plus optional wordmark. */
 export function Brand({ withName = true, subtitle, size = "md" }: BrandProps) {
   const dimension = MARK_SIZE[size];
-  
+
   return (
     <span className="brand">
       <span

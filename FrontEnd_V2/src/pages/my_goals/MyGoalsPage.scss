@@ -1,0 +1,94 @@
+.my-goals-page {
+  .goals-vision {
+    overflow: hidden;
+    padding: 1.2rem 1.5rem;
+    background:
+      radial-gradient(550px 260px at 8% 4%, color-mix(in srgb, var(--jv-brand-1) 12%, transparent), transparent 68%),
+      radial-gradient(580px 280px at 100% 100%, color-mix(in srgb, var(--jv-brand-2) 11%, transparent), transparent 70%),
+      var(--jv-surface);
+    border: 1px solid color-mix(in srgb, var(--jv-border) 82%, var(--jv-brand-1) 18%);
+    border-radius: var(--jv-radius);
+    background: color-mix(in srgb, var(--jv-surface) 86%, var(--jv-bg) 14%);
+    min-height: 255px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .goals-kicker {
+    width: fit-content;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    color: var(--jv-brand-1);
+    background: var(--jv-brand-soft);
+    border: 1px solid color-mix(in srgb, var(--jv-brand-1) 28%, transparent);
+    border-radius: var(--jv-radius-pill);
+    padding: 0.22rem 0.6rem;
+    margin-bottom: 0.85rem;
+  }
+
+  .goals-vision-title {
+    font-family: var(--jv-font-display);
+    margin: 0;
+    font-size: 1.38rem;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+  }
+
+  .goals-vision-subtitle {
+    margin: 0.55rem 0 0.9rem;
+    color: var(--jv-muted);
+  }
+
+  .goals-vision-points {
+    display: grid;
+    gap: 0.46rem;
+    margin-bottom: 1rem;
+  }
+
+  .goals-point {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.56rem;
+    color: var(--jv-text);
+    font-size: 0.93rem;
+  }
+
+  .goals-point svg {
+    color: var(--jv-brand-1);
+    flex-shrink: 0;
+  }
+
+  .goals-vision-cta {
+    width: fit-content;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .goals-vision-coach-btn {
+    border: 1px solid color-mix(in srgb, var(--jv-brand-1) 36%, var(--jv-border) 64%);
+    background: color-mix(in srgb, var(--jv-brand-soft) 62%, var(--jv-surface) 38%);
+    color: var(--jv-brand-1);
+    box-shadow: 0 6px 16px color-mix(in srgb, var(--jv-brand-1) 14%, transparent);
+  }
+
+  .goals-vision-coach-btn:hover,
+  .goals-vision-coach-btn:focus-visible {
+    background: color-mix(in srgb, var(--jv-brand-soft) 76%, var(--jv-surface) 24%);
+    color: var(--jv-brand-1);
+    border-color: color-mix(in srgb, var(--jv-brand-1) 52%, var(--jv-border) 48%);
+    box-shadow: 0 8px 20px color-mix(in srgb, var(--jv-brand-1) 20%, transparent);
+  }
+}
+
+@media (max-width: 991.98px) {
+  .my-goals-page {
+    padding-bottom: calc(5.6rem + env(safe-area-inset-bottom));
+  }
+}
+

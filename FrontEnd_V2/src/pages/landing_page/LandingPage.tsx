@@ -24,8 +24,8 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
-import { Brand } from "@/components/ui/Brand";
-import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { Brand } from "@/components/ui/Brand/Brand";
+import { ThemeToggle } from "@/components/ui/ThemeToggle/ThemeToggle";
 import { useAuth } from "@/context/AuthContext";
 import { ROUTES } from "@/routes/RoutePaths";
 

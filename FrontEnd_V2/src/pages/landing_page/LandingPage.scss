@@ -499,7 +499,7 @@ $color-coach:      #c05d12;
 // Large decorative step number — ghost outline text anchored to bottom-right
 .landing-step-num {
   position: absolute;
-  bottom: -0.6rem;
+  top: 3px;
   right: 0.55rem;
   font-size: 7rem;
   font-weight: 900;

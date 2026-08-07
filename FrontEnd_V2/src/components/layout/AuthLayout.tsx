@@ -2,8 +2,8 @@ import { ChildProps } from "@/api";
 import { CalendarCheckFill, GraphUpArrow, Stars } from "react-bootstrap-icons";
 
 import { SITE_INDO } from "@/constant/site-indo";
-import { ThemeToggle } from "@/components/ui/ThemeToggle";
-import { Brand } from "@/components/ui/Brand";
+import { ThemeToggle } from "@/components/ui/ThemeToggle/ThemeToggle";
+import { Brand } from "@/components/ui/Brand/Brand";
 
 const FEATURES = [
 	{

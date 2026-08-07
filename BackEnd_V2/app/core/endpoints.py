@@ -5,4 +5,8 @@ class Endpoints:
         REGISTER = "/register"
         USER_DATA = "/me"
 
+    class GOALS:
+        PREFIX = "/goal"
+        REFINE = "/refine"
+
 ENDPOINTS = Endpoints()

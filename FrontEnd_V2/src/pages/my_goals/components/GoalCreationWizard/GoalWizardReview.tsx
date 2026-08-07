@@ -39,6 +39,7 @@ interface GoalWizardReviewProps {
     saving: boolean;
     error: string | null;
     fieldErrors: Partial<Record<GoalReviewFieldKey, string>>;
+    hideBack?: boolean;
     onBack: () => void;
     onFieldEdited: (fieldKey: GoalReviewFieldKey) => void;
     onValidationStateChange: (hasErrors: boolean) => void;
@@ -141,7 +142,7 @@ function getFirstFieldErrorMessage(fieldErrors: Partial<Record<GoalReviewFieldKe
     return null;
 }
 
-export function GoalWizardReview({ goalData, saving, error, fieldErrors, onBack, onFieldEdited, onValidationStateChange, onConfirm }: GoalWizardReviewProps) {
+export function GoalWizardReview({ goalData, saving, error, fieldErrors, hideBack, onBack, onFieldEdited, onValidationStateChange, onConfirm }: GoalWizardReviewProps) {
     const [editableGoal, setEditableGoal] = useState<UnderstandGoalResponse>(goalData);
     const [activeListTab, setActiveListTab] = useState<ListFieldKey>("challenges");
     const [clientFieldErrors, setClientFieldErrors] = useState<Partial<Record<GoalReviewFieldKey, string>>>({});
@@ -451,9 +452,11 @@ export function GoalWizardReview({ goalData, saving, error, fieldErrors, onBack,
                 </div>
 
                 <div className="goal-wizard-footer">
-                    <button type="button" className="btn btn-soft" onClick={onBack} disabled={saving}>
-                        <ChevronLeft size={16} className="me-1" /> Edit Answers
-                    </button>
+                    {!hideBack && (
+                        <button type="button" className="btn btn-soft" onClick={onBack} disabled={saving}>
+                            <ChevronLeft size={16} className="me-1" /> Edit Answers
+                        </button>
+                    )}
                     <button type="button" className="btn btn-brand" onClick={handleSave} disabled={saving}>
                         {saving ? "Saving..." : "Save"}
                     </button>

@@ -31,4 +31,8 @@ export const goalsApi = {
     async deleteGoal(goalId: number): Promise<void> {
         return http.delete<void>(`${ENDPOINTS.GOALS.PREFIX}${ENDPOINTS.GOALS.DETAIL(goalId)}`);
     },
+
+    async updateGoal(goalId: number, data: UnderstandGoalResponse): Promise<GoalDetailResponse> {
+        return http.patch<GoalDetailResponse>(`${ENDPOINTS.GOALS.PREFIX}${ENDPOINTS.GOALS.DETAIL(goalId)}`, data);
+    },
 };

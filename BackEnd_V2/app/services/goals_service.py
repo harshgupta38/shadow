@@ -211,7 +211,8 @@ def delete_goal(
     goal_id: int,
 ) -> None:
     time.sleep(2)
-    
+    raise RuntimeError("Forced test error in get_goal_list")
+
     goal = (
         db.query(Goal)
         .filter(Goal.id == goal_id, Goal.user_id == current_user.id)
@@ -226,3 +227,39 @@ def delete_goal(
 
     db.delete(goal)
     db.commit()
+
+
+def update_goal(
+    db,
+    current_user: User,
+    goal_id: int,
+    data: UnderstandGoalResponse,
+) -> GoalDetailResponse:
+    goal = (
+        db.query(Goal)
+        .filter(Goal.id == goal_id, Goal.user_id == current_user.id)
+        .first()
+    )
+
+    if goal is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Goal not found.",
+        )
+
+    goal.title = data.title.strip()
+    goal.summary = data.summary.strip()
+    goal.category = data.category
+    goal.motivation = data.motivation.strip()
+    goal.success_definition = data.success_definition.strip()
+    goal.current_state = data.current_state.strip()
+    goal.challenges = _clean_list(data.challenges)
+    goal.strengths = _clean_list(data.strengths)
+    goal.success_metrics = _clean_list(data.success_metrics)
+    goal.insights = _clean_list(data.insights)
+    goal.target_date = date.fromisoformat(data.target_date)
+
+    db.commit()
+    db.refresh(goal)
+
+    return _serialize_goal_detail(goal)

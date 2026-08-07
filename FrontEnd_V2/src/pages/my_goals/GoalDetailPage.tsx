@@ -9,6 +9,7 @@ import { IllustratedErrorState } from "@/components/ui/IllustratedErrorState/Ill
 import { ProgressRing } from "@/components/ui/ProgressRing/ProgressRing";
 import { ROUTES } from "@/routes/RoutePaths";
 import { useToast } from "@/context/ToastContext";
+import { GoalEditWizard } from "./components/GoalEditWizard/GoalEditWizard";
 
 import "./GoalDetailPage.scss";
 
@@ -58,6 +59,8 @@ export function GoalDetailPage() {
   const [isDetailsExpanded, setIsDetailsExpanded] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
+  const [showEditConfirm, setShowEditConfirm] = useState(false);
+  const [showEditWizard, setShowEditWizard] = useState(false);
 
   const toast = useToast();
 
@@ -155,7 +158,7 @@ export function GoalDetailPage() {
                     >
                       {isDetailsExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                     </button>
-                    <button type="button" className="btn btn-ghost btn-icon goal-detail-action-btn goal-detail-action-btn-desktop" aria-label="Edit goal">
+                    <button type="button" className="btn btn-ghost btn-icon goal-detail-action-btn goal-detail-action-btn-desktop" aria-label="Edit goal" onClick={() => setShowEditConfirm(true)}>
                       <PencilSquare size={16} />
                     </button>
                     <button type="button" className="btn btn-ghost btn-icon text-danger goal-detail-action-btn-delete goal-detail-action-btn-desktop" aria-label="Delete goal" onClick={() => setShowDeleteConfirm(true)}>
@@ -184,7 +187,7 @@ export function GoalDetailPage() {
           >
             <div className="goal-detail-details-shell-inner">
               <div className="goal-detail-mobile-edit-actions" aria-label="Goal actions">
-                <button type="button" className="btn btn-ghost btn-icon goal-detail-action-btn" aria-label="Edit goal">
+                <button type="button" className="btn btn-ghost btn-icon goal-detail-action-btn" aria-label="Edit goal" onClick={() => setShowEditConfirm(true)}>
                   <PencilSquare size={16} />
                 </button>
                 <button type="button" className="btn btn-ghost btn-icon text-danger goal-detail-action-btn-delete" aria-label="Delete goal" onClick={() => setShowDeleteConfirm(true)}>
@@ -221,6 +224,25 @@ export function GoalDetailPage() {
             </div>
           </section>
         </>
+      ) : null}
+
+      <ConfirmDialog
+        show={showEditConfirm}
+        title="Edit goal details?"
+        message="Changing these details affects how your AI coach understands this goal. Existing milestones and habits won't be updated automatically — any mismatch between the old and new details can cause the agent to generate inconsistent responses. Only edit if it's genuinely necessary."
+        confirmLabel="Edit anyway"
+        cancelLabel="Keep as is"
+        onConfirm={() => { setShowEditConfirm(false); setShowEditWizard(true); }}
+        onCancel={() => setShowEditConfirm(false)}
+      />
+
+      {goal ? (
+        <GoalEditWizard
+          open={showEditWizard}
+          goal={goal}
+          onClose={() => setShowEditWizard(false)}
+          onUpdated={(updated) => { setGoal(updated); setShowEditWizard(false); }}
+        />
       ) : null}
 
       <ConfirmDialog

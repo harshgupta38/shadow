@@ -55,3 +55,13 @@ def delete_goal(
     current_user: User = Depends(get_current_user),
 ) -> None:
     goals_service.delete_goal(db, current_user, goal_id)
+
+
+@router.patch(ENDPOINTS.GOALS.DETAIL, response_model=GoalDetailResponse)
+def update_goal(
+    goal_id: int,
+    data: UnderstandGoalResponse,
+    db = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> GoalDetailResponse:
+    return goals_service.update_goal(db, current_user, goal_id, data)

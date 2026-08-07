@@ -1,3 +1,4 @@
+from datetime import date
 from pydantic import BaseModel, Field, field_validator
 from typing import Any, List, Literal
 
@@ -119,3 +120,91 @@ class UnderstandGoalResponse(BaseModel):
     insights: List[str] = Field(
         description="Important coaching insights about the user's goal."
     )
+
+    @field_validator(
+        "title",
+        "summary",
+        "category",
+        "motivation",
+        "success_definition",
+        "current_state",
+        "target_date",
+        mode="before",
+    )
+    @classmethod
+    def validate_required_text_fields(cls, value: Any, info: Any) -> Any:
+        field_labels = {
+            "title": "Title",
+            "summary": "Summary",
+            "category": "Category",
+            "motivation": "Motivation",
+            "success_definition": "Success definition",
+            "current_state": "Current state",
+            "target_date": "Target date",
+        }
+
+        field_name = info.field_name
+        field_label = field_labels.get(field_name, field_name)
+
+        if value is None:
+            raise ValueError(f"{field_label} is required.")
+
+        if isinstance(value, str) and not value.strip():
+            raise ValueError(f"{field_label} is required.")
+
+        return value
+
+    @field_validator("target_date")
+    @classmethod
+    def validate_target_date_must_be_future(cls, value: str) -> str:
+        try:
+            parsed_target_date = date.fromisoformat(value.strip())
+        except ValueError as exc:
+            raise ValueError("Target date must be in YYYY-MM-DD format.") from exc
+
+        if parsed_target_date <= date.today():
+            raise ValueError("Target date must be a future date.")
+
+        return parsed_target_date.isoformat()
+
+    @field_validator(
+        "challenges",
+        "strengths",
+        "success_metrics",
+        "insights",
+        mode="before",
+    )
+    @classmethod
+    def validate_required_string_lists(cls, value: Any, info: Any) -> Any:
+        field_labels = {
+            "challenges": "Challenges",
+            "strengths": "Strengths",
+            "success_metrics": "Success metrics",
+            "insights": "Insights",
+        }
+
+        field_name = info.field_name
+        field_label = field_labels.get(field_name, field_name)
+
+        if value is None:
+            raise ValueError(f"{field_label} must include at least one item.")
+
+        if not isinstance(value, list):
+            raise ValueError(f"{field_label} must be a list of strings.")
+
+        if len(value) == 0:
+            raise ValueError(f"{field_label} must include at least one item.")
+
+        if len(value) > 8:
+            raise ValueError(f"{field_label} cannot have more than 8 items.")
+
+        has_non_empty_string = any(
+            isinstance(item, str) and item.strip() for item in value
+        )
+
+        if not has_non_empty_string:
+            raise ValueError(
+                f"{field_label} must include at least one non-empty string."
+            )
+
+        return value

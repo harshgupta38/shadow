@@ -1,5 +1,8 @@
+from datetime import date
 import time
 
+from app.models.goal import Goal
+from app.models.user import User
 from app.schemas.goals import (
     UnderstandGoalRequest,
     UnderstandGoalResponse,
@@ -65,3 +68,46 @@ def understand_goal(data: UnderstandGoalRequest) -> UnderstandGoalResponse:
             "A structured roadmap will significantly reduce uncertainty.",
         ],
     }
+
+
+def _clean_list(values: list[str]) -> list[str]:
+    return [item.strip() for item in values if item.strip()]
+
+
+def save_goal(
+    db,
+    current_user: User,
+    data: UnderstandGoalResponse,
+) -> UnderstandGoalResponse:
+    goal = Goal(
+        user_id=current_user.id,
+        title=data.title.strip(),
+        summary=data.summary.strip(),
+        category=data.category,
+        motivation=data.motivation.strip(),
+        success_definition=data.success_definition.strip(),
+        current_state=data.current_state.strip(),
+        challenges=_clean_list(data.challenges),
+        strengths=_clean_list(data.strengths),
+        success_metrics=_clean_list(data.success_metrics),
+        insights=_clean_list(data.insights),
+        target_date=date.fromisoformat(data.target_date),
+    )
+
+    db.add(goal)
+    db.commit()
+    db.refresh(goal)
+
+    return UnderstandGoalResponse(
+        title=goal.title,
+        summary=goal.summary,
+        category=goal.category,
+        motivation=goal.motivation,
+        success_definition=goal.success_definition,
+        current_state=goal.current_state,
+        challenges=goal.challenges,
+        strengths=goal.strengths,
+        target_date=goal.target_date.isoformat(),
+        success_metrics=goal.success_metrics,
+        insights=goal.insights,
+    )

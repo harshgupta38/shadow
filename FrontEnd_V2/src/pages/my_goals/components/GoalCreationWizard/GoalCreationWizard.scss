@@ -567,6 +567,10 @@ $wizard-heading-size-sm: 1.35rem;
             background: var(--jv-surface);
             color: var(--jv-text);
         }
+
+        &.is-error {
+            border-color: color-mix(in srgb, var(--bs-danger, #dc3545) 55%, var(--jv-border) 45%);
+        }
     }
 
     &-review-tab-count {
@@ -591,6 +595,10 @@ $wizard-heading-size-sm: 1.35rem;
         border: 1px solid var(--jv-border);
         border-radius: 0 12px 12px 12px;
         background: var(--jv-surface);
+
+        &.has-error {
+            border-color: color-mix(in srgb, var(--bs-danger, #dc3545) 45%, var(--jv-border) 55%);
+        }
     }
 
     &-review-list {

@@ -22,8 +22,10 @@ const CATEGORY_OPTIONS: GoalCategory[] = [
 
 const MAX_TEXTAREA_LINES = 8;
 const MAX_LIST_TEXTAREA_LINES = 4;
+const MAX_LIST_ITEMS = 8;
 
 type ListFieldKey = "challenges" | "strengths" | "success_metrics" | "insights";
+type GoalReviewFieldKey = keyof UnderstandGoalResponse;
 
 const LIST_FIELD_CONFIG: Array<{ key: ListFieldKey; label: string }> = [
     { key: "challenges", label: "Challenges" },
@@ -36,13 +38,113 @@ interface GoalWizardReviewProps {
     goalData: UnderstandGoalResponse;
     saving: boolean;
     error: string | null;
+    fieldErrors: Partial<Record<GoalReviewFieldKey, string>>;
     onBack: () => void;
+    onFieldEdited: (fieldKey: GoalReviewFieldKey) => void;
+    onValidationStateChange: (hasErrors: boolean) => void;
     onConfirm: (goalData: UnderstandGoalResponse) => void;
 }
 
-export function GoalWizardReview({ goalData, saving, error, onBack, onConfirm }: GoalWizardReviewProps) {
+function validateGoalReviewData(goalData: UnderstandGoalResponse): Partial<Record<GoalReviewFieldKey, string>> {
+    const errors: Partial<Record<GoalReviewFieldKey, string>> = {};
+
+    const requiredTextFields: Array<{ key: GoalReviewFieldKey; label: string }> = [
+        { key: "title", label: "Title" },
+        { key: "summary", label: "Summary" },
+        { key: "category", label: "Category" },
+        { key: "motivation", label: "Motivation" },
+        { key: "success_definition", label: "Success definition" },
+        { key: "current_state", label: "Current state" },
+        { key: "target_date", label: "Target date" },
+    ];
+
+    for (const { key, label } of requiredTextFields) {
+        const value = goalData[key];
+        if (typeof value !== "string" || value.trim().length === 0) {
+            errors[key] = `${label} is required.`;
+        }
+    }
+
+    const targetDateValue = goalData.target_date;
+    if (typeof targetDateValue === "string" && targetDateValue.trim().length > 0) {
+        const isIsoDate = /^\d{4}-\d{2}-\d{2}$/.test(targetDateValue.trim());
+
+        if (!isIsoDate) {
+            errors.target_date = "Target date must be in YYYY-MM-DD format.";
+        } else {
+            const parsedTargetDate = new Date(`${targetDateValue.trim()}T00:00:00`);
+            const isValidDate = !Number.isNaN(parsedTargetDate.getTime());
+
+            if (!isValidDate) {
+                errors.target_date = "Target date must be in YYYY-MM-DD format.";
+            } else {
+                const today = new Date();
+                const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                if (parsedTargetDate <= todayStart) {
+                    errors.target_date = "Target date must be a future date.";
+                }
+            }
+        }
+    }
+
+    const requiredListFields: Array<{ key: ListFieldKey; label: string }> = [
+        { key: "challenges", label: "Challenges" },
+        { key: "strengths", label: "Strengths" },
+        { key: "success_metrics", label: "Success metrics" },
+        { key: "insights", label: "Insights" },
+    ];
+
+    for (const { key, label } of requiredListFields) {
+        const value = goalData[key];
+
+        if (!Array.isArray(value) || value.length === 0) {
+            errors[key] = `${label} must include at least one item.`;
+            continue;
+        }
+
+        if (value.length > MAX_LIST_ITEMS) {
+            errors[key] = `${label} cannot have more than 8 items.`;
+            continue;
+        }
+
+        const hasNonEmptyString = value.some((item) => typeof item === "string" && item.trim().length > 0);
+        if (!hasNonEmptyString) {
+            errors[key] = `${label} must include at least one non-empty string.`;
+        }
+    }
+
+    return errors;
+}
+
+function getFirstFieldErrorMessage(fieldErrors: Partial<Record<GoalReviewFieldKey, string>>): string | null {
+    const orderedFieldKeys: GoalReviewFieldKey[] = [
+        "title",
+        "summary",
+        "category",
+        "motivation",
+        "success_definition",
+        "current_state",
+        "target_date",
+        "challenges",
+        "strengths",
+        "success_metrics",
+        "insights",
+    ];
+
+    for (const key of orderedFieldKeys) {
+        const message = fieldErrors[key];
+        if (typeof message === "string" && message.trim().length > 0) {
+            return message;
+        }
+    }
+
+    return null;
+}
+
+export function GoalWizardReview({ goalData, saving, error, fieldErrors, onBack, onFieldEdited, onValidationStateChange, onConfirm }: GoalWizardReviewProps) {
     const [editableGoal, setEditableGoal] = useState<UnderstandGoalResponse>(goalData);
     const [activeListTab, setActiveListTab] = useState<ListFieldKey>("challenges");
+    const [clientFieldErrors, setClientFieldErrors] = useState<Partial<Record<GoalReviewFieldKey, string>>>({});
     const textareaRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
     const textareaMaxLinesRefs = useRef<Record<string, number>>({});
 
@@ -59,6 +161,12 @@ export function GoalWizardReview({ goalData, saving, error, onBack, onConfirm }:
             }
         });
     }, [editableGoal]);
+
+    useEffect(() => {
+        const nextClientErrors = validateGoalReviewData(editableGoal);
+        setClientFieldErrors(nextClientErrors);
+        onValidationStateChange(Object.keys(nextClientErrors).length > 0);
+    }, [editableGoal, onValidationStateChange]);
 
     function resizeTextarea(textarea: HTMLTextAreaElement, maxLines: number = MAX_TEXTAREA_LINES) {
         const computedStyle = window.getComputedStyle(textarea);
@@ -89,6 +197,8 @@ export function GoalWizardReview({ goalData, saving, error, onBack, onConfirm }:
             ...current,
             [key]: value,
         }));
+
+        onFieldEdited(key);
     }
 
     function updateListField(key: ListFieldKey, index: number, value: string) {
@@ -96,13 +206,21 @@ export function GoalWizardReview({ goalData, saving, error, onBack, onConfirm }:
             ...current,
             [key]: current[key].map((item, itemIndex) => (itemIndex === index ? value : item)),
         }));
+
+        onFieldEdited(key);
     }
 
     function addListFieldItem(key: ListFieldKey) {
+        if (editableGoal[key].length >= MAX_LIST_ITEMS) {
+            return;
+        }
+
         setEditableGoal((current) => ({
             ...current,
             [key]: [...current[key], ""],
         }));
+
+        onFieldEdited(key);
     }
 
     function removeListFieldItem(key: ListFieldKey, index: number) {
@@ -114,6 +232,8 @@ export function GoalWizardReview({ goalData, saving, error, onBack, onConfirm }:
                 [key]: nextItems.length > 0 ? nextItems : [""],
             };
         });
+
+        onFieldEdited(key);
     }
 
     function handleSave() {
@@ -125,11 +245,30 @@ export function GoalWizardReview({ goalData, saving, error, onBack, onConfirm }:
             insights: editableGoal.insights.map((item) => item.trim()).filter((item) => item.length > 0),
         };
 
+        const nextClientErrors = validateGoalReviewData(payload);
+        setClientFieldErrors(nextClientErrors);
+        onValidationStateChange(Object.keys(nextClientErrors).length > 0);
+
+        if (Object.keys(nextClientErrors).length > 0) {
+            return;
+        }
+
         onConfirm(payload);
     }
 
     const activeListConfig = LIST_FIELD_CONFIG.find(({ key }) => key === activeListTab) ?? LIST_FIELD_CONFIG[0];
     const activeListItems = editableGoal[activeListConfig.key];
+    const effectiveFieldErrors: Partial<Record<GoalReviewFieldKey, string>> = {
+        ...clientFieldErrors,
+        ...fieldErrors,
+    };
+    const validationErrorMessage = getFirstFieldErrorMessage(effectiveFieldErrors);
+    const footerErrorMessage = validationErrorMessage ?? error;
+
+    function getFieldErrorTitle(fieldKey: GoalReviewFieldKey): string | undefined {
+        const message = effectiveFieldErrors[fieldKey];
+        return typeof message === "string" && message.trim().length > 0 ? message : undefined;
+    }
 
     return (
         <div className="goal-wizard-body">
@@ -138,9 +277,10 @@ export function GoalWizardReview({ goalData, saving, error, onBack, onConfirm }:
                     <div>
                         <label className="form-label">Title</label>
                         <input
-                            className="form-control"
+                            className={`form-control ${effectiveFieldErrors.title ? "is-invalid" : ""}`.trim()}
                             value={editableGoal.title}
                             onChange={(event) => updateField("title", event.target.value)}
+                            title={getFieldErrorTitle("title")}
                             disabled={saving}
                         />
                     </div>
@@ -148,7 +288,7 @@ export function GoalWizardReview({ goalData, saving, error, onBack, onConfirm }:
                     <div>
                         <label className="form-label">Summary</label>
                         <textarea
-                            className="form-control"
+                            className={`form-control ${effectiveFieldErrors.summary ? "is-invalid" : ""}`.trim()}
                             rows={3}
                             value={editableGoal.summary}
                             onChange={(event) => {
@@ -156,6 +296,7 @@ export function GoalWizardReview({ goalData, saving, error, onBack, onConfirm }:
                                 resizeTextarea(event.currentTarget);
                             }}
                             ref={registerTextareaRef("summary")}
+                            title={getFieldErrorTitle("summary")}
                             disabled={saving}
                         />
                     </div>
@@ -165,18 +306,20 @@ export function GoalWizardReview({ goalData, saving, error, onBack, onConfirm }:
                             <label className="form-label">Target Date</label>
                             <input
                                 type="date"
-                                className="form-control"
+                                className={`form-control ${effectiveFieldErrors.target_date ? "is-invalid" : ""}`.trim()}
                                 value={editableGoal.target_date}
                                 onChange={(event) => updateField("target_date", event.target.value)}
+                                title={getFieldErrorTitle("target_date")}
                                 disabled={saving}
                             />
                         </div>
                         <div>
                             <label className="form-label">Category</label>
                             <select
-                                className="form-select"
+                                className={`form-select ${effectiveFieldErrors.category ? "is-invalid" : ""}`.trim()}
                                 value={editableGoal.category}
                                 onChange={(event) => updateField("category", event.target.value as GoalCategory)}
+                                title={getFieldErrorTitle("category")}
                                 disabled={saving}
                             >
                                 {CATEGORY_OPTIONS.map((category) => (
@@ -191,7 +334,7 @@ export function GoalWizardReview({ goalData, saving, error, onBack, onConfirm }:
                     <div>
                         <label className="form-label">Motivation</label>
                         <textarea
-                            className="form-control"
+                            className={`form-control ${effectiveFieldErrors.motivation ? "is-invalid" : ""}`.trim()}
                             rows={2}
                             value={editableGoal.motivation}
                             onChange={(event) => {
@@ -199,6 +342,7 @@ export function GoalWizardReview({ goalData, saving, error, onBack, onConfirm }:
                                 resizeTextarea(event.currentTarget);
                             }}
                             ref={registerTextareaRef("motivation")}
+                            title={getFieldErrorTitle("motivation")}
                             disabled={saving}
                         />
                     </div>
@@ -206,7 +350,7 @@ export function GoalWizardReview({ goalData, saving, error, onBack, onConfirm }:
                     <div>
                         <label className="form-label">Success Definition</label>
                         <textarea
-                            className="form-control"
+                            className={`form-control ${effectiveFieldErrors.success_definition ? "is-invalid" : ""}`.trim()}
                             rows={2}
                             value={editableGoal.success_definition}
                             onChange={(event) => {
@@ -214,6 +358,7 @@ export function GoalWizardReview({ goalData, saving, error, onBack, onConfirm }:
                                 resizeTextarea(event.currentTarget);
                             }}
                             ref={registerTextareaRef("success_definition")}
+                            title={getFieldErrorTitle("success_definition")}
                             disabled={saving}
                         />
                     </div>
@@ -221,7 +366,7 @@ export function GoalWizardReview({ goalData, saving, error, onBack, onConfirm }:
                     <div>
                         <label className="form-label">Current State</label>
                         <textarea
-                            className="form-control"
+                            className={`form-control ${effectiveFieldErrors.current_state ? "is-invalid" : ""}`.trim()}
                             rows={2}
                             value={editableGoal.current_state}
                             onChange={(event) => {
@@ -229,6 +374,7 @@ export function GoalWizardReview({ goalData, saving, error, onBack, onConfirm }:
                                 resizeTextarea(event.currentTarget);
                             }}
                             ref={registerTextareaRef("current_state")}
+                            title={getFieldErrorTitle("current_state")}
                             disabled={saving}
                         />
                     </div>
@@ -244,7 +390,7 @@ export function GoalWizardReview({ goalData, saving, error, onBack, onConfirm }:
                                         id={`goal-wizard-review-tab-${key}`}
                                         type="button"
                                         role="tab"
-                                        className={`goal-wizard-review-tab ${activeListTab === key ? "is-active" : ""}`.trim()}
+                                        className={`goal-wizard-review-tab ${activeListTab === key ? "is-active" : ""} ${effectiveFieldErrors[key] ? "is-error" : ""}`.trim()}
                                         aria-selected={activeListTab === key}
                                         aria-controls={`goal-wizard-review-panel-${key}`}
                                         onClick={() => setActiveListTab(key)}
@@ -260,14 +406,14 @@ export function GoalWizardReview({ goalData, saving, error, onBack, onConfirm }:
                         <div
                             id={`goal-wizard-review-panel-${activeListConfig.key}`}
                             role="tabpanel"
-                            className="goal-wizard-review-tab-panel"
+                            className={`goal-wizard-review-tab-panel ${effectiveFieldErrors[activeListConfig.key] ? "has-error" : ""}`.trim()}
                             aria-labelledby={`goal-wizard-review-tab-${activeListConfig.key}`}
                         >
                             <div className="goal-wizard-review-list">
                                 {activeListItems.map((item, index) => (
                                     <div key={`${activeListConfig.key}-${index}`} className="goal-wizard-review-list-item">
                                         <textarea
-                                            className="form-control goal-wizard-review-list-textarea"
+                                            className={`form-control goal-wizard-review-list-textarea ${effectiveFieldErrors[activeListConfig.key] ? "is-invalid" : ""}`.trim()}
                                             rows={1}
                                             value={item}
                                             onChange={(event) => {
@@ -275,6 +421,7 @@ export function GoalWizardReview({ goalData, saving, error, onBack, onConfirm }:
                                                 resizeTextarea(event.currentTarget, MAX_LIST_TEXTAREA_LINES);
                                             }}
                                             ref={registerTextareaRef(`${activeListConfig.key}-${index}`, MAX_LIST_TEXTAREA_LINES)}
+                                            title={getFieldErrorTitle(activeListConfig.key)}
                                             disabled={saving}
                                         />
                                         <button
@@ -288,14 +435,16 @@ export function GoalWizardReview({ goalData, saving, error, onBack, onConfirm }:
                                         </button>
                                     </div>
                                 ))}
-                                <button
-                                    type="button"
-                                    className="btn btn-soft goal-wizard-review-list-add"
-                                    onClick={() => addListFieldItem(activeListConfig.key)}
-                                    disabled={saving}
-                                >
-                                    <Plus size={14} className="me-1" /> Add {activeListConfig.label}
-                                </button>
+                                {activeListItems.length < MAX_LIST_ITEMS ? (
+                                    <button
+                                        type="button"
+                                        className="btn btn-soft goal-wizard-review-list-add"
+                                        onClick={() => addListFieldItem(activeListConfig.key)}
+                                        disabled={saving}
+                                    >
+                                        <Plus size={14} className="me-1" /> Add {activeListConfig.label}
+                                    </button>
+                                ) : null}
                             </div>
                         </div>
                     </div>
@@ -308,7 +457,7 @@ export function GoalWizardReview({ goalData, saving, error, onBack, onConfirm }:
                     <button type="button" className="btn btn-brand" onClick={handleSave} disabled={saving}>
                         {saving ? "Saving..." : "Save"}
                     </button>
-                    {error && <div className="alert alert-danger py-2 px-3 small mb-0">{error}</div>}
+                    {footerErrorMessage && <div className="alert alert-danger py-2 px-3 small mb-0">{footerErrorMessage}</div>}
                 </div>
 
             </div>

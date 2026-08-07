@@ -29,6 +29,22 @@ const ORDERED_STEP_KEYS = STEPS.map((step) => step.key);
 type WizardPhase = "questions" | "understanding" | "review";
 type GoalWizardAnswers = Record<GoalWizardStepKey, string>;
 type GoalWizardStepErrors = Partial<Record<GoalWizardStepKey, string>>;
+type GoalReviewFieldKey = keyof UnderstandGoalResponse;
+type GoalReviewFieldErrors = Partial<Record<GoalReviewFieldKey, string>>;
+
+const REVIEW_FIELD_KEYS: GoalReviewFieldKey[] = [
+    "title",
+    "summary",
+    "category",
+    "motivation",
+    "success_definition",
+    "current_state",
+    "target_date",
+    "challenges",
+    "strengths",
+    "success_metrics",
+    "insights",
+];
 
 const PHASE_TITLES: Record<WizardPhase, string[]> = {
     questions: ["Build Your Goal"],
@@ -98,6 +114,21 @@ function mapFieldErrorsToStepErrors(
     return stepErrors;
 }
 
+function mapFieldErrorsToReviewErrors(
+    fieldErrors: Partial<Record<string, string>>,
+): GoalReviewFieldErrors {
+    const reviewFieldErrors: GoalReviewFieldErrors = {};
+
+    for (const key of REVIEW_FIELD_KEYS) {
+        const fieldMessage = fieldErrors[key];
+        if (typeof fieldMessage === "string" && fieldMessage.trim().length > 0) {
+            reviewFieldErrors[key] = fieldMessage;
+        }
+    }
+
+    return reviewFieldErrors;
+}
+
 interface GoalCreationWizardProps {
     open: boolean;
     onClose: () => void;
@@ -117,6 +148,8 @@ export function GoalCreationWizard({ open, onClose, onSubmitted }: GoalCreationW
     const [loaderIndex, setLoaderIndex] = useState(0);
     const [error, setError] = useState<string | null>(null);
     const [stepErrors, setStepErrors] = useState<GoalWizardStepErrors>({});
+    const [reviewFieldErrors, setReviewFieldErrors] = useState<GoalReviewFieldErrors>({});
+    const [reviewHasValidationErrors, setReviewHasValidationErrors] = useState(false);
     const [understoodGoal, setUnderstoodGoal] = useState<UnderstandGoalResponse | null>(null);
     const boyStepTimerRef = useRef<number | null>(null);
     const boyFadeTimerRef = useRef<number | null>(null);
@@ -154,6 +187,8 @@ export function GoalCreationWizard({ open, onClose, onSubmitted }: GoalCreationW
         setUnderstoodGoal(null);
         setError(null);
         setStepErrors({});
+        setReviewFieldErrors({});
+        setReviewHasValidationErrors(false);
     }, [open]);
 
     useEffect(() => {
@@ -350,6 +385,7 @@ export function GoalCreationWizard({ open, onClose, onSubmitted }: GoalCreationW
         setLoaderIndex(0);
         setError(null);
         setStepErrors({});
+        setReviewFieldErrors({});
 
         try {
             const response = await api.goals.understandGoal(payload);
@@ -391,6 +427,7 @@ export function GoalCreationWizard({ open, onClose, onSubmitted }: GoalCreationW
 
         setSavingGoal(true);
         setError(null);
+        setReviewFieldErrors({});
 
         try {
             const savedGoal = await api.goals.saveGoal(goalToSave);
@@ -398,13 +435,30 @@ export function GoalCreationWizard({ open, onClose, onSubmitted }: GoalCreationW
             onClose();
         } catch (saveError) {
             if (saveError instanceof ApiError) {
+                const nextReviewFieldErrors = mapFieldErrorsToReviewErrors(saveError.fieldErrors ?? {});
+                setReviewFieldErrors(nextReviewFieldErrors);
                 setError(saveError.message);
             } else {
+                setReviewFieldErrors({});
                 setError("We could not save the goal right now. Please try again.");
             }
         } finally {
             setSavingGoal(false);
         }
+    }
+
+    function handleReviewFieldEdited(fieldKey: GoalReviewFieldKey) {
+        setReviewFieldErrors((current) => {
+            if (!current[fieldKey]) {
+                return current;
+            }
+
+            const next = { ...current };
+            delete next[fieldKey];
+            return next;
+        });
+
+        setError(null);
     }
 
     return (
@@ -475,17 +529,21 @@ export function GoalCreationWizard({ open, onClose, onSubmitted }: GoalCreationW
                             goalData={understoodGoal}
                             saving={savingGoal}
                             error={error}
+                            fieldErrors={reviewFieldErrors}
                             onBack={() => {
                                 setError(null);
+                                setReviewFieldErrors({});
                                 setPhase("questions");
                             }}
+                            onFieldEdited={handleReviewFieldEdited}
+                            onValidationStateChange={setReviewHasValidationErrors}
                             onConfirm={handleConfirmGoal}
                         />
                     ) : null}
                 </div>
 
                 <GoalWizardVisual
-                    mode={phase === "understanding" ? "thinking" : phase === "review" ? "gotIt" : "journey"}
+                    mode={phase === "understanding" ? "thinking" : phase === "review" ? (reviewHasValidationErrors ? "thinking" : "gotIt") : "journey"}
                     boyStepIndex={boyStepIndex}
                     isBoyVisible={isBoyVisible}
                 />

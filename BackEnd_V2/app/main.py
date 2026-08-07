@@ -11,8 +11,9 @@ from app.db.session import engine
 from app.models.base import Base
 from app.core.exceptions import AppError
 
-# These will be moved soon
+# These will be moved soon, these create the table (if not present) when server start
 from app.models.user import User
+from app.models.goal import Goal
 
 
 @asynccontextmanager

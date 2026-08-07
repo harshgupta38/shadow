@@ -8,5 +8,6 @@ class Endpoints:
     class GOALS:
         PREFIX = "/goal"
         REFINE = "/refine"
+        SAVE = "/save"
 
 ENDPOINTS = Endpoints()

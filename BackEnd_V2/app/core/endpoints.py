@@ -12,4 +12,8 @@ class Endpoints:
         GET_LIST = "/get-list"
         DETAIL = "/{goal_id}"
 
+    class LLM:
+        PREFIX = "/llm"
+        TEST_CHAT = "/test-chat"
+
 ENDPOINTS = Endpoints()

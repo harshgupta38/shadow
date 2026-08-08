@@ -5,7 +5,7 @@ from app.llm.config import LLMSettings, llm_settings
 from app.llm.enums import LLMProvider
 from app.llm.exceptions import LLMConfigurationError
 from app.schemas.goals import UnderstandGoalRequest, UnderstandGoalResponse
-from app.llm.providers import OllamaProvider, OpenAIProvider
+from app.llm.providers import OllamaProvider, OpenAIProvider, GeminiProvider
 
 
 class LLMService:
@@ -27,6 +27,7 @@ class LLMService:
         provider_registry: dict[LLMProvider, type[BaseLLMProvider]] = {
             LLMProvider.OLLAMA: OllamaProvider,
             LLMProvider.OPENAI: OpenAIProvider,
+            LLMProvider.GEMINI: GeminiProvider,
         }
 
         provider_cls = provider_registry.get(settings.llm_provider)

@@ -1,7 +1,7 @@
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from app.llm.enums import LLMProvider, LLMModel
+from app.llm.enums import GeminiModel, LLMProvider, LLMModel, OpenAIModel
 
 
 class LLMSettings(BaseSettings):
@@ -69,9 +69,19 @@ Rules:
         alias="OPENAI_API_KEY",
     )
 
-    openai_model: str = Field(
+    openai_model: OpenAIModel = Field(
         default=LLMModel.OPENAI.GPT_5_MINI,
         alias="OPENAI_MODEL",
+    )
+
+    gemini_api_key: str = Field(
+        default="",
+        alias="GEMINI_API_KEY",
+    )
+
+    gemini_model: GeminiModel = Field(
+        default=LLMModel.GEMINI.GEMINI_2_5_FLASH,
+        alias="GEMINI_MODEL",
     )
 
 

@@ -64,6 +64,16 @@ Rules:
         populate_by_name=True,
     )
 
+    openai_api_key: str = Field(
+        default="",
+        alias="OPENAI_API_KEY",
+    )
+
+    openai_model: str = Field(
+        default="gpt-5-mini",
+        alias="OPENAI_MODEL",
+    )
+
 
 # Create one ready-to-use settings object at import time.
 # Services read this object to configure provider/model/system prompt/timeout.

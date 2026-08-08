@@ -1,8 +1,10 @@
 from functools import lru_cache
+from app.llm.models import RefineGoalRequest
 from app.llm.base import BaseLLMProvider
 from app.llm.config import LLMSettings, llm_settings
 from app.llm.enums import LLMProvider
 from app.llm.exceptions import LLMConfigurationError
+from app.schemas.goals import UnderstandGoalRequest, UnderstandGoalResponse
 from app.llm.providers import OllamaProvider
 
 
@@ -33,6 +35,21 @@ class LLMService:
             )
 
         return provider_cls(settings=settings)
+
+    async def refine_goal(
+        self,
+        request_data: UnderstandGoalRequest,
+    ) -> UnderstandGoalResponse:
+
+        request = RefineGoalRequest(request_data=request_data)
+        response = await self._provider.refine_goal(request)
+
+        if response is None or response.refined_data is None:
+            raise LLMConfigurationError(
+                "LLM provider returned no refined data for the goal."
+            )
+
+        return response.refined_data
 
     async def health_check(self) -> bool:
         return await self._provider.health_check()

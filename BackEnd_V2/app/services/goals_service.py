@@ -2,6 +2,7 @@ from datetime import date
 
 from fastapi import HTTPException, status
 
+from app.llm.models import RefineGoalResponse
 from app.llm.exceptions import LLMError
 from app.llm.service import get_llm_service
 from app.models.goal import Goal
@@ -15,7 +16,7 @@ from app.schemas.goals import (
 )
 
 
-async def understand_goal(data: UnderstandGoalRequest) -> UnderstandGoalResponse:
+async def understand_goal(data: UnderstandGoalRequest) -> RefineGoalResponse:
     llm_service = get_llm_service()
 
     try:

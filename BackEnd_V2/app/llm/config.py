@@ -51,10 +51,10 @@ Rules:
 
     # Timeout in seconds for each LLM request.
     llm_request_timeout_seconds: int = Field(
-        default=3600,
+        default=600,
         alias="LLM_REQUEST_TIMEOUT_SECONDS",
-        ge=1.0,
-        le=3600.0,
+        ge=1,
+        le=600,
     )
 
     model_config = SettingsConfigDict(

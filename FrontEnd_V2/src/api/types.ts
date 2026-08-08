@@ -84,6 +84,29 @@ export interface UnderstandGoalResponse {
   insights: string[];
 }
 
+export interface TokenUsage {
+  input_tokens: number | null;
+  output_tokens: number | null;
+  total_tokens: number | null;
+}
+
+export interface TokenCostBreakdown {
+  input_token_cost: number;
+  output_token_cost: number;
+  total_cost: number;
+}
+
+export interface RefineGoalResponse {
+  provider: string;
+  model: string;
+  refined_data: UnderstandGoalResponse;
+  finish_reason: string;
+  usage: TokenUsage | null;
+  response_id: string | null;
+  response_time_ms: number | null;
+  cost: TokenCostBreakdown | null;
+}
+
 export type GoalListStatusFilter = "All" | "Active" | "Paused" | "Completed";
 export type GoalItemStatus = Exclude<GoalListStatusFilter, "All">;
 

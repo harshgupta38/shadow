@@ -389,7 +389,7 @@ export function GoalCreationWizard({ open, onClose, onSubmitted }: GoalCreationW
 
         try {
             const response = await api.goals.understandGoal(payload);
-            setUnderstoodGoal(response);
+            setUnderstoodGoal(response.refined_data);
             setPhase("review");
             setSubmitting(false);
         } catch (submissionError) {

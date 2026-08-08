@@ -1,5 +1,21 @@
+from dataclasses import dataclass
+
 from pydantic import BaseModel, Field
+from app.llm.enums import LLMProvider, ModelKey
 from app.schemas.goals import UnderstandGoalRequest, UnderstandGoalResponse
+
+
+@dataclass(frozen=True)
+class ModelCost:
+    input_token_cost: float | None
+    output_token_cost: float | None
+
+
+@dataclass(frozen=True)
+class TokenCostBreakdown:
+    input_token_cost: float = 0.0
+    output_token_cost: float = 0.0
+    total_cost: float = 0.0
 
 
 class TokenUsage(BaseModel):
@@ -9,13 +25,14 @@ class TokenUsage(BaseModel):
 
 
 class RefineGoalResponse(BaseModel):
-    provider: str
-    model: str
+    provider: LLMProvider
+    model: ModelKey
     refined_data: UnderstandGoalResponse
     finish_reason: str
     usage: TokenUsage | None = None
     response_id: str | None = None
     response_time_ms: int | None = None
+    cost: TokenCostBreakdown | None = None
 
 
 class RefineGoalRequest(BaseModel):

@@ -2,6 +2,7 @@ from datetime import date
 from time import perf_counter
 
 from openai import APIConnectionError, APIStatusError, AsyncOpenAI, OpenAIError
+from app.llm.cost import calculate_token_cost
 from app.llm.base import BaseLLMProvider
 from app.llm.config import LLMSettings, llm_settings
 from app.llm.enums import LLMProvider, Role
@@ -117,6 +118,11 @@ class OpenAIProvider(BaseLLMProvider):
             usage=usage,
             response_id=completion.id,
             response_time_ms=response_time_ms,
+            cost = calculate_token_cost(
+                model_key=model,
+                input_tokens=completion.usage.prompt_tokens if completion.usage else 0,
+                output_tokens=completion.usage.completion_tokens if completion.usage else 0,
+            )
         )
 
     async def health_check(self) -> bool:

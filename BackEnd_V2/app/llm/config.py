@@ -1,7 +1,7 @@
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from app.llm.enums import LLMProvider
+from app.llm.enums import LLMProvider, LLMModel
 
 
 class LLMSettings(BaseSettings):
@@ -33,28 +33,28 @@ Rules:
 
     # Base URL for the Ollama OpenAI-compatible endpoint.
     ollama_base_url: str = Field(
-        default="http://localhost:11434/v1",
+        default=LLMModel.OLLAMA.BASE_URL,
         alias="OLLAMA_BASE_URL",
     )
 
     # Default model name requested from Ollama.
     ollama_model: str = Field(
-        default="qwen3:4b",
+        default=LLMModel.OLLAMA.QWEN3_4B,
         alias="OLLAMA_MODEL",
     )
 
     # API key sent to the Ollama-compatible client.
     ollama_api_key: str = Field(
-        default="ollama",
+        default=LLMProvider.OLLAMA,
         alias="OLLAMA_API_KEY",
     )
 
     # Timeout in seconds for each LLM request.
     llm_request_timeout_seconds: int = Field(
-        default=120,
+        default=3600,
         alias="LLM_REQUEST_TIMEOUT_SECONDS",
         ge=1.0,
-        le=600.0,
+        le=3600.0,
     )
 
     model_config = SettingsConfigDict(
@@ -70,7 +70,7 @@ Rules:
     )
 
     openai_model: str = Field(
-        default="gpt-5-mini",
+        default=LLMModel.OPENAI.GPT_5_MINI,
         alias="OPENAI_MODEL",
     )
 

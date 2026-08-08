@@ -10,6 +10,7 @@ import { ProgressRing } from "@/components/ui/ProgressRing/ProgressRing";
 import { ROUTES } from "@/routes/RoutePaths";
 import { useToast } from "@/context/ToastContext";
 import { GoalEditWizard } from "./components/GoalEditWizard/GoalEditWizard";
+import { GoalMilestonesSection } from "./components/GoalMilestonesSection/GoalMilestonesSection";
 
 import "./GoalDetailPage.scss";
 
@@ -223,6 +224,8 @@ export function GoalDetailPage() {
               </div>
             </div>
           </section>
+
+          <GoalMilestonesSection />
         </>
       ) : null}
 
@@ -236,7 +239,7 @@ export function GoalDetailPage() {
         onCancel={() => setShowEditConfirm(false)}
       />
 
-      {goal ? (
+      {goal && showEditWizard ? (
         <GoalEditWizard
           open={showEditWizard}
           goal={goal}

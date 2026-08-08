@@ -1,0 +1,91 @@
+.goal-milestones-section {
+  padding: 1.5rem 1.25rem 1.35rem;
+  border: 1px solid color-mix(in srgb, var(--jv-border) 82%, var(--jv-brand-1) 18%);
+  border-radius: var(--jv-radius);
+}
+
+.goal-milestones-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.9rem;
+}
+
+.goal-milestones-title {
+  margin: 0;
+  font-family: var(--jv-font-display);
+  font-size: 1.16rem;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.goal-milestones-subtitle {
+  margin: 0.25rem 0 0;
+  color: var(--jv-muted);
+  font-size: 0.9rem;
+}
+
+.goal-milestones-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.goal-milestones-empty {
+  min-height: 210px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 1rem 0;
+}
+
+.goal-milestones-empty-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--jv-brand-soft) 60%, transparent);
+  color: var(--jv-brand-1);
+}
+
+.goal-milestones-empty-title {
+  margin: 0.9rem 0 0;
+  font-size: 1.45rem;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  font-family: var(--jv-font-display);
+}
+
+.goal-milestones-empty-text {
+  margin: 0.45rem 0 0;
+  color: var(--jv-muted);
+  max-width: 440px;
+}
+
+@media (max-width: 767.98px) {
+  .goal-milestones-section {
+    padding: 1rem;
+  }
+
+  .goal-milestones-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .goal-milestones-actions {
+    justify-content: flex-start;
+  }
+
+  .goal-milestones-empty {
+    min-height: 185px;
+  }
+
+  .goal-milestones-empty-title {
+    font-size: 1.2rem;
+  }
+}

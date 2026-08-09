@@ -1,23 +1,23 @@
 import { ENDPOINTS } from "@/constant/shadow-endpoints";
 
 import { http } from "@/api/client";
-import { MilestoneCreateRequest, MilestoneCreateResponse, MilestoneStatus, MilestoneUpdateRequest } from "@/api/types";
+import { MilestoneCreateRequest, MilestoneResponse, MilestoneStatus, MilestoneUpdateRequest } from "@/api/types";
 
 export const milestonesApi = {
-    async save(data: MilestoneCreateRequest): Promise<MilestoneCreateResponse> {
-        return http.post<MilestoneCreateResponse>(`${ENDPOINTS.MILESTONES.PREFIX}${ENDPOINTS.MILESTONES.SAVE}`, data);
+    async save(data: MilestoneCreateRequest): Promise<MilestoneResponse> {
+        return http.post<MilestoneResponse>(`${ENDPOINTS.MILESTONES.PREFIX}${ENDPOINTS.MILESTONES.SAVE}`, data);
     },
 
-    async getList(goalId: number, status?: MilestoneStatus): Promise<MilestoneCreateResponse[]> {
+    async getList(goalId: number, status?: MilestoneStatus): Promise<MilestoneResponse[]> {
         const params = new URLSearchParams();
         params.append("goal_id", String(goalId));
         if (status)
             params.append("status", status);
-        return http.get<MilestoneCreateResponse[]>(`${ENDPOINTS.MILESTONES.PREFIX}${ENDPOINTS.MILESTONES.GET_LIST}?${params.toString()}`);
+        return http.get<MilestoneResponse[]>(`${ENDPOINTS.MILESTONES.PREFIX}${ENDPOINTS.MILESTONES.GET_LIST}?${params.toString()}`);
     },
 
-    async update(milestoneId: number, data: MilestoneUpdateRequest): Promise<MilestoneCreateResponse> {
-        return http.patch<MilestoneCreateResponse>(`${ENDPOINTS.MILESTONES.PREFIX}${ENDPOINTS.MILESTONES.DETAIL(milestoneId)}`, data);
+    async update(milestoneId: number, data: MilestoneUpdateRequest): Promise<MilestoneResponse> {
+        return http.patch<MilestoneResponse>(`${ENDPOINTS.MILESTONES.PREFIX}${ENDPOINTS.MILESTONES.DETAIL(milestoneId)}`, data);
     },
 
     async remove(milestoneId: number): Promise<void> {

@@ -168,7 +168,7 @@ export interface MilestoneUpdateRequest {
   position?: number;
 }
 
-export interface MilestoneCreateResponse {
+export interface MilestoneResponse {
   id: number;
   goal_id: number;
   title: string;

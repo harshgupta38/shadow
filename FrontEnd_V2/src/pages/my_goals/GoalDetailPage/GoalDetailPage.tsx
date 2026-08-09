@@ -183,7 +183,7 @@ export function GoalDetailPage() {
 
           <section
             id="goal-detail-sections"
-            className={`surface goal-detail-details-shell mb-3 ${isDetailsExpanded ? "is-expanded" : "is-collapsed"}`}
+            className={`surface goal-detail-details-shell ${isDetailsExpanded ? "is-expanded mb-3" : "is-collapsed"}`}
             aria-hidden={!isDetailsExpanded}
           >
             <div className="goal-detail-details-shell-inner">

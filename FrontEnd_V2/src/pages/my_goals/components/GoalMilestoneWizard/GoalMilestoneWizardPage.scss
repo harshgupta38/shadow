@@ -1,0 +1,50 @@
+.goal-wizard {
+    &-title-input {
+        border-color: var(--jv-border-strong);
+        background: var(--jv-surface);
+        color: var(--jv-text);
+        max-width: 760px;
+
+        &:focus {
+            border-color: var(--jv-brand-1);
+            box-shadow: var(--jv-ring);
+        }
+    }
+
+    &-days-input {
+        width: 100%;
+        max-width: 180px;
+        border-color: var(--jv-border-strong);
+        background: var(--jv-surface);
+        color: var(--jv-text);
+
+        &:focus {
+            border-color: var(--jv-brand-1);
+            box-shadow: var(--jv-ring);
+        }
+    }
+
+    &-description,
+    &-reason {
+        min-height: 138px;
+        resize: none;
+        overflow-y: hidden;
+        border-color: var(--jv-border-strong);
+        background: var(--jv-surface);
+        color: var(--jv-text);
+        max-width: 760px;
+
+        &::placeholder {
+            color: var(--jv-faint);
+        }
+
+        &:focus {
+            border-color: var(--jv-brand-1);
+            box-shadow: var(--jv-ring);
+        }
+    }
+
+    &-days-input {
+        max-width: 760px;
+    }
+}

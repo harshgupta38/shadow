@@ -225,7 +225,7 @@ export function GoalDetailPage() {
             </div>
           </section>
 
-          <GoalMilestonesSection />
+          <GoalMilestonesSection goalId={goal.id} />
         </>
       ) : null}
 

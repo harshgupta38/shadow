@@ -1,8 +1,17 @@
 import { CheckLg, PlusLg, Stars } from "react-bootstrap-icons";
+import { Link } from "react-router-dom";
+
+import { ROUTES } from "@/routes/RoutePaths";
 
 import "./GoalMilestonesSection.scss";
 
-export function GoalMilestonesSection() {
+interface GoalMilestonesSectionProps {
+    goalId: number;
+}
+
+export function GoalMilestonesSection({ goalId }: GoalMilestonesSectionProps) {
+    const setMilestonePath = ROUTES.MY_GOAL_MILESTONE_CREATE.replace(":goalId", String(goalId));
+
     return (
         <section className="surface goal-milestones-section" aria-labelledby="goal-milestones-title">
             <header className="goal-milestones-header">
@@ -12,9 +21,9 @@ export function GoalMilestonesSection() {
                 </div>
 
                 <div className="goal-milestones-actions" aria-label="Milestones actions">
-                    <button type="button" className="btn btn-brand btn-sm">
+                    <Link to={setMilestonePath} className="btn btn-brand btn-sm">
                         <PlusLg size={14} className="me-1" /> Set Milestone
-                    </button>
+                    </Link>
                     <button type="button" className="btn btn-soft btn-sm">
                         <Stars size={14} className="me-1" /> Ask Goal Coach
                     </button>

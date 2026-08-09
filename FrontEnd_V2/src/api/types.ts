@@ -158,6 +158,16 @@ export interface MilestoneCreateRequest {
   assistant_context: Record<string, unknown> | null;
 }
 
+export interface MilestoneUpdateRequest {
+  title?: string;
+  description?: string | null;
+  status?: MilestoneStatus;
+  reason?: string | null;
+  estimated_duration_days?: number | null;
+  target_date?: string | null;
+  position?: number;
+}
+
 export interface MilestoneCreateResponse {
   id: number;
   goal_id: number;

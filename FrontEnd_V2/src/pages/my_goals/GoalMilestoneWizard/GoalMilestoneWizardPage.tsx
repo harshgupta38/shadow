@@ -257,7 +257,7 @@ export function GoalMilestoneWizardPage() {
 		setFieldErrors({});
 
 		try {
-			await api.milestones.create({
+			await api.milestones.save({
 				goal_id: numericGoalId,
 				title: titleValue,
 				description: descriptionValue,

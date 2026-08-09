@@ -19,12 +19,12 @@ router = APIRouter(prefix=ENDPOINTS.MILESTONES.PREFIX, tags=["Milestones"])
 )
 def get_milestone_list(
     goal_id: int,
-    milestone_status: MilestoneStatus | None = None,
+    status: MilestoneStatus | None = None,
     db=Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[MilestoneResponse]:
     return milestones_service.get_milestone_list(
-        db, current_user, goal_id, milestone_status
+        db, current_user, goal_id, status
     )
 
 

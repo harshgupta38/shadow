@@ -59,7 +59,6 @@ class MilestoneUpdateRequest(BaseModel):
     estimated_duration_days: int | None = Field(default=None)
     target_date: date | None = None
     position: int | None = Field(default=None, ge=0)
-    assistant_context: dict[str, Any] | None = None
 
     @field_validator("estimated_duration_days")
     @classmethod

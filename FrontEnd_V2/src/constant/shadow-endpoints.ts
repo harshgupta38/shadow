@@ -14,6 +14,8 @@ export const ENDPOINTS = {
     MILESTONES: {
         PREFIX: "/milestone",
         SAVE: "/save",
+        GET_LIST: "/get-list",
+        DETAIL: (id: number) => `/${id}`,
     },
     // DEMO: {
     //     DETAIL: (id: string) => `/demo/${id}`,

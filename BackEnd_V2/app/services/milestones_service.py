@@ -5,7 +5,11 @@ from app.core.exceptions import NotFoundError
 from app.models.goal import Goal
 from app.models.milestone import Milestone
 from app.models.user import User
-from app.schemas.milestones import MilestoneCreateRequest, MilestoneResponse
+from app.schemas.milestones import (
+    MilestoneCreateRequest,
+    MilestoneResponse,
+    MilestoneStatus,
+)
 
 
 def _serialize_milestone(milestone: Milestone) -> MilestoneResponse:
@@ -28,6 +32,34 @@ def _serialize_milestone(milestone: Milestone) -> MilestoneResponse:
         total_tasks=milestone.total_tasks,
         completed_tasks=milestone.completed_tasks,
     )
+
+
+def get_milestone_list(
+    db: Session,
+    current_user: User,
+    goal_id: int,
+    status: MilestoneStatus | None,
+) -> list[MilestoneResponse]:
+    goal = db.scalar(
+        select(Goal).where(
+            Goal.id == goal_id,
+            Goal.user_id == current_user.id,
+        )
+    )
+
+    if goal is None:
+        raise NotFoundError("Goal not found. Please check the goal and try again.")
+
+    query = select(Milestone).where(Milestone.goal_id == goal_id)
+
+    if status is not None:
+        query = query.where(Milestone.status == status)
+
+    query = query.order_by(Milestone.position)
+
+    milestones = db.scalars(query).all()
+
+    return [_serialize_milestone(milestone) for milestone in milestones]
 
 
 def save_milestone(
@@ -69,6 +101,7 @@ def save_milestone(
     )
 
     db.add(milestone)
+    goal.milestones_total = (goal.milestones_total or 0) + 1
     db.commit()
     db.refresh(milestone)
 

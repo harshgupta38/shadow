@@ -15,5 +15,6 @@ class Endpoints:
     class MILESTONES:
         PREFIX = "/milestone"
         SAVE = "/save"
+        GET_LIST = "/get-list"
 
 ENDPOINTS = Endpoints()

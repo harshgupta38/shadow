@@ -22,8 +22,8 @@ import type { PageHeaderAction } from "@/components/ui/PageHeader/PageHeader";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { ROUTES } from "@/routes/RoutePaths";
 
-import { GoalCreationWizard } from "./components/GoalCreationWizard/GoalCreationWizard";
-import { GoalLoadingSkeleton } from "./components/GoalLoadingSkeleton/GoalLoadingSkeleton";
+import { GoalCreationWizard } from "./GoalCreationWizard/GoalCreationWizard";
+import { GoalLoadingSkeleton } from "./GoalLoadingSkeleton/GoalLoadingSkeleton";
 import { useToast } from "@/context/ToastContext";
 
 import "./MyGoalsPage.scss";

@@ -9,8 +9,8 @@ import { IllustratedErrorState } from "@/components/ui/IllustratedErrorState/Ill
 import { ProgressRing } from "@/components/ui/ProgressRing/ProgressRing";
 import { ROUTES } from "@/routes/RoutePaths";
 import { useToast } from "@/context/ToastContext";
-import { GoalEditWizard } from "./components/GoalEditWizard/GoalEditWizard";
-import { GoalMilestonesSection } from "./components/GoalMilestonesSection/GoalMilestonesSection";
+import { GoalEditWizard } from "../GoalEditWizard/GoalEditWizard";
+import { GoalMilestonesSection } from "../GoalMilestonesSection/GoalMilestonesSection";
 
 import "./GoalDetailPage.scss";
 

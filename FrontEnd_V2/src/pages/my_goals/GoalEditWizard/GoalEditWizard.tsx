@@ -5,8 +5,8 @@ import { api } from "@/api";
 import { ApiError } from "@/api/client";
 import type { GoalDetailResponse, UnderstandGoalResponse } from "@/api/types";
 import { ThemeToggle } from "@/components/ui/ThemeToggle/ThemeToggle";
-import { GoalWizardReview } from "@/pages/my_goals/components/GoalCreationWizard/GoalWizardReview";
-import { GoalWizardVisual } from "@/pages/my_goals/components/GoalCreationWizard/GoalWizardVisual";
+import { GoalWizardReview } from "@/pages/my_goals/GoalCreationWizard/GoalWizardReview";
+import { GoalWizardVisual } from "@/pages/my_goals/GoalCreationWizard/GoalWizardVisual";
 
 import "../GoalCreationWizard/GoalCreationWizard.scss";
 

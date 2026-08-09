@@ -33,6 +33,24 @@ function parsePositiveDays(value: string): number | null {
 
 const LOADER_VISUAL_IMAGES = [LOADING_IMAGE];
 
+type MilestoneFieldErrorKey = "title" | "description" | "reason" | "durationDays";
+type MilestoneFieldErrors = Partial<Record<MilestoneFieldErrorKey, string>>;
+
+const MILESTONE_FIELD_KEYS: MilestoneFieldErrorKey[] = ["title", "description", "reason", "durationDays"];
+
+function mapFieldErrorsToMilestoneErrors(fieldErrors: Partial<Record<string, string>>): MilestoneFieldErrors {
+	const milestoneFieldErrors: MilestoneFieldErrors = {};
+
+	for (const key of MILESTONE_FIELD_KEYS) {
+		const message = fieldErrors[key];
+		if (typeof message === "string" && message.trim().length > 0) {
+			milestoneFieldErrors[key] = message;
+		}
+	}
+
+	return milestoneFieldErrors;
+}
+
 export function GoalMilestoneWizardPage() {
 	const { goalId } = useParams();
 	const navigate = useNavigate();
@@ -42,6 +60,7 @@ export function GoalMilestoneWizardPage() {
 	const [loaderIndex, setLoaderIndex] = useState(0);
 	const [currentStepIndex, setCurrentStepIndex] = useState(0);
 	const [answers, setAnswers] = useState<MilestoneWizardAnswers>(EMPTY_ANSWERS);
+	const [fieldErrors, setFieldErrors] = useState<Partial<Record<MilestoneFieldErrorKey, string>>>({});
 	const [error, setError] = useState<string | null>(null);
 	const [submitting, setSubmitting] = useState(false);
 	const numericGoalId = Number(goalId);
@@ -115,6 +134,15 @@ export function GoalMilestoneWizardPage() {
 			...current,
 			[stepKey]: value,
 		}));
+		setFieldErrors((current) => {
+			if (!current[stepKey]) {
+				return current;
+			}
+
+			const next = { ...current };
+			delete next[stepKey];
+			return next;
+		});
 
 		setError(null);
 	}
@@ -122,19 +150,25 @@ export function GoalMilestoneWizardPage() {
 	function goNextFrom(stepIndex: number) {
 		const stepKey = STEPS[stepIndex].key;
 		if (stepKey === "title") {
-			if (!answers.title.trim())
+			if (!answers.title.trim()) {
 				setError("Please provide title.");
-			else if (!answers.description.trim())
-				setError("Please provide description.");
-			setCurrentStepIndex(stepIndex);
-			return;
+				setFieldErrors((current) => ({ ...current, title: "Please provide title." }));
+				setCurrentStepIndex(stepIndex);
+				return;
+			}
 		}
 
 		const hasDurationValue = answers.durationDays.trim().length > 0;
 		if (stepKey === "reason" && (!answers.reason.trim() || (hasDurationValue && parsePositiveDays(answers.durationDays) === null))) {
-			setError(!answers.reason.trim()
-				? "Please explain why this milestone matters."
-				: "Please enter a valid duration in days.");
+			const reasonMessage = !answers.reason.trim() ? "Please explain why this milestone matters." : undefined;
+			const durationDaysMessage = hasDurationValue && parsePositiveDays(answers.durationDays) === null ? "Please enter a valid duration in days." : undefined;
+
+			setError(reasonMessage ?? durationDaysMessage ?? "Please explain why this milestone matters.");
+			setFieldErrors((current) => ({
+				...current,
+				reason: reasonMessage,
+				durationDays: durationDaysMessage,
+			}));
 			setCurrentStepIndex(stepIndex);
 			return;
 		}
@@ -153,39 +187,70 @@ export function GoalMilestoneWizardPage() {
 		if (!titleValue) {
 			setCurrentStepIndex(0);
 			setError("Please provide title.");
-			return;
-		}
-		if (!descriptionValue) {
-			setCurrentStepIndex(0);
-			setError("Please provide description.");
+			setFieldErrors((current) => ({ ...current, title: "Please provide title." }));
 			return;
 		}
 
 		if (!reasonValue || (hasDurationValue && parsedDays === null)) {
 			setCurrentStepIndex(1);
-			setError(!reasonValue
-				? "Please explain why this milestone matters."
-				: "Please enter a valid duration in days.");
+			const reasonMessage = !reasonValue ? "Please explain why this milestone matters." : undefined;
+			const durationDaysMessage = hasDurationValue && parsedDays === null ? "Please enter a valid duration in days." : undefined;
+
+			setError(reasonMessage ?? durationDaysMessage ?? "Please explain why this milestone matters.");
+			setFieldErrors((current) => ({
+				...current,
+				reason: reasonMessage,
+				durationDays: durationDaysMessage,
+			}));
 			return;
 		}
 
 		setSubmitting(true);
 		setError(null);
+		setFieldErrors({});
 
 		try {
-			toast.success("Milestone details captured.");
+			await api.milestones.create({
+				goal_id: numericGoalId,
+				title: titleValue,
+				description: descriptionValue,
+				reason: reasonValue,
+				estimated_duration_days: hasDurationValue ? parsedDays : null,
+				created_by: "User",
+				assistant_context: null,
+			});
+
+			toast.success("Milestone created successfully.");
 			navigate(ROUTES.MY_GOAL_DETAIL.replace(":goalId", String(numericGoalId)));
+		} catch (submitError) {
+			if (submitError instanceof ApiError) {
+				const mappedFieldErrors = mapFieldErrorsToMilestoneErrors({
+					...(submitError.fieldErrors ?? {}),
+					durationDays: submitError.fieldErrors?.estimated_duration_days,
+				});
+
+				setFieldErrors(mappedFieldErrors);
+
+				if (mappedFieldErrors.title || mappedFieldErrors.description) {
+					setCurrentStepIndex(0);
+				} else if (mappedFieldErrors.reason || mappedFieldErrors.durationDays) {
+					setCurrentStepIndex(1);
+				}
+
+				setError(submitError.message || "Could not save milestone right now.");
+			} else {
+				setError("Could not save milestone right now.");
+			}
 		} finally {
 			setSubmitting(false);
 		}
 	}
 
 	const canGoNext =
-		(currentStep.key === "title" && answers.title.trim().length > 0 && answers.description.trim().length > 0)
+		(currentStep.key === "title" && answers.title.trim().length > 0)
 		|| (currentStep.key === "reason" && answers.reason.trim().length > 0 && (answers.durationDays.trim().length === 0 || parsePositiveDays(answers.durationDays) !== null));
 	const canSubmit =
 		answers.title.trim().length > 0
-		&& answers.description.trim().length > 0
 		&& answers.reason.trim().length > 0
 		&& (answers.durationDays.trim().length === 0 || parsePositiveDays(answers.durationDays) !== null);
 
@@ -301,7 +366,7 @@ export function GoalMilestoneWizardPage() {
 															<label className="form-label">Title</label>
 															<input
 																id={`goal-wizard-${step.key}`}
-																className="form-control goal-wizard-title-input"
+																className={`form-control goal-wizard-title-input ${fieldErrors.title ? "is-invalid" : ""}`.trim()}
 																placeholder={step.placeholder}
 																value={answers.title}
 																autoComplete="off"
@@ -313,7 +378,7 @@ export function GoalMilestoneWizardPage() {
 														<div className="mt-3">
 															<label className="form-label">Description</label>
 															<textarea
-																className="form-control goal-wizard-description"
+																className={`form-control goal-wizard-description ${fieldErrors.description ? "is-invalid" : ""}`.trim()}
 																placeholder="Add a brief description of this milestone..."
 																value={answers.description}
 																autoComplete="off"
@@ -331,7 +396,7 @@ export function GoalMilestoneWizardPage() {
 															<label className="form-label">Why does this step matter?</label>
 															<textarea
 																id={`goal-wizard-${step.key}`}
-																className="form-control goal-wizard-reason"
+																className={`form-control goal-wizard-reason ${fieldErrors.reason ? "is-invalid" : ""}`.trim()}
 																placeholder={step.placeholder}
 																value={answers.reason}
 																autoComplete="off"
@@ -347,7 +412,7 @@ export function GoalMilestoneWizardPage() {
 															<label className="form-label">Estimated duration in days (optional)</label>
 															<input
 																type="number"
-																className="form-control goal-wizard-days-input"
+																className={`form-control goal-wizard-days-input ${fieldErrors.durationDays ? "is-invalid" : ""}`.trim()}
 																value={answers.durationDays}
 																autoComplete="off"
 																onChange={(event) => updateAnswer("durationDays", event.target.value)}

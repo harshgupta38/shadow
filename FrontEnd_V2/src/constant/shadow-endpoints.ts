@@ -11,6 +11,10 @@ export const ENDPOINTS = {
         GET_LIST: "/get-list",
         DETAIL: (id: number) => `/${id}`,
     },
+    MILESTONES: {
+        PREFIX: "/milestone",
+        SAVE: "/save",
+    },
     // DEMO: {
     //     DETAIL: (id: string) => `/demo/${id}`,
     // },

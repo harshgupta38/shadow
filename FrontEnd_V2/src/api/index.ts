@@ -10,11 +10,13 @@ export { tokenStore } from "./client";
 import { authApi } from "./auth";
 import { appearanceApi } from "./appearance";
 import { goalsApi } from "./goals";
+import { milestonesApi } from "./milestones";
 
 export const api = {
   auth: authApi,
   theme: appearanceApi,
   goals: goalsApi,
+  milestones: milestonesApi,
 };
 
 export type Api = typeof api;

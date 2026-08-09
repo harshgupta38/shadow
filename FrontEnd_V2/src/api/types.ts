@@ -145,3 +145,40 @@ export interface GoalDetailResponse {
   habits_active: number;
 }
 
+export type MilestoneCreatedBy = "User" | "Assistant";
+export type MilestoneStatus = "Not Started" | "In Progress" | "Paused" | "Completed" | "Cancelled";
+
+export interface MilestoneCreateRequest {
+  goal_id: number;
+  title: string;
+  description: string | null;
+  reason: string | null;
+  estimated_duration_days: number | null;
+  created_by: MilestoneCreatedBy;
+  assistant_context: Record<string, unknown> | null;
+}
+
+export interface MilestoneCreateResponse {
+  id: number;
+  goal_id: number;
+  title: string;
+  description: string | null;
+  status: MilestoneStatus;
+
+  reason: string | null;
+  estimated_duration_days: number | null;
+
+  started_at: string | null;
+  paused_at: string | null;
+  target_date: string | null;
+  completed_at: string | null;
+
+  order: number;
+  created_at: string;
+  created_by: MilestoneCreatedBy;
+  assistant_context: Record<string, unknown> | null;
+
+  total_tasks: number;
+  completed_tasks: number;
+}
+

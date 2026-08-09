@@ -1,6 +1,6 @@
 import MAIN_GOAL_MOUNTAIN from "@/assets/main_goal_mountain.png";
 
-import "./IllustratedErrorState.scss";
+import "@/components/ui/IllustratedErrorState/IllustratedErrorState.scss";
 
 interface IllustratedErrorStateProps {
   onRetry: () => void;

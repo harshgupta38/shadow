@@ -1,4 +1,4 @@
-import "./DashboardPage.scss";
+import "@/pages/dashboard/DashboardPage.scss";
 
 export function DashboardPage() {
   return (

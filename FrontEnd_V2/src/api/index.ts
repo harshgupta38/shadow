@@ -4,13 +4,13 @@
  *   import { api } from "@/api";
  *   const goals = await api.goals.list();
  */
-export * from "./types";
-export { tokenStore } from "./client";
+export * from "@/api/types";
+export { tokenStore } from "@/api/client";
 
-import { authApi } from "./auth";
-import { appearanceApi } from "./appearance";
-import { goalsApi } from "./goals";
-import { milestonesApi } from "./milestones";
+import { authApi } from "@/api/auth";
+import { appearanceApi } from "@/api/appearance";
+import { goalsApi } from "@/api/goals";
+import { milestonesApi } from "@/api/milestones";
 
 export const api = {
   auth: authApi,

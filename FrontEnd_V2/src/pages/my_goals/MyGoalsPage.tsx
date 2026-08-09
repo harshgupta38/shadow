@@ -22,11 +22,11 @@ import type { PageHeaderAction } from "@/components/ui/PageHeader/PageHeader";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { ROUTES } from "@/routes/RoutePaths";
 
-import { GoalCreationWizard } from "./GoalCreationWizard/GoalCreationWizard";
-import { GoalLoadingSkeleton } from "./GoalLoadingSkeleton/GoalLoadingSkeleton";
+import { GoalCreationWizard } from "@/pages/my_goals/GoalCreationWizard/GoalCreationWizard";
+import { GoalLoadingSkeleton } from "@/pages/my_goals/GoalLoadingSkeleton/GoalLoadingSkeleton";
 import { useToast } from "@/context/ToastContext";
 
-import "./MyGoalsPage.scss";
+import "@/pages/my_goals/MyGoalsPage.scss";
 
 type GoalFilterLabel = "All" | "Active" | "Paused" | "Completed";
 

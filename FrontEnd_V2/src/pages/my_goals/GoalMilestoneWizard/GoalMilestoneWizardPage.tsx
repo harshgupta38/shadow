@@ -10,7 +10,7 @@ import { ThemeToggle } from "@/components/ui/ThemeToggle/ThemeToggle";
 import { useToast } from "@/context/ToastContext";
 import { ROUTES } from "@/routes/RoutePaths";
 
-import { GoalWizardVisual } from "../GoalCreationWizard/GoalWizardVisual";
+import { GoalWizardVisual } from "@/pages/my_goals/GoalCreationWizard/GoalWizardVisual";
 import {
 	EMPTY_ANSWERS,
 	GOAL_LOADER_STEPS,
@@ -18,10 +18,10 @@ import {
 	STEPS,
 	type MilestoneWizardAnswers,
 	type MilestoneWizardStepKey,
-} from "./GoalMilestoneWizard.constants";
+} from "@/pages/my_goals/GoalMilestoneWizard/GoalMilestoneWizard.constants";
 
-import "../GoalCreationWizard/GoalCreationWizard.scss";
-import "./GoalMilestoneWizardPage.scss";
+import "@/pages/my_goals/GoalCreationWizard/GoalCreationWizard.scss";
+import "@/pages/my_goals/GoalMilestoneWizard/GoalMilestoneWizardPage.scss";
 
 function parsePositiveDays(value: string): number | null {
 	const parsed = Number(value);

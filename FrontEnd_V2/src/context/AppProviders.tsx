@@ -1,7 +1,7 @@
-import { AuthProvider } from "./AuthContext";
+import { AuthProvider } from "@/context/AuthContext";
 import { ChildProps } from "@/api";
-import { ThemeProvider } from "./ThemeContext";
-import { ToastProvider } from "./ToastContext";
+import { ThemeProvider } from "@/context/ThemeContext";
+import { ToastProvider } from "@/context/ToastContext";
 
 export function AppProviders({ children }: ChildProps) {
   return (

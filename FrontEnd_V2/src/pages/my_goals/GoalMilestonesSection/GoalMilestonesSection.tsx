@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 
 import { ROUTES } from "@/routes/RoutePaths";
 
-import "./GoalMilestonesSection.scss";
+import "@/pages/my_goals/GoalMilestonesSection/GoalMilestonesSection.scss";
 
 interface GoalMilestonesSectionProps {
     goalId: number;

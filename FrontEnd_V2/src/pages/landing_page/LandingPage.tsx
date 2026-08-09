@@ -29,7 +29,7 @@ import { ThemeToggle } from "@/components/ui/ThemeToggle/ThemeToggle";
 import { useAuth } from "@/context/AuthContext";
 import { ROUTES } from "@/routes/RoutePaths";
 
-import "./LandingPage.scss";
+import "@/pages/landing_page/LandingPage.scss";
 
 type LandingFlowVariant = "goal" | "milestone" | "habit" | "coach";
 

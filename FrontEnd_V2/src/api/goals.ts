@@ -1,6 +1,6 @@
 import { ENDPOINTS } from "@/constant/shadow-endpoints";
 
-import { http } from "./client";
+import { http } from "@/api/client";
 import {
     GoalDetailResponse,
     GoalListItemResponse, 
@@ -8,7 +8,7 @@ import {
     RefineGoalResponse,
     UnderstandGoalRequest, 
     UnderstandGoalResponse
-} from "./types";
+} from "@/api/types";
 
 export const goalsApi = {
     async understandGoal(data: UnderstandGoalRequest): Promise<RefineGoalResponse> {

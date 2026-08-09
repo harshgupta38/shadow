@@ -9,10 +9,10 @@ import { IllustratedErrorState } from "@/components/ui/IllustratedErrorState/Ill
 import { ProgressRing } from "@/components/ui/ProgressRing/ProgressRing";
 import { ROUTES } from "@/routes/RoutePaths";
 import { useToast } from "@/context/ToastContext";
-import { GoalEditWizard } from "../GoalEditWizard/GoalEditWizard";
-import { GoalMilestonesSection } from "../GoalMilestonesSection/GoalMilestonesSection";
+import { GoalEditWizard } from "@/pages/my_goals/GoalEditWizard/GoalEditWizard";
+import { GoalMilestonesSection } from "@/pages/my_goals/GoalMilestonesSection/GoalMilestonesSection";
 
-import "./GoalDetailPage.scss";
+import "@/pages/my_goals/GoalDetailPage/GoalDetailPage.scss";
 
 type GoalDetailListSection = {
   title: string;

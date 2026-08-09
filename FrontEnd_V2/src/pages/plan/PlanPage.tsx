@@ -1,4 +1,4 @@
-import "./PlanPage.scss";
+import "@/pages/plan/PlanPage.scss";
 
 export function PlanPage() {
   return (

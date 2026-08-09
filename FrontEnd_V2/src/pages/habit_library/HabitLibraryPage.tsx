@@ -1,4 +1,4 @@
-import "./HabitLibraryPage.scss";
+import "@/pages/habit_library/HabitLibraryPage.scss";
 
 export function HabitLibraryPage() {
   return (

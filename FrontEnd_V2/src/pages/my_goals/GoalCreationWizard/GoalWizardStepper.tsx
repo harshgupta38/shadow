@@ -3,7 +3,7 @@ import {
     Stars,
 } from "react-bootstrap-icons";
 
-import { STEPS, type GoalWizardStepKey } from "./GoalWizard.constants";
+import { STEPS, type GoalWizardStepKey } from "@/pages/my_goals/GoalCreationWizard/GoalWizard.constants";
 
 interface GoalWizardStepperProps {
     currentStepIndex: number;

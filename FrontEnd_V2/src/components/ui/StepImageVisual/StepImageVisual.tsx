@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import "./StepImageVisual.scss";
+import "@/components/ui/StepImageVisual/StepImageVisual.scss";
 
 interface StepImageVisualProps {
 	images: string[];

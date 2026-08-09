@@ -1,4 +1,4 @@
-import "./ReportsPage.scss";
+import "@/pages/reports/ReportsPage.scss";
 
 export function ReportsPage() {
   return (

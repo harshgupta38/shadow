@@ -1,4 +1,4 @@
-import "./ProgressRing.scss";
+import "@/components/ui/ProgressRing/ProgressRing.scss";
 
 interface ProgressRingProps {
   percentage: number;

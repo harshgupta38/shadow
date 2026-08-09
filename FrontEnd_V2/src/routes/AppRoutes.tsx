@@ -1,10 +1,10 @@
 import { Route, Routes } from "react-router-dom";
 
 // Guards
-import { PublicOnly, RequireAuth } from "./Guards";
+import { PublicOnly, RequireAuth } from "@/routes/Guards";
 
 // Route paths
-import { ROUTES } from "./RoutePaths";
+import { ROUTES } from "@/routes/RoutePaths";
 
 //layout
 import { AppLayout } from "@/components/layout/AppLayout";

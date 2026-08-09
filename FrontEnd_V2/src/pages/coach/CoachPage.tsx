@@ -1,4 +1,4 @@
-import "./CoachPage.scss";
+import "@/pages/coach/CoachPage.scss";
 
 export function CoachPage() {
   return (

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import "./PageFooter.scss";
+import "@/components/ui/PageFooter/PageFooter.scss";
 
 interface PageFooterAction {
   key: string;

@@ -13,12 +13,12 @@ import {
     LOADER_STEPS,
     STEPS,
     type GoalWizardStepKey,
-} from "./GoalWizard.constants";
-import { GoalWizardReview } from "./GoalWizardReview";
-import { GoalWizardVisual } from "./GoalWizardVisual";
-import { GoalWizardStepper } from "./GoalWizardStepper";
+} from "@/pages/my_goals/GoalCreationWizard/GoalWizard.constants";
+import { GoalWizardReview } from "@/pages/my_goals/GoalCreationWizard/GoalWizardReview";
+import { GoalWizardVisual } from "@/pages/my_goals/GoalCreationWizard/GoalWizardVisual";
+import { GoalWizardStepper } from "@/pages/my_goals/GoalCreationWizard/GoalWizardStepper";
 
-import "./GoalCreationWizard.scss";
+import "@/pages/my_goals/GoalCreationWizard/GoalCreationWizard.scss";
 
 // Visual animation tuning values for the right-side boy movement.
 const MAX_ANSWER_LINES = 8;

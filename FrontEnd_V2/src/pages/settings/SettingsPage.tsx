@@ -1,4 +1,4 @@
-import "./SettingsPage.scss";
+import "@/pages/settings/SettingsPage.scss";
 
 export function SettingsPage() {
   return (

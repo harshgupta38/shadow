@@ -1,7 +1,7 @@
 import { ENDPOINTS } from "@/constant/shadow-endpoints";
 
-import { http } from "./client";
-import { MilestoneCreateRequest, MilestoneCreateResponse } from "./types";
+import { http } from "@/api/client";
+import { MilestoneCreateRequest, MilestoneCreateResponse } from "@/api/types";
 
 export const milestonesApi = {
     async create(data: MilestoneCreateRequest): Promise<MilestoneCreateResponse> {

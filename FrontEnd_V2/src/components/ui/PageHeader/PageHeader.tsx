@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 import { ThreeDotsVertical } from "react-bootstrap-icons";
 
-import "./PageHeader.scss";
+import "@/components/ui/PageHeader/PageHeader.scss";
 
 type PageHeaderActionTone = "brand" | "soft" | "danger" | "none";
 

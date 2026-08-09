@@ -1,4 +1,4 @@
-import "./SchedulePage.scss";
+import "@/pages/schedule/SchedulePage.scss";
 
 export function SchedulePage() {
   return (

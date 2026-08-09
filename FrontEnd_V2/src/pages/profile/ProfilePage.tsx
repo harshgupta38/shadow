@@ -1,4 +1,4 @@
-import "./ProfilePage.scss";
+import "@/pages/profile/ProfilePage.scss";
 
 export function ProfilePage() {
   return (

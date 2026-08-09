@@ -9,7 +9,7 @@
  * modules in `src/api/*` which use this client.
  */
 import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from "axios";
-import { ApiErrorShape, FieldError } from "./types";
+import { ApiErrorShape, FieldError } from "@/api/types";
 
 const TOKEN_STORAGE_KEY = "shadow.token";
 

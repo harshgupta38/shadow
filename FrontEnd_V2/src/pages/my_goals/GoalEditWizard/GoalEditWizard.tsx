@@ -8,7 +8,7 @@ import { ThemeToggle } from "@/components/ui/ThemeToggle/ThemeToggle";
 import { GoalWizardReview } from "@/pages/my_goals/GoalCreationWizard/GoalWizardReview";
 import { GoalWizardVisual } from "@/pages/my_goals/GoalCreationWizard/GoalWizardVisual";
 
-import "../GoalCreationWizard/GoalCreationWizard.scss";
+import "@/pages/my_goals/GoalCreationWizard/GoalCreationWizard.scss";
 
 type GoalReviewFieldKey = keyof UnderstandGoalResponse;
 type GoalReviewFieldErrors = Partial<Record<GoalReviewFieldKey, string>>;

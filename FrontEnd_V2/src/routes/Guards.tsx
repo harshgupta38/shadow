@@ -1,7 +1,7 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 
 import { useAuth } from "@/context/AuthContext";
-import { ROUTES } from "./RoutePaths";
+import { ROUTES } from "@/routes/RoutePaths";
 import { ChildProps } from "@/api/types";
 
 /** Requires a signed-in user. Redirects to /login otherwise. */

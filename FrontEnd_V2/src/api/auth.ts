@@ -1,6 +1,6 @@
 import { ENDPOINTS } from "@/constant/shadow-endpoints";
-import { http, tokenStore } from "./client";
-import { LoginRequest, TokenResponse, UserData, RegisterRequest } from "./types";
+import { http, tokenStore } from "@/api/client";
+import { LoginRequest, TokenResponse, UserData, RegisterRequest } from "@/api/types";
 
 export const authApi = {
     async register(data: RegisterRequest): Promise<TokenResponse> {

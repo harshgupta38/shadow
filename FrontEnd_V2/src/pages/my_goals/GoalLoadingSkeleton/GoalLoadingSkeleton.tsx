@@ -1,4 +1,4 @@
-import "./GoalLoadingSkeleton.scss";
+import "@/pages/my_goals/GoalLoadingSkeleton/GoalLoadingSkeleton.scss";
 
 interface GoalLoadingSkeletonProps {
   count: number;

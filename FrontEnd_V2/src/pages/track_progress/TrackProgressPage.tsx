@@ -1,4 +1,4 @@
-import "./TrackProgressPage.scss";
+import "@/pages/track_progress/TrackProgressPage.scss";
 
 export function TrackProgressPage() {
   return (

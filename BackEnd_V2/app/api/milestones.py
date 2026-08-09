@@ -12,9 +12,9 @@ router = APIRouter(prefix=ENDPOINTS.MILESTONES.PREFIX, tags=["Milestones"])
 
 
 @router.post(ENDPOINTS.MILESTONES.SAVE, response_model=MilestoneResponse, status_code=status.HTTP_201_CREATED)
-def create_milestone(
+def save_milestone(
 	data: MilestoneCreateRequest,
 	db = Depends(get_db),
 	current_user: User = Depends(get_current_user),
 ) -> MilestoneResponse:
-	return milestones_service.create_milestone(db, current_user, data)
+	return milestones_service.save_milestone(db, current_user, data)

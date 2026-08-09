@@ -26,3 +26,7 @@ class ValidationError(AppError):
     def __init__(self, detail: str | None = None, errors: dict[str, str] | None = None):
         super().__init__(detail)
         self.errors = errors or {}
+
+class NotFoundError(AppError):
+    status_code = 404
+    detail = "Resource not found."

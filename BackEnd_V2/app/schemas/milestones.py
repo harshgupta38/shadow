@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 MilestoneStatus = Literal[
     "Not Started",
@@ -17,10 +17,38 @@ class MilestoneCreateRequest(BaseModel):
     goal_id: int
     title: str = Field(min_length=1, max_length=255)
     description: str | None = Field(default=None, max_length=4000)
-    reason: str | None = Field(default=None, max_length=2000)
-    estimated_duration_days: int | None = Field(default=None, gt=0)
+    reason: str = Field(min_length=1, max_length=2000)
+    estimated_duration_days: int | None = Field(default=None)
     created_by: MilestoneCreatedBy = "User"
     assistant_context: dict[str, Any] | None = None
+
+    @classmethod
+    def _require_non_empty_text(cls, value: Any, field_label: str) -> Any:
+        if value is None:
+            raise ValueError(f"{field_label} is required.")
+
+        if isinstance(value, str) and not value.strip():
+            raise ValueError(f"{field_label} is required.")
+
+        return value
+
+    @field_validator("title", "reason", mode="before")
+    @classmethod
+    def validate_required_text_fields(cls, value: Any, info: Any) -> Any:
+        field_labels = {
+            "title": "Title",
+            "reason": "Reason",
+        }
+
+        return cls._require_non_empty_text(value, field_labels.get(info.field_name, info.field_name))
+
+    @field_validator("estimated_duration_days")
+    @classmethod
+    def validate_estimated_duration_days(cls, value: int | None) -> int | None:
+        if value is not None and value <= 0:
+            raise ValueError("Estimated days should be greater than 0.")
+
+        return value
 
 
 class MilestoneUpdateRequest(BaseModel):
@@ -28,10 +56,18 @@ class MilestoneUpdateRequest(BaseModel):
     description: str | None = Field(default=None, max_length=4000)
     status: MilestoneStatus | None = None
     reason: str | None = Field(default=None, max_length=2000)
-    estimated_duration_days: int | None = Field(default=None, gt=0)
+    estimated_duration_days: int | None = Field(default=None)
     target_date: date | None = None
-    order: int | None = Field(default=None, ge=0)
+    position: int | None = Field(default=None, ge=0)
     assistant_context: dict[str, Any] | None = None
+
+    @field_validator("estimated_duration_days")
+    @classmethod
+    def validate_estimated_duration_days(cls, value: int | None) -> int | None:
+        if value is not None and value <= 0:
+            raise ValueError("Estimated days should be greater than 0")
+
+        return value
 
 
 class MilestoneResponse(BaseModel):
@@ -49,7 +85,7 @@ class MilestoneResponse(BaseModel):
     target_date: date | None
     completed_at: datetime | None
 
-    order: int
+    position: int
     created_at: datetime
     created_by: MilestoneCreatedBy
     assistant_context: dict[str, Any] | None

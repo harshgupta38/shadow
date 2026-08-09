@@ -22,8 +22,8 @@ class Milestone(Base):
             name="ck_milestones_estimated_duration_days",
         ),
         CheckConstraint(
-            '"order" >= 0',
-            name="ck_milestones_order",
+            '"position" >= 0',
+            name="ck_milestones_position",
         ),
         CheckConstraint(
             "total_tasks >= 0",
@@ -65,7 +65,7 @@ class Milestone(Base):
     target_date: Mapped[date | None] = mapped_column(Date, index=True, nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    order: Mapped[int] = mapped_column(
+    position: Mapped[int] = mapped_column(
         Integer,
         nullable=False,
         default=0,

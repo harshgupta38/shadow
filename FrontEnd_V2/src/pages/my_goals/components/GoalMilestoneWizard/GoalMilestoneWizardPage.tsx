@@ -38,6 +38,14 @@ type MilestoneFieldErrors = Partial<Record<MilestoneFieldErrorKey, string>>;
 
 const MILESTONE_FIELD_KEYS: MilestoneFieldErrorKey[] = ["title", "description", "reason", "durationDays"];
 
+function getStepBannerError(stepIndex: number, fieldErrors: MilestoneFieldErrors): string | null {
+	if (stepIndex === 0)
+		return fieldErrors.title ?? fieldErrors.description ?? null;
+	if (stepIndex === 1)
+		return fieldErrors.reason ?? fieldErrors.durationDays ?? null;
+	return null;
+}
+
 function mapFieldErrorsToMilestoneErrors(fieldErrors: Partial<Record<string, string>>): MilestoneFieldErrors {
 	const milestoneFieldErrors: MilestoneFieldErrors = {};
 
@@ -116,6 +124,16 @@ export function GoalMilestoneWizardPage() {
 		};
 	}, [loadingGoal]);
 
+	useEffect(() => {
+		if (Object.keys(fieldErrors).length === 0) 
+			return;
+
+		const stepBannerError = getStepBannerError(currentStepIndex, fieldErrors);
+		if (stepBannerError) 
+			setError(null);
+		
+	}, [currentStepIndex, fieldErrors]);
+
 	function resizeAnswerTextarea(textarea: HTMLTextAreaElement) {
 		const computedStyle = window.getComputedStyle(textarea);
 		const lineHeight = Number.parseFloat(computedStyle.lineHeight) || 24;
@@ -151,7 +169,6 @@ export function GoalMilestoneWizardPage() {
 		const stepKey = STEPS[stepIndex].key;
 		if (stepKey === "title") {
 			if (!answers.title.trim()) {
-				setError("Please provide title.");
 				setFieldErrors((current) => ({ ...current, title: "Please provide title." }));
 				setCurrentStepIndex(stepIndex);
 				return;
@@ -163,7 +180,6 @@ export function GoalMilestoneWizardPage() {
 			const reasonMessage = !answers.reason.trim() ? "Please explain why this milestone matters." : undefined;
 			const durationDaysMessage = hasDurationValue && parsePositiveDays(answers.durationDays) === null ? "Please enter a valid duration in days." : undefined;
 
-			setError(reasonMessage ?? durationDaysMessage ?? "Please explain why this milestone matters.");
 			setFieldErrors((current) => ({
 				...current,
 				reason: reasonMessage,
@@ -172,8 +188,7 @@ export function GoalMilestoneWizardPage() {
 			setCurrentStepIndex(stepIndex);
 			return;
 		}
-
-		setError(null);
+		
 		setCurrentStepIndex(Math.min(stepIndex + 1, STEPS.length - 1));
 	}
 
@@ -186,17 +201,15 @@ export function GoalMilestoneWizardPage() {
 
 		if (!titleValue) {
 			setCurrentStepIndex(0);
-			setError("Please provide title.");
 			setFieldErrors((current) => ({ ...current, title: "Please provide title." }));
 			return;
 		}
 
-		if (!reasonValue || (hasDurationValue && parsedDays === null)) {
+		if (!reasonValue || (hasDurationValue && (parsedDays === null || parsedDays <= 0))) {
 			setCurrentStepIndex(1);
 			const reasonMessage = !reasonValue ? "Please explain why this milestone matters." : undefined;
-			const durationDaysMessage = hasDurationValue && parsedDays === null ? "Please enter a valid duration in days." : undefined;
+			const durationDaysMessage = hasDurationValue && (parsedDays === null || parsedDays <= 0) ? "Estimated days should be greater than 0" : undefined;
 
-			setError(reasonMessage ?? durationDaysMessage ?? "Please explain why this milestone matters.");
 			setFieldErrors((current) => ({
 				...current,
 				reason: reasonMessage,
@@ -233,11 +246,13 @@ export function GoalMilestoneWizardPage() {
 
 				if (mappedFieldErrors.title || mappedFieldErrors.description) {
 					setCurrentStepIndex(0);
+					setError(null);
 				} else if (mappedFieldErrors.reason || mappedFieldErrors.durationDays) {
 					setCurrentStepIndex(1);
+					setError(null);
+				} else {
+					setError(submitError.message || "Could not save milestone right now.");
 				}
-
-				setError(submitError.message || "Could not save milestone right now.");
 			} else {
 				setError("Could not save milestone right now.");
 			}
@@ -253,6 +268,8 @@ export function GoalMilestoneWizardPage() {
 		answers.title.trim().length > 0
 		&& answers.reason.trim().length > 0
 		&& (answers.durationDays.trim().length === 0 || parsePositiveDays(answers.durationDays) !== null);
+	const stepBannerError = getStepBannerError(currentStepIndex, fieldErrors);
+	const displayError = stepBannerError ?? error;
 
 	if (loadingGoal) {
 		return (
@@ -376,7 +393,7 @@ export function GoalMilestoneWizardPage() {
 														</div>
 
 														<div className="mt-3">
-															<label className="form-label">Description</label>
+															<label className="form-label">Description (optional)</label>
 															<textarea
 																className={`form-control goal-wizard-description ${fieldErrors.description ? "is-invalid" : ""}`.trim()}
 																placeholder="Add a brief description of this milestone..."
@@ -446,7 +463,7 @@ export function GoalMilestoneWizardPage() {
 														</button>
 													)}
 
-													{error ? <div className="alert alert-danger goal-wizard-inline-error mb-0">{error}</div> : null}
+													{displayError ? <div className="alert alert-danger goal-wizard-inline-error mb-0">{displayError}</div> : null}
 												</div>
 											</div>
 										</div>

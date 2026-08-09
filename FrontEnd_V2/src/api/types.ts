@@ -173,7 +173,7 @@ export interface MilestoneCreateResponse {
   target_date: string | null;
   completed_at: string | null;
 
-  order: number;
+  position: number;
   created_at: string;
   created_by: MilestoneCreatedBy;
   assistant_context: Record<string, unknown> | null;

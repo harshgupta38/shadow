@@ -1,0 +1,75 @@
+from sqlalchemy import select, func
+from sqlalchemy.orm import Session
+
+from app.core.exceptions import NotFoundError
+from app.models.goal import Goal
+from app.models.milestone import Milestone
+from app.models.user import User
+from app.schemas.milestones import MilestoneCreateRequest, MilestoneResponse
+
+
+def _serialize_milestone(milestone: Milestone) -> MilestoneResponse:
+    return MilestoneResponse(
+        id=milestone.id,
+        goal_id=milestone.goal_id,
+        title=milestone.title,
+        description=milestone.description,
+        status=milestone.status,
+        reason=milestone.reason,
+        estimated_duration_days=milestone.estimated_duration_days,
+        started_at=milestone.started_at,
+        paused_at=milestone.paused_at,
+        target_date=milestone.target_date,
+        completed_at=milestone.completed_at,
+        position=milestone.position,
+        created_at=milestone.created_at,
+        created_by=milestone.created_by,
+        assistant_context=milestone.assistant_context,
+        total_tasks=milestone.total_tasks,
+        completed_tasks=milestone.completed_tasks,
+    )
+
+
+def save_milestone(
+    db: Session, current_user: User, data: MilestoneCreateRequest
+) -> MilestoneResponse:
+
+    goal = db.scalar(
+        select(Goal).where(
+            Goal.id == data.goal_id,
+            Goal.user_id == current_user.id,
+        )
+    )
+
+    if goal is None:
+        raise NotFoundError("Goal not found. Please check the goal and try again.")
+
+    next_position = db.scalar(
+        select(func.coalesce(func.max(Milestone.position), -1) + 1).where(
+            Milestone.goal_id == goal.id,
+        )
+    )
+
+    milestone = Milestone(
+        goal_id=goal.id,
+        title=data.title.strip(),
+        description=(
+            data.description.strip()
+            if isinstance(data.description, str) and data.description.strip()
+            else None
+        ),
+        status="Not Started",
+        reason=data.reason.strip(),
+        estimated_duration_days=data.estimated_duration_days,
+        position=int(next_position or 0),
+        created_by=data.created_by,
+        assistant_context=data.assistant_context,
+        total_tasks=0,
+        completed_tasks=0,
+    )
+
+    db.add(milestone)
+    db.commit()
+    db.refresh(milestone)
+
+    return _serialize_milestone(milestone)

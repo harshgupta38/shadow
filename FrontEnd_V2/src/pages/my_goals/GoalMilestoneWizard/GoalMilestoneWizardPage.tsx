@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { ArrowRight, Check2Circle, X } from "react-bootstrap-icons";
 import { useNavigate, useParams } from "react-router-dom";
+import ReactQuill from "react-quill";
+import "react-quill/dist/quill.snow.css";
 
 import { api, type GoalDetailResponse } from "@/api";
 import { ApiError } from "@/api/client";
@@ -22,6 +24,38 @@ import {
 
 import "@/pages/my_goals/GoalCreationWizard/GoalCreationWizard.scss";
 import "@/pages/my_goals/GoalMilestoneWizard/GoalMilestoneWizardPage.scss";
+
+const QUILL_MODULES = {
+	toolbar: [
+		[{ header: [2, 3, 4, false] }],
+		["bold", "italic", "underline"], 
+		[{ color: [] }, { background: [] }],
+		[{ list: "ordered" }, { list: "bullet" }],
+		["blockquote", "code-block"],
+		["link"],
+		["clean"],
+	],
+};
+
+const QUILL_FORMATS = [
+	"header",
+	"bold",
+	"italic",
+	"underline",
+	"color",
+	"background",
+	"list",
+	"bullet",
+	"blockquote",
+	"code-block",
+	"link",
+	"clean"
+];
+
+function normaliseDescriptionHtml(value: string): string {
+	const trimmed = value.trim();
+	return trimmed === "" || trimmed === "<p><br></p>" ? "" : trimmed;
+}
 
 function parsePositiveDays(value: string): number | null {
 	const parsed = Number(value);
@@ -125,13 +159,13 @@ export function GoalMilestoneWizardPage() {
 	}, [loadingGoal]);
 
 	useEffect(() => {
-		if (Object.keys(fieldErrors).length === 0) 
+		if (Object.keys(fieldErrors).length === 0)
 			return;
 
 		const stepBannerError = getStepBannerError(currentStepIndex, fieldErrors);
-		if (stepBannerError) 
+		if (stepBannerError)
 			setError(null);
-		
+
 	}, [currentStepIndex, fieldErrors]);
 
 	function resizeAnswerTextarea(textarea: HTMLTextAreaElement) {
@@ -188,13 +222,13 @@ export function GoalMilestoneWizardPage() {
 			setCurrentStepIndex(stepIndex);
 			return;
 		}
-		
+
 		setCurrentStepIndex(Math.min(stepIndex + 1, STEPS.length - 1));
 	}
 
 	async function handleSubmit() {
 		const titleValue = answers.title.trim();
-		const descriptionValue = answers.description.trim();
+		const descriptionValue = normaliseDescriptionHtml(answers.description);
 		const reasonValue = answers.reason.trim();
 		const hasDurationValue = answers.durationDays.trim().length > 0;
 		const parsedDays = parsePositiveDays(answers.durationDays);
@@ -394,16 +428,15 @@ export function GoalMilestoneWizardPage() {
 
 														<div className="mt-3">
 															<label className="form-label">Description (optional)</label>
-															<textarea
-																className={`form-control goal-wizard-description ${fieldErrors.description ? "is-invalid" : ""}`.trim()}
-																placeholder="Add a brief description of this milestone..."
+															<ReactQuill
+																className={`goal-wizard-rich-editor ${fieldErrors.description ? "is-invalid" : ""}`.trim()}
+																theme="snow"
 																value={answers.description}
-																autoComplete="off"
-																onChange={(event) => {
-																	updateAnswer("description", event.target.value);
-																	resizeAnswerTextarea(event.currentTarget);
-																}}
-																disabled={!isActive || submitting}
+																onChange={(value) => updateAnswer("description", value)}
+																modules={QUILL_MODULES}
+																formats={QUILL_FORMATS}
+																readOnly={!isActive || submitting}
+																placeholder="Add a brief description of this milestone..."
 															/>
 														</div>
 													</>

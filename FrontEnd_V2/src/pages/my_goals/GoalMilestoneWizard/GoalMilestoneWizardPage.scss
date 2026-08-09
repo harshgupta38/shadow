@@ -24,7 +24,29 @@
         }
     }
 
-    &-description,
+    &-rich-editor {
+        max-width: 760px;
+
+        .ql-toolbar {
+            border-color: var(--jv-border-strong);
+            border-radius: var(--jv-radius) var(--jv-radius) 0 0;
+        }
+
+        .ql-container {
+            border-color: var(--jv-border-strong);
+            border-radius: 0 0 var(--jv-radius) var(--jv-radius);
+            background: var(--jv-surface);
+            color: var(--jv-text);
+            min-height: 120px;
+            font-size: 0.9rem;
+        }
+
+        .ql-editor.ql-blank::before {
+            color: var(--jv-faint);
+            font-style: normal;
+        }
+    }
+
     &-reason {
         min-height: 138px;
         resize: none;

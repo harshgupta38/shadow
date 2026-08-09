@@ -159,7 +159,7 @@ export function GoalMilestonesSection({ goalId }: GoalMilestonesSectionProps) {
                             const completed = milestone.status === "Completed";
                             const busy = busyId === milestone.id;
                             const isExpanded = expandedMilestoneId === milestone.id;
-                            const editPath = ROUTES.MY_GOAL_MILESTONE_EDIT
+                            const updatePath = ROUTES.MY_GOAL_MILESTONE_UPDATE
                                 .replace(":goalId", String(goalId))
                                 .replace(":milestoneId", String(milestone.id));
 
@@ -221,8 +221,8 @@ export function GoalMilestonesSection({ goalId }: GoalMilestonesSectionProps) {
                                                         <ThreeDotsVertical size={16} />
                                                     </Dropdown.Toggle>
                                                     <Dropdown.Menu>
-                                                        <Dropdown.Item as={Link} to={editPath}>
-                                                            <PencilSquare size={14} className="me-2" /> Edit
+                                                        <Dropdown.Item as={Link} to={updatePath}>
+                                                            <PencilSquare size={14} className="me-2" /> Update
                                                         </Dropdown.Item>
                                                         <Dropdown.Item
                                                             className="text-danger"

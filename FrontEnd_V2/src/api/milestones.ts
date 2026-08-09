@@ -16,6 +16,10 @@ export const milestonesApi = {
         return http.get<MilestoneResponse[]>(`${ENDPOINTS.MILESTONES.PREFIX}${ENDPOINTS.MILESTONES.GET_LIST}?${params.toString()}`);
     },
 
+    async getDetail(milestoneId: number): Promise<MilestoneResponse> {
+        return http.get<MilestoneResponse>(`${ENDPOINTS.MILESTONES.PREFIX}${ENDPOINTS.MILESTONES.DETAIL(milestoneId)}`);
+    },
+
     async update(milestoneId: number, data: MilestoneUpdateRequest): Promise<MilestoneResponse> {
         return http.patch<MilestoneResponse>(`${ENDPOINTS.MILESTONES.PREFIX}${ENDPOINTS.MILESTONES.DETAIL(milestoneId)}`, data);
     },

@@ -94,7 +94,7 @@ function mapFieldErrorsToMilestoneErrors(fieldErrors: Partial<Record<string, str
 }
 
 export function GoalMilestoneWizardPage() {
-	const { goalId } = useParams();
+	const { goalId, milestoneId } = useParams();
 	const navigate = useNavigate();
 	const toast = useToast();
 	const [goal, setGoal] = useState<GoalDetailResponse | null>(null);
@@ -106,6 +106,8 @@ export function GoalMilestoneWizardPage() {
 	const [error, setError] = useState<string | null>(null);
 	const [submitting, setSubmitting] = useState(false);
 	const numericGoalId = Number(goalId);
+	const numericMilestoneId = milestoneId ? Number(milestoneId) : null;
+	const isUpdateMode = numericMilestoneId !== null && Number.isInteger(numericMilestoneId) && numericMilestoneId > 0;
 	const currentStep = STEPS[currentStepIndex];
 	const currentSubtitle = goal ? `For ${goal.title}` : null;
 	const loaderMessage = GOAL_LOADER_STEPS[Math.min(loaderIndex, GOAL_LOADER_STEPS.length - 1)];
@@ -123,13 +125,29 @@ export function GoalMilestoneWizardPage() {
 
 		setLoadingGoal(true);
 
-		void api.goals.getDetail(numericGoalId)
-			.then((response) => {
-				if (!response) {
+		const requests: [Promise<GoalDetailResponse>, Promise<unknown>] = [
+			api.goals.getDetail(numericGoalId),
+			// fetch existing milestone data in update mode to pre-populate the form
+			isUpdateMode ? api.milestones.getDetail(numericMilestoneId) : Promise.resolve(null),
+		];
+
+		// We are fetching 2 data points in parallel: the goal details and the milestone details (if in update mode). We want to wait for both requests to complete before proceeding.
+		void Promise.all(requests)
+			.then(([goalResponse, milestoneResponse]) => {
+				if (!goalResponse) {
 					navigateToMyGoalsWithError("Goal not found.");
 					return;
 				}
-				setGoal(response);
+				setGoal(goalResponse);
+				if (milestoneResponse) {
+					const m = milestoneResponse as import("@/api").MilestoneResponse;
+					setAnswers({
+						title: m.title ?? "",
+						description: m.description ?? "",
+						reason: m.reason ?? "",
+						durationDays: m.estimated_duration_days !== null ? String(m.estimated_duration_days) : "",
+					});
+				}
 				setLoadingGoal(false);
 			})
 			.catch((requestError) => {
@@ -257,17 +275,26 @@ export function GoalMilestoneWizardPage() {
 		setFieldErrors({});
 
 		try {
-			await api.milestones.save({
-				goal_id: numericGoalId,
-				title: titleValue,
-				description: descriptionValue,
-				reason: reasonValue,
-				estimated_duration_days: hasDurationValue ? parsedDays : null,
-				created_by: "User",
-				assistant_context: null,
-			});
-
-			toast.success("Milestone created successfully.");
+			if (isUpdateMode) {
+				await api.milestones.update(numericMilestoneId, {
+					title: titleValue,
+					description: descriptionValue,
+					reason: reasonValue,
+					estimated_duration_days: hasDurationValue ? parsedDays : null,
+				});
+				toast.success("Milestone updated successfully.");
+			} else {
+				await api.milestones.save({
+					goal_id: numericGoalId,
+					title: titleValue,
+					description: descriptionValue,
+					reason: reasonValue,
+					estimated_duration_days: hasDurationValue ? parsedDays : null,
+					created_by: "User",
+					assistant_context: null,
+				});
+				toast.success("Milestone created successfully.");
+			}
 			navigate(ROUTES.MY_GOAL_DETAIL.replace(":goalId", String(numericGoalId)));
 		} catch (submitError) {
 			if (submitError instanceof ApiError) {
@@ -375,7 +402,7 @@ export function GoalMilestoneWizardPage() {
 								<X size={30} />
 							</button>
 							<div className="goal-wizard-header-copy">
-								<h3 id="goal-wizard-title">Set Milestone</h3>
+								<h3 id="goal-wizard-title">{isUpdateMode ? "Update Milestone" : "Set Milestone"}</h3>
 								{currentSubtitle && <p>{currentSubtitle}</p>}
 							</div>
 						</div>
@@ -492,7 +519,7 @@ export function GoalMilestoneWizardPage() {
 															onClick={() => void handleSubmit()}
 															disabled={!isActive || submitting || !canSubmit}
 														>
-															{submitting ? "Saving..." : "Set Milestone"} <Check2Circle size={16} className="ms-1" />
+															{submitting ? "Saving..." : isUpdateMode ? "Update Milestone" : "Set Milestone"} <Check2Circle size={16} className="ms-1" />
 														</button>
 													)}
 

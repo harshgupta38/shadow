@@ -9,6 +9,7 @@ from app.schemas.milestones import (
     MilestoneCreateRequest,
     MilestoneResponse,
     MilestoneStatus,
+    MilestoneUpdateRequest,
 )
 
 
@@ -32,34 +33,6 @@ def _serialize_milestone(milestone: Milestone) -> MilestoneResponse:
         total_tasks=milestone.total_tasks,
         completed_tasks=milestone.completed_tasks,
     )
-
-
-def get_milestone_list(
-    db: Session,
-    current_user: User,
-    goal_id: int,
-    status: MilestoneStatus | None,
-) -> list[MilestoneResponse]:
-    goal = db.scalar(
-        select(Goal).where(
-            Goal.id == goal_id,
-            Goal.user_id == current_user.id,
-        )
-    )
-
-    if goal is None:
-        raise NotFoundError("Goal not found. Please check the goal and try again.")
-
-    query = select(Milestone).where(Milestone.goal_id == goal_id)
-
-    if status is not None:
-        query = query.where(Milestone.status == status)
-
-    query = query.order_by(Milestone.position)
-
-    milestones = db.scalars(query).all()
-
-    return [_serialize_milestone(milestone) for milestone in milestones]
 
 
 def save_milestone(
@@ -106,3 +79,129 @@ def save_milestone(
     db.refresh(milestone)
 
     return _serialize_milestone(milestone)
+
+
+def get_milestone_list(
+    db: Session,
+    current_user: User,
+    goal_id: int,
+    status: MilestoneStatus | None,
+) -> list[MilestoneResponse]:
+
+    goal = db.scalar(
+        select(Goal).where(
+            Goal.id == goal_id,
+            Goal.user_id == current_user.id,
+        )
+    )
+
+    if goal is None:
+        raise NotFoundError("Goal not found. Please check the goal and try again.")
+
+    query = select(Milestone).where(Milestone.goal_id == goal_id)
+
+    if status is not None:
+        query = query.where(Milestone.status == status)
+
+    query = query.order_by(Milestone.position)
+
+    milestones = db.scalars(query).all()
+
+    return [_serialize_milestone(milestone) for milestone in milestones]
+
+
+def get_milestone_detail(
+    db: Session, current_user: User, milestone_id: int
+) -> MilestoneResponse:
+    milestone = db.scalar(
+        select(Milestone)
+        .join(Goal, Milestone.goal_id == Goal.id)
+        .where(
+            Milestone.id == milestone_id,
+            Goal.user_id == current_user.id,
+        )
+    )
+
+    if milestone is None:
+        raise NotFoundError(
+            "Milestone not found. Please check and try again."
+        )
+
+    return _serialize_milestone(milestone)
+
+
+def update_milestone(
+    db: Session, current_user: User, milestone_id: int, data: MilestoneUpdateRequest
+) -> MilestoneResponse:
+    from app.schemas.milestones import MilestoneUpdateRequest as _MUR  # noqa: F401
+    from datetime import datetime, timezone
+
+    milestone = db.scalar(
+        select(Milestone)
+        .join(Goal, Milestone.goal_id == Goal.id)
+        .where(
+            Milestone.id == milestone_id,
+            Goal.user_id == current_user.id,
+        )
+    )
+
+    if milestone is None:
+        raise NotFoundError(
+            "Milestone not found. Please check and try again."
+        )
+
+    if data.title is not None:
+        milestone.title = data.title.strip()
+    if data.description is not None:
+        stripped = data.description.strip()
+        milestone.description = stripped if stripped else None
+    if data.reason is not None:
+        milestone.reason = data.reason.strip()
+    if data.estimated_duration_days is not None:
+        milestone.estimated_duration_days = data.estimated_duration_days
+    if data.target_date is not None:
+        milestone.target_date = data.target_date
+    if data.position is not None:
+        milestone.position = data.position
+    if data.status is not None:
+        prev_status = milestone.status
+        milestone.status = data.status
+        now = datetime.now(timezone.utc)
+        if data.status == "In Progress" and prev_status not in (
+            "In Progress",
+            "Paused",
+        ):
+            milestone.started_at = milestone.started_at or now
+        elif data.status == "Paused":
+            milestone.paused_at = now
+        elif data.status == "Completed":
+            milestone.completed_at = now
+
+    db.commit()
+    db.refresh(milestone)
+    return _serialize_milestone(milestone)
+
+
+def delete_milestone(
+    db: Session, current_user: User, milestone_id: int
+) -> None:
+    milestone = db.scalar(
+        select(Milestone)
+        .join(Goal, Milestone.goal_id == Goal.id)
+        .where(
+            Milestone.id == milestone_id,
+            Goal.user_id == current_user.id,
+        )
+    )
+
+    if milestone is None:
+        raise NotFoundError("Milestone not found. Please check and try again.")
+
+    goal = db.scalar(select(Goal).where(Goal.id == milestone.goal_id))
+
+    db.delete(milestone)
+    if goal is not None:
+        goal.milestones_total = max(0, (goal.milestones_total or 1) - 1)
+        if milestone.status == "Completed":
+            goal.milestones_completed = max(0, (goal.milestones_completed or 1) - 1)
+    db.commit()

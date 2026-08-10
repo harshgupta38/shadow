@@ -4,7 +4,7 @@ from app.api.deps import get_current_user
 from app.core.endpoints import ENDPOINTS
 from app.db.session import get_db
 from app.models.user import User
-from app.schemas.tasks import TaskCreateRequest, TaskResponse
+from app.schemas.tasks import TaskCreateRequest, TaskResponse, TaskUpdateRequest
 from app.services import tasks_service
 
 router = APIRouter(prefix=ENDPOINTS.TASKS.PREFIX, tags=["Tasks"])
@@ -33,3 +33,25 @@ def get_task_list(
     current_user: User = Depends(get_current_user),
 ) -> list[TaskResponse]:
     return tasks_service.get_list(db, current_user, milestone_id)
+
+
+@router.patch(
+    ENDPOINTS.TASKS.DETAIL,
+    response_model=TaskResponse,
+)
+def update_task(
+    task_id: int,
+    data: TaskUpdateRequest,
+    db=Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> TaskResponse:
+    return tasks_service.update_task(db, current_user, task_id, data)
+
+
+@router.delete(ENDPOINTS.TASKS.DETAIL, status_code=status.HTTP_204_NO_CONTENT)
+def delete_task(
+    task_id: int,
+    db=Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> None:
+    tasks_service.delete_task(db, current_user, task_id)

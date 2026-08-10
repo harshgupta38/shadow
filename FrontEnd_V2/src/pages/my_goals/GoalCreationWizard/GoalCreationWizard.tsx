@@ -7,6 +7,7 @@ import { api } from "@/api";
 import { ApiError } from "@/api/client";
 import type { UnderstandGoalRequest, UnderstandGoalResponse } from "@/api/types";
 import { ThemeToggle } from "@/components/ui/ThemeToggle/ThemeToggle";
+import { resizeTextareaToMaxLines } from "@/services/textarea-resize.service";
 
 import {
     EMPTY_ANSWERS,
@@ -21,7 +22,6 @@ import { GoalWizardStepper } from "@/pages/my_goals/GoalCreationWizard/GoalWizar
 import "@/pages/my_goals/GoalCreationWizard/GoalCreationWizard.scss";
 
 // Visual animation tuning values for the right-side boy movement.
-const MAX_ANSWER_LINES = 8;
 const BOY_MULTI_STEP_INTERVAL_MS = 260;
 const BOY_BACKWARD_FADE_MS = 200;
 const ORDERED_STEP_KEYS = STEPS.map((step) => step.key);
@@ -286,20 +286,6 @@ export function GoalCreationWizard({ open, onClose, onSubmitted }: GoalCreationW
 
     const loaderMessage = LOADER_STEPS[Math.min(loaderIndex, LOADER_STEPS.length - 1)];
 
-    // Auto-grow textarea up to MAX_ANSWER_LINES, then enable vertical scroll.
-    function resizeAnswerTextarea(textarea: HTMLTextAreaElement) {
-        const computedStyle = window.getComputedStyle(textarea);
-        const lineHeight = Number.parseFloat(computedStyle.lineHeight) || 24;
-        const verticalPadding = Number.parseFloat(computedStyle.paddingTop) + Number.parseFloat(computedStyle.paddingBottom);
-        const verticalBorder = Number.parseFloat(computedStyle.borderTopWidth) + Number.parseFloat(computedStyle.borderBottomWidth);
-        const maxHeight = (lineHeight * MAX_ANSWER_LINES) + verticalPadding + verticalBorder;
-
-        textarea.style.height = "auto";
-        const nextHeight = Math.min(textarea.scrollHeight, maxHeight);
-        textarea.style.height = `${nextHeight}px`;
-        textarea.style.overflowY = textarea.scrollHeight > maxHeight ? "auto" : "hidden";
-    }
-
     useEffect(() => {
         if (!open) {
             return;
@@ -309,7 +295,7 @@ export function GoalCreationWizard({ open, onClose, onSubmitted }: GoalCreationW
         const activeTextarea = document.getElementById(`goal-wizard-${activeStep.key}`);
 
         if (activeTextarea instanceof HTMLTextAreaElement) {
-            resizeAnswerTextarea(activeTextarea);
+            resizeTextareaToMaxLines(activeTextarea);
         }
     }, [open, currentStepIndex]);
 
@@ -497,7 +483,7 @@ export function GoalCreationWizard({ open, onClose, onSubmitted }: GoalCreationW
                             onSelectStep={setCurrentStepIndex}
                             onAnswerChange={(stepKey, value, textarea) => {
                                 updateAnswer(stepKey, value);
-                                resizeAnswerTextarea(textarea);
+                                resizeTextareaToMaxLines(textarea);
                             }}
                             onNextFrom={goNextFrom}
                             onSubmit={handleSubmit}

@@ -220,6 +220,26 @@ export interface TaskCreateRequest {
   note: string | null;
 }
 
+export interface TaskUpdateRequest {
+  title?: string;
+  status?: TaskStatus;
+
+  current_value?: number | null;
+  target_value?: number | null;
+  value_unit?: string | null;
+
+  planning_enabled?: boolean;
+  planning_method?: TaskPlanningMethod | null;
+  planner_target?: number | null;
+  planning_start_date?: string | null;
+  start_with_milestone?: boolean;
+  planning_end_date?: string | null;
+  end_with_milestone?: boolean;
+
+  note?: string | null;
+  position?: number;
+}
+
 export interface TaskResponse {
   id: number;
   goal_id: number;

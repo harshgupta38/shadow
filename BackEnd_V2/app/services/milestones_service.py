@@ -1,10 +1,11 @@
-from sqlalchemy import select, func
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta, timezone
 
 from app.core.exceptions import NotFoundError
 from app.models.goal import Goal
 from app.models.milestone import Milestone
+from app.models.task import Task
 from app.models.user import User
 from app.schemas.milestones import (
     MilestoneCreateRequest,
@@ -211,6 +212,8 @@ def delete_milestone(
         raise NotFoundError("Milestone not found. Please check and try again.")
 
     goal = db.scalar(select(Goal).where(Goal.id == milestone.goal_id))
+
+    db.execute(delete(Task).where(Task.milestone_id == milestone.id))
 
     db.delete(milestone)
     if goal is not None:

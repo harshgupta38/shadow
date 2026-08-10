@@ -9,7 +9,7 @@ from app.models.goal import Goal
 from app.models.milestone import Milestone
 from app.models.task import Task
 from app.models.user import User
-from app.schemas.tasks import TaskCreateRequest, TaskResponse
+from app.schemas.tasks import TaskCreateRequest, TaskResponse, TaskUpdateRequest
 
 
 def _serialize_task(task: Task) -> TaskResponse:
@@ -159,3 +159,111 @@ def get_list(db: Session, current_user: User, milestone_id: int) -> list[TaskRes
     ).all()
 
     return [_serialize_task(task) for task in tasks]
+
+
+def update_task(
+    db: Session,
+    current_user: User,
+    task_id: int,
+    data: TaskUpdateRequest,
+) -> TaskResponse:
+    task = db.scalar(
+        select(Task)
+        .join(Milestone, Task.milestone_id == Milestone.id)
+        .join(Goal, Milestone.goal_id == Goal.id)
+        .where(
+            Task.id == task_id,
+            Goal.user_id == current_user.id,
+        )
+    )
+
+    if task is None:
+        raise NotFoundError("Task not found. Please check and try again.")
+
+    if data.status is not None and task.task_type == "Binary":
+        if data.status not in {"Not Started", "Completed", "Cancelled"}:
+            raise ValidationError(
+                "Please correct the highlighted fields.",
+                errors={"status": "Binary tasks only support status: Not Started, Completed, Cancelled."},
+            )
+
+    if data.title is not None:
+        task.title = data.title.strip()
+
+    if data.status is not None:
+        task.status = data.status
+
+    if data.current_value is not None:
+        task.current_value = data.current_value
+
+    if data.target_value is not None:
+        task.target_value = data.target_value
+
+    if "value_unit" in data.model_fields_set:
+        task.value_unit = (
+            data.value_unit.strip()
+            if isinstance(data.value_unit, str) and data.value_unit.strip()
+            else None
+        )
+
+    if "planning_enabled" in data.model_fields_set and data.planning_enabled is not None:
+        task.planning_enabled = data.planning_enabled
+
+    if "planning_method" in data.model_fields_set:
+        task.planning_method = data.planning_method
+
+    if "planner_target" in data.model_fields_set:
+        task.planner_target = data.planner_target
+
+    if "planning_start_date" in data.model_fields_set:
+        task.planning_start_date = data.planning_start_date
+
+    if "start_with_milestone" in data.model_fields_set and data.start_with_milestone is not None:
+        task.start_with_milestone = data.start_with_milestone
+
+    if "planning_end_date" in data.model_fields_set:
+        task.planning_end_date = data.planning_end_date
+
+    if "end_with_milestone" in data.model_fields_set and data.end_with_milestone is not None:
+        task.end_with_milestone = data.end_with_milestone
+
+    if "note" in data.model_fields_set:
+        task.note = (
+            data.note.strip()
+            if isinstance(data.note, str) and data.note.strip()
+            else None
+        )
+
+    if data.position is not None:
+        task.position = data.position
+
+    db.commit()
+    db.refresh(task)
+
+    return _serialize_task(task)
+
+
+def delete_task(db: Session, current_user: User, task_id: int) -> None:
+    task = db.scalar(
+        select(Task)
+        .join(Milestone, Task.milestone_id == Milestone.id)
+        .join(Goal, Milestone.goal_id == Goal.id)
+        .where(
+            Task.id == task_id,
+            Goal.user_id == current_user.id,
+        )
+    )
+
+    if task is None:
+        raise NotFoundError("Task not found. Please check and try again.")
+
+    milestone = db.scalar(select(Milestone).where(Milestone.id == task.milestone_id))
+
+    db.delete(task)
+
+    if milestone is not None:
+        milestone.total_tasks = max(0, (milestone.total_tasks or 1) - 1)
+        if task.status == "Completed":
+            milestone.completed_tasks = max(0, (milestone.completed_tasks or 1) - 1)
+
+    db.commit()

@@ -304,7 +304,7 @@ export function GoalMilestonesSection({ goalId }: GoalMilestonesSectionProps) {
                                                                 );
                                                             }}
                                                         >
-                                                            <ListTask size={14} className="me-2" /> Set Task
+                                                            <ListTask size={14} className="me-2" /> Add Task
                                                         </Dropdown.Item>
                                                         <Dropdown.Divider />
                                                         <Dropdown.Item onClick={() => setConfirmUpdateId(milestone.id)}>
@@ -350,11 +350,6 @@ export function GoalMilestonesSection({ goalId }: GoalMilestonesSectionProps) {
                                                         </span>
                                                     </button>
                                                 )}
-                                                {milestone.total_tasks > 0 && (
-                                                    <span className="goal-milestone-chip">
-                                                        {milestone.completed_tasks}/{milestone.total_tasks} tasks
-                                                    </span>
-                                                )}
                                             </div>
                                         )}
 
@@ -374,7 +369,9 @@ export function GoalMilestonesSection({ goalId }: GoalMilestonesSectionProps) {
                                             </>
                                         ) : (
                                             <>
-                                                <MilestoneTasksList milestoneId={milestone.id} />
+                                                {milestone.total_tasks > 0 && (
+                                                    <MilestoneTasksList milestoneId={milestone.id} />
+                                                )}
                                                 <div className={`goal-milestone-expanded${isExpanded ? " is-expanded" : ""}`}>
                                                     <div className="goal-milestone-expanded-inner">
                                                         <button
@@ -473,7 +470,7 @@ export function GoalMilestonesSection({ goalId }: GoalMilestonesSectionProps) {
                 title="Delete this milestone?"
                 message={
                     confirmDeleteTarget
-                        ? `"${confirmDeleteTarget.title}" will be permanently removed.`
+                        ? `"${confirmDeleteTarget.title}" will be permanently removed. ${confirmDeleteTarget.total_tasks > 0 ? "All associated tasks will also be deleted." : ""} Are you sure?`
                         : undefined
                 }
                 confirmLabel="Delete"

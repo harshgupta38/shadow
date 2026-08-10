@@ -11,12 +11,12 @@ import { StepImageVisual } from "@/components/ui/StepImageVisual/StepImageVisual
 import { ThemeToggle } from "@/components/ui/ThemeToggle/ThemeToggle";
 import { useToast } from "@/context/ToastContext";
 import { ROUTES } from "@/routes/RoutePaths";
+import { resizeTextareaToMaxLines } from "@/services/textarea-resize.service";
 
 import { GoalWizardVisual } from "@/pages/my_goals/GoalCreationWizard/GoalWizardVisual";
 import {
 	EMPTY_ANSWERS,
 	GOAL_LOADER_STEPS,
-	MAX_ANSWER_LINES,
 	STEPS,
 	type MilestoneWizardAnswers,
 	type MilestoneWizardStepKey,
@@ -185,19 +185,6 @@ export function GoalMilestoneWizardPage() {
 			setError(null);
 
 	}, [currentStepIndex, fieldErrors]);
-
-	function resizeAnswerTextarea(textarea: HTMLTextAreaElement) {
-		const computedStyle = window.getComputedStyle(textarea);
-		const lineHeight = Number.parseFloat(computedStyle.lineHeight) || 24;
-		const verticalPadding = Number.parseFloat(computedStyle.paddingTop) + Number.parseFloat(computedStyle.paddingBottom);
-		const verticalBorder = Number.parseFloat(computedStyle.borderTopWidth) + Number.parseFloat(computedStyle.borderBottomWidth);
-		const maxHeight = (lineHeight * MAX_ANSWER_LINES) + verticalPadding + verticalBorder;
-
-		textarea.style.height = "auto";
-		const nextHeight = Math.min(textarea.scrollHeight, maxHeight);
-		textarea.style.height = `${nextHeight}px`;
-		textarea.style.overflowY = textarea.scrollHeight > maxHeight ? "auto" : "hidden";
-	}
 
 	function updateAnswer(stepKey: MilestoneWizardStepKey, value: string) {
 		setAnswers((current) => ({
@@ -479,7 +466,7 @@ export function GoalMilestoneWizardPage() {
 																autoComplete="off"
 																onChange={(event) => {
 																	updateAnswer("reason", event.target.value);
-																	resizeAnswerTextarea(event.currentTarget);
+																	resizeTextareaToMaxLines(event.currentTarget);
 																}}
 																disabled={!isActive || submitting}
 															/>

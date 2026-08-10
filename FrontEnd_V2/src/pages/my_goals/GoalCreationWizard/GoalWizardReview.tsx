@@ -5,6 +5,7 @@ import type {
     GoalCategory,
     UnderstandGoalResponse,
 } from "@/api/types";
+import { resizeTextareaToMaxLines } from "@/services/textarea-resize.service";
 
 const CATEGORY_OPTIONS: GoalCategory[] = [
     "Career",
@@ -158,7 +159,7 @@ export function GoalWizardReview({ goalData, saving, error, fieldErrors, hideBac
         Object.entries(textareaRefs.current).forEach(([key, textarea]) => {
             if (textarea) {
                 const maxLines = textareaMaxLinesRefs.current[key] ?? MAX_TEXTAREA_LINES;
-                resizeTextarea(textarea, maxLines);
+                resizeTextareaToMaxLines(textarea, maxLines);
             }
         });
     }, [editableGoal]);
@@ -169,26 +170,13 @@ export function GoalWizardReview({ goalData, saving, error, fieldErrors, hideBac
         onValidationStateChange(Object.keys(nextClientErrors).length > 0);
     }, [editableGoal, onValidationStateChange]);
 
-    function resizeTextarea(textarea: HTMLTextAreaElement, maxLines: number = MAX_TEXTAREA_LINES) {
-        const computedStyle = window.getComputedStyle(textarea);
-        const lineHeight = Number.parseFloat(computedStyle.lineHeight) || 24;
-        const verticalPadding = Number.parseFloat(computedStyle.paddingTop) + Number.parseFloat(computedStyle.paddingBottom);
-        const verticalBorder = Number.parseFloat(computedStyle.borderTopWidth) + Number.parseFloat(computedStyle.borderBottomWidth);
-        const maxHeight = (lineHeight * maxLines) + verticalPadding + verticalBorder;
-
-        textarea.style.height = "auto";
-        const nextHeight = Math.min(textarea.scrollHeight, maxHeight);
-        textarea.style.height = `${nextHeight}px`;
-        textarea.style.overflowY = textarea.scrollHeight > maxHeight ? "auto" : "hidden";
-    }
-
     function registerTextareaRef(key: string, maxLines: number = MAX_TEXTAREA_LINES) {
         return (textarea: HTMLTextAreaElement | null) => {
             textareaRefs.current[key] = textarea;
             textareaMaxLinesRefs.current[key] = maxLines;
 
             if (textarea) {
-                resizeTextarea(textarea, maxLines);
+                resizeTextareaToMaxLines(textarea, maxLines);
             }
         };
     }
@@ -294,7 +282,7 @@ export function GoalWizardReview({ goalData, saving, error, fieldErrors, hideBac
                             value={editableGoal.summary}
                             onChange={(event) => {
                                 updateField("summary", event.target.value);
-                                resizeTextarea(event.currentTarget);
+                                resizeTextareaToMaxLines(event.currentTarget);
                             }}
                             ref={registerTextareaRef("summary")}
                             title={getFieldErrorTitle("summary")}
@@ -340,7 +328,7 @@ export function GoalWizardReview({ goalData, saving, error, fieldErrors, hideBac
                             value={editableGoal.motivation}
                             onChange={(event) => {
                                 updateField("motivation", event.target.value);
-                                resizeTextarea(event.currentTarget);
+                                resizeTextareaToMaxLines(event.currentTarget);
                             }}
                             ref={registerTextareaRef("motivation")}
                             title={getFieldErrorTitle("motivation")}
@@ -356,7 +344,7 @@ export function GoalWizardReview({ goalData, saving, error, fieldErrors, hideBac
                             value={editableGoal.success_definition}
                             onChange={(event) => {
                                 updateField("success_definition", event.target.value);
-                                resizeTextarea(event.currentTarget);
+                                resizeTextareaToMaxLines(event.currentTarget);
                             }}
                             ref={registerTextareaRef("success_definition")}
                             title={getFieldErrorTitle("success_definition")}
@@ -372,7 +360,7 @@ export function GoalWizardReview({ goalData, saving, error, fieldErrors, hideBac
                             value={editableGoal.current_state}
                             onChange={(event) => {
                                 updateField("current_state", event.target.value);
-                                resizeTextarea(event.currentTarget);
+                                resizeTextareaToMaxLines(event.currentTarget);
                             }}
                             ref={registerTextareaRef("current_state")}
                             title={getFieldErrorTitle("current_state")}
@@ -419,7 +407,7 @@ export function GoalWizardReview({ goalData, saving, error, fieldErrors, hideBac
                                             value={item}
                                             onChange={(event) => {
                                                 updateListField(activeListConfig.key, index, event.target.value);
-                                                resizeTextarea(event.currentTarget, MAX_LIST_TEXTAREA_LINES);
+                                                resizeTextareaToMaxLines(event.currentTarget, MAX_LIST_TEXTAREA_LINES);
                                             }}
                                             ref={registerTextareaRef(`${activeListConfig.key}-${index}`, MAX_LIST_TEXTAREA_LINES)}
                                             title={getFieldErrorTitle(activeListConfig.key)}

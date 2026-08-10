@@ -1,11 +1,14 @@
 from datetime import date
 
 from fastapi import HTTPException, status
+from sqlalchemy import delete
 
 from app.llm.models import RefineGoalResponse
 from app.llm.exceptions import LLMError
 from app.llm.service import get_llm_service
 from app.models.goal import Goal
+from app.models.milestone import Milestone
+from app.models.task import Task
 from app.models.user import User
 from app.schemas.goals import (
     GoalDetailResponse,
@@ -178,6 +181,8 @@ def delete_goal(
             detail="Goal not found.",
         )
 
+    db.execute(delete(Task).where(Task.goal_id == goal.id))
+    db.execute(delete(Milestone).where(Milestone.goal_id == goal.id))
     db.delete(goal)
     db.commit()
 

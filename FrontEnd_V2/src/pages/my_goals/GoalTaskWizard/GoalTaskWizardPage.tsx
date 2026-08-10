@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, Check2Circle, X } from "react-bootstrap-icons";
 import { useNavigate, useParams } from "react-router-dom";
 
@@ -9,6 +9,7 @@ import { StepImageVisual } from "@/components/ui/StepImageVisual/StepImageVisual
 import { ThemeToggle } from "@/components/ui/ThemeToggle/ThemeToggle";
 import { useToast } from "@/context/ToastContext";
 import { ROUTES } from "@/routes/RoutePaths";
+import { resizeTextareaToMaxLines } from "@/services/textarea-resize.service";
 
 import { GoalWizardVisual } from "@/pages/my_goals/GoalCreationWizard/GoalWizardVisual";
 import {
@@ -226,6 +227,7 @@ export function GoalTaskWizardPage() {
 	const [fieldErrors, setFieldErrors] = useState<TaskFieldErrors>({});
 	const [error, setError] = useState<string | null>(null);
 	const [submitting, setSubmitting] = useState(false);
+	const noteTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
 	const numericGoalId = Number(goalId);
 	const numericMilestoneId = Number(milestoneId);
@@ -431,6 +433,12 @@ export function GoalTaskWizardPage() {
 	const minPlanningStartDate = getTodayIsoLocalDate();
 	const minPlanningEndDate = answers.planningStartDate || minPlanningStartDate;
 
+	useEffect(() => {
+		if (noteTextareaRef.current) {
+			resizeTextareaToMaxLines(noteTextareaRef.current, 8, 20);
+		}
+	}, [answers.note]);
+
 	if (loadingContext) {
 		return (
 			<div className="goal-wizard-backdrop">
@@ -500,7 +508,7 @@ export function GoalTaskWizardPage() {
 								<X size={30} />
 							</button>
 							<div className="goal-wizard-header-copy">
-								<h3 id="goal-wizard-title">Set Task</h3>
+								<h3 id="goal-wizard-title">Create Task</h3>
 								{currentSubtitle && <p>{currentSubtitle}</p>}
 							</div>
 						</div>
@@ -765,14 +773,16 @@ export function GoalTaskWizardPage() {
 													<>
 														<div className="mt-3">
 															<label className="form-label">Note (optional)</label>
-															<input
-																type="text"
+															<textarea
+																ref={noteTextareaRef}
 																className="form-control"
 																value={answers.note}
-																autoComplete="off"
 																onChange={(event) => updateAnswer("note", event.target.value)}
+																onInput={(event) => resizeTextareaToMaxLines(event.currentTarget, 8, 20)}
 																placeholder="Any extra details for this task"
 																disabled={!isActive || submitting}
+																rows={1}
+																style={{ resize: "none", overflowY: "hidden" }}
 															/>
 														</div>
 													</>

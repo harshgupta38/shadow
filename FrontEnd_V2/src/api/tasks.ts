@@ -1,7 +1,7 @@
 import { ENDPOINTS } from "@/constant/shadow-endpoints";
 
 import { http } from "@/api/client";
-import { TaskCreateRequest, TaskResponse } from "@/api/types";
+import { TaskCreateRequest, TaskResponse, TaskUpdateRequest } from "@/api/types";
 
 export const tasksApi = {
     async save(data: TaskCreateRequest): Promise<TaskResponse> {
@@ -12,5 +12,13 @@ export const tasksApi = {
         return http.get<TaskResponse[]>(`${ENDPOINTS.TASKS.PREFIX}${ENDPOINTS.TASKS.GET_LIST}`, {
             params: { milestone_id: milestoneId },
         });
+    },
+
+    async update(taskId: number, data: TaskUpdateRequest): Promise<TaskResponse> {
+        return http.patch<TaskResponse>(`${ENDPOINTS.TASKS.PREFIX}${ENDPOINTS.TASKS.DETAIL(taskId)}`, data);
+    },
+
+    async remove(taskId: number): Promise<void> {
+        return http.delete<void>(`${ENDPOINTS.TASKS.PREFIX}${ENDPOINTS.TASKS.DETAIL(taskId)}`);
     },
 };

@@ -247,7 +247,7 @@ export function GoalDetailPage() {
       <ConfirmDialog
         show={showDeleteConfirm}
         title="Delete this goal?"
-        message="This will permanently remove the goal and all its data. This cannot be undone."
+        message={`This will permanently remove the goal and all its data. This cannot be undone. ${(goal?.milestones_total ?? 0) > 0 ? "All milestones and tasks under this goal will also be deleted." : ""} Are you sure?`}
         confirmLabel="Delete"
         destructive
         busy={deleteBusy}

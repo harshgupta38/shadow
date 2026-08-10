@@ -47,6 +47,12 @@ class Milestone(Base):
         nullable=False,
     )
 
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(String(4000), nullable=True)
     status: Mapped[str] = mapped_column(

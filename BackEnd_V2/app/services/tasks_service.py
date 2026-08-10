@@ -5,7 +5,6 @@ from sqlalchemy.orm import Session
 
 from app.core.exceptions import NotFoundError
 from app.core.exceptions import ValidationError
-from app.models.goal import Goal
 from app.models.milestone import Milestone
 from app.models.task import Task
 from app.models.user import User
@@ -44,12 +43,10 @@ def _serialize_task(task: Task) -> TaskResponse:
 
 def save_task(db: Session, current_user: User, data: TaskCreateRequest) -> TaskResponse:
     milestone = db.scalar(
-        select(Milestone)
-        .join(Goal, Milestone.goal_id == Goal.id)
-        .where(
+        select(Milestone).where(
             Milestone.id == data.milestone_id,
             Milestone.goal_id == data.goal_id,
-            Goal.user_id == current_user.id,
+            Milestone.user_id == current_user.id,
         )
     )
 
@@ -99,6 +96,7 @@ def save_task(db: Session, current_user: User, data: TaskCreateRequest) -> TaskR
 
     task = Task(
         goal_id=data.goal_id,
+        user_id=current_user.id,
         milestone_id=milestone.id,
         title=data.title.strip(),
         task_type=data.task_type,
@@ -139,11 +137,9 @@ def save_task(db: Session, current_user: User, data: TaskCreateRequest) -> TaskR
 
 def get_list(db: Session, current_user: User, milestone_id: int) -> list[TaskResponse]:
     milestone = db.scalar(
-        select(Milestone)
-        .join(Goal, Milestone.goal_id == Goal.id)
-        .where(
+        select(Milestone).where(
             Milestone.id == milestone_id,
-            Goal.user_id == current_user.id,
+            Milestone.user_id == current_user.id,
         )
     )
 
@@ -154,7 +150,10 @@ def get_list(db: Session, current_user: User, milestone_id: int) -> list[TaskRes
 
     tasks = db.scalars(
         select(Task)
-        .where(Task.milestone_id == milestone.id)
+        .where(
+            Task.milestone_id == milestone.id,
+            Task.user_id == current_user.id,
+        )
         .order_by(Task.position.asc(), Task.id.asc())
     ).all()
 
@@ -168,12 +167,9 @@ def update_task(
     data: TaskUpdateRequest,
 ) -> TaskResponse:
     task = db.scalar(
-        select(Task)
-        .join(Milestone, Task.milestone_id == Milestone.id)
-        .join(Goal, Milestone.goal_id == Goal.id)
-        .where(
+        select(Task).where(
             Task.id == task_id,
-            Goal.user_id == current_user.id,
+            Task.user_id == current_user.id,
         )
     )
 
@@ -245,12 +241,9 @@ def update_task(
 
 def delete_task(db: Session, current_user: User, task_id: int) -> None:
     task = db.scalar(
-        select(Task)
-        .join(Milestone, Task.milestone_id == Milestone.id)
-        .join(Goal, Milestone.goal_id == Goal.id)
-        .where(
+        select(Task).where(
             Task.id == task_id,
-            Goal.user_id == current_user.id,
+            Task.user_id == current_user.id,
         )
     )
 

@@ -60,6 +60,7 @@ def save_milestone(
 
     milestone = Milestone(
         goal_id=goal.id,
+        user_id=current_user.id,
         title=data.title.strip(),
         description=(
             data.description.strip()
@@ -101,7 +102,10 @@ def get_milestone_list(
     if goal is None:
         raise NotFoundError("Goal not found. Please check the goal and try again.")
 
-    query = select(Milestone).where(Milestone.goal_id == goal_id)
+    query = select(Milestone).where(
+        Milestone.goal_id == goal_id,
+        Milestone.user_id == current_user.id,
+    )
 
     if status is not None:
         query = query.where(Milestone.status == status)
@@ -117,11 +121,9 @@ def get_milestone_detail(
     db: Session, current_user: User, milestone_id: int
 ) -> MilestoneResponse:
     milestone = db.scalar(
-        select(Milestone)
-        .join(Goal, Milestone.goal_id == Goal.id)
-        .where(
+        select(Milestone).where(
             Milestone.id == milestone_id,
-            Goal.user_id == current_user.id,
+            Milestone.user_id == current_user.id,
         )
     )
 
@@ -138,11 +140,9 @@ def update_milestone(
 ) -> MilestoneResponse:
 
     milestone = db.scalar(
-        select(Milestone)
-        .join(Goal, Milestone.goal_id == Goal.id)
-        .where(
+        select(Milestone).where(
             Milestone.id == milestone_id,
-            Goal.user_id == current_user.id,
+            Milestone.user_id == current_user.id,
         )
     )
 
@@ -200,11 +200,9 @@ def delete_milestone(
     db: Session, current_user: User, milestone_id: int
 ) -> None:
     milestone = db.scalar(
-        select(Milestone)
-        .join(Goal, Milestone.goal_id == Goal.id)
-        .where(
+        select(Milestone).where(
             Milestone.id == milestone_id,
-            Goal.user_id == current_user.id,
+            Milestone.user_id == current_user.id,
         )
     )
 

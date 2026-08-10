@@ -361,22 +361,46 @@ export function GoalMilestonesSection({ goalId }: GoalMilestonesSectionProps) {
                                                         <div className="goal-milestone-outline-copy" dangerouslySetInnerHTML={{ __html: milestone.description }} />
                                                     </section>
                                                 )}
-                                                <section className="goal-milestone-outline-item">
+                                                <section className="goal-milestone-outline-item goal-milestone-outline-item-timeline">
                                                     <h4 className="goal-milestone-outline-title">Timeline</h4>
-                                                    <ul className="goal-milestone-outline-timeline">
-                                                        {milestone.created_at && (
-                                                            <li><span className="goal-milestone-timeline-label">Created</span> {formatTargetDate(milestone.created_at)}</li>
-                                                        )}
-                                                        {milestone.started_at && (
-                                                            <li><span className="goal-milestone-timeline-label">Started</span> {formatTargetDate(milestone.started_at)}</li>
-                                                        )}
-                                                        {milestone.paused_at && (
-                                                            <li><span className="goal-milestone-timeline-label">Paused</span> {formatTargetDate(milestone.paused_at)}</li>
-                                                        )}
-                                                        {milestone.completed_at && (
-                                                            <li><span className="goal-milestone-timeline-label">Completed</span> {formatTargetDate(milestone.completed_at)}</li>
-                                                        )}
-                                                    </ul>
+                                                    {(() => {
+                                                        const timelineStages = [
+                                                            { key: "created", label: "Created", value: milestone.created_at },
+                                                            milestone.started_at
+                                                                ? { key: "started", label: "Started", value: milestone.started_at }
+                                                                : null,
+                                                            milestone.paused_at
+                                                                ? { key: "paused", label: "Paused", value: milestone.paused_at }
+                                                                : null,
+                                                            (milestone.completed_at || milestone.cancelled_at)
+                                                                ? {
+                                                                    key: milestone.status === "Cancelled" ? "cancelled" : "completed",
+                                                                    label: milestone.status === "Cancelled" ? "Cancelled" : "Completed",
+                                                                    value: milestone.status === "Cancelled" ? milestone.cancelled_at : milestone.completed_at,
+                                                                }
+                                                                : null,
+                                                        ].filter((item): item is { key: string; label: string; value: string } => item !== null);
+
+                                                        return (
+                                                            <div
+                                                                className={`goal-milestone-outline-timeline${timelineStages.length > 1 ? " has-line" : ""}`}
+                                                                role="list"
+                                                                aria-label="Milestone timeline flow"
+                                                            >
+                                                                {timelineStages.map((item, index) => (
+                                                                    <div
+                                                                        key={item.key}
+                                                                        className={`goal-milestone-timeline-step${index === 0 ? " is-first" : ""}${index > 0 && index === timelineStages.length - 1 ? " is-last" : ""}`}
+                                                                        role="listitem"
+                                                                    >
+                                                                        {timelineStages.length > 1 && <span className="goal-milestone-timeline-node" aria-hidden="true" />}
+                                                                        <span className="goal-milestone-timeline-label">{item.label}</span>
+                                                                        <span className="goal-milestone-timeline-date">{formatTargetDate(item.value)}</span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        );
+                                                    })()}
                                                 </section>
                                             </div>
                                         </div>

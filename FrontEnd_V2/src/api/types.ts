@@ -180,6 +180,7 @@ export interface MilestoneResponse {
 
   started_at: string | null;
   paused_at: string | null;
+  cancelled_at: string | null;
   target_date: string | null;
   completed_at: string | null;
 

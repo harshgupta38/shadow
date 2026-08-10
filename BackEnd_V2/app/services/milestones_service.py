@@ -25,6 +25,7 @@ def _serialize_milestone(milestone: Milestone) -> MilestoneResponse:
         estimated_duration_days=milestone.estimated_duration_days,
         started_at=milestone.started_at,
         paused_at=milestone.paused_at,
+        cancelled_at=milestone.cancelled_at,
         target_date=milestone.target_date,
         completed_at=milestone.completed_at,
         position=milestone.position,
@@ -166,6 +167,10 @@ def update_milestone(
         prev_status = milestone.status
         milestone.status = data.status
         now = datetime.now(timezone.utc)
+        if data.status == "Cancelled":
+            milestone.cancelled_at = now
+        elif prev_status == "Cancelled":
+            milestone.cancelled_at = None
         if data.status == "In Progress" and prev_status not in (
             "In Progress",
             "Paused",

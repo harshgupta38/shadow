@@ -89,6 +89,7 @@ class MilestoneResponse(BaseModel):
 
     started_at: datetime | None
     paused_at: datetime | None
+    cancelled_at: datetime | None
     target_date: date | None
     completed_at: datetime | None
 

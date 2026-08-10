@@ -54,27 +54,41 @@ def save_task(db: Session, current_user: User, data: TaskCreateRequest) -> TaskR
     )
 
     if milestone is None:
-        raise NotFoundError("Milestone not found. Please check the goal and milestone and try again.")
+        raise NotFoundError(
+            "Milestone not found. Please check the goal and milestone and try again."
+        )
 
     if data.task_type == "Numeric" and data.planning_enabled:
         today = date.today()
         effective_start = data.planning_start_date
         if data.start_with_milestone:
-            effective_start = milestone.started_at.date() if milestone.started_at is not None else today
+            effective_start = (
+                milestone.started_at.date()
+                if milestone.started_at is not None
+                else today
+            )
 
         effective_end = data.planning_end_date
         if data.end_with_milestone:
             if milestone.target_date is None:
                 raise ValidationError(
                     "Please correct the highlighted fields.",
-                    errors={"planning_end_date": "Milestone target date is required when end_with_milestone is true."},
+                    errors={
+                        "planning_end_date": "Milestone target date is required when end_with_milestone is true."
+                    },
                 )
             effective_end = milestone.target_date
 
-        if effective_start is not None and effective_end is not None and effective_end < effective_start:
+        if (
+            effective_start is not None
+            and effective_end is not None
+            and effective_end < effective_start
+        ):
             raise ValidationError(
                 "Please correct the highlighted fields.",
-                errors={"planning_end_date": "Planning end date must be on or after planning start date."},
+                errors={
+                    "planning_end_date": "Planning end date must be on or after planning start date."
+                },
             )
 
     next_position = db.scalar(
@@ -104,7 +118,11 @@ def save_task(db: Session, current_user: User, data: TaskCreateRequest) -> TaskR
         planning_end_date=data.planning_end_date,
         end_with_milestone=data.end_with_milestone,
         assistant_context=data.assistant_context,
-        note=(data.note.strip() if isinstance(data.note, str) and data.note.strip() else None),
+        note=(
+            data.note.strip()
+            if isinstance(data.note, str) and data.note.strip()
+            else None
+        ),
         position=int(next_position or 0),
         created_by="User",
     )
@@ -117,3 +135,27 @@ def save_task(db: Session, current_user: User, data: TaskCreateRequest) -> TaskR
     db.refresh(task)
 
     return _serialize_task(task)
+
+
+def get_list(db: Session, current_user: User, milestone_id: int) -> list[TaskResponse]:
+    milestone = db.scalar(
+        select(Milestone)
+        .join(Goal, Milestone.goal_id == Goal.id)
+        .where(
+            Milestone.id == milestone_id,
+            Goal.user_id == current_user.id,
+        )
+    )
+
+    if milestone is None:
+        raise NotFoundError(
+            "Milestone not found. Please check the milestone and try again."
+        )
+
+    tasks = db.scalars(
+        select(Task)
+        .where(Task.milestone_id == milestone.id)
+        .order_by(Task.position.asc(), Task.id.asc())
+    ).all()
+
+    return [_serialize_task(task) for task in tasks]

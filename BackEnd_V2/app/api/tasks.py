@@ -21,3 +21,15 @@ def save_task(
     current_user: User = Depends(get_current_user),
 ) -> TaskResponse:
     return tasks_service.save_task(db, current_user, data)
+
+
+@router.get(
+    ENDPOINTS.TASKS.GET_LIST,
+    response_model=list[TaskResponse],
+)
+def get_task_list(
+    milestone_id: int,
+    db=Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[TaskResponse]:
+    return tasks_service.get_list(db, current_user, milestone_id)

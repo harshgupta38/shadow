@@ -10,6 +10,7 @@ import { ProgressRing } from "@/components/ui/ProgressRing/ProgressRing";
 import { ROUTES } from "@/routes/RoutePaths";
 import { useToast } from "@/context/ToastContext";
 import { GoalEditWizard } from "@/pages/my_goals/GoalEditWizard/GoalEditWizard";
+import { GoalDetailLoadingSkeleton } from "@/pages/my_goals/GoalDetailLoadingSkeleton/GoalDetailLoadingSkeleton";
 import { GoalMilestonesSection } from "@/pages/my_goals/GoalMilestonesSection/GoalMilestonesSection";
 
 import "@/pages/my_goals/GoalDetailPage/GoalDetailPage.scss";
@@ -123,12 +124,7 @@ export function GoalDetailPage() {
         <ArrowLeft size={16} /> Back to My Goals
       </Link>
 
-      {loadingGoal ? (
-        <div className="surface goal-detail-loading">
-          <h2 className="goal-detail-loading-title">Loading your goal...</h2>
-          <p className="goal-detail-loading-text">We are bringing the full goal summary into view.</p>
-        </div>
-      ) : null}
+      {loadingGoal ? <GoalDetailLoadingSkeleton /> : null}
 
       {!loadingGoal && goalError ? <IllustratedErrorState onRetry={() => void loadGoal()} /> : null}
 

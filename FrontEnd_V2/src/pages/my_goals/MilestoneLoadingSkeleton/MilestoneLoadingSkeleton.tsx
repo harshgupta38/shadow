@@ -1,4 +1,4 @@
-import "@/pages/my_goals/GoalMilestonesSection/MilestoneLoadingSkeleton.scss";
+import "@/pages/my_goals/MilestoneLoadingSkeleton/MilestoneLoadingSkeleton.scss";
 
 interface MilestoneLoadingSkeletonProps {
     count?: number;

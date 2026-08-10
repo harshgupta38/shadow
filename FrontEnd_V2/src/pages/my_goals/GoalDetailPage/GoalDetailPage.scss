@@ -10,17 +10,6 @@
     text-decoration: none;
   }
 
-  .goal-detail-loading {
-    min-height: 240px;
-    padding: 1.4rem 1.5rem;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    border: 1px solid color-mix(in srgb, var(--jv-border) 82%, var(--jv-brand-1) 18%);
-    border-radius: var(--jv-radius);
-  }
-
-  .goal-detail-loading-title,
   .goal-detail-section-title {
     margin: 0;
     font-family: var(--jv-font-display);
@@ -29,7 +18,6 @@
     letter-spacing: -0.02em;
   }
 
-  .goal-detail-loading-text,
   .goal-detail-copy {
     margin: 0.2rem 0 0;
     color: var(--jv-muted);

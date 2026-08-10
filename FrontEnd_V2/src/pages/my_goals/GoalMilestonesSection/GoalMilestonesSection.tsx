@@ -8,7 +8,7 @@ import { ApiError } from "@/api/client";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { useToast } from "@/context/ToastContext";
 import { ROUTES } from "@/routes/RoutePaths";
-import { MilestoneLoadingSkeleton } from "@/pages/my_goals/GoalMilestonesSection/MilestoneLoadingSkeleton";
+import { MilestoneLoadingSkeleton } from "@/pages/my_goals/MilestoneLoadingSkeleton/MilestoneLoadingSkeleton";
 
 import "@/pages/my_goals/GoalMilestonesSection/GoalMilestonesSection.scss";
 

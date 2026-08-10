@@ -11,6 +11,7 @@ interface TargetDatePromptDialogProps {
     initialDate?: string | null;
     busy?: boolean;
     allowSkip?: boolean;
+    allowPastDates?: boolean;
     onConfirm: (targetDate: string) => void;
     onClear: () => void;
     onSkip: () => void;
@@ -24,6 +25,10 @@ function toInputDate(value: string | null | undefined): string {
     return new Date(parsed).toISOString().slice(0, 10);
 }
 
+function getTodayInputDate(): string {
+    return new Date().toISOString().slice(0, 10);
+}
+
 export function TargetDatePromptDialog({
     show,
     title = "Set target date?",
@@ -31,6 +36,7 @@ export function TargetDatePromptDialog({
     initialDate,
     busy = false,
     allowSkip = true,
+    allowPastDates = false,
     onConfirm,
     onClear,
     onSkip,
@@ -38,6 +44,9 @@ export function TargetDatePromptDialog({
 }: TargetDatePromptDialogProps) {
     const [targetDate, setTargetDate] = useState("");
     const hasInitialDate = Boolean(toInputDate(initialDate));
+    const minDate = allowPastDates ? undefined : getTodayInputDate();
+    const canConfirm = Boolean(targetDate) && (allowPastDates || targetDate >= getTodayInputDate());
+    const showCancelButton = !hasInitialDate || !allowSkip;
 
     useEffect(() => {
         if (show) {
@@ -63,11 +72,12 @@ export function TargetDatePromptDialog({
                     className="form-control"
                     value={targetDate}
                     onChange={(e) => setTargetDate(e.target.value)}
+                    min={minDate}
                     disabled={busy}
                 />
 
                 <div className="d-flex gap-2 justify-content-end mt-4">
-                    {hasInitialDate ? (
+                    {hasInitialDate && (
                         <button
                             type="button"
                             className="btn btn-outline-secondary"
@@ -76,7 +86,8 @@ export function TargetDatePromptDialog({
                         >
                             Clear Date
                         </button>
-                    ) : (
+                    )}
+                    {showCancelButton && (
                         <button
                             type="button"
                             className="btn btn-outline-secondary"
@@ -100,7 +111,7 @@ export function TargetDatePromptDialog({
                         type="button"
                         className="btn btn-brand"
                         onClick={() => onConfirm(targetDate)}
-                        disabled={busy || !targetDate}
+                        disabled={busy || !canConfirm}
                     >
                         {busy ? "Working..." : "Set Date"}
                     </button>

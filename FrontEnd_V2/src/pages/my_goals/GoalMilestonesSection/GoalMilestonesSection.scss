@@ -269,6 +269,24 @@
   transition: transform 0.2s ease;
 }
 
+.goal-milestone-inline-loading {
+  border-top: 1px solid var(--jv-border);
+  margin-top: 0.7rem;
+  padding-top: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.milestone-skeleton-description {
+  min-width: 200px;
+  width: 22%;
+}
+
+.goal-milestone-inline-loading-line-short {
+  width: 52%;
+}
+
 .goal-milestone-expanded {
   display: grid;
   grid-template-rows: 0fr;

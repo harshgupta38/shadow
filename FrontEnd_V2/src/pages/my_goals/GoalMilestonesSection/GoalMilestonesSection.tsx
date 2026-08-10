@@ -345,65 +345,78 @@ export function GoalMilestonesSection({ goalId }: GoalMilestonesSectionProps) {
                                             </div>
                                         )}
 
-                                        <div className={`goal-milestone-expanded${isExpanded ? " is-expanded" : ""}`}>
-                                            <div className="goal-milestone-expanded-inner">
-                                                <button
-                                                    type="button"
-                                                    className="btn btn-ghost btn-icon border-0 goal-milestone-collapse-btn"
-                                                    onClick={() => toggleMilestoneExpanded(milestone.id)}
-                                                    aria-label="Collapse details"
-                                                >
-                                                    <ArrowsAngleContract size={14} />
-                                                </button>
-                                                {milestone.description && (
-                                                    <section className="goal-milestone-outline-item">
-                                                        <h4 className="goal-milestone-outline-title">Description</h4>
-                                                        <div className="goal-milestone-outline-copy" dangerouslySetInnerHTML={{ __html: milestone.description }} />
-                                                    </section>
-                                                )}
-                                                <section className="goal-milestone-outline-item goal-milestone-outline-item-timeline">
-                                                    <h4 className="goal-milestone-outline-title">Timeline</h4>
-                                                    {(() => {
-                                                        const timelineStages = [
-                                                            { key: "created", label: "Created", value: milestone.created_at },
-                                                            milestone.started_at
-                                                                ? { key: "started", label: "Started", value: milestone.started_at }
-                                                                : null,
-                                                            milestone.paused_at
-                                                                ? { key: "paused", label: "Paused", value: milestone.paused_at }
-                                                                : null,
-                                                            (milestone.completed_at || milestone.cancelled_at)
-                                                                ? {
-                                                                    key: milestone.status === "Cancelled" ? "cancelled" : "completed",
-                                                                    label: milestone.status === "Cancelled" ? "Cancelled" : "Completed",
-                                                                    value: milestone.status === "Cancelled" ? milestone.cancelled_at : milestone.completed_at,
-                                                                }
-                                                                : null,
-                                                        ].filter((item): item is { key: string; label: string; value: string } => item !== null);
-
-                                                        return (
-                                                            <div
-                                                                className={`goal-milestone-outline-timeline${timelineStages.length > 1 ? " has-line" : ""}`}
-                                                                role="list"
-                                                                aria-label="Milestone timeline flow"
-                                                            >
-                                                                {timelineStages.map((item, index) => (
-                                                                    <div
-                                                                        key={item.key}
-                                                                        className={`goal-milestone-timeline-step${index === 0 ? " is-first" : ""}${index > 0 && index === timelineStages.length - 1 ? " is-last" : ""}`}
-                                                                        role="listitem"
-                                                                    >
-                                                                        {timelineStages.length > 1 && <span className="goal-milestone-timeline-node" aria-hidden="true" />}
-                                                                        <span className="goal-milestone-timeline-label">{item.label}</span>
-                                                                        <span className="goal-milestone-timeline-date">{formatTargetDate(item.value)}</span>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        );
-                                                    })()}
-                                                </section>
+                                        {busy ? (
+                                            <div className="goal-milestone-inline-loading" aria-live="polite" aria-busy="true">
+                                                <div className="milestone-skeleton milestone-skeleton-description mt-0" />
+                                                <div className="milestone-skeleton milestone-skeleton-description mt-0 goal-milestone-inline-loading-line-short" />
+                                                <div className="goal-milestone-meta mt-0">
+                                                    <div className="milestone-skeleton milestone-skeleton-pill-2" />
+                                                    <div className="milestone-skeleton milestone-skeleton-pill-2" />
+                                                    <div className="milestone-skeleton milestone-skeleton-pill-2" />
+                                                </div>
                                             </div>
-                                        </div>
+                                        ) : (
+                                            <div className={`goal-milestone-expanded${isExpanded ? " is-expanded" : ""}`}>
+                                                <div className="goal-milestone-expanded-inner">
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-ghost btn-icon border-0 goal-milestone-collapse-btn"
+                                                        onClick={() => toggleMilestoneExpanded(milestone.id)}
+                                                        aria-label="Collapse details"
+                                                    >
+                                                        <ArrowsAngleContract size={14} />
+                                                    </button>
+                                                    {milestone.description && (
+                                                        <section className="goal-milestone-outline-item">
+                                                            <h4 className="goal-milestone-outline-title">Description</h4>
+                                                            <div className="goal-milestone-outline-copy" dangerouslySetInnerHTML={{ __html: milestone.description }} />
+                                                        </section>
+                                                    )}
+                                                    <section className="goal-milestone-outline-item goal-milestone-outline-item-timeline">
+                                                        <h4 className="goal-milestone-outline-title">Timeline</h4>
+                                                        {(() => {
+                                                            const timelineStages = [
+                                                                { key: "created", label: "Created", value: milestone.created_at },
+                                                                milestone.started_at
+                                                                    ? { key: "started", label: "Started", value: milestone.started_at }
+                                                                    : null,
+                                                                (milestone.paused_at && milestone.status === "Paused")
+                                                                    ? { key: "paused", label: "Paused", value: milestone.paused_at }
+                                                                    : null,
+                                                                ((milestone.status === "Cancelled" || milestone.status === "Completed") && (milestone.completed_at || milestone.cancelled_at))
+                                                                    ? {
+                                                                        key: milestone.status === "Cancelled" ? "cancelled" : "completed",
+                                                                        label: milestone.status === "Cancelled" ? "Cancelled" : "Completed",
+                                                                        value: milestone.status === "Cancelled" ? milestone.cancelled_at : milestone.completed_at,
+                                                                    }
+                                                                    : null,
+                                                            ].filter((item): item is { key: string; label: string; value: string } => item !== null);
+
+                                                            return (
+                                                                <div
+                                                                    className={`goal-milestone-outline-timeline${timelineStages.length > 1 ? " has-line" : ""}`}
+                                                                    role="list"
+                                                                    aria-label="Milestone timeline flow"
+                                                                >
+                                                                    {timelineStages.map((item, index) => (
+                                                                        <div
+                                                                            key={item.key}
+                                                                            className={`goal-milestone-timeline-step${index === 0 ? " is-first" : ""}${index > 0 && index === timelineStages.length - 1 ? " is-last" : ""}`}
+                                                                            role="listitem"
+                                                                        >
+                                                                            {timelineStages.length > 1 && <span className="goal-milestone-timeline-node" aria-hidden="true" />}
+                                                                            <span className="goal-milestone-timeline-label">{item.label}</span>
+                                                                            <span className="goal-milestone-timeline-date">{formatTargetDate(item.value)}</span>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            );
+                                                        })()}
+                                                    </section>
+                                                </div>
+                                            </div>
+                                        )}
+
 
                                     </div>
                                 </div>

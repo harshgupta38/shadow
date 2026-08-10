@@ -18,4 +18,10 @@ class Endpoints:
         GET_LIST = "/get-list"
         DETAIL = "/{milestone_id}"
 
+    class TASKS:
+        PREFIX = "/task"
+        SAVE = "/save"
+        GET_LIST = "/get-list"
+        DETAIL = "/{task_id}"
+
 ENDPOINTS = Endpoints()

@@ -193,3 +193,62 @@ export interface MilestoneResponse {
   completed_tasks: number;
 }
 
+export type TaskType = "Numeric" | "Binary";
+export type TaskPlanningMethod = "Daily" | "Weekly" | "Monthly";
+export type TaskCreatedBy = "User" | "Assistant";
+export type TaskStatus = "Not Started" | "In Progress" | "Paused" | "Completed" | "Cancelled";
+
+export interface TaskCreateRequest {
+  goal_id: number;
+  milestone_id: number;
+  title: string;
+  task_type: TaskType;
+
+  current_value: number | null;
+  target_value: number | null;
+  value_unit: string | null;
+
+  planning_enabled: boolean;
+  planning_method: TaskPlanningMethod | null;
+  planner_target: number | null;
+  planning_start_date: string | null;
+  start_with_milestone: boolean;
+  planning_end_date: string | null;
+  end_with_milestone: boolean;
+
+  assistant_context: Record<string, unknown> | null;
+  note: string | null;
+}
+
+export interface TaskResponse {
+  id: number;
+  goal_id: number;
+  milestone_id: number;
+  title: string;
+  task_type: TaskType;
+
+  current_value: number | null;
+  target_value: number | null;
+  value_unit: string | null;
+
+  status: TaskStatus;
+  planning_enabled: boolean;
+  planning_method: TaskPlanningMethod | null;
+  planner_target: number | null;
+  planning_start_date: string | null;
+  start_with_milestone: boolean;
+  planning_end_date: string | null;
+  end_with_milestone: boolean;
+
+  assistant_context: Record<string, unknown> | null;
+  note: string | null;
+
+  position: number;
+  created_at: string;
+  created_by: TaskCreatedBy;
+  started_at: string | null;
+  paused_at: string | null;
+  completed_at: string | null;
+  cancelled_at: string | null;
+}
+

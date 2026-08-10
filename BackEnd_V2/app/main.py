@@ -15,6 +15,7 @@ from app.core.exceptions import AppError
 from app.models.user import User
 from app.models.goal import Goal
 from app.models.milestone import Milestone
+from app.models.task import Task
 
 
 @asynccontextmanager

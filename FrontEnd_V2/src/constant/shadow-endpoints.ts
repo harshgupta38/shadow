@@ -17,6 +17,12 @@ export const ENDPOINTS = {
         GET_LIST: "/get-list",
         DETAIL: (id: number) => `/${id}`,
     },
+    TASKS: {
+        PREFIX: "/task",
+        SAVE: "/save",
+        GET_LIST: "/get-list",
+        DETAIL: (id: number) => `/${id}`,
+    },
     // DEMO: {
     //     DETAIL: (id: string) => `/demo/${id}`,
     // },

@@ -19,6 +19,7 @@ import { SchedulePage } from "@/pages/schedule/SchedulePage";
 import { MyGoalsPage } from "@/pages/my_goals/MyGoalsPage";
 import { GoalDetailPage } from "@/pages/my_goals/GoalDetailPage/GoalDetailPage";
 import { GoalMilestoneWizardPage } from "@/pages/my_goals/GoalMilestoneWizard/GoalMilestoneWizardPage";
+import { GoalTaskWizardPage } from "@/pages/my_goals/GoalTaskWizard/GoalTaskWizardPage.tsx";
 import { HabitLibraryPage } from "@/pages/habit_library/HabitLibraryPage";
 import { TrackProgressPage } from "@/pages/track_progress/TrackProgressPage";
 import { ReportsPage } from "@/pages/reports/ReportsPage";
@@ -41,10 +42,13 @@ export function AppRoutes() {
 					<Route path={ROUTES.DASHBOARD} element={<DashboardPage />} />
 					<Route path={ROUTES.PLAN} element={<PlanPage />} />
 					<Route path={ROUTES.SCHEDULE} element={<SchedulePage />} />
+
 					<Route path={ROUTES.MY_GOALS} element={<MyGoalsPage />} />
 					<Route path={ROUTES.MY_GOAL_DETAIL} element={<GoalDetailPage />} />
 					<Route path={ROUTES.MY_GOAL_MILESTONE_CREATE} element={<GoalMilestoneWizardPage />} />
 					<Route path={ROUTES.MY_GOAL_MILESTONE_UPDATE} element={<GoalMilestoneWizardPage />} />
+					<Route path={ROUTES.MY_GOAL_MILESTONE_TASK_CREATE} element={<GoalTaskWizardPage />} />
+					
 					<Route path={ROUTES.HABIT_LIBRARY} element={<HabitLibraryPage />} />
 					<Route path={ROUTES.TRACK_PROGRESS} element={<TrackProgressPage />} />
 					<Route path={ROUTES.REPORTS} element={<ReportsPage />} />

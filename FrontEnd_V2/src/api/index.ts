@@ -11,12 +11,14 @@ import { authApi } from "@/api/auth";
 import { appearanceApi } from "@/api/appearance";
 import { goalsApi } from "@/api/goals";
 import { milestonesApi } from "@/api/milestones";
+import { tasksApi } from "@/api/tasks";
 
 export const api = {
   auth: authApi,
   theme: appearanceApi,
   goals: goalsApi,
   milestones: milestonesApi,
+  tasks: tasksApi,
 };
 
 export type Api = typeof api;

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Dropdown } from "react-bootstrap";
-import { CheckLg, ExclamationTriangle, PencilSquare, PlusLg, Stars, ThreeDotsVertical, Trash3, ArrowsAngleContract, ArrowsAngleExpand, CalendarEvent } from "react-bootstrap-icons";
+import { CheckLg, ExclamationTriangle, PencilSquare, PlusLg, Stars, ThreeDotsVertical, Trash3, ArrowsAngleContract, ArrowsAngleExpand, CalendarEvent, ListTask } from "react-bootstrap-icons";
 import { Link, useNavigate } from "react-router-dom";
 
 import { api, type MilestoneResponse, type MilestoneStatus } from "@/api";
@@ -283,8 +283,11 @@ export function GoalMilestonesSection({ goalId }: GoalMilestonesSectionProps) {
                                                         <ThreeDotsVertical size={16} />
                                                     </Dropdown.Toggle>
                                                     <Dropdown.Menu>
-                                                        <Dropdown.Item onClick={() => setConfirmUpdateId(milestone.id)}>
-                                                            <PencilSquare size={14} className="me-2" /> Update
+                                                        <Dropdown.Item onClick={() => toggleMilestoneExpanded(milestone.id)}>
+                                                            {isExpanded
+                                                                ? <><ArrowsAngleContract size={14} className="me-2" /> Collapse</>
+                                                                : <><ArrowsAngleExpand size={14} className="me-2" /> Expand</>
+                                                            }
                                                         </Dropdown.Item>
                                                         {!milestone.target_date && (
                                                             <Dropdown.Item onClick={() => openTargetDatePrompt(milestone.id, milestone.target_date)}>
@@ -292,16 +295,25 @@ export function GoalMilestonesSection({ goalId }: GoalMilestonesSectionProps) {
                                                             </Dropdown.Item>
                                                         )}
                                                         <Dropdown.Item
+                                                            onClick={() => {
+                                                                navigate(
+                                                                    ROUTES.MY_GOAL_MILESTONE_TASK_CREATE
+                                                                        .replace(":goalId", String(goalId))
+                                                                        .replace(":milestoneId", String(milestone.id))
+                                                                );
+                                                            }}
+                                                        >
+                                                            <ListTask size={14} className="me-2" /> Set Task
+                                                        </Dropdown.Item>
+                                                        <Dropdown.Divider />
+                                                        <Dropdown.Item onClick={() => setConfirmUpdateId(milestone.id)}>
+                                                            <PencilSquare size={14} className="me-2" /> Update
+                                                        </Dropdown.Item>
+                                                        <Dropdown.Item
                                                             className="text-danger"
                                                             onClick={() => setConfirmDeleteId(milestone.id)}
                                                         >
                                                             <Trash3 size={14} className="me-2" /> Delete
-                                                        </Dropdown.Item>
-                                                        <Dropdown.Item onClick={() => toggleMilestoneExpanded(milestone.id)}>
-                                                            {isExpanded
-                                                                ? <><ArrowsAngleContract size={14} className="me-2" /> Collapse</>
-                                                                : <><ArrowsAngleExpand size={14} className="me-2" /> Expand</>
-                                                            }
                                                         </Dropdown.Item>
                                                     </Dropdown.Menu>
                                                 </Dropdown>

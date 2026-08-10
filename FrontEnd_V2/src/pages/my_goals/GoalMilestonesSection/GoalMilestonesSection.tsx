@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { Dropdown } from "react-bootstrap";
-import { CheckLg, ExclamationTriangle, PencilSquare, PlusLg, Stars, ThreeDotsVertical, Trash3, ArrowsAngleContract, ArrowsAngleExpand } from "react-bootstrap-icons";
-import { Link } from "react-router-dom";
+import { CheckLg, ExclamationTriangle, PencilSquare, PlusLg, Stars, ThreeDotsVertical, Trash3, ArrowsAngleContract, ArrowsAngleExpand, CalendarEvent } from "react-bootstrap-icons";
+import { Link, useNavigate } from "react-router-dom";
 
 import { api, type MilestoneResponse, type MilestoneStatus } from "@/api";
 import { ApiError } from "@/api/client";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
+import { TargetDatePromptDialog } from "@/components/ui/TargetDatePromptDialog/TargetDatePromptDialog";
 import { useToast } from "@/context/ToastContext";
 import { ROUTES } from "@/routes/RoutePaths";
 import { MilestoneLoadingSkeleton } from "@/pages/my_goals/MilestoneLoadingSkeleton/MilestoneLoadingSkeleton";
@@ -33,14 +34,22 @@ interface GoalMilestonesSectionProps {
 }
 
 export function GoalMilestonesSection({ goalId }: GoalMilestonesSectionProps) {
+    const navigate = useNavigate();
     const toast = useToast();
     const [milestones, setMilestones] = useState<MilestoneResponse[]>([]);
     const [loading, setLoading] = useState(false);
     const [loadError, setLoadError] = useState<string | null>(null);
     const [busyId, setBusyId] = useState<number | null>(null);
+    const [confirmUpdateId, setConfirmUpdateId] = useState<number | null>(null);
     const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
     const [deleteBusy, setDeleteBusy] = useState(false);
     const [expandedMilestoneId, setExpandedMilestoneId] = useState<number | null>(null);
+    const [targetDatePromptBusy, setTargetDatePromptBusy] = useState(false);
+    const [pendingTargetDatePrompt, setPendingTargetDatePrompt] = useState<{
+        milestoneId: number;
+        initialTargetDate: string | null;
+        allowSkipTargetDate: boolean;
+    } | null>(null);
 
     const newMilestonePath = ROUTES.MY_GOAL_MILESTONE_CREATE.replace(":goalId", String(goalId));
 
@@ -62,8 +71,8 @@ export function GoalMilestonesSection({ goalId }: GoalMilestonesSectionProps) {
         void loadMilestones();
     }, [loadMilestones]);
 
-    async function setStatus(milestone: MilestoneResponse, status: MilestoneStatus) {
-        if (milestone.status === status) return;
+    async function setStatus(milestone: MilestoneResponse, status: MilestoneStatus): Promise<boolean> {
+        if (milestone.status === status) return false;
         setBusyId(milestone.id);
 
         // 1. Update UI instantly (before API responds)
@@ -73,12 +82,59 @@ export function GoalMilestonesSection({ goalId }: GoalMilestonesSectionProps) {
             const updated = await api.milestones.update(milestone.id, { status });
             // 3. If API succeeds → replace with real server data
             setMilestones((prev) => prev.map((m) => (m.id === milestone.id ? updated : m)));
+            return true;
         } catch (err) {
             // 4. If API fails → roll back to the original milestone object
             setMilestones((prev) => prev.map((m) => (m.id === milestone.id ? milestone : m)));
             toast.error(err instanceof ApiError ? err.message : "Couldn't update status. Please try again later.");
+            return false;
         } finally {
             setBusyId(null);
+        }
+    }
+
+    async function requestStatusChange(milestone: MilestoneResponse, status: MilestoneStatus) {
+        if (milestone.status === status) return;
+
+        const shouldPromptForTargetDate = (
+            milestone.status === "Not Started"
+            && status === "In Progress"
+            && milestone.target_date !== null
+        );
+
+        const statusUpdated = await setStatus(milestone, status);
+        if (statusUpdated && shouldPromptForTargetDate) {
+            setPendingTargetDatePrompt({
+                milestoneId: milestone.id,
+                initialTargetDate: milestone.target_date,
+                allowSkipTargetDate: true,
+            });
+        }
+    }
+
+    async function updatePendingTargetDate(targetDate: string | null) {
+        if (!pendingTargetDatePrompt) return;
+        const milestone = milestones.find((m) => m.id === pendingTargetDatePrompt.milestoneId);
+        if (!milestone) {
+            setPendingTargetDatePrompt(null);
+            return;
+        }
+
+        setTargetDatePromptBusy(true);
+        try {
+            const updated = await api.milestones.update(milestone.id, { target_date: targetDate });
+            setMilestones((prev) => prev.map((m) => (m.id === milestone.id ? updated : m)));
+            setPendingTargetDatePrompt(null);
+            toast.success("Target date updated successfully.");
+        } catch (err) {
+            if (err instanceof ApiError) {
+                const targetDateError = err.fieldErrors?.target_date;
+                toast.error(targetDateError ?? err.message);
+            } else {
+                toast.error("Couldn't update target date. Please try again later.");
+            }
+        } finally {
+            setTargetDatePromptBusy(false);
         }
     }
 
@@ -99,9 +155,18 @@ export function GoalMilestonesSection({ goalId }: GoalMilestonesSectionProps) {
         setExpandedMilestoneId((prev) => (prev === id ? null : id));
     }
 
+    function openTargetDatePrompt(milestoneId: number, initialTargetDate: string | null) {
+        setPendingTargetDatePrompt({
+            milestoneId,
+            initialTargetDate,
+            allowSkipTargetDate: false,
+        });
+    }
+
     const sorted = [...milestones].sort((a, b) => a.position - b.position || a.id - b.id);
     const completedCount = milestones.filter((m) => m.status === "Completed").length;
     const hasAny = milestones.length > 0;
+    const confirmUpdateTarget = milestones.find((m) => m.id === confirmUpdateId) ?? null;
     const confirmDeleteTarget = milestones.find((m) => m.id === confirmDeleteId) ?? null;
 
     return (
@@ -159,9 +224,6 @@ export function GoalMilestonesSection({ goalId }: GoalMilestonesSectionProps) {
                             const completed = milestone.status === "Completed";
                             const busy = busyId === milestone.id;
                             const isExpanded = expandedMilestoneId === milestone.id;
-                            const updatePath = ROUTES.MY_GOAL_MILESTONE_UPDATE
-                                .replace(":goalId", String(goalId))
-                                .replace(":milestoneId", String(milestone.id));
 
                             return (
                                 <div
@@ -172,7 +234,7 @@ export function GoalMilestonesSection({ goalId }: GoalMilestonesSectionProps) {
                                         type="button"
                                         className={`goal-milestone-check${completed ? " is-done" : ""}`}
                                         disabled={busy}
-                                        onClick={() => void setStatus(milestone, completed ? "Not Started" : "Completed")}
+                                        onClick={() => void requestStatusChange(milestone, completed ? "Not Started" : "Completed")}
                                         aria-label={completed ? "Mark as not completed" : "Mark as completed"}
                                     >
                                         {completed && <CheckLg size={14} />}
@@ -202,7 +264,7 @@ export function GoalMilestonesSection({ goalId }: GoalMilestonesSectionProps) {
                                                             <Dropdown.Item
                                                                 key={s}
                                                                 active={milestone.status === s}
-                                                                onClick={() => void setStatus(milestone, s)}
+                                                                onClick={() => void requestStatusChange(milestone, s)}
                                                             >
                                                                 {s}
                                                             </Dropdown.Item>
@@ -221,9 +283,14 @@ export function GoalMilestonesSection({ goalId }: GoalMilestonesSectionProps) {
                                                         <ThreeDotsVertical size={16} />
                                                     </Dropdown.Toggle>
                                                     <Dropdown.Menu>
-                                                        <Dropdown.Item as={Link} to={updatePath}>
+                                                        <Dropdown.Item onClick={() => setConfirmUpdateId(milestone.id)}>
                                                             <PencilSquare size={14} className="me-2" /> Update
                                                         </Dropdown.Item>
+                                                        {!milestone.target_date && (
+                                                            <Dropdown.Item onClick={() => openTargetDatePrompt(milestone.id, milestone.target_date)}>
+                                                                <CalendarEvent size={14} className="me-2" /> Set Target Date
+                                                            </Dropdown.Item>
+                                                        )}
                                                         <Dropdown.Item
                                                             className="text-danger"
                                                             onClick={() => setConfirmDeleteId(milestone.id)}
@@ -258,9 +325,17 @@ export function GoalMilestonesSection({ goalId }: GoalMilestonesSectionProps) {
                                                     </span>
                                                 )}
                                                 {milestone.target_date && (
-                                                    <div className="pill pill-warn">
-                                                        {formatTargetDate(milestone.target_date)}
-                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        className="btn p-0 border-0 bg-transparent shadow-none"
+                                                        disabled={busy}
+                                                        aria-label="Update target date"
+                                                        onClick={() => openTargetDatePrompt(milestone.id, milestone.target_date)}
+                                                    >
+                                                        <span className="pill pill-warn">
+                                                            {formatTargetDate(milestone.target_date)}
+                                                        </span>
+                                                    </button>
                                                 )}
                                                 {milestone.total_tasks > 0 && (
                                                     <span className="goal-milestone-chip">
@@ -315,6 +390,28 @@ export function GoalMilestonesSection({ goalId }: GoalMilestonesSectionProps) {
             </section>
 
             <ConfirmDialog
+                show={confirmUpdateId !== null}
+                title="Update this milestone?"
+                message={
+                    confirmUpdateTarget
+                        ? `Updating "${confirmUpdateTarget.title}" can affect progress timelines and coach suggestions. Continue?`
+                        : undefined
+                }
+                confirmLabel="Update"
+                onConfirm={() => {
+                    if (confirmUpdateId !== null) {
+                        navigate(
+                            ROUTES.MY_GOAL_MILESTONE_UPDATE
+                                .replace(":goalId", String(goalId))
+                                .replace(":milestoneId", String(confirmUpdateId))
+                        );
+                    }
+                    setConfirmUpdateId(null);
+                }}
+                onCancel={() => setConfirmUpdateId(null)}
+            />
+
+            <ConfirmDialog
                 show={confirmDeleteId !== null}
                 title="Delete this milestone?"
                 message={
@@ -327,6 +424,17 @@ export function GoalMilestonesSection({ goalId }: GoalMilestonesSectionProps) {
                 busy={deleteBusy}
                 onConfirm={() => { if (confirmDeleteId !== null) void handleDelete(confirmDeleteId); }}
                 onCancel={() => setConfirmDeleteId(null)}
+            />
+
+            <TargetDatePromptDialog
+                show={pendingTargetDatePrompt !== null}
+                initialDate={pendingTargetDatePrompt?.initialTargetDate ?? null}
+                busy={targetDatePromptBusy}
+                allowSkip={pendingTargetDatePrompt?.allowSkipTargetDate ?? true}
+                onConfirm={(targetDate) => { void updatePendingTargetDate(targetDate); }}
+                onClear={() => { void updatePendingTargetDate(null); }}
+                onSkip={() => setPendingTargetDatePrompt(null)}
+                onCancel={() => setPendingTargetDatePrompt(null)}
             />
         </>
     );

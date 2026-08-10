@@ -68,6 +68,14 @@ class MilestoneUpdateRequest(BaseModel):
 
         return value
 
+    @field_validator("target_date")
+    @classmethod
+    def validate_target_date(cls, value: date | None) -> date | None:
+        if value is not None and value < date.today():
+            raise ValueError("Target date must be today or a future date.")
+
+        return value
+
 
 class MilestoneResponse(BaseModel):
     id: int

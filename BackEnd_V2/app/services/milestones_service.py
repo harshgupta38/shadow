@@ -1,5 +1,6 @@
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session
+from datetime import datetime, timedelta, timezone
 
 from app.core.exceptions import NotFoundError
 from app.models.goal import Goal
@@ -133,8 +134,6 @@ def get_milestone_detail(
 def update_milestone(
     db: Session, current_user: User, milestone_id: int, data: MilestoneUpdateRequest
 ) -> MilestoneResponse:
-    from app.schemas.milestones import MilestoneUpdateRequest as _MUR  # noqa: F401
-    from datetime import datetime, timezone
 
     milestone = db.scalar(
         select(Milestone)
@@ -159,7 +158,7 @@ def update_milestone(
         milestone.reason = data.reason.strip()
     if data.estimated_duration_days is not None:
         milestone.estimated_duration_days = data.estimated_duration_days
-    if data.target_date is not None:
+    if "target_date" in data.model_fields_set:
         milestone.target_date = data.target_date
     if data.position is not None:
         milestone.position = data.position
@@ -172,6 +171,15 @@ def update_milestone(
             "Paused",
         ):
             milestone.started_at = milestone.started_at or now
+            # TODO send notification that we have set the target_date
+            if (
+                prev_status == "Not Started"
+                and milestone.target_date is None
+                and (milestone.estimated_duration_days or 0) > 0
+            ):
+                milestone.target_date = (
+                    now.date() + timedelta(days=milestone.estimated_duration_days)
+                )
         elif data.status == "Paused":
             milestone.paused_at = now
         elif data.status == "Completed":

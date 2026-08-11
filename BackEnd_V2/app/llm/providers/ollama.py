@@ -1,6 +1,7 @@
 from time import perf_counter
 
 from openai import APIConnectionError, APIStatusError, AsyncOpenAI, OpenAIError
+from app.analysis.llm_usage_logger import log_ollama_completion_usage_async
 from app.llm.enums import LLMProvider, Role
 from app.llm.knowledge_base import (
     GOAL_REFINEMENT_SYSTEM_INSTRUCTION,
@@ -64,6 +65,13 @@ class OllamaProvider(BaseLLMProvider):
         except (APIConnectionError, APIStatusError, OpenAIError) as exc:
             raise LLMProviderError(f"Ollama refine_goal failed: {exc}") from exc
         response_time_ms = int((perf_counter() - started_at) * 1000)
+
+        log_ollama_completion_usage_async(
+            settings=self._settings,
+            model=model,
+            completion=completion,
+            latency_ms=response_time_ms,
+        )
 
         if not completion.choices:
             raise LLMRequestError("Ollama returned no choices for refine_goal.")

@@ -3,6 +3,7 @@ from time import perf_counter
 from google import genai
 from google.genai import types, errors
 
+from app.analysis.llm_usage_logger import log_gemini_completion_usage_async
 from app.llm.cost import calculate_token_cost
 from app.llm.base import BaseLLMProvider
 from app.llm.config import LLMSettings, llm_settings
@@ -56,6 +57,13 @@ class GeminiProvider(BaseLLMProvider):
             raise LLMProviderError(f"Gemini refine_goal failed: {exc}") from exc
         response_time_ms = int((perf_counter() - started_at) * 1000)
 
+        log_gemini_completion_usage_async(
+            settings=self._settings,
+            model=model,
+            response=response,
+            latency_ms=response_time_ms,
+        )
+
         if not response.candidates:
             raise LLMRequestError("Gemini returned no choices for refine_goal.")
 
@@ -85,8 +93,8 @@ class GeminiProvider(BaseLLMProvider):
             response_time_ms=response_time_ms,
             cost=calculate_token_cost(
                 model_key=model,
-                input_tokens=usage.input_tokens if usage.input_tokens else 0,
-                output_tokens=(usage.output_tokens if usage.output_tokens else 0),
+                input_tokens=usage.input_tokens if usage and usage.input_tokens else 0,
+                output_tokens=(usage.output_tokens if usage and usage.output_tokens else 0),
             ),
         )
 

@@ -3,6 +3,7 @@ from time import perf_counter
 from anthropic import APIConnectionError, APIError, APIStatusError, AsyncAnthropic
 from pydantic import ValidationError
 
+from app.analysis.llm_usage_logger import log_claude_completion_usage_async
 from app.llm.base import BaseLLMProvider
 from app.llm.config import LLMSettings, llm_settings
 from app.llm.cost import calculate_token_cost
@@ -86,6 +87,14 @@ class ClaudeProvider(BaseLLMProvider):
             raise LLMProviderError(f"Claude refine_goal failed: {exc}") from exc
 
         response_time_ms = int((perf_counter() - started_at) * 1000)
+
+        log_claude_completion_usage_async(
+            settings=self._settings,
+            model=model,
+            completion=completion,
+            latency_ms=response_time_ms,
+        )
+
         parsed = self._parse_response_payload(completion)
 
         usage = None

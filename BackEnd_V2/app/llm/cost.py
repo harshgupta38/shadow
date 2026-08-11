@@ -28,6 +28,9 @@ MODEL_COSTS: dict[ModelKey, ModelCost] = {
     OpenAIModel.GPT_4_1_MINI: ModelCost(0.035, 0.141),
     OpenAIModel.GPT_4_1_NANO: ModelCost(0.009, 0.035),
     OpenAIModel.O4_MINI: ModelCost(0.097, 0.387),
+    OpenAIModel.GPT_5_6_SOL: ModelCost(0.47, 2.82),
+    OpenAIModel.GPT_5_6_TERRA: ModelCost(0.19, 1.13),
+    OpenAIModel.GPT_5_6_LUNA: ModelCost(0.019, 0.113),
     # Gemini
     GeminiModel.GEMINI_3_6_FLASH: ModelCost(0.026, 0.21),
     GeminiModel.GEMINI_3_5_FLASH: ModelCost(0.026, 0.21),

@@ -81,18 +81,17 @@ class ClaudeProvider(BaseLLMProvider):
 
             completion = await self._client.messages.create(**kwargs)
 
-            print(completion)
-
         except (APIConnectionError, APIStatusError, APIError) as exc:
             raise LLMProviderError(f"Claude refine_goal failed: {exc}") from exc
 
         response_time_ms = int((perf_counter() - started_at) * 1000)
 
-        log_claude_completion_usage_async(
+        await log_claude_completion_usage_async(
             settings=self._settings,
             model=model,
             completion=completion,
             latency_ms=response_time_ms,
+            user_id=request.user_id,
         )
 
         parsed = self._parse_response_payload(completion)

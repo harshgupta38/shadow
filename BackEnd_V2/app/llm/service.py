@@ -42,9 +42,10 @@ class LLMService:
     async def refine_goal(
         self,
         request_data: UnderstandGoalRequest,
+        user_id: int | None = None,
     ) -> RefineGoalResponse:
         
-        request = RefineGoalRequest(request_data=request_data)
+        request = RefineGoalRequest(request_data=request_data, user_id=user_id)
         response = await self._provider.refine_goal(request)
 
         if response is None or response.refined_data is None:

@@ -38,6 +38,7 @@ class RefineGoalResponse(BaseModel):
 
 class RefineGoalRequest(BaseModel):
     request_data: UnderstandGoalRequest
+    user_id: int | None = None
     model: str | None = None
     temperature: float | None = Field(default=None, ge=0.0, le=2.0)
     max_tokens: int | None = Field(default=None, gt=0)

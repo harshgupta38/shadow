@@ -57,11 +57,12 @@ class GeminiProvider(BaseLLMProvider):
             raise LLMProviderError(f"Gemini refine_goal failed: {exc}") from exc
         response_time_ms = int((perf_counter() - started_at) * 1000)
 
-        log_gemini_completion_usage_async(
+        await log_gemini_completion_usage_async(
             settings=self._settings,
             model=model,
             response=response,
             latency_ms=response_time_ms,
+            user_id=request.user_id,
         )
 
         if not response.candidates:

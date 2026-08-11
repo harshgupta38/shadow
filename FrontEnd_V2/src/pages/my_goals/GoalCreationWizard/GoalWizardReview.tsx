@@ -23,7 +23,6 @@ const CATEGORY_OPTIONS: GoalCategory[] = [
 
 const MAX_TEXTAREA_LINES = 8;
 const MAX_LIST_TEXTAREA_LINES = 4;
-const MAX_LIST_ITEMS = 8;
 
 type ListFieldKey = "challenges" | "strengths" | "success_metrics" | "insights";
 type GoalReviewFieldKey = keyof UnderstandGoalResponse;
@@ -101,11 +100,6 @@ function validateGoalReviewData(goalData: UnderstandGoalResponse): Partial<Recor
 
         if (!Array.isArray(value) || value.length === 0) {
             errors[key] = `${label} must include at least one item.`;
-            continue;
-        }
-
-        if (value.length > MAX_LIST_ITEMS) {
-            errors[key] = `${label} cannot have more than 8 items.`;
             continue;
         }
 
@@ -200,10 +194,6 @@ export function GoalWizardReview({ goalData, saving, error, fieldErrors, hideBac
     }
 
     function addListFieldItem(key: ListFieldKey) {
-        if (editableGoal[key].length >= MAX_LIST_ITEMS) {
-            return;
-        }
-
         setEditableGoal((current) => ({
             ...current,
             [key]: [...current[key], ""],
@@ -424,16 +414,14 @@ export function GoalWizardReview({ goalData, saving, error, fieldErrors, hideBac
                                         </button>
                                     </div>
                                 ))}
-                                {activeListItems.length < MAX_LIST_ITEMS ? (
-                                    <button
-                                        type="button"
-                                        className="btn btn-soft goal-wizard-review-list-add"
-                                        onClick={() => addListFieldItem(activeListConfig.key)}
-                                        disabled={saving}
-                                    >
-                                        <Plus size={14} className="me-1" /> Add {activeListConfig.label}
-                                    </button>
-                                ) : null}
+                                <button
+                                    type="button"
+                                    className="btn btn-soft goal-wizard-review-list-add"
+                                    onClick={() => addListFieldItem(activeListConfig.key)}
+                                    disabled={saving}
+                                >
+                                    <Plus size={14} className="me-1" /> Add {activeListConfig.label}
+                                </button>
                             </div>
                         </div>
                     </div>

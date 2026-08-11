@@ -199,9 +199,6 @@ class UnderstandGoalResponse(BaseModel):
         if len(value) == 0:
             raise ValueError(f"{field_label} must include at least one item.")
 
-        if len(value) > 8:
-            raise ValueError(f"{field_label} cannot have more than 8 items.")
-
         has_non_empty_string = any(
             isinstance(item, str) and item.strip() for item in value
         )

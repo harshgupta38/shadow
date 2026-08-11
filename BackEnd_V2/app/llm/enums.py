@@ -64,6 +64,10 @@ class OpenAIModel(StrEnum):
 
     O4_MINI = "o4-mini"  # Cost: approx. INR 0.097 input / INR 0.387 output per 1K tokens
 
+    GPT_5_6_SOL = "gpt-5.6-sol"  # Cost: approx. INR 0.47 input / INR 2.82 output per 1K tokens
+    GPT_5_6_TERRA = "gpt-5.6-terra"  # Cost: approx. INR 0.19 input / INR 1.13 output per 1K tokens
+    GPT_5_6_LUNA = "gpt-5.6-luna"  # Cost: approx. INR 0.019 input / INR 0.113 output per 1K tokens
+
 
 class GeminiModel(StrEnum):
     # ===== Gemini 3.6 =====

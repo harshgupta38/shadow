@@ -35,7 +35,7 @@ class LLMUsageLogger:
                     timestamp=_utc_now(),
                     user_id=user_id,
                     provider=response.provider.value,
-                    model=str(response.model),
+                    model=response.model_str or str(response.model),
                     operation=operation,
                     request_id=response.response_id,
                     latency_ms=response.response_time_ms,

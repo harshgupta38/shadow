@@ -92,7 +92,8 @@ class OpenAIProvider(BaseLLMProvider):
 
         return RefineGoalResponse(
             provider=LLMProvider.OPENAI,
-            model=completion.model or model,
+            model=model,
+            model_str=completion.model or model,
             refined_data=parsed,
             finish_reason=first_choice.finish_reason,
             usage=usage,

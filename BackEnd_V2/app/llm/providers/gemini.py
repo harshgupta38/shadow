@@ -76,7 +76,8 @@ class GeminiProvider(BaseLLMProvider):
 
         return RefineGoalResponse(
             provider=LLMProvider.GEMINI,
-            model=response.model_version or model,
+            model=model,
+            model_str=response.model_version or model,
             refined_data=parsed,
             finish_reason=first_choice.finish_reason,
             usage=usage,

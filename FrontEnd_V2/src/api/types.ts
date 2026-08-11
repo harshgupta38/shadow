@@ -99,6 +99,7 @@ export interface TokenCostBreakdown {
 export interface RefineGoalResponse {
   provider: string;
   model: string;
+  model_str: string | null;
   refined_data: UnderstandGoalResponse;
   finish_reason: string;
   usage: TokenUsage | null;

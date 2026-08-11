@@ -27,6 +27,7 @@ class TokenUsage(BaseModel):
 class RefineGoalResponse(BaseModel):
     provider: LLMProvider
     model: ModelKey
+    model_str: str | None = None
     refined_data: UnderstandGoalResponse
     finish_reason: str
     usage: TokenUsage | None = None

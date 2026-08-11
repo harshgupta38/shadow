@@ -101,6 +101,7 @@ class ClaudeProvider(BaseLLMProvider):
         return RefineGoalResponse(
             provider=LLMProvider.CLAUDE,
             model=model,
+            model_str=completion.model or model,
             refined_data=parsed,
             finish_reason=completion.stop_reason or "unknown",
             usage=usage,

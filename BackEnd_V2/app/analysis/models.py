@@ -60,9 +60,12 @@ class LLMUsageRecord:
         if total_tokens is None:
             total_tokens = (self.input_tokens or 0) + (self.output_tokens or 0)
 
+        input_cost = self.input_cost if self.input_cost is not None else 0.0
+        output_cost = self.output_cost if self.output_cost is not None else 0.0
+
         total_cost = self.total_cost
         if total_cost is None:
-            total_cost = (self.input_cost or 0.0) + (self.output_cost or 0.0)
+            total_cost = input_cost + output_cost
 
         return [
             format_analytics_timestamp(self.timestamp),
@@ -75,8 +78,8 @@ class LLMUsageRecord:
             self.input_tokens if self.input_tokens is not None else "",
             self.output_tokens if self.output_tokens is not None else "",
             total_tokens,
-            self.input_cost if self.input_cost is not None else "",
-            self.output_cost if self.output_cost is not None else "",
+            input_cost,
+            output_cost,
             total_cost,
             self.status,
             _sanitize_text(self.error),

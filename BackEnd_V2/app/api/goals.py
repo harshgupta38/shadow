@@ -17,18 +17,19 @@ from app.services import goals_service
 router = APIRouter(prefix=ENDPOINTS.GOALS.PREFIX, tags=["Goals"])
 
 
-@router.post(ENDPOINTS.GOALS.REFINE, response_model=RefineGoalResponse)
-async def understand_goal(
-    data: UnderstandGoalRequest,
-    current_user: User = Depends(get_current_user),
-) -> RefineGoalResponse:
-    return await goals_service.understand_goal(data, current_user)
+@router.post(
+    ENDPOINTS.GOALS.REFINE,
+    response_model=RefineGoalResponse,
+    dependencies=[Depends(get_current_user)],
+)
+async def understand_goal(data: UnderstandGoalRequest) -> RefineGoalResponse:
+    return await goals_service.understand_goal(data)
 
 
 @router.post(ENDPOINTS.GOALS.SAVE, response_model=UnderstandGoalResponse)
 def save_goal(
     data: UnderstandGoalResponse,
-    db = Depends(get_db),
+    db=Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> UnderstandGoalResponse:
     return goals_service.save_goal(db, current_user, data)
@@ -37,7 +38,7 @@ def save_goal(
 @router.get(ENDPOINTS.GOALS.GET_LIST, response_model=list[GoalListItemResponse])
 def get_goal_list(
     status: GoalListStatusFilter = "All",
-    db = Depends(get_db),
+    db=Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[GoalListItemResponse]:
     return goals_service.get_goal_list(db, current_user, status)
@@ -46,7 +47,7 @@ def get_goal_list(
 @router.get(ENDPOINTS.GOALS.DETAIL, response_model=GoalDetailResponse)
 def get_goal_detail(
     goal_id: int,
-    db = Depends(get_db),
+    db=Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> GoalDetailResponse:
     return goals_service.get_goal_detail(db, current_user, goal_id)
@@ -55,7 +56,7 @@ def get_goal_detail(
 @router.delete(ENDPOINTS.GOALS.DETAIL, status_code=http_status.HTTP_204_NO_CONTENT)
 def delete_goal(
     goal_id: int,
-    db = Depends(get_db),
+    db=Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> None:
     goals_service.delete_goal(db, current_user, goal_id)
@@ -65,7 +66,7 @@ def delete_goal(
 def update_goal(
     goal_id: int,
     data: UnderstandGoalResponse,
-    db = Depends(get_db),
+    db=Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> GoalDetailResponse:
     return goals_service.update_goal(db, current_user, goal_id, data)

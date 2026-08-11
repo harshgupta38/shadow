@@ -119,7 +119,7 @@ def log_openai_completion_usage_async(
     model: str,
     completion: Any,
     latency_ms: int,
-    operation: str = "refine_goal_completion",
+    operation: str = "refine_goal",
     user_id: int | None = None,
 ) -> None:
     """Fire-and-forget usage logging immediately after OpenAI completion is received."""
@@ -160,7 +160,7 @@ def log_ollama_completion_usage_async(
     model: str,
     completion: Any,
     latency_ms: int,
-    operation: str = "refine_goal_completion",
+    operation: str = "refine_goal",
     user_id: int | None = None,
 ) -> None:
     """Fire-and-forget usage logging immediately after Ollama completion is received."""
@@ -201,7 +201,7 @@ def log_gemini_completion_usage_async(
     model: str,
     response: Any,
     latency_ms: int,
-    operation: str = "refine_goal_completion",
+    operation: str = "refine_goal",
     user_id: int | None = None,
 ) -> None:
     """Fire-and-forget usage logging immediately after Gemini response is received."""
@@ -254,7 +254,7 @@ def log_claude_completion_usage_async(
     model: str,
     completion: Any,
     latency_ms: int,
-    operation: str = "refine_goal_completion",
+    operation: str = "refine_goal",
     user_id: int | None = None,
 ) -> None:
     """Fire-and-forget usage logging immediately after Claude completion is received."""

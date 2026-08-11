@@ -19,11 +19,14 @@ from app.schemas.goals import (
 )
 
 
-async def understand_goal(data: UnderstandGoalRequest) -> RefineGoalResponse:
+async def understand_goal(
+    data: UnderstandGoalRequest,
+    current_user: User,
+) -> RefineGoalResponse:
     llm_service = get_llm_service()
 
     try:
-        return await llm_service.refine_goal(data)
+        return await llm_service.refine_goal(data, user_id=current_user.id)
     except LLMError as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,

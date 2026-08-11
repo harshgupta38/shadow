@@ -87,19 +87,6 @@ class LLMUsageLogger:
             "Failed to schedule LLM usage analytics logging.",
         )
 
-        self._schedule(
-            self._analysis_service.log_exception(
-                user_id=user_id,
-                module="llm",
-                operation=operation,
-                exc=error,
-                provider=provider_name,
-                model=model_name,
-                request_id=request_id,
-            ),
-            "Failed to schedule Errors analytics logging.",
-        )
-
     @staticmethod
     def missing_refined_goal_error() -> LLMConfigurationError:
         return LLMConfigurationError("LLM provider returned no refined data for the goal.")

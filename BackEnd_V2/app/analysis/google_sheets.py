@@ -4,7 +4,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 
 from app.analysis.config import AnalysisSettings, analysis_settings
-from app.analysis.models import APIUsageRecord, ErrorRecord, LLMUsageRecord
+from app.analysis.models import LLMUsageRecord
 
 _SCOPES = (
     "https://www.googleapis.com/auth/spreadsheets",
@@ -16,7 +16,7 @@ class GoogleSheetsAnalysisClient:
     def __init__(self, settings: AnalysisSettings | None = None) -> None:
         self._settings = settings or analysis_settings
         self._spreadsheet = None
-        self._worksheets: dict[str, object] = {}
+        self._llm_worksheet = None
 
     def _get_spreadsheet(self):
         if self._spreadsheet is not None:
@@ -36,40 +36,22 @@ class GoogleSheetsAnalysisClient:
         if spreadsheet_id:
             self._spreadsheet = client.open_by_key(spreadsheet_id)
         else:
-            spreadsheet_name = self._settings.google_analytics_spreadsheet_name.strip()
-            if not spreadsheet_name:
-                raise ValueError(
-                    "Configure GOOGLE_ANALYTICS_SPREADSHEET_ID or GOOGLE_ANALYTICS_SPREADSHEET_NAME."
-                )
-            self._spreadsheet = client.open(spreadsheet_name)
+            raise ValueError("GOOGLE_ANALYTICS_SPREADSHEET_ID is not configured.")
 
         return self._spreadsheet
 
-    def _get_worksheet(self, worksheet_name: str):
-        worksheet_key = worksheet_name.strip()
-        if not worksheet_key:
-            raise ValueError("Worksheet name is required.")
+    def _get_llm_worksheet(self):
+        if self._llm_worksheet is not None:
+            return self._llm_worksheet
 
-        worksheet = self._worksheets.get(worksheet_key)
-        if worksheet is not None:
-            return worksheet
+        worksheet_name = self._settings.google_analytics_llm_worksheet.strip()
+        if not worksheet_name:
+            raise ValueError("GOOGLE_ANALYTICS_LLM_WORKSHEET is not configured.")
 
         spreadsheet = self._get_spreadsheet()
-        worksheet = spreadsheet.worksheet(worksheet_key)
-        self._worksheets[worksheet_key] = worksheet
-        return worksheet
+        self._llm_worksheet = spreadsheet.worksheet(worksheet_name)
+        return self._llm_worksheet
 
     def append_llm_usage(self, record: LLMUsageRecord) -> None:
-        worksheet_name = self._settings.google_analytics_llm_worksheet.strip()
-        worksheet = self._get_worksheet(worksheet_name)
-        worksheet.append_row(record.to_sheet_row(), value_input_option="USER_ENTERED")
-
-    def append_api_usage(self, record: APIUsageRecord) -> None:
-        worksheet_name = self._settings.google_analytics_api_worksheet.strip()
-        worksheet = self._get_worksheet(worksheet_name)
-        worksheet.append_row(record.to_sheet_row(), value_input_option="USER_ENTERED")
-
-    def append_error(self, record: ErrorRecord) -> None:
-        worksheet_name = self._settings.google_analytics_errors_worksheet.strip()
-        worksheet = self._get_worksheet(worksheet_name)
+        worksheet = self._get_llm_worksheet()
         worksheet.append_row(record.to_sheet_row(), value_input_option="USER_ENTERED")

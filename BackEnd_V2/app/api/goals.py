@@ -18,8 +18,11 @@ router = APIRouter(prefix=ENDPOINTS.GOALS.PREFIX, tags=["Goals"])
 
 
 @router.post(ENDPOINTS.GOALS.REFINE, response_model=RefineGoalResponse)
-async def understand_goal(data: UnderstandGoalRequest) -> RefineGoalResponse:
-    return await goals_service.understand_goal(data)
+async def understand_goal(
+    data: UnderstandGoalRequest,
+    current_user: User = Depends(get_current_user),
+) -> RefineGoalResponse:
+    return await goals_service.understand_goal(data, current_user)
 
 
 @router.post(ENDPOINTS.GOALS.SAVE, response_model=UnderstandGoalResponse)

@@ -15,11 +15,12 @@ const TOKEN_STORAGE_KEY = "shadow.token";
 
 function createClient(): AxiosInstance {
     const baseURL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api";
+    const timeoutMs = Number(import.meta.env.VITE_API_TIMEOUT_SECONDS ?? 30) * 1000;
 
     const instance = axios.create({
         baseURL,
         headers: { "Content-Type": "application/json" },
-        timeout: 30000, // milliseconds
+        timeout: Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : 30_000,
     });
 
     instance.interceptors.request.use((config) => {

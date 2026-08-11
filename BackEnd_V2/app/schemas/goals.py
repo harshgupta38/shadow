@@ -221,7 +221,6 @@ class GoalListItemResponse(BaseModel):
     category: str
     status: GoalStatus
     target_date: str
-    progress_percent: int
     milestones_total: int
     milestones_completed: int
     habits_total: int
@@ -242,7 +241,6 @@ class GoalDetailResponse(BaseModel):
     target_date: str
     success_metrics: list[str]
     insights: list[str]
-    progress_percent: int
     milestones_total: int
     milestones_completed: int
     habits_total: int

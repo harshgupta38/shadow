@@ -121,6 +121,14 @@ export function MyGoalsPage() {
     return new Date(parsed).toLocaleDateString();
   }
 
+  function getMilestoneProgressPercent(milestonesCompleted: number, milestonesTotal: number): number {
+    if (milestonesTotal <= 0) {
+      return 0;
+    }
+
+    return Math.max(0, Math.min(100, Math.round((milestonesCompleted / milestonesTotal) * 100)));
+  }
+
   const showGoalCards = goals.length > 0;
   const showHeaderActions = !loadingGoals && showGoalCards;
 
@@ -141,23 +149,23 @@ export function MyGoalsPage() {
 
   const headerActions: PageHeaderAction[] = showHeaderActions
     ? [
-        {
-          key: "new-goal",
-          label: "New Goal",
-          icon: <PlusLg size={16} />,
-          desktopTone: "brand",
-          mobileTone: "none",
-          className: "goals-vision-cta",
-          onClick: () => setGoalWizardOpen(true),
-        },
-        {
-          key: "goal-coach",
-          label: "Ask Goal Coach",
-          icon: <Stars size={16} />,
-          tone: "soft",
-          className: "goals-vision-cta goals-vision-coach-btn",
-        },
-      ]
+      {
+        key: "new-goal",
+        label: "New Goal",
+        icon: <PlusLg size={16} />,
+        desktopTone: "brand",
+        mobileTone: "none",
+        className: "goals-vision-cta",
+        onClick: () => setGoalWizardOpen(true),
+      },
+      {
+        key: "goal-coach",
+        label: "Ask Goal Coach",
+        icon: <Stars size={16} />,
+        tone: "soft",
+        className: "goals-vision-cta goals-vision-coach-btn",
+      },
+    ]
     : [];
 
   return (
@@ -203,35 +211,46 @@ export function MyGoalsPage() {
             <div className="col-md-6 col-xl-4" key={`${goal.title}-${goal.target_date}-${index}`}>
               <Link to={ROUTES.MY_GOAL_DETAIL.replace(":goalId", String(goal.id))} className="goal-summary-card-link">
                 <article className="surface goal-summary-card h-100">
-                  <div className="goal-summary-card-head">
-                    <span className="goal-summary-category">{goal.category}</span>
-                    <span className={`goal-summary-status goal-summary-status-${goal.status.toLowerCase()}`}>{goal.status}</span>
-                  </div>
+                  {(() => {
+                    const milestoneProgressPercent = getMilestoneProgressPercent(
+                      goal.milestones_completed,
+                      goal.milestones_total,
+                    );
 
-                  <h3 className="goal-summary-title">{goal.title}</h3>
-                  <p className="goal-summary-text">{goal.summary}</p>
+                    return (
+                      <>
+                        <div className="goal-summary-card-head">
+                          <span className="goal-summary-category">{goal.category}</span>
+                          <span className={`goal-summary-status goal-summary-status-${goal.status.toLowerCase()}`}>{goal.status}</span>
+                        </div>
 
-                  <div className="goal-summary-progress-row">
-                    <span>Progress</span>
-                    <strong>{goal.progress_percent}%</strong>
-                  </div>
-                  <div className="progress goal-progress-track mb-3" style={{ height: 7 }}>
-                    <div className="progress-bar" style={{ width: `${goal.progress_percent}%` }} />
-                  </div>
+                        <h3 className="goal-summary-title">{goal.title}</h3>
+                        <p className="goal-summary-text">{goal.summary}</p>
 
-                  <div className="goal-summary-meta">
-                    <div className="goal-summary-meta-left">
-                      <span>
-                        <Diagram3 size={13} /> {goal.milestones_completed}/{goal.milestones_total}
-                      </span>
-                      <span>
-                        <Compass size={13} /> {goal.habits_active}/{goal.habits_total}
-                      </span>
-                    </div>
-                    <span className="goal-summary-meta-date">
-                      <CalendarCheck size={13} /> {formatGoalDate(goal.target_date)}
-                    </span>
-                  </div>
+                        <div className="goal-summary-progress-row">
+                          <span>Progress</span>
+                          <strong>{milestoneProgressPercent}%</strong>
+                        </div>
+                        <div className="progress goal-progress-track mb-3" style={{ height: 7 }}>
+                          <div className="progress-bar" style={{ width: `${milestoneProgressPercent}%` }} />
+                        </div>
+
+                        <div className="goal-summary-meta">
+                          <div className="goal-summary-meta-left">
+                            <span>
+                              <Diagram3 size={13} /> {goal.milestones_completed}/{goal.milestones_total}
+                            </span>
+                            <span>
+                              <Compass size={13} /> {goal.habits_active}/{goal.habits_total}
+                            </span>
+                          </div>
+                          <span className="goal-summary-meta-date">
+                            <CalendarCheck size={13} /> {formatGoalDate(goal.target_date)}
+                          </span>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </article>
               </Link>
             </div>

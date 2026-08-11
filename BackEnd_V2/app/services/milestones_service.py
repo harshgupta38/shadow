@@ -151,6 +151,13 @@ def update_milestone(
             "Milestone not found. Please check and try again."
         )
 
+    goal = db.scalar(
+        select(Goal).where(
+            Goal.id == milestone.goal_id,
+            Goal.user_id == current_user.id,
+        )
+    )
+
     if data.title is not None:
         milestone.title = data.title.strip()
     if data.description is not None:
@@ -167,6 +174,11 @@ def update_milestone(
     if data.status is not None:
         prev_status = milestone.status
         milestone.status = data.status
+        if goal is not None:
+            if prev_status != "Completed" and data.status == "Completed":
+                goal.milestones_completed = (goal.milestones_completed or 0) + 1
+            elif prev_status == "Completed" and data.status != "Completed":
+                goal.milestones_completed = max(0, (goal.milestones_completed or 1) - 1)
         now = datetime.now(timezone.utc)
         if data.status == "Cancelled":
             milestone.cancelled_at = now

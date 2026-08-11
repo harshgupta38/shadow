@@ -13,10 +13,6 @@ class Goal(Base):
             "status IN ('Active', 'Paused', 'Completed')",
             name="ck_goals_status",
         ),
-        CheckConstraint(
-            "progress_percent >= 0 AND progress_percent <= 100",
-            name="ck_goals_progress_percent",
-        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -50,17 +46,6 @@ class Goal(Base):
     target_date: Mapped[date] = mapped_column(Date, index=True, nullable=False)
     paused_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    progress_percent: Mapped[int] = mapped_column(
-        Integer,
-        nullable=False,
-        default=0,
-        server_default=text("0"),
-    )
-    progress_updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        nullable=False,
-        server_default=func.now(),
-    )
 
     milestones_total: Mapped[int] = mapped_column(
         Integer,

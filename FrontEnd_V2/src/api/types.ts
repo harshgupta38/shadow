@@ -117,7 +117,6 @@ export interface GoalListItemResponse {
   category: GoalCategory;
   status: GoalItemStatus;
   target_date: string;
-  progress_percent: number;
   milestones_total: number;
   milestones_completed: number;
   habits_total: number;
@@ -138,7 +137,6 @@ export interface GoalDetailResponse {
   target_date: string;
   success_metrics: string[];
   insights: string[];
-  progress_percent: number;
   milestones_total: number;
   milestones_completed: number;
   habits_total: number;

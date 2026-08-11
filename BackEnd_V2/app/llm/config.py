@@ -1,7 +1,7 @@
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from app.llm.enums import GeminiModel, LLMProvider, LLMModel, OpenAIModel
+from app.llm.enums import ClaudeModel, GeminiModel, LLMProvider, LLMModel, OpenAIModel
 
 
 class LLMSettings(BaseSettings):
@@ -54,7 +54,7 @@ Rules:
         default=600,
         alias="LLM_REQUEST_TIMEOUT_SECONDS",
         ge=1,
-        le=600,
+        le=3600,
     )
 
     model_config = SettingsConfigDict(
@@ -82,6 +82,16 @@ Rules:
     gemini_model: GeminiModel = Field(
         default=LLMModel.GEMINI.GEMINI_2_5_FLASH,
         alias="GEMINI_MODEL",
+    )
+
+    claude_api_key: str = Field(
+        default="",
+        alias="CLAUDE_API_KEY",
+    )
+
+    claude_model: ClaudeModel = Field(
+        default=LLMModel.CLAUDE.CLAUDE_SONNET_3_7,
+        alias="CLAUDE_MODEL",
     )
 
 

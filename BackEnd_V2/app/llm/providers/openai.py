@@ -68,8 +68,6 @@ class OpenAIProvider(BaseLLMProvider):
             raise LLMProviderError(f"OpenAI refine_goal failed: {exc}") from exc
         response_time_ms = int((perf_counter() - started_at) * 1000)
 
-        print(completion)
-
         if not completion.choices:
             raise LLMRequestError("OpenAI returned no choices for refine_goal.")
 

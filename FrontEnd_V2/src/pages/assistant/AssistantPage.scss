@@ -1,5 +1,131 @@
-.assistant-page {
-  .page-title {
-    margin: 0;
+/* Fills the viewport height below the topbar. Lets a child flex to fill. */
+.page-fill-height {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - var(--jv-topbar-h) - 4.5rem);
+  min-height: calc(100vh - var(--jv-topbar-h) - 4.5rem);
+  overflow: hidden;
+}
+
+@media (max-width: 991.98px) {
+  .page-fill-height {
+    height: calc(100vh - var(--jv-topbar-h) - 5.1rem);
+    min-height: calc(100vh - var(--jv-topbar-h) - 5.1rem);
   }
+}
+
+.chat-layout {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 1.15rem;
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+@media (max-width: 768px) {
+  .chat-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.chat-sessions-panel {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.chat-sessions {
+  overflow-y: auto;
+  padding: 0.5rem;
+}
+
+.chat-window {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.chat-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--jv-border);
+  flex-shrink: 0;
+}
+
+.chat-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.chat-composer {
+  border-top: 1px solid var(--jv-border);
+  padding: 0.9rem;
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+
+.chat-composer textarea {
+  resize: none;
+  overflow-y: hidden;
+}
+
+.suggestion-chip:hover {
+  background: var(--jv-surface-3) !important;
+}
+
+
+.assistant-picker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  overflow-y: auto;
+  padding: 2rem;
+}
+
+.assistant-picker-inner {
+  width: 100%;
+  max-width: 480px;
+}
+
+.assistant-agent-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--jv-border);
+  border-radius: var(--jv-radius);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--jv-transition), border-color var(--jv-transition),
+    box-shadow var(--jv-transition);
+}
+
+.assistant-agent-item:hover {
+  background: var(--jv-surface-2);
+  border-color: var(--jv-border-strong);
+  box-shadow: var(--jv-shadow);
+}
+
+.assistant-agent-avatar {
+  display: inline-grid;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border-radius: 14px;
+  color: #fff;
 }

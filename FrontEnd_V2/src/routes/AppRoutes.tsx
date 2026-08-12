@@ -23,7 +23,7 @@ import { GoalTaskWizardPage } from "@/pages/my_goals/GoalTaskWizard/GoalTaskWiza
 import { HabitLibraryPage } from "@/pages/habit_library/HabitLibraryPage";
 import { TrackProgressPage } from "@/pages/track_progress/TrackProgressPage";
 import { ReportsPage } from "@/pages/reports/ReportsPage";
-import { CoachPage } from "@/pages/coach/CoachPage";
+import { AssistantPage } from "@/pages/assistant/AssistantPage";
 import { ProfilePage } from "@/pages/profile/ProfilePage";
 import { SettingsPage } from "@/pages/settings/SettingsPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
@@ -52,7 +52,7 @@ export function AppRoutes() {
 					<Route path={ROUTES.HABIT_LIBRARY} element={<HabitLibraryPage />} />
 					<Route path={ROUTES.TRACK_PROGRESS} element={<TrackProgressPage />} />
 					<Route path={ROUTES.REPORTS} element={<ReportsPage />} />
-					<Route path={ROUTES.COACH} element={<CoachPage />} />
+					<Route path={ROUTES.ASSISTANT} element={<AssistantPage />} />
 					<Route path={ROUTES.PROFILE} element={<ProfilePage />} />
 					<Route path={ROUTES.SETTINGS} element={<SettingsPage />} />
 				</Route>

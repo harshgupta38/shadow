@@ -14,7 +14,7 @@ export const ROUTES = {
     HABIT_LIBRARY: "/habit-library",
     TRACK_PROGRESS: "/track-progress",
     REPORTS: "/reports",
-    COACH: "/coach",
+    ASSISTANT: "/assistant",
     PROFILE: "/profile",
     SETTINGS: "/settings",
 }

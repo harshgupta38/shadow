@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Modal } from "react-bootstrap";
 import { PlusLg, SendFill, Trash3 } from "react-bootstrap-icons";
 
+import boySitting from "@/assets/boy_sitting.png";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { ASSISTANT_AGENTS, type AssistantAgent } from "@/pages/assistant/AssistantPage.constants";
@@ -47,11 +48,56 @@ export function AssistantPage() {
         subtitle="Coaching that knows your goals, style and progress."
       />
 
-      <div
-        className="chat-layout"
-        style={hasSessions ? undefined : { gridTemplateColumns: "1fr" }}
-      >
-        {hasSessions && (
+      {!hasSessions && (
+        <div className="assistant-picker">
+          <div className="assistant-picker-inner">
+            <div className="assistant-list">
+              {ASSISTANT_AGENTS.map((agent, index) => {
+                const Icon = agent.icon;
+                const isLast = index === ASSISTANT_AGENTS.length - 1;
+                return (
+                  <div className="assistant-list-item-wrapper" key={agent.type}>
+                    <div className="assistant-list-track">
+                      <div className="assistant-list-dot">
+                        <div
+                          className="assistant-list-dot-fill"
+                          style={{
+                            background: `linear-gradient(135deg, ${agent.gradient[0]}, ${agent.gradient[1]})`,
+                          }}
+                        />
+                        <Icon size={16} />
+                      </div>
+                      {!isLast && <div className="assistant-list-connector" />}
+                    </div>
+                    <button
+                      type="button"
+                      className="assistant-list-item"
+                      onClick={() => openAgent(agent)}
+                    >
+                      <div className="assistant-list-content">
+                        <div className="assistant-list-label">{agent.label}</div>
+                        <span className="assistant-agent-cta-text">{agent.description}</span>
+                        <div className="assistant-agent-cta">
+                          <span className="assistant-agent-cta-link">Start chat &rarr;</span>
+                        </div>
+                      </div>
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          <img
+            src={boySitting}
+            alt=""
+            className="assistant-bg-illustration"
+            aria-hidden="true"
+          />
+        </div>
+      )}
+
+      {hasSessions && (
+        <div className="chat-layout">
           <div className="surface chat-sessions-panel d-flex flex-column">
             <div className="p-2 border-bottom" style={{ borderColor: "var(--jv-border)" }}>
               <button className="btn btn-soft w-100" onClick={() => setShowNewChatModal(true)}>
@@ -98,44 +144,9 @@ export function AssistantPage() {
               })}
             </div>
           </div>
-        )}
 
-        <div className="surface chat-window d-flex">
-          {!selectedSession ? (
-            <div className="assistant-picker">
-              <div className="assistant-picker-inner">
-                <h2 className="h5 fw-bold mb-4 text-center">Your coaching team</h2>
-                <div className="d-flex flex-column gap-2">
-                  {ASSISTANT_AGENTS.map((agent) => {
-                    const Icon = agent.icon;
-                    return (
-                      <button
-                        key={agent.type}
-                        type="button"
-                        className="assistant-agent-item"
-                        onClick={() => openAgent(agent)}
-                      >
-                        <span
-                          className="assistant-agent-avatar"
-                          style={{
-                            background: `linear-gradient(135deg, ${agent.gradient[0]}, ${agent.gradient[1]})`,
-                          }}
-                          aria-hidden="true"
-                        >
-                          <Icon size={20} />
-                        </span>
-                        <div className="min-w-0">
-                          <div className="fw-bold">{agent.label}</div>
-                          <div className="text-muted-2 small">{agent.description}</div>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          ) : (
-            SelectedIcon && selectedAgent && (
+          <div className="surface chat-window d-flex">
+            {SelectedIcon && selectedAgent && (
               <>
                 <div
                   className="d-flex align-items-center gap-2 p-3 border-bottom"
@@ -219,10 +230,10 @@ export function AssistantPage() {
                   </button>
                 </form>
               </>
-            )
-          )}
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* New chat modal — only reachable when sessions already exist */}
       <Modal show={showNewChatModal} onHide={() => setShowNewChatModal(false)} centered>

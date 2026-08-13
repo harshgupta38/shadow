@@ -96,6 +96,45 @@ export interface TokenCostBreakdown {
   total_cost: number;
 }
 
+export type ChatMessageRole = "system" | "user" | "assistant" | "tool";
+
+export interface ConversationCreateRequest {
+  title?: string | null;
+}
+
+export interface ConversationRead {
+  id: number;
+  title: string | null;
+  context_summary: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ChatSendRequest {
+  content: string;
+}
+
+export interface ChatMessageRead {
+  id: number;
+  conversation_id: number;
+  role: ChatMessageRole;
+  content: string;
+  created_at: string;
+}
+
+export interface ChatMessagePage {
+  items: ChatMessageRead[];
+  limit: number;
+  before_message_id: number | null;
+  has_more: boolean;
+}
+
+export interface ChatSendResponse {
+  conversation_id: number;
+  message: ChatMessageRead;
+  summary_updated: boolean;
+}
+
 export interface RefineGoalResponse {
   provider: string;
   model: string;

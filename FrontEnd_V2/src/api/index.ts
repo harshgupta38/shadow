@@ -9,6 +9,7 @@ export { tokenStore } from "@/api/client";
 
 import { authApi } from "@/api/auth";
 import { appearanceApi } from "@/api/appearance";
+import { chatApi } from "@/api/chat";
 import { goalsApi } from "@/api/goals";
 import { milestonesApi } from "@/api/milestones";
 import { tasksApi } from "@/api/tasks";
@@ -16,6 +17,7 @@ import { tasksApi } from "@/api/tasks";
 export const api = {
   auth: authApi,
   theme: appearanceApi,
+  chat: chatApi,
   goals: goalsApi,
   milestones: milestonesApi,
   tasks: tasksApi,

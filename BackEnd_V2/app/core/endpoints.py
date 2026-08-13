@@ -24,4 +24,11 @@ class Endpoints:
         GET_LIST = "/get-list"
         DETAIL = "/{task_id}"
 
+    class CHAT:
+        PREFIX = "/chat"
+        CONVERSATIONS = "/conversations" # to get list of sessions
+        CONVERSATION_DETAIL = "/conversations/{conversation_id}" # to get/delete session
+        MESSAGES = "/conversations/{conversation_id}/messages" # to talk to the assistant in a session
+        NEW_MESSAGE = "/conversations/messages" # to create a new session and talk to the assistant
+
 ENDPOINTS = Endpoints()

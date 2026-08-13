@@ -23,6 +23,13 @@ export const ENDPOINTS = {
         GET_LIST: "/get-list",
         DETAIL: (id: number) => `/${id}`,
     },
+    CHAT: {
+        PREFIX: "/chat",
+        CONVERSATIONS: "/conversations",
+        CONVERSATION_DETAIL: (id: number) => `/conversations/${id}`,
+        MESSAGES: (id: number) => `/conversations/${id}/messages`,
+        NEW_MESSAGE: "/conversations/messages",
+    },
     // DEMO: {
     //     DETAIL: (id: string) => `/demo/${id}`,
     // },

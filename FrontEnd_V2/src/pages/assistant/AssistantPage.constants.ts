@@ -1,3 +1,4 @@
+import { AssistantAgentType } from "@/api";
 import type { ComponentType } from "react";
 import {
   BarChartLineFill,
@@ -6,8 +7,6 @@ import {
   type IconProps,
   Robot,
 } from "react-bootstrap-icons";
-
-export type AssistantAgentType = "shadow" | "goal_coach" | "career_advisor" | "insights";
 
 export interface AssistantAgent {
   type: AssistantAgentType;
@@ -19,8 +18,8 @@ export interface AssistantAgent {
   suggestions: string[];
 }
 
-export const ASSISTANT_AGENTS: AssistantAgent[] = [
-  {
+export const ASSISTANT_AGENTS: Record<AssistantAgentType, AssistantAgent> = {
+  shadow: {
     type: "shadow",
     label: "Shadow",
     tagline: "General assistant",
@@ -33,7 +32,7 @@ export const ASSISTANT_AGENTS: AssistantAgent[] = [
       "What should I focus on right now?",
     ],
   },
-  {
+  goal_coach: {
     type: "goal_coach",
     label: "Goal Coach",
     tagline: "Turns goals into plans",
@@ -46,7 +45,7 @@ export const ASSISTANT_AGENTS: AssistantAgent[] = [
       "My goal feels overwhelming — where do I start?",
     ],
   },
-  {
+  career_advisor: {
     type: "career_advisor",
     label: "Career Advisor",
     tagline: "Guides your growth",
@@ -59,7 +58,7 @@ export const ASSISTANT_AGENTS: AssistantAgent[] = [
       "I'm unsure about my career direction",
     ],
   },
-  {
+  insights: {
     type: "insights",
     label: "Insights",
     tagline: "Reads your numbers",
@@ -72,4 +71,12 @@ export const ASSISTANT_AGENTS: AssistantAgent[] = [
       "Where should I focus next?",
     ],
   },
+};
+
+export const ASSISTANT_LOADER_STEPS = [
+  "Loading your conversations…",
+  "Gathering your chat history…",
+  "Checking your recent sessions…",
+  "Preparing your assistants…",
+  "Almost there…",
 ];

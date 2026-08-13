@@ -7,6 +7,42 @@
   overflow: hidden;
 }
 
+.page-loader {
+  display: flex;
+  flex-direction: column;
+  gap: 0.95rem;
+
+  &-message {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.62rem;
+    width: fit-content;
+    padding: 0.65rem 0.85rem;
+    border-radius: 10px;
+    background: var(--jv-surface-2);
+    border: 1px solid var(--jv-border);
+    color: var(--jv-text);
+    font-weight: 600;
+  }
+
+  &-track {
+    max-width: 700px;
+    display: flex;
+    gap: 0.38rem;
+  }
+
+  &-dot {
+    flex: 1 1 0;
+    height: 5px;
+    border-radius: 999px;
+    background: var(--jv-border-strong);
+
+    &.is-active {
+      background: var(--jv-brand-1);
+    }
+  }
+}
+
 @media (max-width: 991.98px) {
   .page-fill-height {
     height: calc(100vh - var(--jv-topbar-h) - 5.1rem);

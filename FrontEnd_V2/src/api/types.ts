@@ -271,3 +271,35 @@ export interface TaskResponse {
   cancelled_at: string | null;
 }
 
+export type AssistantAgentType = "shadow" | "goal_coach" | "career_advisor" | "insights";
+export type ChatRole = "user" | "assistant" | "system" | "tool";
+
+export interface ConversationData {
+  id: number;
+  title: string;
+  agent_type: AssistantAgentType;
+
+  created_at: string;
+  updated_at: string;
+
+  is_local?: boolean;
+}
+
+export interface MessageData {
+  id?: number;
+  conversation_id: number;
+  content: string;
+  role: ChatRole;
+  created_at: string;
+}
+
+export interface SendMessageRequest {
+  conversation_id: number;
+  content: string;
+  agent_type: AssistantAgentType;
+}
+
+export interface SendMessageResponse {
+  message_data: MessageData;
+  conversation_data?: ConversationData;
+}

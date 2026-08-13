@@ -8,7 +8,7 @@ from app.llm.knowledge_base import (
     build_goal_refinement_user_prompt,
 )
 from app.schemas.goals import UnderstandGoalResponse
-from app.llm.models import RefineGoalResponse, RefineGoalRequest, TokenUsage
+from app.llm.models import RefineGoalResponse, RefineGoalRequest, TokenUsage, ChatRequest, ChatResponse
 from app.llm.base import BaseLLMProvider
 from app.llm.config import LLMSettings, llm_settings
 from app.llm.exceptions import LLMHealthCheckError, LLMProviderError, LLMRequestError
@@ -30,13 +30,13 @@ class OllamaProvider(BaseLLMProvider):
             timeout=self._settings.llm_request_timeout_seconds,
         )
 
-    def _resolve_model(self, request: RefineGoalRequest) -> str:
+    def _resolve_model(self, request: RefineGoalRequest | ChatRequest) -> str:
         model = request.model or self._settings.ollama_model
 
         if not model:
             raise LLMRequestError("Ollama model is not configured.")
-        
-        return model
+
+        return str(model)
 
     async def refine_goal(self, request: RefineGoalRequest) -> RefineGoalResponse:
         model = self._resolve_model(request)
@@ -105,6 +105,54 @@ class OllamaProvider(BaseLLMProvider):
             usage=usage,
             response_id=completion.id,
             response_time_ms=response_time_ms,
+        )
+
+    async def chat(self, request: ChatRequest) -> ChatResponse:
+        model = self._resolve_model(request)
+
+        started_at = perf_counter()
+        try:
+            completion = await self._client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": Role.SYSTEM, "content": request.system_prompt},
+                    {"role": Role.USER, "content": request.prompt},
+                ],
+                temperature=request.temperature,
+                max_tokens=request.max_tokens,
+            )
+        except (APIConnectionError, APIStatusError, OpenAIError) as exc:
+            raise LLMProviderError(f"Ollama chat failed: {exc}") from exc
+        response_time_ms = int((perf_counter() - started_at) * 1000)
+
+        # TODO add logger
+
+        if not completion.choices:
+            raise LLMRequestError("Ollama returned no choices for chat.")
+
+        first_choice = completion.choices[0]
+        content = (first_choice.message.content or "").strip()
+        if not content:
+            raise LLMRequestError("Ollama returned no chat content.")
+
+        usage = None
+        if completion.usage is not None:
+            usage = TokenUsage(
+                input_tokens=completion.usage.prompt_tokens,
+                output_tokens=completion.usage.completion_tokens,
+                total_tokens=completion.usage.total_tokens,
+            )
+
+        return ChatResponse(
+            provider=LLMProvider.OLLAMA,
+            model=model,
+            model_str=completion.model or model,
+            content=content,
+            finish_reason=first_choice.finish_reason or "unknown",
+            usage=usage,
+            response_id=completion.id,
+            response_time_ms=response_time_ms,
+            operation=request.operation,
         )
 
     async def health_check(self) -> bool:

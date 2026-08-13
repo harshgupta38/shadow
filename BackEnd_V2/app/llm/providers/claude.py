@@ -7,13 +7,13 @@ from app.analysis.llm_usage_logger import log_claude_completion_usage_async
 from app.llm.base import BaseLLMProvider
 from app.llm.config import LLMSettings, llm_settings
 from app.llm.cost import calculate_token_cost
-from app.llm.enums import LLMProvider
+from app.llm.enums import LLMProvider, Role
 from app.llm.exceptions import LLMHealthCheckError, LLMProviderError, LLMRequestError
 from app.llm.knowledge_base import (
     GOAL_REFINEMENT_SYSTEM_INSTRUCTION_CLAUDE,
     build_goal_refinement_user_prompt,
 )
-from app.llm.models import RefineGoalRequest, RefineGoalResponse, TokenUsage
+from app.llm.models import ChatRequest, ChatResponse, RefineGoalRequest, RefineGoalResponse, TokenUsage
 from app.schemas.goals import UnderstandGoalResponse
 
 
@@ -25,26 +25,25 @@ class ClaudeProvider(BaseLLMProvider):
             timeout=self._settings.llm_request_timeout_seconds,
         )
 
-    def _resolve_model(self, request: RefineGoalRequest) -> str:
+    def _resolve_model(self, request: RefineGoalRequest | ChatRequest) -> str:
         model = request.model or self._settings.claude_model
         if not model:
             raise LLMRequestError("Claude model is not configured.")
-        return model
+        return str(model)
 
     def _extract_text_content(self, response) -> str:
         for block in response.content:
             block_text = getattr(block, "text", None)
             if isinstance(block_text, str) and block_text.strip():
                 return block_text.strip()
-
-        raise LLMRequestError("Claude returned no text content for refine_goal.")
+        raise LLMRequestError("Claude returned no text content.")
 
     @staticmethod
     def _strip_code_fence(text: str) -> str:
         text = text.strip()
         if text.startswith("```"):
             first_newline = text.find("\n")
-            text = text[first_newline + 1:] if first_newline != -1 else text[3:]
+            text = text[first_newline + 1 :] if first_newline != -1 else text[3:]
         if text.endswith("```"):
             last_newline = text.rfind("\n")
             text = text[:last_newline] if last_newline != -1 else text[:-3]
@@ -69,7 +68,7 @@ class ClaudeProvider(BaseLLMProvider):
                 "system": GOAL_REFINEMENT_SYSTEM_INSTRUCTION_CLAUDE,
                 "messages": [
                     {
-                        "role": "user",
+                        "role": Role.USER,
                         "content": build_goal_refinement_user_prompt(request.request_data),
                     }
                 ],
@@ -83,7 +82,6 @@ class ClaudeProvider(BaseLLMProvider):
 
         except (APIConnectionError, APIStatusError, APIError) as exc:
             raise LLMProviderError(f"Claude refine_goal failed: {exc}") from exc
-
         response_time_ms = int((perf_counter() - started_at) * 1000)
 
         await log_claude_completion_usage_async(
@@ -120,6 +118,53 @@ class ClaudeProvider(BaseLLMProvider):
                 input_tokens=usage.input_tokens if usage and usage.input_tokens else 0,
                 output_tokens=usage.output_tokens if usage and usage.output_tokens else 0,
             ),
+        )
+
+    async def chat(self, request: ChatRequest) -> ChatResponse:
+        model = self._resolve_model(request)
+
+        started_at = perf_counter()
+        try:
+            completion = await self._client.messages.create(
+                model=model,
+                system=request.system_prompt,
+                messages=[{"role": Role.USER, "content": request.prompt}],
+                max_tokens=request.max_tokens or 1024,
+                temperature=request.temperature,
+            )
+        except (APIConnectionError, APIStatusError, APIError) as exc:
+            raise LLMProviderError(f"Claude chat failed: {exc}") from exc
+        response_time_ms = int((perf_counter() - started_at) * 1000)
+
+        # TODO add logger
+
+        content = self._strip_code_fence(self._extract_text_content(completion))
+
+        usage = None
+        if completion.usage is not None:
+            input_tokens = completion.usage.input_tokens
+            output_tokens = completion.usage.output_tokens
+            usage = TokenUsage(
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                total_tokens=input_tokens + output_tokens,
+            )
+
+        return ChatResponse(
+            provider=LLMProvider.CLAUDE,
+            model=model,
+            model_str=completion.model or model,
+            content=content,
+            finish_reason=completion.stop_reason or "unknown",
+            usage=usage,
+            response_id=completion.id,
+            response_time_ms=response_time_ms,
+            cost=calculate_token_cost(
+                model_key=model,
+                input_tokens=usage.input_tokens if usage and usage.input_tokens else 0,
+                output_tokens=usage.output_tokens if usage and usage.output_tokens else 0,
+            ),
+            operation=request.operation,
         )
 
     async def health_check(self) -> bool:

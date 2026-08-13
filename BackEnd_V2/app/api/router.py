@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.api import (
+    chat,
     auth,
     goals,
     milestones,
@@ -10,6 +11,7 @@ from app.api import (
 api_router = APIRouter()
 
 for _module in (
+    chat,
     auth,
     goals,
     milestones,

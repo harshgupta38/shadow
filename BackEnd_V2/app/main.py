@@ -8,14 +8,11 @@ from fastapi.exceptions import RequestValidationError
 from app.api.router import api_router
 from app.core.config import settings
 from app.db.session import engine
-from app.models.base import Base
+from app.models import Base
 from app.core.exceptions import AppError
 
 # These will be moved soon, these create the table (if not present) when server start
-from app.models.user import User
-from app.models.goal import Goal
-from app.models.milestone import Milestone
-from app.models.task import Task
+from app.models import Conversation, Goal, Message, Milestone, Task, User
 
 
 @asynccontextmanager

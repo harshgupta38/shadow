@@ -1,11 +1,21 @@
 from functools import lru_cache
-from app.llm.models import RefineGoalRequest, RefineGoalResponse
+from app.llm.models import (
+    RefineGoalRequest,
+    RefineGoalResponse,
+    ChatRequest,
+    ChatResponse,
+)
 from app.llm.base import BaseLLMProvider
 from app.llm.config import LLMSettings, llm_settings
 from app.llm.enums import LLMProvider
-from app.llm.exceptions import LLMConfigurationError
+from app.llm.exceptions import LLMConfigurationError, LLMRequestError
 from app.schemas.goals import UnderstandGoalRequest
-from app.llm.providers import ClaudeProvider, GeminiProvider, OllamaProvider, OpenAIProvider
+from app.llm.providers import (
+    ClaudeProvider,
+    GeminiProvider,
+    OllamaProvider,
+    OpenAIProvider,
+)
 
 
 class LLMService:
@@ -44,7 +54,7 @@ class LLMService:
         request_data: UnderstandGoalRequest,
         user_id: int | None = None,
     ) -> RefineGoalResponse:
-        
+
         request = RefineGoalRequest(request_data=request_data, user_id=user_id)
         response = await self._provider.refine_goal(request)
 
@@ -52,6 +62,15 @@ class LLMService:
             raise LLMConfigurationError(
                 "LLM provider returned no refined data for the goal."
             )
+
+        return response
+
+    async def chat(self, request: ChatRequest) -> ChatResponse:
+
+        response = await self._provider.chat(request)
+
+        if response is None or response.content is None or not response.content.strip():
+            raise LLMRequestError("LLM provider returned no chat content.")
 
         return response
 

@@ -24,4 +24,11 @@ class Endpoints:
         GET_LIST = "/get-list"
         DETAIL = "/{task_id}"
 
+    class CHAT:
+        PREFIX = "/chat"
+        CONVERSATIONS = "/conversations"
+        CONVERSATION_DETAIL = "/conversations/{conversation_id}"
+        MESSAGES = "/conversations/{conversation_id}/messages"
+
+
 ENDPOINTS = Endpoints()

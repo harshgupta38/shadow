@@ -54,7 +54,7 @@ export function AssistantPage() {
   useEffect(() => {
     if (chatScrollRef.current)
       chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
-  }, [messages.length]);
+  }, [messages.length, isProcessingMessage]);
 
   function openAgent(agent: AssistantAgent) {
     const existing = conversations.find(s => s.is_local && s.agent_type === agent.type);
@@ -350,6 +350,17 @@ export function AssistantPage() {
                           </div>
                         </div>
                       ))}
+                      {isProcessingMessage && (
+                        <div className="d-flex justify-content-start" aria-live="polite" aria-label="Assistant is typing">
+                          <div className="d-flex flex-column gap-1 align-items-start" style={{ maxWidth: "75%" }}>
+                            <div className="px-3 py-2 rounded-3 small surface-2 assistant-typing-indicator">
+                              <span className="assistant-typing-dot" />
+                              <span className="assistant-typing-dot" />
+                              <span className="assistant-typing-dot" />
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

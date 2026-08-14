@@ -45,3 +45,12 @@ def get_message_chunk(
     current_user: User = Depends(get_current_user),
 ) -> MessageChunk:
     return chat_service.get_message_chunk(db, current_user, conversation_id, limit, before_message_id)
+
+
+@router.delete(ENDPOINTS.CHAT.CONVERSATION_DETAIL, status_code=status.HTTP_204_NO_CONTENT)
+def delete_conversation(
+    conversation_id: int,
+    db=Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> None:
+    chat_service.delete_conversation(db, current_user, conversation_id)

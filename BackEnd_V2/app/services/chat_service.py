@@ -1,9 +1,8 @@
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import NotFoundError
 from app.llm import get_llm_service, LLMSendMessageResponse, LLMError, LLMRequestError
-from app.common import to_ist
 from app.models.user import User
 from app.models.chat import Conversation, Message
 from app.schemas.chat import (
@@ -80,7 +79,7 @@ async def create_conversation(
         conversation_id=conversation.id,
         content=assistant_message.content,
         role=MessageRoleEnum.ASSISTANT,
-        created_at=to_ist(assistant_message.created_at),
+        created_at=assistant_message.created_at,
     )
 
     conversation_data = ConversationData(
@@ -93,8 +92,8 @@ async def create_conversation(
         context_summary=conversation.context_summary,
         linked_items=conversation.linked_items,
 
-        created_at=to_ist(conversation.created_at),
-        updated_at=to_ist(conversation.updated_at),
+        created_at=conversation.created_at,
+        updated_at=conversation.updated_at,
     )
 
     return LLMSendMessageResponse(
@@ -139,3 +138,14 @@ def get_message_chunk(
         message_list=[_serialize_message(message) for message in message_list],
         has_more=has_more,
     )
+
+
+def delete_conversation(db: Session, current_user: User, conversation_id: int) -> None:
+    conversation = db.get(Conversation, conversation_id)
+
+    if not conversation or conversation.user_id != current_user.id:
+        raise NotFoundError("Conversation not found or access denied.")
+
+    db.execute(delete(Message).where(Message.conversation_id == conversation_id))
+    db.delete(conversation)
+    db.commit()

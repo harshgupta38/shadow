@@ -4,13 +4,15 @@ from app.llm.models import (
     RefineGoalFromLLM,
     NewConvoToLLM,
     NewConvoFromLLM,
+    MessageToLLM,
+    MessageFromLLM,
 )
 from app.llm.base import BaseLLMProvider
 from app.llm.config import LLMSettings, llm_settings
 from app.llm.enums import LLMProvider
 from app.llm.exceptions import LLMConfigurationError
 from app.schemas.goals import RefineGoalRequest
-from app.schemas.chat import NewConvoRequest
+from app.schemas.chat import ConvoDataResponse, MessageRequest, NewConvoRequest
 from app.llm.providers import (
     ClaudeProvider,
     GeminiProvider,
@@ -78,9 +80,26 @@ class LLMService:
         response = await self._provider.create_conversation(request)
 
         if response is None or response.llm_data is None:
-            raise LLMConfigurationError(
-                "LLM provider returned no conversation data."
-            )
+            raise LLMConfigurationError("LLM provider returned no conversation data.")
+
+        return response
+
+    async def respond_to_message(
+        self,
+        data: MessageRequest,
+        conversation: ConvoDataResponse,
+        user_id: int | None = None,
+    ) -> MessageFromLLM:
+        request = MessageToLLM(
+            request_data=data.content,
+            user_id=user_id,
+            stable_context=conversation.stable_context,
+            context_summary=conversation.context_summary,
+        )
+        response = await self._provider.respond_to_message(request)
+        
+        if response is None or response.llm_data is None:
+            raise LLMConfigurationError("LLM provider returned no message data.")
 
         return response
 

@@ -26,6 +26,8 @@ from app.llm.models import (
     NewConvoToLLM,
     NewConvoFromLLM,
     NewConvoResponse,
+    MessageFromLLM,
+    MessageResponse,
 )
 from app.llm.service import LLMService, get_llm_service
 from app.llm.cost import calculate_token_cost
@@ -59,6 +61,8 @@ __all__ = [
     "NewConvoToLLM",
     "NewConvoFromLLM",
     "NewConvoResponse",
+    "MessageFromLLM",
+    "MessageResponse",
 
     "LLMService",
     "get_llm_service",

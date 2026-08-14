@@ -5,6 +5,8 @@ from app.llm.models import (
     RefineGoalFromLLM,
     NewConvoToLLM,
     NewConvoFromLLM,
+    MessageToLLM,
+    MessageFromLLM,
 )
 
 
@@ -15,6 +17,10 @@ class BaseLLMProvider(ABC):
 
     @abstractmethod
     async def create_conversation(self, request: NewConvoToLLM) -> NewConvoFromLLM:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def respond_to_message(self, request: MessageToLLM) -> MessageFromLLM:
         raise NotImplementedError
 
     @abstractmethod

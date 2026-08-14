@@ -9,8 +9,9 @@ from app.schemas.chat import (
     ConvoDataShortResponse,
     MessageChunkResponse,
     NewConvoRequest,
+    MessageRequest,
 )
-from app.llm import NewConvoResponse
+from app.llm import NewConvoResponse, MessageResponse
 
 router = APIRouter(prefix=ENDPOINTS.CHAT.PREFIX, tags=["Chat"])
 
@@ -54,3 +55,13 @@ def delete_conversation(
     current_user: UserDBM = Depends(get_current_user),
 ) -> None:
     chat_service.delete_conversation(db, current_user, conversation_id)
+
+
+@router.post(ENDPOINTS.CHAT.MESSAGES, response_model=MessageResponse)
+async def respond_to_message(
+    conversation_id: int,
+    data: MessageRequest,
+    db=Depends(get_db),
+    current_user: UserDBM = Depends(get_current_user),
+) -> MessageResponse:
+    return await chat_service.respond_to_message(db, current_user, conversation_id, data)

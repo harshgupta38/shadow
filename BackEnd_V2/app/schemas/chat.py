@@ -91,3 +91,24 @@ class NewConvoFromLLMSchema(BaseModel):
 
     stable_context: str
     context_summary: str
+
+
+class MessageRequest(BaseModel):
+    content: str = Field(min_length=1)
+
+    @field_validator("content", mode="before")
+    @classmethod
+    def validate_content(cls, value: str) -> str:
+        if isinstance(value, str):
+            stripped = value.strip()
+            if not stripped:
+                raise ValueError("Message is required.")
+            return stripped
+        return value
+
+
+class MessageFromLLMSchema(BaseModel):
+    content: str
+    stable_context: str
+    context_summary: str
+    context_action: Literal["none", "append", "replace"] = "none"

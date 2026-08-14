@@ -5,6 +5,7 @@ import ReactMarkdown from "react-markdown";
 
 import boySitting from "@/assets/boy_sitting.png";
 import { api } from "@/api";
+import { ApiError } from "@/api/client";
 import type { ConvoDataShortResponse, MessageDataResponse } from "@/api/types";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
@@ -146,8 +147,8 @@ export function AssistantPage() {
         setActiveConversation(activeItemCopy);
 
         setMessages(prev => [...prev, response.message_data]);
-      } catch {
-        toast.error("Failed to send message. Please try again.");
+      } catch (error) {
+        toast.error(error instanceof ApiError ? error.message : "Failed to send message. Please try again.");
       } finally {
         setIsProcessingMessage(false);
       }
@@ -161,8 +162,8 @@ export function AssistantPage() {
         });
 
         setMessages(prev => [...prev, response.message_data]);
-      } catch {
-        toast.error("Failed to send message. Please try again.");
+      } catch (error) {
+        toast.error(error instanceof ApiError ? error.message : "Failed to send message. Please try again.");
       } finally {
         setIsProcessingMessage(false);
       }

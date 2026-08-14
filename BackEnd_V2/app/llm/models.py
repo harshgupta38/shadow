@@ -6,6 +6,7 @@ from app.schemas.goals import RefineGoalRequest, RefineGoalFromLLMSchema
 from app.schemas.chat import (
     MessageDataResponse,
     ConvoDataResponse,
+    MessageFromLLMSchema,
     NewConvoRequest,
     NewConvoFromLLMSchema,
 )
@@ -57,7 +58,7 @@ class RefineGoalFromLLM(MetadataFromLLM):
     refined_data: RefineGoalFromLLMSchema
 
 
-# --- CHAT ---
+# --- CHAT - Start Conversation ---
 class NewConvoToLLM(MetadataToLLM):
     request_data: NewConvoRequest
 
@@ -69,3 +70,18 @@ class NewConvoFromLLM(MetadataFromLLM):
 class NewConvoResponse(MetadataFromLLM):
     message_data: MessageDataResponse
     conversation_data: ConvoDataResponse | None = None
+
+
+# --- CHAT - Respond to Message ---
+class MessageToLLM(MetadataToLLM):
+    request_data: str
+    stable_context: str | None = None
+    context_summary: str | None = None
+
+
+class MessageFromLLM(MetadataFromLLM):
+    llm_data: MessageFromLLMSchema
+
+
+class MessageResponse(MetadataFromLLM):
+    message_data: MessageDataResponse

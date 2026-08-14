@@ -8,12 +8,19 @@ from app.llm.base import BaseLLMProvider
 from app.llm.config import LLMSettings, llm_settings
 from app.llm.cost import calculate_token_cost
 from app.llm.enums import LLMProvider
-from app.llm.exceptions import LLMHealthCheckError, LLMProviderError, LLMRequestError
+from app.llm.exceptions import (
+    LLMConfigurationError,
+    LLMHealthCheckError,
+    LLMProviderError,
+    LLMRequestError,
+)
 from app.llm.knowledge_base import (
     GOAL_REFINEMENT_SYSTEM_INSTRUCTION_CLAUDE,
     build_goal_refinement_user_prompt,
 )
 from app.llm.models import (
+    MessageToLLM,
+    MessageFromLLM,
     RefineGoalToLLM,
     RefineGoalFromLLM,
     NewConvoToLLM,
@@ -50,7 +57,7 @@ class ClaudeProvider(BaseLLMProvider):
         text = text.strip()
         if text.startswith("```"):
             first_newline = text.find("\n")
-            text = text[first_newline + 1:] if first_newline != -1 else text[3:]
+            text = text[first_newline + 1 :] if first_newline != -1 else text[3:]
         if text.endswith("```"):
             last_newline = text.rfind("\n")
             text = text[:last_newline] if last_newline != -1 else text[:-3]
@@ -76,7 +83,9 @@ class ClaudeProvider(BaseLLMProvider):
                 "messages": [
                     {
                         "role": "user",
-                        "content": build_goal_refinement_user_prompt(request.request_data),
+                        "content": build_goal_refinement_user_prompt(
+                            request.request_data
+                        ),
                     }
                 ],
                 "max_tokens": request.max_tokens or 2048,
@@ -124,15 +133,20 @@ class ClaudeProvider(BaseLLMProvider):
             cost=calculate_token_cost(
                 model_key=model,
                 input_tokens=usage.input_tokens if usage and usage.input_tokens else 0,
-                output_tokens=usage.output_tokens if usage and usage.output_tokens else 0,
+                output_tokens=(
+                    usage.output_tokens if usage and usage.output_tokens else 0
+                ),
             ),
         )
 
-    async def create_conversation(
-        self, request: NewConvoToLLM
-    ) -> NewConvoFromLLM:
-        raise NotImplementedError(
+    async def create_conversation(self, request: NewConvoToLLM) -> NewConvoFromLLM:
+        raise LLMConfigurationError(
             "ClaudeProvider does not support create_conversation yet."
+        )
+
+    async def respond_to_message(self, request: MessageToLLM) -> MessageFromLLM:
+        raise LLMConfigurationError(
+            "ClaudeProvider does not support respond_to_message yet."
         )
 
     async def health_check(self) -> bool:

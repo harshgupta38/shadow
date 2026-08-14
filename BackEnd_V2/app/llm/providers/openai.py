@@ -6,12 +6,19 @@ from app.llm.cost import calculate_token_cost
 from app.llm.base import BaseLLMProvider
 from app.llm.config import LLMSettings, llm_settings
 from app.llm.enums import LLMProvider, Role
-from app.llm.exceptions import LLMHealthCheckError, LLMProviderError, LLMRequestError
+from app.llm.exceptions import (
+    LLMConfigurationError,
+    LLMHealthCheckError,
+    LLMProviderError,
+    LLMRequestError,
+)
 from app.llm.knowledge_base import (
     GOAL_REFINEMENT_SYSTEM_INSTRUCTION,
     build_goal_refinement_user_prompt,
 )
 from app.llm.models import (
+    MessageFromLLM,
+    MessageToLLM,
     RefineGoalToLLM,
     RefineGoalFromLLM,
     NewConvoToLLM,
@@ -123,11 +130,14 @@ class OpenAIProvider(BaseLLMProvider):
             ),
         )
 
-    async def create_conversation(
-        self, request: NewConvoToLLM
-    ) -> NewConvoFromLLM:
-        raise NotImplementedError(
+    async def create_conversation(self, request: NewConvoToLLM) -> NewConvoFromLLM:
+        raise LLMConfigurationError(
             "OpenAIProvider does not support create_conversation yet."
+        )
+
+    async def respond_to_message(self, request: MessageToLLM) -> MessageFromLLM:
+        raise LLMConfigurationError(
+            "OpenAIProvider does not support respond_to_message yet."
         )
 
     async def health_check(self) -> bool:

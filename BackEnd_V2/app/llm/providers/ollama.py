@@ -11,6 +11,8 @@ from app.llm.knowledge_base import (
 )
 from app.schemas.goals import RefineGoalFromLLMSchema
 from app.llm.models import (
+    MessageToLLM,
+    MessageFromLLM,
     TokenUsage,
     RefineGoalToLLM,
     RefineGoalFromLLM,
@@ -19,7 +21,12 @@ from app.llm.models import (
 )
 from app.llm.base import BaseLLMProvider
 from app.llm.config import LLMSettings, llm_settings
-from app.llm.exceptions import LLMHealthCheckError, LLMProviderError, LLMRequestError
+from app.llm.exceptions import (
+    LLMConfigurationError,
+    LLMHealthCheckError,
+    LLMProviderError,
+    LLMRequestError,
+)
 
 
 class OllamaProvider(BaseLLMProvider):
@@ -106,7 +113,6 @@ class OllamaProvider(BaseLLMProvider):
 
         return RefineGoalFromLLM(
             refined_data=parsed,
-
             provider=LLMProvider.OLLAMA,
             model=model,
             model_str=completion.model or model,
@@ -116,9 +122,7 @@ class OllamaProvider(BaseLLMProvider):
             response_time_ms=response_time_ms,
         )
 
-    async def create_conversation(
-        self, request: NewConvoToLLM
-    ) -> NewConvoFromLLM:
+    async def create_conversation(self, request: NewConvoToLLM) -> NewConvoFromLLM:
         model = self._resolve_model(request)
 
         request_data = request.request_data
@@ -187,6 +191,11 @@ class OllamaProvider(BaseLLMProvider):
             usage=usage,
             response_id=completion.id,
             response_time_ms=response_time_ms,
+        )
+
+    async def respond_to_message(self, request: MessageToLLM) -> MessageFromLLM:
+        raise LLMConfigurationError(
+            "OllamaProvider does not support respond_to_message yet."
         )
 
     async def health_check(self) -> bool:

@@ -4,7 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 
-import { api, type GoalDetailResponse } from "@/api";
+import { api, MilestoneDataResponse, type GoalDataResponse } from "@/api";
 import { ApiError } from "@/api/client";
 import LOADING_IMAGE from "@/assets/loading_default.png";
 import { StepImageVisual } from "@/components/ui/StepImageVisual/StepImageVisual";
@@ -97,7 +97,7 @@ export function GoalMilestoneWizardPage() {
 	const { goalId, milestoneId } = useParams();
 	const navigate = useNavigate();
 	const toast = useToast();
-	const [goal, setGoal] = useState<GoalDetailResponse | null>(null);
+	const [goal, setGoal] = useState<GoalDataResponse | null>(null);
 	const [loadingGoal, setLoadingGoal] = useState(true);
 	const [loaderIndex, setLoaderIndex] = useState(0);
 	const [currentStepIndex, setCurrentStepIndex] = useState(0);
@@ -125,7 +125,7 @@ export function GoalMilestoneWizardPage() {
 
 		setLoadingGoal(true);
 
-		const requests: [Promise<GoalDetailResponse>, Promise<unknown>] = [
+		const requests: [Promise<GoalDataResponse>, Promise<unknown>] = [
 			api.goals.getDetail(numericGoalId),
 			// fetch existing milestone data in update mode to pre-populate the form
 			isUpdateMode ? api.milestones.getDetail(numericMilestoneId) : Promise.resolve(null),
@@ -140,7 +140,7 @@ export function GoalMilestoneWizardPage() {
 				}
 				setGoal(goalResponse);
 				if (milestoneResponse) {
-					const m = milestoneResponse as import("@/api").MilestoneResponse;
+					const m = milestoneResponse as MilestoneDataResponse;
 					setAnswers({
 						title: m.title ?? "",
 						description: m.description ?? "",

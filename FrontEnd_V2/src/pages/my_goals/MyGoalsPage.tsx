@@ -13,7 +13,7 @@ import {
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
-import { api, type GoalListItemResponse } from "@/api";
+import { api, type GoalDataShortResponse } from "@/api";
 import { ApiError } from "@/api/client";
 import { IllustratedErrorState } from "@/components/ui/IllustratedErrorState/IllustratedErrorState";
 
@@ -84,7 +84,7 @@ export function MyGoalsPage() {
   const toast = useToast();
   const [activeFilter, setActiveFilter] = useState<GoalFilterLabel>("Active");
   const [goalWizardOpen, setGoalWizardOpen] = useState(false);
-  const [goals, setGoals] = useState<GoalListItemResponse[]>([]);
+  const [goals, setGoals] = useState<GoalDataShortResponse[]>([]);
   const [loadingGoals, setLoadingGoals] = useState(false);
   const [goalsError, setGoalsError] = useState<string | null>(null);
   const currentContent = FILTER_CONTENT[activeFilter];

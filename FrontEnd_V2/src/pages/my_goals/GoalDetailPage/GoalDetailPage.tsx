@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, CalendarCheck, ChevronDown, ChevronUp, PencilSquare, Trash3 } from "react-bootstrap-icons";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
-import { api, type GoalDetailResponse } from "@/api";
+import { api, type GoalDataResponse } from "@/api";
 import { ApiError } from "@/api/client";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { IllustratedErrorState } from "@/components/ui/IllustratedErrorState/IllustratedErrorState";
@@ -63,7 +63,7 @@ function getMilestoneProgressPercent(milestonesCompleted: number, milestonesTota
 export function GoalDetailPage() {
   const { goalId } = useParams();
   const navigate = useNavigate();
-  const [goal, setGoal] = useState<GoalDetailResponse | null>(null);
+  const [goal, setGoal] = useState<GoalDataResponse | null>(null);
   const [loadingGoal, setLoadingGoal] = useState(false);
   const [goalError, setGoalError] = useState<string | null>(null);
   const [isDetailsExpanded, setIsDetailsExpanded] = useState(false);

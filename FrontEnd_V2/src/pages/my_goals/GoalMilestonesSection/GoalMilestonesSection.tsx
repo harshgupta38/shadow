@@ -3,7 +3,7 @@ import { Dropdown } from "react-bootstrap";
 import { CheckLg, ExclamationTriangle, PencilSquare, PlusLg, Stars, ThreeDotsVertical, Trash3, ArrowsAngleContract, ArrowsAngleExpand, CalendarEvent, ListTask } from "react-bootstrap-icons";
 import { Link, useNavigate } from "react-router-dom";
 
-import { api, type MilestoneResponse, type MilestoneStatus } from "@/api";
+import { api, type MilestoneDataResponse, type MilestoneStatus } from "@/api";
 import { ApiError } from "@/api/client";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { TargetDatePromptDialog } from "@/components/ui/TargetDatePromptDialog/TargetDatePromptDialog";
@@ -37,7 +37,7 @@ interface GoalMilestonesSectionProps {
 export function GoalMilestonesSection({ goalId }: GoalMilestonesSectionProps) {
     const navigate = useNavigate();
     const toast = useToast();
-    const [milestones, setMilestones] = useState<MilestoneResponse[]>([]);
+    const [milestones, setMilestones] = useState<MilestoneDataResponse[]>([]);
     const [loading, setLoading] = useState(false);
     const [loadError, setLoadError] = useState<string | null>(null);
     const [busyId, setBusyId] = useState<number | null>(null);
@@ -72,7 +72,7 @@ export function GoalMilestonesSection({ goalId }: GoalMilestonesSectionProps) {
         void loadMilestones();
     }, [loadMilestones]);
 
-    async function setStatus(milestone: MilestoneResponse, status: MilestoneStatus): Promise<boolean> {
+    async function setStatus(milestone: MilestoneDataResponse, status: MilestoneStatus): Promise<boolean> {
         if (milestone.status === status) return false;
         setBusyId(milestone.id);
 
@@ -94,7 +94,7 @@ export function GoalMilestonesSection({ goalId }: GoalMilestonesSectionProps) {
         }
     }
 
-    async function requestStatusChange(milestone: MilestoneResponse, status: MilestoneStatus) {
+    async function requestStatusChange(milestone: MilestoneDataResponse, status: MilestoneStatus) {
         if (milestone.status === status) return;
 
         const shouldPromptForTargetDate = (

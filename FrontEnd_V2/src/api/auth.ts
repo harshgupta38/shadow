@@ -1,6 +1,6 @@
 import { ENDPOINTS } from "@/constant/shadow-endpoints";
 import { http, tokenStore } from "@/api/client";
-import { LoginRequest, TokenResponse, UserData, RegisterRequest } from "@/api/types";
+import { LoginRequest, TokenResponse, UserDataResponse, RegisterRequest } from "@/api/types";
 
 export const authApi = {
     async register(data: RegisterRequest): Promise<TokenResponse> {
@@ -13,8 +13,8 @@ export const authApi = {
         tokenStore.set(token.access_token);
         return token;
     },
-    async me(): Promise<UserData> {
-        return http.get<UserData>(ENDPOINTS.AUTH.USER_DATA);
+    async me(): Promise<UserDataResponse> {
+        return http.get<UserDataResponse>(ENDPOINTS.AUTH.USER_DATA);
     },
     logout(): void {
         tokenStore.clear();

@@ -3,14 +3,14 @@ import { X } from "react-bootstrap-icons";
 
 import { api } from "@/api";
 import { ApiError } from "@/api/client";
-import type { GoalDetailResponse, UnderstandGoalResponse } from "@/api/types";
+import type { GoalDataResponse, RefineGoalFromLLMSchema } from "@/api/types";
 import { ThemeToggle } from "@/components/ui/ThemeToggle/ThemeToggle";
 import { GoalWizardReview } from "@/pages/my_goals/GoalCreationWizard/GoalWizardReview";
 import { GoalWizardVisual } from "@/pages/my_goals/GoalCreationWizard/GoalWizardVisual";
 
 import "@/pages/my_goals/GoalCreationWizard/GoalCreationWizard.scss";
 
-type GoalReviewFieldKey = keyof UnderstandGoalResponse;
+type GoalReviewFieldKey = keyof RefineGoalFromLLMSchema;
 type GoalReviewFieldErrors = Partial<Record<GoalReviewFieldKey, string>>;
 
 const REVIEW_FIELD_KEYS: GoalReviewFieldKey[] = [
@@ -27,7 +27,7 @@ const REVIEW_FIELD_KEYS: GoalReviewFieldKey[] = [
     "insights",
 ];
 
-function mapToUnderstandGoalResponse(goal: GoalDetailResponse): UnderstandGoalResponse {
+function mapToRefineGoalSchema(goal: GoalDataResponse): RefineGoalFromLLMSchema {
     return {
         title: goal.title,
         summary: goal.summary,
@@ -58,9 +58,9 @@ function mapFieldErrorsToReviewErrors(fieldErrors: Partial<Record<string, string
 
 interface GoalEditWizardProps {
     open: boolean;
-    goal: GoalDetailResponse;
+    goal: GoalDataResponse;
     onClose: () => void;
-    onUpdated?: (updated: GoalDetailResponse) => void;
+    onUpdated?: (updated: GoalDataResponse) => void;
 }
 
 export function GoalEditWizard({ open, goal, onClose, onUpdated }: GoalEditWizardProps) {
@@ -98,7 +98,7 @@ export function GoalEditWizard({ open, goal, onClose, onUpdated }: GoalEditWizar
         };
     }, [open, onClose, saving]);
 
-    const initialGoalData = useMemo(() => mapToUnderstandGoalResponse(goal), [goal]);
+    const initialGoalData = useMemo(() => mapToRefineGoalSchema(goal), [goal]);
 
     if (!open) {
         return null;
@@ -118,7 +118,7 @@ export function GoalEditWizard({ open, goal, onClose, onUpdated }: GoalEditWizar
         setError(null);
     }
 
-    async function handleConfirm(updatedData: UnderstandGoalResponse) {
+    async function handleConfirm(updatedData: RefineGoalFromLLMSchema) {
         setSaving(true);
         setError(null);
         setFieldErrors({});

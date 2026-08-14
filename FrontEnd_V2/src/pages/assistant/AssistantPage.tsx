@@ -5,7 +5,7 @@ import ReactMarkdown from "react-markdown";
 
 import boySitting from "@/assets/boy_sitting.png";
 import { api } from "@/api";
-import type { ConversationData, MessageData } from "@/api/types";
+import type { ConvoDataShortResponse, MessageDataResponse } from "@/api/types";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { ASSISTANT_AGENTS, ASSISTANT_LOADER_STEPS, type AssistantAgent } from "@/pages/assistant/AssistantPage.constants";
@@ -22,13 +22,12 @@ export function AssistantPage() {
 
   const [loaderIndex, setLoaderIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingChats, setIsLoadingChats] = useState(false);
   const [isProcessingMessage, setIsProcessingMessage] = useState(false);
 
-  const [conversations, setConversations] = useState<ConversationData[]>([]);
-  const [messages, setMessages] = useState<MessageData[]>([]);
-  const [activeConversation, setActiveConversation] = useState<ConversationData | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<ConversationData | null>(null);
+  const [conversations, setConversations] = useState<ConvoDataShortResponse[]>([]);
+  const [messages, setMessages] = useState<MessageDataResponse[]>([]);
+  const [activeConversation, setActiveConversation] = useState<ConvoDataShortResponse | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ConvoDataShortResponse | null>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
 
   // Derived active item
@@ -66,7 +65,7 @@ export function AssistantPage() {
       return;
     }
 
-    const session: ConversationData = {
+    const session: ConvoDataShortResponse = {
       id: Date.now(),
       title: agent.label,
       agent_type: agent.type,
@@ -82,7 +81,7 @@ export function AssistantPage() {
     setShowNewChatModal(false);
   }
 
-  async function getMessages(conversation: ConversationData) {
+  async function getMessages(conversation: ConvoDataShortResponse) {
     setActiveConversation(conversation);
 
     if (conversation.is_local) {
@@ -90,19 +89,16 @@ export function AssistantPage() {
       return;
     }
 
-    setIsLoadingChats(true);
     try {
       const messageChunk = await api.chat.getMessages(conversation.id);
       // TODO take care of pagination 
       setMessages(messageChunk.message_list);
     } catch {
       toast.error("Failed to load messages. Please try again.");
-    } finally {
-      setIsLoadingChats(false);
     }
   }
 
-  async function deleteConversation(data: ConversationData | null) {
+  async function deleteConversation(data: ConvoDataShortResponse | null) {
     if (!data) return;
 
     if (!data.is_local) {
@@ -125,7 +121,7 @@ export function AssistantPage() {
     if (!text || !activeItem) return;
 
     setInputText("");
-    const msg: MessageData = {
+    const msg: MessageDataResponse = {
       conversation_id: activeItem.id,
       content: text,
       role: "user",
@@ -161,8 +157,7 @@ export function AssistantPage() {
         const response = await api.chat.sendMessage({
           conversation_id: activeItem.id,
           content: text,
-          role: "user",
-          created_at: new Date().toISOString(),
+          agent_type: activeItem.agent_type,
         });
 
         setMessages(prev => [...prev, response.message_data]);

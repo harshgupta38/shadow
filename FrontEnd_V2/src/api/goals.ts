@@ -2,38 +2,38 @@ import { ENDPOINTS } from "@/constant/shadow-endpoints";
 
 import { http } from "@/api/client";
 import {
-    GoalDetailResponse,
-    GoalListItemResponse, 
+    GoalDataResponse,
+    GoalDataShortResponse,
     GoalListStatusFilter, 
-    LLMRefineGoalResponse,
-    UnderstandGoalRequest, 
-    UnderstandGoalResponse
+    RefineGoalResponse,
+    RefineGoalRequest, 
+    RefineGoalFromLLMSchema
 } from "@/api/types";
 
 export const goalsApi = {
-    async understandGoal(data: UnderstandGoalRequest): Promise<LLMRefineGoalResponse> {
-        return http.post<LLMRefineGoalResponse>(`${ENDPOINTS.GOALS.PREFIX}${ENDPOINTS.GOALS.REFINE}`, data);
+    async understandGoal(data: RefineGoalRequest): Promise<RefineGoalResponse> {
+        return http.post<RefineGoalResponse>(`${ENDPOINTS.GOALS.PREFIX}${ENDPOINTS.GOALS.REFINE}`, data);
     },
 
-    async saveGoal(data: UnderstandGoalResponse): Promise<void> {
+    async saveGoal(data: RefineGoalFromLLMSchema): Promise<void> {
         return http.post<void>(`${ENDPOINTS.GOALS.PREFIX}${ENDPOINTS.GOALS.SAVE}`, data);
     },
 
-    async getList(status: GoalListStatusFilter): Promise<GoalListItemResponse[]> {
-        return http.get<GoalListItemResponse[]>(`${ENDPOINTS.GOALS.PREFIX}${ENDPOINTS.GOALS.GET_LIST}`, {
+    async getList(status: GoalListStatusFilter): Promise<GoalDataShortResponse[]> {
+        return http.get<GoalDataShortResponse[]>(`${ENDPOINTS.GOALS.PREFIX}${ENDPOINTS.GOALS.GET_LIST}`, {
             params: { status },
         });
     },
 
-    async getDetail(goalId: number): Promise<GoalDetailResponse> {
-        return http.get<GoalDetailResponse>(`${ENDPOINTS.GOALS.PREFIX}${ENDPOINTS.GOALS.DETAIL(goalId)}`);
+    async getDetail(goalId: number): Promise<GoalDataResponse> {
+        return http.get<GoalDataResponse>(`${ENDPOINTS.GOALS.PREFIX}${ENDPOINTS.GOALS.DETAIL(goalId)}`);
     },
 
     async deleteGoal(goalId: number): Promise<void> {
         return http.delete<void>(`${ENDPOINTS.GOALS.PREFIX}${ENDPOINTS.GOALS.DETAIL(goalId)}`);
     },
 
-    async updateGoal(goalId: number, data: UnderstandGoalResponse): Promise<GoalDetailResponse> {
-        return http.patch<GoalDetailResponse>(`${ENDPOINTS.GOALS.PREFIX}${ENDPOINTS.GOALS.DETAIL(goalId)}`, data);
+    async updateGoal(goalId: number, data: RefineGoalFromLLMSchema): Promise<GoalDataResponse> {
+        return http.patch<GoalDataResponse>(`${ENDPOINTS.GOALS.PREFIX}${ENDPOINTS.GOALS.DETAIL(goalId)}`, data);
     },
 };

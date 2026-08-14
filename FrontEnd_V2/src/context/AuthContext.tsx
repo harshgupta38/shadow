@@ -8,24 +8,24 @@ import {
     type ReactNode,
 } from "react";
 
-import { api, tokenStore, LoginRequest, RegisterRequest, type UserData } from "@/api";
+import { api, tokenStore, LoginRequest, RegisterRequest, type UserDataResponse } from "@/api";
 
 type AuthStatus = "loading" | "authenticated" | "unauthenticated";
 
 interface AuthContextValue {
-    user: UserData | null;
+    user: UserDataResponse | null;
     status: AuthStatus;
     isAuthenticated: boolean;
-    login: (data: LoginRequest) => Promise<UserData>;
+    login: (data: LoginRequest) => Promise<UserDataResponse>;
     logout: () => void;
-    register: (data: RegisterRequest) => Promise<UserData>;
-    refreshUser: () => Promise<UserData>;
+    register: (data: RegisterRequest) => Promise<UserDataResponse>;
+    refreshUser: () => Promise<UserDataResponse>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-    const [user, setUser] = useState<UserData | null>(null);
+    const [user, setUser] = useState<UserDataResponse | null>(null);
     const [status, setStatus] = useState<AuthStatus>("loading");
 
     /**

@@ -1,4 +1,4 @@
-export interface UserData {
+export interface UserDataResponse {
   id: number;
   name: string;
   email: string;
@@ -49,7 +49,7 @@ export interface UserLocation {
   longitude: number;
 }
 
-export interface UnderstandGoalRequest {
+export interface RefineGoalRequest {
   goal: string;
   why: string;
   success: string;
@@ -70,7 +70,7 @@ export type GoalCategory =
   | "Travel"
   | "Other";
 
-export interface UnderstandGoalResponse {
+export interface RefineGoalFromLLMSchema {
   title: string;
   summary: string;
   category: GoalCategory;
@@ -96,11 +96,11 @@ export interface TokenCostBreakdown {
   total_cost: number;
 }
 
-export interface LLMRefineGoalResponse {
+export interface RefineGoalResponse {
   provider: string;
   model: string;
   model_str: string | null;
-  refined_data: UnderstandGoalResponse;
+  refined_data: RefineGoalFromLLMSchema;
   finish_reason: string;
   usage: TokenUsage | null;
   response_id: string | null;
@@ -111,7 +111,7 @@ export interface LLMRefineGoalResponse {
 export type GoalListStatusFilter = "All" | "Active" | "Paused" | "Completed";
 export type GoalItemStatus = Exclude<GoalListStatusFilter, "All">;
 
-export interface GoalListItemResponse {
+export interface GoalDataShortResponse {
   id: number;
   title: string;
   summary: string;
@@ -124,7 +124,7 @@ export interface GoalListItemResponse {
   habits_active: number;
 }
 
-export interface GoalDetailResponse {
+export interface GoalDataResponse {
   id: number;
   title: string;
   summary: string;
@@ -167,7 +167,7 @@ export interface MilestoneUpdateRequest {
   position?: number;
 }
 
-export interface MilestoneResponse {
+export interface MilestoneDataResponse {
   id: number;
   goal_id: number;
   title: string;
@@ -239,7 +239,7 @@ export interface TaskUpdateRequest {
   position?: number;
 }
 
-export interface TaskResponse {
+export interface TaskDataResponse {
   id: number;
   goal_id: number;
   milestone_id: number;
@@ -274,7 +274,7 @@ export interface TaskResponse {
 export type AssistantAgentType = "shadow" | "goal_coach" | "career_advisor" | "insights";
 export type ChatRole = "user" | "assistant" | "system" | "tool";
 
-export interface ConversationData {
+export interface ConvoDataShortResponse {
   id: number;
   title: string;
   agent_type: AssistantAgentType;
@@ -285,7 +285,7 @@ export interface ConversationData {
   is_local?: boolean;
 }
 
-export interface MessageData {
+export interface MessageDataResponse {
   id?: number;
   conversation_id: number;
   content: string;
@@ -293,18 +293,18 @@ export interface MessageData {
   created_at: string;
 }
 
-export interface MessageChunk {
-  message_list: MessageData[];
+export interface MessageChunkResponse {
+  message_list: MessageDataResponse[];
   has_more: boolean;
 }
 
-export interface SendMessageRequest {
+export interface NewConvoRequest {
   conversation_id: number;
   content: string;
   agent_type: AssistantAgentType;
 }
 
-export interface LLMSendMessageResponse {
-  message_data: MessageData;
-  conversation_data?: ConversationData;
+export interface NewConvoResponse {
+  message_data: MessageDataResponse;
+  conversation_data?: ConvoDataShortResponse;
 }

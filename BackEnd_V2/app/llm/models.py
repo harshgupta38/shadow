@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from pydantic import BaseModel, Field
 from app.llm.enums import LLMProvider, ModelKey
 from app.schemas.goals import UnderstandGoalRequest, UnderstandGoalResponse
+from app.schemas.chat import MessageData, ConversationData
 
 
 @dataclass(frozen=True)
@@ -24,16 +25,19 @@ class TokenUsage(BaseModel):
     total_tokens: int | None = None
 
 
-class RefineGoalResponse(BaseModel):
+class LLMResponseMetadata(BaseModel):
     provider: LLMProvider
     model: ModelKey
     model_str: str | None = None
-    refined_data: UnderstandGoalResponse
     finish_reason: str
     usage: TokenUsage | None = None
     response_id: str | None = None
     response_time_ms: int | None = None
     cost: TokenCostBreakdown | None = None
+
+
+class RefineGoalResponse(LLMResponseMetadata):
+    refined_data: UnderstandGoalResponse
 
 
 class RefineGoalRequest(BaseModel):
@@ -42,3 +46,8 @@ class RefineGoalRequest(BaseModel):
     model: str | None = None
     temperature: float | None = Field(default=None, ge=0.0, le=2.0)
     max_tokens: int | None = Field(default=None, gt=0)
+
+
+class SendMessageResponse(LLMResponseMetadata):
+    message_data: MessageData
+    conversation_data: ConversationData | None = None

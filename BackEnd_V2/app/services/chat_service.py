@@ -3,14 +3,18 @@ from sqlalchemy.orm import Session
 
 from app.models.user import User
 from app.models.chat import Conversation
-from app.schemas.chat import ConversationData
+from app.schemas.chat import (
+    ConversationDataList,
+    SendMessageRequest,
+)
+from app.llm.models import SendMessageResponse
 
 
-def _serialize_conversation(conversation: Conversation) -> ConversationData:
-    return ConversationData.model_validate(conversation)
+def _serialize_conversation(conversation: Conversation) -> ConversationDataList:
+    return ConversationDataList.model_validate(conversation)
 
 
-def conversation_list(db: Session, current_user: User) -> list[ConversationData]:
+def conversation_list(db: Session, current_user: User) -> list[ConversationDataList]:
     conversations = list(
         db.scalars(
             select(Conversation)

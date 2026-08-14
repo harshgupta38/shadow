@@ -7,6 +7,7 @@ from app.schemas.common import ORMModel
 
 AssistantAgentType = Literal["shadow", "goal_coach", "career_advisor", "insights"]
 
+
 class MessageRoleEnum(StrEnum):
     USER = "user"
     ASSISTANT = "assistant"
@@ -58,12 +59,17 @@ class SendMessageRequest(BaseModel):
 
 
 # each message response structure
-class MessageData(BaseModel):
+class MessageData(ORMModel):
     id: int
     conversation_id: int
-    content: str
     role: MessageRoleEnum
+    content: str
     created_at: datetime
+
+
+class MessageChunk(BaseModel):
+    message_list: list[MessageData]
+    has_more: bool
 
 
 # internal schema: what the LLM must return for a new conversation

@@ -1,15 +1,15 @@
 import { ENDPOINTS } from "@/constant/shadow-endpoints";
 
 import { http } from "@/api/client";
-import { ConversationData, MessageData, LLMSendMessageResponse, SendMessageRequest } from "@/api/types";
+import { ConversationData, MessageData, LLMSendMessageResponse, SendMessageRequest, MessageChunk } from "@/api/types";
 
 export const chatApi = {
     async getConversations(): Promise<ConversationData[]> {
         return http.get<ConversationData[]>(`${ENDPOINTS.CHAT.PREFIX}${ENDPOINTS.CHAT.CONVERSATIONS}`);
     },
 
-    async getMessages(conversationId: number): Promise<MessageData[]> {
-        return http.get<MessageData[]>(`${ENDPOINTS.CHAT.PREFIX}${ENDPOINTS.CHAT.MESSAGES(conversationId)}`);
+    async getMessages(conversationId: number): Promise<MessageChunk> {
+        return http.get<MessageChunk>(`${ENDPOINTS.CHAT.PREFIX}${ENDPOINTS.CHAT.MESSAGES(conversationId)}`);
     },
 
     async deleteConversation(conversationId: number): Promise<void> {

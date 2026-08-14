@@ -92,8 +92,9 @@ export function AssistantPage() {
 
     setIsLoadingChats(true);
     try {
-      const msgs = await api.chat.getMessages(conversation.id);
-      setMessages(msgs);
+      const messageChunk = await api.chat.getMessages(conversation.id);
+      // TODO take care of pagination 
+      setMessages(messageChunk.message_list);
     } catch {
       toast.error("Failed to load messages. Please try again.");
     } finally {

@@ -293,6 +293,11 @@ export interface MessageData {
   created_at: string;
 }
 
+export interface MessageChunk {
+  message_list: MessageData[];
+  has_more: boolean;
+}
+
 export interface SendMessageRequest {
   conversation_id: number;
   content: string;

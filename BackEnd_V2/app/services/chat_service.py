@@ -1,6 +1,7 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.exceptions import NotFoundError
 from app.llm import get_llm_service, LLMSendMessageResponse, LLMError, LLMRequestError
 from app.common import to_ist
 from app.models.user import User
@@ -8,6 +9,7 @@ from app.models.chat import Conversation, Message
 from app.schemas.chat import (
     ConversationData,
     ConversationDataList,
+    MessageChunk,
     MessageData,
     MessageRoleEnum,
     SendMessageRequest,
@@ -16,6 +18,10 @@ from app.schemas.chat import (
 
 def _serialize_conversation(conversation: Conversation) -> ConversationDataList:
     return ConversationDataList.model_validate(conversation)
+
+
+def _serialize_message(message: Message) -> MessageData:
+    return MessageData.model_validate(message)
 
 
 def conversation_list(db: Session, current_user: User) -> list[ConversationDataList]:
@@ -103,4 +109,33 @@ async def create_conversation(
         response_id=response.response_id,
         response_time_ms=response.response_time_ms,
         cost=response.cost,
+    )
+
+
+def get_message_chunk(
+    db: Session,
+    current_user: User,
+    conversation_id: int,
+    limit: int,
+    before_message_id: int | None,
+) -> MessageChunk:
+    conversation = db.get(Conversation, conversation_id)
+
+    if not conversation or conversation.user_id != current_user.id:
+        raise NotFoundError("Conversation not found or access denied.")
+
+    query = select(Message).where(Message.conversation_id == conversation_id)
+    if before_message_id is not None:
+        query = query.where(Message.id < before_message_id)
+
+    messages = list(
+        db.scalars(query.order_by(Message.id.desc()).limit(limit + 1)).all()
+    )
+    has_more = len(messages) > limit
+    message_list = messages[:limit]
+    message_list.reverse()
+
+    return MessageChunk(
+        message_list=[_serialize_message(message) for message in message_list],
+        has_more=has_more,
     )

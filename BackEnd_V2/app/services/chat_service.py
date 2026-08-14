@@ -2,12 +2,14 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.llm import get_llm_service, LLMSendMessageResponse, LLMError, LLMRequestError
+from app.common import to_ist
 from app.models.user import User
 from app.models.chat import Conversation, Message
 from app.schemas.chat import (
     ConversationData,
     ConversationDataList,
     MessageData,
+    MessageRoleEnum,
     SendMessageRequest,
 )
 
@@ -41,27 +43,26 @@ async def create_conversation(
 
     conversation = Conversation(
         user_id=current_user.id,
-        title=response.conversation_data.title,
+        title=response.llm_data.title,
         agent_type=data.agent_type,
-
-        stable_context=response.conversation_data.stable_context,
-        context_summary=response.conversation_data.context_summary,
-        linked_items=response.conversation_data.linked_items,
+        stable_context=response.llm_data.stable_context,
+        context_summary=response.llm_data.context_summary,
+        linked_items={},
     )
     db.add(conversation)
     db.flush()
 
     user_message = Message(
         conversation_id=conversation.id,
-        role="user",
+        role=MessageRoleEnum.USER,
         content=data.content,
     )
     db.add(user_message)
 
     assistant_message = Message(
         conversation_id=conversation.id,
-        role="assistant",
-        content=response.message_data.content,
+        role=MessageRoleEnum.ASSISTANT,
+        content=response.llm_data.content,
     )
     db.add(assistant_message)
     db.commit()
@@ -72,8 +73,8 @@ async def create_conversation(
         id=assistant_message.id,
         conversation_id=conversation.id,
         content=assistant_message.content,
-        role="assistant",
-        created_at=assistant_message.created_at,
+        role=MessageRoleEnum.ASSISTANT,
+        created_at=to_ist(assistant_message.created_at),
     )
 
     conversation_data = ConversationData(
@@ -86,8 +87,8 @@ async def create_conversation(
         context_summary=conversation.context_summary,
         linked_items=conversation.linked_items,
 
-        created_at=conversation.created_at,
-        updated_at=conversation.updated_at,
+        created_at=to_ist(conversation.created_at),
+        updated_at=to_ist(conversation.updated_at),
     )
 
     return LLMSendMessageResponse(

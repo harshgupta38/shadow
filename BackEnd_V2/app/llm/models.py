@@ -3,7 +3,12 @@ from dataclasses import dataclass
 from pydantic import BaseModel, Field
 from app.llm.enums import LLMProvider, ModelKey
 from app.schemas.goals import UnderstandGoalRequest, UnderstandGoalResponse
-from app.schemas.chat import MessageData, ConversationData
+from app.schemas.chat import (
+    MessageData,
+    ConversationData,
+    SendMessageRequest,
+    NewConversationLLMResponse,
+)
 
 
 @dataclass(frozen=True)
@@ -54,8 +59,14 @@ class LLMRefineGoalResponse(LLMResponseMetadata):
 
 # --- CHAT ---
 class LLMSendMessageRequest(LLMRequestMetadata):
-    agent_description: str
-    user_content: str
+    request_data: SendMessageRequest
+
+
+# intermediate type: what a provider returns after calling the LLM
+# this data will be then used to create a new conversation in the database
+# we cant use the LLMSendMessageResponse directly because it has required fields that are not available at this point (conversation_data, message_data)
+class LLMCreateConversationDraft(LLMResponseMetadata):
+    llm_data: NewConversationLLMResponse
 
 
 class LLMSendMessageResponse(LLMResponseMetadata):

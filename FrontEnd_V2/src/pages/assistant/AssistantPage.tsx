@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Dropdown, Modal } from "react-bootstrap";
 import { PlusLg, SendFill, Stars, ThreeDotsVertical, Trash3, XLg } from "react-bootstrap-icons";
+import ReactMarkdown from "react-markdown";
 
 import boySitting from "@/assets/boy_sitting.png";
 import { api } from "@/api";
@@ -337,8 +338,12 @@ export function AssistantPage() {
                         <div key={msg.id ?? msg.created_at} className={`d-flex ${msg.role === "user" ? "justify-content-end" : "justify-content-start"}`}>
                           <div className={`d-flex flex-column gap-1 ${msg.role === "user" ? "align-items-end" : "align-items-start"}`} style={{ maxWidth: "75%" }}>
                             <div className={`px-3 py-2 rounded-3 small ${msg.role === "user" ? "" : "surface-2"}`}
-                              style={{ whiteSpace: "pre-wrap", ...(msg.role === "user" ? { background: "var(--jv-brand-1)", color: "#fff" } : {}) }}>
-                              {msg.content}
+                              style={msg.role === "user" ? { background: "var(--jv-brand-1)", color: "#fff", whiteSpace: "pre-wrap" } : {}}>
+                              {/* {msg.role === "user"
+                                ? msg.content
+                                : <ReactMarkdown className="chat-markdown">{msg.content}</ReactMarkdown>
+                              } */}
+                              <ReactMarkdown className="chat-markdown">{msg.content}</ReactMarkdown>
                             </div>
                             <span className="text-faint" style={{ fontSize: "0.68rem" }}>{formatChatTime(msg.created_at)}</span>
                           </div>

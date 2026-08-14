@@ -27,9 +27,9 @@ def conversation_list(
     response_model=LLMSendMessageResponse,
     status_code=status.HTTP_201_CREATED,
 )
-def create_conversation(
+async def create_conversation(
     data: SendMessageRequest,
     db=Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> LLMSendMessageResponse:
-    return chat_service.create_conversation(db, current_user, data)
+    return await chat_service.create_conversation(db, current_user, data)

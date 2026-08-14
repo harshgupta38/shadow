@@ -1,9 +1,7 @@
-import json
 from datetime import date
-from typing import Any, get_args, get_origin, Literal
 
-from pydantic import BaseModel
-
+from app.llm.common import build_schema_prompt
+from app.schemas.chat import NewConversationLLMResponse
 from app.schemas.goals import UnderstandGoalRequest, UnderstandGoalResponse
 
 GOAL_REFINEMENT_SYSTEM_INSTRUCTION = (
@@ -15,64 +13,6 @@ GOAL_REFINEMENT_SYSTEM_INSTRUCTION = (
     "Be realistic and concise.\n"
     "Return only a JSON object matching the required schema."
 )
-
-
-def _schema_example_for_annotation(
-    annotation: object, field_name: str | None = None
-) -> object:
-    origin = get_origin(annotation)
-
-    if origin is None:
-        if isinstance(annotation, type):
-            if issubclass(annotation, BaseModel):
-                return build_schema_example(annotation)
-            if annotation is str:
-                if field_name and "date" in field_name.lower():
-                    return "YYYY-MM-DD"
-                return "string"
-            if annotation is int:
-                return 0
-            if annotation is float:
-                return 0.0
-            if annotation is bool:
-                return False
-        return "string"
-
-    if origin in (list, list[Any]):
-        args = get_args(annotation)
-        item_annotation = args[0] if args else str
-        return [_schema_example_for_annotation(item_annotation, field_name=field_name)]
-
-    if origin is dict:
-        return {"key": "string"}
-
-    if origin is Literal:
-        args = get_args(annotation)
-        if args:
-            first_literal = args[0]
-            return (
-                first_literal
-                if isinstance(first_literal, (str, int, float, bool))
-                else "string"
-            )
-        return "string"
-
-    args = [arg for arg in get_args(annotation) if arg is not type(None)]
-    if args:
-        return _schema_example_for_annotation(args[0], field_name=field_name)
-
-    return "string"
-
-
-def build_schema_example(model_cls: type[BaseModel]) -> dict[str, object]:
-    return {
-        field_name: _schema_example_for_annotation(field.annotation, field_name)
-        for field_name, field in model_cls.model_fields.items()
-    }
-
-
-def build_schema_prompt(model_cls: type[BaseModel]) -> str:
-    return json.dumps(build_schema_example(model_cls), indent=2, ensure_ascii=False)
 
 
 GOAL_REFINEMENT_SYSTEM_INSTRUCTION_CLAUDE = (
@@ -105,3 +45,68 @@ def build_goal_refinement_user_prompt(request_data: UnderstandGoalRequest) -> st
         "- Infer strengths from the user's current situation and responses.\n"
         "- Infer coaching insights that are directly supported by the user's responses."
     )
+
+CREATE_CONVERSATION_SYSTEM_INSTRUCTION: dict[str, str] = {
+    "shadow": (
+        "You are Shadow, a personal AI life coach."
+        " You help users reflect, plan, and take action across all areas of their life."
+        "\n\n"
+        "The user has sent their first message to start a new conversation."
+        " Your job is to understand their request and return a single JSON object with these four fields:"
+        "\n\n"
+        "- title: A 1-3 word title that captures the core topic of this conversation."
+        "\n"
+        "- stable_context: The core facts and intent extracted from this message."
+        " This is the persistent context of the conversation — it will not be updated often."
+        " Future messages will treat this as ground truth before generating a reply."
+        " Be specific and information-dense. Omit filler words."
+        "\n"
+        "- context_summary: A concise summary of what has happened so far in the conversation."
+        " Since this is the first message, summarise only the user's opening request."
+        " This field will be updated periodically as the conversation grows."
+        "\n"
+        "- content: Your actual reply to the user. Be concise, direct, and encouraging."
+        " Always use Markdown formatting — use bullet points, bold, and headers where appropriate."
+        " Never write lists as plain inline text separated by commas or numbers in a single sentence."
+        "\n\n"
+        "Return ONLY the JSON object. No explanation. No markdown fences. No extra keys."
+    ),
+    # TODO below instructions
+    "goal_coach": (
+        "You are a goal coach."
+        " You help users define, refine, and pursue meaningful goals."
+        " Focus on clarity, motivation, milestones, and accountability."
+        " Guide the user to break large goals into concrete next steps."
+        " Be structured and progress-oriented."
+    ),
+    "career_advisor": (
+        "You are a career advisor."
+        " You help users navigate career decisions, skill development, job transitions, and professional growth."
+        " Be practical, realistic, and tailored to the user's specific situation."
+        " Draw on the user's goals and background when giving advice."
+    ),
+    "insights": (
+        "You are an insights analyst."
+        " You help users understand patterns in their progress, habits, and goal completion."
+        " Provide data-driven observations and actionable recommendations."
+        " Be analytical, clear, and constructive."
+    ),
+}
+
+_NEW_CONVERSATION_SCHEMA_FOR_CLAUDE = (
+    "\n\nThe response MUST be a JSON object that exactly matches the schema.\n"
+    "Use these exact field names.\n"
+    "Do not rename fields.\n"
+    "Do not use camelCase.\n"
+    "Do not add, remove, merge, or restructure fields.\n"
+    "Return only the JSON object.\n"
+    "Do not wrap it in Markdown.\n"
+    "Do not use backticks.\n"
+    "\n\nSchema:\n"
+    + build_schema_prompt(NewConversationLLMResponse)
+)
+
+CREATE_CONVERSATION_SYSTEM_INSTRUCTION_CLAUDE: dict[str, str] = {
+    agent_type: instruction + _NEW_CONVERSATION_SCHEMA_FOR_CLAUDE
+    for agent_type, instruction in CREATE_CONVERSATION_SYSTEM_INSTRUCTION.items()
+}

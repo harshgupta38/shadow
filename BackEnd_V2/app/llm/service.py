@@ -3,7 +3,7 @@ from app.llm.models import (
     LLMRefineGoalRequest,
     LLMRefineGoalResponse,
     LLMSendMessageRequest,
-    LLMSendMessageResponse,
+    LLMCreateConversationDraft,
 )
 from app.llm.base import BaseLLMProvider
 from app.llm.config import LLMSettings, llm_settings
@@ -70,13 +70,19 @@ class LLMService:
         self,
         data: SendMessageRequest,
         user_id: int | None = None,
-    ) -> LLMSendMessageResponse:
+    ) -> LLMCreateConversationDraft:
         request = LLMSendMessageRequest(
-            agent_description="",
-            user_content=data.content,
+            request_data=data,
             user_id=user_id,
         )
-        pass
+        response = await self._provider.create_conversation(request)
+
+        if response is None or response.llm_data is None:
+            raise LLMConfigurationError(
+                "LLM provider returned no conversation data."
+            )
+
+        return response
 
     async def health_check(self) -> bool:
         return await self._provider.health_check()

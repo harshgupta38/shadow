@@ -1,11 +1,13 @@
 from time import perf_counter
 
 from openai import APIConnectionError, APIStatusError, AsyncOpenAI, OpenAIError
+from app.schemas.chat import NewConversationLLMResponse
 from app.analysis.llm_usage_logger import log_ollama_completion_usage_async
 from app.llm.enums import LLMProvider, Role
 from app.llm.knowledge_base import (
     GOAL_REFINEMENT_SYSTEM_INSTRUCTION,
     build_goal_refinement_user_prompt,
+    CREATE_CONVERSATION_SYSTEM_INSTRUCTION,
 )
 from app.schemas.goals import UnderstandGoalResponse
 from app.llm.models import (
@@ -13,7 +15,7 @@ from app.llm.models import (
     LLMRefineGoalRequest,
     LLMRefineGoalResponse,
     LLMSendMessageRequest,
-    LLMSendMessageResponse,
+    LLMCreateConversationDraft,
 )
 from app.llm.base import BaseLLMProvider
 from app.llm.config import LLMSettings, llm_settings
@@ -103,10 +105,11 @@ class OllamaProvider(BaseLLMProvider):
             )
 
         return LLMRefineGoalResponse(
+            refined_data=parsed,
+
             provider=LLMProvider.OLLAMA,
             model=model,
             model_str=completion.model or model,
-            refined_data=parsed,
             finish_reason=first_choice.finish_reason,
             usage=usage,
             response_id=completion.id,
@@ -115,9 +118,75 @@ class OllamaProvider(BaseLLMProvider):
 
     async def create_conversation(
         self, request: LLMSendMessageRequest
-    ) -> LLMSendMessageResponse:
-        raise NotImplementedError(
-            "OllamaProvider does not support create_conversation yet."
+    ) -> LLMCreateConversationDraft:
+        model = self._resolve_model(request)
+
+        request_data = request.request_data
+        messages = [
+            {
+                "role": Role.SYSTEM,
+                "content": CREATE_CONVERSATION_SYSTEM_INSTRUCTION[
+                    request_data.agent_type
+                ],
+            },
+            {"role": Role.USER, "content": request_data.content},
+        ]
+
+        started_at = perf_counter()
+        try:
+            completion = await self._client.beta.chat.completions.parse(
+                model=model,
+                messages=messages,
+                response_format=NewConversationLLMResponse,
+                temperature=request.temperature,
+                max_tokens=request.max_tokens,
+            )
+        except (APIConnectionError, APIStatusError, OpenAIError) as exc:
+            raise LLMProviderError(f"Ollama create_conversation failed: {exc}") from exc
+        response_time_ms = int((perf_counter() - started_at) * 1000)
+
+        await log_ollama_completion_usage_async(
+            settings=self._settings,
+            model=model,
+            completion=completion,
+            latency_ms=response_time_ms,
+            user_id=request.user_id,
+            operation="create_conversation",
+        )
+
+        if not completion.choices:
+            raise LLMRequestError("Ollama returned no choices for create_conversation.")
+
+        first_choice = completion.choices[0]
+        message = first_choice.message
+        parsed = message.parsed
+
+        if parsed is None:
+            if message.refusal:
+                raise LLMRequestError(
+                    f"Ollama refused create_conversation response: {message.refusal}"
+                )
+            raise LLMRequestError(
+                "Ollama returned an unparsable create_conversation response."
+            )
+
+        usage = None
+        if completion.usage is not None:
+            usage = TokenUsage(
+                input_tokens=completion.usage.prompt_tokens,
+                output_tokens=completion.usage.completion_tokens,
+                total_tokens=completion.usage.total_tokens,
+            )
+
+        return LLMCreateConversationDraft(
+            llm_data=parsed,
+            provider=LLMProvider.OLLAMA,
+            model=model,
+            model_str=completion.model or model,
+            finish_reason=first_choice.finish_reason,
+            usage=usage,
+            response_id=completion.id,
+            response_time_ms=response_time_ms,
         )
 
     async def health_check(self) -> bool:

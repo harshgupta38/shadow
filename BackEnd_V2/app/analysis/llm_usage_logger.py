@@ -6,7 +6,11 @@ from typing import Any
 
 from app.analysis.models import LLMUsageRecord
 from app.analysis.service import get_analysis_service
-from app.llm import LLMSettings, LLMProvider, calculate_token_cost
+
+# do not import LLMSettings directly from app.llm, as it will create a circular import
+from app.llm.config import LLMSettings
+from app.llm.enums import LLMProvider
+from app.llm.cost import calculate_token_cost
 
 logger = logging.getLogger(__name__)
 

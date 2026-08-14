@@ -24,6 +24,7 @@ from app.llm.models import (
     LLMRefineGoalRequest,
     LLMRefineGoalResponse,
     LLMSendMessageRequest,
+    LLMCreateConversationDraft,
     LLMSendMessageResponse,
 )
 from app.llm.service import LLMService, get_llm_service
@@ -56,6 +57,7 @@ __all__ = [
     "LLMRefineGoalRequest",
     "LLMRefineGoalResponse",
     "LLMSendMessageRequest",
+    "LLMCreateConversationDraft",
     "LLMSendMessageResponse",
 
     "LLMService",

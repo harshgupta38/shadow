@@ -4,7 +4,7 @@ from app.llm.models import (
     LLMRefineGoalRequest,
     LLMRefineGoalResponse,
     LLMSendMessageRequest,
-    LLMSendMessageResponse,
+    LLMCreateConversationDraft,
 )
 
 
@@ -14,7 +14,7 @@ class BaseLLMProvider(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def create_conversation(self, request: LLMSendMessageRequest) -> LLMSendMessageResponse:
+    async def create_conversation(self, request: LLMSendMessageRequest) -> LLMCreateConversationDraft:
         raise NotImplementedError
 
     @abstractmethod

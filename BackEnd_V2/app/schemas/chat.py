@@ -1,11 +1,15 @@
 from datetime import datetime
+from enum import StrEnum
 from pydantic import BaseModel, Field, field_validator
 from typing import Literal
 
 from app.schemas.common import ORMModel
 
 AssistantAgentType = Literal["shadow", "goal_coach", "career_advisor", "insights"]
-MessageRole = Literal["user", "assistant"]
+
+class MessageRoleEnum(StrEnum):
+    USER = "user"
+    ASSISTANT = "assistant"
 
 
 # list of conversations for a user
@@ -58,5 +62,14 @@ class MessageData(BaseModel):
     id: int
     conversation_id: int
     content: str
-    role: MessageRole
+    role: MessageRoleEnum
     created_at: datetime
+
+
+# internal schema: what the LLM must return for a new conversation
+class NewConversationLLMResponse(BaseModel):
+    title: str
+    content: str
+
+    stable_context: str
+    context_summary: str

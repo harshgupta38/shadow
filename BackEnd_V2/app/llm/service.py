@@ -1,11 +1,22 @@
 from functools import lru_cache
-from app.llm.models import RefineGoalRequest, RefineGoalResponse
+from app.llm.models import (
+    LLMRefineGoalRequest,
+    LLMRefineGoalResponse,
+    LLMSendMessageRequest,
+    LLMCreateConversationDraft,
+)
 from app.llm.base import BaseLLMProvider
 from app.llm.config import LLMSettings, llm_settings
 from app.llm.enums import LLMProvider
 from app.llm.exceptions import LLMConfigurationError
 from app.schemas.goals import UnderstandGoalRequest
-from app.llm.providers import ClaudeProvider, GeminiProvider, OllamaProvider, OpenAIProvider
+from app.schemas.chat import SendMessageRequest
+from app.llm.providers import (
+    ClaudeProvider,
+    GeminiProvider,
+    OllamaProvider,
+    OpenAIProvider,
+)
 
 
 class LLMService:
@@ -43,14 +54,32 @@ class LLMService:
         self,
         request_data: UnderstandGoalRequest,
         user_id: int | None = None,
-    ) -> RefineGoalResponse:
-        
-        request = RefineGoalRequest(request_data=request_data, user_id=user_id)
+    ) -> LLMRefineGoalResponse:
+
+        request = LLMRefineGoalRequest(request_data=request_data, user_id=user_id)
         response = await self._provider.refine_goal(request)
 
         if response is None or response.refined_data is None:
             raise LLMConfigurationError(
                 "LLM provider returned no refined data for the goal."
+            )
+
+        return response
+
+    async def create_conversation(
+        self,
+        data: SendMessageRequest,
+        user_id: int | None = None,
+    ) -> LLMCreateConversationDraft:
+        request = LLMSendMessageRequest(
+            request_data=data,
+            user_id=user_id,
+        )
+        response = await self._provider.create_conversation(request)
+
+        if response is None or response.llm_data is None:
+            raise LLMConfigurationError(
+                "LLM provider returned no conversation data."
             )
 
         return response

@@ -5,14 +5,14 @@ import {
     GoalDetailResponse,
     GoalListItemResponse, 
     GoalListStatusFilter, 
-    RefineGoalResponse,
+    LLMRefineGoalResponse,
     UnderstandGoalRequest, 
     UnderstandGoalResponse
 } from "@/api/types";
 
 export const goalsApi = {
-    async understandGoal(data: UnderstandGoalRequest): Promise<RefineGoalResponse> {
-        return http.post<RefineGoalResponse>(`${ENDPOINTS.GOALS.PREFIX}${ENDPOINTS.GOALS.REFINE}`, data);
+    async understandGoal(data: UnderstandGoalRequest): Promise<LLMRefineGoalResponse> {
+        return http.post<LLMRefineGoalResponse>(`${ENDPOINTS.GOALS.PREFIX}${ENDPOINTS.GOALS.REFINE}`, data);
     },
 
     async saveGoal(data: UnderstandGoalResponse): Promise<UnderstandGoalResponse> {

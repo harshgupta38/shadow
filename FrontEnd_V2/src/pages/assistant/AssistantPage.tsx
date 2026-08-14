@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Dropdown, Modal } from "react-bootstrap";
 import { PlusLg, SendFill, Stars, ThreeDotsVertical, Trash3, XLg } from "react-bootstrap-icons";
+import ReactMarkdown from "react-markdown";
 
 import boySitting from "@/assets/boy_sitting.png";
 import { api } from "@/api";
@@ -9,7 +10,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { ASSISTANT_AGENTS, ASSISTANT_LOADER_STEPS, type AssistantAgent } from "@/pages/assistant/AssistantPage.constants";
 import { useToast } from "@/context/ToastContext";
-import { formatMessageTime } from "@/services/chat-time.service";
+import { formatChatTime } from "@/services/chat-time.service";
 
 import "@/pages/assistant/AssistantPage.scss";
 
@@ -53,7 +54,7 @@ export function AssistantPage() {
   useEffect(() => {
     if (chatScrollRef.current)
       chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
-  }, [messages.length]);
+  }, [messages.length, isProcessingMessage]);
 
   function openAgent(agent: AssistantAgent) {
     const existing = conversations.find(s => s.is_local && s.agent_type === agent.type);
@@ -91,8 +92,9 @@ export function AssistantPage() {
 
     setIsLoadingChats(true);
     try {
-      const msgs = await api.chat.getMessages(conversation.id);
-      setMessages(msgs);
+      const messageChunk = await api.chat.getMessages(conversation.id);
+      // TODO take care of pagination 
+      setMessages(messageChunk.message_list);
     } catch {
       toast.error("Failed to load messages. Please try again.");
     } finally {
@@ -263,7 +265,6 @@ export function AssistantPage() {
                 const agent = ASSISTANT_AGENTS[conversation.agent_type];
                 const Icon = agent.icon;
                 const title = conversation.title || agent.label;
-                const meta = new Date(conversation.updated_at).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" });
                 const onSelect = () => { getMessages(conversation); };
 
                 return (
@@ -271,7 +272,7 @@ export function AssistantPage() {
                     <span className="d-inline-grid flex-shrink-0" style={avatarStyle(agent.gradient, 38)} aria-hidden="true"><Icon size={19} /></span>
                     <div className="flex-grow-1 min-w-0 text-start">
                       <div className="fw-semibold small text-truncate chat-session-title">{title}</div>
-                      <div className="text-faint text-truncate chat-session-meta" style={{ fontSize: "0.72rem" }}>{agent.tagline} · {meta}</div>
+                      <div className="text-faint text-truncate chat-session-meta" style={{ fontSize: "0.72rem" }}>{agent.tagline} · {formatChatTime(conversation.updated_at)}</div>
                     </div>
                   </button>
                 );
@@ -338,13 +339,28 @@ export function AssistantPage() {
                         <div key={msg.id ?? msg.created_at} className={`d-flex ${msg.role === "user" ? "justify-content-end" : "justify-content-start"}`}>
                           <div className={`d-flex flex-column gap-1 ${msg.role === "user" ? "align-items-end" : "align-items-start"}`} style={{ maxWidth: "75%" }}>
                             <div className={`px-3 py-2 rounded-3 small ${msg.role === "user" ? "" : "surface-2"}`}
-                              style={{ whiteSpace: "pre-wrap", ...(msg.role === "user" ? { background: "var(--jv-brand-1)", color: "#fff" } : {}) }}>
-                              {msg.content}
+                              style={msg.role === "user" ? { background: "var(--jv-brand-1)", color: "#fff", whiteSpace: "pre-wrap" } : {}}>
+                              {/* {msg.role === "user"
+                                ? msg.content
+                                : <ReactMarkdown className="chat-markdown">{msg.content}</ReactMarkdown>
+                              } */}
+                              <ReactMarkdown className="chat-markdown">{msg.content}</ReactMarkdown>
                             </div>
-                            <span className="text-faint" style={{ fontSize: "0.68rem" }}>{formatMessageTime(msg.created_at)}</span>
+                            <span className="text-faint" style={{ fontSize: "0.68rem" }}>{formatChatTime(msg.created_at)}</span>
                           </div>
                         </div>
                       ))}
+                      {isProcessingMessage && (
+                        <div className="d-flex justify-content-start" aria-live="polite" aria-label="Assistant is typing">
+                          <div className="d-flex flex-column gap-1 align-items-start" style={{ maxWidth: "75%" }}>
+                            <div className="px-3 py-2 rounded-3 small surface-2 assistant-typing-indicator">
+                              <span className="assistant-typing-dot" />
+                              <span className="assistant-typing-dot" />
+                              <span className="assistant-typing-dot" />
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, status as http_status
 
-from app.llm.models import RefineGoalResponse
+from app.llm import LLMRefineGoalResponse
 from app.api.deps import get_current_user
 from app.core.endpoints import ENDPOINTS
 from app.db.session import get_db
@@ -19,12 +19,12 @@ router = APIRouter(prefix=ENDPOINTS.GOALS.PREFIX, tags=["Goals"])
 
 @router.post(
     ENDPOINTS.GOALS.REFINE,
-    response_model=RefineGoalResponse,
+    response_model=LLMRefineGoalResponse,
 )
 async def understand_goal(
     data: UnderstandGoalRequest,
     current_user: User = Depends(get_current_user),
-) -> RefineGoalResponse:
+) -> LLMRefineGoalResponse:
     return await goals_service.understand_goal(data, current_user)
 
 

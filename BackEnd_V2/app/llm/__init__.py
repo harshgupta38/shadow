@@ -1,17 +1,65 @@
 from app.llm.base import BaseLLMProvider
 from app.llm.config import LLMSettings, llm_settings
-from app.llm.enums import LLMProvider, Role
-from app.llm.models import TokenUsage, RefineGoalResponse
+from app.llm.enums import (
+    LLMProvider,
+    Role,
+    OllamaModel,
+    OpenAIModel,
+    GeminiModel,
+    ClaudeModel,
+    LLMModel,
+    ModelKey,
+)
+from app.llm.exceptions import (
+    LLMError,
+    LLMConfigurationError,
+    LLMProviderError,
+    LLMRequestError,
+    LLMHealthCheckError,
+)
+from app.llm.models import (
+    ModelCost,
+    TokenCostBreakdown,
+    TokenUsage,
+    LLMRefineGoalRequest,
+    LLMRefineGoalResponse,
+    LLMSendMessageRequest,
+    LLMSendMessageResponse,
+)
 from app.llm.service import LLMService, get_llm_service
+from app.llm.cost import calculate_token_cost
 
 __all__ = [
     "BaseLLMProvider",
-    "LLMProvider",
+
     "LLMSettings",
-    "LLMService",
-    "RefineGoalResponse",
-    "Role",
-    "TokenUsage",
-    "get_llm_service",
     "llm_settings",
+
+    "LLMProvider",
+    "Role",
+    "OllamaModel",
+    "OpenAIModel",
+    "GeminiModel",
+    "ClaudeModel",
+    "LLMModel",
+    "ModelKey",
+
+    "LLMError",
+    "LLMConfigurationError",
+    "LLMProviderError",
+    "LLMRequestError",
+    "LLMHealthCheckError",
+
+    "ModelCost",
+    "TokenCostBreakdown",
+    "TokenUsage",
+    "LLMRefineGoalRequest",
+    "LLMRefineGoalResponse",
+    "LLMSendMessageRequest",
+    "LLMSendMessageResponse",
+
+    "LLMService",
+    "get_llm_service",
+    
+    "calculate_token_cost",
 ]

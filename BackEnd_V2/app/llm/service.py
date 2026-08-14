@@ -1,11 +1,22 @@
 from functools import lru_cache
-from app.llm.models import RefineGoalRequest, RefineGoalResponse
+from app.llm.models import (
+    LLMRefineGoalRequest,
+    LLMRefineGoalResponse,
+    LLMSendMessageRequest,
+    LLMSendMessageResponse,
+)
 from app.llm.base import BaseLLMProvider
 from app.llm.config import LLMSettings, llm_settings
 from app.llm.enums import LLMProvider
 from app.llm.exceptions import LLMConfigurationError
 from app.schemas.goals import UnderstandGoalRequest
-from app.llm.providers import ClaudeProvider, GeminiProvider, OllamaProvider, OpenAIProvider
+from app.schemas.chat import SendMessageRequest
+from app.llm.providers import (
+    ClaudeProvider,
+    GeminiProvider,
+    OllamaProvider,
+    OpenAIProvider,
+)
 
 
 class LLMService:
@@ -43,9 +54,9 @@ class LLMService:
         self,
         request_data: UnderstandGoalRequest,
         user_id: int | None = None,
-    ) -> RefineGoalResponse:
-        
-        request = RefineGoalRequest(request_data=request_data, user_id=user_id)
+    ) -> LLMRefineGoalResponse:
+
+        request = LLMRefineGoalRequest(request_data=request_data, user_id=user_id)
         response = await self._provider.refine_goal(request)
 
         if response is None or response.refined_data is None:
@@ -54,6 +65,18 @@ class LLMService:
             )
 
         return response
+
+    async def create_conversation(
+        self,
+        data: SendMessageRequest,
+        user_id: int | None = None,
+    ) -> LLMSendMessageResponse:
+        request = LLMSendMessageRequest(
+            agent_description="",
+            user_content=data.content,
+            user_id=user_id,
+        )
+        pass
 
     async def health_check(self) -> bool:
         return await self._provider.health_check()

@@ -13,7 +13,13 @@ from app.llm.knowledge_base import (
     GOAL_REFINEMENT_SYSTEM_INSTRUCTION_CLAUDE,
     build_goal_refinement_user_prompt,
 )
-from app.llm.models import RefineGoalRequest, RefineGoalResponse, TokenUsage
+from app.llm.models import (
+    LLMRefineGoalRequest,
+    LLMRefineGoalResponse,
+    LLMSendMessageRequest,
+    LLMSendMessageResponse,
+    TokenUsage,
+)
 from app.schemas.goals import UnderstandGoalResponse
 
 
@@ -25,7 +31,7 @@ class ClaudeProvider(BaseLLMProvider):
             timeout=self._settings.llm_request_timeout_seconds,
         )
 
-    def _resolve_model(self, request: RefineGoalRequest) -> str:
+    def _resolve_model(self, request: LLMRefineGoalRequest) -> str:
         model = request.model or self._settings.claude_model
         if not model:
             raise LLMRequestError("Claude model is not configured.")
@@ -59,7 +65,7 @@ class ClaudeProvider(BaseLLMProvider):
                 "Claude returned a response that does not match UnderstandGoalResponse schema."
             ) from exc
 
-    async def refine_goal(self, request: RefineGoalRequest) -> RefineGoalResponse:
+    async def refine_goal(self, request: LLMRefineGoalRequest) -> LLMRefineGoalResponse:
         model = self._resolve_model(request)
 
         started_at = perf_counter()
@@ -106,7 +112,7 @@ class ClaudeProvider(BaseLLMProvider):
                 total_tokens=input_tokens + output_tokens,
             )
 
-        return RefineGoalResponse(
+        return LLMRefineGoalResponse(
             provider=LLMProvider.CLAUDE,
             model=model,
             model_str=completion.model or model,
@@ -120,6 +126,13 @@ class ClaudeProvider(BaseLLMProvider):
                 input_tokens=usage.input_tokens if usage and usage.input_tokens else 0,
                 output_tokens=usage.output_tokens if usage and usage.output_tokens else 0,
             ),
+        )
+
+    async def create_conversation(
+        self, request: LLMSendMessageRequest
+    ) -> LLMSendMessageResponse:
+        raise NotImplementedError(
+            "ClaudeProvider does not support create_conversation yet."
         )
 
     async def health_check(self) -> bool:

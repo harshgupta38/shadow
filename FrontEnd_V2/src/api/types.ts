@@ -96,7 +96,7 @@ export interface TokenCostBreakdown {
   total_cost: number;
 }
 
-export interface RefineGoalResponse {
+export interface LLMRefineGoalResponse {
   provider: string;
   model: string;
   model_str: string | null;
@@ -299,7 +299,7 @@ export interface SendMessageRequest {
   agent_type: AssistantAgentType;
 }
 
-export interface SendMessageResponse {
+export interface LLMSendMessageResponse {
   message_data: MessageData;
   conversation_data?: ConversationData;
 }

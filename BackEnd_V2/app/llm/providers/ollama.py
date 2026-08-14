@@ -8,7 +8,13 @@ from app.llm.knowledge_base import (
     build_goal_refinement_user_prompt,
 )
 from app.schemas.goals import UnderstandGoalResponse
-from app.llm.models import RefineGoalResponse, RefineGoalRequest, TokenUsage
+from app.llm.models import (
+    TokenUsage,
+    LLMRefineGoalRequest,
+    LLMRefineGoalResponse,
+    LLMSendMessageRequest,
+    LLMSendMessageResponse,
+)
 from app.llm.base import BaseLLMProvider
 from app.llm.config import LLMSettings, llm_settings
 from app.llm.exceptions import LLMHealthCheckError, LLMProviderError, LLMRequestError
@@ -30,15 +36,15 @@ class OllamaProvider(BaseLLMProvider):
             timeout=self._settings.llm_request_timeout_seconds,
         )
 
-    def _resolve_model(self, request: RefineGoalRequest) -> str:
+    def _resolve_model(self, request: LLMRefineGoalRequest) -> str:
         model = request.model or self._settings.ollama_model
 
         if not model:
             raise LLMRequestError("Ollama model is not configured.")
-        
+
         return model
 
-    async def refine_goal(self, request: RefineGoalRequest) -> RefineGoalResponse:
+    async def refine_goal(self, request: LLMRefineGoalRequest) -> LLMRefineGoalResponse:
         model = self._resolve_model(request)
 
         request_data = request.request_data
@@ -96,7 +102,7 @@ class OllamaProvider(BaseLLMProvider):
                 total_tokens=completion.usage.total_tokens,
             )
 
-        return RefineGoalResponse(
+        return LLMRefineGoalResponse(
             provider=LLMProvider.OLLAMA,
             model=model,
             model_str=completion.model or model,
@@ -105,6 +111,13 @@ class OllamaProvider(BaseLLMProvider):
             usage=usage,
             response_id=completion.id,
             response_time_ms=response_time_ms,
+        )
+
+    async def create_conversation(
+        self, request: LLMSendMessageRequest
+    ) -> LLMSendMessageResponse:
+        raise NotImplementedError(
+            "OllamaProvider does not support create_conversation yet."
         )
 
     async def health_check(self) -> bool:

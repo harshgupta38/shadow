@@ -9,7 +9,7 @@ from app.schemas.chat import (
     ConversationDataList,
     SendMessageRequest,
 )
-from app.llm.models import SendMessageResponse
+from app.llm import LLMSendMessageResponse
 
 router = APIRouter(prefix=ENDPOINTS.CHAT.PREFIX, tags=["Chat"])
 
@@ -24,12 +24,12 @@ def conversation_list(
 
 @router.post(
     ENDPOINTS.CHAT.NEW_MESSAGE,
-    response_model=SendMessageResponse,
+    response_model=LLMSendMessageResponse,
     status_code=status.HTTP_201_CREATED,
 )
 def create_conversation(
     data: SendMessageRequest,
     db=Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> SendMessageResponse:
+) -> LLMSendMessageResponse:
     return chat_service.create_conversation(db, current_user, data)

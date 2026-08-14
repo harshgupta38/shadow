@@ -25,6 +25,13 @@ class TokenUsage(BaseModel):
     total_tokens: int | None = None
 
 
+class LLMRequestMetadata(BaseModel):
+    user_id: int | None = None
+    model: str | None = None
+    temperature: float | None = Field(default=None, ge=0.0, le=2.0)
+    max_tokens: int | None = Field(default=None, gt=0)
+
+
 class LLMResponseMetadata(BaseModel):
     provider: LLMProvider
     model: ModelKey
@@ -36,18 +43,21 @@ class LLMResponseMetadata(BaseModel):
     cost: TokenCostBreakdown | None = None
 
 
-class RefineGoalResponse(LLMResponseMetadata):
+# --- GOAL ---
+class LLMRefineGoalRequest(LLMRequestMetadata):
+    request_data: UnderstandGoalRequest
+
+
+class LLMRefineGoalResponse(LLMResponseMetadata):
     refined_data: UnderstandGoalResponse
 
 
-class RefineGoalRequest(BaseModel):
-    request_data: UnderstandGoalRequest
-    user_id: int | None = None
-    model: str | None = None
-    temperature: float | None = Field(default=None, ge=0.0, le=2.0)
-    max_tokens: int | None = Field(default=None, gt=0)
+# --- CHAT ---
+class LLMSendMessageRequest(LLMRequestMetadata):
+    agent_description: str
+    user_content: str
 
 
-class SendMessageResponse(LLMResponseMetadata):
+class LLMSendMessageResponse(LLMResponseMetadata):
     message_data: MessageData
     conversation_data: ConversationData | None = None

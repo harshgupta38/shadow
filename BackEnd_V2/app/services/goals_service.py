@@ -3,9 +3,7 @@ from datetime import date
 from fastapi import HTTPException, status
 from sqlalchemy import delete
 
-from app.llm.models import RefineGoalResponse
-from app.llm.exceptions import LLMError
-from app.llm.service import get_llm_service
+from app.llm import LLMRefineGoalResponse, get_llm_service, LLMError, LLMRequestError
 from app.models.goal import Goal
 from app.models.milestone import Milestone
 from app.models.task import Task
@@ -22,16 +20,13 @@ from app.schemas.goals import (
 async def understand_goal(
     data: UnderstandGoalRequest,
     current_user: User,
-) -> RefineGoalResponse:
+) -> LLMRefineGoalResponse:
     llm_service = get_llm_service()
 
     try:
         return await llm_service.refine_goal(data, user_id=current_user.id)
     except LLMError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Goal refinement failed: {exc}",
-        ) from exc
+        raise LLMRequestError(f"Goal refinement failed: {exc}") from exc
 
 
 def _clean_list(values: list[str]) -> list[str]:

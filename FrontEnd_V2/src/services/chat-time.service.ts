@@ -1,4 +1,4 @@
-export function formatMessageTime(createdAt: string): string {
+export function formatChatTime(createdAt: string): string {
     const diffMin = Math.floor((Date.now() - new Date(createdAt).getTime()) / 60_000);
     if (diffMin < 1) return "Just now";
     if (diffMin < 60) return `${diffMin} min`;

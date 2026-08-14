@@ -13,7 +13,13 @@ from app.llm.knowledge_base import (
     GOAL_REFINEMENT_SYSTEM_INSTRUCTION,
     build_goal_refinement_user_prompt,
 )
-from app.llm.models import RefineGoalRequest, RefineGoalResponse, TokenUsage
+from app.llm.models import (
+    LLMRefineGoalRequest,
+    LLMRefineGoalResponse,
+    LLMSendMessageRequest,
+    LLMSendMessageResponse,
+    TokenUsage,
+)
 from app.schemas.goals import UnderstandGoalResponse
 
 
@@ -23,7 +29,7 @@ class GeminiProvider(BaseLLMProvider):
         self._settings = settings or llm_settings
         self._client = genai.Client(api_key=self._settings.gemini_api_key)
 
-    def _resolve_model(self, request: RefineGoalRequest) -> str:
+    def _resolve_model(self, request: LLMRefineGoalRequest) -> str:
         model = request.model or self._settings.gemini_model
 
         if not model:
@@ -31,7 +37,7 @@ class GeminiProvider(BaseLLMProvider):
 
         return model
 
-    async def refine_goal(self, request: RefineGoalRequest) -> RefineGoalResponse:
+    async def refine_goal(self, request: LLMRefineGoalRequest) -> LLMRefineGoalResponse:
         model = self._resolve_model(request)
 
         request_data = request.request_data
@@ -83,7 +89,7 @@ class GeminiProvider(BaseLLMProvider):
                 total_tokens=response.usage_metadata.total_token_count,
             )
 
-        return RefineGoalResponse(
+        return LLMRefineGoalResponse(
             provider=LLMProvider.GEMINI,
             model=model,
             model_str=response.model_version or model,
@@ -97,6 +103,13 @@ class GeminiProvider(BaseLLMProvider):
                 input_tokens=usage.input_tokens if usage and usage.input_tokens else 0,
                 output_tokens=(usage.output_tokens if usage and usage.output_tokens else 0),
             ),
+        )
+
+    async def create_conversation(
+        self, request: LLMSendMessageRequest
+    ) -> LLMSendMessageResponse:
+        raise NotImplementedError(
+            "GeminiProvider does not support create_conversation yet."
         )
 
     async def health_check(self) -> bool:

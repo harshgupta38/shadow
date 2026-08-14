@@ -17,6 +17,8 @@ class LLMProviderError(LLMError):
 
 class LLMRequestError(LLMError):
     """Raised when a provider response cannot satisfy request expectations."""
+    status_code = 502
+    detail = "LLM provider failed to process the request."
 
 
 class LLMHealthCheckError(LLMError):

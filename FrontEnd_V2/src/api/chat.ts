@@ -1,7 +1,7 @@
 import { ENDPOINTS } from "@/constant/shadow-endpoints";
 
 import { http } from "@/api/client";
-import { ConversationData, MessageData, SendMessageRequest, SendMessageResponse } from "@/api/types";
+import { ConversationData, MessageData, LLMSendMessageResponse, SendMessageRequest } from "@/api/types";
 
 export const chatApi = {
     async getConversations(): Promise<ConversationData[]> {
@@ -16,11 +16,11 @@ export const chatApi = {
         return http.delete<void>(`${ENDPOINTS.CHAT.PREFIX}${ENDPOINTS.CHAT.CONVERSATION_DETAIL(conversationId)}`);
     },
 
-    async startConversation(data: SendMessageRequest): Promise<SendMessageResponse> {
-        return http.post<SendMessageResponse>(`${ENDPOINTS.CHAT.PREFIX}${ENDPOINTS.CHAT.NEW_MESSAGE}`, data);
+    async startConversation(data: SendMessageRequest): Promise<LLMSendMessageResponse> {
+        return http.post<LLMSendMessageResponse>(`${ENDPOINTS.CHAT.PREFIX}${ENDPOINTS.CHAT.NEW_MESSAGE}`, data);
     },
 
-    async sendMessage(data: MessageData): Promise<SendMessageResponse> {
-        return http.post<SendMessageResponse>(`${ENDPOINTS.CHAT.PREFIX}${ENDPOINTS.CHAT.MESSAGES(data.conversation_id)}`, data);
+    async sendMessage(data: MessageData): Promise<LLMSendMessageResponse> {
+        return http.post<LLMSendMessageResponse>(`${ENDPOINTS.CHAT.PREFIX}${ENDPOINTS.CHAT.MESSAGES(data.conversation_id)}`, data);
     },
 };

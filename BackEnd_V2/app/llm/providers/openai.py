@@ -11,7 +11,13 @@ from app.llm.knowledge_base import (
     GOAL_REFINEMENT_SYSTEM_INSTRUCTION,
     build_goal_refinement_user_prompt,
 )
-from app.llm.models import RefineGoalRequest, RefineGoalResponse, TokenUsage
+from app.llm.models import (
+    LLMRefineGoalRequest,
+    LLMRefineGoalResponse,
+    LLMSendMessageRequest,
+    LLMSendMessageResponse,
+    TokenUsage,
+)
 from app.schemas.goals import UnderstandGoalResponse
 
 
@@ -25,7 +31,7 @@ class OpenAIProvider(BaseLLMProvider):
             timeout=self._settings.llm_request_timeout_seconds,
         )
 
-    def _resolve_model(self, request: RefineGoalRequest) -> str:
+    def _resolve_model(self, request: LLMRefineGoalRequest) -> str:
         model = request.model or self._settings.openai_model
 
         if not model:
@@ -33,7 +39,7 @@ class OpenAIProvider(BaseLLMProvider):
 
         return model
 
-    async def refine_goal(self, request: RefineGoalRequest) -> RefineGoalResponse:
+    async def refine_goal(self, request: LLMRefineGoalRequest) -> LLMRefineGoalResponse:
         model = self._resolve_model(request)
 
         request_data = request.request_data
@@ -64,7 +70,7 @@ class OpenAIProvider(BaseLLMProvider):
                 kwargs["max_tokens"] = request.max_tokens
 
             completion = await self._client.beta.chat.completions.parse(**kwargs)
-            
+
         except (APIConnectionError, APIStatusError, OpenAIError) as exc:
             raise LLMProviderError(f"OpenAI refine_goal failed: {exc}") from exc
         response_time_ms = int((perf_counter() - started_at) * 1000)
@@ -99,7 +105,7 @@ class OpenAIProvider(BaseLLMProvider):
                 total_tokens=completion.usage.total_tokens,
             )
 
-        return RefineGoalResponse(
+        return LLMRefineGoalResponse(
             provider=LLMProvider.OPENAI,
             model=model,
             model_str=completion.model or model,
@@ -108,11 +114,20 @@ class OpenAIProvider(BaseLLMProvider):
             usage=usage,
             response_id=completion.id,
             response_time_ms=response_time_ms,
-            cost = calculate_token_cost(
+            cost=calculate_token_cost(
                 model_key=model,
                 input_tokens=completion.usage.prompt_tokens if completion.usage else 0,
-                output_tokens=completion.usage.completion_tokens if completion.usage else 0,
-            )
+                output_tokens=(
+                    completion.usage.completion_tokens if completion.usage else 0
+                ),
+            ),
+        )
+
+    async def create_conversation(
+        self, request: LLMSendMessageRequest
+    ) -> LLMSendMessageResponse:
+        raise NotImplementedError(
+            "OpenAIProvider does not support create_conversation yet."
         )
 
     async def health_check(self) -> bool:

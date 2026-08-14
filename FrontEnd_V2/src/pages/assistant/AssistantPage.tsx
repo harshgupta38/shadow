@@ -9,7 +9,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { ASSISTANT_AGENTS, ASSISTANT_LOADER_STEPS, type AssistantAgent } from "@/pages/assistant/AssistantPage.constants";
 import { useToast } from "@/context/ToastContext";
-import { formatMessageTime } from "@/services/chat-time.service";
+import { formatChatTime } from "@/services/chat-time.service";
 
 import "@/pages/assistant/AssistantPage.scss";
 
@@ -263,7 +263,6 @@ export function AssistantPage() {
                 const agent = ASSISTANT_AGENTS[conversation.agent_type];
                 const Icon = agent.icon;
                 const title = conversation.title || agent.label;
-                const meta = new Date(conversation.updated_at).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" });
                 const onSelect = () => { getMessages(conversation); };
 
                 return (
@@ -271,7 +270,7 @@ export function AssistantPage() {
                     <span className="d-inline-grid flex-shrink-0" style={avatarStyle(agent.gradient, 38)} aria-hidden="true"><Icon size={19} /></span>
                     <div className="flex-grow-1 min-w-0 text-start">
                       <div className="fw-semibold small text-truncate chat-session-title">{title}</div>
-                      <div className="text-faint text-truncate chat-session-meta" style={{ fontSize: "0.72rem" }}>{agent.tagline} · {meta}</div>
+                      <div className="text-faint text-truncate chat-session-meta" style={{ fontSize: "0.72rem" }}>{agent.tagline} · {formatChatTime(conversation.updated_at)}</div>
                     </div>
                   </button>
                 );
@@ -341,7 +340,7 @@ export function AssistantPage() {
                               style={{ whiteSpace: "pre-wrap", ...(msg.role === "user" ? { background: "var(--jv-brand-1)", color: "#fff" } : {}) }}>
                               {msg.content}
                             </div>
-                            <span className="text-faint" style={{ fontSize: "0.68rem" }}>{formatMessageTime(msg.created_at)}</span>
+                            <span className="text-faint" style={{ fontSize: "0.68rem" }}>{formatChatTime(msg.created_at)}</span>
                           </div>
                         </div>
                       ))}

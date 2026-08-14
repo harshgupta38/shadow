@@ -1,9 +1,12 @@
+from datetime import datetime
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.user import User
 from app.models.chat import Conversation
 from app.schemas.chat import (
+    ConversationData,
     ConversationDataList,
     SendMessageRequest,
 )
@@ -23,3 +26,34 @@ def conversation_list(db: Session, current_user: User) -> list[ConversationDataL
         ).all()
     )
     return [_serialize_conversation(conversation) for conversation in conversations]
+
+
+def create_conversation(
+    db: Session,
+    current_user: User,
+    data: SendMessageRequest,
+) -> SendMessageResponse:
+
+    new_conversation = ConversationData(
+        id=0,
+        user_id=current_user.id,
+        title="",
+        agent_type=data.agent_type,
+
+        stable_context="",
+        context_summary="",
+        linked_items={},
+
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow()
+    )
+    
+    conversation = Conversation(
+        user_id=current_user.id,
+        title=data.title,
+        context_summary="",
+    )
+    db.add(conversation)
+    db.commit()
+    db.refresh(conversation)
+    return _serialize_conversation(conversation)

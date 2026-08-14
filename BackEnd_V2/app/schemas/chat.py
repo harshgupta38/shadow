@@ -60,3 +60,13 @@ class MessageData(BaseModel):
     content: str
     role: MessageRole
     created_at: datetime
+
+# internal class to send object to LLM service for new conversation
+class NewConversationRequestInternal(BaseModel):
+    agent_type: AssistantAgentType
+    agent_description: str
+    user_content: str
+
+class NewConversationResponseInternal(BaseModel):
+    title: str
+    

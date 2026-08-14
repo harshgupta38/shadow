@@ -12,10 +12,10 @@ from app.models.base import Base
 from app.core.exceptions import AppError
 
 # These will be moved soon, these create the table (if not present) when server start
-from app.models.user import User
-from app.models.goal import Goal
-from app.models.milestone import Milestone
-from app.models.task import Task
+from app.models.user import UserDBM
+from app.models.goal import GoalDBM
+from app.models.milestone import MilestoneDBM
+from app.models.task import TaskDBM
 
 
 @asynccontextmanager

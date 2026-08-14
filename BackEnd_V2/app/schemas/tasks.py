@@ -3,6 +3,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from app.schemas.common import ORMModel
+
 
 TaskType = Literal["Numeric", "Binary"]
 NumericTaskStatus = Literal[
@@ -235,7 +237,7 @@ class TaskUpdateRequest(BaseModel):
         return self
 
 
-class TaskResponse(BaseModel):
+class TaskDataDBS(ORMModel):
     id: int
     goal_id: int
     milestone_id: int
@@ -265,3 +267,7 @@ class TaskResponse(BaseModel):
     paused_at: datetime | None
     completed_at: datetime | None
     cancelled_at: datetime | None
+
+
+class TaskDataResponse(TaskDataDBS):
+    pass

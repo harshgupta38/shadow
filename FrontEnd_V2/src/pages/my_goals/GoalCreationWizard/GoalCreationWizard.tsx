@@ -132,7 +132,7 @@ function mapFieldErrorsToReviewErrors(
 interface GoalCreationWizardProps {
     open: boolean;
     onClose: () => void;
-    onSubmitted?: (response: UnderstandGoalResponse) => void | Promise<void>;
+    onSubmitted?: () => void | Promise<void>;
 }
 
 export function GoalCreationWizard({ open, onClose, onSubmitted }: GoalCreationWizardProps) {
@@ -416,8 +416,8 @@ export function GoalCreationWizard({ open, onClose, onSubmitted }: GoalCreationW
         setReviewFieldErrors({});
 
         try {
-            const savedGoal = await api.goals.saveGoal(goalToSave);
-            await onSubmitted?.(savedGoal);
+            await api.goals.saveGoal(goalToSave);
+            await onSubmitted?.();
             onClose();
         } catch (saveError) {
             if (saveError instanceof ApiError) {

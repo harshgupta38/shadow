@@ -14,13 +14,13 @@ from app.llm.knowledge_base import (
     build_goal_refinement_user_prompt,
 )
 from app.llm.models import (
-    LLMRefineGoalRequest,
-    LLMRefineGoalResponse,
-    LLMSendMessageRequest,
-    LLMSendMessageResponse,
+    RefineGoalToLLM,
+    RefineGoalFromLLM,
+    NewConvoToLLM,
+    NewConvoFromLLM,
     TokenUsage,
 )
-from app.schemas.goals import UnderstandGoalResponse
+from app.schemas.goals import RefineGoalFromLLMSchema
 
 
 class GeminiProvider(BaseLLMProvider):
@@ -29,7 +29,7 @@ class GeminiProvider(BaseLLMProvider):
         self._settings = settings or llm_settings
         self._client = genai.Client(api_key=self._settings.gemini_api_key)
 
-    def _resolve_model(self, request: LLMRefineGoalRequest) -> str:
+    def _resolve_model(self, request: RefineGoalToLLM) -> str:
         model = request.model or self._settings.gemini_model
 
         if not model:
@@ -37,7 +37,7 @@ class GeminiProvider(BaseLLMProvider):
 
         return model
 
-    async def refine_goal(self, request: LLMRefineGoalRequest) -> LLMRefineGoalResponse:
+    async def refine_goal(self, request: RefineGoalToLLM) -> RefineGoalFromLLM:
         model = self._resolve_model(request)
 
         request_data = request.request_data
@@ -50,7 +50,7 @@ class GeminiProvider(BaseLLMProvider):
                 config=types.GenerateContentConfig(
                     system_instruction=GOAL_REFINEMENT_SYSTEM_INSTRUCTION,
                     response_mime_type="application/json",
-                    response_schema=UnderstandGoalResponse,
+                    response_schema=RefineGoalFromLLMSchema,
                     temperature=request.temperature,
                     max_output_tokens=request.max_tokens,
                     http_options=types.HttpOptions(
@@ -89,7 +89,7 @@ class GeminiProvider(BaseLLMProvider):
                 total_tokens=response.usage_metadata.total_token_count,
             )
 
-        return LLMRefineGoalResponse(
+        return RefineGoalFromLLM(
             provider=LLMProvider.GEMINI,
             model=model,
             model_str=response.model_version or model,
@@ -106,8 +106,8 @@ class GeminiProvider(BaseLLMProvider):
         )
 
     async def create_conversation(
-        self, request: LLMSendMessageRequest
-    ) -> LLMSendMessageResponse:
+        self, request: NewConvoToLLM
+    ) -> NewConvoFromLLM:
         raise NotImplementedError(
             "GeminiProvider does not support create_conversation yet."
         )

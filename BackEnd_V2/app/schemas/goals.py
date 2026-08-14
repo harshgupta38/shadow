@@ -2,12 +2,13 @@ from datetime import date
 from pydantic import BaseModel, Field, field_validator
 from typing import Any, List, Literal
 
+from app.schemas.common import ORMModel
 
 GoalStatus = Literal["Active", "Paused", "Completed"]
 GoalListStatusFilter = Literal["All", "Active", "Paused", "Completed"]
 
 
-class UnderstandGoalRequest(BaseModel):
+class RefineGoalRequest(BaseModel):
     """Raw user inputs captured from the 5-step goal discovery wizard."""
 
     goal: str = Field(
@@ -72,7 +73,7 @@ class UnderstandGoalRequest(BaseModel):
         return value
 
 
-class UnderstandGoalResponse(BaseModel):
+class RefineGoalFromLLMSchema(BaseModel):
     # Goal Summary
     title: str = Field(description="A concise title for the user's goal.")
     summary: str = Field(description="A one-paragraph summary of the goal.")
@@ -211,34 +212,36 @@ class UnderstandGoalResponse(BaseModel):
         return value
 
 
-class GoalListItemResponse(BaseModel):
+class SaveGoalRequest(RefineGoalFromLLMSchema):
+    pass
+
+
+class GoalDataShortDBS(ORMModel):
     id: int
     title: str
     summary: str
     category: str
     status: GoalStatus
-    target_date: str
+    target_date: date
     milestones_total: int
     milestones_completed: int
     habits_total: int
     habits_active: int
 
 
-class GoalDetailResponse(BaseModel):
-    id: int
-    title: str
-    summary: str
-    category: str
-    status: GoalStatus
+class GoalDataShortResponse(GoalDataShortDBS):
+    pass
+
+
+class GoalDataLongDBS(GoalDataShortDBS):
     motivation: str
     success_definition: str
     current_state: str
     challenges: list[str]
     strengths: list[str]
-    target_date: str
     success_metrics: list[str]
     insights: list[str]
-    milestones_total: int
-    milestones_completed: int
-    habits_total: int
-    habits_active: int
+
+
+class GoalDataResponse(GoalDataLongDBS):
+    pass

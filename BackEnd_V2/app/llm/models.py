@@ -2,12 +2,12 @@ from dataclasses import dataclass
 
 from pydantic import BaseModel, Field
 from app.llm.enums import LLMProvider, ModelKey
-from app.schemas.goals import UnderstandGoalRequest, UnderstandGoalResponse
+from app.schemas.goals import RefineGoalRequest, RefineGoalFromLLMSchema
 from app.schemas.chat import (
-    MessageData,
-    ConversationData,
-    SendMessageRequest,
-    NewConversationLLMResponse,
+    MessageDataResponse,
+    ConvoDataResponse,
+    NewConvoRequest,
+    NewConvoFromLLMSchema,
 )
 
 
@@ -30,14 +30,14 @@ class TokenUsage(BaseModel):
     total_tokens: int | None = None
 
 
-class LLMRequestMetadata(BaseModel):
+class MetadataToLLM(BaseModel):
     user_id: int | None = None
     model: str | None = None
     temperature: float | None = Field(default=None, ge=0.0, le=2.0)
     max_tokens: int | None = Field(default=None, gt=0)
 
 
-class LLMResponseMetadata(BaseModel):
+class MetadataFromLLM(BaseModel):
     provider: LLMProvider
     model: ModelKey
     model_str: str | None = None
@@ -49,26 +49,23 @@ class LLMResponseMetadata(BaseModel):
 
 
 # --- GOAL ---
-class LLMRefineGoalRequest(LLMRequestMetadata):
-    request_data: UnderstandGoalRequest
+class RefineGoalToLLM(MetadataToLLM):
+    request_data: RefineGoalRequest
 
 
-class LLMRefineGoalResponse(LLMResponseMetadata):
-    refined_data: UnderstandGoalResponse
+class RefineGoalFromLLM(MetadataFromLLM):
+    refined_data: RefineGoalFromLLMSchema
 
 
 # --- CHAT ---
-class LLMSendMessageRequest(LLMRequestMetadata):
-    request_data: SendMessageRequest
+class NewConvoToLLM(MetadataToLLM):
+    request_data: NewConvoRequest
 
 
-# intermediate type: what a provider returns after calling the LLM
-# this data will be then used to create a new conversation in the database
-# we cant use the LLMSendMessageResponse directly because it has required fields that are not available at this point (conversation_data, message_data)
-class LLMCreateConversationDraft(LLMResponseMetadata):
-    llm_data: NewConversationLLMResponse
+class NewConvoFromLLM(MetadataFromLLM):
+    llm_data: NewConvoFromLLMSchema
 
 
-class LLMSendMessageResponse(LLMResponseMetadata):
-    message_data: MessageData
-    conversation_data: ConversationData | None = None
+class NewConvoResponse(MetadataFromLLM):
+    message_data: MessageDataResponse
+    conversation_data: ConvoDataResponse | None = None

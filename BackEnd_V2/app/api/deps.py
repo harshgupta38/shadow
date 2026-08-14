@@ -5,7 +5,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.models.user import User
+from app.models.user import UserDBM
 from app.core import security
 from app.services.auth_service import get_user_by_id
 
@@ -21,7 +21,7 @@ _CREDENTIALS_EXC = HTTPException(
 def get_current_user(
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)],
     db: Annotated[Session, Depends(get_db)],
-) -> User:
+) -> UserDBM:
     if credentials is None or not credentials.credentials:
         raise _CREDENTIALS_EXC
 
@@ -42,4 +42,4 @@ def get_current_user(
 
 
 DbSession = Annotated[Session, Depends(get_db)]
-CurrentUser = Annotated[User, Depends(get_current_user)]
+CurrentUser = Annotated[UserDBM, Depends(get_current_user)]

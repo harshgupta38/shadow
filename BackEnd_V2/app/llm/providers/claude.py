@@ -14,13 +14,13 @@ from app.llm.knowledge_base import (
     build_goal_refinement_user_prompt,
 )
 from app.llm.models import (
-    LLMRefineGoalRequest,
-    LLMRefineGoalResponse,
-    LLMSendMessageRequest,
-    LLMSendMessageResponse,
+    RefineGoalToLLM,
+    RefineGoalFromLLM,
+    NewConvoToLLM,
+    NewConvoFromLLM,
     TokenUsage,
 )
-from app.schemas.goals import UnderstandGoalResponse
+from app.schemas.goals import RefineGoalFromLLMSchema
 
 
 class ClaudeProvider(BaseLLMProvider):
@@ -31,7 +31,7 @@ class ClaudeProvider(BaseLLMProvider):
             timeout=self._settings.llm_request_timeout_seconds,
         )
 
-    def _resolve_model(self, request: LLMRefineGoalRequest) -> str:
+    def _resolve_model(self, request: RefineGoalToLLM) -> str:
         model = request.model or self._settings.claude_model
         if not model:
             raise LLMRequestError("Claude model is not configured.")
@@ -56,16 +56,16 @@ class ClaudeProvider(BaseLLMProvider):
             text = text[:last_newline] if last_newline != -1 else text[:-3]
         return text.strip()
 
-    def _parse_response_payload(self, response) -> UnderstandGoalResponse:
+    def _parse_response_payload(self, response) -> RefineGoalFromLLMSchema:
         try:
             raw = self._strip_code_fence(self._extract_text_content(response))
-            return UnderstandGoalResponse.model_validate_json(raw)
+            return RefineGoalFromLLMSchema.model_validate_json(raw)
         except ValidationError as exc:
             raise LLMRequestError(
                 "Claude returned a response that does not match UnderstandGoalResponse schema."
             ) from exc
 
-    async def refine_goal(self, request: LLMRefineGoalRequest) -> LLMRefineGoalResponse:
+    async def refine_goal(self, request: RefineGoalToLLM) -> RefineGoalFromLLM:
         model = self._resolve_model(request)
 
         started_at = perf_counter()
@@ -112,7 +112,7 @@ class ClaudeProvider(BaseLLMProvider):
                 total_tokens=input_tokens + output_tokens,
             )
 
-        return LLMRefineGoalResponse(
+        return RefineGoalFromLLM(
             provider=LLMProvider.CLAUDE,
             model=model,
             model_str=completion.model or model,
@@ -129,8 +129,8 @@ class ClaudeProvider(BaseLLMProvider):
         )
 
     async def create_conversation(
-        self, request: LLMSendMessageRequest
-    ) -> LLMSendMessageResponse:
+        self, request: NewConvoToLLM
+    ) -> NewConvoFromLLM:
         raise NotImplementedError(
             "ClaudeProvider does not support create_conversation yet."
         )

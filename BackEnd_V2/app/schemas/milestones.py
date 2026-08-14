@@ -3,6 +3,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.schemas.common import ORMModel
+
 MilestoneStatus = Literal[
     "Not Started",
     "In Progress",
@@ -40,7 +42,9 @@ class MilestoneCreateRequest(BaseModel):
             "reason": "Reason",
         }
 
-        return cls._require_non_empty_text(value, field_labels.get(info.field_name, info.field_name))
+        return cls._require_non_empty_text(
+            value, field_labels.get(info.field_name, info.field_name)
+        )
 
     @field_validator("estimated_duration_days")
     @classmethod
@@ -77,7 +81,7 @@ class MilestoneUpdateRequest(BaseModel):
         return value
 
 
-class MilestoneResponse(BaseModel):
+class MilestoneDataDBS(ORMModel):
     id: int
     goal_id: int
     title: str
@@ -100,3 +104,7 @@ class MilestoneResponse(BaseModel):
 
     total_tasks: int
     completed_tasks: int
+
+
+class MilestoneDataResponse(MilestoneDataDBS):
+    pass

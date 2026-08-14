@@ -5,48 +5,22 @@ from sqlalchemy.orm import Session
 
 from app.core.exceptions import NotFoundError
 from app.core.exceptions import ValidationError
-from app.models.milestone import Milestone
-from app.models.task import Task
-from app.models.user import User
-from app.schemas.tasks import TaskCreateRequest, TaskResponse, TaskUpdateRequest
+from app.models.milestone import MilestoneDBM
+from app.models.task import TaskDBM
+from app.models.user import UserDBM
+from app.schemas.tasks import TaskCreateRequest, TaskDataResponse, TaskUpdateRequest
 
 
-def _serialize_task(task: Task) -> TaskResponse:
-    return TaskResponse(
-        id=task.id,
-        goal_id=task.goal_id,
-        milestone_id=task.milestone_id,
-        title=task.title,
-        task_type=task.task_type,
-        current_value=task.current_value,
-        target_value=task.target_value,
-        value_unit=task.value_unit,
-        status=task.status,
-        planning_enabled=task.planning_enabled,
-        planning_method=task.planning_method,
-        planner_target=task.planner_target,
-        planning_start_date=task.planning_start_date,
-        start_with_milestone=task.start_with_milestone,
-        planning_end_date=task.planning_end_date,
-        end_with_milestone=task.end_with_milestone,
-        assistant_context=task.assistant_context,
-        note=task.note,
-        position=task.position,
-        created_at=task.created_at,
-        created_by=task.created_by,
-        started_at=task.started_at,
-        paused_at=task.paused_at,
-        completed_at=task.completed_at,
-        cancelled_at=task.cancelled_at,
-    )
+def _serialize_task(task: TaskDBM) -> TaskDataResponse:
+    return TaskDataResponse.model_validate(task)
 
 
-def save_task(db: Session, current_user: User, data: TaskCreateRequest) -> TaskResponse:
+def save_task(db: Session, current_user: UserDBM, data: TaskCreateRequest) -> TaskDataResponse:
     milestone = db.scalar(
-        select(Milestone).where(
-            Milestone.id == data.milestone_id,
-            Milestone.goal_id == data.goal_id,
-            Milestone.user_id == current_user.id,
+        select(MilestoneDBM).where(
+            MilestoneDBM.id == data.milestone_id,
+            MilestoneDBM.goal_id == data.goal_id,
+            MilestoneDBM.user_id == current_user.id,
         )
     )
 
@@ -89,12 +63,12 @@ def save_task(db: Session, current_user: User, data: TaskCreateRequest) -> TaskR
             )
 
     next_position = db.scalar(
-        select(func.coalesce(func.max(Task.position), -1) + 1).where(
-            Task.milestone_id == milestone.id,
+        select(func.coalesce(func.max(TaskDBM.position), -1) + 1).where(
+            TaskDBM.milestone_id == milestone.id,
         )
     )
 
-    task = Task(
+    task = TaskDBM(
         goal_id=data.goal_id,
         user_id=current_user.id,
         milestone_id=milestone.id,
@@ -135,11 +109,11 @@ def save_task(db: Session, current_user: User, data: TaskCreateRequest) -> TaskR
     return _serialize_task(task)
 
 
-def get_list(db: Session, current_user: User, milestone_id: int) -> list[TaskResponse]:
+def get_list(db: Session, current_user: UserDBM, milestone_id: int) -> list[TaskDataResponse]:
     milestone = db.scalar(
-        select(Milestone).where(
-            Milestone.id == milestone_id,
-            Milestone.user_id == current_user.id,
+        select(MilestoneDBM).where(
+            MilestoneDBM.id == milestone_id,
+            MilestoneDBM.user_id == current_user.id,
         )
     )
 
@@ -149,12 +123,12 @@ def get_list(db: Session, current_user: User, milestone_id: int) -> list[TaskRes
         )
 
     tasks = db.scalars(
-        select(Task)
+        select(TaskDBM)
         .where(
-            Task.milestone_id == milestone.id,
-            Task.user_id == current_user.id,
+            TaskDBM.milestone_id == milestone.id,
+            TaskDBM.user_id == current_user.id,
         )
-        .order_by(Task.position.asc(), Task.id.asc())
+        .order_by(TaskDBM.position.asc(), TaskDBM.id.asc())
     ).all()
 
     return [_serialize_task(task) for task in tasks]
@@ -162,14 +136,14 @@ def get_list(db: Session, current_user: User, milestone_id: int) -> list[TaskRes
 
 def update_task(
     db: Session,
-    current_user: User,
+    current_user: UserDBM,
     task_id: int,
     data: TaskUpdateRequest,
-) -> TaskResponse:
+) -> TaskDataResponse:
     task = db.scalar(
-        select(Task).where(
-            Task.id == task_id,
-            Task.user_id == current_user.id,
+        select(TaskDBM).where(
+            TaskDBM.id == task_id,
+            TaskDBM.user_id == current_user.id,
         )
     )
 
@@ -239,18 +213,18 @@ def update_task(
     return _serialize_task(task)
 
 
-def delete_task(db: Session, current_user: User, task_id: int) -> None:
+def delete_task(db: Session, current_user: UserDBM, task_id: int) -> None:
     task = db.scalar(
-        select(Task).where(
-            Task.id == task_id,
-            Task.user_id == current_user.id,
+        select(TaskDBM).where(
+            TaskDBM.id == task_id,
+            TaskDBM.user_id == current_user.id,
         )
     )
 
     if task is None:
         raise NotFoundError("Task not found. Please check and try again.")
 
-    milestone = db.scalar(select(Milestone).where(Milestone.id == task.milestone_id))
+    milestone = db.scalar(select(MilestoneDBM).where(MilestoneDBM.id == task.milestone_id))
 
     db.delete(task)
 

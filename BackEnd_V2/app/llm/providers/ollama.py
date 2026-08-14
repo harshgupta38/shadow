@@ -1,7 +1,7 @@
 from time import perf_counter
 
 from openai import APIConnectionError, APIStatusError, AsyncOpenAI, OpenAIError
-from app.schemas.chat import NewConversationLLMResponse
+from app.schemas.chat import NewConvoFromLLMSchema
 from app.analysis.llm_usage_logger import log_ollama_completion_usage_async
 from app.llm.enums import LLMProvider, Role
 from app.llm.knowledge_base import (
@@ -9,13 +9,13 @@ from app.llm.knowledge_base import (
     build_goal_refinement_user_prompt,
     CREATE_CONVERSATION_SYSTEM_INSTRUCTION,
 )
-from app.schemas.goals import UnderstandGoalResponse
+from app.schemas.goals import RefineGoalFromLLMSchema
 from app.llm.models import (
     TokenUsage,
-    LLMRefineGoalRequest,
-    LLMRefineGoalResponse,
-    LLMSendMessageRequest,
-    LLMCreateConversationDraft,
+    RefineGoalToLLM,
+    RefineGoalFromLLM,
+    NewConvoToLLM,
+    NewConvoFromLLM,
 )
 from app.llm.base import BaseLLMProvider
 from app.llm.config import LLMSettings, llm_settings
@@ -38,7 +38,7 @@ class OllamaProvider(BaseLLMProvider):
             timeout=self._settings.llm_request_timeout_seconds,
         )
 
-    def _resolve_model(self, request: LLMRefineGoalRequest) -> str:
+    def _resolve_model(self, request: RefineGoalToLLM) -> str:
         model = request.model or self._settings.ollama_model
 
         if not model:
@@ -46,7 +46,7 @@ class OllamaProvider(BaseLLMProvider):
 
         return model
 
-    async def refine_goal(self, request: LLMRefineGoalRequest) -> LLMRefineGoalResponse:
+    async def refine_goal(self, request: RefineGoalToLLM) -> RefineGoalFromLLM:
         model = self._resolve_model(request)
 
         request_data = request.request_data
@@ -66,7 +66,7 @@ class OllamaProvider(BaseLLMProvider):
             completion = await self._client.beta.chat.completions.parse(
                 model=model,
                 messages=messages,
-                response_format=UnderstandGoalResponse,
+                response_format=RefineGoalFromLLMSchema,
                 temperature=request.temperature,
                 max_tokens=request.max_tokens,
             )
@@ -104,7 +104,7 @@ class OllamaProvider(BaseLLMProvider):
                 total_tokens=completion.usage.total_tokens,
             )
 
-        return LLMRefineGoalResponse(
+        return RefineGoalFromLLM(
             refined_data=parsed,
 
             provider=LLMProvider.OLLAMA,
@@ -117,8 +117,8 @@ class OllamaProvider(BaseLLMProvider):
         )
 
     async def create_conversation(
-        self, request: LLMSendMessageRequest
-    ) -> LLMCreateConversationDraft:
+        self, request: NewConvoToLLM
+    ) -> NewConvoFromLLM:
         model = self._resolve_model(request)
 
         request_data = request.request_data
@@ -137,7 +137,7 @@ class OllamaProvider(BaseLLMProvider):
             completion = await self._client.beta.chat.completions.parse(
                 model=model,
                 messages=messages,
-                response_format=NewConversationLLMResponse,
+                response_format=NewConvoFromLLMSchema,
                 temperature=request.temperature,
                 max_tokens=request.max_tokens,
             )
@@ -178,7 +178,7 @@ class OllamaProvider(BaseLLMProvider):
                 total_tokens=completion.usage.total_tokens,
             )
 
-        return LLMCreateConversationDraft(
+        return NewConvoFromLLM(
             llm_data=parsed,
             provider=LLMProvider.OLLAMA,
             model=model,

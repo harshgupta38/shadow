@@ -1,16 +1,16 @@
 from functools import lru_cache
 from app.llm.models import (
-    LLMRefineGoalRequest,
-    LLMRefineGoalResponse,
-    LLMSendMessageRequest,
-    LLMCreateConversationDraft,
+    RefineGoalToLLM,
+    RefineGoalFromLLM,
+    NewConvoToLLM,
+    NewConvoFromLLM,
 )
 from app.llm.base import BaseLLMProvider
 from app.llm.config import LLMSettings, llm_settings
 from app.llm.enums import LLMProvider
 from app.llm.exceptions import LLMConfigurationError
-from app.schemas.goals import UnderstandGoalRequest
-from app.schemas.chat import SendMessageRequest
+from app.schemas.goals import RefineGoalRequest
+from app.schemas.chat import NewConvoRequest
 from app.llm.providers import (
     ClaudeProvider,
     GeminiProvider,
@@ -52,11 +52,11 @@ class LLMService:
 
     async def refine_goal(
         self,
-        request_data: UnderstandGoalRequest,
+        request_data: RefineGoalRequest,
         user_id: int | None = None,
-    ) -> LLMRefineGoalResponse:
+    ) -> RefineGoalFromLLM:
 
-        request = LLMRefineGoalRequest(request_data=request_data, user_id=user_id)
+        request = RefineGoalToLLM(request_data=request_data, user_id=user_id)
         response = await self._provider.refine_goal(request)
 
         if response is None or response.refined_data is None:
@@ -68,10 +68,10 @@ class LLMService:
 
     async def create_conversation(
         self,
-        data: SendMessageRequest,
+        data: NewConvoRequest,
         user_id: int | None = None,
-    ) -> LLMCreateConversationDraft:
-        request = LLMSendMessageRequest(
+    ) -> NewConvoFromLLM:
+        request = NewConvoToLLM(
             request_data=data,
             user_id=user_id,
         )

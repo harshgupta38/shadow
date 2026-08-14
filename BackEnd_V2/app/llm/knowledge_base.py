@@ -1,8 +1,8 @@
 from datetime import date
 
 from app.llm.common import build_schema_prompt
-from app.schemas.chat import NewConversationLLMResponse
-from app.schemas.goals import UnderstandGoalRequest, UnderstandGoalResponse
+from app.schemas.chat import NewConvoFromLLMSchema
+from app.schemas.goals import RefineGoalRequest, RefineGoalFromLLMSchema
 
 GOAL_REFINEMENT_SYSTEM_INSTRUCTION = (
     "You are an expert goal coach.\n"
@@ -17,7 +17,7 @@ GOAL_REFINEMENT_SYSTEM_INSTRUCTION = (
 
 GOAL_REFINEMENT_SYSTEM_INSTRUCTION_CLAUDE = (
     GOAL_REFINEMENT_SYSTEM_INSTRUCTION
-    + "\n\nThe response MUST be a JSON object that exactly matches the UnderstandGoalResponse schema.\n"
+    + "\n\nThe response MUST be a JSON object that exactly matches the RefineGoalFromLLMSchema schema.\n"
     + "Use these exact field names.\n"
     + "Do not rename fields.\n"
     + "Do not use camelCase.\n"
@@ -26,11 +26,11 @@ GOAL_REFINEMENT_SYSTEM_INSTRUCTION_CLAUDE = (
     + "Do not wrap it in Markdown.\n"
     + "Do not use backticks.\n"
     + "\n\nSchema:\n"
-    + build_schema_prompt(UnderstandGoalResponse)
+    + build_schema_prompt(RefineGoalFromLLMSchema)
 )
 
 
-def build_goal_refinement_user_prompt(request_data: UnderstandGoalRequest) -> str:
+def build_goal_refinement_user_prompt(request_data: RefineGoalRequest) -> str:
     return (
         f"Current Date: {date.today().isoformat()}\n\n"
         "User Responses\n\n"
@@ -103,7 +103,7 @@ _NEW_CONVERSATION_SCHEMA_FOR_CLAUDE = (
     "Do not wrap it in Markdown.\n"
     "Do not use backticks.\n"
     "\n\nSchema:\n"
-    + build_schema_prompt(NewConversationLLMResponse)
+    + build_schema_prompt(NewConvoFromLLMSchema)
 )
 
 CREATE_CONVERSATION_SYSTEM_INSTRUCTION_CLAUDE: dict[str, str] = {

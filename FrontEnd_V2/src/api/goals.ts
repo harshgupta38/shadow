@@ -15,8 +15,8 @@ export const goalsApi = {
         return http.post<LLMRefineGoalResponse>(`${ENDPOINTS.GOALS.PREFIX}${ENDPOINTS.GOALS.REFINE}`, data);
     },
 
-    async saveGoal(data: UnderstandGoalResponse): Promise<UnderstandGoalResponse> {
-        return http.post<UnderstandGoalResponse>(`${ENDPOINTS.GOALS.PREFIX}${ENDPOINTS.GOALS.SAVE}`, data);
+    async saveGoal(data: UnderstandGoalResponse): Promise<void> {
+        return http.post<void>(`${ENDPOINTS.GOALS.PREFIX}${ENDPOINTS.GOALS.SAVE}`, data);
     },
 
     async getList(status: GoalListStatusFilter): Promise<GoalListItemResponse[]> {

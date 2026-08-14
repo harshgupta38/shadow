@@ -15,7 +15,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.models.base import Base
 
 
-class Conversation(Base):
+class ConversationDBM(Base):
     __tablename__ = "conversations"
     __table_args__ = (
         CheckConstraint(
@@ -77,7 +77,7 @@ class Conversation(Base):
     )
 
 
-class Message(Base):
+class MessageDBM(Base):
     __tablename__ = "messages"
     __table_args__ = (
         CheckConstraint(

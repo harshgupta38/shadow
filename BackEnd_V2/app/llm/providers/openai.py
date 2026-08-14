@@ -12,13 +12,13 @@ from app.llm.knowledge_base import (
     build_goal_refinement_user_prompt,
 )
 from app.llm.models import (
-    LLMRefineGoalRequest,
-    LLMRefineGoalResponse,
-    LLMSendMessageRequest,
-    LLMSendMessageResponse,
+    RefineGoalToLLM,
+    RefineGoalFromLLM,
+    NewConvoToLLM,
+    NewConvoFromLLM,
     TokenUsage,
 )
-from app.schemas.goals import UnderstandGoalResponse
+from app.schemas.goals import RefineGoalFromLLMSchema
 
 
 class OpenAIProvider(BaseLLMProvider):
@@ -31,7 +31,7 @@ class OpenAIProvider(BaseLLMProvider):
             timeout=self._settings.llm_request_timeout_seconds,
         )
 
-    def _resolve_model(self, request: LLMRefineGoalRequest) -> str:
+    def _resolve_model(self, request: RefineGoalToLLM) -> str:
         model = request.model or self._settings.openai_model
 
         if not model:
@@ -39,7 +39,7 @@ class OpenAIProvider(BaseLLMProvider):
 
         return model
 
-    async def refine_goal(self, request: LLMRefineGoalRequest) -> LLMRefineGoalResponse:
+    async def refine_goal(self, request: RefineGoalToLLM) -> RefineGoalFromLLM:
         model = self._resolve_model(request)
 
         request_data = request.request_data
@@ -60,7 +60,7 @@ class OpenAIProvider(BaseLLMProvider):
             kwargs = {
                 "model": model,
                 "messages": messages,
-                "response_format": UnderstandGoalResponse,
+                "response_format": RefineGoalFromLLMSchema,
             }
 
             if request.temperature is not None:
@@ -105,7 +105,7 @@ class OpenAIProvider(BaseLLMProvider):
                 total_tokens=completion.usage.total_tokens,
             )
 
-        return LLMRefineGoalResponse(
+        return RefineGoalFromLLM(
             provider=LLMProvider.OPENAI,
             model=model,
             model_str=completion.model or model,
@@ -124,8 +124,8 @@ class OpenAIProvider(BaseLLMProvider):
         )
 
     async def create_conversation(
-        self, request: LLMSendMessageRequest
-    ) -> LLMSendMessageResponse:
+        self, request: NewConvoToLLM
+    ) -> NewConvoFromLLM:
         raise NotImplementedError(
             "OpenAIProvider does not support create_conversation yet."
         )

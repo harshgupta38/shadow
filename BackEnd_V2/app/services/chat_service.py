@@ -2,33 +2,33 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import NotFoundError
-from app.llm import get_llm_service, LLMSendMessageResponse, LLMError, LLMRequestError
-from app.models.user import User
-from app.models.chat import Conversation, Message
+from app.llm import get_llm_service, NewConvoResponse, LLMError, LLMRequestError
+from app.models.user import UserDBM
+from app.models.chat import ConversationDBM, MessageDBM
 from app.schemas.chat import (
-    ConversationData,
-    ConversationDataList,
-    MessageChunk,
-    MessageData,
+    ConvoDataResponse,
+    ConvoDataShortResponse,
+    MessageChunkResponse,
+    MessageDataResponse,
     MessageRoleEnum,
-    SendMessageRequest,
+    NewConvoRequest,
 )
 
 
-def _serialize_conversation(conversation: Conversation) -> ConversationDataList:
-    return ConversationDataList.model_validate(conversation)
+def _serialize_conversation(conversation: ConversationDBM) -> ConvoDataShortResponse:
+    return ConvoDataShortResponse.model_validate(conversation)
 
 
-def _serialize_message(message: Message) -> MessageData:
-    return MessageData.model_validate(message)
+def _serialize_message(message: MessageDBM) -> MessageDataResponse:
+    return MessageDataResponse.model_validate(message)
 
 
-def conversation_list(db: Session, current_user: User) -> list[ConversationDataList]:
+def conversation_list(db: Session, current_user: UserDBM) -> list[ConvoDataShortResponse]:
     conversations = list(
         db.scalars(
-            select(Conversation)
-            .where(Conversation.user_id == current_user.id)
-            .order_by(Conversation.updated_at.desc(), Conversation.id.desc())
+            select(ConversationDBM)
+            .where(ConversationDBM.user_id == current_user.id)
+            .order_by(ConversationDBM.updated_at.desc(), ConversationDBM.id.desc())
         ).all()
     )
     return [_serialize_conversation(conversation) for conversation in conversations]
@@ -36,9 +36,9 @@ def conversation_list(db: Session, current_user: User) -> list[ConversationDataL
 
 async def create_conversation(
     db: Session,
-    current_user: User,
-    data: SendMessageRequest,
-) -> LLMSendMessageResponse:
+    current_user: UserDBM,
+    data: NewConvoRequest,
+) -> NewConvoResponse:
     llm_service = get_llm_service()
 
     try:
@@ -46,7 +46,7 @@ async def create_conversation(
     except LLMError as exc:
         raise LLMRequestError(f"Failed to create conversation: {exc}") from exc
 
-    conversation = Conversation(
+    conversation = ConversationDBM(
         user_id=current_user.id,
         title=response.llm_data.title,
         agent_type=data.agent_type,
@@ -57,14 +57,14 @@ async def create_conversation(
     db.add(conversation)
     db.flush()
 
-    user_message = Message(
+    user_message = MessageDBM(
         conversation_id=conversation.id,
         role=MessageRoleEnum.USER,
         content=data.content,
     )
     db.add(user_message)
 
-    assistant_message = Message(
+    assistant_message = MessageDBM(
         conversation_id=conversation.id,
         role=MessageRoleEnum.ASSISTANT,
         content=response.llm_data.content,
@@ -74,7 +74,7 @@ async def create_conversation(
     db.refresh(conversation)
     db.refresh(assistant_message)
 
-    message_data = MessageData(
+    message_data = MessageDataResponse(
         id=assistant_message.id,
         conversation_id=conversation.id,
         content=assistant_message.content,
@@ -82,7 +82,7 @@ async def create_conversation(
         created_at=assistant_message.created_at,
     )
 
-    conversation_data = ConversationData(
+    conversation_data = ConvoDataResponse(
         id=conversation.id,
         user_id=conversation.user_id,
         title=conversation.title,
@@ -96,7 +96,7 @@ async def create_conversation(
         updated_at=conversation.updated_at,
     )
 
-    return LLMSendMessageResponse(
+    return NewConvoResponse(
         message_data=message_data,
         conversation_data=conversation_data,
 
@@ -113,39 +113,39 @@ async def create_conversation(
 
 def get_message_chunk(
     db: Session,
-    current_user: User,
+    current_user: UserDBM,
     conversation_id: int,
     limit: int,
     before_message_id: int | None,
-) -> MessageChunk:
-    conversation = db.get(Conversation, conversation_id)
+) -> MessageChunkResponse:
+    conversation = db.get(ConversationDBM, conversation_id)
 
     if not conversation or conversation.user_id != current_user.id:
         raise NotFoundError("Conversation not found or access denied.")
 
-    query = select(Message).where(Message.conversation_id == conversation_id)
+    query = select(MessageDBM).where(MessageDBM.conversation_id == conversation_id)
     if before_message_id is not None:
-        query = query.where(Message.id < before_message_id)
+        query = query.where(MessageDBM.id < before_message_id)
 
     messages = list(
-        db.scalars(query.order_by(Message.id.desc()).limit(limit + 1)).all()
+        db.scalars(query.order_by(MessageDBM.id.desc()).limit(limit + 1)).all()
     )
     has_more = len(messages) > limit
     message_list = messages[:limit]
     message_list.reverse()
 
-    return MessageChunk(
+    return MessageChunkResponse(
         message_list=[_serialize_message(message) for message in message_list],
         has_more=has_more,
     )
 
 
-def delete_conversation(db: Session, current_user: User, conversation_id: int) -> None:
-    conversation = db.get(Conversation, conversation_id)
+def delete_conversation(db: Session, current_user: UserDBM, conversation_id: int) -> None:
+    conversation = db.get(ConversationDBM, conversation_id)
 
     if not conversation or conversation.user_id != current_user.id:
         raise NotFoundError("Conversation not found or access denied.")
 
-    db.execute(delete(Message).where(Message.conversation_id == conversation_id))
+    db.execute(delete(MessageDBM).where(MessageDBM.conversation_id == conversation_id))
     db.delete(conversation)
     db.commit()

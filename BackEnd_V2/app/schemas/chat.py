@@ -14,7 +14,7 @@ class MessageRoleEnum(StrEnum):
 
 
 # list of conversations for a user
-class ConversationDataList(ORMModel):
+class ConvoDataShortDBS(ORMModel):
     id: int
     title: str
     agent_type: str
@@ -23,8 +23,12 @@ class ConversationDataList(ORMModel):
     updated_at: datetime
 
 
+class ConvoDataShortResponse(ConvoDataShortDBS):
+    pass
+
+
 # details of a conversation
-class ConversationData(ORMModel):
+class ConvoDataLongDBS(ORMModel):
     id: int
     user_id: int
     title: str
@@ -38,8 +42,12 @@ class ConversationData(ORMModel):
     updated_at: datetime
 
 
+class ConvoDataResponse(ConvoDataLongDBS):
+    pass
+
+
 # request to start a new conversation
-class SendMessageRequest(BaseModel):
+class NewConvoRequest(BaseModel):
     conversation_id: int
     content: str = Field(min_length=1)
     agent_type: AssistantAgentType
@@ -59,7 +67,7 @@ class SendMessageRequest(BaseModel):
 
 
 # each message response structure
-class MessageData(ORMModel):
+class MessageDataDBS(ORMModel):
     id: int
     conversation_id: int
     role: MessageRoleEnum
@@ -67,13 +75,17 @@ class MessageData(ORMModel):
     created_at: datetime
 
 
-class MessageChunk(BaseModel):
-    message_list: list[MessageData]
+class MessageDataResponse(MessageDataDBS):
+    pass
+
+
+class MessageChunkResponse(BaseModel):
+    message_list: list[MessageDataResponse]
     has_more: bool
 
 
 # internal schema: what the LLM must return for a new conversation
-class NewConversationLLMResponse(BaseModel):
+class NewConvoFromLLMSchema(BaseModel):
     title: str
     content: str
 

@@ -6,7 +6,7 @@ from sqlalchemy.orm import Mapped, mapped_column  # pyright: ignore[reportMissin
 from app.models.base import Base
 
 
-class Goal(Base):
+class GoalDBM(Base):
     __tablename__ = "goals"
     __table_args__ = (
         CheckConstraint(

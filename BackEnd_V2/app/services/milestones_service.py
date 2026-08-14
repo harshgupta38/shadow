@@ -3,49 +3,30 @@ from sqlalchemy.orm import Session
 from datetime import datetime, timedelta, timezone
 
 from app.core.exceptions import NotFoundError
-from app.models.goal import Goal
-from app.models.milestone import Milestone
-from app.models.task import Task
-from app.models.user import User
+from app.models.goal import GoalDBM
+from app.models.milestone import MilestoneDBM
+from app.models.task import TaskDBM
+from app.models.user import UserDBM
 from app.schemas.milestones import (
     MilestoneCreateRequest,
-    MilestoneResponse,
+    MilestoneDataResponse,
     MilestoneStatus,
     MilestoneUpdateRequest,
 )
 
 
-def _serialize_milestone(milestone: Milestone) -> MilestoneResponse:
-    return MilestoneResponse(
-        id=milestone.id,
-        goal_id=milestone.goal_id,
-        title=milestone.title,
-        description=milestone.description,
-        status=milestone.status,
-        reason=milestone.reason,
-        estimated_duration_days=milestone.estimated_duration_days,
-        started_at=milestone.started_at,
-        paused_at=milestone.paused_at,
-        cancelled_at=milestone.cancelled_at,
-        target_date=milestone.target_date,
-        completed_at=milestone.completed_at,
-        position=milestone.position,
-        created_at=milestone.created_at,
-        created_by=milestone.created_by,
-        assistant_context=milestone.assistant_context,
-        total_tasks=milestone.total_tasks,
-        completed_tasks=milestone.completed_tasks,
-    )
+def _serialize_milestone(milestone: MilestoneDBM) -> MilestoneDataResponse:
+    return MilestoneDataResponse.model_validate(milestone)
 
 
 def save_milestone(
-    db: Session, current_user: User, data: MilestoneCreateRequest
-) -> MilestoneResponse:
+    db: Session, current_user: UserDBM, data: MilestoneCreateRequest
+) -> MilestoneDataResponse:
 
     goal = db.scalar(
-        select(Goal).where(
-            Goal.id == data.goal_id,
-            Goal.user_id == current_user.id,
+        select(GoalDBM).where(
+            GoalDBM.id == data.goal_id,
+            GoalDBM.user_id == current_user.id,
         )
     )
 
@@ -53,12 +34,12 @@ def save_milestone(
         raise NotFoundError("Goal not found. Please check the goal and try again.")
 
     next_position = db.scalar(
-        select(func.coalesce(func.max(Milestone.position), -1) + 1).where(
-            Milestone.goal_id == goal.id,
+        select(func.coalesce(func.max(MilestoneDBM.position), -1) + 1).where(
+            MilestoneDBM.goal_id == goal.id,
         )
     )
 
-    milestone = Milestone(
+    milestone = MilestoneDBM(
         goal_id=goal.id,
         user_id=current_user.id,
         title=data.title.strip(),
@@ -87,30 +68,30 @@ def save_milestone(
 
 def get_milestone_list(
     db: Session,
-    current_user: User,
+    current_user: UserDBM,
     goal_id: int,
     status: MilestoneStatus | None,
-) -> list[MilestoneResponse]:
+) -> list[MilestoneDataResponse]:
 
     goal = db.scalar(
-        select(Goal).where(
-            Goal.id == goal_id,
-            Goal.user_id == current_user.id,
+        select(GoalDBM).where(
+            GoalDBM.id == goal_id,
+            GoalDBM.user_id == current_user.id,
         )
     )
 
     if goal is None:
         raise NotFoundError("Goal not found. Please check the goal and try again.")
 
-    query = select(Milestone).where(
-        Milestone.goal_id == goal_id,
-        Milestone.user_id == current_user.id,
+    query = select(MilestoneDBM).where(
+        MilestoneDBM.goal_id == goal_id,
+        MilestoneDBM.user_id == current_user.id,
     )
 
     if status is not None:
-        query = query.where(Milestone.status == status)
+        query = query.where(MilestoneDBM.status == status)
 
-    query = query.order_by(Milestone.position)
+    query = query.order_by(MilestoneDBM.position)
 
     milestones = db.scalars(query).all()
 
@@ -118,12 +99,12 @@ def get_milestone_list(
 
 
 def get_milestone_detail(
-    db: Session, current_user: User, milestone_id: int
-) -> MilestoneResponse:
+    db: Session, current_user: UserDBM, milestone_id: int
+) -> MilestoneDataResponse:
     milestone = db.scalar(
-        select(Milestone).where(
-            Milestone.id == milestone_id,
-            Milestone.user_id == current_user.id,
+        select(MilestoneDBM).where(
+            MilestoneDBM.id == milestone_id,
+            MilestoneDBM.user_id == current_user.id,
         )
     )
 
@@ -136,13 +117,13 @@ def get_milestone_detail(
 
 
 def update_milestone(
-    db: Session, current_user: User, milestone_id: int, data: MilestoneUpdateRequest
-) -> MilestoneResponse:
+    db: Session, current_user: UserDBM, milestone_id: int, data: MilestoneUpdateRequest
+) -> MilestoneDataResponse:
 
     milestone = db.scalar(
-        select(Milestone).where(
-            Milestone.id == milestone_id,
-            Milestone.user_id == current_user.id,
+        select(MilestoneDBM).where(
+            MilestoneDBM.id == milestone_id,
+            MilestoneDBM.user_id == current_user.id,
         )
     )
 
@@ -152,9 +133,9 @@ def update_milestone(
         )
 
     goal = db.scalar(
-        select(Goal).where(
-            Goal.id == milestone.goal_id,
-            Goal.user_id == current_user.id,
+        select(GoalDBM).where(
+            GoalDBM.id == milestone.goal_id,
+            GoalDBM.user_id == current_user.id,
         )
     )
 
@@ -209,21 +190,21 @@ def update_milestone(
 
 
 def delete_milestone(
-    db: Session, current_user: User, milestone_id: int
+    db: Session, current_user: UserDBM, milestone_id: int
 ) -> None:
     milestone = db.scalar(
-        select(Milestone).where(
-            Milestone.id == milestone_id,
-            Milestone.user_id == current_user.id,
+        select(MilestoneDBM).where(
+            MilestoneDBM.id == milestone_id,
+            MilestoneDBM.user_id == current_user.id,
         )
     )
 
     if milestone is None:
         raise NotFoundError("Milestone not found. Please check and try again.")
 
-    goal = db.scalar(select(Goal).where(Goal.id == milestone.goal_id))
+    goal = db.scalar(select(GoalDBM).where(GoalDBM.id == milestone.goal_id))
 
-    db.execute(delete(Task).where(Task.milestone_id == milestone.id))
+    db.execute(delete(TaskDBM).where(TaskDBM.milestone_id == milestone.id))
 
     db.delete(milestone)
     if goal is not None:

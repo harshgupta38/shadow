@@ -1,20 +1,20 @@
 from abc import ABC, abstractmethod
 
 from app.llm.models import (
-    LLMRefineGoalRequest,
-    LLMRefineGoalResponse,
-    LLMSendMessageRequest,
-    LLMCreateConversationDraft,
+    RefineGoalToLLM,
+    RefineGoalFromLLM,
+    NewConvoToLLM,
+    NewConvoFromLLM,
 )
 
 
 class BaseLLMProvider(ABC):
     @abstractmethod
-    async def refine_goal(self, request: LLMRefineGoalRequest) -> LLMRefineGoalResponse:
+    async def refine_goal(self, request: RefineGoalToLLM) -> RefineGoalFromLLM:
         raise NotImplementedError
 
     @abstractmethod
-    async def create_conversation(self, request: LLMSendMessageRequest) -> LLMCreateConversationDraft:
+    async def create_conversation(self, request: NewConvoToLLM) -> NewConvoFromLLM:
         raise NotImplementedError
 
     @abstractmethod

@@ -21,11 +21,11 @@ from app.llm.models import (
     ModelCost,
     TokenCostBreakdown,
     TokenUsage,
-    LLMRefineGoalRequest,
-    LLMRefineGoalResponse,
-    LLMSendMessageRequest,
-    LLMCreateConversationDraft,
-    LLMSendMessageResponse,
+    RefineGoalToLLM,
+    RefineGoalFromLLM,
+    NewConvoToLLM,
+    NewConvoFromLLM,
+    NewConvoResponse,
 )
 from app.llm.service import LLMService, get_llm_service
 from app.llm.cost import calculate_token_cost
@@ -54,11 +54,11 @@ __all__ = [
     "ModelCost",
     "TokenCostBreakdown",
     "TokenUsage",
-    "LLMRefineGoalRequest",
-    "LLMRefineGoalResponse",
-    "LLMSendMessageRequest",
-    "LLMCreateConversationDraft",
-    "LLMSendMessageResponse",
+    "RefineGoalToLLM",
+    "RefineGoalFromLLM",
+    "NewConvoToLLM",
+    "NewConvoFromLLM",
+    "NewConvoResponse",
 
     "LLMService",
     "get_llm_service",

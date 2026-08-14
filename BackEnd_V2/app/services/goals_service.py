@@ -3,24 +3,24 @@ from datetime import date
 from fastapi import HTTPException, status
 from sqlalchemy import delete
 
-from app.llm import LLMRefineGoalResponse, get_llm_service, LLMError, LLMRequestError
-from app.models.goal import Goal
-from app.models.milestone import Milestone
-from app.models.task import Task
-from app.models.user import User
+from app.llm import RefineGoalFromLLM, get_llm_service, LLMError, LLMRequestError
+from app.models.goal import GoalDBM
+from app.models.milestone import MilestoneDBM
+from app.models.task import TaskDBM
+from app.models.user import UserDBM
 from app.schemas.goals import (
-    GoalDetailResponse,
-    GoalListItemResponse,
+    GoalDataLongDBS,
+    GoalDataResponse,
+    GoalDataShortResponse,
     GoalListStatusFilter,
-    UnderstandGoalRequest,
-    UnderstandGoalResponse,
+    RefineGoalRequest,
 )
 
 
 async def understand_goal(
-    data: UnderstandGoalRequest,
-    current_user: User,
-) -> LLMRefineGoalResponse:
+    data: RefineGoalRequest,
+    current_user: UserDBM,
+) -> RefineGoalFromLLM:
     llm_service = get_llm_service()
 
     try:
@@ -33,36 +33,18 @@ def _clean_list(values: list[str]) -> list[str]:
     return [item.strip() for item in values if item.strip()]
 
 
-def _serialize_goal_detail(goal: Goal) -> GoalDetailResponse:
-    return GoalDetailResponse(
-        id=goal.id,
-        title=goal.title,
-        summary=goal.summary,
-        category=goal.category,
-        status=goal.status,
-        motivation=goal.motivation,
-        success_definition=goal.success_definition,
-        current_state=goal.current_state,
-        challenges=goal.challenges,
-        strengths=goal.strengths,
-        target_date=goal.target_date.isoformat(),
-        success_metrics=goal.success_metrics,
-        insights=goal.insights,
-        milestones_total=goal.milestones_total,
-        milestones_completed=goal.milestones_completed,
-        habits_total=goal.habits_total,
-        habits_active=goal.habits_active,
-    )
+def _serialize_goal_detail(goal: GoalDBM) -> GoalDataResponse:
+    return GoalDataResponse.model_validate(goal)
 
 
 def save_goal(
     db,
-    current_user: User,
-    data: UnderstandGoalResponse,
-) -> UnderstandGoalResponse:
+    current_user: UserDBM,
+    data: RefineGoalRequest,
+) -> None:
     # time.sleep(5)
 
-    goal = Goal(
+    goal = GoalDBM(
         user_id=current_user.id,
         title=data.title.strip(),
         summary=data.summary.strip(),
@@ -84,40 +66,25 @@ def save_goal(
 
     db.add(goal)
     db.commit()
-    db.refresh(goal)
-
-    return UnderstandGoalResponse(
-        title=goal.title,
-        summary=goal.summary,
-        category=goal.category,
-        motivation=goal.motivation,
-        success_definition=goal.success_definition,
-        current_state=goal.current_state,
-        challenges=goal.challenges,
-        strengths=goal.strengths,
-        target_date=goal.target_date.isoformat(),
-        success_metrics=goal.success_metrics,
-        insights=goal.insights,
-    )
 
 
 def get_goal_list(
     db,
-    current_user: User,
+    current_user: UserDBM,
     status: GoalListStatusFilter,
-) -> list[GoalListItemResponse]:
+) -> list[GoalDataShortResponse]:
     # time.sleep(2)
     # raise RuntimeError("Forced test error in get_goal_list")
 
-    query = db.query(Goal).filter(Goal.user_id == current_user.id)
+    query = db.query(GoalDBM).filter(GoalDBM.user_id == current_user.id)
 
     if status != "All":
-        query = query.filter(Goal.status == status)
+        query = query.filter(GoalDBM.status == status)
 
-    goals = query.order_by(Goal.updated_at.desc()).all()
+    goals = query.order_by(GoalDBM.updated_at.desc()).all()
 
     return [
-        GoalListItemResponse(
+        GoalDataShortResponse(
             id=goal.id,
             title=goal.title,
             summary=goal.summary,
@@ -135,15 +102,15 @@ def get_goal_list(
 
 def get_goal_detail(
     db,
-    current_user: User,
+    current_user: UserDBM,
     goal_id: int,
-) -> GoalDetailResponse:
+) -> GoalDataResponse:
     # time.sleep(2)
     # raise RuntimeError("Forced test error in get_goal_list")
 
     goal = (
-        db.query(Goal)
-        .filter(Goal.id == goal_id, Goal.user_id == current_user.id)
+        db.query(GoalDBM)
+        .filter(GoalDBM.id == goal_id, GoalDBM.user_id == current_user.id)
         .first()
     )
 
@@ -158,15 +125,15 @@ def get_goal_detail(
 
 def delete_goal(
     db,
-    current_user: User,
+    current_user: UserDBM,
     goal_id: int,
 ) -> None:
     # time.sleep(2)
     # raise RuntimeError("Forced test error in get_goal_list")
 
     goal = (
-        db.query(Goal)
-        .filter(Goal.id == goal_id, Goal.user_id == current_user.id)
+        db.query(GoalDBM)
+        .filter(GoalDBM.id == goal_id, GoalDBM.user_id == current_user.id)
         .first()
     )
 
@@ -176,21 +143,21 @@ def delete_goal(
             detail="Goal not found.",
         )
 
-    db.execute(delete(Task).where(Task.goal_id == goal.id))
-    db.execute(delete(Milestone).where(Milestone.goal_id == goal.id))
+    db.execute(delete(TaskDBM).where(TaskDBM.goal_id == goal.id))
+    db.execute(delete(MilestoneDBM).where(MilestoneDBM.goal_id == goal.id))
     db.delete(goal)
     db.commit()
 
 
 def update_goal(
     db,
-    current_user: User,
+    current_user: UserDBM,
     goal_id: int,
-    data: UnderstandGoalResponse,
-) -> GoalDetailResponse:
+    data: RefineGoalRequest,
+) -> GoalDataResponse:
     goal = (
-        db.query(Goal)
-        .filter(Goal.id == goal_id, Goal.user_id == current_user.id)
+        db.query(GoalDBM)
+        .filter(GoalDBM.id == goal_id, GoalDBM.user_id == current_user.id)
         .first()
     )
 

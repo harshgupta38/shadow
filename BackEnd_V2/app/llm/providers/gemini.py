@@ -9,13 +9,14 @@ from app.llm.base import BaseLLMProvider
 from app.llm.config import LLMSettings, llm_settings
 from app.llm.enums import LLMProvider
 from app.llm.exceptions import (
-    LLMConfigurationError,
     LLMHealthCheckError,
     LLMProviderError,
     LLMRequestError,
 )
 from app.llm.knowledge_base import (
+    CONVERSATION_CONTEXT_SYSTEM_INSTRUCTION,
     GOAL_REFINEMENT_SYSTEM_INSTRUCTION,
+    RESPOND_TO_MESSAGE_SYSTEM_INSTRUCTION,
     CREATE_CONVERSATION_SYSTEM_INSTRUCTION,
     build_goal_refinement_user_prompt,
 )
@@ -32,7 +33,11 @@ from app.llm.models import (
     TokenUsage,
 )
 from app.schemas.goals import RefineGoalFromLLMSchema
-from app.schemas.chat import NewConvoFromLLMSchema
+from app.schemas.chat import (
+    ConversationContextFromLLMSchema,
+    MessageFromLLMSchema,
+    NewConvoFromLLMSchema,
+)
 
 
 class GeminiProvider(BaseLLMProvider):
@@ -194,13 +199,185 @@ class GeminiProvider(BaseLLMProvider):
         )
 
     async def respond_to_message(self, request: MessageToLLM) -> MessageFromLLM:
-        raise LLMConfigurationError(
-            "GeminiProvider does not support respond_to_message yet."
+        model = self._resolve_model(request)
+
+        system_instruction = (
+            RESPOND_TO_MESSAGE_SYSTEM_INSTRUCTION[request.agent_type]
+            + f"\n\nStable context:\n{request.stable_context}\n\n"
+            + f"Conversation summary:\n{request.context_summary}"
+        )
+        contents = [
+            types.Content(
+                role="model" if msg["role"] == "assistant" else msg["role"],
+                parts=[types.Part(text=msg["content"])],
+            )
+            for msg in request.recent_messages
+        ]
+        contents.append(
+            types.Content(
+                role="user",
+                parts=[types.Part(text=request.request_data)],
+            )
         )
 
-    async def update_conversation_context(self, request: ConversationContextToLLM) -> ConversationContextFromLLM:
-        raise LLMConfigurationError(
-            "GeminiProvider does not support update_conversation_context yet."
+        started_at = perf_counter()
+        try:
+            response = await self._client.aio.models.generate_content(
+                model=model,
+                contents=contents,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_instruction,
+                    response_mime_type="application/json",
+                    response_schema=MessageFromLLMSchema,
+                    temperature=request.temperature,
+                    max_output_tokens=request.max_tokens,
+                    http_options=types.HttpOptions(
+                        timeout=self._settings.llm_request_timeout_seconds
+                        * 1000,  # HttpOptions takes milliseconds
+                    ),
+                ),
+            )
+        except errors.APIError as exc:
+            raise LLMProviderError(f"Gemini respond_to_message failed: {exc}") from exc
+        response_time_ms = int((perf_counter() - started_at) * 1000)
+
+        await log_gemini_completion_usage_async(
+            settings=self._settings,
+            model=model,
+            response=response,
+            latency_ms=response_time_ms,
+            user_id=request.user_id,
+            operation="respond_to_message",
+        )
+
+        if not response.candidates:
+            raise LLMRequestError("Gemini returned no choices for respond_to_message.")
+
+        first_choice = response.candidates[0]
+        parsed = response.parsed
+
+        if parsed is None:
+            raise LLMRequestError(
+                "Gemini returned an unparsable respond_to_message response."
+            )
+
+        usage = None
+        if response.usage_metadata is not None:
+            usage = TokenUsage(
+                input_tokens=response.usage_metadata.prompt_token_count,
+                output_tokens=(response.usage_metadata.candidates_token_count or 0)
+                + (response.usage_metadata.thoughts_token_count or 0),
+                total_tokens=response.usage_metadata.total_token_count,
+            )
+
+        return MessageFromLLM(
+            provider=LLMProvider.GEMINI,
+            model=model,
+            model_str=response.model_version or model,
+            llm_data=parsed,
+            finish_reason=first_choice.finish_reason,
+            usage=usage,
+            response_id=response.response_id,
+            response_time_ms=response_time_ms,
+            cost=calculate_token_cost(
+                model_key=model,
+                input_tokens=usage.input_tokens if usage and usage.input_tokens else 0,
+                output_tokens=(
+                    usage.output_tokens if usage and usage.output_tokens else 0
+                ),
+            ),
+        )
+
+    async def update_conversation_context(
+        self, request: ConversationContextToLLM
+    ) -> ConversationContextFromLLM:
+        model = self._resolve_model(request)
+
+        existing_context = (
+            f"Stable context:\n{request.stable_context}\n\n"
+            f"Conversation summary:\n{request.context_summary}"
+        )
+        system_instruction = (
+            CONVERSATION_CONTEXT_SYSTEM_INSTRUCTION + f"\n\n{existing_context}"
+        )
+        contents = [
+            types.Content(
+                role="model" if msg["role"] == "assistant" else msg["role"],
+                parts=[types.Part(text=msg["content"])],
+            )
+            for msg in request.messages
+        ]
+
+        started_at = perf_counter()
+        try:
+            response = await self._client.aio.models.generate_content(
+                model=model,
+                contents=contents,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_instruction,
+                    response_mime_type="application/json",
+                    response_schema=ConversationContextFromLLMSchema,
+                    temperature=request.temperature,
+                    max_output_tokens=request.max_tokens,
+                    http_options=types.HttpOptions(
+                        timeout=self._settings.llm_request_timeout_seconds
+                        * 1000,  # HttpOptions takes milliseconds
+                    ),
+                ),
+            )
+        except errors.APIError as exc:
+            raise LLMProviderError(
+                f"Gemini update_conversation_context failed: {exc}"
+            ) from exc
+        response_time_ms = int((perf_counter() - started_at) * 1000)
+
+        await log_gemini_completion_usage_async(
+            settings=self._settings,
+            model=model,
+            response=response,
+            latency_ms=response_time_ms,
+            user_id=request.user_id,
+            operation="update_conversation_context",
+        )
+
+        if not response.candidates:
+            raise LLMRequestError(
+                "Gemini returned no choices for update_conversation_context."
+            )
+
+        first_choice = response.candidates[0]
+        parsed = response.parsed
+
+        if parsed is None:
+            raise LLMRequestError(
+                "Gemini returned an unparsable update_conversation_context response."
+            )
+
+        usage = None
+        if response.usage_metadata is not None:
+            usage = TokenUsage(
+                input_tokens=response.usage_metadata.prompt_token_count,
+                output_tokens=(response.usage_metadata.candidates_token_count or 0)
+                + (response.usage_metadata.thoughts_token_count or 0),
+                total_tokens=response.usage_metadata.total_token_count,
+            )
+
+        return ConversationContextFromLLM(
+            provider=LLMProvider.GEMINI,
+            model=model,
+            model_str=response.model_version or model,
+            llm_data=parsed,
+            finish_reason=first_choice.finish_reason,
+            usage=usage,
+            response_id=response.response_id,
+            response_time_ms=response_time_ms,
+            cost=calculate_token_cost(
+                model_key=model,
+                input_tokens=usage.input_tokens if usage and usage.input_tokens else 0,
+                output_tokens=(
+                    usage.output_tokens if usage and usage.output_tokens else 0
+                ),
+            ),
         )
 
     async def health_check(self) -> bool:

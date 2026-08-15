@@ -9,14 +9,15 @@ from app.llm.config import LLMSettings, llm_settings
 from app.llm.cost import calculate_token_cost
 from app.llm.enums import LLMProvider, Role
 from app.llm.exceptions import (
-    LLMConfigurationError,
     LLMHealthCheckError,
     LLMProviderError,
     LLMRequestError,
 )
 from app.llm.knowledge_base import (
+    CONVERSATION_CONTEXT_SYSTEM_INSTRUCTION_CLAUDE,
     GOAL_REFINEMENT_SYSTEM_INSTRUCTION_CLAUDE,
-    CREATE_CONVERSATION_SYSTEM_INSTRUCTION,
+    RESPOND_TO_MESSAGE_SYSTEM_INSTRUCTION_CLAUDE,
+    CREATE_CONVERSATION_SYSTEM_INSTRUCTION_CLAUDE,
     build_goal_refinement_user_prompt,
 )
 from app.llm.models import (
@@ -32,7 +33,11 @@ from app.llm.models import (
     MetadataToLLM,
 )
 from app.schemas.goals import RefineGoalFromLLMSchema
-from app.schemas.chat import NewConvoFromLLMSchema
+from app.schemas.chat import (
+    ConversationContextFromLLMSchema,
+    MessageFromLLMSchema,
+    NewConvoFromLLMSchema,
+)
 
 
 class ClaudeProvider(BaseLLMProvider):
@@ -84,6 +89,26 @@ class ClaudeProvider(BaseLLMProvider):
         except ValidationError as exc:
             raise LLMRequestError(
                 "Claude returned a response that does not match NewConvoFromLLMSchema schema."
+            ) from exc
+
+    def _parse_MessageFromLLMSchema(self, response) -> MessageFromLLMSchema:
+        try:
+            raw = self._strip_code_fence(self._extract_text_content(response))
+            return MessageFromLLMSchema.model_validate_json(raw)
+        except ValidationError as exc:
+            raise LLMRequestError(
+                "Claude returned a response that does not match MessageFromLLMSchema schema."
+            ) from exc
+
+    def _parse_ConversationContextFromLLMSchema(
+        self, response
+    ) -> ConversationContextFromLLMSchema:
+        try:
+            raw = self._strip_code_fence(self._extract_text_content(response))
+            return ConversationContextFromLLMSchema.model_validate_json(raw)
+        except ValidationError as exc:
+            raise LLMRequestError(
+                "Claude returned a response that does not match ConversationContextFromLLMSchema schema."
             ) from exc
 
     async def refine_goal(self, request: RefineGoalToLLM) -> RefineGoalFromLLM:
@@ -163,7 +188,7 @@ class ClaudeProvider(BaseLLMProvider):
         try:
             kwargs = {
                 "model": model,
-                "system": CREATE_CONVERSATION_SYSTEM_INSTRUCTION[
+                "system": CREATE_CONVERSATION_SYSTEM_INSTRUCTION_CLAUDE[
                     request_data.agent_type
                 ],
                 "messages": [
@@ -224,13 +249,146 @@ class ClaudeProvider(BaseLLMProvider):
         )
 
     async def respond_to_message(self, request: MessageToLLM) -> MessageFromLLM:
-        raise LLMConfigurationError(
-            "ClaudeProvider does not support respond_to_message yet."
+        model = self._resolve_model(request)
+
+        conversation_context = (
+            f"Stable context:\n{request.stable_context}\n\n"
+            f"Conversation summary:\n{request.context_summary}"
+        )
+        system = (
+            RESPOND_TO_MESSAGE_SYSTEM_INSTRUCTION_CLAUDE[request.agent_type]
+            + f"\n\nConversation context:\n{conversation_context}"
+        )
+        messages = [
+            *request.recent_messages,
+            {"role": Role.USER, "content": request.request_data},
+        ]
+
+        started_at = perf_counter()
+        try:
+            kwargs = {
+                "model": model,
+                "system": system,
+                "messages": messages,
+                "max_tokens": request.max_tokens or 2048,
+            }
+
+            if request.temperature is not None:
+                kwargs["temperature"] = request.temperature
+
+            completion = await self._client.messages.create(**kwargs)
+
+        except (APIConnectionError, APIStatusError, APIError) as exc:
+            raise LLMProviderError(f"Claude respond_to_message failed: {exc}") from exc
+        response_time_ms = int((perf_counter() - started_at) * 1000)
+
+        await log_claude_completion_usage_async(
+            settings=self._settings,
+            model=model,
+            completion=completion,
+            latency_ms=response_time_ms,
+            user_id=request.user_id,
+            operation="respond_to_message",
         )
 
-    async def update_conversation_context(self, request: ConversationContextToLLM) -> ConversationContextFromLLM:
-        raise LLMConfigurationError(
-            "ClaudeProvider does not support update_conversation_context yet."
+        parsed = self._parse_MessageFromLLMSchema(completion)
+
+        usage = None
+        if completion.usage is not None:
+            input_tokens = completion.usage.input_tokens
+            output_tokens = completion.usage.output_tokens
+            usage = TokenUsage(
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                total_tokens=input_tokens + output_tokens,
+            )
+
+        return MessageFromLLM(
+            provider=LLMProvider.CLAUDE,
+            model=model,
+            model_str=completion.model or model,
+            llm_data=parsed,
+            finish_reason=completion.stop_reason or "unknown",
+            usage=usage,
+            response_id=completion.id,
+            response_time_ms=response_time_ms,
+            cost=calculate_token_cost(
+                model_key=model,
+                input_tokens=usage.input_tokens if usage and usage.input_tokens else 0,
+                output_tokens=(
+                    usage.output_tokens if usage and usage.output_tokens else 0
+                ),
+            ),
+        )
+
+    async def update_conversation_context(
+        self, request: ConversationContextToLLM
+    ) -> ConversationContextFromLLM:
+        model = self._resolve_model(request)
+
+        existing_context = (
+            f"Stable context:\n{request.stable_context}\n\n"
+            f"Conversation summary:\n{request.context_summary}"
+        )
+
+        started_at = perf_counter()
+        try:
+            kwargs = {
+                "model": model,
+                "system": CONVERSATION_CONTEXT_SYSTEM_INSTRUCTION_CLAUDE
+                + f"\n\n{existing_context}",
+                "messages": request.messages,
+                "max_tokens": request.max_tokens or 2048,
+            }
+
+            if request.temperature is not None:
+                kwargs["temperature"] = request.temperature
+
+            completion = await self._client.messages.create(**kwargs)
+
+        except (APIConnectionError, APIStatusError, APIError) as exc:
+            raise LLMProviderError(
+                f"Claude update_conversation_context failed: {exc}"
+            ) from exc
+        response_time_ms = int((perf_counter() - started_at) * 1000)
+
+        await log_claude_completion_usage_async(
+            settings=self._settings,
+            model=model,
+            completion=completion,
+            latency_ms=response_time_ms,
+            user_id=request.user_id,
+            operation="update_conversation_context",
+        )
+
+        parsed = self._parse_ConversationContextFromLLMSchema(completion)
+
+        usage = None
+        if completion.usage is not None:
+            input_tokens = completion.usage.input_tokens
+            output_tokens = completion.usage.output_tokens
+            usage = TokenUsage(
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                total_tokens=input_tokens + output_tokens,
+            )
+
+        return ConversationContextFromLLM(
+            provider=LLMProvider.CLAUDE,
+            model=model,
+            model_str=completion.model or model,
+            llm_data=parsed,
+            finish_reason=completion.stop_reason or "unknown",
+            usage=usage,
+            response_id=completion.id,
+            response_time_ms=response_time_ms,
+            cost=calculate_token_cost(
+                model_key=model,
+                input_tokens=usage.input_tokens if usage and usage.input_tokens else 0,
+                output_tokens=(
+                    usage.output_tokens if usage and usage.output_tokens else 0
+                ),
+            ),
         )
 
     async def health_check(self) -> bool:

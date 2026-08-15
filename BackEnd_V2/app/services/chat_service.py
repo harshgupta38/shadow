@@ -55,6 +55,7 @@ async def create_conversation(
         user_id=current_user.id,
         title=response.llm_data.title,
         agent_type=data.agent_type,
+        summary_user_message_count=1,
         stable_context=response.llm_data.stable_context,
         context_summary=response.llm_data.context_summary,
         linked_items={},
@@ -95,7 +96,7 @@ async def create_conversation(
 
         stable_context=conversation.stable_context,
         context_summary=conversation.context_summary,
-        summary_user_message_count=1,
+        summary_user_message_count=conversation.summary_user_message_count,
         linked_items=conversation.linked_items,
 
         created_at=conversation.created_at,
@@ -189,15 +190,47 @@ async def respond_to_message(
         )
     ) or 0
     total_user_message_count = stored_user_message_count + 1
-    summary_update_due = (
+    new_user_message_count = (
         total_user_message_count - conversation.summary_user_message_count
-        >= llm_settings.chat_summary_update_user_messages
+    )
+    summary_update_due = (
+        new_user_message_count >= llm_settings.chat_summary_update_user_messages
     )
 
     recent_message_data = [
         {"role": message.role, "content": message.content}
         for message in recent_messages
     ]
+    context_messages = [
+        *recent_message_data,
+        {"role": MessageRoleEnum.USER, "content": data.content},
+    ]
+
+    llm_service = get_llm_service()
+    if summary_update_due:
+        try:
+            context_response = await llm_service.update_conversation_context(
+                user_id=current_user.id,
+                agent_type=conversation.agent_type,
+                stable_context=conversation.stable_context,
+                context_summary=conversation.context_summary,
+                messages=context_messages,
+            )
+        except LLMError as exc:
+            raise LLMRequestError(
+                f"Failed to update conversation context: {exc}"
+            ) from exc
+
+        context_data = context_response.llm_data
+        if not context_data.context_summary.strip():
+            raise LLMRequestError(
+                "Conversation context update returned an empty summary."
+            )
+
+        conversation.context_summary = context_data.context_summary
+        if context_data.stable_context and context_data.stable_context.strip():
+            conversation.stable_context = context_data.stable_context
+        conversation.summary_user_message_count = total_user_message_count
 
     user_message = MessageDBM(
         conversation_id=conversation.id,
@@ -206,8 +239,6 @@ async def respond_to_message(
     )
     db.add(user_message)
     db.commit()
-
-    llm_service = get_llm_service()
 
     try:
         response = await llm_service.respond_to_message(

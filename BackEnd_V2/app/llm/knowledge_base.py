@@ -1,7 +1,11 @@
 from datetime import date
 
 from app.llm.common import build_schema_prompt
-from app.schemas.chat import NewConvoFromLLMSchema
+from app.schemas.chat import (
+    ConversationContextFromLLMSchema,
+    MessageFromLLMSchema,
+    NewConvoFromLLMSchema,
+)
 from app.schemas.goals import RefineGoalRequest, RefineGoalFromLLMSchema
 
 GOAL_REFINEMENT_SYSTEM_INSTRUCTION = (
@@ -94,22 +98,39 @@ CREATE_CONVERSATION_SYSTEM_INSTRUCTION: dict[str, str] = {
     ),
 }
 
-_CONVERSATION_SCHEMA_FOR_CLAUDE = (
-    "\n\nThe response MUST be a JSON object that exactly matches the schema.\n"
-    "Use these exact field names.\n"
-    "Do not rename fields.\n"
-    "Do not use camelCase.\n"
-    "Do not add, remove, merge, or restructure fields.\n"
-    "Return only the JSON object.\n"
-    "Do not wrap it in Markdown.\n"
-    "Do not use backticks.\n"
-    "\n\nSchema:\n" + build_schema_prompt(NewConvoFromLLMSchema)
-)
+
+def _CONVERSATION_SCHEMA_FOR_CLAUDE(schema) -> str:
+    return (
+        "\n\nThe response MUST be a JSON object that exactly matches the schema.\n"
+        "Use these exact field names.\n"
+        "Do not rename fields.\n"
+        "Do not use camelCase.\n"
+        "Do not add, remove, merge, or restructure fields.\n"
+        "Return only the JSON object.\n"
+        "Do not wrap it in Markdown.\n"
+        "Do not use backticks.\n"
+        "\n\nSchema:\n" + build_schema_prompt(schema)
+    )
+
 
 CREATE_CONVERSATION_SYSTEM_INSTRUCTION_CLAUDE: dict[str, str] = {
-    agent_type: instruction + _CONVERSATION_SCHEMA_FOR_CLAUDE
+    agent_type: instruction + _CONVERSATION_SCHEMA_FOR_CLAUDE(NewConvoFromLLMSchema)
     for agent_type, instruction in CREATE_CONVERSATION_SYSTEM_INSTRUCTION.items()
 }
+
+CONVERSATION_CONTEXT_SYSTEM_INSTRUCTION = (
+    "You maintain structured context for an ongoing conversation. "
+    "Return only a JSON object matching the required schema. "
+    "Summarize the conversation history up to and including the current user message. "
+    "Preserve important decisions, relevant user information, current direction, "
+    "and unresolved questions or tasks. Remove filler and do not invent information. "
+    "Keep stable_context unchanged in meaning and return null unless genuinely new "
+    "durable information exists. Never replace valid durable facts with temporary details.\n\n"
+    "The input contains the existing stable context, existing summary, recent messages, "
+    "and the current user message."
+    "\n\nSchema:\n" + build_schema_prompt(ConversationContextFromLLMSchema)
+)
+
 
 RESPOND_TO_MESSAGE_SYSTEM_INSTRUCTION: dict[str, str] = {
     "shadow": (
@@ -172,6 +193,6 @@ RESPOND_TO_MESSAGE_SYSTEM_INSTRUCTION: dict[str, str] = {
 }
 
 RESPOND_TO_MESSAGE_SYSTEM_INSTRUCTION_CLAUDE: dict[str, str] = {
-    agent_type: instruction + _CONVERSATION_SCHEMA_FOR_CLAUDE
+    agent_type: instruction + _CONVERSATION_SCHEMA_FOR_CLAUDE(MessageFromLLMSchema)
     for agent_type, instruction in RESPOND_TO_MESSAGE_SYSTEM_INSTRUCTION.items()
 }

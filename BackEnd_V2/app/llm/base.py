@@ -7,6 +7,8 @@ from app.llm.models import (
     NewConvoFromLLM,
     MessageToLLM,
     MessageFromLLM,
+    ConversationContextToLLM,
+    ConversationContextFromLLM,
 )
 
 
@@ -21,6 +23,10 @@ class BaseLLMProvider(ABC):
 
     @abstractmethod
     async def respond_to_message(self, request: MessageToLLM) -> MessageFromLLM:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def update_conversation_context(self, request: ConversationContextToLLM) -> ConversationContextFromLLM:
         raise NotImplementedError
 
     @abstractmethod

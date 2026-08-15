@@ -118,3 +118,13 @@ class MessageRequest(BaseModel):
 
 class MessageFromLLMSchema(BaseModel):
     content: str = Field(description="The assistant's response to the user's message.")
+
+
+class ConversationContextFromLLMSchema(BaseModel):
+    context_summary: str = Field(
+        description="A concise factual summary of the conversation history up to and including the current user message. Preserve decisions, relevant user information, direction, and unresolved tasks. Do not invent information or include filler."
+    )
+    stable_context: str | None = Field(
+        default=None,
+        description="Updated durable facts, intent, preferences, decisions, or constraints only when genuinely new persistent information exists. Otherwise return null. Preserve existing durable information."
+    )

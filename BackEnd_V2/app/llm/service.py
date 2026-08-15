@@ -6,6 +6,8 @@ from app.llm.models import (
     NewConvoFromLLM,
     MessageToLLM,
     MessageFromLLM,
+    ConversationContextToLLM,
+    ConversationContextFromLLM,
 )
 from app.llm.base import BaseLLMProvider
 from app.llm.config import LLMSettings, llm_settings
@@ -105,6 +107,30 @@ class LLMService:
         
         if response is None or response.llm_data is None:
             raise LLMConfigurationError("LLM provider returned no message data.")
+
+        return response
+
+    async def update_conversation_context(
+        self,
+        stable_context: str,
+        context_summary: str,
+        agent_type: str,
+        messages: list[dict[str, str]],
+        user_id: int | None = None,
+    ) -> ConversationContextFromLLM:
+        request = ConversationContextToLLM(
+            user_id=user_id,
+            agent_type=agent_type,
+            stable_context=stable_context,
+            context_summary=context_summary,
+            messages=messages,
+        )
+        response = await self._provider.update_conversation_context(request)
+
+        if response is None or response.llm_data is None:
+            raise LLMConfigurationError(
+                "LLM provider returned no conversation context data."
+            )
 
         return response
 

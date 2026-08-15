@@ -7,6 +7,7 @@ from app.schemas.chat import (
     MessageDataResponse,
     ConvoDataResponse,
     MessageFromLLMSchema,
+    ConversationContextFromLLMSchema,
     NewConvoRequest,
     NewConvoFromLLMSchema,
 )
@@ -70,6 +71,17 @@ class NewConvoFromLLM(MetadataFromLLM):
 class NewConvoResponse(MetadataFromLLM):
     message_data: MessageDataResponse
     conversation_data: ConvoDataResponse | None = None
+
+
+class ConversationContextToLLM(MetadataToLLM):
+    agent_type: str
+    stable_context: str
+    context_summary: str
+    messages: list[dict[str, str]]
+
+
+class ConversationContextFromLLM(MetadataFromLLM):
+    llm_data: ConversationContextFromLLMSchema
 
 
 # --- CHAT - Respond to Message ---

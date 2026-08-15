@@ -56,7 +56,7 @@ class ConversationDBM(Base):
         default="",
         server_default=text("''"),
     )
-    # This field is a database column that stores how many user messages have occurred since the conversation's context summary was last updated.
+    # Absolute user-message count at the last successful context-summary update.
     summary_user_message_count: Mapped[int] = mapped_column(
         nullable=False,
         default=0,

@@ -7,7 +7,7 @@ from app.analysis.llm_usage_logger import log_gemini_completion_usage_async
 from app.llm.cost import calculate_token_cost
 from app.llm.base import BaseLLMProvider
 from app.llm.config import LLMSettings, llm_settings
-from app.llm.enums import LLMProvider, Role
+from app.llm.enums import LLMProvider
 from app.llm.exceptions import (
     LLMConfigurationError,
     LLMHealthCheckError,
@@ -16,6 +16,7 @@ from app.llm.exceptions import (
 )
 from app.llm.knowledge_base import (
     GOAL_REFINEMENT_SYSTEM_INSTRUCTION,
+    CREATE_CONVERSATION_SYSTEM_INSTRUCTION,
     build_goal_refinement_user_prompt,
 )
 from app.llm.models import (
@@ -23,6 +24,7 @@ from app.llm.models import (
     ConversationContextFromLLM,
     MessageToLLM,
     MessageFromLLM,
+    MetadataToLLM,
     RefineGoalToLLM,
     RefineGoalFromLLM,
     NewConvoToLLM,
@@ -30,6 +32,7 @@ from app.llm.models import (
     TokenUsage,
 )
 from app.schemas.goals import RefineGoalFromLLMSchema
+from app.schemas.chat import NewConvoFromLLMSchema
 
 
 class GeminiProvider(BaseLLMProvider):
@@ -38,7 +41,7 @@ class GeminiProvider(BaseLLMProvider):
         self._settings = settings or llm_settings
         self._client = genai.Client(api_key=self._settings.gemini_api_key)
 
-    def _resolve_model(self, request: RefineGoalToLLM) -> str:
+    def _resolve_model(self, request: MetadataToLLM) -> str:
         model = request.model or self._settings.gemini_model
 
         if not model:
@@ -53,7 +56,7 @@ class GeminiProvider(BaseLLMProvider):
 
         started_at = perf_counter()
         try:
-            response = self._client.models.generate_content(
+            response = await self._client.aio.models.generate_content(
                 model=model,
                 contents=build_goal_refinement_user_prompt(request_data),
                 config=types.GenerateContentConfig(
@@ -94,8 +97,8 @@ class GeminiProvider(BaseLLMProvider):
         if response.usage_metadata is not None:
             usage = TokenUsage(
                 input_tokens=response.usage_metadata.prompt_token_count,
-                output_tokens=response.usage_metadata.candidates_token_count
-                + response.usage_metadata.thoughts_token_count,
+                output_tokens=(response.usage_metadata.candidates_token_count or 0)
+                + (response.usage_metadata.thoughts_token_count or 0),
                 total_tokens=response.usage_metadata.total_token_count,
             )
 
@@ -118,8 +121,76 @@ class GeminiProvider(BaseLLMProvider):
         )
 
     async def create_conversation(self, request: NewConvoToLLM) -> NewConvoFromLLM:
-        raise LLMConfigurationError(
-            "GeminiProvider does not support create_conversation yet."
+        model = self._resolve_model(request)
+
+        request_data = request.request_data
+
+        started_at = perf_counter()
+        try:
+            response = await self._client.aio.models.generate_content(
+                model=model,
+                contents=request_data.content,
+                config=types.GenerateContentConfig(
+                    system_instruction=CREATE_CONVERSATION_SYSTEM_INSTRUCTION[
+                        request_data.agent_type
+                    ],
+                    response_mime_type="application/json",
+                    response_schema=NewConvoFromLLMSchema,
+                    temperature=request.temperature,
+                    max_output_tokens=request.max_tokens,
+                    http_options=types.HttpOptions(
+                        timeout=self._settings.llm_request_timeout_seconds
+                        * 1000,  # HttpOptions takes milliseconds
+                    ),
+                ),
+            )
+        except errors.APIError as exc:
+            raise LLMProviderError(f"Gemini create_conversation failed: {exc}") from exc
+        response_time_ms = int((perf_counter() - started_at) * 1000)
+
+        await log_gemini_completion_usage_async(
+            settings=self._settings,
+            model=model,
+            response=response,
+            latency_ms=response_time_ms,
+            user_id=request.user_id,
+            operation="create_conversation",
+        )
+
+        if not response.candidates:
+            raise LLMRequestError("Gemini returned no choices for create_conversation.")
+
+        first_choice = response.candidates[0]
+        parsed = response.parsed
+
+        if parsed is None:
+            raise LLMRequestError("Gemini returned an unparsable create_conversation response.")
+
+        usage = None
+        if response.usage_metadata is not None:
+            usage = TokenUsage(
+                input_tokens=response.usage_metadata.prompt_token_count,
+                output_tokens=(response.usage_metadata.candidates_token_count or 0)
+                + (response.usage_metadata.thoughts_token_count or 0),
+                total_tokens=response.usage_metadata.total_token_count,
+            )
+
+        return NewConvoFromLLM(
+            provider=LLMProvider.GEMINI,
+            model=model,
+            model_str=response.model_version or model,
+            llm_data=parsed,
+            finish_reason=first_choice.finish_reason,
+            usage=usage,
+            response_id=response.response_id,
+            response_time_ms=response_time_ms,
+            cost=calculate_token_cost(
+                model_key=model,
+                input_tokens=usage.input_tokens if usage and usage.input_tokens else 0,
+                output_tokens=(
+                    usage.output_tokens if usage and usage.output_tokens else 0
+                ),
+            ),
         )
 
     async def respond_to_message(self, request: MessageToLLM) -> MessageFromLLM:
@@ -135,10 +206,10 @@ class GeminiProvider(BaseLLMProvider):
     async def health_check(self) -> bool:
         # Gemini health check using the /models endpoint.
         try:
-            await self._client.models.list()
+            await self._client.aio.models.list()
             return True
         except errors.APIError as exc:
             raise LLMHealthCheckError(f"Gemini health check failed: {exc}") from exc
 
     async def close(self) -> None:
-        await self._client.close()
+        self._client.close()

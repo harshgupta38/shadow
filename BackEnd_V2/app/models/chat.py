@@ -56,6 +56,12 @@ class ConversationDBM(Base):
         default="",
         server_default=text("''"),
     )
+    # This field is a database column that stores how many user messages have occurred since the conversation's context summary was last updated.
+    summary_user_message_count: Mapped[int] = mapped_column(
+        nullable=False,
+        default=0,
+        server_default=text("0"),
+    )
     # Linked items field for storing related items in JSON format
     linked_items: Mapped[dict] = mapped_column(
         JSON,

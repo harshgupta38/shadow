@@ -12,7 +12,7 @@ from app.llm.config import LLMSettings, llm_settings
 from app.llm.enums import LLMProvider
 from app.llm.exceptions import LLMConfigurationError
 from app.schemas.goals import RefineGoalRequest
-from app.schemas.chat import ConvoDataResponse, MessageRequest, NewConvoRequest
+from app.schemas.chat import MessageRequest, NewConvoRequest
 from app.llm.providers import (
     ClaudeProvider,
     GeminiProvider,
@@ -87,14 +87,19 @@ class LLMService:
     async def respond_to_message(
         self,
         data: MessageRequest,
-        conversation: ConvoDataResponse,
+        stable_context: str,
+        context_summary: str,
+        agent_type: str,
+        recent_messages: list[dict[str, str]],
         user_id: int | None = None,
     ) -> MessageFromLLM:
         request = MessageToLLM(
             request_data=data.content,
             user_id=user_id,
-            stable_context=conversation.stable_context,
-            context_summary=conversation.context_summary,
+            agent_type=agent_type,
+            stable_context=stable_context,
+            context_summary=context_summary,
+            recent_messages=recent_messages,
         )
         response = await self._provider.respond_to_message(request)
         

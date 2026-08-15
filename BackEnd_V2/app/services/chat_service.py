@@ -1,7 +1,8 @@
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from app.llm.models import MessageResponse
+from app.llm.config import llm_settings
 from app.core.exceptions import NotFoundError
 from app.llm import get_llm_service, NewConvoResponse, LLMError, LLMRequestError
 from app.models.user import UserDBM
@@ -94,6 +95,7 @@ async def create_conversation(
 
         stable_context=conversation.stable_context,
         context_summary=conversation.context_summary,
+        summary_user_message_count=1,
         linked_items=conversation.linked_items,
 
         created_at=conversation.created_at,
@@ -168,6 +170,35 @@ async def respond_to_message(
     if not conversation or conversation.user_id != current_user.id:
         raise NotFoundError("Conversation not found or access denied.")
 
+    recent_messages = list(
+        db.scalars(
+            select(MessageDBM)
+            .where(MessageDBM.conversation_id == conversation.id)
+            .order_by(MessageDBM.id.desc())
+            .limit(llm_settings.chat_recent_message_limit)
+        ).all()
+    )
+    recent_messages.reverse()
+
+    stored_user_message_count = db.scalar(
+        select(func.count())
+        .select_from(MessageDBM)
+        .where(
+            MessageDBM.conversation_id == conversation.id,
+            MessageDBM.role == MessageRoleEnum.USER,
+        )
+    ) or 0
+    total_user_message_count = stored_user_message_count + 1
+    summary_update_due = (
+        total_user_message_count - conversation.summary_user_message_count
+        >= llm_settings.chat_summary_update_user_messages
+    )
+
+    recent_message_data = [
+        {"role": message.role, "content": message.content}
+        for message in recent_messages
+    ]
+
     user_message = MessageDBM(
         conversation_id=conversation.id,
         role=MessageRoleEnum.USER,
@@ -182,26 +213,18 @@ async def respond_to_message(
         response = await llm_service.respond_to_message(
             data,
             user_id=current_user.id,
-            conversation=ConvoDataResponse.model_validate(conversation),
+            agent_type=conversation.agent_type,
+            stable_context=conversation.stable_context,
+            context_summary=conversation.context_summary,
+            recent_messages=recent_message_data,
         )
     except LLMError as exc:
         raise LLMRequestError(f"Failed to respond to message: {exc}") from exc
 
-    llm_data = response.llm_data
-    if llm_data.stable_context_action == "replace":
-        conversation.stable_context = llm_data.stable_context
-    elif llm_data.stable_context_action == "append":
-        conversation.stable_context = (conversation.stable_context + "\n" + llm_data.stable_context) if conversation.stable_context else llm_data.stable_context
-
-    if llm_data.context_summary_action == "replace":
-        conversation.context_summary = llm_data.context_summary
-    elif llm_data.context_summary_action == "append":
-        conversation.context_summary = (conversation.context_summary + "\n" + llm_data.context_summary) if conversation.context_summary else llm_data.context_summary
-
     assistant_message = MessageDBM(
         conversation_id=conversation.id,
         role=MessageRoleEnum.ASSISTANT,
-        content=llm_data.content,
+        content=response.llm_data.content,
     )
     db.add(assistant_message)
     db.flush()

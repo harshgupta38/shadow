@@ -36,6 +36,7 @@ class ConvoDataLongDBS(ORMModel):
 
     stable_context: str
     context_summary: str
+    summary_user_message_count: int
     linked_items: dict
 
     created_at: datetime
@@ -117,19 +118,3 @@ class MessageRequest(BaseModel):
 
 class MessageFromLLMSchema(BaseModel):
     content: str = Field(description="The assistant's response to the user's message.")
-    stable_context: str | None = Field(
-        default=None,
-        description="Optional. Include only new durable facts or intent when the persistent stable context genuinely needs to be updated. Otherwise omit this field or return null. Do not rewrite or repeat the existing stable context.",
-    )
-    context_summary: str | None = Field(
-        default=None,
-        description="Optional rolling summary of the latest conversation. Keep it concise and update it frequently as the user's conversation develops. Omit this field or return null only when no summary update is needed.",
-    )
-    stable_context_action: Literal["none", "append", "replace"] = Field(
-        default="none",
-        description="How to handle stable_context. Use 'none' when stable_context is omitted or null, 'append' only for new durable facts that should be added to the existing context, and 'replace' only when the existing context is incorrect or needs a complete rewrite.",
-    )
-    context_summary_action: Literal["none", "append", "replace"] = Field(
-        default="none",
-        description="How to handle context_summary. Use 'none' when context_summary is omitted or null, 'append' for an intentional addition to the existing summary, and 'replace' when refreshing the rolling summary to reflect the latest conversation.",
-    )

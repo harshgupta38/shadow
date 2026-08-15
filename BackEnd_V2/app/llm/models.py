@@ -75,8 +75,10 @@ class NewConvoResponse(MetadataFromLLM):
 # --- CHAT - Respond to Message ---
 class MessageToLLM(MetadataToLLM):
     request_data: str
-    stable_context: str | None = None
-    context_summary: str | None = None
+    agent_type: str
+    stable_context: str
+    context_summary: str
+    recent_messages: list[dict[str, str]]
 
 
 class MessageFromLLM(MetadataFromLLM):

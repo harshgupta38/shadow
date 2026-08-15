@@ -59,4 +59,16 @@ def build_schema_example(model_cls: type[BaseModel]) -> dict[str, object]:
 
 
 def build_schema_prompt(model_cls: type[BaseModel]) -> str:
-    return json.dumps(build_schema_example(model_cls), indent=2, ensure_ascii=False)
+    schema_example = json.dumps(
+        build_schema_example(model_cls), indent=2, ensure_ascii=False
+    )
+    field_descriptions = [
+        f"- {field_name}: {field.description}"
+        for field_name, field in model_cls.model_fields.items()
+        if field.description
+    ]
+
+    if not field_descriptions:
+        return schema_example
+
+    return schema_example + "\n\nField descriptions:\n" + "\n".join(field_descriptions)

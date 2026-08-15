@@ -188,12 +188,15 @@ async def respond_to_message(
         raise LLMRequestError(f"Failed to respond to message: {exc}") from exc
 
     llm_data = response.llm_data
-    if llm_data.context_action == "replace":
+    if llm_data.stable_context_action == "replace":
         conversation.stable_context = llm_data.stable_context
+    elif llm_data.stable_context_action == "append":
+        conversation.stable_context = (conversation.stable_context + "\n" + llm_data.stable_context) if conversation.stable_context else llm_data.stable_context
+
+    if llm_data.context_summary_action == "replace":
         conversation.context_summary = llm_data.context_summary
-    elif llm_data.context_action == "append":
-        conversation.stable_context = (conversation.stable_context or "") + "\n" + llm_data.stable_context
-        conversation.context_summary = (conversation.context_summary or "") + "\n" + llm_data.context_summary
+    elif llm_data.context_summary_action == "append":
+        conversation.context_summary = (conversation.context_summary + "\n" + llm_data.context_summary) if conversation.context_summary else llm_data.context_summary
 
     assistant_message = MessageDBM(
         conversation_id=conversation.id,

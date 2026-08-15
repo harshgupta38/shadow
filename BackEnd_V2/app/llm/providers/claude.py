@@ -19,6 +19,8 @@ from app.llm.knowledge_base import (
     build_goal_refinement_user_prompt,
 )
 from app.llm.models import (
+    ConversationContextToLLM,
+    ConversationContextFromLLM,
     MessageToLLM,
     MessageFromLLM,
     RefineGoalToLLM,
@@ -147,6 +149,11 @@ class ClaudeProvider(BaseLLMProvider):
     async def respond_to_message(self, request: MessageToLLM) -> MessageFromLLM:
         raise LLMConfigurationError(
             "ClaudeProvider does not support respond_to_message yet."
+        )
+    
+    async def update_conversation_context(self, request: ConversationContextToLLM) -> ConversationContextFromLLM:
+        raise LLMConfigurationError(
+            "ClaudeProvider does not support update_conversation_context yet."
         )
 
     async def health_check(self) -> bool:

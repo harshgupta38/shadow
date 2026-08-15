@@ -140,7 +140,10 @@ class OllamaProvider(BaseLLMProvider):
                     request_data.agent_type
                 ],
             },
-            {"role": Role.USER, "content": request_data.content},
+            {
+                "role": Role.USER, 
+                "content": request_data.content
+            },
         ]
 
         started_at = perf_counter()

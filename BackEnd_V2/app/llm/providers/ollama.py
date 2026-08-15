@@ -94,6 +94,7 @@ class OllamaProvider(BaseLLMProvider):
             completion=completion,
             latency_ms=response_time_ms,
             user_id=request.user_id,
+            operation="refine_goal",
         )
 
         if not completion.choices:

@@ -78,6 +78,7 @@ class GeminiProvider(BaseLLMProvider):
             response=response,
             latency_ms=response_time_ms,
             user_id=request.user_id,
+            operation="refine_goal",
         )
 
         if not response.candidates:

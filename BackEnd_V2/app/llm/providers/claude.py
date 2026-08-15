@@ -7,7 +7,7 @@ from app.analysis.llm_usage_logger import log_claude_completion_usage_async
 from app.llm.base import BaseLLMProvider
 from app.llm.config import LLMSettings, llm_settings
 from app.llm.cost import calculate_token_cost
-from app.llm.enums import LLMProvider
+from app.llm.enums import LLMProvider, Role
 from app.llm.exceptions import (
     LLMConfigurationError,
     LLMHealthCheckError,
@@ -16,6 +16,7 @@ from app.llm.exceptions import (
 )
 from app.llm.knowledge_base import (
     GOAL_REFINEMENT_SYSTEM_INSTRUCTION_CLAUDE,
+    CREATE_CONVERSATION_SYSTEM_INSTRUCTION,
     build_goal_refinement_user_prompt,
 )
 from app.llm.models import (
@@ -28,8 +29,10 @@ from app.llm.models import (
     NewConvoToLLM,
     NewConvoFromLLM,
     TokenUsage,
+    MetadataToLLM,
 )
 from app.schemas.goals import RefineGoalFromLLMSchema
+from app.schemas.chat import NewConvoFromLLMSchema
 
 
 class ClaudeProvider(BaseLLMProvider):
@@ -40,7 +43,7 @@ class ClaudeProvider(BaseLLMProvider):
             timeout=self._settings.llm_request_timeout_seconds,
         )
 
-    def _resolve_model(self, request: RefineGoalToLLM) -> str:
+    def _resolve_model(self, request: MetadataToLLM) -> str:
         model = request.model or self._settings.claude_model
         if not model:
             raise LLMRequestError("Claude model is not configured.")
@@ -52,7 +55,7 @@ class ClaudeProvider(BaseLLMProvider):
             if isinstance(block_text, str) and block_text.strip():
                 return block_text.strip()
 
-        raise LLMRequestError("Claude returned no text content for refine_goal.")
+        raise LLMRequestError("Claude returned no text content.")
 
     @staticmethod
     def _strip_code_fence(text: str) -> str:
@@ -65,13 +68,22 @@ class ClaudeProvider(BaseLLMProvider):
             text = text[:last_newline] if last_newline != -1 else text[:-3]
         return text.strip()
 
-    def _parse_response_payload(self, response) -> RefineGoalFromLLMSchema:
+    def _parse_RefineGoalFromLLMSchema(self, response) -> RefineGoalFromLLMSchema:
         try:
             raw = self._strip_code_fence(self._extract_text_content(response))
             return RefineGoalFromLLMSchema.model_validate_json(raw)
         except ValidationError as exc:
             raise LLMRequestError(
-                "Claude returned a response that does not match UnderstandGoalResponse schema."
+                "Claude returned a response that does not match RefineGoalFromLLMSchema schema."
+            ) from exc
+
+    def _parse_NewConvoFromLLMSchema(self, response) -> NewConvoFromLLMSchema:
+        try:
+            raw = self._strip_code_fence(self._extract_text_content(response))
+            return NewConvoFromLLMSchema.model_validate_json(raw)
+        except ValidationError as exc:
+            raise LLMRequestError(
+                "Claude returned a response that does not match NewConvoFromLLMSchema schema."
             ) from exc
 
     async def refine_goal(self, request: RefineGoalToLLM) -> RefineGoalFromLLM:
@@ -84,7 +96,7 @@ class ClaudeProvider(BaseLLMProvider):
                 "system": GOAL_REFINEMENT_SYSTEM_INSTRUCTION_CLAUDE,
                 "messages": [
                     {
-                        "role": "user",
+                        "role": Role.USER,
                         "content": build_goal_refinement_user_prompt(
                             request.request_data
                         ),
@@ -109,9 +121,10 @@ class ClaudeProvider(BaseLLMProvider):
             completion=completion,
             latency_ms=response_time_ms,
             user_id=request.user_id,
+            operation="refine_goal",
         )
 
-        parsed = self._parse_response_payload(completion)
+        parsed = self._parse_RefineGoalFromLLMSchema(completion)
 
         usage = None
         if completion.usage is not None:
@@ -142,15 +155,79 @@ class ClaudeProvider(BaseLLMProvider):
         )
 
     async def create_conversation(self, request: NewConvoToLLM) -> NewConvoFromLLM:
-        raise LLMConfigurationError(
-            "ClaudeProvider does not support create_conversation yet."
+        model = self._resolve_model(request)
+
+        request_data = request.request_data
+
+        started_at = perf_counter()
+        try:
+            kwargs = {
+                "model": model,
+                "system": CREATE_CONVERSATION_SYSTEM_INSTRUCTION[
+                    request_data.agent_type
+                ],
+                "messages": [
+                    {
+                        "role": Role.USER,
+                        "content": request_data.content,
+                    }
+                ],
+                "max_tokens": request.max_tokens or 2048,
+            }
+
+            if request.temperature is not None:
+                kwargs["temperature"] = request.temperature
+
+            completion = await self._client.messages.create(**kwargs)
+
+        except (APIConnectionError, APIStatusError, APIError) as exc:
+            raise LLMProviderError(f"Claude create_conversation failed: {exc}") from exc
+        response_time_ms = int((perf_counter() - started_at) * 1000)
+
+        await log_claude_completion_usage_async(
+            settings=self._settings,
+            model=model,
+            completion=completion,
+            latency_ms=response_time_ms,
+            user_id=request.user_id,
+            operation="create_conversation",
+        )
+
+        parsed = self._parse_NewConvoFromLLMSchema(completion)
+
+        usage = None
+        if completion.usage is not None:
+            input_tokens = completion.usage.input_tokens
+            output_tokens = completion.usage.output_tokens
+            usage = TokenUsage(
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                total_tokens=input_tokens + output_tokens,
+            )
+
+        return NewConvoFromLLM(
+            provider=LLMProvider.CLAUDE,
+            model=model,
+            model_str=completion.model or model,
+            llm_data=parsed,
+            finish_reason=completion.stop_reason or "unknown",
+            usage=usage,
+            response_id=completion.id,
+            response_time_ms=response_time_ms,
+            cost=calculate_token_cost(
+                model_key=model,
+                input_tokens=usage.input_tokens if usage and usage.input_tokens else 0,
+                output_tokens=(
+                    usage.output_tokens if usage and usage.output_tokens else 0
+                ),
+            ),
         )
 
     async def respond_to_message(self, request: MessageToLLM) -> MessageFromLLM:
         raise LLMConfigurationError(
             "ClaudeProvider does not support respond_to_message yet."
         )
-    
+
     async def update_conversation_context(self, request: ConversationContextToLLM) -> ConversationContextFromLLM:
         raise LLMConfigurationError(
             "ClaudeProvider does not support update_conversation_context yet."

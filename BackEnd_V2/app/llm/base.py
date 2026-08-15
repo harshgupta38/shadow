@@ -33,5 +33,6 @@ class BaseLLMProvider(ABC):
     async def health_check(self) -> bool:
         raise NotImplementedError
 
+    @abstractmethod
     async def close(self) -> None:
         return None

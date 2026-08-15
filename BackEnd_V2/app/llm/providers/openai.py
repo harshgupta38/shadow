@@ -91,6 +91,7 @@ class OpenAIProvider(BaseLLMProvider):
             completion=completion,
             latency_ms=response_time_ms,
             user_id=request.user_id,
+            operation="refine_goal",
         )
 
         if not completion.choices:
@@ -175,6 +176,7 @@ class OpenAIProvider(BaseLLMProvider):
             completion=completion,
             latency_ms=response_time_ms,
             user_id=request.user_id,
+            operation="create_conversation",
         )
 
         if not completion.choices:

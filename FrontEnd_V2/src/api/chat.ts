@@ -1,7 +1,13 @@
 import { ENDPOINTS } from "@/constant/shadow-endpoints";
 
 import { http } from "@/api/client";
-import { ConvoDataShortResponse, NewConvoResponse, NewConvoRequest, MessageChunkResponse } from "@/api/types";
+import {
+    ConvoDataShortResponse,
+    MessageChunkResponse,
+    NewConvoRequest,
+    NewConvoResponse,
+    RenameConvoRequest,
+} from "@/api/types";
 
 export const chatApi = {
     async getConversations(): Promise<ConvoDataShortResponse[]> {
@@ -14,6 +20,10 @@ export const chatApi = {
 
     async deleteConversation(conversationId: number): Promise<void> {
         return http.delete<void>(`${ENDPOINTS.CHAT.PREFIX}${ENDPOINTS.CHAT.CONVERSATION_DETAIL(conversationId)}`);
+    },
+
+    async renameConversation(conversationId: number, data: RenameConvoRequest): Promise<ConvoDataShortResponse> {
+        return http.patch<ConvoDataShortResponse>(`${ENDPOINTS.CHAT.PREFIX}${ENDPOINTS.CHAT.CONVERSATION_DETAIL(conversationId)}`, data);
     },
 
     async startConversation(data: NewConvoRequest): Promise<NewConvoResponse> {

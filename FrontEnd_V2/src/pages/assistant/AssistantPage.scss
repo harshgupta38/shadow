@@ -1,9 +1,13 @@
+$page-height-offset-desktop: 4.5rem;
+$page-height-offset-mobile: 5.1rem;
+$session-action-size: 1.7rem;
+
 /* Fills the viewport height below the topbar. Lets a child flex to fill. */
 .page-fill-height {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - var(--jv-topbar-h) - 4.5rem);
-  min-height: calc(100vh - var(--jv-topbar-h) - 4.5rem);
+  height: calc(100vh - var(--jv-topbar-h) - #{$page-height-offset-desktop});
+  min-height: calc(100vh - var(--jv-topbar-h) - #{$page-height-offset-desktop});
   overflow: hidden;
 }
 
@@ -45,8 +49,8 @@
 
 @media (max-width: 991.98px) {
   .page-fill-height {
-    height: calc(100vh - var(--jv-topbar-h) - 5.1rem);
-    min-height: calc(100vh - var(--jv-topbar-h) - 5.1rem);
+    height: calc(100vh - var(--jv-topbar-h) - #{$page-height-offset-mobile});
+    min-height: calc(100vh - var(--jv-topbar-h) - #{$page-height-offset-mobile});
   }
 }
 
@@ -74,6 +78,73 @@
 .chat-sessions {
   overflow-y: auto;
   padding: 0.5rem;
+}
+
+.chat-session-row {
+  position: relative;
+}
+
+.chat-session-row {
+  .chat-session-item {
+    padding-right: 2.6rem;
+  }
+
+  &:hover .chat-session-action-toggle,
+  &:focus-within .chat-session-action-toggle,
+  &.active .chat-session-action-toggle {
+    opacity: 1;
+    visibility: visible;
+  }
+}
+
+.chat-session-actions {
+  position: absolute;
+  right: 0.42rem;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 5;
+}
+
+.chat-session-action-toggle {
+  width: $session-action-size;
+  height: $session-action-size;
+  display: grid;
+  place-items: center;
+  border-radius: 0.5rem;
+  color: var(--jv-faint);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--jv-transition), visibility var(--jv-transition), background var(--jv-transition), color var(--jv-transition);
+}
+
+.chat-session-action-toggle:hover,
+.chat-session-action-toggle:focus-visible {
+  background: var(--jv-surface-2);
+  color: var(--jv-text);
+}
+
+.chat-session-actions {
+  .dropdown-menu {
+    --bs-dropdown-bg: var(--jv-elevated);
+    --bs-dropdown-link-hover-bg: var(--jv-surface-2);
+    --bs-dropdown-link-active-bg: var(--jv-surface-2);
+    --bs-dropdown-link-active-color: var(--jv-text);
+    background-color: var(--jv-elevated) !important;
+    opacity: 1 !important;
+    border: 1px solid var(--jv-border);
+    box-shadow: var(--jv-shadow-lg);
+    z-index: 1200;
+    isolation: isolate;
+  }
+
+  .dropdown-item {
+    border-radius: 8px;
+
+    &:hover,
+    &:focus {
+      background: var(--jv-surface-2);
+    }
+  }
 }
 
 .chat-window {

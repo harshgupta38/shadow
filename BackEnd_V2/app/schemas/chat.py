@@ -116,6 +116,20 @@ class MessageRequest(BaseModel):
         return value
 
 
+class RenameConvoRequest(BaseModel):
+    title: str = Field(min_length=1, max_length=30)
+
+    @field_validator("title", mode="before")
+    @classmethod
+    def validate_title(cls, value: str) -> str:
+        if isinstance(value, str):
+            stripped = value.strip()
+            if not stripped:
+                raise ValueError("Title is required.")
+            return stripped
+        return value
+
+
 class MessageFromLLMSchema(BaseModel):
     content: str = Field(description="The assistant's response to the user's message.")
 

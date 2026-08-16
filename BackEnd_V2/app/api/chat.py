@@ -10,6 +10,7 @@ from app.schemas.chat import (
     MessageChunkResponse,
     NewConvoRequest,
     MessageRequest,
+    RenameConvoRequest,
 )
 from app.llm import NewConvoResponse, MessageResponse
 
@@ -65,3 +66,13 @@ async def respond_to_message(
     current_user: UserDBM = Depends(get_current_user),
 ) -> MessageResponse:
     return await chat_service.respond_to_message(db, current_user, conversation_id, data)
+
+
+@router.patch(ENDPOINTS.CHAT.CONVERSATION_DETAIL, response_model=ConvoDataShortResponse)
+def rename_conversation(
+    conversation_id: int,
+    data: RenameConvoRequest,
+    db=Depends(get_db),
+    current_user: UserDBM = Depends(get_current_user),
+) -> ConvoDataShortResponse:
+    return chat_service.rename_conversation(db, current_user, conversation_id, data)

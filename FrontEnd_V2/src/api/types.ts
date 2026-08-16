@@ -304,6 +304,10 @@ export interface NewConvoRequest {
   agent_type: AssistantAgentType;
 }
 
+export interface RenameConvoRequest {
+  title: string;
+}
+
 export interface NewConvoResponse {
   message_data: MessageDataResponse;
   conversation_data?: ConvoDataShortResponse;

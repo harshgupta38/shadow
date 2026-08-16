@@ -15,6 +15,7 @@ from app.schemas.chat import (
     MessageRequest,
     MessageRoleEnum,
     NewConvoRequest,
+    RenameConvoRequest,
 )
 
 
@@ -158,6 +159,24 @@ def delete_conversation(
     db.execute(delete(MessageDBM).where(MessageDBM.conversation_id == conversation_id))
     db.delete(conversation)
     db.commit()
+
+
+def rename_conversation(
+    db: Session,
+    current_user: UserDBM,
+    conversation_id: int,
+    data: RenameConvoRequest,
+) -> ConvoDataShortResponse:
+    conversation = db.get(ConversationDBM, conversation_id)
+
+    if not conversation or conversation.user_id != current_user.id:
+        raise NotFoundError("Conversation not found or access denied.")
+
+    conversation.title = data.title
+    db.commit()
+    db.refresh(conversation)
+
+    return _serialize_conversation(conversation)
 
 
 async def respond_to_message(

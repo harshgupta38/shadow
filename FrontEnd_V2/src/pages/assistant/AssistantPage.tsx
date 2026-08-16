@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Dropdown, Modal } from "react-bootstrap";
-import { PlusLg, SendFill, Stars, ThreeDotsVertical, Trash3, XLg } from "react-bootstrap-icons";
+import { PencilSquare, PlusLg, SendFill, Stars, ThreeDotsVertical, Trash3, XLg } from "react-bootstrap-icons";
 import ReactMarkdown from "react-markdown";
 
 import boySitting from "@/assets/boy_sitting.png";
@@ -9,6 +9,7 @@ import { ApiError } from "@/api/client";
 import type { ConvoDataShortResponse, MessageDataResponse } from "@/api/types";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
+import { TextFieldPromptDialog } from "@/components/ui/TextFieldPromptDialog/TextFieldPromptDialog";
 import { ASSISTANT_AGENTS, ASSISTANT_LOADER_STEPS, type AssistantAgent } from "@/pages/assistant/AssistantPage.constants";
 import { useToast } from "@/context/ToastContext";
 import { formatChatTime } from "@/services/chat-time.service";
@@ -24,11 +25,13 @@ export function AssistantPage() {
   const [loaderIndex, setLoaderIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessingMessage, setIsProcessingMessage] = useState(false);
+  const [isRenamingConversation, setIsRenamingConversation] = useState(false);
 
   const [conversations, setConversations] = useState<ConvoDataShortResponse[]>([]);
   const [messages, setMessages] = useState<MessageDataResponse[]>([]);
   const [activeConversation, setActiveConversation] = useState<ConvoDataShortResponse | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ConvoDataShortResponse | null>(null);
+  const [renameTarget, setRenameTarget] = useState<ConvoDataShortResponse | null>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
 
   // Derived active item
@@ -115,6 +118,48 @@ export function AssistantPage() {
       setDeleteTarget(null);
     }
     if (activeConversation?.id === data.id) setActiveConversation(null);
+  }
+
+  async function renameConversation(nextTitle: string) {
+    if (!renameTarget || isRenamingConversation) return;
+
+    const fallbackTitle = ASSISTANT_AGENTS[renameTarget.agent_type].label;
+    const currentTitle = renameTarget.title || fallbackTitle;
+    if (!nextTitle || nextTitle === currentTitle) {
+      setRenameTarget(null);
+      return;
+    }
+
+    if (!renameTarget.is_local) {
+      setIsRenamingConversation(true);
+      try {
+        const updatedConversation = await api.chat.renameConversation(renameTarget.id, { title: nextTitle });
+        setConversations(prev => prev.map(item => (
+          item.id === updatedConversation.id ? { ...item, ...updatedConversation } : item
+        )));
+
+        setActiveConversation(prev => (
+          prev?.id === updatedConversation.id ? { ...prev, ...updatedConversation } : prev
+        ));
+
+        setRenameTarget(null);
+      } catch {
+        toast.error("Failed to rename conversation. Please try again.");
+      } finally {
+        setIsRenamingConversation(false);
+      }
+      return;
+    }
+
+    setConversations(prev => prev.map(item => (
+      item.id === renameTarget.id ? { ...item, title: nextTitle } : item
+    )));
+
+    setActiveConversation(prev => (
+      prev?.id === renameTarget.id ? { ...prev, title: nextTitle } : prev
+    ));
+
+    setRenameTarget(null);
   }
 
   async function sendMessage(content?: string) {
@@ -264,13 +309,31 @@ export function AssistantPage() {
                 const onSelect = () => { getMessages(conversation); };
 
                 return (
-                  <button key={conversation.id} type="button" className={`chat-session-item w-100 border-0 ${isActive ? "active" : ""}`} onClick={onSelect}>
-                    <span className="d-inline-grid flex-shrink-0" style={avatarStyle(agent.gradient, 38)} aria-hidden="true"><Icon size={19} /></span>
-                    <div className="flex-grow-1 min-w-0 text-start">
-                      <div className="fw-semibold small text-truncate chat-session-title">{title}</div>
-                      <div className="text-faint text-truncate chat-session-meta" style={{ fontSize: "0.72rem" }}>{agent.tagline} · {formatChatTime(conversation.updated_at)}</div>
-                    </div>
-                  </button>
+                  <div key={conversation.id} className={`chat-session-row ${isActive ? "active" : ""}`}>
+                    <button type="button" className={`chat-session-item w-100 border-0 ${isActive ? "active" : ""}`} onClick={onSelect}>
+                      <span className="d-inline-grid flex-shrink-0" style={avatarStyle(agent.gradient, 38)} aria-hidden="true"><Icon size={19} /></span>
+                      <div className="flex-grow-1 min-w-0 text-start">
+                        <div className="fw-semibold small text-truncate chat-session-title">{title}</div>
+                        <div className="text-faint text-truncate chat-session-meta" style={{ fontSize: "0.72rem" }}>{agent.tagline} · {formatChatTime(conversation.updated_at)}</div>
+                      </div>
+                    </button>
+                    <Dropdown
+                      align="end"
+                      className="chat-session-actions"
+                    >
+                      <Dropdown.Toggle as="button" className="btn btn-ghost btn-icon border-0 chat-session-action-toggle" aria-label="Session actions" bsPrefix=" ">
+                        <ThreeDotsVertical size={15} />
+                      </Dropdown.Toggle>
+                      <Dropdown.Menu>
+                        <Dropdown.Item onClick={() => setRenameTarget(conversation)}>
+                          <span className="d-flex align-items-center"><PencilSquare size={13} className="me-2" /> Rename</span>
+                        </Dropdown.Item>
+                        <Dropdown.Item className="text-danger" onClick={() => setDeleteTarget(conversation)}>
+                          <span className="d-flex align-items-center"><Trash3 size={13} className="me-2" /> Delete</span>
+                        </Dropdown.Item>
+                      </Dropdown.Menu>
+                    </Dropdown>
+                  </div>
                 );
               })}
             </div>
@@ -305,6 +368,10 @@ export function AssistantPage() {
                       <ThreeDotsVertical size={16} />
                     </Dropdown.Toggle>
                     <Dropdown.Menu>
+                      <Dropdown.Item onClick={() => setRenameTarget(activeConversation)}>
+                        <span className="d-flex align-items-center"><PencilSquare size={13} className="me-2" /> Rename</span>
+                      </Dropdown.Item>
+                      <Dropdown.Divider />
                       <Dropdown.Item onClick={() => setActiveConversation(null)}>
                         <span className="d-flex align-items-center"><XLg size={13} className="me-2" /> Close</span>
                       </Dropdown.Item>
@@ -404,6 +471,23 @@ export function AssistantPage() {
         destructive
         onConfirm={() => deleteConversation(deleteTarget)}
         onCancel={() => setDeleteTarget(null)}
+      />
+
+      <TextFieldPromptDialog
+        show={renameTarget !== null}
+        title="Rename session"
+        message="Update the session name to make it easier to find later."
+        label="Session name"
+        initialValue={renameTarget ? (renameTarget.title || ASSISTANT_AGENTS[renameTarget.agent_type].label) : ""}
+        placeholder="Enter session name"
+        confirmLabel="Rename"
+        busy={isRenamingConversation}
+        maxLength={30}
+        onConfirm={renameConversation}
+        onCancel={() => {
+          setIsRenamingConversation(false);
+          setRenameTarget(null);
+        }}
       />
     </div>
   );

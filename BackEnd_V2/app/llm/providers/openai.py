@@ -339,7 +339,7 @@ class OpenAIProvider(BaseLLMProvider):
                 )
 
             tool_names = "\n".join(tool_call.function.name for tool_call in tool_calls)
-            completion = await _complete(messages, f"respond_to_message:\n{tool_names}")
+            completion = await _complete(messages, tool_names)
 
         if completion.choices[0].message.tool_calls:
             raise LLMRequestError("OpenAI exceeded the maximum number of tool iterations.")

@@ -76,10 +76,12 @@ class LLMService:
         self,
         data: NewConvoRequest,
         user_id: int,
+        tool_executor: Callable[[str, dict], dict] | None = None,
     ) -> NewConvoFromLLM:
         request = NewConvoToLLM(
             request_data=data,
             user_id=user_id,
+            tool_executor=tool_executor,
         )
         response = await self._provider.create_conversation(request)
 

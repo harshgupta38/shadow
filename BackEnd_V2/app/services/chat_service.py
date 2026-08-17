@@ -52,8 +52,15 @@ async def create_conversation(
 ) -> NewConvoResponse:
     llm_service = get_llm_service()
 
+    tool_context = ToolContext(db=db, current_user=current_user)
+    tool_executor = partial(execute_tool, context=tool_context)
+
     try:
-        response = await llm_service.create_conversation(data, user_id=current_user.id)
+        response = await llm_service.create_conversation(
+            data, 
+            user_id=current_user.id,
+            tool_executor=tool_executor,
+        )
     except LLMError as exc:
         raise LLMRequestError(f"Failed to create conversation: {exc}") from exc
 

@@ -22,7 +22,7 @@ async def log_openai_completion_usage_async(
     completion: Any,
     latency_ms: int,
     operation: str,
-    user_id: int | None = None,
+    user_id: int,
 ) -> None:
     """Persist usage metadata immediately after OpenAI completion is received."""
     try:
@@ -62,7 +62,7 @@ async def log_ollama_completion_usage_async(
     completion: Any,
     latency_ms: int,
     operation: str,
-    user_id: int | None = None,
+    user_id: int,
 ) -> None:
     """Persist usage metadata immediately after Ollama completion is received."""
     try:
@@ -102,7 +102,7 @@ async def log_gemini_completion_usage_async(
     response: Any,
     latency_ms: int,
     operation: str,
-    user_id: int | None = None,
+    user_id: int,
 ) -> None:
     """Persist usage metadata immediately after Gemini response is received."""
     try:
@@ -154,7 +154,7 @@ async def log_claude_completion_usage_async(
     completion: Any,
     latency_ms: int,
     operation: str,
-    user_id: int | None = None,
+    user_id: int,
 ) -> None:
     """Persist usage metadata immediately after Claude completion is received."""
     try:

@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Callable
 
 from pydantic import BaseModel, Field
 from app.llm.enums import LLMProvider, ModelKey
@@ -33,10 +34,11 @@ class TokenUsage(BaseModel):
 
 
 class MetadataToLLM(BaseModel):
-    user_id: int | None = None
+    user_id: int
     model: str | None = None
     temperature: float | None = Field(default=None, ge=0.0, le=2.0)
     max_tokens: int | None = Field(default=None, gt=0)
+    tool_executor: Callable[[str, dict], dict] | None = None
 
 
 class MetadataFromLLM(BaseModel):

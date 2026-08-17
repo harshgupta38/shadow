@@ -1,4 +1,6 @@
 from functools import lru_cache
+from typing import Callable
+
 from app.llm.models import (
     RefineGoalToLLM,
     RefineGoalFromLLM,
@@ -57,7 +59,7 @@ class LLMService:
     async def refine_goal(
         self,
         request_data: RefineGoalRequest,
-        user_id: int | None = None,
+        user_id: int,
     ) -> RefineGoalFromLLM:
 
         request = RefineGoalToLLM(request_data=request_data, user_id=user_id)
@@ -73,7 +75,7 @@ class LLMService:
     async def create_conversation(
         self,
         data: NewConvoRequest,
-        user_id: int | None = None,
+        user_id: int,
     ) -> NewConvoFromLLM:
         request = NewConvoToLLM(
             request_data=data,
@@ -93,7 +95,8 @@ class LLMService:
         context_summary: str,
         agent_type: str,
         recent_messages: list[dict[str, str]],
-        user_id: int | None = None,
+        user_id: int,
+        tool_executor: Callable[[str, dict], dict] | None = None,
     ) -> MessageFromLLM:
         request = MessageToLLM(
             request_data=data.content,
@@ -102,6 +105,7 @@ class LLMService:
             stable_context=stable_context,
             context_summary=context_summary,
             recent_messages=recent_messages,
+            tool_executor=tool_executor,
         )
         response = await self._provider.respond_to_message(request)
         
@@ -116,7 +120,7 @@ class LLMService:
         context_summary: str,
         agent_type: str,
         messages: list[dict[str, str]],
-        user_id: int | None = None,
+        user_id: int,
     ) -> ConversationContextFromLLM:
         request = ConversationContextToLLM(
             user_id=user_id,

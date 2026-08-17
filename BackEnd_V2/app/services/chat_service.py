@@ -1,8 +1,13 @@
+from json import JSONDecodeError
+
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
+from functools import partial
+
 from app.llm.models import MessageResponse
 from app.llm.config import llm_settings
+from app.llm.tools import ToolContext, execute_tool
 from app.core.exceptions import NotFoundError
 from app.llm import get_llm_service, NewConvoResponse, LLMError, LLMRequestError
 from app.models.user import UserDBM
@@ -259,6 +264,9 @@ async def respond_to_message(
     db.add(user_message)
     db.commit()
 
+    tool_context = ToolContext(db=db, current_user=current_user)
+    tool_executor = partial(execute_tool, context=tool_context)
+
     try:
         response = await llm_service.respond_to_message(
             data,
@@ -267,9 +275,12 @@ async def respond_to_message(
             stable_context=conversation.stable_context,
             context_summary=conversation.context_summary,
             recent_messages=recent_message_data,
+            tool_executor=tool_executor,
         )
     except LLMError as exc:
         raise LLMRequestError(f"Failed to respond to message: {exc}") from exc
+    except JSONDecodeError as exc:
+        raise LLMRequestError(f"Failed to decode LLM response: {exc}") from exc
 
     assistant_message = MessageDBM(
         conversation_id=conversation.id,

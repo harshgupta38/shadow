@@ -1,3 +1,4 @@
+import json
 from time import perf_counter
 
 from openai import APIConnectionError, APIStatusError, AsyncOpenAI, OpenAIError
@@ -34,6 +35,9 @@ from app.llm.exceptions import (
     LLMProviderError,
     LLMRequestError,
 )
+from app.llm.tools import TOOL_DEFINITIONS
+
+MAX_TOOL_ITERATIONS = 3
 
 
 class OllamaProvider(BaseLLMProvider):
@@ -230,49 +234,113 @@ class OllamaProvider(BaseLLMProvider):
         ]
 
         started_at = perf_counter()
-        try:
-            completion = await self._client.beta.chat.completions.parse(
+        total_input_tokens = 0
+        total_output_tokens = 0
+        total_tokens = 0
+        usage_received = False
+
+        async def _complete(current_messages: list[dict], operation: str):
+            nonlocal total_input_tokens, total_output_tokens, total_tokens, usage_received
+
+            completion_started_at = perf_counter()
+            try:
+                completion = await self._client.chat.completions.create(
+                    model=model,
+                    messages=current_messages,
+                    tools=TOOL_DEFINITIONS,
+                    temperature=request.temperature,
+                    max_tokens=request.max_tokens,
+                )
+            except (APIConnectionError, APIStatusError, OpenAIError) as exc:
+                raise LLMProviderError(f"Ollama respond_to_message failed: {exc}") from exc
+            response_time_ms = int((perf_counter() - completion_started_at) * 1000)
+
+            if completion.usage is not None:
+                usage_received = True
+                total_input_tokens += completion.usage.prompt_tokens or 0
+                total_output_tokens += completion.usage.completion_tokens or 0
+                total_tokens += completion.usage.total_tokens or 0
+
+            await log_ollama_completion_usage_async(
+                settings=self._settings,
                 model=model,
-                messages=messages,
-                response_format=MessageFromLLMSchema,
-                temperature=request.temperature,
-                max_tokens=request.max_tokens,
+                completion=completion,
+                latency_ms=response_time_ms,
+                user_id=request.user_id,
+                operation=operation,
             )
-        except (APIConnectionError, APIStatusError, OpenAIError) as exc:
-            raise LLMProviderError(f"Ollama respond_to_message failed: {exc}") from exc
+
+            if not completion.choices:
+                raise LLMRequestError("Ollama returned no choices for respond_to_message.")
+
+            return completion
+
+        completion = await _complete(messages, "respond_to_message")
+
+        for _ in range(MAX_TOOL_ITERATIONS):
+            first_choice = completion.choices[0]
+            tool_calls = first_choice.message.tool_calls
+
+            if not tool_calls:
+                break
+
+            if request.tool_executor is None:
+                raise LLMRequestError("Ollama requested a tool but no tool executor is available.")
+
+            messages.append(
+                {
+                    "role": Role.ASSISTANT,
+                    "content": first_choice.message.content,
+                    "tool_calls": [
+                        {
+                            "id": tool_call.id,
+                            "type": "function",
+                            "function": {
+                                "name": tool_call.function.name,
+                                "arguments": tool_call.function.arguments,
+                            },
+                        }
+                        for tool_call in tool_calls
+                    ],
+                }
+            )
+
+            for tool_call in tool_calls:
+                arguments = json.loads(tool_call.function.arguments or "{}")
+                result = request.tool_executor(tool_call.function.name, arguments)
+                messages.append(
+                    {
+                        "role": Role.TOOL,
+                        "tool_call_id": tool_call.id,
+                        "content": json.dumps(result),
+                    }
+                )
+
+            tool_names = "\n".join(tool_call.function.name for tool_call in tool_calls)
+            completion = await _complete(messages, f"respond_to_message:\n{tool_names}")
+
+        if completion.choices[0].message.tool_calls:
+            raise LLMRequestError("Ollama exceeded the maximum number of tool iterations.")
+
         response_time_ms = int((perf_counter() - started_at) * 1000)
-
-        await log_ollama_completion_usage_async(
-            settings=self._settings,
-            model=model,
-            completion=completion,
-            latency_ms=response_time_ms,
-            user_id=request.user_id,
-            operation="respond_to_message",
-        )
-
-        if not completion.choices:
-            raise LLMRequestError("Ollama returned no choices for respond_to_message.")
 
         first_choice = completion.choices[0]
         message = first_choice.message
-        parsed = message.parsed
+        if message.refusal:
+            raise LLMRequestError(f"Ollama refused respond_to_message response: {message.refusal}")
 
-        if parsed is None:
-            if message.refusal:
-                raise LLMRequestError(
-                    f"Ollama refused respond_to_message response: {message.refusal}"
-                )
-            raise LLMRequestError(
-                "Ollama returned an unparsable respond_to_message response."
-            )
+        content = message.content
+        if not content:
+            raise LLMRequestError("Ollama returned an empty respond_to_message response.")
+
+        parsed = MessageFromLLMSchema(content=content)
 
         usage = None
-        if completion.usage is not None:
+        if usage_received:
             usage = TokenUsage(
-                input_tokens=completion.usage.prompt_tokens,
-                output_tokens=completion.usage.completion_tokens,
-                total_tokens=completion.usage.total_tokens,
+                input_tokens=total_input_tokens,
+                output_tokens=total_output_tokens,
+                total_tokens=total_tokens,
             )
 
         return MessageFromLLM(

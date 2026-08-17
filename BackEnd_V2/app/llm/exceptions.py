@@ -31,3 +31,9 @@ class LLMRequestError(LLMError):
 
 class LLMHealthCheckError(LLMError):
     """Raised when provider health checks fail."""
+
+
+class LLMUnknownToolError(LLMError):
+    """Raised when the LLM requests a tool that is not registered."""
+    status_code = 400
+    detail = "Requested tool is not available."

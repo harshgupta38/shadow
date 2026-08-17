@@ -10,9 +10,11 @@ import type { ConvoDataShortResponse, MessageDataResponse } from "@/api/types";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { TextFieldPromptDialog } from "@/components/ui/TextFieldPromptDialog/TextFieldPromptDialog";
+import { AssistantMessageSkeleton } from "@/pages/assistant/AssistantMessageSkeleton";
 import { ASSISTANT_AGENTS, ASSISTANT_LOADER_STEPS, type AssistantAgent } from "@/pages/assistant/AssistantPage.constants";
 import { useToast } from "@/context/ToastContext";
 import { formatChatTime } from "@/services/chat-time.service";
+import { resizeTextareaToMaxLines } from "@/services/textarea-resize.service";
 
 import "@/pages/assistant/AssistantPage.scss";
 
@@ -24,6 +26,7 @@ export function AssistantPage() {
 
   const [loaderIndex, setLoaderIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isProcessingMessage, setIsProcessingMessage] = useState(false);
   const [isRenamingConversation, setIsRenamingConversation] = useState(false);
 
@@ -33,6 +36,8 @@ export function AssistantPage() {
   const [deleteTarget, setDeleteTarget] = useState<ConvoDataShortResponse | null>(null);
   const [renameTarget, setRenameTarget] = useState<ConvoDataShortResponse | null>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
+  const composerTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const messagesRequestIdRef = useRef(0);
 
   // Derived active item
   const hasAnyChat = conversations.length > 0;
@@ -59,8 +64,16 @@ export function AssistantPage() {
       chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
   }, [messages.length, isProcessingMessage]);
 
+  useEffect(() => {
+    if (composerTextareaRef.current) {
+      resizeTextareaToMaxLines(composerTextareaRef.current, 5, 20);
+    }
+  }, [inputText, activeConversation?.id]);
+
   function openAgent(agent: AssistantAgent) {
     const existing = conversations.find(s => s.is_local && s.agent_type === agent.type);
+    messagesRequestIdRef.current += 1;
+    setIsLoadingMessages(false);
     setMessages([]);
 
     if (existing) {
@@ -86,19 +99,30 @@ export function AssistantPage() {
   }
 
   async function getMessages(conversation: ConvoDataShortResponse) {
+    const requestId = ++messagesRequestIdRef.current;
     setActiveConversation(conversation);
 
     if (conversation.is_local) {
+      setIsLoadingMessages(false);
       setMessages([]);
       return;
     }
 
+    setIsLoadingMessages(true);
+    setMessages([]);
+
     try {
       const messageChunk = await api.chat.getMessages(conversation.id);
+      if (requestId !== messagesRequestIdRef.current) return;
       // TODO take care of pagination 
       setMessages(messageChunk.message_list);
     } catch {
+      if (requestId !== messagesRequestIdRef.current) return;
       toast.error("Failed to load messages. Please try again.");
+    } finally {
+      if (requestId === messagesRequestIdRef.current) {
+        setIsLoadingMessages(false);
+      }
     }
   }
 
@@ -163,6 +187,8 @@ export function AssistantPage() {
   }
 
   async function sendMessage(content?: string) {
+    if (isLoadingMessages) return;
+
     const text = (content ?? inputText).trim();
     if (!text || !activeItem) return;
 
@@ -220,6 +246,11 @@ export function AssistantPage() {
       e.preventDefault();
       sendMessage();
     }
+  }
+
+  function handleInputChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
+    setInputText(e.target.value);
+    resizeTextareaToMaxLines(e.target, 5, 20);
   }
 
   const avatarStyle = (g: [string, string], size: number) => ({
@@ -383,7 +414,9 @@ export function AssistantPage() {
                 </div>
 
                 <div className="chat-scroll" ref={chatScrollRef}>
-                  {messages.length === 0 ? (
+                  {isLoadingMessages ? (
+                    <AssistantMessageSkeleton />
+                  ) : messages.length === 0 ? (
                     <div className="m-auto text-center" style={{ maxWidth: 440 }}>
                       <span className="d-inline-grid" style={avatarStyle(activeAgent.gradient, 64)} aria-hidden="true">
                         <ActiveIcon size={30} />
@@ -403,10 +436,6 @@ export function AssistantPage() {
                           <div className={`d-flex flex-column gap-1 ${msg.role === "user" ? "align-items-end" : "align-items-start"}`} style={{ maxWidth: "75%" }}>
                             <div className={`px-3 py-2 rounded-3 small ${msg.role === "user" ? "" : "surface-2"}`}
                               style={msg.role === "user" ? { background: "var(--jv-brand-1)", color: "#fff", whiteSpace: "pre-wrap" } : {}}>
-                              {/* {msg.role === "user"
-                                ? msg.content
-                                : <ReactMarkdown className="chat-markdown">{msg.content}</ReactMarkdown>
-                              } */}
                               <ReactMarkdown className="chat-markdown">{msg.content}</ReactMarkdown>
                             </div>
                             <span className="text-faint" style={{ fontSize: "0.68rem" }}>{formatChatTime(msg.created_at)}</span>
@@ -430,8 +459,9 @@ export function AssistantPage() {
 
                 <form className="chat-composer" onSubmit={e => { e.preventDefault(); sendMessage(); }}>
                   <textarea className="form-control" rows={1} placeholder={`Message ${activeAgent.label}…`}
-                    value={inputText} onChange={e => setInputText(e.target.value)} onKeyDown={handleKeyDown} />
-                  <button type="submit" className="btn btn-brand flex-shrink-0" aria-label="Send message" disabled={!inputText.trim() || isProcessingMessage}>
+                    ref={composerTextareaRef}
+                    value={inputText} onChange={handleInputChange} onKeyDown={handleKeyDown} disabled={isLoadingMessages} />
+                  <button type="submit" className="btn btn-brand flex-shrink-0" aria-label="Send message" disabled={!inputText.trim() || isProcessingMessage || isLoadingMessages}>
                     <SendFill size={16} />
                   </button>
                 </form>

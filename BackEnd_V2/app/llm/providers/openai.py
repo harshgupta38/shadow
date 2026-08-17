@@ -82,7 +82,7 @@ class OpenAIProvider(BaseLLMProvider):
                 kwargs["temperature"] = request.temperature
 
             if request.max_tokens is not None:
-                kwargs["max_tokens"] = request.max_tokens
+                kwargs["max_completion_tokens"] = request.max_tokens
 
             completion = await self._client.beta.chat.completions.parse(**kwargs)
 
@@ -168,7 +168,7 @@ class OpenAIProvider(BaseLLMProvider):
                 kwargs["temperature"] = request.temperature
 
             if request.max_tokens is not None:
-                kwargs["max_tokens"] = request.max_tokens
+                kwargs["max_completion_tokens"] = request.max_tokens
 
             completion = await self._client.beta.chat.completions.parse(**kwargs)
         except (APIConnectionError, APIStatusError, OpenAIError) as exc:
@@ -259,7 +259,7 @@ class OpenAIProvider(BaseLLMProvider):
                 kwargs["temperature"] = request.temperature
 
             if request.max_tokens is not None:
-                kwargs["max_tokens"] = request.max_tokens
+                kwargs["max_completion_tokens"] = request.max_tokens
 
             completion = await self._client.beta.chat.completions.parse(**kwargs)
         except (APIConnectionError, APIStatusError, OpenAIError) as exc:
@@ -350,7 +350,7 @@ class OpenAIProvider(BaseLLMProvider):
                 kwargs["temperature"] = request.temperature
 
             if request.max_tokens is not None:
-                kwargs["max_tokens"] = request.max_tokens
+                kwargs["max_completion_tokens"] = request.max_tokens
 
             completion = await self._client.beta.chat.completions.parse(**kwargs)
         except (APIConnectionError, APIStatusError, OpenAIError) as exc:

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Modal } from "react-bootstrap";
 import { PencilSquare } from "react-bootstrap-icons";
 
@@ -34,10 +34,17 @@ export function TextFieldPromptDialog({
   onCancel,
 }: TextFieldPromptDialogProps) {
   const [value, setValue] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (show) {
       setValue(initialValue);
+
+      const id = window.requestAnimationFrame(() => {
+        inputRef.current?.focus();
+      });
+
+      return () => window.cancelAnimationFrame(id);
     }
   }, [show, initialValue]);
 
@@ -57,6 +64,7 @@ export function TextFieldPromptDialog({
           {label}
         </label>
         <input
+          ref={inputRef}
           id="text-field-prompt-input"
           type="text"
           className="form-control"
@@ -64,6 +72,12 @@ export function TextFieldPromptDialog({
           placeholder={placeholder}
           maxLength={maxLength}
           onChange={(event) => setValue(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && canConfirm && !busy) {
+              event.preventDefault();
+              onConfirm(trimmedValue);
+            }
+          }}
           disabled={busy}
         />
 

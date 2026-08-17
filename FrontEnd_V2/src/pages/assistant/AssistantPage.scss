@@ -178,6 +178,43 @@ $session-action-size: 1.7rem;
   min-width: 2.5rem;
 }
 
+.assistant-message-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 1.05rem;
+  width: 100%;
+}
+
+.assistant-message-skeleton-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.38rem;
+
+  &.is-user {
+    align-items: flex-end;
+  }
+
+  &.is-assistant {
+    align-items: flex-start;
+  }
+}
+
+.assistant-message-skeleton-bubble {
+  height: 2.55rem;
+  border-radius: 0.85rem;
+  background: linear-gradient(90deg, var(--jv-surface-2) 0%, color-mix(in srgb, var(--jv-surface-2), #fff 22%) 45%, var(--jv-surface-2) 100%);
+  background-size: 220% 100%;
+  animation: assistant-skeleton-shimmer 1.15s linear infinite;
+}
+
+.assistant-message-skeleton-time {
+  width: 3rem;
+  height: 0.58rem;
+  border-radius: 999px;
+  background: var(--jv-surface-2);
+  opacity: 0.8;
+}
+
 .assistant-typing-dot {
   width: 0.34rem;
   height: 0.34rem;
@@ -203,6 +240,16 @@ $session-action-size: 1.7rem;
   40% {
     transform: translateY(-3px);
     opacity: 1;
+  }
+}
+
+@keyframes assistant-skeleton-shimmer {
+  0% {
+    background-position: 130% 0;
+  }
+
+  100% {
+    background-position: -70% 0;
   }
 }
 

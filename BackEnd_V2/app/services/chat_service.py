@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from json import JSONDecodeError
 
 from sqlalchemy import delete, func, select
@@ -8,7 +9,7 @@ from functools import partial
 from app.llm.models import MessageResponse
 from app.llm.config import llm_settings
 from app.llm.tools import ToolContext, execute_tool
-from app.core.exceptions import NotFoundError
+from app.core.exceptions import NotFoundError, ValidationError
 from app.llm import get_llm_service, NewConvoResponse, LLMError, LLMRequestError
 from app.models.user import UserDBM
 from app.models.chat import ConversationDBM, MessageDBM
@@ -320,4 +321,89 @@ async def regenerate_response(
     conversation_id: int,
     message_id: int,
 ) -> MessageResponse:
-    raise NotImplementedError("regenerate_response is not yet implemented")
+    conversation = db.get(ConversationDBM, conversation_id)
+    if not conversation or conversation.user_id != current_user.id:
+        raise NotFoundError("Conversation not found or access denied.")
+
+    assistant_message = db.get(MessageDBM, message_id)
+    if not assistant_message or assistant_message.conversation_id != conversation_id:
+        raise NotFoundError("Message not found or does not belong to this conversation.")
+
+    if assistant_message.role != MessageRoleEnum.ASSISTANT:
+        raise ValidationError("Only assistant messages can be regenerated.")
+
+    latest_message_id = db.scalar(
+        select(func.max(MessageDBM.id)).where(
+            MessageDBM.conversation_id == conversation_id
+        )
+    )
+    if assistant_message.id != latest_message_id:
+        raise ValidationError("Only the latest assistant message can be regenerated.")
+
+    if not assistant_message.content:
+        raise ValidationError("Message has no generated content to regenerate.")
+
+    preceding_messages = list(
+        db.scalars(
+            select(MessageDBM)
+            .where(
+                MessageDBM.conversation_id == conversation_id,
+                MessageDBM.id < message_id,
+            )
+            .order_by(MessageDBM.id.desc())
+            .limit(llm_settings.chat_recent_message_limit)
+        ).all()
+    )
+    preceding_messages.reverse()
+
+    if not preceding_messages or preceding_messages[-1].role != MessageRoleEnum.USER:
+        raise ValidationError("Could not find the source user message for this assistant response.")
+
+    paired_user_message = preceding_messages[-1]
+    if not paired_user_message.content or not paired_user_message.content[-1].strip():
+        raise ValidationError("The source user message has no content.")
+    
+    prior_messages = preceding_messages[:-1]
+
+    recent_message_data = [
+        {"role": msg.role, "content": msg.content[-1]}
+        for msg in prior_messages
+    ]
+    data = MessageRequest(content=paired_user_message.content[-1])
+
+    tool_context = ToolContext(db=db, current_user=current_user)
+    tool_executor = partial(execute_tool, context=tool_context)
+
+    llm_service = get_llm_service()
+    try:
+        response = await llm_service.respond_to_message(
+            data,
+            user_id=current_user.id,
+            agent_type=conversation.agent_type,
+            stable_context=conversation.stable_context,
+            context_summary=conversation.context_summary,
+            recent_messages=recent_message_data,
+            tool_executor=tool_executor,
+        )
+    except LLMError as exc:
+        raise LLMRequestError(f"Failed to regenerate response: {exc}") from exc
+    except JSONDecodeError as exc:
+        raise LLMRequestError(f"Failed to decode LLM response: {exc}") from exc
+
+    db.refresh(assistant_message)
+    assistant_message.content = [*assistant_message.content, response.llm_data.content]
+    conversation.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(assistant_message)
+
+    return MessageResponse(
+        message_data=MessageDataResponse.model_validate(assistant_message),
+        provider=response.provider,
+        model=response.model,
+        model_str=response.model_str,
+        finish_reason=response.finish_reason,
+        usage=response.usage,
+        response_id=response.response_id,
+        response_time_ms=response.response_time_ms,
+        cost=response.cost,
+    )

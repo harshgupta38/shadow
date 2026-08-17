@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Dropdown, Modal } from "react-bootstrap";
-import { ArrowRepeat, Check2, Copy, PencilSquare, PlusLg, SendFill, Stars, ThreeDotsVertical, Trash3, XLg } from "react-bootstrap-icons";
+import { ArrowRepeat, Check2, ChevronLeft, ChevronRight, Copy, PencilSquare, PlusLg, SendFill, Stars, ThreeDotsVertical, Trash3, XLg } from "react-bootstrap-icons";
 import ReactMarkdown from "react-markdown";
 
 import boySitting from "@/assets/boy_sitting.png";
@@ -31,6 +31,7 @@ export function AssistantPage() {
   const [isRenamingConversation, setIsRenamingConversation] = useState(false);
   const [hoveredMsgKey, setHoveredMsgKey] = useState<string | null>(null);
   const [copiedMsgKey, setCopiedMsgKey] = useState<string | null>(null);
+  const [contentIndexMap, setContentIndexMap] = useState<Record<string, number>>({});
 
   const [conversations, setConversations] = useState<ConvoDataShortResponse[]>([]);
   const [messages, setMessages] = useState<MessageDataResponse[]>([]);
@@ -40,6 +41,7 @@ export function AssistantPage() {
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const composerTextareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesRequestIdRef = useRef(0);
+  const messageRefsMap = useRef<Record<string, HTMLDivElement | null>>({});
 
   // Derived active item
   const hasAnyChat = conversations.length > 0;
@@ -243,6 +245,20 @@ export function AssistantPage() {
     }
   }
 
+  function navigateContent(msgKey: string, contentLength: number, dir: 1 | -1) {
+    setContentIndexMap(prev => {
+      const current = prev[msgKey] ?? contentLength - 1;
+      return { ...prev, [msgKey]: Math.max(0, Math.min(contentLength - 1, current + dir)) };
+    });
+    setTimeout(() => {
+      const el = messageRefsMap.current[msgKey];
+      const container = chatScrollRef.current;
+      if (!el || !container) return;
+      const needed = el.getBoundingClientRect().bottom - container.getBoundingClientRect().bottom + 40;
+      if (needed > 0) container.scrollBy({ top: needed, behavior: "smooth" });
+    }, 0);
+  }
+
   function copyMessage(content: string, key: string) {
     navigator.clipboard.writeText(content).then(() => {
       setCopiedMsgKey(key);
@@ -261,6 +277,7 @@ export function AssistantPage() {
       });
 
       setMessages(prev => prev.map(m => m.id === message.id ? response.message_data : m));
+      setContentIndexMap(prev => ({ ...prev, [String(message.id)]: response.message_data.content.length - 1 }));
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message : "Failed to regenerate response. Please try again.");
     } finally {
@@ -462,9 +479,12 @@ export function AssistantPage() {
                         const msgKey = String(msg.id ?? msg.created_at);
                         const isHovered = hoveredMsgKey === msgKey;
                         const isCopied = copiedMsgKey === msgKey;
+                        const activeContentIndex = contentIndexMap[msgKey] ?? msg.content.length - 1;
+                        const activeContent = msg.content[activeContentIndex];
                         return (
                           <div
                             key={msgKey}
+                            ref={(el) => { messageRefsMap.current[msgKey] = el; }}
                             className={`d-flex ${msg.role === "user" ? "justify-content-end" : "justify-content-start"}`}
                           >
                             <div className={`d-flex flex-column gap-1 ${msg.role === "user" ? "align-items-end" : "align-items-start"}`} style={{ maxWidth: "75%" }}
@@ -484,7 +504,7 @@ export function AssistantPage() {
                                   }}
                                   className="chat-markdown"
                                 >
-                                  {msg.content.at(-1)}
+                                  {activeContent}
                                 </ReactMarkdown>
                               </div>
                               <div style={{ position: "relative", lineHeight: 1 }}>
@@ -492,10 +512,31 @@ export function AssistantPage() {
                                   {formatChatTime(msg.created_at)}
                                 </span>
                                 <div className="chat-message-actions" style={{ position: "absolute", top: "50%", transform: "translateY(-50%)", [msg.role === "user" ? "right" : "left"]: 0, opacity: isHovered ? 1 : 0, pointerEvents: isHovered ? "auto" : "none", transition: "opacity 0.18s ease-in-out" }}>
+                                  {msg.content.length > 1 && (
+                                    <div className="chat-content-nav">
+                                      <button 
+                                        type="button" 
+                                        className="chat-content-nav-btn" 
+                                        disabled={activeContentIndex === 0} 
+                                        onClick={() => navigateContent(msgKey, msg.content.length, -1)} 
+                                        aria-label="Previous version">
+                                          <ChevronLeft size={12} />
+                                      </button>
+                                      <span className="chat-content-nav-label">{activeContentIndex + 1}/{msg.content.length}</span>
+                                      <button 
+                                        type="button" 
+                                        className="chat-content-nav-btn" 
+                                        disabled={activeContentIndex === msg.content.length - 1} 
+                                        onClick={() => navigateContent(msgKey, msg.content.length, 1)} 
+                                        aria-label="Next version">
+                                          <ChevronRight size={12} />
+                                        </button>
+                                    </div>
+                                  )}
                                   <button
                                     type="button"
                                     className="chat-message-action-btn"
-                                    onClick={() => copyMessage(msg.content.at(-1)!, msgKey)}
+                                    onClick={() => copyMessage(activeContent, msgKey)}
                                     aria-label="Copy message"
                                     title={isCopied ? "Copied!" : "Copy"}
                                   >
@@ -505,18 +546,19 @@ export function AssistantPage() {
                                     <button
                                       type="button"
                                       className="chat-message-action-btn"
-                                      onClick={() => setInputText(msg.content.at(-1)!)}
+                                      onClick={() => setInputText(activeContent)}
                                       aria-label="Edit message"
                                       title="Edit"
                                     >
                                       <PencilSquare size={13} />
                                     </button>
                                   )}
-                                  {msg.role === "assistant" && (i === messages.length - 1 || i === messages.length - 2) && (
+                                  {msg.role === "assistant" && i === messages.length - 1 && (
                                     <button
                                       type="button"
                                       className="chat-message-action-btn"
-                                      onClick={()=> regenerateResponse(msg)}
+                                      disabled={isProcessingMessage || isLoadingMessages}
+                                      onClick={() => regenerateResponse(msg)}
                                       aria-label="Retry message"
                                       title="Retry"
                                     >

@@ -68,6 +68,16 @@ async def respond_to_message(
     return await chat_service.respond_to_message(db, current_user, conversation_id, data)
 
 
+@router.post(ENDPOINTS.CHAT.REGENERATE_RESPONSE, response_model=MessageResponse)
+async def regenerate_response(
+    conversation_id: int,
+    message_id: int,
+    db=Depends(get_db),
+    current_user: UserDBM = Depends(get_current_user),
+) -> MessageResponse:
+    return await chat_service.regenerate_response(db, current_user, conversation_id, message_id)
+
+
 @router.patch(ENDPOINTS.CHAT.CONVERSATION_DETAIL, response_model=ConvoDataShortResponse)
 def rename_conversation(
     conversation_id: int,

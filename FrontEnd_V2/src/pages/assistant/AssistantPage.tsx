@@ -197,7 +197,7 @@ export function AssistantPage() {
     setInputText("");
     const msg: MessageDataResponse = {
       conversation_id: activeItem.id,
-      content: text,
+      content: [text],
       role: "user",
       created_at: new Date().toISOString(),
     };
@@ -248,6 +248,24 @@ export function AssistantPage() {
       setCopiedMsgKey(key);
       setTimeout(() => setCopiedMsgKey(null), 1500);
     });
+  }
+
+  async function regenerateResponse(message: MessageDataResponse) {
+    if (isLoadingMessages || !message.id || !activeItem) return;
+
+    setIsProcessingMessage(true);
+    try {
+      const response = await api.chat.regenerateResponse({
+        conversation_id: activeItem.id,
+        message_id: message.id,
+      });
+
+      setMessages(prev => prev.map(m => m.id === message.id ? response.message_data : m));
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : "Failed to regenerate response. Please try again.");
+    } finally {
+      setIsProcessingMessage(false);
+    }
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -466,7 +484,7 @@ export function AssistantPage() {
                                   }}
                                   className="chat-markdown"
                                 >
-                                  {msg.content}
+                                  {msg.content.at(-1)}
                                 </ReactMarkdown>
                               </div>
                               <div style={{ position: "relative", lineHeight: 1 }}>
@@ -477,7 +495,7 @@ export function AssistantPage() {
                                   <button
                                     type="button"
                                     className="chat-message-action-btn"
-                                    onClick={() => copyMessage(msg.content, msgKey)}
+                                    onClick={() => copyMessage(msg.content.at(-1)!, msgKey)}
                                     aria-label="Copy message"
                                     title={isCopied ? "Copied!" : "Copy"}
                                   >
@@ -487,7 +505,7 @@ export function AssistantPage() {
                                     <button
                                       type="button"
                                       className="chat-message-action-btn"
-                                      onClick={() => setInputText(msg.content)}
+                                      onClick={() => setInputText(msg.content.at(-1)!)}
                                       aria-label="Edit message"
                                       title="Edit"
                                     >

@@ -103,8 +103,8 @@ class MessageDBM(Base):
         nullable=False,
     )
 
-    content: Mapped[str] = mapped_column(
-        Text,
+    content: Mapped[list[str]] = mapped_column(
+        JSON,
         nullable=False,
     )
     created_at: Mapped[datetime] = mapped_column(

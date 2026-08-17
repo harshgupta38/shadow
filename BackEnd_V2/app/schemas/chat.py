@@ -72,7 +72,7 @@ class MessageDataDBS(ORMModel):
     id: int
     conversation_id: int
     role: MessageRoleEnum
-    content: str
+    content: list[str]
     created_at: datetime
 
 

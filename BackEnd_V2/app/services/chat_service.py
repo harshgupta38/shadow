@@ -79,14 +79,14 @@ async def create_conversation(
     user_message = MessageDBM(
         conversation_id=conversation.id,
         role=MessageRoleEnum.USER,
-        content=data.content,
+        content=[data.content],
     )
     db.add(user_message)
 
     assistant_message = MessageDBM(
         conversation_id=conversation.id,
         role=MessageRoleEnum.ASSISTANT,
-        content=response.llm_data.content,
+        content=[response.llm_data.content],
     )
     db.add(assistant_message)
     db.commit()
@@ -229,7 +229,7 @@ async def respond_to_message(
     )
 
     recent_message_data = [
-        {"role": message.role, "content": message.content}
+        {"role": message.role, "content": message.content[-1]}
         for message in recent_messages
     ]
     context_messages = [
@@ -266,7 +266,7 @@ async def respond_to_message(
     user_message = MessageDBM(
         conversation_id=conversation.id,
         role=MessageRoleEnum.USER,
-        content=data.content,
+        content=[data.content],
     )
     db.add(user_message)
     db.commit()
@@ -292,7 +292,7 @@ async def respond_to_message(
     assistant_message = MessageDBM(
         conversation_id=conversation.id,
         role=MessageRoleEnum.ASSISTANT,
-        content=response.llm_data.content,
+        content=[response.llm_data.content],
     )
     db.add(assistant_message)
     db.flush()
@@ -312,3 +312,12 @@ async def respond_to_message(
         response_time_ms=response.response_time_ms,
         cost=response.cost,
     )
+
+
+async def regenerate_response(
+    db: Session,
+    current_user: UserDBM,
+    conversation_id: int,
+    message_id: int,
+) -> MessageResponse:
+    raise NotImplementedError("regenerate_response is not yet implemented")

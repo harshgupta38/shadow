@@ -288,7 +288,7 @@ export interface ConvoDataShortResponse {
 export interface MessageDataResponse {
   id?: number;
   conversation_id: number;
-  content: string;
+  content: string[];
   role: ChatRole;
   created_at: string;
 }
@@ -311,4 +311,9 @@ export interface RenameConvoRequest {
 export interface NewConvoResponse {
   message_data: MessageDataResponse;
   conversation_data?: ConvoDataShortResponse;
+}
+
+export interface RegenerateResponseRequest {
+  conversation_id: number;
+  message_id: number;
 }

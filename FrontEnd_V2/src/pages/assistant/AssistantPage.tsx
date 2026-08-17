@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Dropdown, Modal } from "react-bootstrap";
-import { PencilSquare, PlusLg, SendFill, Stars, ThreeDotsVertical, Trash3, XLg } from "react-bootstrap-icons";
+import { ArrowRepeat, Check2, Copy, PencilSquare, PlusLg, SendFill, Stars, ThreeDotsVertical, Trash3, XLg } from "react-bootstrap-icons";
 import ReactMarkdown from "react-markdown";
 
 import boySitting from "@/assets/boy_sitting.png";
@@ -29,6 +29,8 @@ export function AssistantPage() {
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isProcessingMessage, setIsProcessingMessage] = useState(false);
   const [isRenamingConversation, setIsRenamingConversation] = useState(false);
+  const [hoveredMsgKey, setHoveredMsgKey] = useState<string | null>(null);
+  const [copiedMsgKey, setCopiedMsgKey] = useState<string | null>(null);
 
   const [conversations, setConversations] = useState<ConvoDataShortResponse[]>([]);
   const [messages, setMessages] = useState<MessageDataResponse[]>([]);
@@ -241,6 +243,13 @@ export function AssistantPage() {
     }
   }
 
+  function copyMessage(content: string, key: string) {
+    navigator.clipboard.writeText(content).then(() => {
+      setCopiedMsgKey(key);
+      setTimeout(() => setCopiedMsgKey(null), 1500);
+    });
+  }
+
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -431,30 +440,77 @@ export function AssistantPage() {
                     </div>
                   ) : (
                     <div className="d-flex flex-column gap-3 p-3">
-                      {messages.map(msg => (
-                        <div key={msg.id ?? msg.created_at} className={`d-flex ${msg.role === "user" ? "justify-content-end" : "justify-content-start"}`}>
-                          <div className={`d-flex flex-column gap-1 ${msg.role === "user" ? "align-items-end" : "align-items-start"}`} style={{ maxWidth: "75%" }}>
-                            <div className={`px-3 py-2 rounded-3 small ${msg.role === "user" ? "" : "surface-2"}`}
-                              style={msg.role === "user" ? { background: "var(--jv-brand-1)", color: "#fff", whiteSpace: "pre-wrap" } : {}}>
-                              <ReactMarkdown
-                                components={{
-                                  a: ({ node, ...props }) => (
-                                    <a
-                                      {...props}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                    />
-                                  ),
-                                }}
-                                className="chat-markdown"
-                              >
-                                {msg.content}
-                              </ReactMarkdown>
+                      {messages.map((msg, i) => {
+                        const msgKey = String(msg.id ?? msg.created_at);
+                        const isHovered = hoveredMsgKey === msgKey;
+                        const isCopied = copiedMsgKey === msgKey;
+                        return (
+                          <div
+                            key={msgKey}
+                            className={`d-flex ${msg.role === "user" ? "justify-content-end" : "justify-content-start"}`}
+                          >
+                            <div className={`d-flex flex-column gap-1 ${msg.role === "user" ? "align-items-end" : "align-items-start"}`} style={{ maxWidth: "75%" }}
+                              onMouseEnter={() => setHoveredMsgKey(msgKey)}
+                              onMouseLeave={() => setHoveredMsgKey(null)}>
+                              <div className={`px-3 py-2 rounded-3 small ${msg.role === "user" ? "" : "surface-2"}`}
+                                style={msg.role === "user" ? { background: "var(--jv-brand-1)", color: "#fff", whiteSpace: "pre-wrap" } : {}}>
+                                <ReactMarkdown
+                                  components={{
+                                    a: ({ node, ...props }) => (
+                                      <a
+                                        {...props}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                      />
+                                    ),
+                                  }}
+                                  className="chat-markdown"
+                                >
+                                  {msg.content}
+                                </ReactMarkdown>
+                              </div>
+                              <div style={{ position: "relative", lineHeight: 1 }}>
+                                <span className="text-faint" style={{ fontSize: "0.68rem", opacity: isHovered ? 0 : 1, transition: "opacity 0.18s ease-in-out" }}>
+                                  {formatChatTime(msg.created_at)}
+                                </span>
+                                <div className="chat-message-actions" style={{ position: "absolute", top: "50%", transform: "translateY(-50%)", [msg.role === "user" ? "right" : "left"]: 0, opacity: isHovered ? 1 : 0, pointerEvents: isHovered ? "auto" : "none", transition: "opacity 0.18s ease-in-out" }}>
+                                  <button
+                                    type="button"
+                                    className="chat-message-action-btn"
+                                    onClick={() => copyMessage(msg.content, msgKey)}
+                                    aria-label="Copy message"
+                                    title={isCopied ? "Copied!" : "Copy"}
+                                  >
+                                    {isCopied ? <Check2 size={14} /> : <Copy size={14} />}
+                                  </button>
+                                  {msg.role === "user" && (
+                                    <button
+                                      type="button"
+                                      className="chat-message-action-btn"
+                                      onClick={() => setInputText(msg.content)}
+                                      aria-label="Edit message"
+                                      title="Edit"
+                                    >
+                                      <PencilSquare size={13} />
+                                    </button>
+                                  )}
+                                  {msg.role === "assistant" && (i === messages.length - 1 || i === messages.length - 2) && (
+                                    <button
+                                      type="button"
+                                      className="chat-message-action-btn"
+                                      onClick={()=> regenerateResponse(msg)}
+                                      aria-label="Retry message"
+                                      title="Retry"
+                                    >
+                                      <ArrowRepeat size={16} />
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
                             </div>
-                            <span className="text-faint" style={{ fontSize: "0.68rem" }}>{formatChatTime(msg.created_at)}</span>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                       {isProcessingMessage && (
                         <div className="d-flex justify-content-start" aria-live="polite" aria-label="Assistant is typing">
                           <div className="d-flex flex-column gap-1 align-items-start" style={{ maxWidth: "75%" }}>

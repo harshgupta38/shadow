@@ -8,8 +8,9 @@ def get_current_goals(context: ToolContext, arguments: dict) -> dict:
     from app.services.goals_service import get_goal_list # prevent circular import
 
     status = arguments["status"]
-    start_index = max(arguments.get("start_index", 0), 0)
+    start_index = max(arguments.get("start_index") or 0, 0)
     end_index = arguments.get("end_index")
+    
     if end_index is not None:
         end_index = max(end_index, start_index)
 
@@ -47,25 +48,24 @@ GOAL_TOOL_DEFINITIONS: list[dict] = [
                         ),
                     },
                     "start_index": {
-                        "type": "integer",
-                        "default": 0,
+                        "type": ["integer", "null"],
                         "minimum": 0,
                         "description": (
                             "Zero-based starting index of the goals to return. "
-                            "Defaults to 0 when omitted."
+                            "Use null to start from the beginning."
                         ),
                     },
                     "end_index": {
-                        "type": "integer",
+                        "type": ["integer", "null"],
                         "minimum": 0,
                         "description": (
                             "Exclusive ending index of the goals to return. "
                             "For the first 5 goals, use 5; indexes 0 through 4 are returned. "
-                            "When omitted, return through the end of the list."
+                            "Use null to return through the end of the list."
                         ),
                     },
                 },
-                "required": ["status"],
+                "required": ["status", "start_index", "end_index"],
                 "additionalProperties": False,
             },
         },

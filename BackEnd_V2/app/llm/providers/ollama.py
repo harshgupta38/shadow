@@ -35,9 +35,7 @@ from app.llm.exceptions import (
     LLMProviderError,
     LLMRequestError,
 )
-from app.llm.tools import TOOL_DEFINITIONS
-
-MAX_TOOL_ITERATIONS = 3
+from app.llm.tools import MAX_TOOL_ITERATIONS, TOOL_DEFINITIONS
 
 
 class OllamaProvider(BaseLLMProvider):

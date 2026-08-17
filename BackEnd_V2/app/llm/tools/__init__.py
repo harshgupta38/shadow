@@ -2,6 +2,8 @@ from app.llm.exceptions import LLMUnknownToolError
 from app.llm.tools.context import ToolContext
 from app.llm.tools.goals import GOAL_TOOL_DEFINITIONS, GOAL_TOOLS
 
+MAX_TOOL_ITERATIONS = 3
+
 TOOL_DEFINITIONS: list[dict] = [
     *GOAL_TOOL_DEFINITIONS,
 ]

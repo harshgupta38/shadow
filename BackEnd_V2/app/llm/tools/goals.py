@@ -5,22 +5,43 @@ from app.llm.tools.context import ToolContext
 
 
 def get_current_goals(context: ToolContext, arguments: dict) -> dict:
-    from app.services.goals_service import get_goal_list # prevent circular import
+    from app.services.goals_service import get_goal_list  # prevent circular import
 
     status = arguments["status"]
     start_index = max(arguments.get("start_index") or 0, 0)
     end_index = arguments.get("end_index")
-    
+
     if end_index is not None:
         end_index = max(end_index, start_index)
 
     goals = get_goal_list(context.db, context.current_user, status)
     return {
-        "goals": [
-            goal.model_dump(mode="json")
-            for goal in goals[start_index:end_index]
-        ]
+        "goals": [goal.model_dump(mode="json") for goal in goals[start_index:end_index]]
     }
+
+
+def get_goal_detail(context: ToolContext, arguments: dict) -> dict:
+    from app.services.goals_service import (
+        get_goal_detail,
+        get_goal_list,
+    )  # prevent circular import
+
+    name = arguments.get("goal_name")
+    goal_id = arguments["goal_id"]
+
+    if goal_id is None and name is None:
+        raise ValueError("Either goal_id or goal_name must be provided.")
+
+    if goal_id is not None:
+        goal = get_goal_detail(context.db, context.current_user, goal_id)
+        return {"goal": goal.model_dump(mode="json")}
+    else:
+        goals = get_goal_list(context.db, context.current_user, "All")
+        goal = next((g for g in goals if g.title.lower() == name.lower()), None)
+        if goal is None:
+            raise ValueError(f"Goal with name '{name}' not found.")
+        goal = get_goal_detail(context.db, context.current_user, goal.id)
+        return {"goal": goal.model_dump(mode="json")}
 
 
 GOAL_TOOL_DEFINITIONS: list[dict] = [
@@ -70,8 +91,45 @@ GOAL_TOOL_DEFINITIONS: list[dict] = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_goal_detail",
+            "description": (
+                "Call this tool whenever the user asks for detailed information about a "
+                "specific goal. Identify the goal using either its goal_id or goal_name; "
+                "provide one identifier, not both. Do not rely on conversation memory "
+                "because goal details may change outside the conversation. The returned "
+                "goal details include id, title, summary, category, status, target date, "
+                "motivation, success definition, current state, challenges, strengths, "
+                "success metrics, insights, milestones_total, milestones_completed, "
+                "habits_total, and habits_active."
+            ),
+            "strict": True,
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "goal_id": {
+                        "type": ["integer", "null"],
+                        "description": (
+                            "Fetch the goal details using this unique identifier. Use null if you are identifying the goal by name instead."
+                        ),
+                    },
+                    "goal_name": {
+                        "type": ["string", "null"],
+                        "description": (
+                            "Fetch the goal details using this name. Use null if you are identifying the goal by id instead."
+                        ),
+                    },
+                },
+                "required": ["goal_id", "goal_name"],
+                "additionalProperties": False,
+            },
+        },
+    },
 ]
 
 GOAL_TOOLS: dict[str, Callable[[ToolContext, dict], dict]] = {
     "get_current_goals": get_current_goals,
+    "get_goal_detail": get_goal_detail,
 }

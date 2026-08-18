@@ -1,3 +1,4 @@
+import json
 from time import perf_counter
 
 from anthropic import APIConnectionError, APIError, APIStatusError, AsyncAnthropic
@@ -38,6 +39,22 @@ from app.schemas.chat import (
     MessageFromLLMSchema,
     NewConvoFromLLMSchema,
 )
+from app.llm.tools import MAX_TOOL_ITERATIONS, TOOL_DEFINITIONS
+
+
+def _build_claude_tools() -> list[dict]:
+    """Convert OpenAI-format tool definitions to Claude's flat format."""
+    return [
+        {
+            "name": tool_def["function"]["name"],
+            "description": tool_def["function"]["description"],
+            "input_schema": tool_def["function"]["parameters"],
+        }
+        for tool_def in TOOL_DEFINITIONS
+    ]
+
+
+CLAUDE_TOOLS = _build_claude_tools()
 
 
 class ClaudeProvider(BaseLLMProvider):
@@ -111,6 +128,55 @@ class ClaudeProvider(BaseLLMProvider):
                 "Claude returned a response that does not match ConversationContextFromLLMSchema schema."
             ) from exc
 
+    async def _tool_complete(
+        self,
+        model: str,
+        system: str,
+        messages: list[dict],
+        operation: str,
+        *,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        user_id: str | None = None,
+    ) -> tuple:
+        started_at = perf_counter()
+        try:
+            kwargs = {
+                "model": model,
+                "system": system,
+                "messages": messages,
+                "tools": CLAUDE_TOOLS,
+                "max_tokens": max_tokens or 2048,
+            }
+            if temperature is not None:
+                kwargs["temperature"] = temperature
+
+            completion = await self._client.messages.create(**kwargs)
+        except (APIConnectionError, APIStatusError, APIError) as exc:
+            raise LLMProviderError(f"Claude {operation} failed: {exc}") from exc
+        latency_ms = int((perf_counter() - started_at) * 1000)
+
+        usage_delta = None
+        if completion.usage is not None:
+            input_tokens = completion.usage.input_tokens
+            output_tokens = completion.usage.output_tokens
+            usage_delta = TokenUsage(
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                total_tokens=input_tokens + output_tokens,
+            )
+
+        await log_claude_completion_usage_async(
+            settings=self._settings,
+            model=model,
+            completion=completion,
+            latency_ms=latency_ms,
+            user_id=user_id,
+            operation=operation,
+        )
+
+        return completion, usage_delta
+
     async def refine_goal(self, request: RefineGoalToLLM) -> RefineGoalFromLLM:
         model = self._resolve_model(request)
 
@@ -183,51 +249,80 @@ class ClaudeProvider(BaseLLMProvider):
         model = self._resolve_model(request)
 
         request_data = request.request_data
+        system = CREATE_CONVERSATION_SYSTEM_INSTRUCTION_CLAUDE[request_data.agent_type]
+        messages = [{"role": Role.USER, "content": request_data.content}]
 
         started_at = perf_counter()
-        try:
-            kwargs = {
-                "model": model,
-                "system": CREATE_CONVERSATION_SYSTEM_INSTRUCTION_CLAUDE[
-                    request_data.agent_type
-                ],
-                "messages": [
-                    {
-                        "role": Role.USER,
-                        "content": request_data.content,
-                    }
-                ],
-                "max_tokens": request.max_tokens or 2048,
-            }
+        total_input_tokens = 0
+        total_output_tokens = 0
+        total_tokens = 0
+        usage_received = False
 
-            if request.temperature is not None:
-                kwargs["temperature"] = request.temperature
-
-            completion = await self._client.messages.create(**kwargs)
-
-        except (APIConnectionError, APIStatusError, APIError) as exc:
-            raise LLMProviderError(f"Claude create_conversation failed: {exc}") from exc
-        response_time_ms = int((perf_counter() - started_at) * 1000)
-
-        await log_claude_completion_usage_async(
-            settings=self._settings,
-            model=model,
-            completion=completion,
-            latency_ms=response_time_ms,
+        completion, usage_delta = await self._tool_complete(
+            model, system, messages, "create_conversation",
+            temperature=request.temperature,
+            max_tokens=request.max_tokens,
             user_id=request.user_id,
-            operation="create_conversation",
         )
+        if usage_delta:
+            usage_received = True
+            total_input_tokens += usage_delta.input_tokens
+            total_output_tokens += usage_delta.output_tokens
+            total_tokens += usage_delta.total_tokens
+
+        for _ in range(MAX_TOOL_ITERATIONS):
+            if completion.stop_reason != "tool_use":
+                break
+
+            tool_use_blocks = [b for b in completion.content if b.type == "tool_use"]
+
+            if request.tool_executor is None:
+                raise LLMRequestError(
+                    "Claude requested a tool but no tool executor is available."
+                )
+
+            messages.append({"role": "assistant", "content": completion.content})
+
+            tool_results = []
+            for block in tool_use_blocks:
+                result = request.tool_executor(block.name, dict(block.input))
+                tool_results.append(
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": block.id,
+                        "content": json.dumps(result),
+                    }
+                )
+            messages.append({"role": "user", "content": tool_results})
+
+            tool_names = "\n".join(b.name for b in tool_use_blocks)
+            completion, usage_delta = await self._tool_complete(
+                model, system, messages, tool_names,
+                temperature=request.temperature,
+                max_tokens=request.max_tokens,
+                user_id=request.user_id,
+            )
+            if usage_delta:
+                usage_received = True
+                total_input_tokens += usage_delta.input_tokens
+                total_output_tokens += usage_delta.output_tokens
+                total_tokens += usage_delta.total_tokens
+
+        if completion.stop_reason == "tool_use":
+            raise LLMRequestError(
+                "Claude exceeded the maximum number of tool iterations."
+            )
+
+        response_time_ms = int((perf_counter() - started_at) * 1000)
 
         parsed = self._parse_NewConvoFromLLMSchema(completion)
 
         usage = None
-        if completion.usage is not None:
-            input_tokens = completion.usage.input_tokens
-            output_tokens = completion.usage.output_tokens
+        if usage_received:
             usage = TokenUsage(
-                input_tokens=input_tokens,
-                output_tokens=output_tokens,
-                total_tokens=input_tokens + output_tokens,
+                input_tokens=total_input_tokens,
+                output_tokens=total_output_tokens,
+                total_tokens=total_tokens,
             )
 
         return NewConvoFromLLM(
@@ -265,42 +360,76 @@ class ClaudeProvider(BaseLLMProvider):
         ]
 
         started_at = perf_counter()
-        try:
-            kwargs = {
-                "model": model,
-                "system": system,
-                "messages": messages,
-                "max_tokens": request.max_tokens or 2048,
-            }
+        total_input_tokens = 0
+        total_output_tokens = 0
+        total_tokens = 0
+        usage_received = False
 
-            if request.temperature is not None:
-                kwargs["temperature"] = request.temperature
-
-            completion = await self._client.messages.create(**kwargs)
-
-        except (APIConnectionError, APIStatusError, APIError) as exc:
-            raise LLMProviderError(f"Claude respond_to_message failed: {exc}") from exc
-        response_time_ms = int((perf_counter() - started_at) * 1000)
-
-        await log_claude_completion_usage_async(
-            settings=self._settings,
-            model=model,
-            completion=completion,
-            latency_ms=response_time_ms,
+        completion, usage_delta = await self._tool_complete(
+            model, system, messages, "respond_to_message",
+            temperature=request.temperature,
+            max_tokens=request.max_tokens,
             user_id=request.user_id,
-            operation="respond_to_message",
         )
+        if usage_delta:
+            usage_received = True
+            total_input_tokens += usage_delta.input_tokens
+            total_output_tokens += usage_delta.output_tokens
+            total_tokens += usage_delta.total_tokens
+
+        for _ in range(MAX_TOOL_ITERATIONS):
+            if completion.stop_reason != "tool_use":
+                break
+
+            tool_use_blocks = [b for b in completion.content if b.type == "tool_use"]
+
+            if request.tool_executor is None:
+                raise LLMRequestError(
+                    "Claude requested a tool but no tool executor is available."
+                )
+
+            messages.append({"role": "assistant", "content": completion.content})
+
+            tool_results = []
+            for block in tool_use_blocks:
+                result = request.tool_executor(block.name, dict(block.input))
+                tool_results.append(
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": block.id,
+                        "content": json.dumps(result),
+                    }
+                )
+            messages.append({"role": "user", "content": tool_results})
+
+            tool_names = "\n".join(b.name for b in tool_use_blocks)
+            completion, usage_delta = await self._tool_complete(
+                model, system, messages, tool_names,
+                temperature=request.temperature,
+                max_tokens=request.max_tokens,
+                user_id=request.user_id,
+            )
+            if usage_delta:
+                usage_received = True
+                total_input_tokens += usage_delta.input_tokens
+                total_output_tokens += usage_delta.output_tokens
+                total_tokens += usage_delta.total_tokens
+
+        if completion.stop_reason == "tool_use":
+            raise LLMRequestError(
+                "Claude exceeded the maximum number of tool iterations."
+            )
+
+        response_time_ms = int((perf_counter() - started_at) * 1000)
 
         parsed = self._parse_MessageFromLLMSchema(completion)
 
         usage = None
-        if completion.usage is not None:
-            input_tokens = completion.usage.input_tokens
-            output_tokens = completion.usage.output_tokens
+        if usage_received:
             usage = TokenUsage(
-                input_tokens=input_tokens,
-                output_tokens=output_tokens,
-                total_tokens=input_tokens + output_tokens,
+                input_tokens=total_input_tokens,
+                output_tokens=total_output_tokens,
+                total_tokens=total_tokens,
             )
 
         return MessageFromLLM(

@@ -247,7 +247,7 @@ class OpenAIProvider(BaseLLMProvider):
                     }
                 )
 
-            tool_names = ",".join(tool_call.function.name for tool_call in tool_calls)
+            tool_names = "\n".join(tool_call.function.name for tool_call in tool_calls)
             completion = await _complete(messages, tool_names)
 
         if completion.choices[0].message.tool_calls:

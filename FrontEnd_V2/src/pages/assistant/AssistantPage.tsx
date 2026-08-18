@@ -287,6 +287,7 @@ export function AssistantPage() {
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if(!inputText.trim() || isProcessingMessage || isLoadingMessages) return;
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       sendMessage();

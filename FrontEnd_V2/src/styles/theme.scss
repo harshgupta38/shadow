@@ -2104,3 +2104,34 @@ a {
     display: none !important;
   }
 }
+
+html.theme-transitioning,
+html.theme-transitioning *,
+html.theme-transitioning *::before,
+html.theme-transitioning *::after {
+  transition:
+    background-color 300ms ease-in-out,
+    // color 100ms ease-in-out,
+    border-color 300ms ease-in-out,
+    box-shadow 300ms ease-in-out,
+    fill 300ms ease-in-out,
+    stroke 300ms ease-in-out !important;
+}
+
+// Elements with running animations must opt out — the !important override interferes with their keyframes
+html.theme-transitioning .typing-dot,
+html.theme-transitioning .assistant-typing-dot,
+html.theme-transitioning .assistant-message-skeleton-bubble,
+html.theme-transitioning .page-loader-dot,
+html.theme-transitioning .goal-skeleton::after,
+html.theme-transitioning .milestone-skeleton::after,
+html.theme-transitioning .goal-detail-skeleton::after,
+html.theme-transitioning .milestone-task-inline-line::after,
+html.theme-transitioning .milestone-tasks-skeleton-line::after,
+html.theme-transitioning .landing-kicker::before,
+html.theme-transitioning .fade-in,
+html.theme-transitioning .reveal-up,
+html.theme-transitioning .reveal-up-delay,
+html.theme-transitioning .toast-jv {
+  transition: none !important;
+}

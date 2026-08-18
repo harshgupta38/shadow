@@ -211,7 +211,6 @@ export function AssistantPage() {
       try {
         const response = await api.chat.startConversation({
           content: text,
-          conversation_id: activeItem.id,
           agent_type: activeItem.agent_type,
         });
         const activeItemCopy = {
@@ -234,7 +233,6 @@ export function AssistantPage() {
         const response = await api.chat.sendMessage({
           conversation_id: activeItem.id,
           content: text,
-          agent_type: activeItem.agent_type,
         });
 
         setMessages(prev => [...prev, response.message_data]);

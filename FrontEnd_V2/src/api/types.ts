@@ -299,16 +299,20 @@ export interface MessageChunkResponse {
 }
 
 export interface NewConvoRequest {
-  conversation_id: number;
   content: string;
   agent_type: AssistantAgentType;
+}
+
+export interface MessageRequest {
+  conversation_id: number;
+  content: string;
 }
 
 export interface RenameConvoRequest {
   title: string;
 }
 
-export interface NewConvoResponse {
+export interface MessageResponse {
   message_data: MessageDataResponse;
   conversation_data?: ConvoDataShortResponse;
 }

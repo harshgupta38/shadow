@@ -5,9 +5,10 @@ import {
     ConvoDataShortResponse,
     MessageChunkResponse,
     NewConvoRequest,
-    NewConvoResponse,
+    MessageResponse,
     RenameConvoRequest,
     RegenerateResponseRequest,
+    MessageRequest,
 } from "@/api/types";
 
 export const chatApi = {
@@ -27,15 +28,15 @@ export const chatApi = {
         return http.patch<ConvoDataShortResponse>(`${ENDPOINTS.CHAT.PREFIX}${ENDPOINTS.CHAT.CONVERSATION_DETAIL(conversationId)}`, data);
     },
 
-    async startConversation(data: NewConvoRequest): Promise<NewConvoResponse> {
-        return http.post<NewConvoResponse>(`${ENDPOINTS.CHAT.PREFIX}${ENDPOINTS.CHAT.NEW_MESSAGE}`, data);
+    async startConversation(data: NewConvoRequest): Promise<MessageResponse> {
+        return http.post<MessageResponse>(`${ENDPOINTS.CHAT.PREFIX}${ENDPOINTS.CHAT.NEW_MESSAGE}`, data);
     },
 
-    async sendMessage(data: NewConvoRequest): Promise<NewConvoResponse> {
-        return http.post<NewConvoResponse>(`${ENDPOINTS.CHAT.PREFIX}${ENDPOINTS.CHAT.MESSAGES(data.conversation_id)}`, data);
+    async sendMessage(data: MessageRequest): Promise<MessageResponse> {
+        return http.post<MessageResponse>(`${ENDPOINTS.CHAT.PREFIX}${ENDPOINTS.CHAT.MESSAGES(data.conversation_id)}`, data);
     },
 
-    async regenerateResponse(data: RegenerateResponseRequest): Promise<NewConvoResponse> {
-        return http.post<NewConvoResponse>(`${ENDPOINTS.CHAT.PREFIX}${ENDPOINTS.CHAT.REGENERATE_RESPONSE(data.conversation_id, data.message_id)}`, data);
+    async regenerateResponse(data: RegenerateResponseRequest): Promise<MessageResponse> {
+        return http.post<MessageResponse>(`${ENDPOINTS.CHAT.PREFIX}${ENDPOINTS.CHAT.REGENERATE_RESPONSE(data.conversation_id, data.message_id)}`, data);
     },
 };

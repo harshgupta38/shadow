@@ -49,7 +49,6 @@ class ConvoDataResponse(ConvoDataLongDBS):
 
 # request to start a new conversation
 class NewConvoRequest(BaseModel):
-    conversation_id: int
     content: str = Field(min_length=1)
     agent_type: AssistantAgentType
 

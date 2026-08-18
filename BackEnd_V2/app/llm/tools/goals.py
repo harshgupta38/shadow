@@ -26,8 +26,8 @@ def get_goal_detail(context: ToolContext, arguments: dict) -> dict:
         get_goal_list,
     )  # prevent circular import
 
-    name = arguments.get("goal_name")
-    goal_id = arguments["goal_id"]
+    name = arguments.get("goal_name", None)
+    goal_id = arguments.get("goal_id", None)
 
     if goal_id is None and name is None:
         raise ValueError("Either goal_id or goal_name must be provided.")

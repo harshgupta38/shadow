@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Dropdown, Modal } from "react-bootstrap";
-import { ArrowRepeat, Check2, ChevronLeft, ChevronRight, Copy, PencilSquare, PlusLg, SendFill, Stars, ThreeDotsVertical, Trash3, XLg } from "react-bootstrap-icons";
+import { ArrowRepeat, Check2, ChevronLeft, ChevronRight, Copy, List, PencilSquare, PlusLg, SendFill, Stars, ThreeDotsVertical, Trash3, XLg } from "react-bootstrap-icons";
 import ReactMarkdown from "react-markdown";
 
 import boySitting from "@/assets/boy_sitting.png";
@@ -32,6 +32,7 @@ export function AssistantPage() {
   const [hoveredMsgKey, setHoveredMsgKey] = useState<string | null>(null);
   const [copiedMsgKey, setCopiedMsgKey] = useState<string | null>(null);
   const [contentIndexMap, setContentIndexMap] = useState<Record<string, number>>({});
+  const [sessionsPanelOpen, setSessionsPanelOpen] = useState(false);
 
   const [conversations, setConversations] = useState<ConvoDataShortResponse[]>([]);
   const [messages, setMessages] = useState<MessageDataResponse[]>([]);
@@ -332,8 +333,10 @@ export function AssistantPage() {
   });
 
   return (
-    <div className="page-fill-height">
-      <PageHeader title="Assistant" subtitle="Coaching that knows your goals, style and progress." />
+    <div className={`page-fill-height ${hasAnyChat ? "assistant-page" : ""}`}>
+      <div className={`${hasAnyChat ? "hide-page-header" : ""}`}>
+        <PageHeader title="Assistant" subtitle="Coaching that knows your goals, style and progress." />
+      </div>
 
       {!hasAnyChat && (
         <div className="assistant-picker">
@@ -369,7 +372,7 @@ export function AssistantPage() {
 
       {hasAnyChat && (
         <div className="chat-layout">
-          <div className="surface chat-sessions-panel d-flex flex-column">
+          <div className={`surface chat-sessions-panel d-flex flex-column${sessionsPanelOpen ? " is-open" : ""}`}>
             <div className="p-2 border-bottom" style={{ borderColor: "var(--jv-border)" }}>
               <button className="btn btn-soft w-100" onClick={() => setShowNewChatModal(true)}>
                 <PlusLg size={15} className="me-1" /> New session
@@ -381,12 +384,12 @@ export function AssistantPage() {
                 const agent = ASSISTANT_AGENTS[conversation.agent_type];
                 const Icon = agent.icon;
                 const title = conversation.title || agent.label;
-                const onSelect = () => { getMessages(conversation); };
+                const onSelect = () => { getMessages(conversation); setSessionsPanelOpen(false); };
 
                 return (
                   <div key={conversation.id} className={`chat-session-row ${isActive ? "active" : ""}`}>
                     <button type="button" className={`chat-session-item w-100 border-0 ${isActive ? "active" : ""}`} onClick={onSelect}>
-                      <span className="d-inline-grid flex-shrink-0" style={avatarStyle(agent.gradient, 38)} aria-hidden="true"><Icon size={19} /></span>
+                      <span className="d-inline-grid flex-shrink-0 icon" style={avatarStyle(agent.gradient, 38)} aria-hidden="true"><Icon size={19} /></span>
                       <div className="flex-grow-1 min-w-0 text-start">
                         <div className="fw-semibold small text-truncate chat-session-title">{title}</div>
                         <div className="text-faint text-truncate chat-session-meta" style={{ fontSize: "0.72rem" }}>{agent.tagline} · {formatChatTime(conversation.updated_at)}</div>
@@ -416,7 +419,13 @@ export function AssistantPage() {
 
           <div className="surface chat-window d-flex">
             {!activeItem ? (
-              <div className="d-flex align-items-center justify-content-center h-100 p-4 w-100">
+              <>
+                <div className="chat-sessions-mobile-bar">
+                  <button type="button" className="btn btn-ghost btn-icon border-0" onClick={() => setSessionsPanelOpen(o => !o)} aria-label="Open sessions">
+                    <List size={20} />
+                  </button>
+                </div>
+                <div className="d-flex align-items-center justify-content-center flex-grow-1 p-4 w-100">
                 <div className="text-center" style={{ maxWidth: 440 }}>
                   <div className="mx-auto mb-3 d-inline-grid" style={{ width: 64, height: 64, placeItems: "center", borderRadius: 18, background: "var(--jv-brand-soft)", color: "var(--jv-brand-1)" }}>
                     <Stars size={28} />
@@ -427,11 +436,15 @@ export function AssistantPage() {
                     <PlusLg size={16} className="me-1" /> New session
                   </button>
                 </div>
-              </div>
+                </div>
+              </>
             ) : activeAgent && ActiveIcon ? (
               <>
-                <div className="d-flex align-items-center gap-2 p-3 border-bottom" style={{ borderColor: "var(--jv-border)" }}>
-                  <span className="d-inline-grid flex-shrink-0" style={avatarStyle(activeAgent.gradient, 40)} aria-hidden="true">
+                <div className="d-flex align-items-center gap-2 border-bottom chat-head" style={{ borderColor: "var(--jv-border)" }}>
+                  <button type="button" className="btn btn-ghost btn-icon border-0 chat-sessions-toggle flex-shrink-0" onClick={() => setSessionsPanelOpen(o => !o)} aria-label="Open sessions">
+                    <List size={20} />
+                  </button>
+                  <span className="d-inline-grid flex-shrink-0 active-icon" style={avatarStyle(activeAgent.gradient, 40)} aria-hidden="true">
                     <ActiveIcon size={20} />
                   </span>
                   <div className="min-w-0">
@@ -597,6 +610,7 @@ export function AssistantPage() {
               </>
             ) : null}
           </div>
+          <div className={`chat-sessions-backdrop${sessionsPanelOpen ? " is-open" : ""}`} onClick={() => setSessionsPanelOpen(false)} />
         </div>
       )}
 

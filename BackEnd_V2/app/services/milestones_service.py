@@ -141,9 +141,12 @@ def update_milestone(
 
     if data.title is not None:
         milestone.title = data.title.strip()
-    if data.description is not None:
-        stripped = data.description.strip()
-        milestone.description = stripped if stripped else None
+    if "description" in data.model_fields_set:
+        if data.description is None:
+            milestone.description = None
+        else:
+            stripped = data.description.strip()
+            milestone.description = stripped if stripped else None
     if data.reason is not None:
         milestone.reason = data.reason.strip()
     if data.estimated_duration_days is not None:

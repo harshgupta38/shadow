@@ -57,6 +57,57 @@ class OpenAIProvider(BaseLLMProvider):
 
         return model
 
+    async def _tool_complete(
+        self,
+        model: str,
+        messages: list[dict],
+        operation: str,
+        *,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        user_id: str | None = None,
+    ) -> tuple:
+        kwargs = {
+            "model": model,
+            "messages": messages,
+            "tools": TOOL_DEFINITIONS,
+        }
+
+        if temperature is not None:
+            kwargs["temperature"] = temperature
+
+        if max_tokens is not None:
+            kwargs["max_completion_tokens"] = max_tokens
+
+        started_at = perf_counter()
+        try:
+            completion = await self._client.chat.completions.create(**kwargs)
+        except (APIConnectionError, APIStatusError, OpenAIError) as exc:
+            raise LLMProviderError(f"OpenAI {operation} failed: {exc}") from exc
+        latency_ms = int((perf_counter() - started_at) * 1000)
+
+        usage_delta = None
+        if completion.usage is not None:
+            usage_delta = TokenUsage(
+                input_tokens=completion.usage.prompt_tokens or 0,
+                output_tokens=completion.usage.completion_tokens or 0,
+                total_tokens=completion.usage.total_tokens or 0,
+            )
+
+        await log_openai_completion_usage_async(
+            settings=self._settings,
+            model=model,
+            completion=completion,
+            latency_ms=latency_ms,
+            user_id=user_id,
+            operation=operation,
+        )
+
+        if not completion.choices:
+            raise LLMRequestError(f"OpenAI returned no choices for {operation}.")
+
+        return completion, usage_delta
+
     async def refine_goal(self, request: RefineGoalToLLM) -> RefineGoalFromLLM:
         model = self._resolve_model(request)
 
@@ -164,49 +215,17 @@ class OpenAIProvider(BaseLLMProvider):
         total_tokens = 0
         usage_received = False
 
-        async def _complete(current_messages: list[dict], operation: str):
-            nonlocal total_input_tokens, total_output_tokens, total_tokens, usage_received
-
-            completion_started_at = perf_counter()
-            kwargs = {
-                "model": model,
-                "messages": current_messages,
-                "tools": TOOL_DEFINITIONS,
-            }
-
-            if request.temperature is not None:
-                kwargs["temperature"] = request.temperature
-
-            if request.max_tokens is not None:
-                kwargs["max_completion_tokens"] = request.max_tokens
-
-            try:
-                completion = await self._client.chat.completions.create(**kwargs)
-            except (APIConnectionError, APIStatusError, OpenAIError) as exc:
-                raise LLMProviderError(f"OpenAI create_conversation failed: {exc}") from exc
-            completion_time_ms = int((perf_counter() - completion_started_at) * 1000)
-
-            if completion.usage is not None:
-                usage_received = True
-                total_input_tokens += completion.usage.prompt_tokens or 0
-                total_output_tokens += completion.usage.completion_tokens or 0
-                total_tokens += completion.usage.total_tokens or 0
-
-            await log_openai_completion_usage_async(
-                settings=self._settings,
-                model=model,
-                completion=completion,
-                latency_ms=completion_time_ms,
-                user_id=request.user_id,
-                operation=operation,
-            )
-
-            if not completion.choices:
-                raise LLMRequestError("OpenAI returned no choices for create_conversation.")
-
-            return completion
-
-        completion = await _complete(messages, "create_conversation")
+        completion, usage_delta = await self._tool_complete(
+            model, messages, "create_conversation",
+            temperature=request.temperature,
+            max_tokens=request.max_tokens,
+            user_id=request.user_id,
+        )
+        if usage_delta:
+            usage_received = True
+            total_input_tokens += usage_delta.input_tokens
+            total_output_tokens += usage_delta.output_tokens
+            total_tokens += usage_delta.total_tokens
 
         for _ in range(MAX_TOOL_ITERATIONS):
             first_choice = completion.choices[0]
@@ -248,7 +267,17 @@ class OpenAIProvider(BaseLLMProvider):
                 )
 
             tool_names = "\n".join(tool_call.function.name for tool_call in tool_calls)
-            completion = await _complete(messages, tool_names)
+            completion, usage_delta = await self._tool_complete(
+                model, messages, tool_names,
+                temperature=request.temperature,
+                max_tokens=request.max_tokens,
+                user_id=request.user_id,
+            )
+            if usage_delta:
+                usage_received = True
+                total_input_tokens += usage_delta.input_tokens
+                total_output_tokens += usage_delta.output_tokens
+                total_tokens += usage_delta.total_tokens
 
         if completion.choices[0].message.tool_calls:
             raise LLMRequestError("OpenAI exceeded the maximum number of tool iterations.")
@@ -356,49 +385,17 @@ class OpenAIProvider(BaseLLMProvider):
         total_tokens = 0
         usage_received = False
 
-        async def _complete(current_messages: list[dict], operation: str):
-            nonlocal total_input_tokens, total_output_tokens, total_tokens, usage_received
-
-            completion_started_at = perf_counter()
-            kwargs = {
-                "model": model,
-                "messages": current_messages,
-                "tools": TOOL_DEFINITIONS,
-            }
-
-            if request.temperature is not None:
-                kwargs["temperature"] = request.temperature
-
-            if request.max_tokens is not None:
-                kwargs["max_completion_tokens"] = request.max_tokens
-
-            try:
-                completion = await self._client.chat.completions.create(**kwargs)
-            except (APIConnectionError, APIStatusError, OpenAIError) as exc:
-                raise LLMProviderError(f"OpenAI respond_to_message failed: {exc}") from exc
-
-            response_time_ms = int((perf_counter() - completion_started_at) * 1000)
-            if completion.usage is not None:
-                usage_received = True
-                total_input_tokens += completion.usage.prompt_tokens or 0
-                total_output_tokens += completion.usage.completion_tokens or 0
-                total_tokens += completion.usage.total_tokens or 0
-
-            await log_openai_completion_usage_async(
-                settings=self._settings,
-                model=model,
-                completion=completion,
-                latency_ms=response_time_ms,
-                user_id=request.user_id,
-                operation=operation,
-            )
-
-            if not completion.choices:
-                raise LLMRequestError("OpenAI returned no choices for respond_to_message.")
-
-            return completion
-
-        completion = await _complete(messages, "respond_to_message")
+        completion, usage_delta = await self._tool_complete(
+            model, messages, "respond_to_message",
+            temperature=request.temperature,
+            max_tokens=request.max_tokens,
+            user_id=request.user_id,
+        )
+        if usage_delta:
+            usage_received = True
+            total_input_tokens += usage_delta.input_tokens
+            total_output_tokens += usage_delta.output_tokens
+            total_tokens += usage_delta.total_tokens
 
         for _ in range(MAX_TOOL_ITERATIONS):
             first_choice = completion.choices[0]
@@ -440,7 +437,17 @@ class OpenAIProvider(BaseLLMProvider):
                 )
 
             tool_names = "\n".join(tool_call.function.name for tool_call in tool_calls)
-            completion = await _complete(messages, tool_names)
+            completion, usage_delta = await self._tool_complete(
+                model, messages, tool_names,
+                temperature=request.temperature,
+                max_tokens=request.max_tokens,
+                user_id=request.user_id,
+            )
+            if usage_delta:
+                usage_received = True
+                total_input_tokens += usage_delta.input_tokens
+                total_output_tokens += usage_delta.output_tokens
+                total_tokens += usage_delta.total_tokens
 
         if completion.choices[0].message.tool_calls:
             raise LLMRequestError("OpenAI exceeded the maximum number of tool iterations.")

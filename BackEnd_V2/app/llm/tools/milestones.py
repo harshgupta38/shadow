@@ -42,6 +42,17 @@ def create_milestone(context: ToolContext, arguments: dict) -> dict:
     return {"milestone": milestone.model_dump(mode="json")}
 
 
+def delete_milestone(context: ToolContext, arguments: dict) -> dict:
+    from app.services.milestones_service import delete_milestone  # prevent circular import
+
+    if arguments.get("confirmed") is not True:
+        raise LLMRequestError("Milestone deletion requires user confirmation.")
+
+    milestone_id = arguments["milestone_id"]
+    delete_milestone(context.db, context.current_user, milestone_id)
+    return {"deleted": True, "milestone_id": milestone_id}
+
+
 def update_milestone(context: ToolContext, arguments: dict) -> dict:
     from app.services.milestones_service import update_milestone  # prevent circular import
 
@@ -70,6 +81,34 @@ def update_milestone(context: ToolContext, arguments: dict) -> dict:
 
 
 MILESTONE_TOOL_DEFINITIONS: list[dict] = [
+    {
+        "type": "function",
+        "function": {
+            "name": "delete_milestone",
+            "description": (
+                "Use this tool to permanently delete a milestone. This action cannot be undone. "
+                "Always tell the user which milestone you are about to delete and ask for explicit "
+                "confirmation before proceeding. Set confirmed to true only after the user confirms."
+            ),
+            "strict": True,
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "milestone_id": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "description": "The unique identifier of the milestone to delete.",
+                    },
+                    "confirmed": {
+                        "type": "boolean",
+                        "description": "Set to true only after the user explicitly confirms deletion.",
+                    },
+                },
+                "required": ["milestone_id", "confirmed"],
+                "additionalProperties": False,
+            },
+        },
+    },
     {
         "type": "function",
         "function": {
@@ -281,4 +320,5 @@ MILESTONE_TOOLS: dict[str, Callable[[ToolContext, dict], dict]] = {
     "get_milestone_detail": get_milestone_detail,
     "create_milestone": create_milestone,
     "update_milestone": update_milestone,
+    "delete_milestone": delete_milestone,
 }

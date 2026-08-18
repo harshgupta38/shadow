@@ -47,8 +47,11 @@ export function Topbar({ onOpenMenu }: TopbarProps) {
         <List size={22} />
       </button>
 
-      <div className="d-lg-none">
+      <div className="d-md-none">
         <Brand withName={false} size="sm" />
+      </div>
+      <div className="d-none d-md-block">
+        <Brand subtitle="Life & career coach" />
       </div>
 
       <div className="ms-auto d-flex align-items-center gap-1">

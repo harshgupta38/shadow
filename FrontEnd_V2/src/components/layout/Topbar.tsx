@@ -50,7 +50,7 @@ export function Topbar({ onOpenMenu }: TopbarProps) {
       <div className="d-md-none">
         <Brand withName={false} size="sm" />
       </div>
-      <div className="d-none d-md-block">
+      <div className="d-none d-md-block mt-1">
         <Brand subtitle="Life & career coach" />
       </div>
 

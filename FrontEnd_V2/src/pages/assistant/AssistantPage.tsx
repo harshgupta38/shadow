@@ -55,7 +55,11 @@ export function AssistantPage() {
 
   useEffect(() => {
     api.chat.getConversations()
-      .then((data) => setConversations(data))
+      .then((data) => setConversations(prev => {
+        // Preserve any local (unsent) sessions already added by openAgent
+        const localSessions = prev.filter(c => c.is_local);
+        return [...data, ...localSessions];
+      }))
       .finally(() => setIsLoading(false));
   }, []);
 

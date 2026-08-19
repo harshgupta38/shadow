@@ -9,7 +9,6 @@ from app.models.milestone import MilestoneDBM
 from app.models.task import TaskDBM
 from app.models.user import UserDBM
 from app.schemas.goals import (
-    GoalDataLongDBS,
     GoalDataResponse,
     GoalDataShortResponse,
     GoalListStatusFilter,
@@ -17,7 +16,7 @@ from app.schemas.goals import (
 )
 
 
-async def understand_goal(
+async def refine_goal(
     data: RefineGoalRequest,
     current_user: UserDBM,
 ) -> RefineGoalFromLLM:

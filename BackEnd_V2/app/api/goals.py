@@ -21,11 +21,11 @@ router = APIRouter(prefix=ENDPOINTS.GOALS.PREFIX, tags=["Goals"])
     ENDPOINTS.GOALS.REFINE,
     response_model=RefineGoalFromLLM,
 )
-async def understand_goal(
+async def refine_goal(
     data: RefineGoalRequest,
     current_user: UserDBM = Depends(get_current_user),
 ) -> RefineGoalFromLLM:
-    return await goals_service.understand_goal(data, current_user)
+    return await goals_service.refine_goal(data, current_user)
 
 
 @router.post(ENDPOINTS.GOALS.SAVE, status_code=http_status.HTTP_204_NO_CONTENT)

@@ -1,7 +1,39 @@
+import asyncio
+import concurrent.futures
 from typing import Callable, get_args
 
 from app.schemas.goals import GoalListStatusFilter
 from app.llm.tools.context import ToolContext
+
+
+def refine_goal(context: ToolContext, arguments: dict) -> dict:
+    from app.services.goals_service import refine_goal  # prevent circular import
+    from app.schemas.goals import RefineGoalRequest
+
+    data = RefineGoalRequest(
+        goal=arguments["goal"],
+        why=arguments["why"],
+        success=arguments["success"],
+        reality=arguments["reality"],
+        obstacles=arguments["obstacles"],
+    )
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(asyncio.run, refine_goal(data, context.current_user))
+        result = future.result()
+
+    context.action_data = {
+        "result": result.model_dump(mode="json"),
+        "refined_goal": result.refined_data.model_dump(mode="json")
+    }
+    return {
+        "status": "done",
+        "message": (
+            "The goal has been refined and is now displayed in the goal review panel. "
+            "Tell the user they can review all the details there before saving. "
+            "Let them know they can come back to this conversation if they want any changes made."
+        ),
+    }
 
 
 def get_current_goals(context: ToolContext, arguments: dict) -> dict:
@@ -45,6 +77,51 @@ def get_goal_detail(context: ToolContext, arguments: dict) -> dict:
 
 
 GOAL_TOOL_DEFINITIONS: list[dict] = [
+    {
+        "type": "function",
+        "function": {
+            "name": "refine_goal",
+            "description": (
+                "Use this tool to generate a structured goal after you have discussed it with the user "
+                "and collected answers to all five discovery questions. "
+                "Before calling this tool, you must have asked and received answers to: "
+                "(1) what they want to achieve, "
+                "(2) why it matters to them, "
+                "(3) how they define success, "
+                "(4) their current situation, and "
+                "(5) the main obstacle blocking them. "
+                "This tool returns the refined goal data for the user to review and save — it does not save the goal itself."
+            ),
+            "strict": True,
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "goal": {
+                        "type": "string",
+                        "description": "What the user wants to achieve, in their own words.",
+                    },
+                    "why": {
+                        "type": "string",
+                        "description": "Why this goal is important to the user.",
+                    },
+                    "success": {
+                        "type": "string",
+                        "description": "How the user defines success for this goal.",
+                    },
+                    "reality": {
+                        "type": "string",
+                        "description": "The user's current situation related to the goal.",
+                    },
+                    "obstacles": {
+                        "type": "string",
+                        "description": "The main blocker or challenge currently stopping progress.",
+                    },
+                },
+                "required": ["goal", "why", "success", "reality", "obstacles"],
+                "additionalProperties": False,
+            },
+        },
+    },
     {
         "type": "function",
         "function": {
@@ -130,6 +207,7 @@ GOAL_TOOL_DEFINITIONS: list[dict] = [
 ]
 
 GOAL_TOOLS: dict[str, Callable[[ToolContext, dict], dict]] = {
+    "refine_goal": refine_goal,
     "get_current_goals": get_current_goals,
     "get_goal_detail": get_goal_detail,
 }

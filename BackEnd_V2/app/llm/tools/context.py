@@ -9,3 +9,4 @@ from app.models.user import UserDBM
 class ToolContext:
     db: Session
     current_user: UserDBM
+    action_data: dict | None = None

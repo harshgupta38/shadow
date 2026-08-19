@@ -304,6 +304,7 @@ async def respond_to_message(
 
     return MessageResponse(
         message_data=MessageDataResponse.model_validate(assistant_message),
+        action_data=tool_context.action_data,
         provider=response.provider,
         model=response.model,
         model_str=response.model_str,
@@ -398,6 +399,7 @@ async def regenerate_response(
 
     return MessageResponse(
         message_data=MessageDataResponse.model_validate(assistant_message),
+        action_data=tool_context.action_data,
         provider=response.provider,
         model=response.model,
         model_str=response.model_str,

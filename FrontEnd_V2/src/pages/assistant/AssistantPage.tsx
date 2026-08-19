@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { Dropdown, Modal } from "react-bootstrap";
 import { ArrowRepeat, Check2, ChevronLeft, ChevronRight, Copy, List, PencilSquare, PlusLg, SendFill, Stars, ThreeDotsVertical, Trash3, XLg } from "react-bootstrap-icons";
 import ReactMarkdown from "react-markdown";
@@ -20,9 +21,11 @@ import "@/pages/assistant/AssistantPage.scss";
 
 export function AssistantPage() {
   const toast = useToast();
+  const location = useLocation();
 
   const [showNewChatModal, setShowNewChatModal] = useState(false);
   const [inputText, setInputText] = useState("");
+  const [pendingAutoMessage, setPendingAutoMessage] = useState<string | null>(null);
 
   const [loaderIndex, setLoaderIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -57,6 +60,19 @@ export function AssistantPage() {
   }, []);
 
   useEffect(() => {
+    if (isLoading) return;
+    const state = location.state as { agentType?: string; autoMessage?: string } | null;
+    if (!state?.agentType || !state?.autoMessage) return;
+    const agent = ASSISTANT_AGENTS[state.agentType as keyof typeof ASSISTANT_AGENTS];
+    if (!agent) return;
+    openAgent(agent);
+    setPendingAutoMessage(state.autoMessage);
+    // Clear state so a page refresh doesn't re-trigger
+    window.history.replaceState({}, "");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading]);
+
+  useEffect(() => {
     if (!isLoading) { setLoaderIndex(0); return; }
     const id = window.setInterval(() => {
       setLoaderIndex(i => Math.min(i + 1, ASSISTANT_LOADER_STEPS.length - 1));
@@ -68,6 +84,14 @@ export function AssistantPage() {
     if (chatScrollRef.current)
       chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
   }, [messages.length, isProcessingMessage]);
+
+  useEffect(() => {
+    if (!pendingAutoMessage || !activeConversation) return;
+    const message = pendingAutoMessage;
+    setPendingAutoMessage(null);
+    void sendMessage(message);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingAutoMessage, activeConversation]);
 
   useEffect(() => {
     if (composerTextareaRef.current) {

@@ -128,6 +128,11 @@ $wizard-heading-size-sm: 1.35rem;
         scrollbar-width: none;
         -ms-overflow-style: none;
 
+        &.less-padding {
+            padding-left: 0;
+            padding-right: 0;
+        }
+
         &::-webkit-scrollbar {
             display: none;
         }

@@ -1,10 +1,12 @@
 from datetime import date
 
-from fastapi import HTTPException, status
-from sqlalchemy import delete
+from sqlalchemy import delete, update
 
+from app.core.exceptions import NotFoundError, ConflictError
 from app.llm import RefineGoalFromLLM, get_llm_service, LLMError, LLMRequestError
+from app.models.chat import MessageDBM
 from app.models.goal import GoalDBM
+from app.models.goal_proposal import GoalProposalDBM
 from app.models.milestone import MilestoneDBM
 from app.models.task import TaskDBM
 from app.models.user import UserDBM
@@ -13,6 +15,7 @@ from app.schemas.goals import (
     GoalDataShortResponse,
     GoalListStatusFilter,
     RefineGoalRequest,
+    SaveGoalFromProposalRequest,
 )
 
 
@@ -67,6 +70,117 @@ def save_goal(
     db.commit()
 
 
+def _find_goal(db, current_user: UserDBM, goal_id: int | None) -> GoalDBM | None:
+    if goal_id is None:
+        return None
+
+    return (
+        db.query(GoalDBM)
+        .filter(GoalDBM.id == goal_id, GoalDBM.user_id == current_user.id)
+        .first()
+    )
+
+
+def _mark_proposal_saved_in_message(
+    db,
+    message_id: int,
+    proposal_id: str,
+    goal_id: int,
+) -> None:
+    message = db.get(MessageDBM, message_id)
+    if message is None:
+        return
+
+    linked_items = message.linked_items or {}
+    proposals = linked_items.get("goal_proposals") or []
+    updated_proposals = [
+        {**proposal, "status": "saved", "goal_id": goal_id}
+        if proposal.get("proposal_id") == proposal_id
+        else proposal
+        for proposal in proposals
+    ]
+    message.linked_items = {**linked_items, "goal_proposals": updated_proposals}
+
+
+def save_goal_from_proposal(
+    db,
+    current_user: UserDBM,
+    data: SaveGoalFromProposalRequest,
+) -> GoalDataResponse:
+    proposal = (
+        db.query(GoalProposalDBM)
+        .filter(GoalProposalDBM.proposal_id == data.proposal_id)
+        .first()
+    )
+
+    if proposal is None or proposal.user_id != current_user.id:
+        raise NotFoundError("Goal proposal not found.")
+
+    # If the proposal already references a goal that still exists, this is an
+    # idempotent replay of the save request: return that goal as-is.
+    existing_goal = _find_goal(db, current_user, proposal.goal_id)
+    if existing_goal is not None:
+        return _serialize_goal_detail(existing_goal)
+
+    # Either the proposal was never saved, or its goal was deleted since.
+    # Either way we (re)create a goal for it, guarding against a concurrent
+    # request doing the same by only transitioning if goal_id is unchanged.
+    stale_goal_id = proposal.goal_id
+
+    goal_data = data.goal
+    goal = GoalDBM(
+        user_id=current_user.id,
+        title=goal_data.title.strip(),
+        summary=goal_data.summary.strip(),
+        category=goal_data.category,
+        status="Active",
+        motivation=goal_data.motivation.strip(),
+        success_definition=goal_data.success_definition.strip(),
+        current_state=goal_data.current_state.strip(),
+        challenges=_clean_list(goal_data.challenges),
+        strengths=_clean_list(goal_data.strengths),
+        success_metrics=_clean_list(goal_data.success_metrics),
+        insights=_clean_list(goal_data.insights),
+        target_date=date.fromisoformat(goal_data.target_date),
+        milestones_total=0,
+        milestones_completed=0,
+        habits_total=0,
+        habits_active=0,
+    )
+    db.add(goal)
+    db.flush()
+
+    # Atomic conditional transition guards against two concurrent requests
+    # both creating a goal for the same proposal.
+    result = db.execute(
+        update(GoalProposalDBM)
+        .where(
+            GoalProposalDBM.proposal_id == data.proposal_id,
+            GoalProposalDBM.goal_id == stale_goal_id,
+        )
+        .values(status="saved", goal_id=goal.id)
+    )
+
+    if result.rowcount == 0:
+        db.rollback()
+        proposal = (
+            db.query(GoalProposalDBM)
+            .filter(GoalProposalDBM.proposal_id == data.proposal_id)
+            .first()
+        )
+        existing_goal = _find_goal(db, current_user, proposal.goal_id if proposal else None)
+        if existing_goal is None:
+            raise ConflictError("Goal proposal could not be resolved.")
+        return _serialize_goal_detail(existing_goal)
+
+    _mark_proposal_saved_in_message(db, proposal.message_id, data.proposal_id, goal.id)
+
+    db.commit()
+    db.refresh(goal)
+
+    return _serialize_goal_detail(goal)
+
+
 def get_goal_list(
     db,
     current_user: UserDBM,
@@ -114,10 +228,7 @@ def get_goal_detail(
     )
 
     if goal is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Goal not found.",
-        )
+        raise NotFoundError("Goal not found.")
 
     return _serialize_goal_detail(goal)
 
@@ -137,10 +248,7 @@ def delete_goal(
     )
 
     if goal is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Goal not found.",
-        )
+        raise NotFoundError("Goal not found.")
 
     db.execute(delete(TaskDBM).where(TaskDBM.goal_id == goal.id))
     db.execute(delete(MilestoneDBM).where(MilestoneDBM.goal_id == goal.id))
@@ -161,10 +269,7 @@ def update_goal(
     )
 
     if goal is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Goal not found.",
-        )
+        raise NotFoundError("Goal not found.")
 
     goal.title = data.title.strip()
     goal.summary = data.summary.strip()

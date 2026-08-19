@@ -9,6 +9,7 @@ class Endpoints:
         PREFIX = "/goal"
         REFINE = "/refine"
         SAVE = "/save"
+        FROM_PROPOSAL = "/from-proposal"
         GET_LIST = "/get-list"
         DETAIL = "/{goal_id}"
 

@@ -10,6 +10,7 @@ from app.schemas.goals import (
     GoalDataShortResponse,
     GoalListStatusFilter,
     SaveGoalRequest,
+    SaveGoalFromProposalRequest,
     RefineGoalRequest,
 )
 from app.services import goals_service
@@ -35,6 +36,15 @@ def save_goal(
     current_user: UserDBM = Depends(get_current_user),
 ) -> None:
     goals_service.save_goal(db, current_user, data)
+
+
+@router.post(ENDPOINTS.GOALS.FROM_PROPOSAL, response_model=GoalDataResponse)
+def save_goal_from_proposal(
+    data: SaveGoalFromProposalRequest,
+    db=Depends(get_db),
+    current_user: UserDBM = Depends(get_current_user),
+) -> GoalDataResponse:
+    return goals_service.save_goal_from_proposal(db, current_user, data)
 
 
 @router.get(ENDPOINTS.GOALS.GET_LIST, response_model=list[GoalDataShortResponse])

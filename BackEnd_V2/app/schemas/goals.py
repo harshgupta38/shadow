@@ -6,6 +6,7 @@ from app.schemas.common import ORMModel
 
 GoalStatus = Literal["Active", "Paused", "Completed"]
 GoalListStatusFilter = Literal["All", "Active", "Paused", "Completed"]
+GoalProposalStatus = Literal["pending", "saved"]
 
 
 class RefineGoalRequest(BaseModel):
@@ -214,6 +215,13 @@ class RefineGoalFromLLMSchema(BaseModel):
 
 class SaveGoalRequest(RefineGoalFromLLMSchema):
     pass
+
+
+class SaveGoalFromProposalRequest(BaseModel):
+    """Save a goal that was previously generated as a proposal_id + user-edited goal data."""
+
+    proposal_id: str = Field(min_length=1)
+    goal: RefineGoalFromLLMSchema
 
 
 class GoalDataShortDBS(ORMModel):

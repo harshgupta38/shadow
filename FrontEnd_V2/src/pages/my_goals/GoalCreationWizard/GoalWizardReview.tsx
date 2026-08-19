@@ -40,6 +40,7 @@ interface GoalWizardReviewProps {
     error: string | null;
     fieldErrors: Partial<Record<GoalReviewFieldKey, string>>;
     hideBack?: boolean;
+    actionFrom?: "wizard" | "assistant";
     onBack: () => void;
     onFieldEdited: (fieldKey: GoalReviewFieldKey) => void;
     onValidationStateChange: (hasErrors: boolean) => void;
@@ -137,7 +138,7 @@ function getFirstFieldErrorMessage(fieldErrors: Partial<Record<GoalReviewFieldKe
     return null;
 }
 
-export function GoalWizardReview({ goalData, saving, error, fieldErrors, hideBack, onBack, onFieldEdited, onValidationStateChange, onConfirm }: GoalWizardReviewProps) {
+export function GoalWizardReview({ goalData, saving, error, fieldErrors, hideBack, actionFrom, onBack, onFieldEdited, onValidationStateChange, onConfirm }: GoalWizardReviewProps) {
     const [editableGoal, setEditableGoal] = useState<RefineGoalFromLLMSchema>(goalData);
     const [activeListTab, setActiveListTab] = useState<ListFieldKey>("challenges");
     const [clientFieldErrors, setClientFieldErrors] = useState<Partial<Record<GoalReviewFieldKey, string>>>({});
@@ -250,7 +251,7 @@ export function GoalWizardReview({ goalData, saving, error, fieldErrors, hideBac
     }
 
     return (
-        <div className="goal-wizard-body">
+        <div className={`goal-wizard-body ${actionFrom === "assistant" ? "less-padding" : ""}`.trim()}>
             <div className="goal-wizard-review pb-2" aria-live="polite">
                 <div className="goal-wizard-review-form">
                     <div>

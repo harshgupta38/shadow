@@ -101,4 +101,3 @@ class MessageFromLLM(MetadataFromLLM):
 
 class MessageResponse(MetadataFromLLM):
     message_data: MessageDataResponse
-    action_data: dict | None = None

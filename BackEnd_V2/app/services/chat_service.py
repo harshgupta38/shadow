@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime, timezone
 from json import JSONDecodeError
 
@@ -13,6 +14,8 @@ from app.core.exceptions import NotFoundError, ValidationError
 from app.llm import get_llm_service, NewConvoResponse, LLMError, LLMRequestError
 from app.models.user import UserDBM
 from app.models.chat import ConversationDBM, MessageDBM
+from app.models.goal import GoalDBM
+from app.models.goal_proposal import GoalProposalDBM
 from app.schemas.chat import (
     ConvoDataResponse,
     ConvoDataShortResponse,
@@ -29,8 +32,94 @@ def _serialize_conversation(conversation: ConversationDBM) -> ConvoDataShortResp
     return ConvoDataShortResponse.model_validate(conversation)
 
 
-def _serialize_message(message: MessageDBM) -> MessageDataResponse:
-    return MessageDataResponse.model_validate(message)
+def _resolve_goal_proposal_actions(
+    db: Session, current_user: UserDBM, linked_items: dict
+) -> dict:
+    """Derive each proposal's CTA from whether its referenced goal still exists.
+
+    A proposal's stored status/goal_id are historical; the goal may have been
+    deleted since, so the action is resolved live against GoalDBM every time.
+    """
+    proposals = linked_items.get("goal_proposals")
+    if not proposals:
+        return linked_items
+
+    goal_ids = {p["goal_id"] for p in proposals if p.get("goal_id") is not None}
+    existing_goal_ids: set[int] = set()
+    if goal_ids:
+        existing_goal_ids = set(
+            db.scalars(
+                select(GoalDBM.id).where(
+                    GoalDBM.id.in_(goal_ids),
+                    GoalDBM.user_id == current_user.id,
+                )
+            ).all()
+        )
+
+    resolved_proposals = [
+        {
+            **proposal,
+            "goal_action": "view" if proposal.get("goal_id") in existing_goal_ids else "create",
+        }
+        for proposal in proposals
+    ]
+
+    return {**linked_items, "goal_proposals": resolved_proposals}
+
+
+def _serialize_message(
+    db: Session, current_user: UserDBM, message: MessageDBM
+) -> MessageDataResponse:
+    data = MessageDataResponse.model_validate(message)
+    data.linked_items = _resolve_goal_proposal_actions(db, current_user, data.linked_items)
+    return data
+
+
+def _attach_goal_proposal(
+    db: Session,
+    current_user: UserDBM,
+    conversation: ConversationDBM,
+    assistant_message: MessageDBM,
+    action_data: dict | None,
+    content_index: int,
+) -> None:
+    """Persist a new goal proposal for a specific generated content version.
+
+    Existing proposals for other content versions (e.g. from prior
+    generations) are preserved untouched.
+    """
+    if not action_data or "refined_goal" not in action_data:
+        return
+
+    proposal_id = str(uuid.uuid4())
+
+    db.add(
+        GoalProposalDBM(
+            proposal_id=proposal_id,
+            user_id=current_user.id,
+            conversation_id=conversation.id,
+            message_id=assistant_message.id,
+            content_index=content_index,
+            status="pending",
+            goal_id=None,
+        )
+    )
+
+    existing_linked_items = assistant_message.linked_items or {}
+    existing_proposals = list(existing_linked_items.get("goal_proposals") or [])
+    existing_proposals.append(
+        {
+            "proposal_id": proposal_id,
+            "content_index": content_index,
+            "status": "pending",
+            "goal_id": None,
+            "goal": action_data["refined_goal"],
+        }
+    )
+    assistant_message.linked_items = {
+        **existing_linked_items,
+        "goal_proposals": existing_proposals,
+    }
 
 
 def conversation_list(
@@ -88,9 +177,15 @@ async def create_conversation(
         conversation_id=conversation.id,
         role=MessageRoleEnum.ASSISTANT,
         content=[response.llm_data.content],
-        linked_items=tool_context.action_data or {},
+        linked_items={},
     )
     db.add(assistant_message)
+    db.flush()
+
+    _attach_goal_proposal(
+        db, current_user, conversation, assistant_message, tool_context.action_data, 0
+    )
+
     db.commit()
     db.refresh(conversation)
     db.refresh(assistant_message)
@@ -100,7 +195,9 @@ async def create_conversation(
         conversation_id=conversation.id,
         content=assistant_message.content,
         role=MessageRoleEnum.ASSISTANT,
-        linked_items=assistant_message.linked_items,
+        linked_items=_resolve_goal_proposal_actions(
+            db, current_user, assistant_message.linked_items
+        ),
         created_at=assistant_message.created_at,
     )
 
@@ -158,7 +255,7 @@ def get_message_chunk(
     message_list.reverse()
 
     return MessageChunkResponse(
-        message_list=[_serialize_message(message) for message in message_list],
+        message_list=[_serialize_message(db, current_user, message) for message in message_list],
         has_more=has_more,
     )
 
@@ -171,6 +268,9 @@ def delete_conversation(
     if not conversation or conversation.user_id != current_user.id:
         raise NotFoundError("Conversation not found or access denied.")
 
+    db.execute(
+        delete(GoalProposalDBM).where(GoalProposalDBM.conversation_id == conversation_id)
+    )
     db.execute(delete(MessageDBM).where(MessageDBM.conversation_id == conversation_id))
     db.delete(conversation)
     db.commit()
@@ -296,18 +396,21 @@ async def respond_to_message(
         conversation_id=conversation.id,
         role=MessageRoleEnum.ASSISTANT,
         content=[response.llm_data.content],
-        linked_items=tool_context.action_data or {},
+        linked_items={},
     )
     db.add(assistant_message)
     db.flush()
+
+    _attach_goal_proposal(
+        db, current_user, conversation, assistant_message, tool_context.action_data, 0
+    )
 
     conversation.updated_at = assistant_message.created_at
     db.commit()
     db.refresh(assistant_message)
 
     return MessageResponse(
-        message_data=MessageDataResponse.model_validate(assistant_message),
-        action_data=tool_context.action_data,
+        message_data=_serialize_message(db, current_user, assistant_message),
         provider=response.provider,
         model=response.model,
         model_str=response.model_str,
@@ -396,14 +499,23 @@ async def regenerate_response(
 
     db.refresh(assistant_message)
     assistant_message.content = [*assistant_message.content, response.llm_data.content]
-    assistant_message.linked_items = tool_context.action_data or {}
+    new_content_index = len(assistant_message.content) - 1
+
+    _attach_goal_proposal(
+        db,
+        current_user,
+        conversation,
+        assistant_message,
+        tool_context.action_data,
+        new_content_index,
+    )
+
     conversation.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(assistant_message)
 
     return MessageResponse(
-        message_data=MessageDataResponse.model_validate(assistant_message),
-        action_data=tool_context.action_data,
+        message_data=_serialize_message(db, current_user, assistant_message),
         provider=response.provider,
         model=response.model,
         model_str=response.model_str,

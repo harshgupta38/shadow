@@ -7,7 +7,8 @@ import {
     GoalListStatusFilter, 
     RefineGoalResponse,
     RefineGoalRequest, 
-    RefineGoalFromLLMSchema
+    RefineGoalFromLLMSchema,
+    SaveGoalFromProposalRequest
 } from "@/api/types";
 
 export const goalsApi = {
@@ -17,6 +18,10 @@ export const goalsApi = {
 
     async saveGoal(data: RefineGoalFromLLMSchema): Promise<void> {
         return http.post<void>(`${ENDPOINTS.GOALS.PREFIX}${ENDPOINTS.GOALS.SAVE}`, data);
+    },
+
+    async saveGoalFromProposal(data: SaveGoalFromProposalRequest): Promise<GoalDataResponse> {
+        return http.post<GoalDataResponse>(`${ENDPOINTS.GOALS.PREFIX}${ENDPOINTS.GOALS.FROM_PROPOSAL}`, data);
     },
 
     async getList(status: GoalListStatusFilter): Promise<GoalDataShortResponse[]> {

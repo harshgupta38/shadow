@@ -144,6 +144,23 @@ export interface GoalDataResponse {
   habits_active: number;
 }
 
+export type GoalProposalStatus = "pending" | "saved";
+export type GoalProposalAction = "create" | "view";
+
+export interface GoalProposal {
+  proposal_id: string;
+  content_index: number;
+  status: GoalProposalStatus;
+  goal_id: number | null;
+  goal: RefineGoalFromLLMSchema;
+  goal_action: GoalProposalAction;
+}
+
+export interface SaveGoalFromProposalRequest {
+  proposal_id: string;
+  goal: RefineGoalFromLLMSchema;
+}
+
 export type MilestoneCreatedBy = "User" | "Assistant";
 export type MilestoneStatus = "Not Started" | "In Progress" | "Paused" | "Completed" | "Cancelled";
 
@@ -285,11 +302,16 @@ export interface ConvoDataShortResponse {
   is_local?: boolean;
 }
 
+export interface MessageLinkedItems {
+  goal_proposals?: GoalProposal[];
+}
+
 export interface MessageDataResponse {
   id?: number;
   conversation_id: number;
   content: string[];
   role: ChatRole;
+  linked_items: MessageLinkedItems;
   created_at: string;
 }
 

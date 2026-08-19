@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Dropdown, Modal } from "react-bootstrap";
 import { ArrowRepeat, Check2, ChevronLeft, ChevronRight, Copy, List, PencilSquare, PlusLg, SendFill, Stars, ThreeDotsVertical, Trash3, XLg } from "react-bootstrap-icons";
 import ReactMarkdown from "react-markdown";
@@ -7,12 +7,14 @@ import ReactMarkdown from "react-markdown";
 import boySitting from "@/assets/boy_sitting.png";
 import { api } from "@/api";
 import { ApiError } from "@/api/client";
-import type { ConvoDataShortResponse, MessageDataResponse } from "@/api/types";
+import type { ConvoDataShortResponse, GoalProposal, MessageDataResponse } from "@/api/types";
+import { ROUTES } from "@/routes/RoutePaths";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { TextFieldPromptDialog } from "@/components/ui/TextFieldPromptDialog/TextFieldPromptDialog";
 import { AssistantMessageSkeleton } from "@/pages/assistant/AssistantMessageSkeleton";
 import { ASSISTANT_AGENTS, ASSISTANT_LOADER_STEPS, type AssistantAgent } from "@/pages/assistant/AssistantPage.constants";
+import { RefinedGoalReviewPanel } from "@/pages/assistant/RefinedGoalReviewPanel/RefinedGoalReviewPanel";
 import { useToast } from "@/context/ToastContext";
 import { formatChatTime } from "@/services/chat-time.service";
 import { resizeTextareaToMaxLines } from "@/services/textarea-resize.service";
@@ -22,6 +24,7 @@ import "@/pages/assistant/AssistantPage.scss";
 export function AssistantPage() {
   const toast = useToast();
   const location = useLocation();
+  const navigate = useNavigate();
 
   const [showNewChatModal, setShowNewChatModal] = useState(false);
   const [inputText, setInputText] = useState("");
@@ -42,6 +45,7 @@ export function AssistantPage() {
   const [activeConversation, setActiveConversation] = useState<ConvoDataShortResponse | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ConvoDataShortResponse | null>(null);
   const [renameTarget, setRenameTarget] = useState<ConvoDataShortResponse | null>(null);
+  const [reviewingProposal, setReviewingProposal] = useState<GoalProposal | null>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const composerTextareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesRequestIdRef = useRef(0);
@@ -230,6 +234,7 @@ export function AssistantPage() {
       conversation_id: activeItem.id,
       content: [text],
       role: "user",
+      linked_items: {},
       created_at: new Date().toISOString(),
     };
 
@@ -291,6 +296,10 @@ export function AssistantPage() {
       setCopiedMsgKey(key);
       setTimeout(() => setCopiedMsgKey(null), 1500);
     });
+  }
+
+  function getActiveGoalProposal(msg: MessageDataResponse, contentIndex: number): GoalProposal | undefined {
+    return msg.linked_items.goal_proposals?.find(p => p.content_index === contentIndex);
   }
 
   async function regenerateResponse(message: MessageDataResponse) {
@@ -411,7 +420,7 @@ export function AssistantPage() {
                 const agent = ASSISTANT_AGENTS[conversation.agent_type];
                 const Icon = agent.icon;
                 const title = conversation.title || agent.label;
-                const onSelect = () => { getMessages(conversation); setSessionsPanelOpen(false); };
+                const onSelect = () => { if (!isActive) { getMessages(conversation); setSessionsPanelOpen(false); } };
 
                 return (
                   <div key={conversation.id} className={`chat-session-row ${isActive ? "active" : ""}`}>
@@ -521,6 +530,7 @@ export function AssistantPage() {
                         const isCopied = copiedMsgKey === msgKey;
                         const activeContentIndex = contentIndexMap[msgKey] ?? msg.content.length - 1;
                         const activeContent = msg.content[activeContentIndex];
+                        const activeProposal = getActiveGoalProposal(msg, activeContentIndex);
                         return (
                           <div
                             key={msgKey}
@@ -546,6 +556,26 @@ export function AssistantPage() {
                                 >
                                   {activeContent}
                                 </ReactMarkdown>
+                                {activeProposal && activeProposal.goal_action === "create" && (
+                                  <button
+                                    type="button"
+                                    className="btn btn-link p-0 fw-medium text-decoration-none mt-1"
+                                    style={{ fontSize: "14px" }}
+                                    onClick={() => setReviewingProposal(activeProposal)}
+                                  >
+                                    Open Review Panel &rarr;
+                                  </button>
+                                )}
+                                {activeProposal && activeProposal.goal_action === "view" && activeProposal.goal_id && (
+                                  <button
+                                    type="button"
+                                    className="btn btn-link p-0 fw-medium text-decoration-none mt-1"
+                                    style={{ fontSize: "14px" }}
+                                    onClick={() => navigate(ROUTES.MY_GOAL_DETAIL.replace(":goalId", String(activeProposal.goal_id)))}
+                                  >
+                                    View Goal &rarr;
+                                  </button>
+                                )}
                               </div>
                               <div style={{ position: "relative", lineHeight: 1 }}>
                                 <span className="text-faint" style={{ fontSize: "0.68rem", opacity: isHovered ? 0 : 1, transition: "opacity 0.18s ease-in-out" }}>
@@ -689,6 +719,29 @@ export function AssistantPage() {
           setRenameTarget(null);
         }}
       />
+
+      {reviewingProposal && (
+        <RefinedGoalReviewPanel
+          proposal={reviewingProposal}
+          onClose={() => setReviewingProposal(null)}
+          onSaved={(goal) => {
+            const proposalId = reviewingProposal.proposal_id;
+            setMessages(prev => prev.map(m => {
+              if (!m.linked_items.goal_proposals?.some(p => p.proposal_id === proposalId)) return m;
+              return {
+                ...m,
+                linked_items: {
+                  ...m.linked_items,
+                  goal_proposals: m.linked_items.goal_proposals!.map(p => (
+                    p.proposal_id === proposalId ? { ...p, status: "saved", goal_id: goal.id, goal_action: "view" } : p
+                  )),
+                },
+              };
+            }));
+            toast.success("Goal created successfully.");
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -23,8 +23,8 @@ def refine_goal(context: ToolContext, arguments: dict) -> dict:
         result = future.result()
 
     context.action_data = {
-        "result": result.model_dump(mode="json"),
-        "refined_goal": result.refined_data.model_dump(mode="json")
+        "refined_goal": result.refined_data.model_dump(mode="json"),
+        "extra": result.model_dump(mode="json", exclude={"refined_data"}),
     }
     return {
         "status": "done",

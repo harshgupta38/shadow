@@ -88,6 +88,7 @@ async def create_conversation(
         conversation_id=conversation.id,
         role=MessageRoleEnum.ASSISTANT,
         content=[response.llm_data.content],
+        linked_items=tool_context.action_data or {},
     )
     db.add(assistant_message)
     db.commit()
@@ -99,6 +100,7 @@ async def create_conversation(
         conversation_id=conversation.id,
         content=assistant_message.content,
         role=MessageRoleEnum.ASSISTANT,
+        linked_items=assistant_message.linked_items,
         created_at=assistant_message.created_at,
     )
 
@@ -294,6 +296,7 @@ async def respond_to_message(
         conversation_id=conversation.id,
         role=MessageRoleEnum.ASSISTANT,
         content=[response.llm_data.content],
+        linked_items=tool_context.action_data or {},
     )
     db.add(assistant_message)
     db.flush()
@@ -393,6 +396,7 @@ async def regenerate_response(
 
     db.refresh(assistant_message)
     assistant_message.content = [*assistant_message.content, response.llm_data.content]
+    assistant_message.linked_items = tool_context.action_data or {}
     conversation.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(assistant_message)

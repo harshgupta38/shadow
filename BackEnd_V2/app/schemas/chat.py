@@ -72,6 +72,7 @@ class MessageDataDBS(ORMModel):
     conversation_id: int
     role: MessageRoleEnum
     content: list[str]
+    linked_items: dict
     created_at: datetime
 
 

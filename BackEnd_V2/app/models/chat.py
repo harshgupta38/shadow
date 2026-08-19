@@ -107,6 +107,13 @@ class MessageDBM(Base):
         JSON,
         nullable=False,
     )
+    # Linked items field for storing related items in JSON format
+    linked_items: Mapped[dict] = mapped_column(
+        JSON,
+        nullable=False,
+        default=dict,
+        server_default=text("'{}'"),
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

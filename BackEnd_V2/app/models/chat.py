@@ -107,6 +107,14 @@ class MessageDBM(Base):
         JSON,
         nullable=False,
     )
+    # 'pending' while waiting for LLM reply, 'completed' on success, 'failed' on error.
+    # Only meaningful for user-role messages; assistant messages are always 'completed'.
+    request_status: Mapped[str] = mapped_column(
+        String(16),
+        nullable=False,
+        default="completed",
+        server_default=text("'completed'"),
+    )
     # Linked items field for storing related items in JSON format
     linked_items: Mapped[dict] = mapped_column(
         JSON,

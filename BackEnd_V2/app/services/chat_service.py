@@ -259,6 +259,7 @@ async def create_conversation(
         conversation_id=conversation.id,
         role=MessageRoleEnum.USER,
         content=[data.content],
+        request_status="completed",
     )
     db.add(user_message)
 
@@ -267,6 +268,7 @@ async def create_conversation(
         role=MessageRoleEnum.ASSISTANT,
         content=[response.llm_data.content],
         linked_items={},
+        request_status="completed",
     )
     db.add(assistant_message)
     db.flush()
@@ -285,6 +287,7 @@ async def create_conversation(
         conversation_id=conversation.id,
         content=assistant_message.content,
         role=MessageRoleEnum.ASSISTANT,
+        request_status="completed",
         linked_items=_resolve_goal_proposal_actions(
             db, current_user, assistant_message.linked_items
         ),
@@ -467,6 +470,7 @@ async def respond_to_message(
         conversation_id=conversation.id,
         role=MessageRoleEnum.USER,
         content=[data.content],
+        request_status="pending",
     )
     db.add(user_message)
     db.commit()
@@ -485,15 +489,22 @@ async def respond_to_message(
             tool_executor=tool_executor,
         )
     except LLMError as exc:
+        user_message.request_status = "failed"
+        db.commit()
         raise LLMRequestError(f"Failed to respond to message: {exc}") from exc
     except JSONDecodeError as exc:
+        user_message.request_status = "failed"
+        db.commit()
         raise LLMRequestError(f"Failed to decode LLM response: {exc}") from exc
+
+    user_message.request_status = "completed"
 
     assistant_message = MessageDBM(
         conversation_id=conversation.id,
         role=MessageRoleEnum.ASSISTANT,
         content=[response.llm_data.content],
         linked_items={},
+        request_status="completed",
     )
     db.add(assistant_message)
     db.flush()

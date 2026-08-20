@@ -339,6 +339,7 @@ export interface MessageDataResponse {
   conversation_id: number;
   content: string[];
   role: ChatRole;
+  request_status: string;
   linked_items: MessageLinkedItems;
   created_at: string;
 }

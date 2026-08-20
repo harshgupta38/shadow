@@ -294,7 +294,7 @@ export function MilestoneProposalReviewPanel({ proposal, onClose, onSaved }: Mil
                                 onClick={() => void handleSave()}
                                 disabled={saving}
                             >
-                                {saving ? "Saving..." : "Save Milestone"}
+                                {saving ? "Saving..." : "Save"}
                             </button>
                             <button
                                 type="button"

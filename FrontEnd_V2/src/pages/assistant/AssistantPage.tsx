@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Dropdown, Modal } from "react-bootstrap";
-import { ArrowRepeat, Check2, ChevronLeft, ChevronRight, Copy, List, PencilSquare, PlusLg, SendFill, Stars, ThreeDotsVertical, Trash3, XLg } from "react-bootstrap-icons";
+import { ArrowRepeat, Check2, ChevronLeft, ChevronRight, Copy, List, PencilSquare, PlusLg, SendFill, Stars, ThreeDotsVertical, Trash3, XLg, ExclamationTriangle } from "react-bootstrap-icons";
 import ReactMarkdown from "react-markdown";
 
 import boySitting from "@/assets/boy_sitting.png";
@@ -36,7 +36,6 @@ export function AssistantPage() {
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [processingConversationId, setProcessingConversationId] = useState<number | null>(null);
   const [isRenamingConversation, setIsRenamingConversation] = useState(false);
-  const [hoveredMsgKey, setHoveredMsgKey] = useState<string | null>(null);
   const [copiedMsgKey, setCopiedMsgKey] = useState<string | null>(null);
   const [contentIndexMap, setContentIndexMap] = useState<Record<string, number>>({});
   const [sessionsPanelOpen, setSessionsPanelOpen] = useState(false);
@@ -281,6 +280,7 @@ export function AssistantPage() {
       conversation_id: targetConvId,
       content: [text],
       role: "user",
+      request_status: "pending",
       linked_items: {},
       created_at: new Date().toISOString(),
     };
@@ -312,6 +312,9 @@ export function AssistantPage() {
         });
       } catch (error) {
         toast.error(error instanceof ApiError ? error.message : "Failed to send message. Please try again.");
+        updateConversationMessages(targetConvId, prev =>
+          prev.map(m => m.created_at === msg.created_at ? { ...m, request_status: "failed" } : m)
+        );
       } finally {
         setProcessingConversationId(prev => prev === targetConvId ? null : prev);
       }
@@ -325,6 +328,9 @@ export function AssistantPage() {
         updateConversationMessages(targetConvId, prev => [...prev, response.message_data]);
       } catch (error) {
         toast.error(error instanceof ApiError ? error.message : "Failed to send message. Please try again.");
+        updateConversationMessages(targetConvId, prev =>
+          prev.map(m => m.created_at === msg.created_at ? { ...m, request_status: "failed" } : m)
+        );
       } finally {
         setProcessingConversationId(prev => prev === targetConvId ? null : prev);
       }
@@ -585,7 +591,6 @@ export function AssistantPage() {
                     <div className="d-flex flex-column gap-3 p-3">
                       {messages.map((msg, i) => {
                         const msgKey = String(msg.id ?? msg.created_at);
-                        const isHovered = hoveredMsgKey === msgKey;
                         const isCopied = copiedMsgKey === msgKey;
                         const activeContentIndex = contentIndexMap[msgKey] ?? msg.content.length - 1;
                         const activeContent = msg.content[activeContentIndex];
@@ -597,9 +602,7 @@ export function AssistantPage() {
                             ref={(el) => { messageRefsMap.current[msgKey] = el; }}
                             className={`d-flex ${msg.role === "user" ? "justify-content-end" : "justify-content-start"}`}
                           >
-                            <div className={`d-flex flex-column gap-1 ${msg.role === "user" ? "align-items-end" : "align-items-start"}`} style={{ maxWidth: "75%" }}
-                              onMouseEnter={() => setHoveredMsgKey(msgKey)}
-                              onMouseLeave={() => setHoveredMsgKey(null)}>
+                            <div className={`d-flex flex-column ${msg.role === "user" ? "align-items-end" : "align-items-start"}`} style={{ maxWidth: "75%" }}>
                               <div className={`px-3 py-2 rounded-3 small ${msg.role === "user" ? "" : "surface-2"}`}
                                 style={msg.role === "user" ? { background: "var(--jv-brand-1)", color: "#fff", whiteSpace: "pre-wrap" } : {}}>
                                 <ReactMarkdown
@@ -664,11 +667,8 @@ export function AssistantPage() {
                                   </div>
                                 )}
                               </div>
-                              <div style={{ position: "relative", lineHeight: 1 }}>
-                                <span className="text-faint chat-message-time" style={{ fontSize: "0.68rem", opacity: isHovered ? 0 : 1, transition: "opacity 0.18s ease-in-out" }}>
-                                  {formatChatTime(msg.created_at)}
-                                </span>
-                                <div className="chat-message-actions" style={{ position: "absolute", top: "50%", transform: "translateY(-50%)", [msg.role === "user" ? "right" : "left"]: 0, opacity: isHovered ? 1 : 0, pointerEvents: isHovered ? "auto" : "none", transition: "opacity 0.18s ease-in-out" }}>
+                              <div>
+                                <div className="chat-message-actions">
                                   {msg.content.length > 1 && (
                                     <div className="chat-content-nav">
                                       <button 
@@ -720,6 +720,19 @@ export function AssistantPage() {
                                       title="Retry"
                                     >
                                       <ArrowRepeat size={16} />
+                                    </button>
+                                  )}
+                                  {msg.role === "user" && msg.request_status === "failed" && (
+                                    <button
+                                      type="button"
+                                      className="chat-message-action-btn chat-message-try-again-btn"
+                                      disabled={isProcessingMessage || isLoadingMessages}
+                                      onClick={() => regenerateResponse(msg)}
+                                      aria-label="Retry failed message"
+                                      title="Request failed — click to retry"
+                                    >
+                                      <ExclamationTriangle size={16} style={{ color: "var(--bs-danger)" }} />
+                                      <span className="try-again-text">Try Again</span>
                                     </button>
                                   )}
                                 </div>

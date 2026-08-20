@@ -7,7 +7,7 @@ import ReactMarkdown from "react-markdown";
 import boySitting from "@/assets/boy_sitting.png";
 import { api } from "@/api";
 import { ApiError } from "@/api/client";
-import type { ConvoDataShortResponse, GoalProposal, MessageDataResponse } from "@/api/types";
+import type { ConvoDataShortResponse, GoalProposal, MessageDataResponse, MilestoneProposal } from "@/api/types";
 import { ROUTES } from "@/routes/RoutePaths";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
@@ -15,6 +15,7 @@ import { TextFieldPromptDialog } from "@/components/ui/TextFieldPromptDialog/Tex
 import { AssistantMessageSkeleton } from "@/pages/assistant/AssistantMessageSkeleton";
 import { ASSISTANT_AGENTS, ASSISTANT_LOADER_STEPS, type AssistantAgent } from "@/pages/assistant/AssistantPage.constants";
 import { RefinedGoalReviewPanel } from "@/pages/assistant/RefinedGoalReviewPanel/RefinedGoalReviewPanel";
+import { MilestoneProposalReviewPanel } from "@/pages/assistant/MilestoneProposalReviewPanel/MilestoneProposalReviewPanel";
 import { useToast } from "@/context/ToastContext";
 import { formatChatTime } from "@/services/chat-time.service";
 import { resizeTextareaToMaxLines } from "@/services/textarea-resize.service";
@@ -46,6 +47,7 @@ export function AssistantPage() {
   const [deleteTarget, setDeleteTarget] = useState<ConvoDataShortResponse | null>(null);
   const [renameTarget, setRenameTarget] = useState<ConvoDataShortResponse | null>(null);
   const [reviewingProposal, setReviewingProposal] = useState<GoalProposal | null>(null);
+  const [reviewingMilestoneProposal, setReviewingMilestoneProposal] = useState<MilestoneProposal | null>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const composerTextareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesRequestIdRef = useRef(0);
@@ -322,6 +324,10 @@ export function AssistantPage() {
     return msg.linked_items.goal_proposals?.find(p => p.content_index === contentIndex);
   }
 
+  function getActiveMilestoneProposals(msg: MessageDataResponse, contentIndex: number): MilestoneProposal[] {
+    return msg.linked_items.milestone_proposals?.filter(p => p.content_index === contentIndex) ?? [];
+  }
+
   async function regenerateResponse(message: MessageDataResponse) {
     if (isLoadingMessages || !message.id || !activeItem) return;
 
@@ -551,6 +557,7 @@ export function AssistantPage() {
                         const activeContentIndex = contentIndexMap[msgKey] ?? msg.content.length - 1;
                         const activeContent = msg.content[activeContentIndex];
                         const activeProposal = getActiveGoalProposal(msg, activeContentIndex);
+                        const activeMilestoneProposals = getActiveMilestoneProposals(msg, activeContentIndex);
                         return (
                           <div
                             key={msgKey}
@@ -595,6 +602,33 @@ export function AssistantPage() {
                                   >
                                     View Goal &rarr;
                                   </button>
+                                )}
+                                {activeMilestoneProposals.length > 0 && (
+                                  <div className="milestone-proposals-list">
+                                    <span className="milestone-proposals-label">Proposed milestones</span>
+                                    {activeMilestoneProposals.map((mp) => (
+                                      <div key={mp.proposal_id} className="milestone-proposal-row">
+                                        <span className="milestone-proposal-title">{mp.milestone.title}</span>
+                                        {mp.milestone_action === "create" ? (
+                                          <button
+                                            type="button"
+                                            className="btn btn-link p-0 fw-medium text-decoration-none milestone-proposal-cta"
+                                            onClick={() => setReviewingMilestoneProposal(mp)}
+                                          >
+                                            Save &rarr;
+                                          </button>
+                                        ) : (
+                                          <button
+                                            type="button"
+                                            className="btn btn-link p-0 fw-medium text-decoration-none milestone-proposal-cta"
+                                            onClick={() => navigate(ROUTES.MY_GOAL_DETAIL.replace(":goalId", String(mp.goal_id)))}
+                                          >
+                                            Open &rarr;
+                                          </button>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
                                 )}
                               </div>
                               <div style={{ position: "relative", lineHeight: 1 }}>
@@ -759,6 +793,31 @@ export function AssistantPage() {
               };
             }));
             toast.success("Goal created successfully.");
+          }}
+        />
+      )}
+
+      {reviewingMilestoneProposal && (
+        <MilestoneProposalReviewPanel
+          proposal={reviewingMilestoneProposal}
+          onClose={() => setReviewingMilestoneProposal(null)}
+          onSaved={(milestone) => {
+            const proposalId = reviewingMilestoneProposal.proposal_id;
+            setMessages(prev => prev.map(m => {
+              if (!m.linked_items.milestone_proposals?.some(p => p.proposal_id === proposalId)) return m;
+              return {
+                ...m,
+                linked_items: {
+                  ...m.linked_items,
+                  milestone_proposals: m.linked_items.milestone_proposals!.map(p => (
+                    p.proposal_id === proposalId
+                      ? { ...p, status: "saved", milestone_id: milestone.id, milestone_action: "view" }
+                      : p
+                  )),
+                },
+              };
+            }));
+            toast.success("Milestone created successfully.");
           }}
         />
       )}

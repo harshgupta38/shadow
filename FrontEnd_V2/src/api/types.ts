@@ -162,6 +162,32 @@ export interface SaveGoalFromProposalRequest {
   goal: RefineGoalFromLLMSchema;
 }
 
+export interface MilestoneProposalLLMSchema {
+  title: string;
+  description: string | null;
+  reason: string;
+  estimated_duration_days: number | null;
+  target_date: string | null;
+}
+
+export type MilestoneProposalStatus = "pending" | "saved";
+export type MilestoneProposalAction = "create" | "view";
+
+export interface MilestoneProposal {
+  proposal_id: string;
+  content_index: number;
+  status: MilestoneProposalStatus;
+  goal_id: number | null;
+  milestone_id: number | null;
+  milestone: MilestoneProposalLLMSchema;
+  milestone_action: MilestoneProposalAction;
+}
+
+export interface SaveMilestoneFromProposalRequest {
+  proposal_id: string;
+  milestone: MilestoneProposalLLMSchema;
+}
+
 export type MilestoneCreatedBy = "User" | "Assistant";
 export type MilestoneStatus = "Not Started" | "In Progress" | "Paused" | "Completed" | "Cancelled";
 
@@ -305,6 +331,7 @@ export interface ConvoDataShortResponse {
 
 export interface MessageLinkedItems {
   goal_proposals?: GoalProposal[];
+  milestone_proposals?: MilestoneProposal[];
 }
 
 export interface MessageDataResponse {

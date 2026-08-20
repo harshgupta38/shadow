@@ -1,7 +1,7 @@
 import { ENDPOINTS } from "@/constant/shadow-endpoints";
 
 import { http } from "@/api/client";
-import { MilestoneCreateRequest, MilestoneDataResponse, MilestoneStatus, MilestoneUpdateRequest } from "@/api/types";
+import { MilestoneCreateRequest, MilestoneDataResponse, MilestoneStatus, MilestoneUpdateRequest, SaveMilestoneFromProposalRequest } from "@/api/types";
 
 export const milestonesApi = {
     async save(data: MilestoneCreateRequest): Promise<MilestoneDataResponse> {
@@ -26,5 +26,9 @@ export const milestonesApi = {
 
     async remove(milestoneId: number): Promise<void> {
         return http.delete<void>(`${ENDPOINTS.MILESTONES.PREFIX}${ENDPOINTS.MILESTONES.DETAIL(milestoneId)}`);
+    },
+
+    async saveFromProposal(data: SaveMilestoneFromProposalRequest): Promise<MilestoneDataResponse> {
+        return http.post<MilestoneDataResponse>(`${ENDPOINTS.MILESTONES.PREFIX}${ENDPOINTS.MILESTONES.FROM_PROPOSAL}`, data);
     },
 };

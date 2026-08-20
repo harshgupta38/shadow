@@ -46,7 +46,8 @@
 
   .goal-detail-category,
   .goal-detail-status,
-  .goal-detail-due-pill {
+  .goal-detail-due-pill,
+  .goal-detail-link-pill {
     display: inline-flex;
     align-items: center;
     padding: 0.22rem 0.6rem;
@@ -79,6 +80,17 @@
   .goal-detail-due-pill {
     color: var(--jv-faint);
     background: color-mix(in srgb, var(--jv-border) 58%, var(--jv-surface) 42%);
+  }
+
+  .goal-detail-link-pill {
+    color: var(--jv-info);
+    background: var(--jv-info-soft);
+    transition: background 220ms var(--jv-ease);
+
+    &:hover {
+      cursor: pointer;
+      background: color-mix(in srgb, var(--jv-info) 15%, var(--jv-info-soft) 68%);
+    }
   }
 
   .goal-detail-title {

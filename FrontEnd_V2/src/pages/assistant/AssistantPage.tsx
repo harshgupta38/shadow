@@ -69,15 +69,35 @@ export function AssistantPage() {
 
   useEffect(() => {
     if (isLoading) return;
-    const state = location.state as { agentType?: string; autoMessage?: string } | null;
-    if (!state?.agentType || !state?.autoMessage) return;
-    const agent = ASSISTANT_AGENTS[state.agentType as keyof typeof ASSISTANT_AGENTS];
-    if (!agent) return;
-    openAgent(agent);
-    setPendingAutoMessage(state.autoMessage);
+
+    const state = location.state as
+      {
+        agentType?: string;
+        autoMessage?: string;
+        conversationId?: number;
+        prefillMessage?: string
+      } | null;
+
+    if (state?.agentType && state?.autoMessage) {
+      const agent = ASSISTANT_AGENTS[state.agentType as keyof typeof ASSISTANT_AGENTS];
+      if (agent) {
+        openAgent(agent);
+        setPendingAutoMessage(state.autoMessage);
+      }
+    } else if (state?.conversationId) {
+      const conversation = conversations.find(c => c.id === state.conversationId);
+      if (conversation) {
+        void getMessages(conversation);
+        if (state.prefillMessage)
+          setInputText(state.prefillMessage);
+      }
+    } else {
+      return;
+    }
+
     // Clear state so a page refresh doesn't re-trigger
     window.history.replaceState({}, "");
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoading]);
 
   useEffect(() => {

@@ -3,7 +3,7 @@ import { Dropdown } from "react-bootstrap";
 import { CheckLg, ExclamationTriangle, PencilSquare, PlusLg, Stars, ThreeDotsVertical, Trash3, ArrowsAngleContract, ArrowsAngleExpand, CalendarEvent, ListTask } from "react-bootstrap-icons";
 import { Link, useNavigate } from "react-router-dom";
 
-import { api, type MilestoneDataResponse, type MilestoneStatus } from "@/api";
+import { api, GoalDataResponse, type MilestoneDataResponse, type MilestoneStatus } from "@/api";
 import { ApiError } from "@/api/client";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { TargetDatePromptDialog } from "@/components/ui/TargetDatePromptDialog/TargetDatePromptDialog";
@@ -31,10 +31,14 @@ function formatTargetDate(value: string): string {
 }
 
 interface GoalMilestonesSectionProps {
-    goalId: number;
+    goal: GoalDataResponse;
 }
 
-export function GoalMilestonesSection({ goalId }: GoalMilestonesSectionProps) {
+export function GoalMilestonesSection({ goal }: GoalMilestonesSectionProps) {
+    const goalId = goal.id;
+    const goalTitle = goal.title;
+    const sourceConversationId = goal.source_conversation_id;
+
     const navigate = useNavigate();
     const toast = useToast();
     const [milestones, setMilestones] = useState<MilestoneDataResponse[]>([]);
@@ -164,6 +168,16 @@ export function GoalMilestonesSection({ goalId }: GoalMilestonesSectionProps) {
         });
     }
 
+    function askGoalCoach() {
+        const message = `I would like to generate milestones for my goal "${goalTitle}"`;
+
+        if (sourceConversationId !== null) {
+            navigate(ROUTES.ASSISTANT, { state: { conversationId: sourceConversationId, prefillMessage: message } });
+        } else {
+            navigate(ROUTES.ASSISTANT, { state: { agentType: "goal_coach", autoMessage: message } });
+        }
+    }
+
     const sorted = [...milestones].sort((a, b) => a.position - b.position || a.id - b.id);
     const completedCount = milestones.filter((m) => m.status === "Completed").length;
     const hasAny = milestones.length > 0;
@@ -183,7 +197,7 @@ export function GoalMilestonesSection({ goalId }: GoalMilestonesSectionProps) {
                         </p>
                     </div>
                     <div className="goal-milestones-actions" aria-label="Milestones actions">
-                        <button type="button" className="btn btn-soft btn-sm">
+                        <button type="button" className="btn btn-soft btn-sm" onClick={askGoalCoach}>
                             <Stars size={14} className="me-1" /> Ask Goal Coach
                         </button>
                         <Link to={newMilestonePath} className="btn btn-brand btn-sm">

@@ -437,6 +437,11 @@ export function GoalWizardReview({ goalData, saving, error, fieldErrors, hideBac
                     <button type="button" className="btn btn-brand" onClick={handleSave} disabled={saving}>
                         {saving ? "Saving..." : "Save"}
                     </button>
+                    {actionFrom === "assistant" && (
+                        <button type="button" className="btn btn-soft" onClick={onBack} disabled={saving}>
+                            Cancel
+                        </button>
+                    )}
                     {footerErrorMessage && <div className="alert alert-danger py-2 px-3 small mb-0">{footerErrorMessage}</div>}
                 </div>
 

@@ -200,7 +200,7 @@ $session-action-size: 1.7rem;
 .assistant-message-skeleton-bubble {
   height: 2.55rem;
   border-radius: 0.85rem;
-  background: linear-gradient(90deg, var(--jv-surface-2) 0%, color-mix(in srgb, var(--jv-surface-2), #fff 22%) 45%, var(--jv-surface-2) 100%);
+  background: linear-gradient(90deg, var(--jv-surface-2) 0%, color-mix(in srgb, var(--jv-surface-2), #888 18%) 45%, var(--jv-surface-2) 100%);
   background-size: 220% 100%;
   animation: assistant-skeleton-shimmer 1.15s linear infinite;
 }

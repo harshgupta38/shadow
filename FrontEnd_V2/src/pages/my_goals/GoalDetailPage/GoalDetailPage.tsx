@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { ArrowLeft, CalendarCheck, ChevronDown, ChevronUp, PencilSquare, Trash3 } from "react-bootstrap-icons";
+import { ArrowLeft, CalendarCheck, ChevronDown, ChevronUp, PencilSquare, Trash3, Link45deg } from "react-bootstrap-icons";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { api, type GoalDataResponse } from "@/api";
@@ -126,6 +126,12 @@ export function GoalDetailPage() {
     ]
     : [];
 
+  function openInChat() {
+    if (goal?.source_conversation_id) {
+      navigate(ROUTES.ASSISTANT, { state: { conversationId: goal.source_conversation_id } });
+    }
+  }
+
   return (
     <section className="goal-detail-page">
       <Link to={ROUTES.MY_GOALS} className="goal-detail-back-link">
@@ -159,6 +165,11 @@ export function GoalDetailPage() {
                         <span className="goal-detail-due-pill">
                           <CalendarCheck size={12} /> {formatDueLabel(goal.target_date)}
                         </span>
+                        {goal.source_conversation_id !== null && (
+                          <span className="goal-detail-link-pill" onClick={openInChat}>
+                            <Link45deg size={12} /> Open in chat
+                          </span>
+                        )}
 
                         <div className="goal-detail-hero-actions ms-auto" aria-label="Goal actions">
                           <button
@@ -237,7 +248,7 @@ export function GoalDetailPage() {
                   </div>
                 </section>
 
-                <GoalMilestonesSection goalId={goal.id} />
+                <GoalMilestonesSection goal={goal} />
               </>
             );
           })()}

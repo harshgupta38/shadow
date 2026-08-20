@@ -7,6 +7,7 @@ from app.schemas.chat import (
     NewConvoFromLLMSchema,
 )
 from app.schemas.goals import RefineGoalRequest, RefineGoalFromLLMSchema
+from app.schemas.milestones import MilestoneProposalListLLMSchema
 
 # ---------------------------------------------------------------------------
 # Goal refinement: turns five collected discovery answers into a structured
@@ -53,6 +54,65 @@ def build_goal_refinement_user_prompt(request_data: RefineGoalRequest) -> str:
         "- Success metrics should be specific and measurable.\n"
         "- Infer strengths from the user's current situation and responses.\n"
         "- Infer coaching insights that are directly supported by the user's responses."
+    )
+
+
+# ---------------------------------------------------------------------------
+# Milestone proposal generation: turns a structured goal into an ordered set
+# of concrete milestone proposals.  Separate, narrowly-scoped call — not
+# part of the conversational chat flow.
+# ---------------------------------------------------------------------------
+
+MILESTONE_PROPOSAL_SYSTEM_INSTRUCTION = (
+    "You are an expert goal coach. Break the given goal into a small set of "
+    "ordered, achievable milestones that directly move the user toward the "
+    "goal's stated success definition.\n"
+    "Stay strictly faithful to the goal data. Do not change, expand, or invent "
+    "the user's success metrics, target, deadline, or commitments. Do not create "
+    "a larger goal than the user defined.\n"
+    "Each milestone should represent a meaningful stage of progress, not a list "
+    "of individual tasks. Avoid combining too many unrelated activities into one "
+    "milestone.\n"
+    "Generate 3 to 6 milestones. Keep them realistic, concise, non-overlapping, "
+    "and sequential where appropriate. If the goal has a target date, all "
+    "milestones must fit within that date.\n"
+    "Use the user's existing challenges and strengths when relevant, but do not "
+    "invent new requirements or commitments.\n"
+    "Return only the structured output required by the schema."
+)
+
+MILESTONE_PROPOSAL_SYSTEM_INSTRUCTION_CLAUDE = (
+    MILESTONE_PROPOSAL_SYSTEM_INSTRUCTION
+    + "\n\nThe response MUST be a JSON object that exactly matches the MilestoneProposalListSchema schema.\n"
+    + "Use these exact field names.\n"
+    + "Do not rename fields.\n"
+    + "Do not use camelCase.\n"
+    + "Do not add, remove, merge, or restructure fields.\n"
+    + "Return only the JSON object.\n"
+    + "Do not wrap it in Markdown.\n"
+    + "Do not use backticks.\n"
+    + "\n\nSchema:\n"
+    + build_schema_prompt(MilestoneProposalListLLMSchema)
+)
+
+
+def build_milestone_proposal_user_prompt(goal_data: dict) -> str:
+    challenges = goal_data.get("challenges") or []
+    strengths = goal_data.get("strengths") or []
+    success_metrics = goal_data.get("success_metrics") or []
+    return (
+        f"Current Date: {date.today().isoformat()}\n\n"
+        "Goal:\n"
+        f"Title: {goal_data.get('title', '')}\n"
+        f"Summary: {goal_data.get('summary', '')}\n"
+        f"Category: {goal_data.get('category', '')}\n"
+        f"Target Date: {goal_data.get('target_date') or 'Not specified'}\n"
+        f"Motivation: {goal_data.get('motivation', '')}\n"
+        f"Success Definition: {goal_data.get('success_definition', '')}\n"
+        f"Success Metrics: {', '.join(str(m) for m in success_metrics) if success_metrics else 'None listed'}\n"
+        f"Current State: {goal_data.get('current_state', '')}\n"
+        f"Challenges: {', '.join(str(c) for c in challenges) if challenges else 'None listed'}\n"
+        f"Strengths: {', '.join(str(s) for s in strengths) if strengths else 'None listed'}\n"
     )
 
 

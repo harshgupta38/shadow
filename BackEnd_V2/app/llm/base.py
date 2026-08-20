@@ -3,6 +3,8 @@ from abc import ABC, abstractmethod
 from app.llm.models import (
     RefineGoalToLLM,
     RefineGoalFromLLM,
+    MilestoneProposalsToLLM,
+    MilestoneProposalsFromLLM,
     NewConvoToLLM,
     NewConvoFromLLM,
     MessageToLLM,
@@ -15,6 +17,10 @@ from app.llm.models import (
 class BaseLLMProvider(ABC):
     @abstractmethod
     async def refine_goal(self, request: RefineGoalToLLM) -> RefineGoalFromLLM:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def generate_milestone_proposals(self, request: MilestoneProposalsToLLM) -> MilestoneProposalsFromLLM:
         raise NotImplementedError
 
     @abstractmethod

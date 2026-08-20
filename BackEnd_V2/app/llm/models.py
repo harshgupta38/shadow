@@ -4,6 +4,7 @@ from typing import Callable
 from pydantic import BaseModel, Field
 from app.llm.enums import LLMProvider, ModelKey
 from app.schemas.goals import RefineGoalRequest, RefineGoalFromLLMSchema
+from app.schemas.milestones import MilestoneProposalListLLMSchema
 from app.schemas.chat import (
     MessageDataResponse,
     ConvoDataResponse,
@@ -59,6 +60,15 @@ class RefineGoalToLLM(MetadataToLLM):
 
 class RefineGoalFromLLM(MetadataFromLLM):
     refined_data: RefineGoalFromLLMSchema
+
+
+# --- MILESTONE PROPOSALS ---
+class MilestoneProposalsToLLM(MetadataToLLM):
+    goal_data: dict
+
+
+class MilestoneProposalsFromLLM(MetadataFromLLM):
+    proposals: MilestoneProposalListLLMSchema
 
 
 # --- CHAT - Start Conversation ---

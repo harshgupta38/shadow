@@ -4,6 +4,8 @@ from typing import Callable
 from app.llm.models import (
     RefineGoalToLLM,
     RefineGoalFromLLM,
+    MilestoneProposalsToLLM,
+    MilestoneProposalsFromLLM,
     NewConvoToLLM,
     NewConvoFromLLM,
     MessageToLLM,
@@ -69,6 +71,19 @@ class LLMService:
             raise LLMConfigurationError(
                 "LLM provider returned no refined data for the goal."
             )
+
+        return response
+
+    async def generate_milestone_proposals(
+        self,
+        goal_data: dict,
+        user_id: int,
+    ) -> MilestoneProposalsFromLLM:
+        request = MilestoneProposalsToLLM(goal_data=goal_data, user_id=user_id)
+        response = await self._provider.generate_milestone_proposals(request)
+
+        if response is None or response.proposals is None:
+            raise LLMConfigurationError("LLM provider returned no milestone proposals.")
 
         return response
 

@@ -75,6 +75,35 @@ def _serialize_message(
     return data
 
 
+def _attach_milestone_proposals(
+    assistant_message: MessageDBM,
+    action_data: dict | None,
+    content_index: int,
+) -> None:
+    """Attach generated milestone proposals for a specific content version.
+
+    Existing proposals for other content versions (e.g. from prior
+    generations) are preserved untouched.
+    """
+    if not action_data or "milestone_proposals" not in action_data:
+        return
+
+    proposal_data = action_data["milestone_proposals"]
+    existing_linked_items = assistant_message.linked_items or {}
+    existing_proposals = list(existing_linked_items.get("milestone_proposals") or [])
+    existing_proposals.append(
+        {
+            "content_index": content_index,
+            "goal_id": proposal_data["goal_id"],
+            "milestones": proposal_data["milestones"],
+        }
+    )
+    assistant_message.linked_items = {
+        **existing_linked_items,
+        "milestone_proposals": existing_proposals,
+    }
+
+
 def _attach_goal_proposal(
     db: Session,
     current_user: UserDBM,
@@ -185,6 +214,7 @@ async def create_conversation(
     _attach_goal_proposal(
         db, current_user, conversation, assistant_message, tool_context.action_data, 0
     )
+    _attach_milestone_proposals(assistant_message, tool_context.action_data, 0)
 
     db.commit()
     db.refresh(conversation)
@@ -411,6 +441,7 @@ async def respond_to_message(
     _attach_goal_proposal(
         db, current_user, conversation, assistant_message, tool_context.action_data, 0
     )
+    _attach_milestone_proposals(assistant_message, tool_context.action_data, 0)
 
     conversation.updated_at = assistant_message.created_at
     db.commit()
@@ -516,6 +547,7 @@ async def regenerate_response(
         tool_context.action_data,
         new_content_index,
     )
+    _attach_milestone_proposals(assistant_message, tool_context.action_data, new_content_index)
 
     conversation.updated_at = datetime.now(timezone.utc)
     db.commit()

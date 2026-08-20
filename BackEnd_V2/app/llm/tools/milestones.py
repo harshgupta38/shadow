@@ -1,9 +1,47 @@
+import asyncio
+import concurrent.futures
 from datetime import date
 from typing import Callable, get_args
 
 from app.schemas.milestones import MilestoneCreateRequest, MilestoneStatus, MilestoneUpdateRequest
 from app.llm.exceptions import LLMRequestError
 from app.llm.tools.context import ToolContext
+
+
+def create_milestone_proposals(context: ToolContext, arguments: dict) -> dict:
+    from app.services.goals_service import get_goal_detail  # prevent circular import
+    from app.llm import get_llm_service
+
+    goal_id = arguments["goal_id"]
+    goal = get_goal_detail(context.db, context.current_user, goal_id)
+    goal_data = goal.model_dump(mode="json")
+
+    llm_service = get_llm_service()
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(
+            asyncio.run,
+            llm_service.generate_milestone_proposals(
+                goal_data=goal_data,
+                user_id=context.current_user.id,
+            ),
+        )
+        result = future.result()
+
+    context.action_data = {
+        **(context.action_data or {}),
+        "milestone_proposals": {
+            "goal_id": goal_id,
+            "milestones": [m.model_dump(mode="json") for m in result.proposals.milestones],
+        },
+    }
+    return {
+        "status": "done",
+        "message": (
+            "Milestone proposals have been generated and are now attached to the assistant message. "
+            "Tell the user they can review the proposed milestones below your response."
+        ),
+    }
 
 
 def get_milestone_list(context: ToolContext, arguments: dict) -> dict:
@@ -81,6 +119,32 @@ def update_milestone(context: ToolContext, arguments: dict) -> dict:
 
 
 MILESTONE_TOOL_DEFINITIONS: list[dict] = [
+    {
+        "type": "function",
+        "function": {
+            "name": "create_milestone_proposals",
+            "description": (
+                "Use this tool to generate a set of milestone proposals that break an existing goal "
+                "into concrete, actionable steps. Call this when the user asks you to create, suggest, "
+                "plan, or break down milestones for one of their goals. "
+                "The proposals are returned to the user for review — they are not saved automatically. "
+                "Call get_current_goals first if you need to look up the goal_id."
+            ),
+            "strict": True,
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "goal_id": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "description": "The ID of the goal to generate milestone proposals for.",
+                    },
+                },
+                "required": ["goal_id"],
+                "additionalProperties": False,
+            },
+        },
+    },
     {
         "type": "function",
         "function": {
@@ -316,9 +380,10 @@ MILESTONE_TOOL_DEFINITIONS: list[dict] = [
 ]
 
 MILESTONE_TOOLS: dict[str, Callable[[ToolContext, dict], dict]] = {
+    "create_milestone_proposals": create_milestone_proposals,
     "get_milestone_list": get_milestone_list,
     "get_milestone_detail": get_milestone_detail,
-    "create_milestone": create_milestone,
-    "update_milestone": update_milestone,
-    "delete_milestone": delete_milestone,
+    # "create_milestone": create_milestone,
+    # "update_milestone": update_milestone,
+    # "delete_milestone": delete_milestone,
 }

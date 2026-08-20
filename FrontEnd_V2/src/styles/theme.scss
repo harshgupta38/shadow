@@ -724,6 +724,7 @@ a {
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+  max-height: calc(100vh - var(--jv-topbar-h));
 }
 
 .topbar {

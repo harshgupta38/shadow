@@ -249,6 +249,7 @@ class GoalDataLongDBS(GoalDataShortDBS):
     strengths: list[str]
     success_metrics: list[str]
     insights: list[str]
+    source_conversation_id: int | None
 
 
 class GoalDataResponse(GoalDataLongDBS):

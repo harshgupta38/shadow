@@ -138,6 +138,7 @@ export interface GoalDataResponse {
   target_date: string;
   success_metrics: string[];
   insights: string[];
+  source_conversation_id: number | null;
   milestones_total: number;
   milestones_completed: number;
   habits_total: number;

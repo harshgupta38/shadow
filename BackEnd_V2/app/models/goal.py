@@ -83,3 +83,8 @@ class GoalDBM(Base):
         onupdate=func.now(),
         nullable=False,
     )
+
+    source_conversation_id: Mapped[int | None] = mapped_column(
+        ForeignKey("conversations.id", ondelete="SET NULL"),
+        nullable=True,
+    )

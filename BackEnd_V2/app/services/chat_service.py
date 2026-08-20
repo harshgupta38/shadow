@@ -268,8 +268,15 @@ def delete_conversation(
     if not conversation or conversation.user_id != current_user.id:
         raise NotFoundError("Conversation not found or access denied.")
 
+    db.query(GoalDBM).filter(GoalDBM.source_conversation_id == conversation_id).update(
+        {GoalDBM.source_conversation_id: None},
+        synchronize_session=False,
+    )
+
     db.execute(
-        delete(GoalProposalDBM).where(GoalProposalDBM.conversation_id == conversation_id)
+        delete(GoalProposalDBM).where(
+            GoalProposalDBM.conversation_id == conversation_id
+        )
     )
     db.execute(delete(MessageDBM).where(MessageDBM.conversation_id == conversation_id))
     db.delete(conversation)

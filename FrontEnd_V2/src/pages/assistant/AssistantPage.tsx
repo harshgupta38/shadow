@@ -578,7 +578,7 @@ export function AssistantPage() {
                                 )}
                               </div>
                               <div style={{ position: "relative", lineHeight: 1 }}>
-                                <span className="text-faint" style={{ fontSize: "0.68rem", opacity: isHovered ? 0 : 1, transition: "opacity 0.18s ease-in-out" }}>
+                                <span className="text-faint chat-message-time" style={{ fontSize: "0.68rem", opacity: isHovered ? 0 : 1, transition: "opacity 0.18s ease-in-out" }}>
                                   {formatChatTime(msg.created_at)}
                                 </span>
                                 <div className="chat-message-actions" style={{ position: "absolute", top: "50%", transform: "translateY(-50%)", [msg.role === "user" ? "right" : "left"]: 0, opacity: isHovered ? 1 : 0, pointerEvents: isHovered ? "auto" : "none", transition: "opacity 0.18s ease-in-out" }}>

@@ -94,9 +94,11 @@ def _mark_proposal_saved_in_message(
     linked_items = message.linked_items or {}
     proposals = linked_items.get("goal_proposals") or []
     updated_proposals = [
-        {**proposal, "status": "saved", "goal_id": goal_id}
-        if proposal.get("proposal_id") == proposal_id
-        else proposal
+        (
+            {**proposal, "status": "saved", "goal_id": goal_id}
+            if proposal.get("proposal_id") == proposal_id
+            else proposal
+        )
         for proposal in proposals
     ]
     message.linked_items = {**linked_items, "goal_proposals": updated_proposals}
@@ -146,6 +148,7 @@ def save_goal_from_proposal(
         milestones_completed=0,
         habits_total=0,
         habits_active=0,
+        source_conversation_id=proposal.conversation_id
     )
     db.add(goal)
     db.flush()

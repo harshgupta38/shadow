@@ -133,11 +133,7 @@ class MilestoneProposalLLMSchema(BaseModel):
         default=None,
         description="Estimated number of days to complete this milestone. Null if unknown.",
     )
-    target_date: str | None = Field(
-        default=None,
-        description="Estimated target date in YYYY-MM-DD format, if derivable from the goal. Null otherwise.",
-    )
-    assistant_context: dict[str, Any] | None = Field(
+    assistant_context: str | None = Field(
         default=None,
         description=(
             "Structured context to support daily planning and progress reporting for this milestone. "

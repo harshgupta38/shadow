@@ -167,7 +167,7 @@ export interface MilestoneProposalLLMSchema {
   description: string | null;
   reason: string;
   estimated_duration_days: number | null;
-  target_date: string | null;
+  assistant_context: string | null;
 }
 
 export type MilestoneProposalStatus = "pending" | "saved";

@@ -150,14 +150,10 @@ def save_milestone_from_proposal(
         status="Not Started",
         reason=milestone_data.reason.strip(),
         estimated_duration_days=milestone_data.estimated_duration_days,
-        target_date=(
-            date.fromisoformat(milestone_data.target_date)
-            if milestone_data.target_date
-            else None
-        ),
+        target_date=None,
         position=int(next_position or 0),
         created_by="Assistant",
-        assistant_context=milestone_data.assistant_context,
+        assistant_context={"text": milestone_data.assistant_context} if milestone_data.assistant_context else None,
         total_tasks=0,
         completed_tasks=0,
     )

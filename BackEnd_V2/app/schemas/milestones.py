@@ -111,10 +111,20 @@ class MilestoneDataResponse(MilestoneDataDBS):
 
 
 class MilestoneProposalLLMSchema(BaseModel):
-    title: str = Field(description="A short, clear title for the milestone.")
+    title: str = Field(
+        description=(
+            "A short, single-line title for the milestone. "
+            "Must be concise — no more than one sentence, no line breaks, no punctuation at the end."
+        )
+    )
     description: str | None = Field(
         default=None,
-        description="Optional detail about what this milestone involves.",
+        description=(
+            "Rich text detail about what this milestone involves. "
+            "Use Markdown formatting: headings (##, ###), bold (**text**), italic (*text*), "
+            "bullet lists (- item), numbered lists (1. item), and code blocks (```code```) where appropriate. "
+            "Write in full sentences and paragraphs. Be thorough — this is like a section in a Word document."
+        ),
     )
     reason: str = Field(
         description="Why this milestone is important for achieving the goal."

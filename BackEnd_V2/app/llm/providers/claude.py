@@ -17,9 +17,11 @@ from app.llm.exceptions import (
 from app.llm.knowledge_base import (
     CONVERSATION_CONTEXT_SYSTEM_INSTRUCTION_CLAUDE,
     GOAL_REFINEMENT_SYSTEM_INSTRUCTION_CLAUDE,
+    MILESTONE_PROPOSAL_SYSTEM_INSTRUCTION_CLAUDE,
     RESPOND_TO_MESSAGE_SYSTEM_INSTRUCTION_CLAUDE,
     CREATE_CONVERSATION_SYSTEM_INSTRUCTION_CLAUDE,
     build_goal_refinement_user_prompt,
+    build_milestone_proposal_user_prompt,
 )
 from app.llm.models import (
     ConversationContextToLLM,
@@ -28,12 +30,15 @@ from app.llm.models import (
     MessageFromLLM,
     RefineGoalToLLM,
     RefineGoalFromLLM,
+    MilestoneProposalsToLLM,
+    MilestoneProposalsFromLLM,
     NewConvoToLLM,
     NewConvoFromLLM,
     TokenUsage,
     MetadataToLLM,
 )
 from app.schemas.goals import RefineGoalFromLLMSchema
+from app.schemas.milestones import MilestoneProposalListLLMSchema
 from app.schemas.chat import (
     ConversationContextFromLLMSchema,
     MessageFromLLMSchema,
@@ -232,6 +237,77 @@ class ClaudeProvider(BaseLLMProvider):
             model=model,
             model_str=completion.model or model,
             refined_data=parsed,
+            finish_reason=completion.stop_reason or "unknown",
+            usage=usage,
+            response_id=completion.id,
+            response_time_ms=response_time_ms,
+            cost=calculate_token_cost(
+                model_key=model,
+                input_tokens=usage.input_tokens if usage and usage.input_tokens else 0,
+                output_tokens=(
+                    usage.output_tokens if usage and usage.output_tokens else 0
+                ),
+            ),
+        )
+
+    def _parse_MilestoneProposalListSchema(self, response) -> MilestoneProposalListLLMSchema:
+        try:
+            raw = self._strip_code_fence(self._extract_text_content(response))
+            return MilestoneProposalListLLMSchema.model_validate_json(raw)
+        except ValidationError as exc:
+            raise LLMRequestError(
+                "Claude returned a response that does not match MilestoneProposalListSchema schema."
+            ) from exc
+
+    async def generate_milestone_proposals(
+        self, request: MilestoneProposalsToLLM
+    ) -> MilestoneProposalsFromLLM:
+        model = self._resolve_model(request)
+
+        started_at = perf_counter()
+        try:
+            completion = await self._client.messages.create(
+                model=model,
+                system=MILESTONE_PROPOSAL_SYSTEM_INSTRUCTION_CLAUDE,
+                messages=[
+                    {
+                        "role": Role.USER,
+                        "content": build_milestone_proposal_user_prompt(request.goal_data),
+                    }
+                ],
+                max_tokens=request.max_tokens or 2048,
+            )
+        except (APIConnectionError, APIStatusError, APIError) as exc:
+            raise LLMProviderError(f"Claude generate_milestone_proposals failed: {exc}") from exc
+
+        response_time_ms = int((perf_counter() - started_at) * 1000)
+
+        await log_claude_completion_usage_async(
+            settings=self._settings,
+            model=model,
+            completion=completion,
+            latency_ms=response_time_ms,
+            user_id=request.user_id,
+            operation="generate_milestone_proposals",
+        )
+
+        parsed = self._parse_MilestoneProposalListSchema(completion)
+
+        usage = None
+        if completion.usage is not None:
+            input_tokens = completion.usage.input_tokens
+            output_tokens = completion.usage.output_tokens
+            usage = TokenUsage(
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                total_tokens=input_tokens + output_tokens,
+            )
+
+        return MilestoneProposalsFromLLM(
+            provider=LLMProvider.CLAUDE,
+            model=model,
+            model_str=completion.model or model,
+            proposals=parsed,
             finish_reason=completion.stop_reason or "unknown",
             usage=usage,
             response_id=completion.id,

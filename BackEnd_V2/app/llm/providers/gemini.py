@@ -16,9 +16,11 @@ from app.llm.exceptions import (
 from app.llm.knowledge_base import (
     CONVERSATION_CONTEXT_SYSTEM_INSTRUCTION,
     GOAL_REFINEMENT_SYSTEM_INSTRUCTION,
+    MILESTONE_PROPOSAL_SYSTEM_INSTRUCTION,
     RESPOND_TO_MESSAGE_SYSTEM_INSTRUCTION,
     CREATE_CONVERSATION_SYSTEM_INSTRUCTION,
     build_goal_refinement_user_prompt,
+    build_milestone_proposal_user_prompt,
 )
 from app.llm.models import (
     ConversationContextToLLM,
@@ -28,11 +30,14 @@ from app.llm.models import (
     MetadataToLLM,
     RefineGoalToLLM,
     RefineGoalFromLLM,
+    MilestoneProposalsToLLM,
+    MilestoneProposalsFromLLM,
     NewConvoToLLM,
     NewConvoFromLLM,
     TokenUsage,
 )
 from app.schemas.goals import RefineGoalFromLLMSchema
+from app.schemas.milestones import MilestoneProposalListLLMSchema
 from app.schemas.chat import (
     ConversationContextFromLLMSchema,
     MessageFromLLMSchema,
@@ -202,6 +207,76 @@ class GeminiProvider(BaseLLMProvider):
             model=model,
             model_str=response.model_version or model,
             refined_data=parsed,
+            finish_reason=first_choice.finish_reason,
+            usage=usage,
+            response_id=response.response_id,
+            response_time_ms=response_time_ms,
+            cost=calculate_token_cost(
+                model_key=model,
+                input_tokens=usage.input_tokens if usage and usage.input_tokens else 0,
+                output_tokens=(
+                    usage.output_tokens if usage and usage.output_tokens else 0
+                ),
+            ),
+        )
+
+    async def generate_milestone_proposals(
+        self, request: MilestoneProposalsToLLM
+    ) -> MilestoneProposalsFromLLM:
+        model = self._resolve_model(request)
+
+        started_at = perf_counter()
+        try:
+            response = await self._client.aio.models.generate_content(
+                model=model,
+                contents=build_milestone_proposal_user_prompt(request.goal_data),
+                config=types.GenerateContentConfig(
+                    system_instruction=MILESTONE_PROPOSAL_SYSTEM_INSTRUCTION,
+                    response_mime_type="application/json",
+                    response_schema=MilestoneProposalListLLMSchema,
+                    temperature=request.temperature,
+                    max_output_tokens=request.max_tokens,
+                    http_options=types.HttpOptions(
+                        timeout=self._settings.llm_request_timeout_seconds * 1000,
+                    ),
+                ),
+            )
+        except errors.APIError as exc:
+            raise LLMProviderError(f"Gemini generate_milestone_proposals failed: {exc}") from exc
+        response_time_ms = int((perf_counter() - started_at) * 1000)
+
+        await log_gemini_completion_usage_async(
+            settings=self._settings,
+            model=model,
+            response=response,
+            latency_ms=response_time_ms,
+            user_id=request.user_id,
+            operation="generate_milestone_proposals",
+        )
+
+        if not response.candidates:
+            raise LLMRequestError("Gemini returned no choices for generate_milestone_proposals.")
+
+        first_choice = response.candidates[0]
+        parsed = response.parsed
+
+        if parsed is None:
+            raise LLMRequestError("Gemini returned an unparsable generate_milestone_proposals response.")
+
+        usage = None
+        if response.usage_metadata is not None:
+            usage = TokenUsage(
+                input_tokens=response.usage_metadata.prompt_token_count,
+                output_tokens=(response.usage_metadata.candidates_token_count or 0)
+                + (response.usage_metadata.thoughts_token_count or 0),
+                total_tokens=response.usage_metadata.total_token_count,
+            )
+
+        return MilestoneProposalsFromLLM(
+            provider=LLMProvider.GEMINI,
+            model=model,
+            model_str=response.model_version or model,
+            proposals=parsed,
             finish_reason=first_choice.finish_reason,
             usage=usage,
             response_id=response.response_id,

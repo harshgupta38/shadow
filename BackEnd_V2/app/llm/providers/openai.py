@@ -15,9 +15,11 @@ from app.llm.exceptions import (
 from app.llm.knowledge_base import (
     CONVERSATION_CONTEXT_SYSTEM_INSTRUCTION,
     GOAL_REFINEMENT_SYSTEM_INSTRUCTION,
+    MILESTONE_PROPOSAL_SYSTEM_INSTRUCTION,
     RESPOND_TO_MESSAGE_SYSTEM_INSTRUCTION,
     CREATE_CONVERSATION_SYSTEM_INSTRUCTION,
     build_goal_refinement_user_prompt,
+    build_milestone_proposal_user_prompt,
 )
 from app.llm.models import (
     ConversationContextToLLM,
@@ -26,11 +28,14 @@ from app.llm.models import (
     MessageFromLLM,
     RefineGoalToLLM,
     RefineGoalFromLLM,
+    MilestoneProposalsToLLM,
+    MilestoneProposalsFromLLM,
     NewConvoToLLM,
     NewConvoFromLLM,
     TokenUsage,
 )
 from app.schemas.goals import RefineGoalFromLLMSchema
+from app.schemas.milestones import MilestoneProposalListLLMSchema
 from app.schemas.chat import (
     ConversationContextFromLLMSchema,
     MessageFromLLMSchema,
@@ -179,6 +184,82 @@ class OpenAIProvider(BaseLLMProvider):
             model=model,
             model_str=completion.model or model,
             refined_data=parsed,
+            finish_reason=first_choice.finish_reason,
+            usage=usage,
+            response_id=completion.id,
+            response_time_ms=response_time_ms,
+            cost=calculate_token_cost(
+                model_key=model,
+                input_tokens=completion.usage.prompt_tokens if completion.usage else 0,
+                output_tokens=(
+                    completion.usage.completion_tokens if completion.usage else 0
+                ),
+            ),
+        )
+
+    async def generate_milestone_proposals(
+        self, request: MilestoneProposalsToLLM
+    ) -> MilestoneProposalsFromLLM:
+        model = self._resolve_model(request)
+
+        messages = [
+            {
+                "role": Role.SYSTEM,
+                "content": MILESTONE_PROPOSAL_SYSTEM_INSTRUCTION,
+            },
+            {
+                "role": Role.USER,
+                "content": build_milestone_proposal_user_prompt(request.goal_data),
+            },
+        ]
+
+        started_at = perf_counter()
+        try:
+            completion = await self._client.beta.chat.completions.parse(
+                model=model,
+                messages=messages,
+                response_format=MilestoneProposalListLLMSchema,
+            )
+        except (APIConnectionError, APIStatusError, OpenAIError) as exc:
+            raise LLMProviderError(f"OpenAI generate_milestone_proposals failed: {exc}") from exc
+        response_time_ms = int((perf_counter() - started_at) * 1000)
+
+        await log_openai_completion_usage_async(
+            settings=self._settings,
+            model=model,
+            completion=completion,
+            latency_ms=response_time_ms,
+            user_id=request.user_id,
+            operation="generate_milestone_proposals",
+        )
+
+        if not completion.choices:
+            raise LLMRequestError("OpenAI returned no choices for generate_milestone_proposals.")
+
+        first_choice = completion.choices[0]
+        message = first_choice.message
+        parsed = message.parsed
+
+        if parsed is None:
+            if message.refusal:
+                raise LLMRequestError(
+                    f"OpenAI refused generate_milestone_proposals response: {message.refusal}"
+                )
+            raise LLMRequestError("OpenAI returned an unparsable generate_milestone_proposals response.")
+
+        usage = None
+        if completion.usage is not None:
+            usage = TokenUsage(
+                input_tokens=completion.usage.prompt_tokens,
+                output_tokens=completion.usage.completion_tokens,
+                total_tokens=completion.usage.total_tokens,
+            )
+
+        return MilestoneProposalsFromLLM(
+            provider=LLMProvider.OPENAI,
+            model=model,
+            model_str=completion.model or model,
+            proposals=parsed,
             finish_reason=first_choice.finish_reason,
             usage=usage,
             response_id=completion.id,

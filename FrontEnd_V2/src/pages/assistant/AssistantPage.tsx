@@ -34,7 +34,7 @@ export function AssistantPage() {
   const [loaderIndex, setLoaderIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
-  const [isProcessingMessage, setIsProcessingMessage] = useState(false);
+  const [processingConversationId, setProcessingConversationId] = useState<number | null>(null);
   const [isRenamingConversation, setIsRenamingConversation] = useState(false);
   const [hoveredMsgKey, setHoveredMsgKey] = useState<string | null>(null);
   const [copiedMsgKey, setCopiedMsgKey] = useState<string | null>(null);
@@ -42,7 +42,7 @@ export function AssistantPage() {
   const [sessionsPanelOpen, setSessionsPanelOpen] = useState(false);
 
   const [conversations, setConversations] = useState<ConvoDataShortResponse[]>([]);
-  const [messages, setMessages] = useState<MessageDataResponse[]>([]);
+  const [messagesCache, setMessagesCache] = useState<Map<number, MessageDataResponse[]>>(new Map());
   const [activeConversation, setActiveConversation] = useState<ConvoDataShortResponse | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ConvoDataShortResponse | null>(null);
   const [renameTarget, setRenameTarget] = useState<ConvoDataShortResponse | null>(null);
@@ -52,12 +52,17 @@ export function AssistantPage() {
   const composerTextareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesRequestIdRef = useRef(0);
   const messageRefsMap = useRef<Record<string, HTMLDivElement | null>>({});
+  const draftsRef = useRef<Map<number, string>>(new Map());
 
   // Derived active item
   const hasAnyChat = conversations.length > 0;
   const activeItem = activeConversation;
   const ActiveIcon = ASSISTANT_AGENTS[activeItem?.agent_type ?? "shadow"].icon;
   const activeAgent = activeItem ? ASSISTANT_AGENTS[activeItem.agent_type] : null;
+
+  // Per-conversation derived state — scoped to active conversation so switching never bleeds state across chats
+  const messages = messagesCache.get(activeItem?.id ?? -1) ?? [];
+  const isProcessingMessage = processingConversationId === activeItem?.id;
 
   useEffect(() => {
     api.chat.getConversations()
@@ -129,14 +134,24 @@ export function AssistantPage() {
     }
   }, [inputText, activeConversation?.id]);
 
+  function updateConversationMessages(convId: number, updater: (prev: MessageDataResponse[]) => MessageDataResponse[]) {
+    setMessagesCache(prev => {
+      const next = new Map(prev);
+      next.set(convId, updater(next.get(convId) ?? []));
+      return next;
+    });
+  }
+
   function openAgent(agent: AssistantAgent) {
+    if (activeItem?.id !== undefined) draftsRef.current.set(activeItem.id, inputText);
+
     const existing = conversations.find(s => s.is_local && s.agent_type === agent.type);
     messagesRequestIdRef.current += 1;
     setIsLoadingMessages(false);
-    setMessages([]);
 
     if (existing) {
       setActiveConversation(existing);
+      setInputText(draftsRef.current.get(existing.id) ?? "");
       setShowNewChatModal(false);
       return;
     }
@@ -154,27 +169,30 @@ export function AssistantPage() {
 
     setConversations(prev => [...prev, session]);
     setActiveConversation(session);
+    setInputText("");
     setShowNewChatModal(false);
   }
 
   async function getMessages(conversation: ConvoDataShortResponse) {
+    if (activeItem?.id !== undefined) draftsRef.current.set(activeItem.id, inputText);
+
     const requestId = ++messagesRequestIdRef.current;
     setActiveConversation(conversation);
+    setInputText(draftsRef.current.get(conversation.id) ?? "");
 
     if (conversation.is_local) {
       setIsLoadingMessages(false);
-      setMessages([]);
       return;
     }
 
     setIsLoadingMessages(true);
-    setMessages([]);
+    setMessagesCache(prev => { const next = new Map(prev); next.set(conversation.id, []); return next; });
 
     try {
       const messageChunk = await api.chat.getMessages(conversation.id);
       if (requestId !== messagesRequestIdRef.current) return;
-      // TODO take care of pagination 
-      setMessages(messageChunk.message_list);
+      // TODO take care of pagination
+      setMessagesCache(prev => { const next = new Map(prev); next.set(conversation.id, messageChunk.message_list); return next; });
     } catch {
       if (requestId !== messagesRequestIdRef.current) return;
       toast.error("Failed to load messages. Please try again.");
@@ -192,12 +210,14 @@ export function AssistantPage() {
       try {
         await api.chat.deleteConversation(data.id);
         setConversations(prev => prev.filter(c => c.id !== data.id));
+        setMessagesCache(prev => { const next = new Map(prev); next.delete(data.id); return next; });
         setDeleteTarget(null);
       } catch {
         toast.error("Failed to delete conversation. Please try again.");
       }
     } else {
       setConversations(prev => prev.filter(c => c.id !== data.id));
+      setMessagesCache(prev => { const next = new Map(prev); next.delete(data.id); return next; });
       setDeleteTarget(null);
     }
     if (activeConversation?.id === data.id) setActiveConversation(null);
@@ -251,18 +271,23 @@ export function AssistantPage() {
     const text = (content ?? inputText).trim();
     if (!text || !activeItem) return;
 
+    // Capture at call time so async callbacks always write to the correct conversation,
+    // even if the user switches conversations while the request is in flight.
+    const targetConvId = activeItem.id;
+
     setInputText("");
+    draftsRef.current.delete(targetConvId);
     const msg: MessageDataResponse = {
-      conversation_id: activeItem.id,
+      conversation_id: targetConvId,
       content: [text],
       role: "user",
       linked_items: {},
       created_at: new Date().toISOString(),
     };
 
-    setIsProcessingMessage(true);
+    setProcessingConversationId(targetConvId);
     if (activeItem.is_local) {
-      setMessages(prev => [...prev, msg]);
+      updateConversationMessages(targetConvId, prev => [...prev, msg]);
       try {
         const response = await api.chat.startConversation({
           content: text,
@@ -273,28 +298,35 @@ export function AssistantPage() {
           ...response.conversation_data,
           is_local: false,
         };
-        setConversations(prev => prev.map(c => c.id === activeItem.id ? activeItemCopy : c));
-        setActiveConversation(activeItemCopy);
-
-        setMessages(prev => [...prev, response.message_data]);
+        const realId = activeItemCopy.id;
+        setConversations(prev => prev.map(c => c.id === targetConvId ? activeItemCopy : c));
+        // Only navigate back if the user hasn't switched to another conversation in the meantime
+        setActiveConversation(prev => prev?.id === targetConvId ? activeItemCopy : prev);
+        // Move messages from the temporary local ID to the real conversation ID
+        setMessagesCache(prev => {
+          const next = new Map(prev);
+          const existing = next.get(targetConvId) ?? [];
+          next.delete(targetConvId);
+          next.set(realId, [...existing, response.message_data]);
+          return next;
+        });
       } catch (error) {
         toast.error(error instanceof ApiError ? error.message : "Failed to send message. Please try again.");
       } finally {
-        setIsProcessingMessage(false);
+        setProcessingConversationId(prev => prev === targetConvId ? null : prev);
       }
     } else {
-      setMessages(prev => [...prev, msg]);
+      updateConversationMessages(targetConvId, prev => [...prev, msg]);
       try {
         const response = await api.chat.sendMessage({
-          conversation_id: activeItem.id,
+          conversation_id: targetConvId,
           content: text,
         });
-
-        setMessages(prev => [...prev, response.message_data]);
+        updateConversationMessages(targetConvId, prev => [...prev, response.message_data]);
       } catch (error) {
         toast.error(error instanceof ApiError ? error.message : "Failed to send message. Please try again.");
       } finally {
-        setIsProcessingMessage(false);
+        setProcessingConversationId(prev => prev === targetConvId ? null : prev);
       }
     }
   }
@@ -331,19 +363,20 @@ export function AssistantPage() {
   async function regenerateResponse(message: MessageDataResponse) {
     if (isLoadingMessages || !message.id || !activeItem) return;
 
-    setIsProcessingMessage(true);
+    const targetConvId = activeItem.id;
+    setProcessingConversationId(targetConvId);
     try {
       const response = await api.chat.regenerateResponse({
-        conversation_id: activeItem.id,
+        conversation_id: targetConvId,
         message_id: message.id,
       });
 
-      setMessages(prev => prev.map(m => m.id === message.id ? response.message_data : m));
+      updateConversationMessages(targetConvId, prev => prev.map(m => m.id === message.id ? response.message_data : m));
       setContentIndexMap(prev => ({ ...prev, [String(message.id)]: response.message_data.content.length - 1 }));
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message : "Failed to regenerate response. Please try again.");
     } finally {
-      setIsProcessingMessage(false);
+      setProcessingConversationId(prev => prev === targetConvId ? null : prev);
     }
   }
 
@@ -780,7 +813,8 @@ export function AssistantPage() {
           onClose={() => setReviewingProposal(null)}
           onSaved={(goal) => {
             const proposalId = reviewingProposal.proposal_id;
-            setMessages(prev => prev.map(m => {
+            if (!activeConversation) return;
+            updateConversationMessages(activeConversation.id, prev => prev.map(m => {
               if (!m.linked_items.goal_proposals?.some(p => p.proposal_id === proposalId)) return m;
               return {
                 ...m,
@@ -803,7 +837,8 @@ export function AssistantPage() {
           onClose={() => setReviewingMilestoneProposal(null)}
           onSaved={(milestone) => {
             const proposalId = reviewingMilestoneProposal.proposal_id;
-            setMessages(prev => prev.map(m => {
+            if (!activeConversation) return;
+            updateConversationMessages(activeConversation.id, prev => prev.map(m => {
               if (!m.linked_items.milestone_proposals?.some(p => p.proposal_id === proposalId)) return m;
               return {
                 ...m,

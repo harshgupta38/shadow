@@ -79,7 +79,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           return (
             <div key={toast.id} className="toast-jv">
               <Icon size={18} style={{ color: COLORS[toast.kind], flexShrink: 0 }} />
-              <span className="flex-grow-1 small fw-medium">{toast.message}</span>
+              <span className="flex-grow-1 small fw-medium toast-jv-message">{toast.message}</span>
               <button
                 type="button"
                 className="btn btn-ghost btn-sm p-0 border-0"

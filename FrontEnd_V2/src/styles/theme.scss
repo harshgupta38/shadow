@@ -1910,6 +1910,13 @@ a {
   box-shadow: var(--jv-shadow-lg);
   animation: jv-slide-in 220ms var(--jv-ease);
 }
+
+.toast-jv-message {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 @keyframes jv-slide-in {
   from { opacity: 0; transform: translateX(16px); }
   to { opacity: 1; transform: translateX(0); }

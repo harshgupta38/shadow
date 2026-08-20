@@ -78,6 +78,16 @@ async def regenerate_response(
     return await chat_service.regenerate_response(db, current_user, conversation_id, message_id)
 
 
+@router.post(ENDPOINTS.CHAT.RETRY_FAILED_MESSAGE, response_model=MessageResponse)
+async def retry_failed_message(
+    conversation_id: int,
+    message_id: int,
+    db=Depends(get_db),
+    current_user: UserDBM = Depends(get_current_user),
+) -> MessageResponse:
+    return await chat_service.retry_failed_message(db, current_user, conversation_id, message_id)
+
+
 @router.patch(ENDPOINTS.CHAT.CONVERSATION_DETAIL, response_model=ConvoDataShortResponse)
 def rename_conversation(
     conversation_id: int,

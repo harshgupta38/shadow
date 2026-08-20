@@ -366,6 +366,27 @@ export function AssistantPage() {
     return msg.linked_items.milestone_proposals?.filter(p => p.content_index === contentIndex) ?? [];
   }
 
+  async function retryMessage(message: MessageDataResponse) {
+    if (isLoadingMessages || !message.id || !activeItem) return;
+
+    const targetConvId = activeItem.id;
+    setProcessingConversationId(targetConvId);
+    try {
+      const response = await api.chat.retryFailedMessage({
+        conversation_id: targetConvId,
+        message_id: message.id,
+      });
+      updateConversationMessages(targetConvId, prev =>
+        prev.map(m => m.id === message.id ? { ...m, request_status: "completed" } : m)
+      );
+      updateConversationMessages(targetConvId, prev => [...prev, response.message_data]);
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : "Failed to retry. Please try again.");
+    } finally {
+      setProcessingConversationId(prev => prev === targetConvId ? null : prev);
+    }
+  }
+
   async function regenerateResponse(message: MessageDataResponse) {
     if (isLoadingMessages || !message.id || !activeItem) return;
 
@@ -727,7 +748,7 @@ export function AssistantPage() {
                                       type="button"
                                       className="chat-message-action-btn chat-message-try-again-btn"
                                       disabled={isProcessingMessage || isLoadingMessages}
-                                      onClick={() => regenerateResponse(msg)}
+                                      onClick={() => retryMessage(msg)}
                                       aria-label="Retry failed message"
                                       title="Request failed — click to retry"
                                     >

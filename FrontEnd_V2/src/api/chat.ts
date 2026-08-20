@@ -8,6 +8,7 @@ import {
     MessageResponse,
     RenameConvoRequest,
     RegenerateResponseRequest,
+    RetryFailedMessageRequest,
     MessageRequest,
 } from "@/api/types";
 
@@ -38,5 +39,9 @@ export const chatApi = {
 
     async regenerateResponse(data: RegenerateResponseRequest): Promise<MessageResponse> {
         return http.post<MessageResponse>(`${ENDPOINTS.CHAT.PREFIX}${ENDPOINTS.CHAT.REGENERATE_RESPONSE(data.conversation_id, data.message_id)}`, data);
+    },
+
+    async retryFailedMessage(data: RetryFailedMessageRequest): Promise<MessageResponse> {
+        return http.post<MessageResponse>(`${ENDPOINTS.CHAT.PREFIX}${ENDPOINTS.CHAT.RETRY_FAILED_MESSAGE(data.conversation_id, data.message_id)}`, data);
     },
 };

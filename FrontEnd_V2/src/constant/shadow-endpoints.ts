@@ -31,6 +31,7 @@ export const ENDPOINTS = {
         CONVERSATION_DETAIL: (id: number) => `/conversations/${id}`,
         MESSAGES: (id: number) => `/conversations/${id}/messages`,
         REGENERATE_RESPONSE: (conversation_id: number, message_id: number) => `/conversations/${conversation_id}/regenerate_response/${message_id}`,
+        RETRY_FAILED_MESSAGE: (conversation_id: number, message_id: number) => `/conversations/${conversation_id}/retry_message/${message_id}`,
         NEW_MESSAGE: "/conversations/messages",
     },
 }

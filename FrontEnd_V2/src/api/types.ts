@@ -372,3 +372,8 @@ export interface RegenerateResponseRequest {
   conversation_id: number;
   message_id: number;
 }
+
+export interface RetryFailedMessageRequest {
+  conversation_id: number;
+  message_id: number;
+}

@@ -33,5 +33,6 @@ class Endpoints:
         MESSAGES = "/conversations/{conversation_id}/messages" # to talk to the assistant in a session
         NEW_MESSAGE = "/conversations/messages" # to create a new session and talk to the assistant
         REGENERATE_RESPONSE = "/conversations/{conversation_id}/regenerate_response/{message_id}"
+        RETRY_FAILED_MESSAGE = "/conversations/{conversation_id}/retry_message/{message_id}"
 
 ENDPOINTS = Endpoints()

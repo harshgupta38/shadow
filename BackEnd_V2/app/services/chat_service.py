@@ -242,6 +242,8 @@ async def create_conversation(
         )
     except LLMError as exc:
         raise LLMRequestError(f"Failed to create conversation: {exc}") from exc
+    except JSONDecodeError as exc:
+        raise LLMRequestError(f"Failed to decode LLM response: {exc}") from exc
 
     conversation = ConversationDBM(
         user_id=current_user.id,
@@ -282,15 +284,20 @@ async def create_conversation(
     db.refresh(conversation)
     db.refresh(assistant_message)
 
+    resolved_linked_items = _resolve_goal_proposal_actions(
+        db, current_user, assistant_message.linked_items
+    )
+    resolved_linked_items = _resolve_milestone_proposal_actions(
+        db, current_user, resolved_linked_items
+    )
+
     message_data = MessageDataResponse(
         id=assistant_message.id,
         conversation_id=conversation.id,
         content=assistant_message.content,
         role=MessageRoleEnum.ASSISTANT,
         request_status="completed",
-        linked_items=_resolve_goal_proposal_actions(
-            db, current_user, assistant_message.linked_items
-        ),
+        linked_items=resolved_linked_items,
         created_at=assistant_message.created_at,
     )
 
@@ -394,6 +401,76 @@ def rename_conversation(
     return _serialize_conversation(conversation)
 
 
+async def _call_llm_and_save(
+    db: Session,
+    current_user: UserDBM,
+    conversation: ConversationDBM,
+    user_message: MessageDBM,
+    data: MessageRequest,
+    recent_message_data: list[dict],
+) -> MessageResponse:
+    user_message.request_status = "pending"
+    db.commit()
+
+    tool_context = ToolContext(db=db, current_user=current_user)
+    tool_executor = partial(execute_tool, context=tool_context)
+
+    llm_service = get_llm_service()
+    try:
+        response = await llm_service.respond_to_message(
+            data,
+            user_id=current_user.id,
+            agent_type=conversation.agent_type,
+            stable_context=conversation.stable_context,
+            context_summary=conversation.context_summary,
+            recent_messages=recent_message_data,
+            tool_executor=tool_executor,
+        )
+    except LLMError as exc:
+        user_message.request_status = "failed"
+        db.commit()
+        raise LLMRequestError(f"Failed to get response: {exc}") from exc
+    except JSONDecodeError as exc:
+        user_message.request_status = "failed"
+        db.commit()
+        raise LLMRequestError(f"Failed to decode LLM response: {exc}") from exc
+
+    user_message.request_status = "completed"
+
+    assistant_message = MessageDBM(
+        conversation_id=conversation.id,
+        role=MessageRoleEnum.ASSISTANT,
+        content=[response.llm_data.content],
+        linked_items={},
+        request_status="completed",
+    )
+    db.add(assistant_message)
+    db.flush()
+
+    _attach_goal_proposal(
+        db, current_user, conversation, assistant_message, tool_context.action_data, 0
+    )
+    _attach_milestone_proposals(
+        db, current_user, conversation, assistant_message, tool_context.action_data, 0
+    )
+
+    conversation.updated_at = assistant_message.created_at
+    db.commit()
+    db.refresh(assistant_message)
+
+    return MessageResponse(
+        message_data=_serialize_message(db, current_user, assistant_message),
+        provider=response.provider,
+        model=response.model,
+        model_str=response.model_str,
+        finish_reason=response.finish_reason,
+        usage=response.usage,
+        response_id=response.response_id,
+        response_time_ms=response.response_time_ms,
+        cost=response.cost,
+    )
+
+
 async def respond_to_message(
     db: Session,
     current_user: UserDBM,
@@ -473,62 +550,50 @@ async def respond_to_message(
         request_status="pending",
     )
     db.add(user_message)
-    db.commit()
 
-    tool_context = ToolContext(db=db, current_user=current_user)
-    tool_executor = partial(execute_tool, context=tool_context)
+    return await _call_llm_and_save(db, current_user, conversation, user_message, data, recent_message_data)
 
-    try:
-        response = await llm_service.respond_to_message(
-            data,
-            user_id=current_user.id,
-            agent_type=conversation.agent_type,
-            stable_context=conversation.stable_context,
-            context_summary=conversation.context_summary,
-            recent_messages=recent_message_data,
-            tool_executor=tool_executor,
-        )
-    except LLMError as exc:
-        user_message.request_status = "failed"
-        db.commit()
-        raise LLMRequestError(f"Failed to respond to message: {exc}") from exc
-    except JSONDecodeError as exc:
-        user_message.request_status = "failed"
-        db.commit()
-        raise LLMRequestError(f"Failed to decode LLM response: {exc}") from exc
 
-    user_message.request_status = "completed"
+async def retry_failed_message(
+    db: Session,
+    current_user: UserDBM,
+    conversation_id: int,
+    message_id: int,
+) -> MessageResponse:
+    conversation = db.get(ConversationDBM, conversation_id)
+    if not conversation or conversation.user_id != current_user.id:
+        raise NotFoundError("Conversation not found or access denied.")
 
-    assistant_message = MessageDBM(
-        conversation_id=conversation.id,
-        role=MessageRoleEnum.ASSISTANT,
-        content=[response.llm_data.content],
-        linked_items={},
-        request_status="completed",
+    user_message = db.get(MessageDBM, message_id)
+    if not user_message or user_message.conversation_id != conversation_id:
+        raise NotFoundError("Message not found.")
+
+    if user_message.role != MessageRoleEnum.USER:
+        raise ValidationError("Only user messages can be retried.")
+
+    if user_message.request_status != "failed":
+        raise ValidationError("Only failed messages can be retried.")
+
+    preceding_messages = list(
+        db.scalars(
+            select(MessageDBM)
+            .where(
+                MessageDBM.conversation_id == conversation_id,
+                MessageDBM.id < message_id,
+            )
+            .order_by(MessageDBM.id.desc())
+            .limit(llm_settings.chat_recent_message_limit)
+        ).all()
     )
-    db.add(assistant_message)
-    db.flush()
+    preceding_messages.reverse()
 
-    _attach_goal_proposal(
-        db, current_user, conversation, assistant_message, tool_context.action_data, 0
-    )
-    _attach_milestone_proposals(db, current_user, conversation, assistant_message, tool_context.action_data, 0)
+    recent_message_data = [
+        {"role": msg.role, "content": msg.content[-1]}
+        for msg in preceding_messages
+    ]
 
-    conversation.updated_at = assistant_message.created_at
-    db.commit()
-    db.refresh(assistant_message)
-
-    return MessageResponse(
-        message_data=_serialize_message(db, current_user, assistant_message),
-        provider=response.provider,
-        model=response.model,
-        model_str=response.model_str,
-        finish_reason=response.finish_reason,
-        usage=response.usage,
-        response_id=response.response_id,
-        response_time_ms=response.response_time_ms,
-        cost=response.cost,
-    )
+    data = MessageRequest(content=user_message.content[-1])
+    return await _call_llm_and_save(db, current_user, conversation, user_message, data, recent_message_data)
 
 
 async def regenerate_response(

@@ -1,3 +1,4 @@
+import asyncio
 import json
 from time import perf_counter
 
@@ -319,6 +320,8 @@ class OllamaProvider(BaseLLMProvider):
             for tool_call in tool_calls:
                 arguments = json.loads(tool_call.function.arguments or "{}")
                 result = request.tool_executor(tool_call.function.name, arguments)
+                if asyncio.iscoroutine(result):
+                    result = await result
                 messages.append(
                     {
                         "role": Role.TOOL,
@@ -480,6 +483,8 @@ class OllamaProvider(BaseLLMProvider):
             for tool_call in tool_calls:
                 arguments = json.loads(tool_call.function.arguments or "{}")
                 result = request.tool_executor(tool_call.function.name, arguments)
+                if asyncio.iscoroutine(result):
+                    result = await result
                 messages.append(
                     {
                         "role": Role.TOOL,

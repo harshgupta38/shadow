@@ -1,3 +1,4 @@
+import asyncio
 import json
 from time import perf_counter
 
@@ -362,6 +363,8 @@ class ClaudeProvider(BaseLLMProvider):
             tool_results = []
             for block in tool_use_blocks:
                 result = request.tool_executor(block.name, dict(block.input))
+                if asyncio.iscoroutine(result):
+                    result = await result
                 tool_results.append(
                     {
                         "type": "tool_result",
@@ -369,6 +372,7 @@ class ClaudeProvider(BaseLLMProvider):
                         "content": json.dumps(result),
                     }
                 )
+            tool_results.append({"type": "text", "text": "Tool completed. Now return only the required JSON response."})
             messages.append({"role": "user", "content": tool_results})
 
             tool_names = "\n".join(b.name for b in tool_use_blocks)
@@ -469,6 +473,8 @@ class ClaudeProvider(BaseLLMProvider):
             tool_results = []
             for block in tool_use_blocks:
                 result = request.tool_executor(block.name, dict(block.input))
+                if asyncio.iscoroutine(result):
+                    result = await result
                 tool_results.append(
                     {
                         "type": "tool_result",
@@ -476,6 +482,7 @@ class ClaudeProvider(BaseLLMProvider):
                         "content": json.dumps(result),
                     }
                 )
+            tool_results.append({"type": "text", "text": "Tool completed. Now return only the required JSON response."})
             messages.append({"role": "user", "content": tool_results})
 
             tool_names = "\n".join(b.name for b in tool_use_blocks)

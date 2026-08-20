@@ -1,5 +1,3 @@
-import asyncio
-import concurrent.futures
 from datetime import date
 from typing import Callable, get_args
 
@@ -8,7 +6,7 @@ from app.llm.exceptions import LLMRequestError
 from app.llm.tools.context import ToolContext
 
 
-def create_milestone_proposals(context: ToolContext, arguments: dict) -> dict:
+async def create_milestone_proposals(context: ToolContext, arguments: dict) -> dict:
     from app.services.goals_service import get_goal_detail  # prevent circular import
     from app.llm import get_llm_service
 
@@ -17,16 +15,10 @@ def create_milestone_proposals(context: ToolContext, arguments: dict) -> dict:
     goal_data = goal.model_dump(mode="json")
 
     llm_service = get_llm_service()
-
-    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-        future = executor.submit(
-            asyncio.run,
-            llm_service.generate_milestone_proposals(
-                goal_data=goal_data,
-                user_id=context.current_user.id,
-            ),
-        )
-        result = future.result()
+    result = await llm_service.generate_milestone_proposals(
+        goal_data=goal_data,
+        user_id=context.current_user.id,
+    )
 
     context.action_data = {
         **(context.action_data or {}),
@@ -379,7 +371,7 @@ MILESTONE_TOOL_DEFINITIONS: list[dict] = [
     },
 ]
 
-MILESTONE_TOOLS: dict[str, Callable[[ToolContext, dict], dict]] = {
+MILESTONE_TOOLS: dict[str, Callable] = {
     "create_milestone_proposals": create_milestone_proposals,
     "get_milestone_list": get_milestone_list,
     "get_milestone_detail": get_milestone_detail,

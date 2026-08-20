@@ -1,12 +1,10 @@
-import asyncio
-import concurrent.futures
 from typing import Callable, get_args
 
 from app.schemas.goals import GoalListStatusFilter
 from app.llm.tools.context import ToolContext
 
 
-def refine_goal(context: ToolContext, arguments: dict) -> dict:
+async def refine_goal(context: ToolContext, arguments: dict) -> dict:
     from app.services.goals_service import refine_goal  # prevent circular import
     from app.schemas.goals import RefineGoalRequest
 
@@ -18,9 +16,7 @@ def refine_goal(context: ToolContext, arguments: dict) -> dict:
         obstacles=arguments["obstacles"],
     )
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-        future = executor.submit(asyncio.run, refine_goal(data, context.current_user))
-        result = future.result()
+    result = await refine_goal(data, context.current_user)
 
     context.action_data = {
         "refined_goal": result.refined_data.model_dump(mode="json"),
@@ -206,7 +202,7 @@ GOAL_TOOL_DEFINITIONS: list[dict] = [
     },
 ]
 
-GOAL_TOOLS: dict[str, Callable[[ToolContext, dict], dict]] = {
+GOAL_TOOLS: dict[str, Callable] = {
     "refine_goal": refine_goal,
     "get_current_goals": get_current_goals,
     "get_goal_detail": get_goal_detail,

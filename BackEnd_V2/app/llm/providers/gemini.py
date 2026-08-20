@@ -1,3 +1,4 @@
+import asyncio
 from time import perf_counter
 
 from google import genai
@@ -333,6 +334,8 @@ class GeminiProvider(BaseLLMProvider):
             for fc in function_calls:
                 args = dict(fc.args) if fc.args else {}
                 result = request.tool_executor(fc.name, args)
+                if asyncio.iscoroutine(result):
+                    result = await result
                 result_parts.append(
                     types.Part.from_function_response(name=fc.name, response=result)
                 )
@@ -482,6 +485,8 @@ class GeminiProvider(BaseLLMProvider):
             for fc in function_calls:
                 args = dict(fc.args) if fc.args else {}
                 result = request.tool_executor(fc.name, args)
+                if asyncio.iscoroutine(result):
+                    result = await result
                 result_parts.append(
                     types.Part.from_function_response(name=fc.name, response=result)
                 )

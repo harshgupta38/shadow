@@ -137,9 +137,23 @@ class MilestoneProposalLLMSchema(BaseModel):
         default=None,
         description="Estimated target date in YYYY-MM-DD format, if derivable from the goal. Null otherwise.",
     )
+    assistant_context: dict[str, Any] | None = Field(
+        default=None,
+        description=(
+            "Structured context to support daily planning and progress reporting for this milestone. "
+            "Include: key_steps (list of concrete action steps), daily_focus (what the user should work on each day), "
+            "success_indicators (how to know the milestone is on track), "
+            "and any other context relevant to breaking this milestone into daily work."
+        ),
+    )
 
 
 class MilestoneProposalListLLMSchema(BaseModel):
     milestones: list[MilestoneProposalLLMSchema] = Field(
         description="An ordered list of milestone proposals, from first to last."
     )
+
+
+class SaveMilestoneFromProposalRequest(BaseModel):
+    proposal_id: str
+    milestone: MilestoneProposalLLMSchema

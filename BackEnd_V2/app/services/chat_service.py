@@ -16,6 +16,8 @@ from app.models.user import UserDBM
 from app.models.chat import ConversationDBM, MessageDBM
 from app.models.goal import GoalDBM
 from app.models.goal_proposal import GoalProposalDBM
+from app.models.milestone import MilestoneDBM
+from app.models.milestone_proposal import MilestoneProposalDBM
 from app.schemas.chat import (
     ConvoDataResponse,
     ConvoDataShortResponse,
@@ -67,37 +69,95 @@ def _resolve_goal_proposal_actions(
     return {**linked_items, "goal_proposals": resolved_proposals}
 
 
+def _resolve_milestone_proposal_actions(
+    db: Session, current_user: UserDBM, linked_items: dict
+) -> dict:
+    """Derive each milestone proposal's CTA from whether its milestone still exists."""
+    proposals = linked_items.get("milestone_proposals")
+    if not proposals:
+        return linked_items
+
+    milestone_ids = {p["milestone_id"] for p in proposals if p.get("milestone_id") is not None}
+    existing_milestone_ids: set[int] = set()
+    if milestone_ids:
+        existing_milestone_ids = set(
+            db.scalars(
+                select(MilestoneDBM.id).where(
+                    MilestoneDBM.id.in_(milestone_ids),
+                    MilestoneDBM.user_id == current_user.id,
+                )
+            ).all()
+        )
+
+    resolved_proposals = [
+        {
+            **proposal,
+            "milestone_action": "view" if proposal.get("milestone_id") in existing_milestone_ids else "create",
+        }
+        for proposal in proposals
+    ]
+
+    return {**linked_items, "milestone_proposals": resolved_proposals}
+
+
 def _serialize_message(
     db: Session, current_user: UserDBM, message: MessageDBM
 ) -> MessageDataResponse:
     data = MessageDataResponse.model_validate(message)
     data.linked_items = _resolve_goal_proposal_actions(db, current_user, data.linked_items)
+    data.linked_items = _resolve_milestone_proposal_actions(db, current_user, data.linked_items)
     return data
 
 
 def _attach_milestone_proposals(
+    db: Session,
+    current_user: UserDBM,
+    conversation: ConversationDBM,
     assistant_message: MessageDBM,
     action_data: dict | None,
     content_index: int,
 ) -> None:
-    """Attach generated milestone proposals for a specific content version.
+    """Persist milestone proposals to DB and attach them to the message linked_items.
 
-    Existing proposals for other content versions (e.g. from prior
-    generations) are preserved untouched.
+    Each milestone gets its own proposal row and UUID so the frontend can
+    track and save them independently. Existing proposals from prior
+    regenerations are preserved untouched.
     """
     if not action_data or "milestone_proposals" not in action_data:
         return
 
     proposal_data = action_data["milestone_proposals"]
+    goal_id = proposal_data["goal_id"]
+    milestones = proposal_data["milestones"]
+
     existing_linked_items = assistant_message.linked_items or {}
     existing_proposals = list(existing_linked_items.get("milestone_proposals") or [])
-    existing_proposals.append(
-        {
-            "content_index": content_index,
-            "goal_id": proposal_data["goal_id"],
-            "milestones": proposal_data["milestones"],
-        }
-    )
+
+    for milestone in milestones:
+        proposal_id = str(uuid.uuid4())
+        db.add(
+            MilestoneProposalDBM(
+                proposal_id=proposal_id,
+                user_id=current_user.id,
+                conversation_id=conversation.id,
+                message_id=assistant_message.id,
+                content_index=content_index,
+                goal_id=goal_id,
+                status="pending",
+                milestone_id=None,
+            )
+        )
+        existing_proposals.append(
+            {
+                "proposal_id": proposal_id,
+                "content_index": content_index,
+                "goal_id": goal_id,
+                "status": "pending",
+                "milestone_id": None,
+                "milestone": milestone,
+            }
+        )
+
     assistant_message.linked_items = {
         **existing_linked_items,
         "milestone_proposals": existing_proposals,
@@ -214,7 +274,7 @@ async def create_conversation(
     _attach_goal_proposal(
         db, current_user, conversation, assistant_message, tool_context.action_data, 0
     )
-    _attach_milestone_proposals(assistant_message, tool_context.action_data, 0)
+    _attach_milestone_proposals(db, current_user, conversation, assistant_message, tool_context.action_data, 0)
 
     db.commit()
     db.refresh(conversation)
@@ -441,7 +501,7 @@ async def respond_to_message(
     _attach_goal_proposal(
         db, current_user, conversation, assistant_message, tool_context.action_data, 0
     )
-    _attach_milestone_proposals(assistant_message, tool_context.action_data, 0)
+    _attach_milestone_proposals(db, current_user, conversation, assistant_message, tool_context.action_data, 0)
 
     conversation.updated_at = assistant_message.created_at
     db.commit()
@@ -547,7 +607,7 @@ async def regenerate_response(
         tool_context.action_data,
         new_content_index,
     )
-    _attach_milestone_proposals(assistant_message, tool_context.action_data, new_content_index)
+    _attach_milestone_proposals(db, current_user, conversation, assistant_message, tool_context.action_data, new_content_index)
 
     conversation.updated_at = datetime.now(timezone.utc)
     db.commit()

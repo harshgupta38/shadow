@@ -16,6 +16,7 @@ class Endpoints:
     class MILESTONES:
         PREFIX = "/milestone"
         SAVE = "/save"
+        FROM_PROPOSAL = "/from-proposal"
         GET_LIST = "/get-list"
         DETAIL = "/{milestone_id}"
 

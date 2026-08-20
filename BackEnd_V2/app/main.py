@@ -16,6 +16,7 @@ from app.models.user import UserDBM
 from app.models.goal import GoalDBM
 from app.models.goal_proposal import GoalProposalDBM
 from app.models.milestone import MilestoneDBM
+from app.models.milestone_proposal import MilestoneProposalDBM
 from app.models.task import TaskDBM
 
 

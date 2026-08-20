@@ -9,10 +9,24 @@ from app.schemas.milestones import (
     MilestoneUpdateRequest,
     MilestoneStatus,
     MilestoneDataResponse,
+    SaveMilestoneFromProposalRequest,
 )
 from app.services import milestones_service
 
 router = APIRouter(prefix=ENDPOINTS.MILESTONES.PREFIX, tags=["Milestones"])
+
+
+@router.post(
+    ENDPOINTS.MILESTONES.FROM_PROPOSAL,
+    response_model=MilestoneDataResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def save_milestone_from_proposal(
+    data: SaveMilestoneFromProposalRequest,
+    db=Depends(get_db),
+    current_user: UserDBM = Depends(get_current_user),
+) -> MilestoneDataResponse:
+    return milestones_service.save_milestone_from_proposal(db, current_user, data)
 
 
 @router.post(

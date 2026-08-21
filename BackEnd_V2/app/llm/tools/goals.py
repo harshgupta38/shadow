@@ -1,3 +1,4 @@
+from enum import Enum, StrEnum
 from typing import Callable, get_args
 
 from app.schemas.goals import GoalListStatusFilter
@@ -72,8 +73,8 @@ def get_goal_detail(context: ToolContext, arguments: dict) -> dict:
         return {"goal": goal.model_dump(mode="json")}
 
 
-GOAL_TOOL_DEFINITIONS: list[dict] = [
-    {
+class GoalToolDefinitions(Enum):
+    REFINE_GOAL = {
         "type": "function",
         "function": {
             "name": "refine_goal",
@@ -117,8 +118,8 @@ GOAL_TOOL_DEFINITIONS: list[dict] = [
                 "additionalProperties": False,
             },
         },
-    },
-    {
+    }
+    GET_CURRENT_GOALS = {
         "type": "function",
         "function": {
             "name": "get_current_goals",
@@ -163,8 +164,8 @@ GOAL_TOOL_DEFINITIONS: list[dict] = [
                 "additionalProperties": False,
             },
         },
-    },
-    {
+    }
+    GET_GOAL_DETAIL = {
         "type": "function",
         "function": {
             "name": "get_goal_detail",
@@ -199,11 +200,20 @@ GOAL_TOOL_DEFINITIONS: list[dict] = [
                 "additionalProperties": False,
             },
         },
-    },
-]
+    }
+
+
+GOAL_TOOL_DEFINITIONS: list[dict] = [t.value for t in GoalToolDefinitions]
+
+
+class GoalToolsEnum(StrEnum):
+    REFINE_GOAL = "refine_goal"
+    GET_CURRENT_GOALS = "get_current_goals"
+    GET_GOAL_DETAIL = "get_goal_detail"
+
 
 GOAL_TOOLS: dict[str, Callable] = {
-    "refine_goal": refine_goal,
-    "get_current_goals": get_current_goals,
-    "get_goal_detail": get_goal_detail,
+    GoalToolsEnum.REFINE_GOAL: refine_goal,
+    GoalToolsEnum.GET_CURRENT_GOALS: get_current_goals,
+    GoalToolsEnum.GET_GOAL_DETAIL: get_goal_detail,
 }

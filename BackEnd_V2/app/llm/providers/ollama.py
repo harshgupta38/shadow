@@ -41,7 +41,7 @@ from app.llm.exceptions import (
     LLMProviderError,
     LLMRequestError,
 )
-from app.llm.tools import MAX_TOOL_ITERATIONS, TOOL_DEFINITIONS
+from app.llm.tools import MAX_TOOL_ITERATIONS, AGENT_TOOL_DEFINITIONS
 
 
 class OllamaProvider(BaseLLMProvider):
@@ -77,16 +77,20 @@ class OllamaProvider(BaseLLMProvider):
         temperature: float | None = None,
         max_tokens: int | None = None,
         user_id: str | None = None,
+        agent_type: str = "shadow",
     ) -> tuple:
+        tools = AGENT_TOOL_DEFINITIONS.get(agent_type, [])
         started_at = perf_counter()
         try:
-            completion = await self._client.chat.completions.create(
-                model=model,
-                messages=messages,
-                tools=TOOL_DEFINITIONS,
-                temperature=temperature,
-                max_tokens=max_tokens,
-            )
+            kwargs = {
+                "model": model,
+                "messages": messages,
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+            }
+            if tools:
+                kwargs["tools"] = tools
+            completion = await self._client.chat.completions.create(**kwargs)
         except (APIConnectionError, APIStatusError, OpenAIError) as exc:
             raise LLMProviderError(f"Ollama {operation} failed: {exc}") from exc
         latency_ms = int((perf_counter() - started_at) * 1000)
@@ -282,6 +286,7 @@ class OllamaProvider(BaseLLMProvider):
             temperature=request.temperature,
             max_tokens=request.max_tokens,
             user_id=request.user_id,
+            agent_type=request_data.agent_type,
         )
         if usage_delta:
             usage_received = True
@@ -336,6 +341,7 @@ class OllamaProvider(BaseLLMProvider):
                 temperature=request.temperature,
                 max_tokens=request.max_tokens,
                 user_id=request.user_id,
+                agent_type=request_data.agent_type,
             )
             if usage_delta:
                 usage_received = True
@@ -445,6 +451,7 @@ class OllamaProvider(BaseLLMProvider):
             temperature=request.temperature,
             max_tokens=request.max_tokens,
             user_id=request.user_id,
+            agent_type=request.agent_type,
         )
         if usage_delta:
             usage_received = True
@@ -499,6 +506,7 @@ class OllamaProvider(BaseLLMProvider):
                 temperature=request.temperature,
                 max_tokens=request.max_tokens,
                 user_id=request.user_id,
+                agent_type=request.agent_type,
             )
             if usage_delta:
                 usage_received = True

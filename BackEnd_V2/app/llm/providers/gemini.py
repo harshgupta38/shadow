@@ -44,11 +44,10 @@ from app.schemas.chat import (
     MessageFromLLMSchema,
     NewConvoFromLLMSchema,
 )
-from app.llm.tools import MAX_TOOL_ITERATIONS, TOOL_DEFINITIONS
+from app.llm.tools import MAX_TOOL_ITERATIONS, AGENT_TOOL_DEFINITIONS
 
 
 def _strip_schema_extras(obj):
-    """Recursively remove keys Gemini doesn't support in JSON Schema function parameters."""
     if isinstance(obj, dict):
         return {
             k: _strip_schema_extras(v)
@@ -60,21 +59,18 @@ def _strip_schema_extras(obj):
     return obj
 
 
-def _build_gemini_tools() -> list[types.Tool]:
-    declarations = []
-    for tool_def in TOOL_DEFINITIONS:
-        fn = tool_def["function"]
-        declarations.append(
-            types.FunctionDeclaration(
-                name=fn["name"],
-                description=fn["description"],
-                parameters_json_schema=_strip_schema_extras(fn["parameters"]),
-            )
+def _to_gemini_tools(tool_defs: list[dict]) -> list[types.Tool] | None:
+    if not tool_defs:
+        return None
+    declarations = [
+        types.FunctionDeclaration(
+            name=t["function"]["name"],
+            description=t["function"]["description"],
+            parameters_json_schema=_strip_schema_extras(t["function"]["parameters"]),
         )
+        for t in tool_defs
+    ]
     return [types.Tool(function_declarations=declarations)]
-
-
-GEMINI_TOOLS = _build_gemini_tools()
 
 
 class GeminiProvider(BaseLLMProvider):
@@ -107,6 +103,7 @@ class GeminiProvider(BaseLLMProvider):
         temperature: float | None = None,
         max_tokens: int | None = None,
         user_id: str | None = None,
+        agent_type: str = "shadow",
     ) -> tuple:
         started_at = perf_counter()
         try:
@@ -115,7 +112,7 @@ class GeminiProvider(BaseLLMProvider):
                 contents=contents,
                 config=types.GenerateContentConfig(
                     system_instruction=system_instruction,
-                    tools=GEMINI_TOOLS,
+                    tools=_to_gemini_tools(AGENT_TOOL_DEFINITIONS.get(agent_type, [])),
                     temperature=temperature,
                     max_output_tokens=max_tokens,
                     http_options=types.HttpOptions(
@@ -312,6 +309,7 @@ class GeminiProvider(BaseLLMProvider):
             temperature=request.temperature,
             max_tokens=request.max_tokens,
             user_id=request.user_id,
+            agent_type=request_data.agent_type,
         )
         if usage_delta:
             usage_received = True
@@ -347,6 +345,7 @@ class GeminiProvider(BaseLLMProvider):
                 temperature=request.temperature,
                 max_tokens=request.max_tokens,
                 user_id=request.user_id,
+                agent_type=request_data.agent_type,
             )
             if usage_delta:
                 usage_received = True
@@ -465,6 +464,7 @@ class GeminiProvider(BaseLLMProvider):
             temperature=request.temperature,
             max_tokens=request.max_tokens,
             user_id=request.user_id,
+            agent_type=request.agent_type,
         )
         if usage_delta:
             usage_received = True
@@ -498,6 +498,7 @@ class GeminiProvider(BaseLLMProvider):
                 temperature=request.temperature,
                 max_tokens=request.max_tokens,
                 user_id=request.user_id,
+                agent_type=request.agent_type,
             )
             if usage_delta:
                 usage_received = True

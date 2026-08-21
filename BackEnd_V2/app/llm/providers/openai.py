@@ -42,7 +42,7 @@ from app.schemas.chat import (
     MessageFromLLMSchema,
     NewConvoFromLLMSchema,
 )
-from app.llm.tools import MAX_TOOL_ITERATIONS, TOOL_DEFINITIONS
+from app.llm.tools import MAX_TOOL_ITERATIONS, AGENT_TOOL_DEFINITIONS
 
 
 class OpenAIProvider(BaseLLMProvider):
@@ -72,12 +72,16 @@ class OpenAIProvider(BaseLLMProvider):
         temperature: float | None = None,
         max_tokens: int | None = None,
         user_id: str | None = None,
+        agent_type: str = "shadow",
     ) -> tuple:
         kwargs = {
             "model": model,
             "messages": messages,
-            "tools": TOOL_DEFINITIONS,
         }
+
+        tools = AGENT_TOOL_DEFINITIONS.get(agent_type, [])
+        if tools:
+            kwargs["tools"] = tools
 
         if temperature is not None:
             kwargs["temperature"] = temperature
@@ -302,6 +306,7 @@ class OpenAIProvider(BaseLLMProvider):
             temperature=request.temperature,
             max_tokens=request.max_tokens,
             user_id=request.user_id,
+            agent_type=request_data.agent_type
         )
         if usage_delta:
             usage_received = True
@@ -356,6 +361,7 @@ class OpenAIProvider(BaseLLMProvider):
                 temperature=request.temperature,
                 max_tokens=request.max_tokens,
                 user_id=request.user_id,
+                agent_type=request_data.agent_type
             )
             if usage_delta:
                 usage_received = True
@@ -474,6 +480,7 @@ class OpenAIProvider(BaseLLMProvider):
             temperature=request.temperature,
             max_tokens=request.max_tokens,
             user_id=request.user_id,
+            agent_type=request.agent_type
         )
         if usage_delta:
             usage_received = True
@@ -528,6 +535,7 @@ class OpenAIProvider(BaseLLMProvider):
                 temperature=request.temperature,
                 max_tokens=request.max_tokens,
                 user_id=request.user_id,
+                agent_type=request.agent_type
             )
             if usage_delta:
                 usage_received = True

@@ -1,4 +1,5 @@
 from datetime import date
+from enum import Enum, StrEnum
 from typing import Callable, get_args
 
 from app.schemas.milestones import MilestoneCreateRequest, MilestoneStatus, MilestoneUpdateRequest
@@ -110,8 +111,8 @@ def update_milestone(context: ToolContext, arguments: dict) -> dict:
     return {"milestone": milestone.model_dump(mode="json")}
 
 
-MILESTONE_TOOL_DEFINITIONS: list[dict] = [
-    {
+class MilestoneToolDefinitions(Enum):
+    CREATE_MILESTONE_PROPOSALS = {
         "type": "function",
         "function": {
             "name": "create_milestone_proposals",
@@ -136,36 +137,36 @@ MILESTONE_TOOL_DEFINITIONS: list[dict] = [
                 "additionalProperties": False,
             },
         },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "delete_milestone",
-            "description": (
-                "Use this tool to permanently delete a milestone. This action cannot be undone. "
-                "Always tell the user which milestone you are about to delete and ask for explicit "
-                "confirmation before proceeding. Set confirmed to true only after the user confirms."
-            ),
-            "strict": True,
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "milestone_id": {
-                        "type": "integer",
-                        "minimum": 1,
-                        "description": "The unique identifier of the milestone to delete.",
-                    },
-                    "confirmed": {
-                        "type": "boolean",
-                        "description": "Set to true only after the user explicitly confirms deletion.",
-                    },
-                },
-                "required": ["milestone_id", "confirmed"],
-                "additionalProperties": False,
-            },
-        },
-    },
-    {
+    }
+    # DELETE_MILESTONE = {
+    #     "type": "function",
+    #     "function": {
+    #         "name": "delete_milestone",
+    #         "description": (
+    #             "Use this tool to permanently delete a milestone. This action cannot be undone. "
+    #             "Always tell the user which milestone you are about to delete and ask for explicit "
+    #             "confirmation before proceeding. Set confirmed to true only after the user confirms."
+    #         ),
+    #         "strict": True,
+    #         "parameters": {
+    #             "type": "object",
+    #             "properties": {
+    #                 "milestone_id": {
+    #                     "type": "integer",
+    #                     "minimum": 1,
+    #                     "description": "The unique identifier of the milestone to delete.",
+    #                 },
+    #                 "confirmed": {
+    #                     "type": "boolean",
+    #                     "description": "Set to true only after the user explicitly confirms deletion.",
+    #                 },
+    #             },
+    #             "required": ["milestone_id", "confirmed"],
+    #             "additionalProperties": False,
+    #         },
+    #     },
+    # }
+    GET_MILESTONE_LIST = {
         "type": "function",
         "function": {
             "name": "get_milestone_list",
@@ -199,8 +200,8 @@ MILESTONE_TOOL_DEFINITIONS: list[dict] = [
                 "additionalProperties": False,
             },
         },
-    },
-    {
+    }
+    GET_MILESTONE_DETAIL = {
         "type": "function",
         "function": {
             "name": "get_milestone_detail",
@@ -225,157 +226,169 @@ MILESTONE_TOOL_DEFINITIONS: list[dict] = [
                 "additionalProperties": False,
             },
         },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "create_milestone",
-            "description": (
-                "Use this tool to create a new milestone under an existing goal. "
-                "Call get_current_goals first if you need to look up the goal_id. "
-                    "Always explain what milestone you are about to create and ask for user "
-                    "confirmation. Set confirmed to true only after the user confirms."
-            ),
-            "strict": True,
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "goal_id": {
-                        "type": "integer",
-                        "minimum": 1,
-                        "description": "The ID of the goal this milestone belongs to.",
-                    },
-                    "title": {
-                        "type": "string",
-                        "minLength": 1,
-                        "maxLength": 255,
-                        "description": "A short, clear title for the milestone.",
-                    },
-                    "reason": {
-                        "type": "string",
-                        "minLength": 1,
-                        "maxLength": 2000,
-                        "description": (
-                            "Why this milestone is important for achieving the goal. "
-                            "Be specific and motivating."
-                        ),
-                    },
-                    "description": {
-                        "type": ["string", "null"],
-                        "maxLength": 4000,
-                        "description": (
-                            "Optional additional detail about what this milestone involves. "
-                            "Use null if not needed."
-                        ),
-                    },
-                    "estimated_duration_days": {
-                        "type": ["integer", "null"],
-                        "minimum": 1,
-                        "description": (
-                            "Estimated number of days to complete this milestone. "
-                            "Use null if unknown."
-                        ),
-                    },
-                    "confirmed": {
-                        "type": "boolean",
-                        "description": "Set to true only after the user explicitly confirms creation.",
-                    },
-                },
-                "required": [
-                    "goal_id",
-                    "title",
-                    "reason",
-                    "description",
-                    "estimated_duration_days",
-                    "confirmed",
-                ],
-                "additionalProperties": False,
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "update_milestone",
-            "description": (
-                "Use this tool to update an existing milestone. Only the fields you provide "
-                    "will be changed; use null to clear nullable fields. "
-                    "Always ask for user confirmation and set confirmed to true only after "
-                    "the user explicitly confirms."
-            ),
-            "strict": True,
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "milestone_id": {
-                        "type": "integer",
-                        "minimum": 1,
-                        "description": "The unique identifier of the milestone to update.",
-                    },
-                    "title": {
-                        "type": ["string", "null"],
-                        "minLength": 1,
-                        "maxLength": 255,
-                        "description": "New title. Use null to leave unchanged.",
-                    },
-                    "description": {
-                        "type": ["string", "null"],
-                        "maxLength": 4000,
-                        "description": "New description. Use null to leave unchanged.",
-                    },
-                    "status": {
-                        "type": ["string", "null"],
-                        "enum": [*get_args(MilestoneStatus), None],
-                        "description": (
-                            "New status. Use 'Not Started', 'In Progress', 'Paused', "
-                            "'Completed', or 'Cancelled'. Use null to leave unchanged."
-                        ),
-                    },
-                    "reason": {
-                        "type": ["string", "null"],
-                        "minLength": 1,
-                        "maxLength": 2000,
-                        "description": "Updated reason. Use null to leave unchanged.",
-                    },
-                    "estimated_duration_days": {
-                        "type": ["integer", "null"],
-                        "minimum": 1,
-                        "description": "Updated duration estimate in days. Use null to leave unchanged.",
-                    },
-                    "target_date": {
-                        "type": ["string", "null"],
-                        "format": "date",
-                        "description": (
-                            "New target date in YYYY-MM-DD format. Must be today or a future date. "
-                            "Use null to clear the target date."
-                        ),
-                    },
-                    "confirmed": {
-                        "type": "boolean",
-                        "description": "Set to true only after the user explicitly confirms the update.",
-                    },
-                },
-                "required": [
-                    "milestone_id",
-                    "title",
-                    "description",
-                    "status",
-                    "reason",
-                    "estimated_duration_days",
-                    "target_date",
-                    "confirmed",
-                ],
-                "additionalProperties": False,
-            },
-        },
-    },
-]
+    }
+    # CREATE_MILESTONE = {
+    #     "type": "function",
+    #     "function": {
+    #         "name": "create_milestone",
+    #         "description": (
+    #             "Use this tool to create a new milestone under an existing goal. "
+    #             "Call get_current_goals first if you need to look up the goal_id. "
+    #             "Always explain what milestone you are about to create and ask for user "
+    #             "confirmation. Set confirmed to true only after the user confirms."
+    #         ),
+    #         "strict": True,
+    #         "parameters": {
+    #             "type": "object",
+    #             "properties": {
+    #                 "goal_id": {
+    #                     "type": "integer",
+    #                     "minimum": 1,
+    #                     "description": "The ID of the goal this milestone belongs to.",
+    #                 },
+    #                 "title": {
+    #                     "type": "string",
+    #                     "minLength": 1,
+    #                     "maxLength": 255,
+    #                     "description": "A short, clear title for the milestone.",
+    #                 },
+    #                 "reason": {
+    #                     "type": "string",
+    #                     "minLength": 1,
+    #                     "maxLength": 2000,
+    #                     "description": (
+    #                         "Why this milestone is important for achieving the goal. "
+    #                         "Be specific and motivating."
+    #                     ),
+    #                 },
+    #                 "description": {
+    #                     "type": ["string", "null"],
+    #                     "maxLength": 4000,
+    #                     "description": (
+    #                         "Optional additional detail about what this milestone involves. "
+    #                         "Use null if not needed."
+    #                     ),
+    #                 },
+    #                 "estimated_duration_days": {
+    #                     "type": ["integer", "null"],
+    #                     "minimum": 1,
+    #                     "description": (
+    #                         "Estimated number of days to complete this milestone. "
+    #                         "Use null if unknown."
+    #                     ),
+    #                 },
+    #                 "confirmed": {
+    #                     "type": "boolean",
+    #                     "description": "Set to true only after the user explicitly confirms creation.",
+    #                 },
+    #             },
+    #             "required": [
+    #                 "goal_id",
+    #                 "title",
+    #                 "reason",
+    #                 "description",
+    #                 "estimated_duration_days",
+    #                 "confirmed",
+    #             ],
+    #             "additionalProperties": False,
+    #         },
+    #     },
+    # }
+    # UPDATE_MILESTONE = {
+    #     "type": "function",
+    #     "function": {
+    #         "name": "update_milestone",
+    #         "description": (
+    #             "Use this tool to update an existing milestone. Only the fields you provide "
+    #             "will be changed; use null to clear nullable fields. "
+    #             "Always ask for user confirmation and set confirmed to true only after "
+    #             "the user explicitly confirms."
+    #         ),
+    #         "strict": True,
+    #         "parameters": {
+    #             "type": "object",
+    #             "properties": {
+    #                 "milestone_id": {
+    #                     "type": "integer",
+    #                     "minimum": 1,
+    #                     "description": "The unique identifier of the milestone to update.",
+    #                 },
+    #                 "title": {
+    #                     "type": ["string", "null"],
+    #                     "minLength": 1,
+    #                     "maxLength": 255,
+    #                     "description": "New title. Use null to leave unchanged.",
+    #                 },
+    #                 "description": {
+    #                     "type": ["string", "null"],
+    #                     "maxLength": 4000,
+    #                     "description": "New description. Use null to leave unchanged.",
+    #                 },
+    #                 "status": {
+    #                     "type": ["string", "null"],
+    #                     "enum": [*get_args(MilestoneStatus), None],
+    #                     "description": (
+    #                         "New status. Use 'Not Started', 'In Progress', 'Paused', "
+    #                         "'Completed', or 'Cancelled'. Use null to leave unchanged."
+    #                     ),
+    #                 },
+    #                 "reason": {
+    #                     "type": ["string", "null"],
+    #                     "minLength": 1,
+    #                     "maxLength": 2000,
+    #                     "description": "Updated reason. Use null to leave unchanged.",
+    #                 },
+    #                 "estimated_duration_days": {
+    #                     "type": ["integer", "null"],
+    #                     "minimum": 1,
+    #                     "description": "Updated duration estimate in days. Use null to leave unchanged.",
+    #                 },
+    #                 "target_date": {
+    #                     "type": ["string", "null"],
+    #                     "format": "date",
+    #                     "description": (
+    #                         "New target date in YYYY-MM-DD format. Must be today or a future date. "
+    #                         "Use null to clear the target date."
+    #                     ),
+    #                 },
+    #                 "confirmed": {
+    #                     "type": "boolean",
+    #                     "description": "Set to true only after the user explicitly confirms the update.",
+    #                 },
+    #             },
+    #             "required": [
+    #                 "milestone_id",
+    #                 "title",
+    #                 "description",
+    #                 "status",
+    #                 "reason",
+    #                 "estimated_duration_days",
+    #                 "target_date",
+    #                 "confirmed",
+    #             ],
+    #             "additionalProperties": False,
+    #         },
+        # },
+    # }
+
+
+MILESTONE_TOOL_DEFINITIONS: list[dict] = [t.value for t in MilestoneToolDefinitions]
+
+
+class MilestoneToolsEnum(StrEnum):
+    CREATE_MILESTONE_PROPOSALS = "create_milestone_proposals"
+    GET_MILESTONE_LIST = "get_milestone_list"
+    GET_MILESTONE_DETAIL = "get_milestone_detail"
+    CREATE_MILESTONE = "create_milestone"
+    UPDATE_MILESTONE = "update_milestone"
+    DELETE_MILESTONE = "delete_milestone"
+
 
 MILESTONE_TOOLS: dict[str, Callable] = {
-    "create_milestone_proposals": create_milestone_proposals,
-    "get_milestone_list": get_milestone_list,
-    "get_milestone_detail": get_milestone_detail,
-    # "create_milestone": create_milestone,
-    # "update_milestone": update_milestone,
-    # "delete_milestone": delete_milestone,
+    MilestoneToolsEnum.CREATE_MILESTONE_PROPOSALS: create_milestone_proposals,
+    MilestoneToolsEnum.GET_MILESTONE_LIST: get_milestone_list,
+    MilestoneToolsEnum.GET_MILESTONE_DETAIL: get_milestone_detail,
+    # MilestoneToolsEnum.CREATE_MILESTONE: create_milestone,
+    # MilestoneToolsEnum.UPDATE_MILESTONE: update_milestone,
+    # MilestoneToolsEnum.DELETE_MILESTONE: delete_milestone,
 }

@@ -45,22 +45,18 @@ from app.schemas.chat import (
     MessageFromLLMSchema,
     NewConvoFromLLMSchema,
 )
-from app.llm.tools import MAX_TOOL_ITERATIONS, TOOL_DEFINITIONS
+from app.llm.tools import MAX_TOOL_ITERATIONS, AGENT_TOOL_DEFINITIONS
 
 
-def _build_claude_tools() -> list[dict]:
-    """Convert OpenAI-format tool definitions to Claude's flat format."""
+def _to_claude_tools(tool_defs: list[dict]) -> list[dict]:
     return [
         {
-            "name": tool_def["function"]["name"],
-            "description": tool_def["function"]["description"],
-            "input_schema": tool_def["function"]["parameters"],
+            "name": t["function"]["name"],
+            "description": t["function"]["description"],
+            "input_schema": t["function"]["parameters"],
         }
-        for tool_def in TOOL_DEFINITIONS
+        for t in tool_defs
     ]
-
-
-CLAUDE_TOOLS = _build_claude_tools()
 
 
 class ClaudeProvider(BaseLLMProvider):
@@ -144,6 +140,7 @@ class ClaudeProvider(BaseLLMProvider):
         temperature: float | None = None,
         max_tokens: int | None = None,
         user_id: str | None = None,
+        agent_type: str = "shadow",
     ) -> tuple:
         started_at = perf_counter()
         try:
@@ -151,9 +148,11 @@ class ClaudeProvider(BaseLLMProvider):
                 "model": model,
                 "system": system,
                 "messages": messages,
-                "tools": CLAUDE_TOOLS,
                 "max_tokens": max_tokens or 2048,
             }
+            tools = _to_claude_tools(AGENT_TOOL_DEFINITIONS.get(agent_type, []))
+            if tools:
+                kwargs["tools"] = tools
             if temperature is not None:
                 kwargs["temperature"] = temperature
 
@@ -340,6 +339,7 @@ class ClaudeProvider(BaseLLMProvider):
             temperature=request.temperature,
             max_tokens=request.max_tokens,
             user_id=request.user_id,
+            agent_type=request_data.agent_type,
         )
         if usage_delta:
             usage_received = True
@@ -381,6 +381,7 @@ class ClaudeProvider(BaseLLMProvider):
                 temperature=request.temperature,
                 max_tokens=request.max_tokens,
                 user_id=request.user_id,
+                agent_type=request_data.agent_type,
             )
             if usage_delta:
                 usage_received = True
@@ -450,6 +451,7 @@ class ClaudeProvider(BaseLLMProvider):
             temperature=request.temperature,
             max_tokens=request.max_tokens,
             user_id=request.user_id,
+            agent_type=request.agent_type,
         )
         if usage_delta:
             usage_received = True
@@ -491,6 +493,7 @@ class ClaudeProvider(BaseLLMProvider):
                 temperature=request.temperature,
                 max_tokens=request.max_tokens,
                 user_id=request.user_id,
+                agent_type=request.agent_type,
             )
             if usage_delta:
                 usage_received = True

@@ -84,12 +84,14 @@ export function AssistantPage() {
         prefillMessage?: string
       } | null;
 
-    if (state?.agentType && state?.autoMessage) {
+    if (state?.agentType) {
       const agent = ASSISTANT_AGENTS[state.agentType as keyof typeof ASSISTANT_AGENTS];
-      if (agent) {
+      if (agent) 
         openAgent(agent);
+      if (state.prefillMessage)
+        setInputText(state.prefillMessage);
+      else if(state?.autoMessage)
         setPendingAutoMessage(state.autoMessage);
-      }
     } else if (state?.conversationId) {
       const conversation = conversations.find(c => c.id === state.conversationId);
       if (conversation) {

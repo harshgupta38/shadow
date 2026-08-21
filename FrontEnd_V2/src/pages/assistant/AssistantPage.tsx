@@ -465,7 +465,7 @@ export function AssistantPage() {
 
   if (isLoading) {
     return (
-      <div className="page-fill-height">
+      <div className="assistant-page-container page-fill-height">
         <PageHeader title="Assistant" subtitle="Coaching that knows your goals, style and progress." />
         <div className="page-loader">
           <div className="page-loader-message">
@@ -492,7 +492,7 @@ export function AssistantPage() {
   });
 
   return (
-    <div className={`page-fill-height ${hasAnyChat ? "assistant-page" : ""}`}>
+    <div className={`assistant-page-container page-fill-height ${hasAnyChat ? "assistant-page" : ""}`}>
       <div className={`${hasAnyChat ? "hide-page-header" : ""}`}>
         <PageHeader title="Assistant" subtitle="Coaching that knows your goals, style and progress." />
       </div>

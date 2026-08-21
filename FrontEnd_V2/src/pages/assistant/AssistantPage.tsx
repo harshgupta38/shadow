@@ -367,10 +367,47 @@ export function AssistantPage() {
   }
 
   async function retryMessage(message: MessageDataResponse) {
-    if (isLoadingMessages || !message.id || !activeItem) return;
+    if (isLoadingMessages || !activeItem) return;
 
     const targetConvId = activeItem.id;
     setProcessingConversationId(targetConvId);
+
+    // First message of a local conversation — no DB record exists yet, re-run startConversation
+    if (activeItem.is_local) {
+      const text = message.content[0];
+      if (!text) return;
+      updateConversationMessages(targetConvId, prev =>
+        prev.map(m => m.created_at === message.created_at ? { ...m, request_status: "pending" } : m)
+      );
+      try {
+        const response = await api.chat.startConversation({
+          content: text,
+          agent_type: activeItem.agent_type,
+        });
+        const activeItemCopy = { ...activeItem, ...response.conversation_data, is_local: false };
+        const realId = activeItemCopy.id;
+        setConversations(prev => prev.map(c => c.id === targetConvId ? activeItemCopy : c));
+        setActiveConversation(prev => prev?.id === targetConvId ? activeItemCopy : prev);
+        setMessagesCache(prev => {
+          const next = new Map(prev);
+          const existing = next.get(targetConvId) ?? [];
+          next.delete(targetConvId);
+          next.set(realId, [...existing, response.message_data]);
+          return next;
+        });
+      } catch (error) {
+        toast.error(error instanceof ApiError ? error.message : "Failed to send message. Please try again.");
+        updateConversationMessages(targetConvId, prev =>
+          prev.map(m => m.created_at === message.created_at ? { ...m, request_status: "failed" } : m)
+        );
+      } finally {
+        setProcessingConversationId(prev => prev === targetConvId ? null : prev);
+      }
+      return;
+    }
+
+    if (!message.id) return;
+
     try {
       const response = await api.chat.retryFailedMessage({
         conversation_id: targetConvId,

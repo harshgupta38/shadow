@@ -1,4 +1,4 @@
-import type { FilterState, HabitCreateRequest } from "@/api";
+import type { FilterState, HabitCreateRequest, HabitPriority } from "@/api";
 
 export const SLIDE_OUT_DURATION_MS = 220;
 
@@ -21,18 +21,19 @@ export const FREQUENCY_OPTIONS = [
 ];
 
 export const PREFERRED_TIME_OPTIONS = [
-    { value: "flexible", label: "Flexible (no preference)" },
-    { value: "morning", label: "Morning (before noon)" },
-    { value: "afternoon", label: "Afternoon (noon - 5 pm)" },
-    { value: "evening", label: "Evening (after 5 pm)" },
-    { value: "specific", label: "Specific time…" },
+    { value: "flexible",  label: "Flexible (no preference)" },
+    { value: "morning",   label: "Morning (before 12 pm)" },
+    { value: "afternoon", label: "Afternoon (12 pm - 5 pm)" },
+    { value: "evening",   label: "Evening (5 pm - 9 pm)" },
+    { value: "night",     label: "Night (after 9 pm)" },
+    { value: "custom",    label: "Specific time…" },
 ];
 
 function todayIso(): string {
     return new Date().toISOString().slice(0, 10);
 }
 
-export const EMPTY_FILTERS: FilterState = { status: [], frequency: [] };
+export const EMPTY_FILTERS: FilterState = { status: [], priority: [], frequency: [] };
 
 export const EMPTY_DRAFT: HabitCreateRequest = {
     name: "",
@@ -43,11 +44,17 @@ export const EMPTY_DRAFT: HabitCreateRequest = {
     duration_minutes: null,
     start_date: todayIso(),
     end_date: null,
-    is_ongoing: true,
+    priority: "medium",
 };
 
 
+export const PRIORITY_OPTIONS: { value: HabitPriority; label: string }[] = [
+    { value: "highest", label: "Highest" },
+    { value: "high",    label: "High" },
+    { value: "medium",  label: "Medium" },
+    { value: "low",     label: "Low" },
+    { value: "lowest",  label: "Lowest" },
+];
+
 export const FILTER_STATUS_OPTIONS = ["Active", "Paused", "Archived"];
-// const PRIORITY_OPTIONS = ["Very Low", "Low", "Medium", "High", "Very High"];
-// const GOAL_LINKAGE_OPTIONS = ["Not linked to goals"];
 export const FILTER_FREQUENCY_OPTIONS = [...FREQUENCY_OPTIONS.map((f) => f.label)];

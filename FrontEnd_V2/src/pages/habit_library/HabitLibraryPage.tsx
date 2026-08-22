@@ -7,7 +7,7 @@ import { ROUTES } from "@/routes/RoutePaths";
 import { HabitFormPanel } from "@/pages/habit_library/HabitFormPanel/HabitFormPanel";
 import { api, ApiError } from "@/api";
 import type { FilterState, HabitDataResponse } from "@/api";
-import { EMPTY_FILTERS, FILTER_STATUS_OPTIONS, FILTER_FREQUENCY_OPTIONS } from "@/pages/habit_library/HabitFormPanel/HabitFormPanel.constants";
+import { EMPTY_FILTERS, FILTER_STATUS_OPTIONS, FILTER_FREQUENCY_OPTIONS, PRIORITY_OPTIONS } from "@/pages/habit_library/HabitFormPanel/HabitFormPanel.constants";
 
 import "@/pages/habit_library/HabitLibraryPage.scss";
 
@@ -81,8 +81,8 @@ export function HabitLibraryPage() {
     return habits.filter((h) => {
       if (filters.status.length && !filters.status.some((s) => s.toLowerCase() === h.status))
         return false;
-      // if (filters.priority.length && !filters.priority.some((p) => p.toLowerCase() === h.priority))
-      //   return false;
+      if (filters.priority.length && !filters.priority.some((p) => p.toLowerCase() === h.priority))
+        return false;
       if (
         filters.frequency.length &&
         !filters.frequency.some((f) => h.frequencies.includes(f.toLowerCase()))
@@ -213,12 +213,12 @@ export function HabitLibraryPage() {
                   selected={filters.status}
                   onToggle={(v) => toggleFilter("status", v)}
                 />
-                {/* <FilterSection
+                <FilterSection
                   label="Priority"
-                  options={PRIORITY_OPTIONS}
+                  options={PRIORITY_OPTIONS.map((p) => p.label)}
                   selected={filters.priority}
                   onToggle={(v) => toggleFilter("priority", v)}
-                /> */}
+                />
                 {/* <FilterSection
                   label="Goal linkage"
                   options={GOAL_LINKAGE_OPTIONS}
@@ -264,9 +264,9 @@ export function HabitLibraryPage() {
               <div className="hl-empty-icon">
                 <ArrowRepeat size={22} />
               </div>
-              <p className="hl-empty-title">No repetitive tasks yet</p>
+              <p className="hl-empty-title">No habits yet</p>
               <p className="hl-empty-subtitle">
-                Create your first recurring commitment to build daily consistency.
+                Create your first habit to build daily consistency.
               </p>
             </div>
           ) : (
@@ -298,10 +298,11 @@ export function HabitLibraryPage() {
             motivation: editingHabit.motivation,
             frequencies: [...editingHabit.frequencies],
             preferred_time: editingHabit.preferred_time ?? "flexible",
+            specific_time: editingHabit.specific_time,
             duration_minutes: editingHabit.duration_minutes,
             start_date: editingHabit.start_date,
             end_date: editingHabit.end_date,
-            is_ongoing: editingHabit.end_date == null,
+            priority: editingHabit.priority,
           } : undefined}
           editingId={editingHabit?.id}
           onClose={closePanel}

@@ -379,7 +379,8 @@ export interface RetryFailedMessageRequest {
 }
 
 export type HabitStatus = "active" | "paused" | "archived";
-export type FilterState = { status: string[]; frequency: string[] };
+export type HabitPriority = "highest" | "high" | "medium" | "low" | "lowest";
+export type FilterState = { status: string[]; priority: string[]; frequency: string[] };
 
 export interface HabitDataResponse extends HabitCreateRequest {
   id: number;
@@ -396,12 +397,13 @@ export interface HabitCreateRequest {
   name: string;
   motivation: string | null;
   frequencies: string[];
-  preferred_time: string | null;
+  preferred_time: string;
   specific_time: string;
   duration_minutes: number | null;
   start_date: string | null;
+  // null means ongoing; non-null means ends on that date.
   end_date: string | null;
-  is_ongoing: boolean;
+  priority: HabitPriority;
 }
 
 export interface HabitUpdateRequest extends Partial<HabitCreateRequest> {

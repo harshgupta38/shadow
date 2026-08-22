@@ -4,6 +4,7 @@ from app.api import (
     auth,
     chat,
     goals,
+    habits,
     milestones,
     tasks,
 )
@@ -14,6 +15,7 @@ for _module in (
     auth,
     chat,
     goals,
+    habits,
     milestones,
     tasks,
 ):

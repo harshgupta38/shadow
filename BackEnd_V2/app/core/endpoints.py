@@ -26,6 +26,12 @@ class Endpoints:
         GET_LIST = "/get-list"
         DETAIL = "/{task_id}"
 
+    class HABITS:
+        PREFIX = "/habit"
+        GET_LIST = "/get-list"
+        SAVE = "/save"
+        DETAIL = "/{habit_id}"
+
     class CHAT:
         PREFIX = "/chat"
         CONVERSATIONS = "/conversations" # to get list of sessions

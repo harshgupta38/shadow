@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronRight } from "react-bootstrap-icons";
-import { SLIDE_OUT_DURATION_MS, FREQUENCY_OPTIONS, PREFERRED_TIME_OPTIONS, EMPTY_DRAFT } from "@/pages/habit_library/HabitFormPanel/HabitFormPanel.constants";
+import { SLIDE_OUT_DURATION_MS, FREQUENCY_OPTIONS, PREFERRED_TIME_OPTIONS, PRIORITY_OPTIONS, EMPTY_DRAFT } from "@/pages/habit_library/HabitFormPanel/HabitFormPanel.constants";
+import { resizeTextareaToMaxLines } from "@/services/textarea-resize.service";
 import { api, ApiError } from "@/api";
 import type { HabitDataResponse, HabitCreateRequest } from "@/api";
 
@@ -21,7 +22,13 @@ export function HabitFormPanel({ mode, initialDraft, editingId, onClose, onSaved
     const [draft, setDraft] = useState<HabitCreateRequest>({ ...EMPTY_DRAFT, ...initialDraft });
     const [saving, setSaving] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const [isClosing, setIsClosing] = useState(false);
+    const motivationRef = useRef<HTMLTextAreaElement>(null);
+
+    useEffect(() => {
+        if (motivationRef.current) resizeTextareaToMaxLines(motivationRef.current, 5);
+    }, []);
 
     function requestClose() {
         if (isClosing) return;
@@ -41,6 +48,13 @@ export function HabitFormPanel({ mode, initialDraft, editingId, onClose, onSaved
     function set<K extends keyof HabitCreateRequest>(key: K, value: HabitCreateRequest[K]) {
         setDraft((prev) => ({ ...prev, [key]: value }));
         setFormError(null);
+        setFieldErrors((prev) => {
+            const k = key as string;
+            if (!prev[k]) return prev;
+            const next = { ...prev };
+            delete next[k];
+            return next;
+        });
     }
 
     function toggleFrequency(value: string) {
@@ -51,41 +65,58 @@ export function HabitFormPanel({ mode, initialDraft, editingId, onClose, onSaved
                 : [...prev.frequencies, value],
         }));
         setFormError(null);
-    }
-
-    function resolvedPreferredTime(): string | null {
-        if (draft.preferred_time === "specific") {
-            return draft.specific_time.trim() || null;
-        }
-        if (draft.preferred_time === "flexible") return null;
-        return draft.preferred_time;
+        setFieldErrors((prev) => {
+            if (!prev.frequencies) return prev;
+            const next = { ...prev };
+            delete next.frequencies;
+            return next;
+        });
     }
 
     async function handleSave() {
         const name = draft.name.trim();
         if (!name) {
+            setFieldErrors({ name: "Habit name is required." });
             setFormError("Habit name is required.");
             return;
         }
         if (draft.frequencies.length === 0) {
+            setFieldErrors({ frequencies: "Select at least one frequency." });
             setFormError("Select at least one frequency.");
+            return;
+        }
+        if (draft.preferred_time === "custom" && !draft.specific_time.trim()) {
+            setFieldErrors({ specific_time: "Please enter a specific time." });
+            setFormError("Please enter a specific time.");
+            return;
+        }
+        const today = new Date().toISOString().slice(0, 10);
+        if (draft.start_date && draft.start_date < today) {
+            setFieldErrors({ start_date: "Start date cannot be in the past." });
+            setFormError("Start date cannot be in the past.");
+            return;
+        }
+        if (draft.start_date && draft.end_date && draft.end_date < draft.start_date) {
+            setFieldErrors({ end_date: "End date cannot be before the start date." });
+            setFormError("End date cannot be before the start date.");
             return;
         }
 
         setSaving(true);
         setFormError(null);
+        setFieldErrors({});
 
         const durationVal = Number(draft.duration_minutes);
         const payload: HabitCreateRequest = {
             name,
             motivation: draft.motivation?.trim() || null,
             frequencies: [...draft.frequencies],
-            preferred_time: resolvedPreferredTime(),
-            specific_time: draft.specific_time,
+            preferred_time: draft.preferred_time,
+            specific_time: draft.preferred_time === "custom" ? draft.specific_time : "",
             duration_minutes: Number.isFinite(durationVal) && durationVal > 0 ? durationVal : null,
             start_date: draft.start_date || null,
-            end_date: draft.is_ongoing ? null : (draft.end_date || null),
-            is_ongoing: draft.is_ongoing,
+            end_date: draft.end_date,
+            priority: draft.priority,
         };
 
         try {
@@ -97,6 +128,7 @@ export function HabitFormPanel({ mode, initialDraft, editingId, onClose, onSaved
         } catch (err) {
             if (err instanceof ApiError) {
                 setFormError(err.message);
+                if (err.fieldErrors) setFieldErrors(err.fieldErrors);
             } else {
                 setFormError("Something went wrong. Please try again.");
             }
@@ -149,7 +181,7 @@ export function HabitFormPanel({ mode, initialDraft, editingId, onClose, onSaved
                                 </label>
                                 <input
                                     id="habit-panel-name"
-                                    className="form-control"
+                                    className={`form-control${fieldErrors.name ? " is-invalid" : ""}`}
                                     placeholder="e.g. Read 10 pages, Morning run, LeetCode practice…"
                                     autoComplete="off"
                                     value={draft.name}
@@ -165,13 +197,18 @@ export function HabitFormPanel({ mode, initialDraft, editingId, onClose, onSaved
                                     <span className="text-muted-2 fw-normal">(optional)</span>
                                 </label>
                                 <textarea
+                                    ref={motivationRef}
                                     id="habit-panel-motivation"
-                                    className="form-control"
-                                    rows={3}
+                                    className={`form-control${fieldErrors.motivation ? " is-invalid" : ""}`}
+                                    rows={1}
                                     placeholder="Context helps your coach give better suggestions."
                                     value={draft.motivation ?? ""}
                                     disabled={saving}
-                                    onChange={(e) => set("motivation", e.target.value)}
+                                    style={{ overflowY: "hidden", resize: "none" }}
+                                    onChange={(e) => {
+                                        set("motivation", e.target.value);
+                                        resizeTextareaToMaxLines(e.target, 5);
+                                    }}
                                 />
                             </div>
 
@@ -201,27 +238,43 @@ export function HabitFormPanel({ mode, initialDraft, editingId, onClose, onSaved
                                 <label className="form-label" htmlFor="habit-panel-time">
                                     When do you prefer to do it?
                                 </label>
-                                <select
-                                    id="habit-panel-time"
-                                    className="form-select"
-                                    value={draft.preferred_time ?? "flexible"}
-                                    disabled={saving}
-                                    onChange={(e) => set("preferred_time", e.target.value)}
-                                >
-                                    {PREFERRED_TIME_OPTIONS.map(({ value, label }) => (
-                                        <option key={value} value={value}>{label}</option>
-                                    ))}
-                                </select>
-                                {draft.preferred_time === "specific" && (
-                                    <input
-                                        type="time"
-                                        className="form-control mt-2"
-                                        value={draft.specific_time}
+                                <div className="d-flex gap-2">
+                                    <select
+                                        id="habit-panel-time"
+                                        className={`form-select${fieldErrors.preferred_time ? " is-invalid" : ""}`}
+                                        value={draft.preferred_time ?? "flexible"}
                                         disabled={saving}
-                                        onChange={(e) => set("specific_time", e.target.value)}
-                                        aria-label="Specific time"
-                                    />
-                                )}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            setDraft((prev) => ({
+                                                ...prev,
+                                                preferred_time: val,
+                                                specific_time: val === "custom" ? prev.specific_time : "",
+                                            }));
+                                            setFormError(null);
+                                            setFieldErrors((prev) => {
+                                                const next = { ...prev };
+                                                delete next.preferred_time;
+                                                delete next.specific_time;
+                                                return next;
+                                            });
+                                        }}
+                                    >
+                                        {PREFERRED_TIME_OPTIONS.map(({ value, label }) => (
+                                            <option key={value} value={value}>{label}</option>
+                                        ))}
+                                    </select>
+                                    {draft.preferred_time === "custom" && (
+                                        <input
+                                            type="time"
+                                            className={`form-control${fieldErrors.specific_time ? " is-invalid" : ""}`}
+                                            value={draft.specific_time}
+                                            disabled={saving}
+                                            onChange={(e) => set("specific_time", e.target.value)}
+                                            aria-label="Specific time"
+                                        />
+                                    )}
+                                </div>
                             </div>
 
                             {/* Q5 – How long does it take? */}
@@ -233,7 +286,7 @@ export function HabitFormPanel({ mode, initialDraft, editingId, onClose, onSaved
                                 <input
                                     id="habit-panel-duration"
                                     type="number"
-                                    className="form-control"
+                                    className={`form-control${fieldErrors.duration_minutes ? " is-invalid" : ""}`}
                                     placeholder="e.g. 20"
                                     min={1}
                                     step={1}
@@ -243,7 +296,25 @@ export function HabitFormPanel({ mode, initialDraft, editingId, onClose, onSaved
                                 />
                             </div>
 
-                            {/* Q6 + Q7 – Dates row */}
+                            {/* Q6 – Priority */}
+                            <div>
+                                <span className="form-label d-block mb-2">Priority</span>
+                                <div className="d-flex flex-wrap gap-2">
+                                    {PRIORITY_OPTIONS.map((opt) => (
+                                        <button
+                                            key={opt.value}
+                                            type="button"
+                                            className={`btn btn-sm ${draft.priority === opt.value ? "btn-brand" : "btn-outline-secondary"}`}
+                                            onClick={() => set("priority", opt.value)}
+                                            disabled={saving}
+                                        >
+                                            {opt.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Q7 + Q8 – Dates row */}
                             <div className="d-flex gap-3">
                                 <div className="flex-grow-1">
                                     <label className="form-label" htmlFor="habit-panel-start">
@@ -252,13 +323,14 @@ export function HabitFormPanel({ mode, initialDraft, editingId, onClose, onSaved
                                     <input
                                         id="habit-panel-start"
                                         type="date"
-                                        className="form-control"
+                                        className={`form-control${fieldErrors.start_date ? " is-invalid" : ""}`}
                                         value={draft.start_date ?? ""}
+                                        min={new Date().toISOString().slice(0, 10)}
                                         disabled={saving}
                                         onChange={(e) => set("start_date", e.target.value || null)}
                                     />
                                 </div>
-                                {!draft.is_ongoing && (
+                                {draft.end_date != null && (
                                     <div className="flex-grow-1">
                                         <label className="form-label" htmlFor="habit-panel-end">
                                             End date
@@ -266,7 +338,7 @@ export function HabitFormPanel({ mode, initialDraft, editingId, onClose, onSaved
                                         <input
                                             id="habit-panel-end"
                                             type="date"
-                                            className="form-control"
+                                            className={`form-control${fieldErrors.end_date ? " is-invalid" : ""}`}
                                             value={draft.end_date ?? ""}
                                             min={draft.start_date ?? undefined}
                                             disabled={saving}
@@ -280,8 +352,8 @@ export function HabitFormPanel({ mode, initialDraft, editingId, onClose, onSaved
                             <div className="goal-task-type-toggle">
                                 <button
                                     type="button"
-                                    className={`goal-task-type-option ${draft.is_ongoing ? "is-active" : ""}`.trim()}
-                                    onClick={() => set("is_ongoing", true)}
+                                    className={`goal-task-type-option ${draft.end_date == null ? "is-active" : ""}`.trim()}
+                                    onClick={() => set("end_date", null)}
                                     disabled={saving}
                                 >
                                     <span className="goal-task-type-option-title">Ongoing</span>
@@ -289,8 +361,8 @@ export function HabitFormPanel({ mode, initialDraft, editingId, onClose, onSaved
                                 </button>
                                 <button
                                     type="button"
-                                    className={`goal-task-type-option ${!draft.is_ongoing ? "is-active" : ""}`.trim()}
-                                    onClick={() => set("is_ongoing", false)}
+                                    className={`goal-task-type-option ${draft.end_date != null ? "is-active" : ""}`.trim()}
+                                    onClick={() => set("end_date", new Date().toISOString().slice(0, 10))}
                                     disabled={saving}
                                 >
                                     <span className="goal-task-type-option-title">Set end date</span>

@@ -1,13 +1,15 @@
-import { ArrowRepeat, ChevronDown, PlusLg, Stars } from "react-bootstrap-icons";
+import { Archive, ArrowCounterclockwise, ArrowRepeat, CaretRightFill, ChevronDown, Grid3x3Gap, List, PauseFill, PencilSquare, PlusLg, Plus, Stars, ThreeDotsVertical, Trash } from "react-bootstrap-icons";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Dropdown } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { ROUTES } from "@/routes/RoutePaths";
 import { HabitFormPanel } from "@/pages/habit_library/HabitFormPanel/HabitFormPanel";
 import { api, ApiError } from "@/api";
-import type { FilterState, HabitDataResponse } from "@/api";
-import { EMPTY_FILTERS, FILTER_STATUS_OPTIONS, FILTER_FREQUENCY_OPTIONS, PRIORITY_OPTIONS } from "@/pages/habit_library/HabitFormPanel/HabitFormPanel.constants";
+import type { FilterState, HabitCreateRequest, HabitDataResponse } from "@/api";
+import { EMPTY_FILTERS, FILTER_STATUS_OPTIONS, FREQUENCY_OPTIONS, PRIORITY_OPTIONS } from "@/pages/habit_library/HabitFormPanel/HabitFormPanel.constants";
 
 import "@/pages/habit_library/HabitLibraryPage.scss";
 
@@ -21,6 +23,11 @@ export function HabitLibraryPage() {
   const [filters, setFilters] = useState<FilterState>(EMPTY_FILTERS);
   const [showHabitPanel, setShowHabitPanel] = useState(false);
   const [editingHabit, setEditingHabit] = useState<HabitDataResponse | null>(null);
+  const [createDraft, setCreateDraft] = useState<Partial<HabitCreateRequest> | null>(null);
+  const [deleteTargetHabit, setDeleteTargetHabit] = useState<HabitDataResponse | null>(null);
+  const [openHabitMenuId, setOpenHabitMenuId] = useState<number | null>(null);
+  const [menuActionHabitId, setMenuActionHabitId] = useState<number | null>(null);
+  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const loadHabits = useCallback(async () => {
@@ -65,6 +72,16 @@ export function HabitLibraryPage() {
     return () => document.removeEventListener("mousedown", onClickOutside);
   }, [filterOpen]);
 
+  useEffect(() => {
+    function enforceListView() {
+      if (window.innerWidth < 1024) setViewMode("list");
+    }
+
+    enforceListView();
+    window.addEventListener("resize", enforceListView);
+    return () => window.removeEventListener("resize", enforceListView);
+  }, []);
+
   function toggleFilter(category: keyof FilterState, value: string) {
     setFilters((prev) => {
       const list = prev[category];
@@ -94,19 +111,80 @@ export function HabitLibraryPage() {
     });
   }, [habits, filters]);
 
+  const frequencyLabelMap = useMemo(() => new Map(FREQUENCY_OPTIONS.map((option) => [option.value, option.label])), []);
+  const priorityLabelMap = useMemo(() => new Map(PRIORITY_OPTIONS.map((option) => [option.value, option.label])), []);
+
   function openCreatePanel() {
     setEditingHabit(null);
+    setCreateDraft(null);
     setShowHabitPanel(true);
   }
 
   function openEditPanel(habit: HabitDataResponse) {
+    setOpenHabitMenuId(null);
+    setCreateDraft(null);
     setEditingHabit(habit);
     setShowHabitPanel(true);
+  }
+
+  function handleDuplicateHabit(habit: HabitDataResponse) {
+    setOpenHabitMenuId(null);
+    setEditingHabit(null);
+    setCreateDraft({
+      name: `${habit.name} (Copy)`,
+      motivation: habit.motivation,
+      frequencies: [...habit.frequencies],
+      preferred_time: habit.preferred_time,
+      specific_time: habit.specific_time,
+      duration_minutes: habit.duration_minutes,
+      start_date: habit.start_date,
+      end_date: habit.end_date,
+      priority: habit.priority,
+    });
+    setShowHabitPanel(true);
+  }
+
+  async function handleSetHabitStatus(habit: HabitDataResponse, status: "active" | "paused" | "archived") {
+    setMenuActionHabitId(habit.id);
+    setHabitsError(null);
+    try {
+      const updated = await api.habits.updateHabit(habit.id, { status });
+      setHabits((prev) => prev.map((item) => (item.id === habit.id ? updated : item)));
+      setOpenHabitMenuId(null);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setHabitsError(err.message);
+      } else {
+        setHabitsError("Could not update this habit right now. Please try again.");
+      }
+    } finally {
+      setMenuActionHabitId(null);
+    }
+  }
+
+  async function handleDeleteHabit(habitId: number) {
+    setMenuActionHabitId(habitId);
+    setHabitsError(null);
+    try {
+      await api.habits.removeHabit(habitId);
+      setHabits((prev) => prev.filter((item) => item.id !== habitId));
+      setOpenHabitMenuId(null);
+      setDeleteTargetHabit(null);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setHabitsError(err.message);
+      } else {
+        setHabitsError("Could not delete this habit right now. Please try again.");
+      }
+    } finally {
+      setMenuActionHabitId(null);
+    }
   }
 
   function closePanel() {
     setShowHabitPanel(false);
     setEditingHabit(null);
+    setCreateDraft(null);
   }
 
   function handleHabitSaved(saved: HabitDataResponse) {
@@ -124,6 +202,36 @@ export function HabitLibraryPage() {
           "Review my active goals and milestones, then suggest specific habits I should build to make consistent progress toward accomplishing them.",
       },
     });
+  }
+
+  function getPrimaryFrequencyLabel(frequencies: string[]): string {
+    if (frequencies.length === 0) return "Flexible";
+    return frequencyLabelMap.get(frequencies[0]) ?? frequencies[0];
+  }
+
+  function formatDateTimeLabel(isoDateTime: string): string {
+    const normalizedDateTime = /z$|[+-]\d{2}:?\d{2}$/i.test(isoDateTime)
+      ? isoDateTime
+      : isoDateTime.replace(" ", "T") + "Z";
+    const parsed = new Date(normalizedDateTime);
+    if (Number.isNaN(parsed.getTime())) return isoDateTime;
+    const datePart = parsed.toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+      timeZone: "Asia/Kolkata",
+    });
+    const timePart = parsed.toLocaleTimeString("en-IN", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+      timeZone: "Asia/Kolkata",
+    });
+    return `${datePart} · ${timePart}`;
+  }
+
+  function formatStatusLabel(status: HabitDataResponse["status"]): string {
+    return status.charAt(0).toUpperCase() + status.slice(1);
   }
 
   return (
@@ -195,53 +303,76 @@ export function HabitLibraryPage() {
             <p className="hl-subtitle">Your repetitive tasks and current lifecycle status.</p>
           </div>
 
-          <div className="hl-filter-wrapper" ref={dropdownRef}>
-            <button
-              type="button"
-              className={`hl-filter-btn${filterOpen ? " hl-filter-btn--open" : ""}`}
-              onClick={() => setFilterOpen((v) => !v)}
-            >
-              Filters
-              <ChevronDown size={12} className={`hl-chevron${filterOpen ? " hl-chevron--up" : ""}`} />
-            </button>
+          <div className="hl-card-header-actions">
+            <div className="hl-view-toggle" role="group" aria-label="Habit view">
+              {viewMode === "list" && (<button
+                type="button"
+                className="hl-view-toggle-btn"
+                aria-label="Switch to grid view"
+                title="Switch to grid view"
+                onClick={() => setViewMode("grid")}
+              >
+                <List size={15} />
+              </button>)}
+              {viewMode === "grid" && (<button
+                type="button"
+                className="hl-view-toggle-btn"
+                aria-label="Switch to list view"
+                title="Switch to list view"
+                onClick={() => setViewMode("list")}
+              >
+                <Grid3x3Gap size={14} />
+              </button>)}
+            </div>
 
-            {filterOpen && (
-              <div className="hl-filter-dropdown">
-                <FilterSection
-                  label="Status"
-                  options={FILTER_STATUS_OPTIONS}
-                  selected={filters.status}
-                  onToggle={(v) => toggleFilter("status", v)}
-                />
-                <FilterSection
-                  label="Priority"
-                  options={PRIORITY_OPTIONS.map((p) => p.label)}
-                  selected={filters.priority}
-                  onToggle={(v) => toggleFilter("priority", v)}
-                />
-                {/* <FilterSection
+            <div className="hl-filter-wrapper" ref={dropdownRef}>
+              <button
+                type="button"
+                className={`hl-filter-btn${filterOpen ? " hl-filter-btn--open" : ""}`}
+                onClick={() => setFilterOpen((v) => !v)}
+              >
+                Filters
+                <ChevronDown size={12} className={`hl-chevron${filterOpen ? " hl-chevron--up" : ""}`} />
+              </button>
+
+              {filterOpen && (
+                <div className="hl-filter-dropdown">
+                  <FilterSection
+                    label="Status"
+                    options={FILTER_STATUS_OPTIONS}
+                    selected={filters.status}
+                    onToggle={(v) => toggleFilter("status", v)}
+                  />
+                  <FilterSection
+                    label="Priority"
+                    options={PRIORITY_OPTIONS.map((p) => p.label)}
+                    selected={filters.priority}
+                    onToggle={(v) => toggleFilter("priority", v)}
+                  />
+                  {/* <FilterSection
                   label="Goal linkage"
                   options={GOAL_LINKAGE_OPTIONS}
                   selected={filters.goalLinkage}
                   onToggle={(v) => toggleFilter("goalLinkage", v)}
                 /> */}
-                <FilterSection
-                  label="Frequency"
-                  options={FILTER_FREQUENCY_OPTIONS}
-                  selected={filters.frequency}
-                  onToggle={(v) => toggleFilter("frequency", v)}
-                />
-                <div className="hl-filter-reset">
-                  <button
-                    type="button"
-                    className="hl-reset-btn"
-                    onClick={() => setFilters(EMPTY_FILTERS)}
-                  >
-                    Reset filters
-                  </button>
+                  <FilterSection
+                    label="Frequency"
+                    options={FREQUENCY_OPTIONS.map((f) => f.label)}
+                    selected={filters.frequency}
+                    onToggle={(v) => toggleFilter("frequency", v)}
+                  />
+                  <div className="hl-filter-reset">
+                    <button
+                      type="button"
+                      className="hl-reset-btn"
+                      onClick={() => setFilters(EMPTY_FILTERS)}
+                    >
+                      Reset filters
+                    </button>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
 
@@ -270,21 +401,94 @@ export function HabitLibraryPage() {
               </p>
             </div>
           ) : (
-            // TODO redesign this
-            <div className="hl-habit-list">
+            <div className={`hl-habit-grid${viewMode === "grid" ? " hl-habit-grid--grid" : ""}`}>
               {filteredHabits.map((h) => (
-                <div key={h.id} className="hl-habit-row">
-                  <span className="hl-habit-name">{h.name}</span>
-                  <span className={`hl-habit-status hl-habit-status--${h.status}`}>{h.status}</span>
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm hl-habit-edit-btn"
-                    aria-label={`Edit ${h.name}`}
-                    onClick={() => openEditPanel(h)}
-                  >
-                    Edit
-                  </button>
-                </div>
+                <article key={h.id} className="hl-habit-card">
+                  <div className="hl-habit-card-head">
+                    <h3 className="hl-habit-name">{h.name}</h3>
+                    <Dropdown
+                      show={openHabitMenuId === h.id}
+                      onToggle={(nextShow) => setOpenHabitMenuId(nextShow ? h.id : null)}
+                      align="end"
+                    >
+                      <Dropdown.Toggle
+                        as="button"
+                        type="button"
+                        className="btn btn-ghost btn-sm hl-habit-edit-btn"
+                        id={`habit-menu-${h.id}`}
+                        aria-label={`Open menu for ${h.name}`}
+                      >
+                        <ThreeDotsVertical size={14} />
+                      </Dropdown.Toggle>
+
+                      <Dropdown.Menu className="hl-habit-menu-popover" aria-label={`Actions for ${h.name}`}>
+                        <Dropdown.Item
+                          className="hl-habit-menu-item"
+                          onClick={() => openEditPanel(h)}
+                          disabled={menuActionHabitId === h.id}
+                        >
+                          <PencilSquare size={14} />
+                          Edit
+                        </Dropdown.Item>
+                        {/* <Dropdown.Item className="hl-habit-menu-item" onClick={() => setOpenHabitMenuId(null)}>
+                          <Stars size={14} />
+                          Create metric
+                        </Dropdown.Item> */}
+                        <Dropdown.Item
+                          className="hl-habit-menu-item"
+                          onClick={() => void handleDuplicateHabit(h)}
+                          disabled={menuActionHabitId === h.id}
+                        >
+                          <Plus size={14} />
+                          Duplicate
+                        </Dropdown.Item>
+                        <Dropdown.Item
+                          className="hl-habit-menu-item"
+                          onClick={() => void handleSetHabitStatus(h, h.status === "paused" ? "active" : "paused")}
+                          disabled={menuActionHabitId === h.id}
+                        >
+                          {h.status === "paused" ? <CaretRightFill size={14} /> : <PauseFill size={14} />}
+                          {h.status === "paused" ? "Resume" : "Pause"}
+                        </Dropdown.Item>
+                        <Dropdown.Item
+                          className="hl-habit-menu-item"
+                          onClick={() => void handleSetHabitStatus(h, h.status === "archived" ? "active" : "archived")}
+                          disabled={menuActionHabitId === h.id}
+                        >
+                          {h.status === "archived" ? <ArrowCounterclockwise size={14} /> : <Archive size={14} />}
+                          {h.status === "archived" ? "Restore" : "Archive"}
+                        </Dropdown.Item>
+                        <Dropdown.Item
+                          className="hl-habit-menu-item hl-habit-menu-item--danger"
+                          onClick={() => {
+                            setOpenHabitMenuId(null);
+                            setDeleteTargetHabit(h);
+                          }}
+                          disabled={menuActionHabitId === h.id}
+                        >
+                          <Trash size={14} />
+                          Delete
+                        </Dropdown.Item>
+                      </Dropdown.Menu>
+                    </Dropdown>
+                  </div>
+
+                  <div className="hl-habit-card-foot">
+                    <div className="hl-habit-tags">
+                      <span className={`hl-habit-chip hl-habit-chip--status-${h.status}`}>
+                        <span className="hl-habit-chip-dot" aria-hidden="true" />
+                        {formatStatusLabel(h.status)}
+                      </span>
+                      <span className="hl-habit-chip hl-habit-chip--priority">
+                        {priorityLabelMap.get(h.priority) ?? h.priority}
+                      </span>
+                      <span className="hl-habit-chip hl-habit-chip--frequency">
+                        {getPrimaryFrequencyLabel(h.frequencies)}
+                      </span>
+                    </div>
+                    <span className="hl-habit-updated-at">{formatDateTimeLabel(h.updated_at)}</span>
+                  </div>
+                </article>
               ))}
             </div>
           )}
@@ -293,22 +497,40 @@ export function HabitLibraryPage() {
       {showHabitPanel && (
         <HabitFormPanel
           mode={editingHabit ? "edit" : "create"}
-          initialDraft={editingHabit ? {
-            name: editingHabit.name,
-            motivation: editingHabit.motivation,
-            frequencies: [...editingHabit.frequencies],
-            preferred_time: editingHabit.preferred_time ?? "flexible",
-            specific_time: editingHabit.specific_time,
-            duration_minutes: editingHabit.duration_minutes,
-            start_date: editingHabit.start_date,
-            end_date: editingHabit.end_date,
-            priority: editingHabit.priority,
-          } : undefined}
+          initialDraft={editingHabit
+            ? {
+              name: editingHabit.name,
+              motivation: editingHabit.motivation,
+              frequencies: [...editingHabit.frequencies],
+              preferred_time: editingHabit.preferred_time ?? "flexible",
+              specific_time: editingHabit.specific_time,
+              duration_minutes: editingHabit.duration_minutes,
+              start_date: editingHabit.start_date,
+              end_date: editingHabit.end_date,
+              priority: editingHabit.priority,
+            }
+            : createDraft ?? undefined}
           editingId={editingHabit?.id}
           onClose={closePanel}
           onSaved={handleHabitSaved}
         />
       )}
+
+      <ConfirmDialog
+        show={deleteTargetHabit != null}
+        title="Delete this habit?"
+        message={`This will permanently remove "${deleteTargetHabit?.name ?? "this habit"}". This cannot be undone.`}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        destructive
+        busy={deleteTargetHabit != null && menuActionHabitId === deleteTargetHabit.id}
+        onConfirm={() => {
+          if (deleteTargetHabit) {
+            void handleDeleteHabit(deleteTargetHabit.id);
+          }
+        }}
+        onCancel={() => setDeleteTargetHabit(null)}
+      />
     </section>
   );
 }

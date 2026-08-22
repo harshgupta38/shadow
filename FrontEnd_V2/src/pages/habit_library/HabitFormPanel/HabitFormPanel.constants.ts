@@ -57,4 +57,3 @@ export const PRIORITY_OPTIONS: { value: HabitPriority; label: string }[] = [
 ];
 
 export const FILTER_STATUS_OPTIONS = ["Active", "Paused", "Archived"];
-export const FILTER_FREQUENCY_OPTIONS = [...FREQUENCY_OPTIONS.map((f) => f.label)];

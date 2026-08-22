@@ -42,10 +42,6 @@
     color: var(--jv-text-muted, #6c757d);
     margin: 0 0 0.85rem;
     line-height: 1.45;
-
-    &.has-cta {
-      margin-bottom: 0;
-    }
   }
 
   .habit-overview-pills {
@@ -102,14 +98,6 @@
     }
   }
 
-  @media (max-width: 991.98px) {
-    .habit-overview-subtitle {
-      &.has-cta {
-        margin-bottom: 0.5rem;
-      }
-    }
-  }
-
   // ── Habit library card ──────────────────────────────────────────────
   .hl-card {
     background: var(--jv-surface, #fff);
@@ -123,6 +111,13 @@
     justify-content: space-between;
     align-items: flex-start;
     padding: 1.25rem 1.4rem 1rem;
+  }
+
+  .hl-card-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    flex-shrink: 0;
   }
 
   .hl-title {
@@ -144,6 +139,33 @@
   .hl-filter-wrapper {
     position: relative;
     flex-shrink: 0;
+  }
+
+  .hl-view-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.15rem;
+    border: 1px solid var(--jv-border, #dee2e6);
+    border-radius: 999px;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+
+    &:hover {
+      background: var(--jv-brand-soft);
+      border-color: var(--jv-brand-1);
+      color: var(--jv-brand-1);
+    }
+  }
+
+  .hl-view-toggle-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.85rem;
+    height: 1.75rem;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--jv-text, #6c757d);
   }
 
   .hl-filter-btn {
@@ -299,54 +321,224 @@
     line-height: 1.55;
   }
 
-  // ── Habit list (when habits exist) ──────────────────────────────────
-  .hl-habit-list {
+  // -- Habit viewing cards ---------------------------------------------
+  .hl-habit-grid {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.6rem;
+
+    &--grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+
+      .hl-habit-card {
+        min-width: 0;
+        max-width: 100%;
+      }
+    }
   }
 
-  .hl-habit-row {
+  .hl-habit-card {
+    position: relative;
+    border: 1px solid color-mix(in srgb, var(--jv-border) 88%, var(--jv-brand-1) 12%);
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--jv-surface-2) 90%, var(--jv-surface) 10%);
+    padding: 0.86rem 0.9rem 0.74rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    transition: border-color var(--jv-transition), box-shadow var(--jv-transition);
+
+    &:hover {
+      border-color: color-mix(in srgb, var(--jv-brand-1) 28%, var(--jv-border) 72%);
+      box-shadow: 0 6px 16px color-mix(in srgb, var(--jv-brand-1) 12%, transparent);
+    }
+  }
+
+  .hl-habit-card-head {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0.6rem 0;
-    border-bottom: 1px solid var(--jv-border, #e9ecef);
-
-    &:last-child {
-      border-bottom: none;
-    }
+    gap: 0.5rem;
   }
 
   .hl-habit-name {
-    font-size: 0.875rem;
-    font-weight: 500;
+    margin: 0;
+    font-size: 1.02rem;
+    font-weight: 700;
+    line-height: 1.2;
     color: var(--jv-text, #212529);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
-  .hl-habit-status {
-    font-size: 0.75rem;
+  .hl-habit-card-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.8rem;
+  }
+
+  .hl-habit-tags {
+    min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .hl-habit-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.28rem;
+    font-size: 0.78rem;
     font-weight: 600;
-    padding: 0.15rem 0.55rem;
-    border-radius: 999px;
+    line-height: 1;
+    padding: 0.3rem 0.68rem;
+    border-radius: var(--jv-radius-pill);
     border: 1px solid transparent;
+    background: var(--jv-surface);
+    color: var(--jv-muted);
+  }
 
-    &--active {
-      background: rgba(var(--bs-success-rgb), 0.15);
-      border-color: rgba(var(--bs-success-rgb), 0.3);
-      color: var(--bs-success);
+  .hl-habit-chip-dot {
+    width: 0.42rem;
+    height: 0.42rem;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.9;
+  }
+
+  .hl-habit-chip--status-active {
+    color: #159a6d;
+    background: color-mix(in srgb, #159a6d 14%, var(--jv-surface) 86%);
+  }
+
+  .hl-habit-chip--status-paused {
+    color: #9d6d00;
+    background: color-mix(in srgb, #9d6d00 14%, var(--jv-surface) 86%);
+  }
+
+  .hl-habit-chip--status-archived {
+    color: #6f7783;
+    background: color-mix(in srgb, #6f7783 14%, var(--jv-surface) 86%);
+  }
+
+  .hl-habit-chip--priority {
+    color: #4f7bf1;
+    background: color-mix(in srgb, #4f7bf1 14%, var(--jv-surface) 86%);
+  }
+
+  .hl-habit-chip--frequency {
+    border-color: color-mix(in srgb, var(--jv-border) 82%, transparent);
+    color: #6f7783;
+  }
+
+  .hl-habit-edit-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.15rem;
+    flex-shrink: 0;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 8px;
+    padding: 0;
+    color: var(--jv-text);
+
+    &::after {
+      display: none;
+    }
+  }
+
+  .hl-habit-menu-popover {
+    width: 10.25rem;
+    z-index: 120;
+    background: var(--jv-surface);
+    border: 1px solid color-mix(in srgb, var(--jv-border) 86%, transparent);
+    border-radius: 10px;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.16);
+    padding: 0.32rem;
+    max-height: min(240px, calc(100vh - 1rem));
+    overflow-y: auto;
+  }
+
+  .hl-habit-menu-item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--jv-text);
+    font-size: 0.9rem;
+    font-weight: 500;
+    text-align: left;
+    padding: 0.25rem 0 0.25rem 0.5rem;
+    transition: background var(--jv-transition), color var(--jv-transition);
+
+    &:hover,
+    &:focus-visible {
+      background: var(--jv-surface-2);
+      color: var(--jv-text);
     }
 
-    &--paused {
-      background: rgba(var(--bs-warning-rgb), 0.15);
-      border-color: rgba(var(--bs-warning-rgb), 0.35);
-      color: var(--bs-warning);
+    svg {
+      flex-shrink: 0;
+      opacity: 0.9;
+    }
+  }
+
+  .hl-habit-menu-item--danger {
+    color: var(--jv-danger);
+
+    &:hover,
+    &:focus-visible {
+      color: var(--jv-danger);
+      background: color-mix(in srgb, var(--jv-danger) 9%, var(--jv-surface) 91%);
+    }
+  }
+
+  .hl-habit-updated-at {
+    font-size: 0.78rem;
+    color: #9aa3b5;
+    white-space: nowrap;
+  }
+
+  @media (max-width: 767.98px) {
+    .hl-card-header {
+      gap: 0.75rem;
     }
 
-    &--archived {
-      background: rgba(var(--bs-secondary-rgb), 0.1);
-      border-color: rgba(var(--bs-secondary-rgb), 0.25);
-      color: var(--bs-secondary);
+    .hl-card-header-actions {
+      gap: 0.35rem;
+    }
+
+    .hl-filter-btn {
+      padding-inline: 0.7rem;
+    }
+
+    .hl-habit-card-foot {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.55rem;
+    }
+
+    .hl-habit-grid--grid {
+      grid-template-columns: 1fr;
+    }
+
+    .hl-habit-updated-at {
+      font-size: 0.74rem;
+    }
+  }
+
+  @media (max-width: 1023.98px) {
+    .hl-view-toggle {
+      display: none;
     }
   }
 }

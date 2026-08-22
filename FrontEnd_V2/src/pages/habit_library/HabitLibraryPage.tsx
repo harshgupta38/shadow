@@ -9,7 +9,7 @@ import { ROUTES } from "@/routes/RoutePaths";
 import { HabitFormPanel } from "@/pages/habit_library/HabitFormPanel/HabitFormPanel";
 import { api, ApiError } from "@/api";
 import type { FilterState, HabitCreateRequest, HabitDataResponse } from "@/api";
-import { EMPTY_FILTERS, FILTER_STATUS_OPTIONS, FREQUENCY_OPTIONS, PRIORITY_OPTIONS } from "@/pages/habit_library/HabitFormPanel/HabitFormPanel.constants";
+import { EMPTY_FILTERS, FILTER_STATUS_OPTIONS, FREQUENCY_OPTIONS, PREFERRED_TIME_OPTIONS, PRIORITY_OPTIONS } from "@/pages/habit_library/HabitFormPanel/HabitFormPanel.constants";
 
 import "@/pages/habit_library/HabitLibraryPage.scss";
 
@@ -27,7 +27,7 @@ export function HabitLibraryPage() {
   const [deleteTargetHabit, setDeleteTargetHabit] = useState<HabitDataResponse | null>(null);
   const [openHabitMenuId, setOpenHabitMenuId] = useState<number | null>(null);
   const [menuActionHabitId, setMenuActionHabitId] = useState<number | null>(null);
-  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
+  const [viewMode, setViewMode] = useState<"list" | "grid">("grid");
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const loadHabits = useCallback(async () => {
@@ -92,6 +92,20 @@ export function HabitLibraryPage() {
           : [...list, value],
       };
     });
+  }
+
+  function setStatusFilter(status: string) {
+    if (status !== "Total")
+      setFilters((prev) => ({ ...prev, status: [status] }));
+    else
+      setFilters((prev) => ({ ...prev, status: [] }));
+  }
+
+  function handleStatusPillKeyDown(event: React.KeyboardEvent<HTMLSpanElement>, status: string) {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      setStatusFilter(status);
+    }
   }
 
   const filteredHabits = useMemo(() => {
@@ -209,29 +223,35 @@ export function HabitLibraryPage() {
     return frequencyLabelMap.get(frequencies[0]) ?? frequencies[0];
   }
 
-  function formatDateTimeLabel(isoDateTime: string): string {
-    const normalizedDateTime = /z$|[+-]\d{2}:?\d{2}$/i.test(isoDateTime)
-      ? isoDateTime
-      : isoDateTime.replace(" ", "T") + "Z";
-    const parsed = new Date(normalizedDateTime);
-    if (Number.isNaN(parsed.getTime())) return isoDateTime;
-    const datePart = parsed.toLocaleDateString("en-GB", {
-      day: "2-digit",
-      month: "long",
-      year: "numeric",
-      timeZone: "Asia/Kolkata",
-    });
-    const timePart = parsed.toLocaleTimeString("en-IN", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-      timeZone: "Asia/Kolkata",
-    });
-    return `${datePart} · ${timePart}`;
-  }
-
   function formatStatusLabel(status: HabitDataResponse["status"]): string {
     return status.charAt(0).toUpperCase() + status.slice(1);
+  }
+
+  function formatHabitDate(value: string): string {
+    const parsed = new Date(`${value}T00:00:00`);
+    if (Number.isNaN(parsed.getTime())) return value;
+    return parsed.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  }
+
+  function getHabitDateLabel(habit: HabitDataResponse): string | null {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (habit.start_date) {
+      const startDate = new Date(`${habit.start_date}T00:00:00`);
+      if (!Number.isNaN(startDate.getTime()) && startDate >= today) {
+        return `Starts ${formatHabitDate(habit.start_date)}`;
+      }
+    }
+
+    return habit.end_date ? `Ends ${formatHabitDate(habit.end_date)}` : null;
+  }
+
+  function getPreferredTimeLabel(habit: HabitDataResponse): string | null {
+    if (habit.preferred_time === "flexible") return null;
+    if (habit.preferred_time === "custom") return `${habit.specific_time} hrs` || null;
+    const option = PREFERRED_TIME_OPTIONS.find((item) => item.value === habit.preferred_time);
+    return option?.label.split(" (")[0] ?? habit.preferred_time;
   }
 
   return (
@@ -261,16 +281,40 @@ export function HabitLibraryPage() {
             </p>
             <div className="d-flex align-items-center justify-content-between flex-wrap habit-overview-actions">
               <div className="habit-overview-pills">
-                <span className="habit-stat-pill habit-stat-pill--active">
+                <span
+                  className="habit-stat-pill habit-stat-pill--active habit-stat-pill--clickable"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setStatusFilter("Active")}
+                  onKeyDown={(event) => handleStatusPillKeyDown(event, "Active")}
+                >
                   {stats.active} Active
                 </span>
-                <span className="habit-stat-pill habit-stat-pill--paused">
+                <span
+                  className="habit-stat-pill habit-stat-pill--paused habit-stat-pill--clickable"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setStatusFilter("Paused")}
+                  onKeyDown={(event) => handleStatusPillKeyDown(event, "Paused")}
+                >
                   {stats.paused} Paused
                 </span>
-                <span className="habit-stat-pill habit-stat-pill--archived">
+                <span
+                  className="habit-stat-pill habit-stat-pill--archived habit-stat-pill--clickable"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setStatusFilter("Archived")}
+                  onKeyDown={(event) => handleStatusPillKeyDown(event, "Archived")}
+                >
                   {stats.archived} Archived
                 </span>
-                <span className="habit-stat-pill habit-stat-pill--total">
+                <span
+                  className="habit-stat-pill habit-stat-pill--total habit-stat-pill--clickable"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setStatusFilter("Total")}
+                  onKeyDown={(event) => handleStatusPillKeyDown(event, "Total")}
+                >
                   {stats.total} Total
                 </span>
               </div>
@@ -304,7 +348,7 @@ export function HabitLibraryPage() {
           </div>
 
           <div className="hl-card-header-actions">
-            <div className="hl-view-toggle" role="group" aria-label="Habit view">
+            {!loadingHabits && (<div className="hl-view-toggle" role="group" aria-label="Habit view">
               {viewMode === "list" && (<button
                 type="button"
                 className="hl-view-toggle-btn"
@@ -323,7 +367,7 @@ export function HabitLibraryPage() {
               >
                 <Grid3x3Gap size={14} />
               </button>)}
-            </div>
+            </div>)}
 
             <div className="hl-filter-wrapper" ref={dropdownRef}>
               <button
@@ -378,10 +422,7 @@ export function HabitLibraryPage() {
 
         <div className="hl-card-body">
           {loadingHabits ? (
-            // TODO add a loading placeholder
-            <div className="hl-empty-state">
-              <p className="hl-empty-subtitle">Loading habits…</p>
-            </div>
+            <HabitLibrarySkeleton />
           ) : habitsError ? (
             <div className="hl-empty-state">
               <p className="hl-empty-title">Failed to load habits</p>
@@ -405,7 +446,10 @@ export function HabitLibraryPage() {
               {filteredHabits.map((h) => (
                 <article key={h.id} className="hl-habit-card">
                   <div className="hl-habit-card-head">
-                    <h3 className="hl-habit-name">{h.name}</h3>
+                    <div>
+                      <h3 className="hl-habit-name">{h.name}</h3>
+                      {h.motivation && (<div className="hl-habit-motivation">{h.motivation}</div>)}
+                    </div>
                     <Dropdown
                       show={openHabitMenuId === h.id}
                       onToggle={(nextShow) => setOpenHabitMenuId(nextShow ? h.id : null)}
@@ -485,8 +529,22 @@ export function HabitLibraryPage() {
                       <span className="hl-habit-chip hl-habit-chip--frequency">
                         {getPrimaryFrequencyLabel(h.frequencies)}
                       </span>
+                      {h.duration_minutes != null && h.duration_minutes > 0 && (
+                        <span className="hl-habit-chip hl-habit-chip--detail">
+                          {h.duration_minutes} min
+                        </span>
+                      )}
+                      {getHabitDateLabel(h) && (
+                        <span className="hl-habit-chip hl-habit-chip--detail">
+                          {getHabitDateLabel(h)}
+                        </span>
+                      )}
+                      {getPreferredTimeLabel(h) && (
+                        <span className="hl-habit-chip hl-habit-chip--detail">
+                          {getPreferredTimeLabel(h)}
+                        </span>
+                      )}
                     </div>
-                    <span className="hl-habit-updated-at">{formatDateTimeLabel(h.updated_at)}</span>
                   </div>
                 </article>
               ))}
@@ -532,6 +590,28 @@ export function HabitLibraryPage() {
         onCancel={() => setDeleteTargetHabit(null)}
       />
     </section>
+  );
+}
+
+function HabitLibrarySkeleton() {
+  return (
+    <div className="hl-habit-skeleton-grid" aria-busy="true" aria-label="Loading habits">
+      {Array.from({ length: 3 }, (_, index) => (
+        <article className={`hl-habit-skeleton-card hl-habit-skeleton-card--${index % 3}`} key={index}>
+          <div className="hl-habit-skeleton-head">
+            <span className="hl-skeleton hl-habit-skeleton-title" />
+            <span className="hl-skeleton hl-habit-skeleton-menu" />
+          </div>
+          <span className="hl-skeleton hl-habit-skeleton-description" />
+          <span className="hl-skeleton hl-habit-skeleton-description hl-habit-skeleton-description--short" />
+          <div className="hl-habit-skeleton-pills">
+            <span className="hl-skeleton hl-habit-skeleton-pill hl-habit-skeleton-pill--status" />
+            <span className="hl-skeleton hl-habit-skeleton-pill" />
+            <span className="hl-skeleton hl-habit-skeleton-pill hl-habit-skeleton-pill--wide" />
+          </div>
+        </article>
+      ))}
+    </div>
   );
 }
 

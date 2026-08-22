@@ -21,19 +21,19 @@ export const FREQUENCY_OPTIONS = [
 ];
 
 export const PREFERRED_TIME_OPTIONS = [
-    { value: "flexible",  label: "Flexible (no preference)" },
-    { value: "morning",   label: "Morning (before 12 pm)" },
+    { value: "flexible", label: "Flexible (no preference)" },
+    { value: "morning", label: "Morning (before 12 pm)" },
     { value: "afternoon", label: "Afternoon (12 pm - 5 pm)" },
-    { value: "evening",   label: "Evening (5 pm - 9 pm)" },
-    { value: "night",     label: "Night (after 9 pm)" },
-    { value: "custom",    label: "Specific time…" },
+    { value: "evening", label: "Evening (5 pm - 9 pm)" },
+    { value: "night", label: "Night (after 9 pm)" },
+    { value: "custom", label: "Specific time…" },
 ];
 
 function todayIso(): string {
     return new Date().toISOString().slice(0, 10);
 }
 
-export const EMPTY_FILTERS: FilterState = { status: [], priority: [], frequency: [] };
+export const EMPTY_FILTERS: FilterState = { status: ["Active"], priority: [], frequency: [] };
 
 export const EMPTY_DRAFT: HabitCreateRequest = {
     name: "",
@@ -50,10 +50,10 @@ export const EMPTY_DRAFT: HabitCreateRequest = {
 
 export const PRIORITY_OPTIONS: { value: HabitPriority; label: string }[] = [
     { value: "highest", label: "Highest" },
-    { value: "high",    label: "High" },
-    { value: "medium",  label: "Medium" },
-    { value: "low",     label: "Low" },
-    { value: "lowest",  label: "Lowest" },
+    { value: "high", label: "High" },
+    { value: "medium", label: "Medium" },
+    { value: "low", label: "Low" },
+    { value: "lowest", label: "Lowest" },
 ];
 
 export const FILTER_STATUS_OPTIONS = ["Active", "Paused", "Archived"];

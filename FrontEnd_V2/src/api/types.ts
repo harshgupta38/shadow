@@ -377,3 +377,33 @@ export interface RetryFailedMessageRequest {
   conversation_id: number;
   message_id: number;
 }
+
+export type HabitStatus = "active" | "paused" | "archived";
+export type FilterState = { status: string[]; frequency: string[] };
+
+export interface HabitDataResponse extends HabitCreateRequest {
+  id: number;
+
+  status: HabitStatus;
+  created_at: string;
+  updated_at: string;
+  // priority: string;
+  // linked_goal_ids: number[];
+  // linked_goal_names: string[];
+}
+
+export interface HabitCreateRequest {
+  name: string;
+  motivation: string | null;
+  frequencies: string[];
+  preferred_time: string | null;
+  specific_time: string;
+  duration_minutes: number | null;
+  start_date: string | null;
+  end_date: string | null;
+  is_ongoing: boolean;
+}
+
+export interface HabitUpdateRequest extends Partial<HabitCreateRequest> {
+  status?: HabitStatus;
+}

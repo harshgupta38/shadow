@@ -201,9 +201,9 @@ export function MilestoneProposalReviewPanel({ proposal, onClose, onSaved }: Mil
         <div className="goal-refined-review-backdrop">
             <section className={`goal-refined-review-panel${isClosing ? " is-closing" : ""}`} aria-labelledby="milestone-proposal-review-title">
 
-                <header className="goal-wizard-header">
-                    <div className="goal-wizard-header-main">
-                        <div className="goal-wizard-header-copy">
+                <header className="goal-wizard-header p-0">
+                    <div className="goal-wizard-header-main w-100">
+                        <div className="goal-wizard-header-copy w-100">
                             <h3 id="milestone-proposal-review-title" className="d-flex align-items-center justify-content-between">
                                 Review Milestone
                                 <button

@@ -109,4 +109,244 @@
       }
     }
   }
+
+  // ── Habit library card ──────────────────────────────────────────────
+  .hl-card {
+    background: var(--jv-surface, #fff);
+    border-radius: 12px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+    overflow: visible;
+  }
+
+  .hl-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 1.25rem 1.4rem 1rem;
+  }
+
+  .hl-title {
+    font-size: 1rem;
+    font-weight: 700;
+    margin: 0 0 0.2rem;
+    line-height: 1.3;
+    color: var(--jv-text, #212529);
+  }
+
+  .hl-subtitle {
+    font-size: 0.8125rem;
+    color: var(--jv-text-muted, #6c757d);
+    margin: 0;
+    line-height: 1.45;
+  }
+
+  // ── Filter button & dropdown ────────────────────────────────────────
+  .hl-filter-wrapper {
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  .hl-filter-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.35rem 0.9rem;
+    border-radius: 999px;
+    border: 1.5px solid var(--jv-border, #dee2e6);
+    background: transparent;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    cursor: pointer;
+    color: var(--jv-text, #212529);
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    white-space: nowrap;
+
+    &:hover:not(.hl-filter-btn--open) {
+      background: var(--jv-brand-soft);
+      border-color: var(--jv-brand-1);
+      color: var(--jv-brand-1);
+    }
+
+    &--open {
+      background: var(--jv-brand-gradient);
+      color: #fff;
+      border-color: transparent;
+    }
+  }
+
+  .hl-chevron {
+    transition: transform 0.2s;
+
+    &--up {
+      transform: rotate(180deg);
+    }
+  }
+
+  .hl-filter-dropdown {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 6px);
+    width: 360px;
+    background: var(--jv-surface, #fff);
+    border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.14);
+    z-index: 300;
+    overflow: hidden;
+  }
+
+  .hl-filter-section {
+    padding: 0.75rem 1rem;
+
+    & + .hl-filter-section {
+      border-top: 1px solid var(--jv-border, #e9ecef);
+    }
+  }
+
+  .hl-filter-label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--jv-text-muted, #6c757d);
+    margin: 0 0 0.5rem;
+  }
+
+  .hl-filter-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .hl-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.22rem 0.7rem;
+    border-radius: 999px;
+    border: 1.5px solid var(--jv-border, #dee2e6);
+    background: transparent;
+    font-size: 0.78rem;
+    cursor: pointer;
+    color: var(--jv-text, #212529);
+    transition: background 0.12s, border-color 0.12s, color 0.12s;
+
+    &--active {
+      background: var(--jv-brand-soft);
+      border-color: var(--jv-brand-1);
+      color: var(--jv-brand-1);
+    }
+
+    &:hover:not(.hl-chip--active) {
+      background: rgba(0, 0, 0, 0.04);
+    }
+  }
+
+  .hl-filter-reset {
+    border-top: 1px solid var(--jv-border, #e9ecef);
+    padding: 0.65rem 1rem;
+    text-align: center;
+  }
+
+  .hl-reset-btn {
+    background: none;
+    border: none;
+    font-size: 0.8125rem;
+    color: var(--jv-text, #212529);
+    cursor: pointer;
+    padding: 0;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  // ── Card body ───────────────────────────────────────────────────────
+  .hl-card-body {
+    padding: 0.25rem 1.4rem 1.5rem;
+  }
+
+  // ── Empty state ─────────────────────────────────────────────────────
+  .hl-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3.5rem 1rem 2.5rem;
+    text-align: center;
+  }
+
+  .hl-empty-icon {
+    width: 3.5rem;
+    height: 3.5rem;
+    border-radius: 14px;
+    background: rgba(110, 86, 207, 0.12);
+    color: #6e56cf;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1rem;
+  }
+
+  .hl-empty-title {
+    font-size: 0.9375rem;
+    font-weight: 700;
+    margin: 0 0 0.35rem;
+    color: var(--jv-text, #212529);
+  }
+
+  .hl-empty-subtitle {
+    font-size: 0.8125rem;
+    color: var(--jv-text-muted, #6c757d);
+    margin: 0;
+    max-width: 280px;
+    line-height: 1.55;
+  }
+
+  // ── Habit list (when habits exist) ──────────────────────────────────
+  .hl-habit-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .hl-habit-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.6rem 0;
+    border-bottom: 1px solid var(--jv-border, #e9ecef);
+
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+
+  .hl-habit-name {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--jv-text, #212529);
+  }
+
+  .hl-habit-status {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.15rem 0.55rem;
+    border-radius: 999px;
+    border: 1px solid transparent;
+
+    &--active {
+      background: rgba(var(--bs-success-rgb), 0.15);
+      border-color: rgba(var(--bs-success-rgb), 0.3);
+      color: var(--bs-success);
+    }
+
+    &--paused {
+      background: rgba(var(--bs-warning-rgb), 0.15);
+      border-color: rgba(var(--bs-warning-rgb), 0.35);
+      color: var(--bs-warning);
+    }
+
+    &--archived {
+      background: rgba(var(--bs-secondary-rgb), 0.1);
+      border-color: rgba(var(--bs-secondary-rgb), 0.25);
+      color: var(--bs-secondary);
+    }
+  }
 }

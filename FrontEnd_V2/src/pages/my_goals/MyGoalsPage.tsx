@@ -11,9 +11,9 @@ import {
   Stars,
 } from "react-bootstrap-icons";
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
-import { api, type GoalListItemResponse } from "@/api";
+import { api, type GoalDataShortResponse } from "@/api";
 import { ApiError } from "@/api/client";
 import { IllustratedErrorState } from "@/components/ui/IllustratedErrorState/IllustratedErrorState";
 
@@ -82,9 +82,11 @@ const FILTER_CONTENT: Record<GoalFilterLabel, FilterData> = {
 
 export function MyGoalsPage() {
   const toast = useToast();
+  const navigate = useNavigate();
+
   const [activeFilter, setActiveFilter] = useState<GoalFilterLabel>("Active");
   const [goalWizardOpen, setGoalWizardOpen] = useState(false);
-  const [goals, setGoals] = useState<GoalListItemResponse[]>([]);
+  const [goals, setGoals] = useState<GoalDataShortResponse[]>([]);
   const [loadingGoals, setLoadingGoals] = useState(false);
   const [goalsError, setGoalsError] = useState<string | null>(null);
   const currentContent = FILTER_CONTENT[activeFilter];
@@ -132,6 +134,12 @@ export function MyGoalsPage() {
   const showGoalCards = goals.length > 0;
   const showHeaderActions = !loadingGoals && showGoalCards;
 
+  function openGoalCoach() {
+    navigate(ROUTES.ASSISTANT, {
+      state: { agentType: "goal_coach", autoMessage: "I want to create a new goal" },
+    });
+  }
+
   if (goalWizardOpen) {
     return (
       <section className="my-goals-page">
@@ -164,6 +172,7 @@ export function MyGoalsPage() {
         icon: <Stars size={16} />,
         tone: "soft",
         className: "goals-vision-cta goals-vision-coach-btn",
+        onClick: openGoalCoach,
       },
     ]
     : [];
@@ -282,7 +291,7 @@ export function MyGoalsPage() {
             <button type="button" className="btn btn-brand goals-vision-cta" onClick={() => setGoalWizardOpen(true)}>
               <PlusLg size={16} className="me-1" /> New Goal
             </button>
-            <button type="button" className="btn btn-soft goals-vision-cta goals-vision-coach-btn">
+            <button type="button" className="btn btn-soft goals-vision-cta goals-vision-coach-btn" onClick={openGoalCoach}>
               <Stars size={16} className="me-1" /> Ask Goal Coach
             </button>
           </div>

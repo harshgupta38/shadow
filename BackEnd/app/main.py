@@ -11,6 +11,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy import text
 
 from app.api.router import api_router
 from app.constant import APP_DESCRIPTION, APP_NAME, VERSION, settings
@@ -31,11 +32,50 @@ logging.getLogger("apscheduler.executors").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 
+_LEGACY_DATE_FORMAT_MAP = {
+    "dd_mm_yyyy": "dd/mm/yyyy",
+    "mm_dd_yyyy": "mm/dd/yyyy",
+    "dd_mm_yyyy_dash": "dd-mm-yyyy",
+    "mm_dd_yyyy_dash": "mm-dd-yyyy",
+    "mmm_d_yyyy": "mmm d, yyyy",
+    "yyyy_mm_dd": "yyyy-mm-dd",
+}
+
+
+def _normalize_date_format_values() -> None:
+    """Rewrite any legacy underscore-form date_format values to their canonical form.
+
+    Rows written before the enum values were changed (e.g. 'dd_mm_yyyy' instead
+    of 'dd/mm/yyyy') cause a LookupError at query time.  This idempotent fixup
+    runs at startup so the server stays healthy even when Alembic hasn't been run.
+    """
+    is_pg = engine.dialect.name == "postgresql"
+    with engine.begin() as conn:
+        for legacy, canonical in _LEGACY_DATE_FORMAT_MAP.items():
+            if is_pg:
+                conn.execute(
+                    text(
+                        "UPDATE user_settings SET date_format = :canonical"
+                        " WHERE date_format::text = :legacy"
+                    ),
+                    {"canonical": canonical, "legacy": legacy},
+                )
+            else:
+                conn.execute(
+                    text(
+                        "UPDATE user_settings SET date_format = :canonical"
+                        " WHERE date_format = :legacy"
+                    ),
+                    {"canonical": canonical, "legacy": legacy},
+                )
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     # For the SQLite MVP we create tables on startup; production migrations
     # are managed with Alembic (`alembic upgrade head`).
     Base.metadata.create_all(bind=engine)
+    _normalize_date_format_values()
     if settings.enable_scheduler:
         start_scheduler()
     try:

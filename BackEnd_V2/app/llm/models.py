@@ -1,8 +1,18 @@
 from dataclasses import dataclass
+from typing import Callable
 
 from pydantic import BaseModel, Field
 from app.llm.enums import LLMProvider, ModelKey
-from app.schemas.goals import UnderstandGoalRequest, UnderstandGoalResponse
+from app.schemas.goals import RefineGoalRequest, RefineGoalFromLLMSchema
+from app.schemas.milestones import MilestoneProposalListLLMSchema
+from app.schemas.chat import (
+    MessageDataResponse,
+    ConvoDataResponse,
+    MessageFromLLMSchema,
+    ConversationContextFromLLMSchema,
+    NewConvoRequest,
+    NewConvoFromLLMSchema,
+)
 
 
 @dataclass(frozen=True)
@@ -24,11 +34,18 @@ class TokenUsage(BaseModel):
     total_tokens: int | None = None
 
 
-class RefineGoalResponse(BaseModel):
+class MetadataToLLM(BaseModel):
+    user_id: int
+    model: str | None = None
+    temperature: float | None = Field(default=None, ge=0.0, le=2.0)
+    max_tokens: int | None = Field(default=None, gt=0)
+    tool_executor: Callable[[str, dict], dict] | None = None
+
+
+class MetadataFromLLM(BaseModel):
     provider: LLMProvider
     model: ModelKey
     model_str: str | None = None
-    refined_data: UnderstandGoalResponse
     finish_reason: str
     usage: TokenUsage | None = None
     response_id: str | None = None
@@ -36,9 +53,61 @@ class RefineGoalResponse(BaseModel):
     cost: TokenCostBreakdown | None = None
 
 
-class RefineGoalRequest(BaseModel):
-    request_data: UnderstandGoalRequest
-    user_id: int | None = None
-    model: str | None = None
-    temperature: float | None = Field(default=None, ge=0.0, le=2.0)
-    max_tokens: int | None = Field(default=None, gt=0)
+# --- GOAL ---
+class RefineGoalToLLM(MetadataToLLM):
+    request_data: RefineGoalRequest
+
+
+class RefineGoalFromLLM(MetadataFromLLM):
+    refined_data: RefineGoalFromLLMSchema
+
+
+# --- MILESTONE PROPOSALS ---
+class MilestoneProposalsToLLM(MetadataToLLM):
+    goal_data: dict
+
+
+class MilestoneProposalsFromLLM(MetadataFromLLM):
+    proposals: MilestoneProposalListLLMSchema
+
+
+# --- CHAT - Start Conversation ---
+class NewConvoToLLM(MetadataToLLM):
+    request_data: NewConvoRequest
+
+
+class NewConvoFromLLM(MetadataFromLLM):
+    llm_data: NewConvoFromLLMSchema
+
+
+class NewConvoResponse(MetadataFromLLM):
+    message_data: MessageDataResponse
+    conversation_data: ConvoDataResponse | None = None
+
+
+class ConversationContextToLLM(MetadataToLLM):
+    agent_type: str
+    stable_context: str
+    context_summary: str
+    messages: list[dict[str, str]]
+
+
+class ConversationContextFromLLM(MetadataFromLLM):
+    llm_data: ConversationContextFromLLMSchema
+
+
+# --- CHAT - Respond to Message ---
+class MessageToLLM(MetadataToLLM):
+    request_data: str
+    agent_type: str
+    stable_context: str
+    context_summary: str
+    recent_messages: list[dict[str, str]]
+
+
+class MessageFromLLM(MetadataFromLLM):
+    llm_data: MessageFromLLMSchema
+
+
+class MessageResponse(MetadataFromLLM):
+    message_data: MessageDataResponse

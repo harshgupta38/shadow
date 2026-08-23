@@ -3,6 +3,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.schemas.common import ORMModel
+
 MilestoneStatus = Literal[
     "Not Started",
     "In Progress",
@@ -40,7 +42,9 @@ class MilestoneCreateRequest(BaseModel):
             "reason": "Reason",
         }
 
-        return cls._require_non_empty_text(value, field_labels.get(info.field_name, info.field_name))
+        return cls._require_non_empty_text(
+            value, field_labels.get(info.field_name, info.field_name)
+        )
 
     @field_validator("estimated_duration_days")
     @classmethod
@@ -77,7 +81,7 @@ class MilestoneUpdateRequest(BaseModel):
         return value
 
 
-class MilestoneResponse(BaseModel):
+class MilestoneDataDBS(ORMModel):
     id: int
     goal_id: int
     title: str
@@ -100,3 +104,52 @@ class MilestoneResponse(BaseModel):
 
     total_tasks: int
     completed_tasks: int
+
+
+class MilestoneDataResponse(MilestoneDataDBS):
+    pass
+
+
+class MilestoneProposalLLMSchema(BaseModel):
+    title: str = Field(
+        description=(
+            "A short, single-line title for the milestone. "
+            "Must be concise — no more than one sentence, no line breaks, no punctuation at the end."
+        )
+    )
+    description: str | None = Field(
+        default=None,
+        description=(
+            "Rich text detail about what this milestone involves. "
+            "Use Markdown formatting: headings (##, ###), bold (**text**), italic (*text*), "
+            "bullet lists (- item), numbered lists (1. item), and code blocks (```code```) where appropriate. "
+            "Write in full sentences and paragraphs. Be thorough — this is like a section in a Word document."
+        ),
+    )
+    reason: str = Field(
+        description="Why this milestone is important for achieving the goal."
+    )
+    estimated_duration_days: int | None = Field(
+        default=None,
+        description="Estimated number of days to complete this milestone. Null if unknown.",
+    )
+    assistant_context: str | None = Field(
+        default=None,
+        description=(
+            "Structured context to support daily planning and progress reporting for this milestone. "
+            "Include: key_steps (list of concrete action steps), daily_focus (what the user should work on each day), "
+            "success_indicators (how to know the milestone is on track), "
+            "and any other context relevant to breaking this milestone into daily work."
+        ),
+    )
+
+
+class MilestoneProposalListLLMSchema(BaseModel):
+    milestones: list[MilestoneProposalLLMSchema] = Field(
+        description="An ordered list of milestone proposals, from first to last."
+    )
+
+
+class SaveMilestoneFromProposalRequest(BaseModel):
+    proposal_id: str
+    milestone: MilestoneProposalLLMSchema

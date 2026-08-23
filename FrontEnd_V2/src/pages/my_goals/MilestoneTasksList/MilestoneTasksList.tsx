@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Dropdown } from "react-bootstrap";
 import { CalendarEvent, PencilSquare, ThreeDotsVertical, Check2Circle, Trash3, DashLg, PlusLg, Floppy } from "react-bootstrap-icons";
 
-import { api, type TaskResponse, type TaskStatus } from "@/api";
+import { api, type TaskDataResponse, type TaskStatus } from "@/api";
 import { ApiError } from "@/api/client";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { checkAndConvertPluralWord } from "@/services/word-plurality.service";
@@ -13,7 +13,7 @@ interface MilestoneTasksListProps {
 	milestoneId: number;
 }
 
-const STATUS_PILL_CLASS: Record<TaskResponse["status"], string> = {
+const STATUS_PILL_CLASS: Record<TaskDataResponse["status"], string> = {
 	"Not Started": "pill",
 	"In Progress": "pill pill-info",
 	"Paused": "pill pill-warn",
@@ -37,7 +37,7 @@ function toPercent(current: number | null, target: number | null): number | null
 }
 
 export function MilestoneTasksList({ milestoneId }: MilestoneTasksListProps) {
-	const [tasks, setTasks] = useState<TaskResponse[]>([]);
+	const [tasks, setTasks] = useState<TaskDataResponse[]>([]);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [busyId, setBusyId] = useState<number | null>(null);
@@ -84,7 +84,7 @@ export function MilestoneTasksList({ milestoneId }: MilestoneTasksListProps) {
 		[tasks],
 	);
 
-	async function setStatus(task: TaskResponse, status: TaskStatus): Promise<boolean> {
+	async function setStatus(task: TaskDataResponse, status: TaskStatus): Promise<boolean> {
 		if (task.status === status) return false;
 
 		setBusyId(task.id);
@@ -101,16 +101,16 @@ export function MilestoneTasksList({ milestoneId }: MilestoneTasksListProps) {
 		}
 	}
 
-	function getStatusCycle(task: TaskResponse): TaskStatus[] {
+	function getStatusCycle(task: TaskDataResponse): TaskStatus[] {
 		return task.task_type === "Binary" ? BINARY_STATUS_CYCLE : NUMERIC_STATUS_CYCLE;
 	}
 
-	function getEffectiveCurrentValue(task: TaskResponse): number {
+	function getEffectiveCurrentValue(task: TaskDataResponse): number {
 		if (typeof progressDrafts[task.id] === "number") return progressDrafts[task.id];
 		return task.current_value ?? 0;
 	}
 
-	function changeProgress(task: TaskResponse, delta: number) {
+	function changeProgress(task: TaskDataResponse, delta: number) {
 		const target = task.target_value ?? 0;
 		if (target <= 0) return;
 
@@ -142,7 +142,7 @@ export function MilestoneTasksList({ milestoneId }: MilestoneTasksListProps) {
 		}
 	}
 
-	function startProgressHold(task: TaskResponse, delta: number) {
+	function startProgressHold(task: TaskDataResponse, delta: number) {
 		stopProgressHold();
 
 		// Single step immediately on press.
@@ -156,7 +156,7 @@ export function MilestoneTasksList({ milestoneId }: MilestoneTasksListProps) {
 		}, 260);
 	}
 
-	async function saveProgress(task: TaskResponse) {
+	async function saveProgress(task: TaskDataResponse) {
 		const nextCurrent = progressDrafts[task.id];
 		if (typeof nextCurrent !== "number") return;
 

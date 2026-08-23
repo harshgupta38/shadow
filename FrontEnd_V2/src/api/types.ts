@@ -1,4 +1,4 @@
-export interface UserData {
+export interface UserDataResponse {
   id: number;
   name: string;
   email: string;
@@ -49,7 +49,7 @@ export interface UserLocation {
   longitude: number;
 }
 
-export interface UnderstandGoalRequest {
+export interface RefineGoalRequest {
   goal: string;
   why: string;
   success: string;
@@ -70,7 +70,7 @@ export type GoalCategory =
   | "Travel"
   | "Other";
 
-export interface UnderstandGoalResponse {
+export interface RefineGoalFromLLMSchema {
   title: string;
   summary: string;
   category: GoalCategory;
@@ -100,7 +100,7 @@ export interface RefineGoalResponse {
   provider: string;
   model: string;
   model_str: string | null;
-  refined_data: UnderstandGoalResponse;
+  refined_data: RefineGoalFromLLMSchema;
   finish_reason: string;
   usage: TokenUsage | null;
   response_id: string | null;
@@ -111,7 +111,7 @@ export interface RefineGoalResponse {
 export type GoalListStatusFilter = "All" | "Active" | "Paused" | "Completed";
 export type GoalItemStatus = Exclude<GoalListStatusFilter, "All">;
 
-export interface GoalListItemResponse {
+export interface GoalDataShortResponse {
   id: number;
   title: string;
   summary: string;
@@ -124,7 +124,7 @@ export interface GoalListItemResponse {
   habits_active: number;
 }
 
-export interface GoalDetailResponse {
+export interface GoalDataResponse {
   id: number;
   title: string;
   summary: string;
@@ -138,10 +138,54 @@ export interface GoalDetailResponse {
   target_date: string;
   success_metrics: string[];
   insights: string[];
+  source_conversation_id: number | null;
   milestones_total: number;
   milestones_completed: number;
   habits_total: number;
   habits_active: number;
+}
+
+export type GoalProposalStatus = "pending" | "saved";
+export type GoalProposalAction = "create" | "view";
+
+export interface GoalProposal {
+  proposal_id: string;
+  content_index: number;
+  status: GoalProposalStatus;
+  goal_id: number | null;
+  goal: RefineGoalFromLLMSchema;
+  goal_action: GoalProposalAction;
+}
+
+export interface SaveGoalFromProposalRequest {
+  proposal_id: string;
+  goal: RefineGoalFromLLMSchema;
+}
+
+export interface MilestoneProposalLLMSchema {
+  title: string;
+  description: string | null;
+  reason: string;
+  estimated_duration_days: number | null;
+  assistant_context: string | null;
+}
+
+export type MilestoneProposalStatus = "pending" | "saved";
+export type MilestoneProposalAction = "create" | "view";
+
+export interface MilestoneProposal {
+  proposal_id: string;
+  content_index: number;
+  status: MilestoneProposalStatus;
+  goal_id: number | null;
+  milestone_id: number | null;
+  milestone: MilestoneProposalLLMSchema;
+  milestone_action: MilestoneProposalAction;
+}
+
+export interface SaveMilestoneFromProposalRequest {
+  proposal_id: string;
+  milestone: MilestoneProposalLLMSchema;
 }
 
 export type MilestoneCreatedBy = "User" | "Assistant";
@@ -167,7 +211,7 @@ export interface MilestoneUpdateRequest {
   position?: number;
 }
 
-export interface MilestoneResponse {
+export interface MilestoneDataResponse {
   id: number;
   goal_id: number;
   title: string;
@@ -239,7 +283,7 @@ export interface TaskUpdateRequest {
   position?: number;
 }
 
-export interface TaskResponse {
+export interface TaskDataResponse {
   id: number;
   goal_id: number;
   milestone_id: number;
@@ -274,7 +318,7 @@ export interface TaskResponse {
 export type AssistantAgentType = "shadow" | "goal_coach" | "career_advisor" | "insights";
 export type ChatRole = "user" | "assistant" | "system" | "tool";
 
-export interface ConversationData {
+export interface ConvoDataShortResponse {
   id: number;
   title: string;
   agent_type: AssistantAgentType;
@@ -285,21 +329,89 @@ export interface ConversationData {
   is_local?: boolean;
 }
 
-export interface MessageData {
+export interface MessageLinkedItems {
+  goal_proposals?: GoalProposal[];
+  milestone_proposals?: MilestoneProposal[];
+}
+
+export interface MessageDataResponse {
   id?: number;
   conversation_id: number;
-  content: string;
+  content: string[];
   role: ChatRole;
+  request_status: string;
+  linked_items: MessageLinkedItems;
   created_at: string;
 }
 
-export interface SendMessageRequest {
-  conversation_id: number;
+export interface MessageChunkResponse {
+  message_list: MessageDataResponse[];
+  has_more: boolean;
+}
+
+export interface NewConvoRequest {
   content: string;
   agent_type: AssistantAgentType;
 }
 
-export interface SendMessageResponse {
-  message_data: MessageData;
-  conversation_data?: ConversationData;
+export interface MessageRequest {
+  conversation_id: number;
+  content: string;
+}
+
+export interface RenameConvoRequest {
+  title: string;
+}
+
+export interface MessageResponse {
+  message_data: MessageDataResponse;
+  conversation_data?: ConvoDataShortResponse;
+}
+
+export interface RegenerateResponseRequest {
+  conversation_id: number;
+  message_id: number;
+}
+
+export interface RetryFailedMessageRequest {
+  conversation_id: number;
+  message_id: number;
+}
+
+export type HabitStatus = "active" | "paused" | "archived";
+export type HabitPriority = "highest" | "high" | "medium" | "low" | "lowest";
+export type HabitType = "simple" | "metric";
+export type HabitTimeSpan = "Day" | "Week" | "Month" | "Year";
+export type FilterState = { status: string[]; priority: string[]; frequency: string[] };
+
+export interface HabitDataResponse extends HabitCreateRequest {
+  id: number;
+
+  status: HabitStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HabitCreateRequest {
+  name: string;
+  motivation: string | null;
+  frequencies: string[];
+  preferred_time: string;
+  specific_time: string;
+  duration_minutes: number | null;
+  start_date: string | null;
+  end_date: string | null; // null means ongoing; non-null means ends on that date.
+  priority: HabitPriority;
+  weekly_count: number | null; // How many times per week; only relevant when "weekly" is in frequencies (1–6)
+  monthly_count: number | null; // How many times per month; only relevant when "monthly" is in frequencies (1–27)
+  specific_days: number[] | null; // Specific days of month (1–31) for the specific-day picker
+  day_fallback: boolean; // When a specific day doesn't exist in a month: true = use last day, false = skip
+  habit_type: HabitType; // "simple" | "metric" — metric habits track a measurable target
+  target_value: number | null; // Positive integer target; only for metric habits (e.g. 10 for "10 pages/day")
+  target_unit: string; // Unit label (e.g. "pages", "km"); defaults to "count"
+  time_span: HabitTimeSpan; // Unit label (e.g. "pages", "km"); defaults to "count"
+}
+
+export interface HabitUpdateRequest extends Partial<HabitCreateRequest> {
+  status?: HabitStatus;
 }

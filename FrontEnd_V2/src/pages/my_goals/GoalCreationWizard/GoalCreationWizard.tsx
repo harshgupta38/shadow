@@ -5,7 +5,7 @@ import {
 
 import { api } from "@/api";
 import { ApiError } from "@/api/client";
-import type { UnderstandGoalRequest, UnderstandGoalResponse } from "@/api/types";
+import type { RefineGoalRequest, RefineGoalFromLLMSchema } from "@/api/types";
 import { ThemeToggle } from "@/components/ui/ThemeToggle/ThemeToggle";
 import { resizeTextareaToMaxLines } from "@/services/textarea-resize.service";
 
@@ -29,7 +29,7 @@ const ORDERED_STEP_KEYS = STEPS.map((step) => step.key);
 type WizardPhase = "questions" | "understanding" | "review";
 type GoalWizardAnswers = Record<GoalWizardStepKey, string>;
 type GoalWizardStepErrors = Partial<Record<GoalWizardStepKey, string>>;
-type GoalReviewFieldKey = keyof UnderstandGoalResponse;
+type GoalReviewFieldKey = keyof RefineGoalFromLLMSchema;
 type GoalReviewFieldErrors = Partial<Record<GoalReviewFieldKey, string>>;
 
 const REVIEW_FIELD_KEYS: GoalReviewFieldKey[] = [
@@ -76,7 +76,7 @@ function validateSubmitAnswers(
     };
 }
 
-function buildUnderstandGoalPayload(answers: GoalWizardAnswers): UnderstandGoalRequest {
+function buildRefineGoalPayload(answers: GoalWizardAnswers): RefineGoalRequest {
     return {
         goal: answers.goal.trim(),
         why: answers.why.trim(),
@@ -132,7 +132,7 @@ function mapFieldErrorsToReviewErrors(
 interface GoalCreationWizardProps {
     open: boolean;
     onClose: () => void;
-    onSubmitted?: (response: UnderstandGoalResponse) => void | Promise<void>;
+    onSubmitted?: () => void | Promise<void>;
 }
 
 export function GoalCreationWizard({ open, onClose, onSubmitted }: GoalCreationWizardProps) {
@@ -150,7 +150,7 @@ export function GoalCreationWizard({ open, onClose, onSubmitted }: GoalCreationW
     const [stepErrors, setStepErrors] = useState<GoalWizardStepErrors>({});
     const [reviewFieldErrors, setReviewFieldErrors] = useState<GoalReviewFieldErrors>({});
     const [reviewHasValidationErrors, setReviewHasValidationErrors] = useState(false);
-    const [understoodGoal, setUnderstoodGoal] = useState<UnderstandGoalResponse | null>(null);
+    const [understoodGoal, setUnderstoodGoal] = useState<RefineGoalFromLLMSchema | null>(null);
     const boyStepTimerRef = useRef<number | null>(null);
     const boyFadeTimerRef = useRef<number | null>(null);
     const currentTitle = PHASE_TITLES[phase][0];
@@ -364,7 +364,7 @@ export function GoalCreationWizard({ open, onClose, onSubmitted }: GoalCreationW
             return;
         }
 
-        const payload = buildUnderstandGoalPayload(answers);
+        const payload = buildRefineGoalPayload(answers);
 
         setPhase("understanding");
         setSubmitting(true);
@@ -406,7 +406,7 @@ export function GoalCreationWizard({ open, onClose, onSubmitted }: GoalCreationW
         }
     }
 
-    async function handleConfirmGoal(goalToSave: UnderstandGoalResponse) {
+    async function handleConfirmGoal(goalToSave: RefineGoalFromLLMSchema) {
         if (!goalToSave) {
             return;
         }
@@ -416,8 +416,8 @@ export function GoalCreationWizard({ open, onClose, onSubmitted }: GoalCreationW
         setReviewFieldErrors({});
 
         try {
-            const savedGoal = await api.goals.saveGoal(goalToSave);
-            await onSubmitted?.(savedGoal);
+            await api.goals.saveGoal(goalToSave);
+            await onSubmitted?.();
             onClose();
         } catch (saveError) {
             if (saveError instanceof ApiError) {

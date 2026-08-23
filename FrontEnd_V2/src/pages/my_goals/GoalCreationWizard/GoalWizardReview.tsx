@@ -3,7 +3,7 @@ import { ChevronLeft, Plus, Trash3 } from "react-bootstrap-icons";
 
 import type {
     GoalCategory,
-    UnderstandGoalResponse,
+    RefineGoalFromLLMSchema,
 } from "@/api/types";
 import { resizeTextareaToMaxLines } from "@/services/textarea-resize.service";
 
@@ -25,7 +25,7 @@ const MAX_TEXTAREA_LINES = 8;
 const MAX_LIST_TEXTAREA_LINES = 4;
 
 type ListFieldKey = "challenges" | "strengths" | "success_metrics" | "insights";
-type GoalReviewFieldKey = keyof UnderstandGoalResponse;
+type GoalReviewFieldKey = keyof RefineGoalFromLLMSchema;
 
 const LIST_FIELD_CONFIG: Array<{ key: ListFieldKey; label: string }> = [
     { key: "challenges", label: "Challenges" },
@@ -35,18 +35,19 @@ const LIST_FIELD_CONFIG: Array<{ key: ListFieldKey; label: string }> = [
 ];
 
 interface GoalWizardReviewProps {
-    goalData: UnderstandGoalResponse;
+    goalData: RefineGoalFromLLMSchema;
     saving: boolean;
     error: string | null;
     fieldErrors: Partial<Record<GoalReviewFieldKey, string>>;
     hideBack?: boolean;
+    actionFrom?: "wizard" | "assistant";
     onBack: () => void;
     onFieldEdited: (fieldKey: GoalReviewFieldKey) => void;
     onValidationStateChange: (hasErrors: boolean) => void;
-    onConfirm: (goalData: UnderstandGoalResponse) => void;
+    onConfirm: (goalData: RefineGoalFromLLMSchema) => void;
 }
 
-function validateGoalReviewData(goalData: UnderstandGoalResponse): Partial<Record<GoalReviewFieldKey, string>> {
+function validateGoalReviewData(goalData: RefineGoalFromLLMSchema): Partial<Record<GoalReviewFieldKey, string>> {
     const errors: Partial<Record<GoalReviewFieldKey, string>> = {};
 
     const requiredTextFields: Array<{ key: GoalReviewFieldKey; label: string }> = [
@@ -137,8 +138,8 @@ function getFirstFieldErrorMessage(fieldErrors: Partial<Record<GoalReviewFieldKe
     return null;
 }
 
-export function GoalWizardReview({ goalData, saving, error, fieldErrors, hideBack, onBack, onFieldEdited, onValidationStateChange, onConfirm }: GoalWizardReviewProps) {
-    const [editableGoal, setEditableGoal] = useState<UnderstandGoalResponse>(goalData);
+export function GoalWizardReview({ goalData, saving, error, fieldErrors, hideBack, actionFrom, onBack, onFieldEdited, onValidationStateChange, onConfirm }: GoalWizardReviewProps) {
+    const [editableGoal, setEditableGoal] = useState<RefineGoalFromLLMSchema>(goalData);
     const [activeListTab, setActiveListTab] = useState<ListFieldKey>("challenges");
     const [clientFieldErrors, setClientFieldErrors] = useState<Partial<Record<GoalReviewFieldKey, string>>>({});
     const textareaRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
@@ -175,7 +176,7 @@ export function GoalWizardReview({ goalData, saving, error, fieldErrors, hideBac
         };
     }
 
-    function updateField<K extends keyof UnderstandGoalResponse>(key: K, value: UnderstandGoalResponse[K]) {
+    function updateField<K extends keyof RefineGoalFromLLMSchema>(key: K, value: RefineGoalFromLLMSchema[K]) {
         setEditableGoal((current) => ({
             ...current,
             [key]: value,
@@ -216,7 +217,7 @@ export function GoalWizardReview({ goalData, saving, error, fieldErrors, hideBac
     }
 
     function handleSave() {
-        const payload: UnderstandGoalResponse = {
+        const payload: RefineGoalFromLLMSchema = {
             ...editableGoal,
             challenges: editableGoal.challenges.map((item) => item.trim()).filter((item) => item.length > 0),
             strengths: editableGoal.strengths.map((item) => item.trim()).filter((item) => item.length > 0),
@@ -250,7 +251,7 @@ export function GoalWizardReview({ goalData, saving, error, fieldErrors, hideBac
     }
 
     return (
-        <div className="goal-wizard-body">
+        <div className={`goal-wizard-body ${actionFrom === "assistant" ? "less-padding" : ""}`.trim()}>
             <div className="goal-wizard-review pb-2" aria-live="polite">
                 <div className="goal-wizard-review-form">
                     <div>
@@ -436,6 +437,11 @@ export function GoalWizardReview({ goalData, saving, error, fieldErrors, hideBac
                     <button type="button" className="btn btn-brand" onClick={handleSave} disabled={saving}>
                         {saving ? "Saving..." : "Save"}
                     </button>
+                    {actionFrom === "assistant" && (
+                        <button type="button" className="btn btn-soft" onClick={onBack} disabled={saving}>
+                            Cancel
+                        </button>
+                    )}
                     {footerErrorMessage && <div className="alert alert-danger py-2 px-3 small mb-0">{footerErrorMessage}</div>}
                 </div>
 

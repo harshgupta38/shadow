@@ -8,3 +8,5 @@ data.txt
 *.pyc
 *.db
 .vscode
+Structure.md
+.claude

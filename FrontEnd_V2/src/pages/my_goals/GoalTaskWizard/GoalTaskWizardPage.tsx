@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, Check2Circle, X } from "react-bootstrap-icons";
 import { useNavigate, useParams } from "react-router-dom";
 
-import { api, type GoalDetailResponse, type MilestoneResponse, type TaskType } from "@/api";
+import { api, type GoalDataResponse, type MilestoneDataResponse, type TaskType } from "@/api";
 import { ApiError } from "@/api/client";
 import LOADING_IMAGE from "@/assets/loading_default.png";
 import { StepImageVisual } from "@/components/ui/StepImageVisual/StepImageVisual";
@@ -218,8 +218,8 @@ export function GoalTaskWizardPage() {
 	const navigate = useNavigate();
 	const toast = useToast();
 
-	const [goal, setGoal] = useState<GoalDetailResponse | null>(null);
-	const [milestone, setMilestone] = useState<MilestoneResponse | null>(null);
+	const [goal, setGoal] = useState<GoalDataResponse | null>(null);
+	const [milestone, setMilestone] = useState<MilestoneDataResponse | null>(null);
 	const [loadingContext, setLoadingContext] = useState(true);
 	const [loaderIndex, setLoaderIndex] = useState(0);
 	const [currentStepIndex, setCurrentStepIndex] = useState(0);

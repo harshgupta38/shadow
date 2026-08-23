@@ -15,8 +15,12 @@ interface ThemeContextValue {
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
 function applyTheme(effectiveTheme: EffectiveTheme): void {
-	document.documentElement.setAttribute("data-bs-theme", effectiveTheme);
-	document.documentElement.style.colorScheme = effectiveTheme;
+	const root = document.documentElement;
+	root.classList.add("theme-transitioning");
+	void root.offsetHeight; // force style flush so the browser captures the "from" state before colors change
+	root.setAttribute("data-bs-theme", effectiveTheme);
+	root.style.colorScheme = effectiveTheme;
+	window.setTimeout(() => root.classList.remove("theme-transitioning"), 350);
 }
 
 function getBrowserTheme(): EffectiveTheme {

@@ -57,6 +57,20 @@ Rules:
         le=3600,
     )
 
+    chat_recent_message_limit: int = Field(
+        default=12,
+        alias="CHAT_RECENT_MESSAGE_LIMIT",
+        ge=1,
+        le=100,
+    )
+
+    chat_summary_update_user_messages: int = Field(
+        default=10,
+        alias="CHAT_SUMMARY_UPDATE_USER_MESSAGES",
+        ge=1,
+        le=100,
+    )
+
     model_config = SettingsConfigDict(
         env_file=".env",
         extra="ignore",

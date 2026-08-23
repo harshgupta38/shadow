@@ -31,6 +31,7 @@
 
   /* Layout */
   --jv-sidebar-w: 264px;
+  --jv-sidebar-collapsed-w: 68px;
   --jv-topbar-h: 68px;
 
   /* Typography */
@@ -68,6 +69,8 @@
   --jv-danger-soft: rgba(229, 72, 77, 0.12);
   --jv-info: #4f8bff;
   --jv-info-soft: rgba(79, 139, 255, 0.12);
+  --jv-violet: #8b5cf6;
+  --jv-violet-soft: rgba(139, 92, 246, 0.12);
 
   /* Bootstrap overrides */
   --bs-body-bg: var(--jv-bg);
@@ -113,6 +116,8 @@
   --jv-danger-soft: rgba(255, 99, 105, 0.16);
   --jv-info: #5b95ff;
   --jv-info-soft: rgba(91, 149, 255, 0.16);
+  --jv-violet: #a78bfa;
+  --jv-violet-soft: rgba(167, 139, 250, 0.16);
 
   --bs-body-bg: var(--jv-bg);
   --bs-body-color: var(--jv-text);
@@ -283,6 +288,10 @@ a {
   background: var(--jv-brand-soft);
   color: var(--jv-brand-1);
   border: none;
+
+  &.outline {
+    border: 1px solid var(--jv-brand-1);
+  }
 }
 .btn-soft:hover {
   background: var(--jv-brand-soft);
@@ -687,7 +696,15 @@ a {
    -------------------------------------------------------------------------- */
 .app-shell {
   display: flex;
-  min-height: 100vh;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.app-body {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .sidebar {
@@ -695,13 +712,18 @@ a {
   flex-shrink: 0;
   position: sticky;
   top: 0;
-  height: 100vh;
+  height: calc(100vh - var(--jv-topbar-h));
   display: flex;
   flex-direction: column;
   padding: 1.1rem 0.9rem;
   gap: 0.4rem;
   background: var(--jv-surface);
   border-right: 1px solid var(--jv-border);
+  overflow: hidden;
+  transition: width 240ms var(--jv-ease);
+}
+.sidebar--collapsed {
+  width: var(--jv-sidebar-collapsed-w);
 }
 
 .app-main {
@@ -709,6 +731,8 @@ a {
   min-width: 0;
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
+  max-height: calc(100vh - var(--jv-topbar-h));
 }
 
 .topbar {
@@ -799,6 +823,16 @@ a {
 .nav-link-jv svg {
   flex-shrink: 0;
 }
+.nav-link-jv span {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.nav-link-jv--icon {
+  justify-content: center;
+  padding: 0.62rem;
+}
 .nav-section-label {
   font-size: 0.68rem;
   font-weight: 700;
@@ -806,6 +840,36 @@ a {
   text-transform: uppercase;
   color: var(--jv-faint);
   padding: 0.5rem 0.8rem 0.3rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-collapse-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  width: 100%;
+  padding: 0.55rem 0.8rem;
+  border: none;
+  background: transparent;
+  border-radius: var(--jv-radius-sm);
+  color: var(--jv-faint);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  transition: background var(--jv-transition), color var(--jv-transition);
+  flex-shrink: 0;
+}
+.sidebar-collapse-btn:hover {
+  background: var(--jv-surface-2);
+  color: var(--jv-text);
+}
+.sidebar-collapse-btn--collapsed {
+  justify-content: center;
+  padding: 0.55rem;
 }
 
 /* ----------------------------------------------------------------------------
@@ -1854,6 +1918,13 @@ a {
   box-shadow: var(--jv-shadow-lg);
   animation: jv-slide-in 220ms var(--jv-ease);
 }
+
+.toast-jv-message {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 @keyframes jv-slide-in {
   from { opacity: 0; transform: translateX(16px); }
   to { opacity: 1; transform: translateX(0); }
@@ -2035,16 +2106,49 @@ a {
 }
 
 /* Mobile bottom safe area + responsive shell */
-@media (max-width: 991.98px) {
+@media (max-width: 768px) {
   .sidebar-desktop {
     display: none !important;
   }
+}
+@media (max-width: 991.98px) {
   .app-content {
     padding: 1.1rem 1rem 4rem;
   }
 }
-@media (min-width: 992px) {
+@media (min-width: 769px) {
   .topbar-menu-btn {
     display: none !important;
   }
+}
+
+html.theme-transitioning,
+html.theme-transitioning *,
+html.theme-transitioning *::before,
+html.theme-transitioning *::after {
+  transition:
+    background-color 300ms ease-in-out,
+    // color 100ms ease-in-out,
+    border-color 300ms ease-in-out,
+    box-shadow 300ms ease-in-out,
+    fill 300ms ease-in-out,
+    stroke 300ms ease-in-out !important;
+}
+
+// Elements with running animations must opt out — the !important override interferes with their keyframes
+html.theme-transitioning .typing-dot,
+html.theme-transitioning .assistant-typing-dot,
+html.theme-transitioning .assistant-message-skeleton-bubble,
+html.theme-transitioning .page-loader-dot,
+html.theme-transitioning .goal-skeleton::after,
+html.theme-transitioning .milestone-skeleton::after,
+html.theme-transitioning .goal-detail-skeleton::after,
+html.theme-transitioning .milestone-task-inline-line::after,
+html.theme-transitioning .milestone-tasks-skeleton-line::after,
+html.theme-transitioning .landing-kicker::before,
+html.theme-transitioning .fade-in,
+html.theme-transitioning .reveal-up,
+html.theme-transitioning .reveal-up-delay,
+html.theme-transitioning .toast-jv {
+  transition: none !important;
 }

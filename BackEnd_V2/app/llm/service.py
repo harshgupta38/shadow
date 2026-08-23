@@ -1,11 +1,30 @@
 from functools import lru_cache
-from app.llm.models import RefineGoalRequest, RefineGoalResponse
+from typing import Callable
+
+from app.llm.models import (
+    RefineGoalToLLM,
+    RefineGoalFromLLM,
+    MilestoneProposalsToLLM,
+    MilestoneProposalsFromLLM,
+    NewConvoToLLM,
+    NewConvoFromLLM,
+    MessageToLLM,
+    MessageFromLLM,
+    ConversationContextToLLM,
+    ConversationContextFromLLM,
+)
 from app.llm.base import BaseLLMProvider
 from app.llm.config import LLMSettings, llm_settings
 from app.llm.enums import LLMProvider
 from app.llm.exceptions import LLMConfigurationError
-from app.schemas.goals import UnderstandGoalRequest
-from app.llm.providers import ClaudeProvider, GeminiProvider, OllamaProvider, OpenAIProvider
+from app.schemas.goals import RefineGoalRequest
+from app.schemas.chat import MessageRequest, NewConvoRequest
+from app.llm.providers import (
+    ClaudeProvider,
+    GeminiProvider,
+    OllamaProvider,
+    OpenAIProvider,
+)
 
 
 class LLMService:
@@ -41,16 +60,97 @@ class LLMService:
 
     async def refine_goal(
         self,
-        request_data: UnderstandGoalRequest,
-        user_id: int | None = None,
-    ) -> RefineGoalResponse:
-        
-        request = RefineGoalRequest(request_data=request_data, user_id=user_id)
+        request_data: RefineGoalRequest,
+        user_id: int,
+    ) -> RefineGoalFromLLM:
+
+        request = RefineGoalToLLM(request_data=request_data, user_id=user_id)
         response = await self._provider.refine_goal(request)
 
         if response is None or response.refined_data is None:
             raise LLMConfigurationError(
                 "LLM provider returned no refined data for the goal."
+            )
+
+        return response
+
+    async def generate_milestone_proposals(
+        self,
+        goal_data: dict,
+        user_id: int,
+    ) -> MilestoneProposalsFromLLM:
+        request = MilestoneProposalsToLLM(goal_data=goal_data, user_id=user_id)
+        response = await self._provider.generate_milestone_proposals(request)
+
+        if response is None or response.proposals is None:
+            raise LLMConfigurationError("LLM provider returned no milestone proposals.")
+
+        return response
+
+    async def create_conversation(
+        self,
+        data: NewConvoRequest,
+        user_id: int,
+        tool_executor: Callable[[str, dict], dict] | None = None,
+    ) -> NewConvoFromLLM:
+        request = NewConvoToLLM(
+            request_data=data,
+            user_id=user_id,
+            tool_executor=tool_executor,
+        )
+        response = await self._provider.create_conversation(request)
+
+        if response is None or response.llm_data is None:
+            raise LLMConfigurationError("LLM provider returned no conversation data.")
+
+        return response
+
+    async def respond_to_message(
+        self,
+        data: MessageRequest,
+        stable_context: str,
+        context_summary: str,
+        agent_type: str,
+        recent_messages: list[dict[str, str]],
+        user_id: int,
+        tool_executor: Callable[[str, dict], dict] | None = None,
+    ) -> MessageFromLLM:
+        request = MessageToLLM(
+            request_data=data.content,
+            user_id=user_id,
+            agent_type=agent_type,
+            stable_context=stable_context,
+            context_summary=context_summary,
+            recent_messages=recent_messages,
+            tool_executor=tool_executor,
+        )
+        response = await self._provider.respond_to_message(request)
+        
+        if response is None or response.llm_data is None:
+            raise LLMConfigurationError("LLM provider returned no message data.")
+
+        return response
+
+    async def update_conversation_context(
+        self,
+        stable_context: str,
+        context_summary: str,
+        agent_type: str,
+        messages: list[dict[str, str]],
+        user_id: int,
+    ) -> ConversationContextFromLLM:
+        request = ConversationContextToLLM(
+            user_id=user_id,
+            agent_type=agent_type,
+            stable_context=stable_context,
+            context_summary=context_summary,
+            messages=messages,
+        )
+        response = await self._provider.update_conversation_context(request)
+
+        if response is None or response.llm_data is None:
+            raise LLMConfigurationError(
+                "LLM provider returned no conversation context data."
             )
 
         return response

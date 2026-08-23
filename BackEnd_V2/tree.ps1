@@ -10,7 +10,6 @@ $excludeDirs = @(
     ".vscode",
     "__pycache__",
     ".pytest_cache",
-    "alembic"
 )
 
 $excludeFiles = @(

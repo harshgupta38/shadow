@@ -1,34 +1,57 @@
 import { useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Dropdown, Modal } from "react-bootstrap";
-import { PlusLg, SendFill, Stars, ThreeDotsVertical, Trash3, XLg } from "react-bootstrap-icons";
+import { ArrowRepeat, Check2, ChevronLeft, ChevronRight, Copy, List, PencilSquare, PlusLg, SendFill, Stars, ThreeDotsVertical, Trash3, XLg, ExclamationTriangle } from "react-bootstrap-icons";
+import ReactMarkdown from "react-markdown";
 
 import boySitting from "@/assets/boy_sitting.png";
 import { api } from "@/api";
-import type { ConversationData, MessageData } from "@/api/types";
+import { ApiError } from "@/api/client";
+import type { ConvoDataShortResponse, GoalProposal, MessageDataResponse, MilestoneProposal } from "@/api/types";
+import { ROUTES } from "@/routes/RoutePaths";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
+import { TextFieldPromptDialog } from "@/components/ui/TextFieldPromptDialog/TextFieldPromptDialog";
+import { AssistantMessageSkeleton } from "@/pages/assistant/AssistantMessageSkeleton";
 import { ASSISTANT_AGENTS, ASSISTANT_LOADER_STEPS, type AssistantAgent } from "@/pages/assistant/AssistantPage.constants";
+import { RefinedGoalReviewPanel } from "@/pages/assistant/RefinedGoalReviewPanel/RefinedGoalReviewPanel";
+import { MilestoneProposalReviewPanel } from "@/pages/assistant/MilestoneProposalReviewPanel/MilestoneProposalReviewPanel";
 import { useToast } from "@/context/ToastContext";
-import { formatMessageTime } from "@/services/chat-time.service";
+import { formatChatTime } from "@/services/chat-time.service";
+import { resizeTextareaToMaxLines } from "@/services/textarea-resize.service";
 
 import "@/pages/assistant/AssistantPage.scss";
 
 export function AssistantPage() {
   const toast = useToast();
+  const location = useLocation();
+  const navigate = useNavigate();
 
   const [showNewChatModal, setShowNewChatModal] = useState(false);
   const [inputText, setInputText] = useState("");
+  const [pendingAutoMessage, setPendingAutoMessage] = useState<string | null>(null);
 
   const [loaderIndex, setLoaderIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingChats, setIsLoadingChats] = useState(false);
-  const [isProcessingMessage, setIsProcessingMessage] = useState(false);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [processingConversationId, setProcessingConversationId] = useState<number | null>(null);
+  const [isRenamingConversation, setIsRenamingConversation] = useState(false);
+  const [copiedMsgKey, setCopiedMsgKey] = useState<string | null>(null);
+  const [contentIndexMap, setContentIndexMap] = useState<Record<string, number>>({});
+  const [sessionsPanelOpen, setSessionsPanelOpen] = useState(false);
 
-  const [conversations, setConversations] = useState<ConversationData[]>([]);
-  const [messages, setMessages] = useState<MessageData[]>([]);
-  const [activeConversation, setActiveConversation] = useState<ConversationData | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<ConversationData | null>(null);
+  const [conversations, setConversations] = useState<ConvoDataShortResponse[]>([]);
+  const [messagesCache, setMessagesCache] = useState<Map<number, MessageDataResponse[]>>(new Map());
+  const [activeConversation, setActiveConversation] = useState<ConvoDataShortResponse | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ConvoDataShortResponse | null>(null);
+  const [renameTarget, setRenameTarget] = useState<ConvoDataShortResponse | null>(null);
+  const [reviewingProposal, setReviewingProposal] = useState<GoalProposal | null>(null);
+  const [reviewingMilestoneProposal, setReviewingMilestoneProposal] = useState<MilestoneProposal | null>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
+  const composerTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const messagesRequestIdRef = useRef(0);
+  const messageRefsMap = useRef<Record<string, HTMLDivElement | null>>({});
+  const draftsRef = useRef<Map<number, string>>(new Map());
 
   // Derived active item
   const hasAnyChat = conversations.length > 0;
@@ -36,11 +59,54 @@ export function AssistantPage() {
   const ActiveIcon = ASSISTANT_AGENTS[activeItem?.agent_type ?? "shadow"].icon;
   const activeAgent = activeItem ? ASSISTANT_AGENTS[activeItem.agent_type] : null;
 
+  // Per-conversation derived state — scoped to active conversation so switching never bleeds state across chats
+  const messages = messagesCache.get(activeItem?.id ?? -1) ?? [];
+  const isProcessingMessage = processingConversationId === activeItem?.id;
+
   useEffect(() => {
     api.chat.getConversations()
-      .then((data) => setConversations(data))
+      .then((data) => setConversations(prev => {
+        // Preserve any local (unsent) sessions already added by openAgent
+        const localSessions = prev.filter(c => c.is_local);
+        return [...data, ...localSessions];
+      }))
       .finally(() => setIsLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (isLoading) return;
+
+    const state = location.state as
+      {
+        agentType?: string;
+        autoMessage?: string;
+        conversationId?: number;
+        prefillMessage?: string
+      } | null;
+
+    if (state?.agentType) {
+      const agent = ASSISTANT_AGENTS[state.agentType as keyof typeof ASSISTANT_AGENTS];
+      if (agent) 
+        openAgent(agent);
+      if (state.prefillMessage)
+        setInputText(state.prefillMessage);
+      else if(state?.autoMessage)
+        setPendingAutoMessage(state.autoMessage);
+    } else if (state?.conversationId) {
+      const conversation = conversations.find(c => c.id === state.conversationId);
+      if (conversation) {
+        void getMessages(conversation);
+        if (state.prefillMessage)
+          setInputText(state.prefillMessage);
+      }
+    } else {
+      return;
+    }
+
+    // Clear state so a page refresh doesn't re-trigger
+    window.history.replaceState({}, "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading]);
 
   useEffect(() => {
     if (!isLoading) { setLoaderIndex(0); return; }
@@ -53,19 +119,45 @@ export function AssistantPage() {
   useEffect(() => {
     if (chatScrollRef.current)
       chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
-  }, [messages.length]);
+  }, [messages.length, isProcessingMessage]);
+
+  useEffect(() => {
+    if (!pendingAutoMessage || !activeConversation) return;
+    const message = pendingAutoMessage;
+    setPendingAutoMessage(null);
+    void sendMessage(message);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingAutoMessage, activeConversation]);
+
+  useEffect(() => {
+    if (composerTextareaRef.current) {
+      resizeTextareaToMaxLines(composerTextareaRef.current, 5, 20);
+    }
+  }, [inputText, activeConversation?.id]);
+
+  function updateConversationMessages(convId: number, updater: (prev: MessageDataResponse[]) => MessageDataResponse[]) {
+    setMessagesCache(prev => {
+      const next = new Map(prev);
+      next.set(convId, updater(next.get(convId) ?? []));
+      return next;
+    });
+  }
 
   function openAgent(agent: AssistantAgent) {
+    if (activeItem?.id !== undefined) draftsRef.current.set(activeItem.id, inputText);
+
     const existing = conversations.find(s => s.is_local && s.agent_type === agent.type);
-    setMessages([]);
+    messagesRequestIdRef.current += 1;
+    setIsLoadingMessages(false);
 
     if (existing) {
       setActiveConversation(existing);
+      setInputText(draftsRef.current.get(existing.id) ?? "");
       setShowNewChatModal(false);
       return;
     }
 
-    const session: ConversationData = {
+    const session: ConvoDataShortResponse = {
       id: Date.now(),
       title: agent.label,
       agent_type: agent.type,
@@ -78,65 +170,129 @@ export function AssistantPage() {
 
     setConversations(prev => [...prev, session]);
     setActiveConversation(session);
+    setInputText("");
     setShowNewChatModal(false);
   }
 
-  async function getMessages(conversation: ConversationData) {
+  async function getMessages(conversation: ConvoDataShortResponse) {
+    if (activeItem?.id !== undefined) draftsRef.current.set(activeItem.id, inputText);
+
+    const requestId = ++messagesRequestIdRef.current;
     setActiveConversation(conversation);
+    setInputText(draftsRef.current.get(conversation.id) ?? "");
 
     if (conversation.is_local) {
-      setMessages([]);
+      setIsLoadingMessages(false);
       return;
     }
 
-    setIsLoadingChats(true);
+    setIsLoadingMessages(true);
+    setMessagesCache(prev => { const next = new Map(prev); next.set(conversation.id, []); return next; });
+
     try {
-      const msgs = await api.chat.getMessages(conversation.id);
-      setMessages(msgs);
+      const messageChunk = await api.chat.getMessages(conversation.id);
+      if (requestId !== messagesRequestIdRef.current) return;
+      // TODO take care of pagination
+      setMessagesCache(prev => { const next = new Map(prev); next.set(conversation.id, messageChunk.message_list); return next; });
     } catch {
+      if (requestId !== messagesRequestIdRef.current) return;
       toast.error("Failed to load messages. Please try again.");
     } finally {
-      setIsLoadingChats(false);
+      if (requestId === messagesRequestIdRef.current) {
+        setIsLoadingMessages(false);
+      }
     }
   }
 
-  async function deleteConversation(data: ConversationData | null) {
+  async function deleteConversation(data: ConvoDataShortResponse | null) {
     if (!data) return;
 
     if (!data.is_local) {
       try {
         await api.chat.deleteConversation(data.id);
         setConversations(prev => prev.filter(c => c.id !== data.id));
+        setMessagesCache(prev => { const next = new Map(prev); next.delete(data.id); return next; });
         setDeleteTarget(null);
       } catch {
         toast.error("Failed to delete conversation. Please try again.");
       }
     } else {
       setConversations(prev => prev.filter(c => c.id !== data.id));
+      setMessagesCache(prev => { const next = new Map(prev); next.delete(data.id); return next; });
       setDeleteTarget(null);
     }
     if (activeConversation?.id === data.id) setActiveConversation(null);
   }
 
+  async function renameConversation(nextTitle: string) {
+    if (!renameTarget || isRenamingConversation) return;
+
+    const fallbackTitle = ASSISTANT_AGENTS[renameTarget.agent_type].label;
+    const currentTitle = renameTarget.title || fallbackTitle;
+    if (!nextTitle || nextTitle === currentTitle) {
+      setRenameTarget(null);
+      return;
+    }
+
+    if (!renameTarget.is_local) {
+      setIsRenamingConversation(true);
+      try {
+        const updatedConversation = await api.chat.renameConversation(renameTarget.id, { title: nextTitle });
+        setConversations(prev => prev.map(item => (
+          item.id === updatedConversation.id ? { ...item, ...updatedConversation } : item
+        )));
+
+        setActiveConversation(prev => (
+          prev?.id === updatedConversation.id ? { ...prev, ...updatedConversation } : prev
+        ));
+
+        setRenameTarget(null);
+      } catch {
+        toast.error("Failed to rename conversation. Please try again.");
+      } finally {
+        setIsRenamingConversation(false);
+      }
+      return;
+    }
+
+    setConversations(prev => prev.map(item => (
+      item.id === renameTarget.id ? { ...item, title: nextTitle } : item
+    )));
+
+    setActiveConversation(prev => (
+      prev?.id === renameTarget.id ? { ...prev, title: nextTitle } : prev
+    ));
+
+    setRenameTarget(null);
+  }
+
   async function sendMessage(content?: string) {
+    if (isLoadingMessages) return;
+
     const text = (content ?? inputText).trim();
     if (!text || !activeItem) return;
 
+    // Capture at call time so async callbacks always write to the correct conversation,
+    // even if the user switches conversations while the request is in flight.
+    const targetConvId = activeItem.id;
+
     setInputText("");
-    const msg: MessageData = {
-      conversation_id: activeItem.id,
-      content: text,
+    draftsRef.current.delete(targetConvId);
+    const msg: MessageDataResponse = {
+      conversation_id: targetConvId,
+      content: [text],
       role: "user",
+      request_status: "pending",
+      linked_items: {},
       created_at: new Date().toISOString(),
     };
 
-    setIsProcessingMessage(true);
+    setProcessingConversationId(targetConvId);
     if (activeItem.is_local) {
-      setMessages(prev => [...prev, msg]);
+      updateConversationMessages(targetConvId, prev => [...prev, msg]);
       try {
         const response = await api.chat.startConversation({
           content: text,
-          conversation_id: activeItem.id,
           agent_type: activeItem.agent_type,
         });
         const activeItemCopy = {
@@ -144,39 +300,163 @@ export function AssistantPage() {
           ...response.conversation_data,
           is_local: false,
         };
-        setConversations(prev => prev.map(c => c.id === activeItem.id ? activeItemCopy : c));
-        setActiveConversation(activeItemCopy);
-
-        setMessages(prev => [...prev, response.message_data]);
-      } catch {
-        toast.error("Failed to send message. Please try again.");
+        const realId = activeItemCopy.id;
+        setConversations(prev => prev.map(c => c.id === targetConvId ? activeItemCopy : c));
+        // Only navigate back if the user hasn't switched to another conversation in the meantime
+        setActiveConversation(prev => prev?.id === targetConvId ? activeItemCopy : prev);
+        // Move messages from the temporary local ID to the real conversation ID
+        setMessagesCache(prev => {
+          const next = new Map(prev);
+          const existing = next.get(targetConvId) ?? [];
+          next.delete(targetConvId);
+          next.set(realId, [...existing, response.message_data]);
+          return next;
+        });
+      } catch (error) {
+        toast.error(error instanceof ApiError ? error.message : "Failed to send message. Please try again.");
+        updateConversationMessages(targetConvId, prev =>
+          prev.map(m => m.created_at === msg.created_at ? { ...m, request_status: "failed" } : m)
+        );
       } finally {
-        setIsProcessingMessage(false);
+        setProcessingConversationId(prev => prev === targetConvId ? null : prev);
       }
     } else {
-      setMessages(prev => [...prev, msg]);
+      updateConversationMessages(targetConvId, prev => [...prev, msg]);
       try {
         const response = await api.chat.sendMessage({
-          conversation_id: activeItem.id,
+          conversation_id: targetConvId,
           content: text,
-          role: "user",
-          created_at: new Date().toISOString(),
         });
-
-        setMessages(prev => [...prev, response.message_data]);
-      } catch {
-        toast.error("Failed to send message. Please try again.");
+        updateConversationMessages(targetConvId, prev => [...prev, response.message_data]);
+      } catch (error) {
+        toast.error(error instanceof ApiError ? error.message : "Failed to send message. Please try again.");
+        updateConversationMessages(targetConvId, prev =>
+          prev.map(m => m.created_at === msg.created_at ? { ...m, request_status: "failed" } : m)
+        );
       } finally {
-        setIsProcessingMessage(false);
+        setProcessingConversationId(prev => prev === targetConvId ? null : prev);
       }
     }
   }
 
+  function navigateContent(msgKey: string, contentLength: number, dir: 1 | -1) {
+    setContentIndexMap(prev => {
+      const current = prev[msgKey] ?? contentLength - 1;
+      return { ...prev, [msgKey]: Math.max(0, Math.min(contentLength - 1, current + dir)) };
+    });
+    setTimeout(() => {
+      const el = messageRefsMap.current[msgKey];
+      const container = chatScrollRef.current;
+      if (!el || !container) return;
+      const needed = el.getBoundingClientRect().bottom - container.getBoundingClientRect().bottom + 40;
+      if (needed > 0) container.scrollBy({ top: needed, behavior: "smooth" });
+    }, 0);
+  }
+
+  function copyMessage(content: string, key: string) {
+    navigator.clipboard.writeText(content).then(() => {
+      setCopiedMsgKey(key);
+      setTimeout(() => setCopiedMsgKey(null), 1500);
+    });
+  }
+
+  function getActiveGoalProposal(msg: MessageDataResponse, contentIndex: number): GoalProposal | undefined {
+    return msg.linked_items.goal_proposals?.find(p => p.content_index === contentIndex);
+  }
+
+  function getActiveMilestoneProposals(msg: MessageDataResponse, contentIndex: number): MilestoneProposal[] {
+    return msg.linked_items.milestone_proposals?.filter(p => p.content_index === contentIndex) ?? [];
+  }
+
+  async function retryMessage(message: MessageDataResponse) {
+    if (isLoadingMessages || !activeItem) return;
+
+    const targetConvId = activeItem.id;
+    setProcessingConversationId(targetConvId);
+
+    // First message of a local conversation — no DB record exists yet, re-run startConversation
+    if (activeItem.is_local) {
+      const text = message.content[0];
+      if (!text) return;
+      updateConversationMessages(targetConvId, prev =>
+        prev.map(m => m.created_at === message.created_at ? { ...m, request_status: "pending" } : m)
+      );
+      try {
+        const response = await api.chat.startConversation({
+          content: text,
+          agent_type: activeItem.agent_type,
+        });
+        const activeItemCopy = { ...activeItem, ...response.conversation_data, is_local: false };
+        const realId = activeItemCopy.id;
+        setConversations(prev => prev.map(c => c.id === targetConvId ? activeItemCopy : c));
+        setActiveConversation(prev => prev?.id === targetConvId ? activeItemCopy : prev);
+        setMessagesCache(prev => {
+          const next = new Map(prev);
+          const existing = next.get(targetConvId) ?? [];
+          next.delete(targetConvId);
+          next.set(realId, [...existing, response.message_data]);
+          return next;
+        });
+      } catch (error) {
+        toast.error(error instanceof ApiError ? error.message : "Failed to send message. Please try again.");
+        updateConversationMessages(targetConvId, prev =>
+          prev.map(m => m.created_at === message.created_at ? { ...m, request_status: "failed" } : m)
+        );
+      } finally {
+        setProcessingConversationId(prev => prev === targetConvId ? null : prev);
+      }
+      return;
+    }
+
+    if (!message.id) return;
+
+    try {
+      const response = await api.chat.retryFailedMessage({
+        conversation_id: targetConvId,
+        message_id: message.id,
+      });
+      updateConversationMessages(targetConvId, prev =>
+        prev.map(m => m.id === message.id ? { ...m, request_status: "completed" } : m)
+      );
+      updateConversationMessages(targetConvId, prev => [...prev, response.message_data]);
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : "Failed to retry. Please try again.");
+    } finally {
+      setProcessingConversationId(prev => prev === targetConvId ? null : prev);
+    }
+  }
+
+  async function regenerateResponse(message: MessageDataResponse) {
+    if (isLoadingMessages || !message.id || !activeItem) return;
+
+    const targetConvId = activeItem.id;
+    setProcessingConversationId(targetConvId);
+    try {
+      const response = await api.chat.regenerateResponse({
+        conversation_id: targetConvId,
+        message_id: message.id,
+      });
+
+      updateConversationMessages(targetConvId, prev => prev.map(m => m.id === message.id ? response.message_data : m));
+      setContentIndexMap(prev => ({ ...prev, [String(message.id)]: response.message_data.content.length - 1 }));
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : "Failed to regenerate response. Please try again.");
+    } finally {
+      setProcessingConversationId(prev => prev === targetConvId ? null : prev);
+    }
+  }
+
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if(!inputText.trim() || isProcessingMessage || isLoadingMessages) return;
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
     }
+  }
+
+  function handleInputChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
+    setInputText(e.target.value);
+    resizeTextareaToMaxLines(e.target, 5, 20);
   }
 
   const avatarStyle = (g: [string, string], size: number) => ({
@@ -187,7 +467,7 @@ export function AssistantPage() {
 
   if (isLoading) {
     return (
-      <div className="page-fill-height">
+      <div className="assistant-page-container page-fill-height">
         <PageHeader title="Assistant" subtitle="Coaching that knows your goals, style and progress." />
         <div className="page-loader">
           <div className="page-loader-message">
@@ -214,8 +494,10 @@ export function AssistantPage() {
   });
 
   return (
-    <div className="page-fill-height">
-      <PageHeader title="Assistant" subtitle="Coaching that knows your goals, style and progress." />
+    <div className={`assistant-page-container page-fill-height ${hasAnyChat ? "assistant-page" : ""}`}>
+      <div className={`${hasAnyChat ? "hide-page-header" : ""}`}>
+        <PageHeader title="Assistant" subtitle="Coaching that knows your goals, style and progress." />
+      </div>
 
       {!hasAnyChat && (
         <div className="assistant-picker">
@@ -251,7 +533,7 @@ export function AssistantPage() {
 
       {hasAnyChat && (
         <div className="chat-layout">
-          <div className="surface chat-sessions-panel d-flex flex-column">
+          <div className={`surface chat-sessions-panel d-flex flex-column${sessionsPanelOpen ? " is-open" : ""}`}>
             <div className="p-2 border-bottom" style={{ borderColor: "var(--jv-border)" }}>
               <button className="btn btn-soft w-100" onClick={() => setShowNewChatModal(true)}>
                 <PlusLg size={15} className="me-1" /> New session
@@ -263,17 +545,34 @@ export function AssistantPage() {
                 const agent = ASSISTANT_AGENTS[conversation.agent_type];
                 const Icon = agent.icon;
                 const title = conversation.title || agent.label;
-                const meta = new Date(conversation.updated_at).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" });
-                const onSelect = () => { getMessages(conversation); };
+                const onSelect = () => { if (!isActive) { getMessages(conversation); setSessionsPanelOpen(false); } };
 
                 return (
-                  <button key={conversation.id} type="button" className={`chat-session-item w-100 border-0 ${isActive ? "active" : ""}`} onClick={onSelect}>
-                    <span className="d-inline-grid flex-shrink-0" style={avatarStyle(agent.gradient, 38)} aria-hidden="true"><Icon size={19} /></span>
-                    <div className="flex-grow-1 min-w-0 text-start">
-                      <div className="fw-semibold small text-truncate chat-session-title">{title}</div>
-                      <div className="text-faint text-truncate chat-session-meta" style={{ fontSize: "0.72rem" }}>{agent.tagline} · {meta}</div>
-                    </div>
-                  </button>
+                  <div key={conversation.id} className={`chat-session-row ${isActive ? "active" : ""}`}>
+                    <button type="button" className={`chat-session-item w-100 border-0 ${isActive ? "active" : ""}`} onClick={onSelect}>
+                      <span className="d-inline-grid flex-shrink-0 icon" style={avatarStyle(agent.gradient, 38)} aria-hidden="true"><Icon size={19} /></span>
+                      <div className="flex-grow-1 min-w-0 text-start">
+                        <div className="fw-semibold small text-truncate chat-session-title">{title}</div>
+                        <div className="text-faint text-truncate chat-session-meta" style={{ fontSize: "0.72rem" }}>{agent.tagline} · {formatChatTime(conversation.updated_at)}</div>
+                      </div>
+                    </button>
+                    <Dropdown
+                      align="end"
+                      className="chat-session-actions"
+                    >
+                      <Dropdown.Toggle as="button" className="btn btn-ghost btn-icon border-0 chat-session-action-toggle" aria-label="Session actions" bsPrefix=" ">
+                        <ThreeDotsVertical size={15} />
+                      </Dropdown.Toggle>
+                      <Dropdown.Menu>
+                        <Dropdown.Item onClick={() => setRenameTarget(conversation)}>
+                          <span className="d-flex align-items-center"><PencilSquare size={13} className="me-2" /> Rename</span>
+                        </Dropdown.Item>
+                        <Dropdown.Item className="text-danger" onClick={() => setDeleteTarget(conversation)}>
+                          <span className="d-flex align-items-center"><Trash3 size={13} className="me-2" /> Delete</span>
+                        </Dropdown.Item>
+                      </Dropdown.Menu>
+                    </Dropdown>
+                  </div>
                 );
               })}
             </div>
@@ -281,7 +580,13 @@ export function AssistantPage() {
 
           <div className="surface chat-window d-flex">
             {!activeItem ? (
-              <div className="d-flex align-items-center justify-content-center h-100 p-4 w-100">
+              <>
+                <div className="chat-sessions-mobile-bar">
+                  <button type="button" className="btn btn-ghost btn-icon border-0" onClick={() => setSessionsPanelOpen(o => !o)} aria-label="Open sessions">
+                    <List size={20} />
+                  </button>
+                </div>
+                <div className="d-flex align-items-center justify-content-center flex-grow-1 p-4 w-100">
                 <div className="text-center" style={{ maxWidth: 440 }}>
                   <div className="mx-auto mb-3 d-inline-grid" style={{ width: 64, height: 64, placeItems: "center", borderRadius: 18, background: "var(--jv-brand-soft)", color: "var(--jv-brand-1)" }}>
                     <Stars size={28} />
@@ -292,11 +597,15 @@ export function AssistantPage() {
                     <PlusLg size={16} className="me-1" /> New session
                   </button>
                 </div>
-              </div>
+                </div>
+              </>
             ) : activeAgent && ActiveIcon ? (
               <>
-                <div className="d-flex align-items-center gap-2 p-3 border-bottom" style={{ borderColor: "var(--jv-border)" }}>
-                  <span className="d-inline-grid flex-shrink-0" style={avatarStyle(activeAgent.gradient, 40)} aria-hidden="true">
+                <div className="d-flex align-items-center gap-2 border-bottom chat-head" style={{ borderColor: "var(--jv-border)" }}>
+                  <button type="button" className="btn btn-ghost btn-icon border-0 chat-sessions-toggle flex-shrink-0" onClick={() => setSessionsPanelOpen(o => !o)} aria-label="Open sessions">
+                    <List size={20} />
+                  </button>
+                  <span className="d-inline-grid flex-shrink-0 active-icon" style={avatarStyle(activeAgent.gradient, 40)} aria-hidden="true">
                     <ActiveIcon size={20} />
                   </span>
                   <div className="min-w-0">
@@ -308,6 +617,10 @@ export function AssistantPage() {
                       <ThreeDotsVertical size={16} />
                     </Dropdown.Toggle>
                     <Dropdown.Menu>
+                      <Dropdown.Item onClick={() => setRenameTarget(activeConversation)}>
+                        <span className="d-flex align-items-center"><PencilSquare size={13} className="me-2" /> Rename</span>
+                      </Dropdown.Item>
+                      <Dropdown.Divider />
                       <Dropdown.Item onClick={() => setActiveConversation(null)}>
                         <span className="d-flex align-items-center"><XLg size={13} className="me-2" /> Close</span>
                       </Dropdown.Item>
@@ -319,7 +632,9 @@ export function AssistantPage() {
                 </div>
 
                 <div className="chat-scroll" ref={chatScrollRef}>
-                  {messages.length === 0 ? (
+                  {isLoadingMessages ? (
+                    <AssistantMessageSkeleton />
+                  ) : messages.length === 0 ? (
                     <div className="m-auto text-center" style={{ maxWidth: 440 }}>
                       <span className="d-inline-grid" style={avatarStyle(activeAgent.gradient, 64)} aria-hidden="true">
                         <ActiveIcon size={30} />
@@ -334,31 +649,185 @@ export function AssistantPage() {
                     </div>
                   ) : (
                     <div className="d-flex flex-column gap-3 p-3">
-                      {messages.map(msg => (
-                        <div key={msg.id ?? msg.created_at} className={`d-flex ${msg.role === "user" ? "justify-content-end" : "justify-content-start"}`}>
-                          <div className={`d-flex flex-column gap-1 ${msg.role === "user" ? "align-items-end" : "align-items-start"}`} style={{ maxWidth: "75%" }}>
-                            <div className={`px-3 py-2 rounded-3 small ${msg.role === "user" ? "" : "surface-2"}`}
-                              style={{ whiteSpace: "pre-wrap", ...(msg.role === "user" ? { background: "var(--jv-brand-1)", color: "#fff" } : {}) }}>
-                              {msg.content}
+                      {messages.map((msg, i) => {
+                        const msgKey = String(msg.id ?? msg.created_at);
+                        const isCopied = copiedMsgKey === msgKey;
+                        const activeContentIndex = contentIndexMap[msgKey] ?? msg.content.length - 1;
+                        const activeContent = msg.content[activeContentIndex];
+                        const activeProposal = getActiveGoalProposal(msg, activeContentIndex);
+                        const activeMilestoneProposals = getActiveMilestoneProposals(msg, activeContentIndex);
+                        return (
+                          <div
+                            key={msgKey}
+                            ref={(el) => { messageRefsMap.current[msgKey] = el; }}
+                            className={`d-flex ${msg.role === "user" ? "justify-content-end" : "justify-content-start"}`}
+                          >
+                            <div className={`d-flex flex-column ${msg.role === "user" ? "align-items-end" : "align-items-start"}`} style={{ maxWidth: "75%" }}>
+                              <div className={`px-3 py-2 rounded-3 small ${msg.role === "user" ? "" : "surface-2"}`}
+                                style={msg.role === "user" ? { background: "var(--jv-brand-1)", color: "#fff", whiteSpace: "pre-wrap" } : {}}>
+                                <ReactMarkdown
+                                  components={{
+                                    a: ({ node, ...props }) => (
+                                      <a
+                                        {...props}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                      />
+                                    ),
+                                  }}
+                                  className="chat-markdown"
+                                >
+                                  {activeContent}
+                                </ReactMarkdown>
+                                {activeProposal && activeProposal.goal_action === "create" && (
+                                  <button
+                                    type="button"
+                                    className="btn btn-link p-0 fw-medium text-decoration-none mt-1"
+                                    style={{ fontSize: "14px" }}
+                                    onClick={() => setReviewingProposal(activeProposal)}
+                                  >
+                                    Open Review Panel &rarr;
+                                  </button>
+                                )}
+                                {activeProposal && activeProposal.goal_action === "view" && activeProposal.goal_id && (
+                                  <button
+                                    type="button"
+                                    className="btn btn-link p-0 fw-medium text-decoration-none mt-1"
+                                    style={{ fontSize: "14px" }}
+                                    onClick={() => navigate(ROUTES.MY_GOAL_DETAIL.replace(":goalId", String(activeProposal.goal_id)))}
+                                  >
+                                    View Goal &rarr;
+                                  </button>
+                                )}
+                                {activeMilestoneProposals.length > 0 && (
+                                  <div className="milestone-proposals-list">
+                                    <span className="milestone-proposals-label">Proposed milestones</span>
+                                    {activeMilestoneProposals.map((mp) => (
+                                      <div key={mp.proposal_id} className="milestone-proposal-row">
+                                        <span className="milestone-proposal-title">{mp.milestone.title}</span>
+                                        {mp.milestone_action === "create" ? (
+                                          <button
+                                            type="button"
+                                            className="btn btn-link p-0 fw-medium text-decoration-none milestone-proposal-cta"
+                                            onClick={() => setReviewingMilestoneProposal(mp)}
+                                          >
+                                            Save &rarr;
+                                          </button>
+                                        ) : (
+                                          <button
+                                            type="button"
+                                            className="btn btn-link p-0 fw-medium text-decoration-none milestone-proposal-cta"
+                                            onClick={() => navigate(ROUTES.MY_GOAL_DETAIL.replace(":goalId", String(mp.goal_id)))}
+                                          >
+                                            Open &rarr;
+                                          </button>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                              <div>
+                                <div className="chat-message-actions">
+                                  {msg.content.length > 1 && (
+                                    <div className="chat-content-nav">
+                                      <button 
+                                        type="button" 
+                                        className="chat-content-nav-btn" 
+                                        disabled={activeContentIndex === 0} 
+                                        onClick={() => navigateContent(msgKey, msg.content.length, -1)} 
+                                        aria-label="Previous version">
+                                          <ChevronLeft size={12} />
+                                      </button>
+                                      <span className="chat-content-nav-label">{activeContentIndex + 1}/{msg.content.length}</span>
+                                      <button 
+                                        type="button" 
+                                        className="chat-content-nav-btn" 
+                                        disabled={activeContentIndex === msg.content.length - 1} 
+                                        onClick={() => navigateContent(msgKey, msg.content.length, 1)} 
+                                        aria-label="Next version">
+                                          <ChevronRight size={12} />
+                                        </button>
+                                    </div>
+                                  )}
+                                  <button
+                                    type="button"
+                                    className="chat-message-action-btn"
+                                    onClick={() => copyMessage(activeContent, msgKey)}
+                                    aria-label="Copy message"
+                                    title={isCopied ? "Copied!" : "Copy"}
+                                  >
+                                    {isCopied ? <Check2 size={14} /> : <Copy size={14} />}
+                                  </button>
+                                  {msg.role === "user" && (
+                                    <button
+                                      type="button"
+                                      className="chat-message-action-btn"
+                                      onClick={() => setInputText(activeContent)}
+                                      aria-label="Edit message"
+                                      title="Edit"
+                                    >
+                                      <PencilSquare size={13} />
+                                    </button>
+                                  )}
+                                  {msg.role === "assistant" && i === messages.length - 1 && (
+                                    <button
+                                      type="button"
+                                      className="chat-message-action-btn"
+                                      disabled={isProcessingMessage || isLoadingMessages}
+                                      onClick={() => regenerateResponse(msg)}
+                                      aria-label="Retry message"
+                                      title="Retry"
+                                    >
+                                      <ArrowRepeat size={16} />
+                                    </button>
+                                  )}
+                                  {msg.role === "user" && msg.request_status === "failed" && (
+                                    <button
+                                      type="button"
+                                      className="chat-message-action-btn chat-message-try-again-btn"
+                                      disabled={isProcessingMessage || isLoadingMessages}
+                                      onClick={() => retryMessage(msg)}
+                                      aria-label="Retry failed message"
+                                      title="Request failed — click to retry"
+                                    >
+                                      <ExclamationTriangle size={16} style={{ color: "var(--bs-danger)" }} />
+                                      <span className="try-again-text">Try Again</span>
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
                             </div>
-                            <span className="text-faint" style={{ fontSize: "0.68rem" }}>{formatMessageTime(msg.created_at)}</span>
+                          </div>
+                        );
+                      })}
+                      {isProcessingMessage && (
+                        <div className="d-flex justify-content-start" aria-live="polite" aria-label="Assistant is typing">
+                          <div className="d-flex flex-column gap-1 align-items-start" style={{ maxWidth: "75%" }}>
+                            <div className="px-3 py-2 rounded-3 small surface-2 assistant-typing-indicator">
+                              <span className="assistant-typing-dot" />
+                              <span className="assistant-typing-dot" />
+                              <span className="assistant-typing-dot" />
+                            </div>
                           </div>
                         </div>
-                      ))}
+                      )}
                     </div>
                   )}
                 </div>
 
                 <form className="chat-composer" onSubmit={e => { e.preventDefault(); sendMessage(); }}>
                   <textarea className="form-control" rows={1} placeholder={`Message ${activeAgent.label}…`}
-                    value={inputText} onChange={e => setInputText(e.target.value)} onKeyDown={handleKeyDown} />
-                  <button type="submit" className="btn btn-brand flex-shrink-0" aria-label="Send message" disabled={!inputText.trim() || isProcessingMessage}>
+                    ref={composerTextareaRef}
+                    value={inputText} onChange={handleInputChange} onKeyDown={handleKeyDown} disabled={isLoadingMessages} />
+                  <button type="submit" className="btn btn-brand flex-shrink-0" aria-label="Send message" disabled={!inputText.trim() || isProcessingMessage || isLoadingMessages}>
                     <SendFill size={16} />
                   </button>
                 </form>
               </>
             ) : null}
           </div>
+          <div className={`chat-sessions-backdrop${sessionsPanelOpen ? " is-open" : ""}`} onClick={() => setSessionsPanelOpen(false)} />
         </div>
       )}
 
@@ -393,6 +862,73 @@ export function AssistantPage() {
         onConfirm={() => deleteConversation(deleteTarget)}
         onCancel={() => setDeleteTarget(null)}
       />
+
+      <TextFieldPromptDialog
+        show={renameTarget !== null}
+        title="Rename session"
+        message="Update the session name to make it easier to find later."
+        label="Session name"
+        initialValue={renameTarget ? (renameTarget.title || ASSISTANT_AGENTS[renameTarget.agent_type].label) : ""}
+        placeholder="Enter session name"
+        confirmLabel="Rename"
+        busy={isRenamingConversation}
+        maxLength={30}
+        onConfirm={renameConversation}
+        onCancel={() => {
+          setIsRenamingConversation(false);
+          setRenameTarget(null);
+        }}
+      />
+
+      {reviewingProposal && (
+        <RefinedGoalReviewPanel
+          proposal={reviewingProposal}
+          onClose={() => setReviewingProposal(null)}
+          onSaved={(goal) => {
+            const proposalId = reviewingProposal.proposal_id;
+            if (!activeConversation) return;
+            updateConversationMessages(activeConversation.id, prev => prev.map(m => {
+              if (!m.linked_items.goal_proposals?.some(p => p.proposal_id === proposalId)) return m;
+              return {
+                ...m,
+                linked_items: {
+                  ...m.linked_items,
+                  goal_proposals: m.linked_items.goal_proposals!.map(p => (
+                    p.proposal_id === proposalId ? { ...p, status: "saved", goal_id: goal.id, goal_action: "view" } : p
+                  )),
+                },
+              };
+            }));
+            toast.success("Goal created successfully.");
+          }}
+        />
+      )}
+
+      {reviewingMilestoneProposal && (
+        <MilestoneProposalReviewPanel
+          proposal={reviewingMilestoneProposal}
+          onClose={() => setReviewingMilestoneProposal(null)}
+          onSaved={(milestone) => {
+            const proposalId = reviewingMilestoneProposal.proposal_id;
+            if (!activeConversation) return;
+            updateConversationMessages(activeConversation.id, prev => prev.map(m => {
+              if (!m.linked_items.milestone_proposals?.some(p => p.proposal_id === proposalId)) return m;
+              return {
+                ...m,
+                linked_items: {
+                  ...m.linked_items,
+                  milestone_proposals: m.linked_items.milestone_proposals!.map(p => (
+                    p.proposal_id === proposalId
+                      ? { ...p, status: "saved", milestone_id: milestone.id, milestone_action: "view" }
+                      : p
+                  )),
+                },
+              };
+            }));
+            toast.success("Milestone created successfully.");
+          }}
+        />
+      )}
     </div>
   );
 }

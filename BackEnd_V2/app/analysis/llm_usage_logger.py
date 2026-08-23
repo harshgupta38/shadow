@@ -6,9 +6,11 @@ from typing import Any
 
 from app.analysis.models import LLMUsageRecord
 from app.analysis.service import get_analysis_service
+
+# do not import LLMSettings directly from app.llm, as it will create a circular import
 from app.llm.config import LLMSettings
-from app.llm.cost import calculate_token_cost
 from app.llm.enums import LLMProvider
+from app.llm.cost import calculate_token_cost
 
 logger = logging.getLogger(__name__)
 
@@ -19,8 +21,8 @@ async def log_openai_completion_usage_async(
     model: str,
     completion: Any,
     latency_ms: int,
-    operation: str = "refine_goal",
-    user_id: int | None = None,
+    operation: str,
+    user_id: int,
 ) -> None:
     """Persist usage metadata immediately after OpenAI completion is received."""
     try:
@@ -59,8 +61,8 @@ async def log_ollama_completion_usage_async(
     model: str,
     completion: Any,
     latency_ms: int,
-    operation: str = "refine_goal",
-    user_id: int | None = None,
+    operation: str,
+    user_id: int,
 ) -> None:
     """Persist usage metadata immediately after Ollama completion is received."""
     try:
@@ -99,8 +101,8 @@ async def log_gemini_completion_usage_async(
     model: str,
     response: Any,
     latency_ms: int,
-    operation: str = "refine_goal",
-    user_id: int | None = None,
+    operation: str,
+    user_id: int,
 ) -> None:
     """Persist usage metadata immediately after Gemini response is received."""
     try:
@@ -151,8 +153,8 @@ async def log_claude_completion_usage_async(
     model: str,
     completion: Any,
     latency_ms: int,
-    operation: str = "refine_goal",
-    user_id: int | None = None,
+    operation: str,
+    user_id: int,
 ) -> None:
     """Persist usage metadata immediately after Claude completion is received."""
     try:

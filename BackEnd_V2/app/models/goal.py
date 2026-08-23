@@ -6,7 +6,7 @@ from sqlalchemy.orm import Mapped, mapped_column  # pyright: ignore[reportMissin
 from app.models.base import Base
 
 
-class Goal(Base):
+class GoalDBM(Base):
     __tablename__ = "goals"
     __table_args__ = (
         CheckConstraint(
@@ -82,4 +82,9 @@ class Goal(Base):
         server_default=func.now(),
         onupdate=func.now(),
         nullable=False,
+    )
+
+    source_conversation_id: Mapped[int | None] = mapped_column(
+        ForeignKey("conversations.id", ondelete="SET NULL"),
+        nullable=True,
     )

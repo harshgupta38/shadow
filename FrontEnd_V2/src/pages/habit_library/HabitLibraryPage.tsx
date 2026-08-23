@@ -158,6 +158,10 @@ export function HabitLibraryPage() {
       monthly_count: habit.monthly_count,
       specific_days: habit.specific_days ? [...habit.specific_days] : null,
       day_fallback: habit.day_fallback,
+      habit_type: habit.habit_type,
+      target_value: habit.target_value,
+      target_unit: habit.target_unit,
+      time_span: habit.time_span,
     });
     setShowHabitPanel(true);
   }
@@ -540,6 +544,11 @@ export function HabitLibraryPage() {
                         <span className="hl-habit-chip-dot" aria-hidden="true" />
                         {formatStatusLabel(h.status)}
                       </span>
+                      {h.habit_type === "metric" && h.target_value != null && (
+                        <span className="hl-habit-chip hl-habit-chip--metric">
+                          {h.target_value}{h.target_unit && h.target_unit !== "count" ? ` ${h.target_unit}` : ""} / {h.time_span}
+                        </span>
+                      )}
                       <span className="hl-habit-chip hl-habit-chip--priority">
                         {(priorityLabelMap.get(h.priority) ?? h.priority).split(":")[0]}
                       </span>
@@ -618,12 +627,17 @@ export function HabitLibraryPage() {
               monthly_count: editingHabit.monthly_count,
               specific_days: editingHabit.specific_days,
               day_fallback: editingHabit.day_fallback,
+              habit_type: editingHabit.habit_type,
+              target_value: editingHabit.target_value,
+              target_unit: editingHabit.target_unit,
+              time_span: editingHabit.time_span,
             }
             : createDraft ?? undefined}
           editingId={editingHabit?.id}
           onClose={closePanel}
           onSaved={handleHabitSaved}
         />
+
       )}
 
       <ConfirmDialog

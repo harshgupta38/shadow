@@ -39,7 +39,7 @@
 
   .habit-overview-subtitle {
     font-size: 0.8125rem;
-    color: var(--jv-text-muted, #6c757d);
+    color: var(--jv-muted);
     margin: 0 0 0.85rem;
     line-height: 1.45;
   }
@@ -115,9 +115,9 @@
 
   // ── Habit library card ──────────────────────────────────────────────
   .hl-card {
-    background: var(--jv-surface, #fff);
+    background: var(--jv-surface);
     border-radius: 12px;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+    box-shadow: var(--jv-shadow);
     overflow: visible;
   }
 
@@ -140,12 +140,12 @@
     font-weight: 700;
     margin: 0 0 0.2rem;
     line-height: 1.3;
-    color: var(--jv-text, #212529);
+    color: var(--jv-text);
   }
 
   .hl-subtitle {
     font-size: 0.8125rem;
-    color: var(--jv-text-muted, #6c757d);
+    color: var(--jv-muted);
     margin: 0;
     line-height: 1.45;
   }
@@ -180,7 +180,7 @@
     padding: 0;
     border: 0;
     background: transparent;
-    color: var(--jv-text, #6c757d);
+    color: var(--jv-muted);
   }
 
   .hl-filter-btn {
@@ -194,7 +194,7 @@
     font-size: 0.8125rem;
     font-weight: 500;
     cursor: pointer;
-    color: var(--jv-text, #212529);
+    color: var(--jv-text);
     transition: background 0.15s, color 0.15s, border-color 0.15s;
     white-space: nowrap;
 
@@ -224,9 +224,9 @@
     right: 0;
     top: calc(100% + 6px);
     width: 360px;
-    background: var(--jv-surface, #fff);
+    background: var(--jv-surface);
     border-radius: 10px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.14);
+    box-shadow: var(--jv-shadow-lg);
     z-index: 300;
     overflow: hidden;
   }
@@ -242,7 +242,7 @@
   .hl-filter-label {
     font-size: 0.75rem;
     font-weight: 500;
-    color: var(--jv-text-muted, #6c757d);
+    color: var(--jv-muted);
     margin: 0 0 0.5rem;
   }
 
@@ -261,7 +261,7 @@
     background: transparent;
     font-size: 0.78rem;
     cursor: pointer;
-    color: var(--jv-text, #212529);
+    color: var(--jv-text);
     transition: background 0.12s, border-color 0.12s, color 0.12s;
 
     &--active {
@@ -271,7 +271,7 @@
     }
 
     &:hover:not(.hl-chip--active) {
-      background: rgba(0, 0, 0, 0.04);
+      background: var(--jv-surface-3);
     }
   }
 
@@ -285,7 +285,7 @@
     background: none;
     border: none;
     font-size: 0.8125rem;
-    color: var(--jv-text, #212529);
+    color: var(--jv-text);
     cursor: pointer;
     padding: 0;
 
@@ -317,8 +317,8 @@
     width: 3.5rem;
     height: 3.5rem;
     border-radius: 14px;
-    background: rgba(110, 86, 207, 0.12);
-    color: #6e56cf;
+    background: var(--jv-brand-soft);
+    color: var(--jv-brand-1);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -329,12 +329,12 @@
     font-size: 0.9375rem;
     font-weight: 700;
     margin: 0 0 0.35rem;
-    color: var(--jv-text, #212529);
+    color: var(--jv-text);
   }
 
   .hl-empty-subtitle {
     font-size: 0.8125rem;
-    color: var(--jv-text-muted, #6c757d);
+    color: var(--jv-muted);
     margin: 0;
     max-width: 280px;
     line-height: 1.55;
@@ -487,7 +487,7 @@
     font-size: 1.02rem;
     font-weight: 700;
     line-height: 1.2;
-    color: var(--jv-text, #212529);
+    color: var(--jv-text);
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -542,36 +542,39 @@
   }
 
   .hl-habit-chip--status-active {
-    color: #159a6d;
-    background: color-mix(in srgb, #159a6d 14%, var(--jv-surface) 86%);
+    color: var(--jv-success);
+    background: color-mix(in srgb, var(--jv-success) 14%, var(--jv-surface) 86%);
   }
 
   .hl-habit-chip--status-paused {
-    color: #9d6d00;
-    background: color-mix(in srgb, #9d6d00 14%, var(--jv-surface) 86%);
+    color: var(--jv-warn);
+    background: color-mix(in srgb, var(--jv-warn) 14%, var(--jv-surface) 86%);
   }
 
   .hl-habit-chip--status-archived {
-    color: #6f7783;
-    background: color-mix(in srgb, #6f7783 14%, var(--jv-surface) 86%);
+    color: var(--jv-muted);
+    background: color-mix(in srgb, var(--jv-muted) 14%, var(--jv-surface) 86%);
   }
 
   .hl-habit-chip--priority {
-    color: #4f7bf1;
-    background: color-mix(in srgb, #4f7bf1 14%, var(--jv-surface) 86%);
+    color: var(--jv-info);
+    background: color-mix(in srgb, var(--jv-info) 14%, var(--jv-surface) 86%);
   }
 
   .hl-habit-chip--frequency {
     border-color: color-mix(in srgb, var(--jv-border) 82%, transparent);
-    color: #6f7783;
+    color: var(--jv-muted);
+  }
+
+  .hl-habit-chip--metric {
+    background: color-mix(in srgb, var(--jv-violet) 12%, var(--jv-surface) 88%);
+    border-color: color-mix(in srgb, var(--jv-violet) 30%, transparent);
+    color: var(--jv-violet);
   }
 
   .hl-habit-chip--detail {
-    // border-color: color-mix(in srgb, var(--jv-brand-1) 20%, var(--jv-border) 80%);
-    // color: var(--jv-brand-1);
-    // background: color-mix(in srgb, var(--jv-brand-soft) 70%, var(--jv-surface) 30%);
     border-color: color-mix(in srgb, var(--jv-border) 82%, transparent);
-    color: #6f7783;
+    color: var(--jv-muted);
   }
 
   .hl-chip-tooltip-host {
@@ -627,7 +630,7 @@
     .hl-chip-tooltip-label {
       font-size: 0.71rem;
       font-weight: 600;
-      color: var(--jv-text-muted);
+      color: var(--jv-muted);
       padding-right: 0.2rem;
     }
 
@@ -671,7 +674,7 @@
     background: var(--jv-surface);
     border: 1px solid color-mix(in srgb, var(--jv-border) 86%, transparent);
     border-radius: 10px;
-    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.16);
+    box-shadow: var(--jv-shadow-lg);
     padding: 0.32rem;
     max-height: min(240px, calc(100vh - 1rem));
     overflow-y: auto;

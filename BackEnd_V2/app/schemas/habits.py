@@ -26,6 +26,8 @@ HabitFrequency = Literal[
 HabitStatus = Literal["active", "paused", "archived"]
 HabitPriority = Literal["highest", "high", "medium", "low", "lowest"]
 HabitPreferredTime = Literal["flexible", "morning", "afternoon", "evening", "night", "custom"]
+HabitType = Literal["simple", "metric"]
+HabitTimeSpan = Literal["Day", "Week", "Month", "Year"]
 
 # ── Frequency conflict helpers ────────────────────────────────────────────
 _NAMED_DAYS    = frozenset({"sunday","monday","tuesday","wednesday","thursday","friday","saturday"})
@@ -101,6 +103,14 @@ class HabitCreateRequest(BaseModel):
     specific_days: list[int] | None = None
     # When a specific day doesn't exist in a month: True = use last day, False = skip
     day_fallback: bool = False
+    # "simple" | "metric" — metric habits track a measurable target
+    habit_type: HabitType = "simple"
+    # Positive integer target (e.g. 10); required when habit_type == "metric"
+    target_value: int | None = Field(default=None, gt=0)
+    # Unit label (e.g. "pages", "km"); defaults to "count"
+    target_unit: str = Field(default="count", max_length=64)
+    # Time span for the target; defaults to "Day"
+    time_span: HabitTimeSpan = "Day"
 
     @field_validator("name", mode="before")
     @classmethod
@@ -153,6 +163,13 @@ class HabitCreateRequest(BaseModel):
             if self.end_date < self.start_date:
                 raise ValueError("end_date must be on or after start_date.")
 
+        # ── metric habit requirements ────────────────────────────────────
+        if self.habit_type == "metric":
+            if self.target_value is None:
+                raise ValueError("target_value is required for metric habits.")
+        else:
+            self.target_value = None
+
         return self
 
 
@@ -171,6 +188,10 @@ class HabitUpdateRequest(BaseModel):
     monthly_count: int | None = Field(default=None, ge=1, le=27)
     specific_days: list[int] | None = None
     day_fallback: bool | None = None
+    habit_type: HabitType | None = None
+    target_value: int | None = Field(default=None, gt=0)
+    target_unit: str | None = Field(default=None, max_length=64)
+    time_span: HabitTimeSpan | None = None
 
     @field_validator("specific_days", mode="before")
     @classmethod
@@ -212,6 +233,16 @@ class HabitUpdateRequest(BaseModel):
             if self.end_date < self.start_date:
                 raise ValueError("end_date must be on or after start_date.")
 
+        # Metric habit consistency when habit_type is being explicitly changed.
+        if self.habit_type == "metric":
+            if self.target_value is None:
+                raise ValueError("target_value is required for metric habits.")
+            if self.time_span is None:
+                raise ValueError("time_span is required for metric habits.")
+        elif self.habit_type == "simple":
+            self.target_value = None
+            self.time_span = "Day"
+
         return self
 
 
@@ -234,6 +265,10 @@ class HabitDataDBS(ORMModel):
     monthly_count: int | None
     specific_days: list[int] | None
     day_fallback: bool
+    habit_type: HabitType
+    target_value: int | None
+    target_unit: str
+    time_span: HabitTimeSpan
 
 
 class HabitDataResponse(HabitDataDBS):

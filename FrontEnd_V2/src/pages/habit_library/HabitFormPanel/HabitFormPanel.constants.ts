@@ -1,4 +1,4 @@
-import type { FilterState, HabitCreateRequest, HabitPriority } from "@/api";
+import type { FilterState, HabitCreateRequest, HabitPriority, HabitTimeSpan } from "@/api";
 
 export const SLIDE_OUT_DURATION_MS = 220;
 
@@ -32,6 +32,13 @@ export const PREFERRED_TIME_OPTIONS = [
 export const DEFAULT_FILTERS: FilterState = { status: ["active"], priority: [], frequency: [] };
 export const EMPTY_FILTERS: FilterState = { status: [], priority: [], frequency: [] };
 
+export const TIME_SPAN_OPTIONS: { value: HabitTimeSpan; label: string }[] = [
+    { value: "Day", label: "Day" },
+    { value: "Week", label: "Week" },
+    { value: "Month", label: "Month" },
+    { value: "Year", label: "Year" },
+];
+
 export const EMPTY_DRAFT: HabitCreateRequest = {
     name: "",
     motivation: null,
@@ -46,15 +53,19 @@ export const EMPTY_DRAFT: HabitCreateRequest = {
     monthly_count: null,
     specific_days: null,
     day_fallback: false,
+    habit_type: "simple",
+    target_value: null,
+    target_unit: "count",
+    time_span: "Day",
 };
 
 
 export const PRIORITY_OPTIONS: { value: HabitPriority; label: string }[] = [
     { value: "highest", label: "Highest: non-negotiable" },
-    { value: "high",    label: "High: do it today" },
-    { value: "medium",  label: "Medium: fits in the week" },
-    { value: "low",     label: "Low: when I get to it" },
-    { value: "lowest",  label: "Lowest: nice to have" },
+    { value: "high", label: "High: do it today" },
+    { value: "medium", label: "Medium: fits in the week" },
+    { value: "low", label: "Low: when I get to it" },
+    { value: "lowest", label: "Lowest: nice to have" },
 ];
 
 export const FILTER_STATUS_OPTIONS: { value: string; label: string }[] = [

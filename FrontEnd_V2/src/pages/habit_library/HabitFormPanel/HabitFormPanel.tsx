@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronRight, PlusCircleFill, XLg } from "react-bootstrap-icons";
-import { SLIDE_OUT_DURATION_MS, FREQUENCY_OPTIONS, PREFERRED_TIME_OPTIONS, PRIORITY_OPTIONS, EMPTY_DRAFT } from "@/pages/habit_library/HabitFormPanel/HabitFormPanel.constants";
+import { SLIDE_OUT_DURATION_MS, FREQUENCY_OPTIONS, PREFERRED_TIME_OPTIONS, PRIORITY_OPTIONS, EMPTY_DRAFT, TIME_SPAN_OPTIONS } from "@/pages/habit_library/HabitFormPanel/HabitFormPanel.constants";
 import { resizeTextareaToMaxLines } from "@/services/textarea-resize.service";
 import { api, ApiError } from "@/api";
 import type { HabitDataResponse, HabitCreateRequest } from "@/api";
@@ -62,8 +62,9 @@ export function HabitFormPanel({ mode, initialDraft, editingId, onClose, onSaved
     const [formError, setFormError] = useState<string | null>(null);
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const [isClosing, setIsClosing] = useState(false);
-    const [revealedOrder, setRevealedOrder] = useState<Array<"preferred_time" | "duration" | "dates">>(() => {
-        const order: Array<"preferred_time" | "duration" | "dates"> = [];
+    const [revealedOrder, setRevealedOrder] = useState<Array<"preferred_time" | "duration" | "dates" | "habit_type">>(() => {
+        const order: Array<"preferred_time" | "duration" | "dates" | "habit_type"> = [];
+        if (initialDraft?.habit_type === "metric") order.push("habit_type");
         if (initialDraft?.preferred_time && initialDraft.preferred_time !== "flexible") order.push("preferred_time");
         if (initialDraft?.duration_minutes != null) order.push("duration");
         if (initialDraft?.start_date || initialDraft?.end_date) order.push("dates");
@@ -109,18 +110,20 @@ export function HabitFormPanel({ mode, initialDraft, editingId, onClose, onSaved
         });
     }
 
-    function reveal(key: "preferred_time" | "duration" | "dates") {
+    function reveal(key: "preferred_time" | "duration" | "dates" | "habit_type") {
         if (revealedOrder.includes(key)) return;
         setRevealedOrder((prev) => [...prev, key]);
         if (key === "preferred_time") setDraft((prev) => ({ ...prev, preferred_time: "morning" }));
         if (key === "dates") setDraft((prev) => ({ ...prev, start_date: new Date().toISOString().slice(0, 10) }));
+        if (key === "habit_type") setDraft((prev) => ({ ...prev, habit_type: "metric", target_value: prev.target_value ?? 1 }));
     }
 
-    function unreveal(key: "preferred_time" | "duration" | "dates") {
+    function unreveal(key: "preferred_time" | "duration" | "dates" | "habit_type") {
         setRevealedOrder((prev) => prev.filter((k) => k !== key));
         if (key === "preferred_time") setDraft((prev) => ({ ...prev, preferred_time: "flexible", specific_time: "" }));
         if (key === "duration") setDraft((prev) => ({ ...prev, duration_minutes: null }));
         if (key === "dates") setDraft((prev) => ({ ...prev, start_date: null, end_date: null }));
+        if (key === "habit_type") setDraft((prev) => ({ ...prev, habit_type: "simple", target_value: null, time_span: "Day" }));
         setFormError(null);
     }
 
@@ -180,6 +183,18 @@ export function HabitFormPanel({ mode, initialDraft, editingId, onClose, onSaved
             setFormError("Please enter a specific time.");
             return;
         }
+        if (draft.habit_type === "metric") {
+            if (!draft.target_value || draft.target_value <= 0) {
+                setFieldErrors({ target_value: "Target value must be a positive number." });
+                setFormError("Target value must be a positive number.");
+                return;
+            }
+            if (!draft.time_span) {
+                setFieldErrors({ time_span: "Please select a time span." });
+                setFormError("Please select a time span.");
+                return;
+            }
+        }
         const today = new Date().toISOString().slice(0, 10);
         if (!isEdit && draft.start_date && draft.start_date < today) {
             setFieldErrors({ start_date: "Start date cannot be in the past." });
@@ -197,6 +212,7 @@ export function HabitFormPanel({ mode, initialDraft, editingId, onClose, onSaved
         setFieldErrors({});
 
         const durationVal = Number(draft.duration_minutes);
+        const isMetric = draft.habit_type === "metric";
         const payload: HabitCreateRequest = {
             name,
             motivation: draft.motivation?.trim() || null,
@@ -211,6 +227,10 @@ export function HabitFormPanel({ mode, initialDraft, editingId, onClose, onSaved
             monthly_count: draft.frequencies.includes("monthly") ? monthlyCount : null,
             specific_days: specificDays.length > 0 ? specificDays : null,
             day_fallback: dayFallback,
+            habit_type: draft.habit_type,
+            target_value: isMetric ? (draft.target_value ?? null) : null,
+            target_unit: isMetric ? (draft.target_unit?.trim() || "count") : "count",
+            time_span: draft.time_span,
         };
 
         try {
@@ -456,6 +476,107 @@ export function HabitFormPanel({ mode, initialDraft, editingId, onClose, onSaved
 
                             {/* Optional sections — rendered in the order the user reveals them */}
                             {revealedOrder.map((key) => {
+                                if (key === "habit_type") return (
+                                    <div key="habit_type" className="habit-optional-section">
+                                        <div className="habit-optional-section-header">
+                                            <label className="form-label mb-0">
+                                                Metric target
+                                            </label>
+                                            <button type="button" className="habit-dismiss-btn" onClick={() => unreveal("habit_type")} disabled={saving} aria-label="Remove metric target">
+                                                <XLg size={11} />
+                                            </button>
+                                        </div>
+                                        {/* Desktop: compact inline row */}
+                                        <div className="d-none d-sm-flex gap-2 align-items-center mt-2">
+                                            <div className="flex-shrink-0" style={{ width: "7.5rem" }}>
+                                                <input
+                                                    type="number"
+                                                    className={`form-control${fieldErrors.target_value ? " is-invalid" : ""}`}
+                                                    placeholder="e.g. 10"
+                                                    min={1}
+                                                    step={1}
+                                                    value={draft.target_value ?? ""}
+                                                    disabled={saving}
+                                                    onChange={(e) => set("target_value", e.target.value === "" ? null : parseInt(e.target.value, 10))}
+                                                    aria-label="Target value"
+                                                />
+                                            </div>
+                                            <input
+                                                type="text"
+                                                className="form-control flex-grow-1"
+                                                placeholder="unit (e.g. pages)"
+                                                maxLength={64}
+                                                value={draft.target_unit}
+                                                disabled={saving}
+                                                onChange={(e) => set("target_unit", e.target.value || "count")}
+                                                aria-label="Target unit"
+                                            />
+                                            <select
+                                                className={`form-select flex-shrink-0${fieldErrors.time_span ? " is-invalid" : ""}`}
+                                                value={draft.time_span}
+                                                disabled={saving}
+                                                onChange={(e) => set("time_span", e.target.value as HabitCreateRequest["time_span"])}
+                                                aria-label="Time span"
+                                                style={{ width: "7rem" }}
+                                            >
+                                                {TIME_SPAN_OPTIONS.map(({ value, label }) => (
+                                                    <option key={value} value={value}>{label}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        {/* Mobile: three labeled rows */}
+                                        <div className="d-flex flex-column gap-2 mt-2 d-sm-none">
+                                            <div>
+                                                <label className="form-label mb-1" htmlFor="habit-target-value">Target</label>
+                                                <input
+                                                    id="habit-target-value"
+                                                    type="number"
+                                                    className={`form-control${fieldErrors.target_value ? " is-invalid" : ""}`}
+                                                    placeholder="e.g. 10"
+                                                    min={1}
+                                                    step={1}
+                                                    value={draft.target_value ?? ""}
+                                                    disabled={saving}
+                                                    onChange={(e) => set("target_value", e.target.value === "" ? null : parseInt(e.target.value, 10))}
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="form-label mb-1" htmlFor="habit-target-unit">Unit</label>
+                                                <input
+                                                    id="habit-target-unit"
+                                                    type="text"
+                                                    className="form-control"
+                                                    placeholder="e.g. pages"
+                                                    maxLength={64}
+                                                    value={draft.target_unit}
+                                                    disabled={saving}
+                                                    onChange={(e) => set("target_unit", e.target.value || "count")}
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="form-label mb-1" htmlFor="habit-time-span">Frequency</label>
+                                                <select
+                                                    id="habit-time-span"
+                                                    className={`form-select${fieldErrors.time_span ? " is-invalid" : ""}`}
+                                                    value={draft.time_span}
+                                                    disabled={saving}
+                                                    onChange={(e) => set("time_span", e.target.value as HabitCreateRequest["time_span"])}
+                                                >
+                                                    {TIME_SPAN_OPTIONS.map(({ value, label }) => (
+                                                        <option key={value} value={value}>{label}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        {(fieldErrors.target_value || fieldErrors.time_span) && (
+                                            <div className="invalid-feedback d-block mt-1">
+                                                {fieldErrors.target_value ?? fieldErrors.time_span}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
                                 if (key === "preferred_time") return (
                                     <div key="preferred_time" className="habit-optional-section">
                                         <div className="habit-optional-section-header">
@@ -624,6 +745,12 @@ export function HabitFormPanel({ mode, initialDraft, editingId, onClose, onSaved
 
                             {/* Reveal links for not-yet-shown optional fields */}
                             <div className="habit-reveal-links">
+                                {!revealedOrder.includes("habit_type") && (
+                                    <button type="button" className="habit-reveal-link" onClick={() => reveal("habit_type")} disabled={saving}>
+                                        <PlusCircleFill size={12} />
+                                        Set a target
+                                    </button>
+                                )}
                                 {!revealedOrder.includes("preferred_time") && (
                                     <button type="button" className="habit-reveal-link" onClick={() => reveal("preferred_time")} disabled={saving}>
                                         <PlusCircleFill size={12} />

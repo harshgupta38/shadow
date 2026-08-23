@@ -49,6 +49,18 @@ class HabitDBM(Base):
             "end_date IS NULL OR start_date IS NULL OR end_date >= start_date",
             name="ck_habits_date_range",
         ),
+        CheckConstraint(
+            "habit_type IN ('simple', 'metric')",
+            name="ck_habits_habit_type",
+        ),
+        CheckConstraint(
+            "target_value IS NULL OR target_value > 0",
+            name="ck_habits_target_value",
+        ),
+        CheckConstraint(
+            "time_span IS NULL OR time_span IN ('Day', 'Week', 'Month', 'Year')",
+            name="ck_habits_time_span",
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -125,4 +137,28 @@ class HabitDBM(Base):
         nullable=False,
         default=dict,
         server_default=text("'{}'"),
+    )
+
+    # "simple" | "metric" — metric habits track a measurable target (e.g. 10 pages/day)
+    habit_type: Mapped[str] = mapped_column(
+        String(16),
+        nullable=False,
+        default="simple",
+        server_default=text("'simple'"),
+    )
+    # Positive integer target; only meaningful when habit_type == "metric"
+    target_value: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Unit label for the target (e.g. "pages", "km"); defaults to "count"
+    target_unit: Mapped[str] = mapped_column(
+        String(64),
+        nullable=False,
+        default="count",
+        server_default=text("'count'"),
+    )
+    # "Day" | "Week" | "Month" | "Year"; defaults to "Day"
+    time_span: Mapped[str] = mapped_column(
+        String(16),
+        nullable=False,
+        default="Day",
+        server_default=text("'Day'"),
     )

@@ -380,6 +380,8 @@ export interface RetryFailedMessageRequest {
 
 export type HabitStatus = "active" | "paused" | "archived";
 export type HabitPriority = "highest" | "high" | "medium" | "low" | "lowest";
+export type HabitType = "simple" | "metric";
+export type HabitTimeSpan = "Day" | "Week" | "Month" | "Year";
 export type FilterState = { status: string[]; priority: string[]; frequency: string[] };
 
 export interface HabitDataResponse extends HabitCreateRequest {
@@ -388,9 +390,6 @@ export interface HabitDataResponse extends HabitCreateRequest {
   status: HabitStatus;
   created_at: string;
   updated_at: string;
-  // priority: string;
-  // linked_goal_ids: number[];
-  // linked_goal_names: string[];
 }
 
 export interface HabitCreateRequest {
@@ -401,17 +400,16 @@ export interface HabitCreateRequest {
   specific_time: string;
   duration_minutes: number | null;
   start_date: string | null;
-  // null means ongoing; non-null means ends on that date.
-  end_date: string | null;
+  end_date: string | null; // null means ongoing; non-null means ends on that date.
   priority: HabitPriority;
-  // How many times per week; only relevant when "weekly" is in frequencies (1–6)
-  weekly_count: number | null;
-  // How many times per month; only relevant when "monthly" is in frequencies (1–27)
-  monthly_count: number | null;
-  // Specific days of month (1–31) for the specific-day picker
-  specific_days: number[] | null;
-  // When a specific day doesn't exist in a month: true = use last day, false = skip
-  day_fallback: boolean;
+  weekly_count: number | null; // How many times per week; only relevant when "weekly" is in frequencies (1–6)
+  monthly_count: number | null; // How many times per month; only relevant when "monthly" is in frequencies (1–27)
+  specific_days: number[] | null; // Specific days of month (1–31) for the specific-day picker
+  day_fallback: boolean; // When a specific day doesn't exist in a month: true = use last day, false = skip
+  habit_type: HabitType; // "simple" | "metric" — metric habits track a measurable target
+  target_value: number | null; // Positive integer target; only for metric habits (e.g. 10 for "10 pages/day")
+  target_unit: string; // Unit label (e.g. "pages", "km"); defaults to "count"
+  time_span: HabitTimeSpan; // Unit label (e.g. "pages", "km"); defaults to "count"
 }
 
 export interface HabitUpdateRequest extends Partial<HabitCreateRequest> {

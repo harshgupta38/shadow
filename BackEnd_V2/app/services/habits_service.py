@@ -32,6 +32,7 @@ def save_habit(
     specific_days = data.specific_days or None
     day_fallback  = data.day_fallback and bool(specific_days) and any(d >= 29 for d in specific_days)
 
+    is_metric = data.habit_type == "metric"
     habit = HabitDBM(
         user_id=current_user.id,
         name=data.name.strip(),
@@ -48,6 +49,10 @@ def save_habit(
         monthly_count=data.monthly_count if "monthly" in data.frequencies else None,
         specific_days=specific_days,
         day_fallback=day_fallback,
+        habit_type=data.habit_type,
+        target_value=data.target_value if is_metric else None,
+        target_unit=data.target_unit.strip() if data.target_unit and data.target_unit.strip() else "count",
+        time_span=data.time_span,
     )
     db.add(habit)
     db.commit()
@@ -126,6 +131,18 @@ def update_habit(
         # Only store True when there are days ≥ 29 to apply it to
         current_days = habit.specific_days or []
         habit.day_fallback = data.day_fallback and any(d >= 29 for d in current_days)
+
+    if "habit_type" in fields and data.habit_type is not None:
+        habit.habit_type = data.habit_type
+        if data.habit_type == "simple":
+            habit.target_value = None
+            habit.time_span = "Day"
+    if "target_value" in fields:
+        habit.target_value = data.target_value if habit.habit_type == "metric" else None
+    if "target_unit" in fields and data.target_unit is not None:
+        habit.target_unit = data.target_unit.strip() or "count"
+    if "time_span" in fields and data.time_span is not None:
+        habit.time_span = data.time_span
 
     db.commit()
     db.refresh(habit)

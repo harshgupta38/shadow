@@ -29,7 +29,8 @@ export const PREFERRED_TIME_OPTIONS = [
     { value: "custom", label: "Specific time…" },
 ];
 
-export const EMPTY_FILTERS: FilterState = { status: ["active"], priority: [], frequency: [] };
+export const DEFAULT_FILTERS: FilterState = { status: ["active"], priority: [], frequency: [] };
+export const EMPTY_FILTERS: FilterState = { status: [], priority: [], frequency: [] };
 
 export const EMPTY_DRAFT: HabitCreateRequest = {
     name: "",

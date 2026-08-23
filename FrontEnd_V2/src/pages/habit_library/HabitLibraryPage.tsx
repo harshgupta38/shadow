@@ -9,7 +9,7 @@ import { ROUTES } from "@/routes/RoutePaths";
 import { HabitFormPanel } from "@/pages/habit_library/HabitFormPanel/HabitFormPanel";
 import { api, ApiError } from "@/api";
 import type { FilterState, HabitCreateRequest, HabitDataResponse } from "@/api";
-import { EMPTY_FILTERS, FILTER_STATUS_OPTIONS, FREQUENCY_OPTIONS, PREFERRED_TIME_OPTIONS, PRIORITY_OPTIONS } from "@/pages/habit_library/HabitFormPanel/HabitFormPanel.constants";
+import { EMPTY_FILTERS, DEFAULT_FILTERS, FILTER_STATUS_OPTIONS, FREQUENCY_OPTIONS, PREFERRED_TIME_OPTIONS, PRIORITY_OPTIONS } from "@/pages/habit_library/HabitFormPanel/HabitFormPanel.constants";
 
 import "@/pages/habit_library/HabitLibraryPage.scss";
 
@@ -20,7 +20,7 @@ export function HabitLibraryPage() {
   const [loadingHabits, setLoadingHabits] = useState(false);
   const [habitsError, setHabitsError] = useState<string | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
-  const [filters, setFilters] = useState<FilterState>(EMPTY_FILTERS);
+  const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
   const [showHabitPanel, setShowHabitPanel] = useState(false);
   const [editingHabit, setEditingHabit] = useState<HabitDataResponse | null>(null);
   const [createDraft, setCreateDraft] = useState<Partial<HabitCreateRequest> | null>(null);
@@ -438,7 +438,7 @@ export function HabitLibraryPage() {
                 Try again
               </button>
             </div>
-          ) : filteredHabits.length === 0 ? (
+          ) : filteredHabits.length === 0 && habits.length === 0 ? (
             <div className="hl-empty-state">
               <div className="hl-empty-icon">
                 <ArrowRepeat size={22} />
@@ -447,6 +447,16 @@ export function HabitLibraryPage() {
               <p className="hl-empty-subtitle">
                 Create your first habit to build daily consistency.
               </p>
+            </div>
+          ) : filteredHabits.length === 0 ? (
+            <div className="hl-empty-state">
+              <p className="hl-empty-title">No habits match your filters</p>
+              <p className="hl-empty-subtitle">
+                Try adjusting or clearing the active filters.
+              </p>
+              <button type="button" className="btn btn-soft btn-sm mt-2" onClick={() => setFilters(EMPTY_FILTERS)}>
+                Clear filters
+              </button>
             </div>
           ) : (
             <div className={`hl-habit-grid${viewMode === "grid" ? " hl-habit-grid--grid" : ""}`}>

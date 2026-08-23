@@ -18,6 +18,7 @@ export const FREQUENCY_OPTIONS = [
     { value: "weekends", label: "Weekends" },
     { value: "first_of_month", label: "First of month" },
     { value: "end_of_month", label: "End of month" },
+    { value: "specific_day", label: "Specific day" },
 ];
 
 export const PREFERRED_TIME_OPTIONS = [

@@ -396,7 +396,7 @@ export function HabitLibraryPage() {
                   />
                   <FilterSection
                     label="Priority"
-                    options={PRIORITY_OPTIONS}
+                    options={PRIORITY_OPTIONS.map((option) => ({ value: option.value, label: (priorityLabelMap.get(option.value) ?? option.value).split(":")[0] }))}
                     selected={filters.priority}
                     onToggle={(v) => toggleFilter("priority", v)}
                   />

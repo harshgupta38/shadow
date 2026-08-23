@@ -95,7 +95,7 @@ export function HabitLibraryPage() {
   }
 
   function setStatusFilter(status: string) {
-    if (status !== "Total")
+    if (status !== "total")
       setFilters((prev) => ({ ...prev, status: [status] }));
     else
       setFilters((prev) => ({ ...prev, status: [] }));
@@ -110,13 +110,13 @@ export function HabitLibraryPage() {
 
   const filteredHabits = useMemo(() => {
     return habits.filter((h) => {
-      if (filters.status.length && !filters.status.some((s) => s.toLowerCase() === h.status))
+      if (filters.status.length && !filters.status.some((s) => s === h.status))
         return false;
-      if (filters.priority.length && !filters.priority.some((p) => p.toLowerCase() === h.priority))
+      if (filters.priority.length && !filters.priority.some((p) => p === h.priority))
         return false;
       if (
         filters.frequency.length &&
-        !filters.frequency.some((f) => h.frequencies.includes(f.toLowerCase()))
+        !filters.frequency.some((f) => h.frequencies.includes(f))
       )
         return false;
       // if (filters.goalLinkage.includes("Not linked to goals") && h.linked_goal_ids.length > 0)
@@ -154,6 +154,10 @@ export function HabitLibraryPage() {
       start_date: habit.start_date,
       end_date: habit.end_date,
       priority: habit.priority,
+      weekly_count: habit.weekly_count,
+      monthly_count: habit.monthly_count,
+      specific_days: habit.specific_days ? [...habit.specific_days] : null,
+      day_fallback: habit.day_fallback,
     });
     setShowHabitPanel(true);
   }
@@ -249,7 +253,10 @@ export function HabitLibraryPage() {
 
   function getPreferredTimeLabel(habit: HabitDataResponse): string | null {
     if (habit.preferred_time === "flexible") return null;
-    if (habit.preferred_time === "custom") return `${habit.specific_time} hrs` || null;
+    if (habit.preferred_time === "custom") {
+      const t = habit.specific_time?.trim();
+      return t ? `${t} hrs` : null;
+    }
     const option = PREFERRED_TIME_OPTIONS.find((item) => item.value === habit.preferred_time);
     return option?.label.split(" (")[0] ?? habit.preferred_time;
   }
@@ -285,8 +292,8 @@ export function HabitLibraryPage() {
                   className="habit-stat-pill habit-stat-pill--active habit-stat-pill--clickable"
                   role="button"
                   tabIndex={0}
-                  onClick={() => setStatusFilter("Active")}
-                  onKeyDown={(event) => handleStatusPillKeyDown(event, "Active")}
+                  onClick={() => setStatusFilter("active")}
+                  onKeyDown={(event) => handleStatusPillKeyDown(event, "active")}
                 >
                   {stats.active} Active
                 </span>
@@ -294,8 +301,8 @@ export function HabitLibraryPage() {
                   className="habit-stat-pill habit-stat-pill--paused habit-stat-pill--clickable"
                   role="button"
                   tabIndex={0}
-                  onClick={() => setStatusFilter("Paused")}
-                  onKeyDown={(event) => handleStatusPillKeyDown(event, "Paused")}
+                  onClick={() => setStatusFilter("paused")}
+                  onKeyDown={(event) => handleStatusPillKeyDown(event, "paused")}
                 >
                   {stats.paused} Paused
                 </span>
@@ -303,8 +310,8 @@ export function HabitLibraryPage() {
                   className="habit-stat-pill habit-stat-pill--archived habit-stat-pill--clickable"
                   role="button"
                   tabIndex={0}
-                  onClick={() => setStatusFilter("Archived")}
-                  onKeyDown={(event) => handleStatusPillKeyDown(event, "Archived")}
+                  onClick={() => setStatusFilter("archived")}
+                  onKeyDown={(event) => handleStatusPillKeyDown(event, "archived")}
                 >
                   {stats.archived} Archived
                 </span>
@@ -312,8 +319,8 @@ export function HabitLibraryPage() {
                   className="habit-stat-pill habit-stat-pill--total habit-stat-pill--clickable"
                   role="button"
                   tabIndex={0}
-                  onClick={() => setStatusFilter("Total")}
-                  onKeyDown={(event) => handleStatusPillKeyDown(event, "Total")}
+                  onClick={() => setStatusFilter("total")}
+                  onKeyDown={(event) => handleStatusPillKeyDown(event, "total")}
                 >
                   {stats.total} Total
                 </span>
@@ -389,7 +396,7 @@ export function HabitLibraryPage() {
                   />
                   <FilterSection
                     label="Priority"
-                    options={PRIORITY_OPTIONS.map((p) => p.label)}
+                    options={PRIORITY_OPTIONS}
                     selected={filters.priority}
                     onToggle={(v) => toggleFilter("priority", v)}
                   />
@@ -401,7 +408,7 @@ export function HabitLibraryPage() {
                 /> */}
                   <FilterSection
                     label="Frequency"
-                    options={FREQUENCY_OPTIONS.map((f) => f.label)}
+                    options={FREQUENCY_OPTIONS}
                     selected={filters.frequency}
                     onToggle={(v) => toggleFilter("frequency", v)}
                   />
@@ -524,11 +531,47 @@ export function HabitLibraryPage() {
                         {formatStatusLabel(h.status)}
                       </span>
                       <span className="hl-habit-chip hl-habit-chip--priority">
-                        {priorityLabelMap.get(h.priority) ?? h.priority}
+                        {(priorityLabelMap.get(h.priority) ?? h.priority).split(":")[0]}
                       </span>
-                      <span className="hl-habit-chip hl-habit-chip--frequency">
-                        {getPrimaryFrequencyLabel(h.frequencies)}
-                      </span>
+                      {h.frequencies.length > 1 ? (
+                        <ChipTooltip
+                          label="Frequency"
+                          items={h.frequencies.map((f) => frequencyLabelMap.get(f) ?? f)}
+                        >
+                          <span className="hl-habit-chip hl-habit-chip--detail">
+                            +{h.frequencies.length}
+                          </span>
+                        </ChipTooltip>
+                      ) : h.weekly_count != null && h.frequencies.includes("weekly") ? (
+                        <span className="hl-habit-chip hl-habit-chip--detail">
+                          {h.weekly_count}×/week
+                        </span>
+                      ) : h.monthly_count != null && h.frequencies.includes("monthly") ? (
+                        <span className="hl-habit-chip hl-habit-chip--detail">
+                          {h.monthly_count}×/month
+                        </span>
+                      ) : h.frequencies.length > 0 && h.frequencies[0] !== "specific_day" && (
+                        <span className="hl-habit-chip hl-habit-chip--frequency">
+                          {getPrimaryFrequencyLabel(h.frequencies)}
+                        </span>
+                      )}
+                      {h.specific_days != null && h.specific_days.length > 0 && h.frequencies.includes("specific_day") && (
+                        <ChipTooltip
+                          label="Days"
+                          items={h.specific_days.map((d) => ordinal(d))}
+                        >
+                          <span className="hl-habit-chip hl-habit-chip--detail">
+                            {h.specific_days.length <= 3
+                              ? `Day${h.specific_days.length > 1 ? "s" : ""} ${h.specific_days.join(", ")}`
+                              : `${h.specific_days.length} days/mo`}
+                          </span>
+                        </ChipTooltip>
+                      )}
+                      {getPreferredTimeLabel(h) && (
+                        <span className="hl-habit-chip hl-habit-chip--detail">
+                          {getPreferredTimeLabel(h)}
+                        </span>
+                      )}
                       {h.duration_minutes != null && h.duration_minutes > 0 && (
                         <span className="hl-habit-chip hl-habit-chip--detail">
                           {h.duration_minutes} min
@@ -537,11 +580,6 @@ export function HabitLibraryPage() {
                       {getHabitDateLabel(h) && (
                         <span className="hl-habit-chip hl-habit-chip--detail">
                           {getHabitDateLabel(h)}
-                        </span>
-                      )}
-                      {getPreferredTimeLabel(h) && (
-                        <span className="hl-habit-chip hl-habit-chip--detail">
-                          {getPreferredTimeLabel(h)}
                         </span>
                       )}
                     </div>
@@ -566,6 +604,10 @@ export function HabitLibraryPage() {
               start_date: editingHabit.start_date,
               end_date: editingHabit.end_date,
               priority: editingHabit.priority,
+              weekly_count: editingHabit.weekly_count,
+              monthly_count: editingHabit.monthly_count,
+              specific_days: editingHabit.specific_days,
+              day_fallback: editingHabit.day_fallback,
             }
             : createDraft ?? undefined}
           editingId={editingHabit?.id}
@@ -622,7 +664,7 @@ function FilterSection({
   onToggle,
 }: {
   label: string;
-  options: string[];
+  options: Array<{ value: string; label: string }>;
   selected: string[];
   onToggle: (v: string) => void;
 }) {
@@ -632,15 +674,48 @@ function FilterSection({
       <div className="hl-filter-chips">
         {options.map((opt) => (
           <button
-            key={opt}
+            key={opt.value}
             type="button"
-            className={`hl-chip${selected.includes(opt) ? " hl-chip--active" : ""}`}
-            onClick={() => onToggle(opt)}
+            className={`hl-chip${selected.includes(opt.value) ? " hl-chip--active" : ""}`}
+            onClick={() => onToggle(opt.value)}
           >
-            {opt}
+            {opt.label}
           </button>
         ))}
       </div>
     </div>
+  );
+}
+
+function ordinal(n: number): string {
+  const v = n % 100;
+  if (v >= 11 && v <= 13) return `${n}th`;
+  switch (n % 10) {
+    case 1: return `${n}st`;
+    case 2: return `${n}nd`;
+    case 3: return `${n}rd`;
+    default: return `${n}th`;
+  }
+}
+
+function ChipTooltip({
+  label,
+  items,
+  children,
+}: {
+  label: string;
+  items: string[];
+  children: React.ReactNode;
+}) {
+  return (
+    <span className="hl-chip-tooltip-host">
+      {children}
+      <span className="hl-chip-tooltip" role="tooltip">
+        <span className="hl-chip-tooltip-label">{label}</span>
+        {items.map((item) => (
+          <span key={item} className="hl-chip-tooltip-item">{item}</span>
+        ))}
+      </span>
+    </span>
   );
 }

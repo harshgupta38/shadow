@@ -1,7 +1,7 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.exceptions import NotFoundError
+from app.core.exceptions import NotFoundError, ValidationError
 from app.models.habit import HabitDBM
 from app.models.user import UserDBM
 from app.schemas.habits import HabitCreateRequest, HabitDataResponse, HabitUpdateRequest
@@ -29,6 +29,9 @@ def save_habit(
     current_user: UserDBM,
     data: HabitCreateRequest,
 ) -> HabitDataResponse:
+    specific_days = data.specific_days or None
+    day_fallback  = data.day_fallback and bool(specific_days) and any(d >= 29 for d in specific_days)
+
     habit = HabitDBM(
         user_id=current_user.id,
         name=data.name.strip(),
@@ -41,6 +44,10 @@ def save_habit(
         end_date=data.end_date,
         priority=data.priority,
         status="active",
+        weekly_count=data.weekly_count if "weekly" in data.frequencies else None,
+        monthly_count=data.monthly_count if "monthly" in data.frequencies else None,
+        specific_days=specific_days,
+        day_fallback=day_fallback,
     )
     db.add(habit)
     db.commit()
@@ -75,6 +82,14 @@ def update_habit(
         )
     if "frequencies" in fields and data.frequencies is not None:
         habit.frequencies = list(data.frequencies)
+        # Clear derived fields when their corresponding frequency type is removed.
+        if "weekly" not in habit.frequencies:
+            habit.weekly_count = None
+        if "monthly" not in habit.frequencies:
+            habit.monthly_count = None
+        if "specific_day" not in habit.frequencies:
+            habit.specific_days = None
+            habit.day_fallback = False
     if "preferred_time" in fields and data.preferred_time is not None:
         habit.preferred_time = data.preferred_time
         if data.preferred_time != "custom":
@@ -91,6 +106,26 @@ def update_habit(
         habit.priority = data.priority
     if "status" in fields and data.status is not None:
         habit.status = data.status
+    # Use the post-update frequencies list for all derived nullifications.
+    effective_freqs = habit.frequencies  # already updated above if "frequencies" was in fields
+
+    if "weekly_count" in fields:
+        habit.weekly_count = data.weekly_count if "weekly" in effective_freqs else None
+    if "monthly_count" in fields:
+        habit.monthly_count = data.monthly_count if "monthly" in effective_freqs else None
+    if "specific_days" in fields:
+        new_days = data.specific_days or None
+        if new_days and "specific_day" not in habit.frequencies:
+            raise ValidationError(
+                errors={"specific_days": "'specific_days' is only valid when 'specific_day' is in frequencies."}
+            )
+        habit.specific_days = new_days
+        if not new_days or not any(d >= 29 for d in new_days):
+            habit.day_fallback = False
+    if "day_fallback" in fields and data.day_fallback is not None:
+        # Only store True when there are days ≥ 29 to apply it to
+        current_days = habit.specific_days or []
+        habit.day_fallback = data.day_fallback and any(d >= 29 for d in current_days)
 
     db.commit()
     db.refresh(habit)

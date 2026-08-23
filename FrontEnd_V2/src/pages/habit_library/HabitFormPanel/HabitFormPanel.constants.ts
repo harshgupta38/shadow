@@ -21,19 +21,14 @@ export const FREQUENCY_OPTIONS = [
 ];
 
 export const PREFERRED_TIME_OPTIONS = [
-    { value: "flexible", label: "Flexible (no preference)" },
     { value: "morning", label: "Morning (before 12 pm)" },
-    { value: "afternoon", label: "Afternoon (12 pm - 5 pm)" },
-    { value: "evening", label: "Evening (5 pm - 9 pm)" },
+    { value: "afternoon", label: "Afternoon (12 pm – 5 pm)" },
+    { value: "evening", label: "Evening (5 pm – 9 pm)" },
     { value: "night", label: "Night (after 9 pm)" },
     { value: "custom", label: "Specific time…" },
 ];
 
-function todayIso(): string {
-    return new Date().toISOString().slice(0, 10);
-}
-
-export const EMPTY_FILTERS: FilterState = { status: ["Active"], priority: [], frequency: [] };
+export const EMPTY_FILTERS: FilterState = { status: ["active"], priority: [], frequency: [] };
 
 export const EMPTY_DRAFT: HabitCreateRequest = {
     name: "",
@@ -42,18 +37,26 @@ export const EMPTY_DRAFT: HabitCreateRequest = {
     preferred_time: "flexible",
     specific_time: "",
     duration_minutes: null,
-    start_date: todayIso(),
+    start_date: null,
     end_date: null,
     priority: "medium",
+    weekly_count: null,
+    monthly_count: null,
+    specific_days: null,
+    day_fallback: false,
 };
 
 
 export const PRIORITY_OPTIONS: { value: HabitPriority; label: string }[] = [
-    { value: "highest", label: "Highest" },
-    { value: "high", label: "High" },
-    { value: "medium", label: "Medium" },
-    { value: "low", label: "Low" },
-    { value: "lowest", label: "Lowest" },
+    { value: "highest", label: "Highest: non-negotiable" },
+    { value: "high",    label: "High: do it today" },
+    { value: "medium",  label: "Medium: fits in the week" },
+    { value: "low",     label: "Low: when I get to it" },
+    { value: "lowest",  label: "Lowest: nice to have" },
 ];
 
-export const FILTER_STATUS_OPTIONS = ["Active", "Paused", "Archived"];
+export const FILTER_STATUS_OPTIONS: { value: string; label: string }[] = [
+    { value: "active", label: "Active" },
+    { value: "paused", label: "Paused" },
+    { value: "archived", label: "Archived" },
+];

@@ -241,7 +241,7 @@ export function HabitFormPanel({ mode, initialDraft, editingId, onClose, onSaved
                 aria-labelledby="habit-form-panel-title"
                 onClick={(e) => e.stopPropagation()}
             >
-                <header className="goal-wizard-header">
+                <header className="goal-wizard-header p-0">
                     <div className="goal-wizard-header-main w-100">
                         <div className="goal-wizard-header-copy w-100">
                             <h3 id="habit-form-panel-title" className="d-flex align-items-center justify-content-between">
@@ -563,7 +563,7 @@ export function HabitFormPanel({ mode, initialDraft, editingId, onClose, onSaved
                                 );
                                 if (key === "dates") return (
                                     <div key="dates" className="habit-optional-section">
-                                        <div className="d-flex gap-3">
+                                        <div className="d-flex flex-wrap gap-3">
                                             <div className="flex-grow-1">
                                                 <div className="habit-optional-section-header">
                                                     <label className="form-label mb-0" htmlFor="habit-panel-start">Start date</label>

@@ -32,6 +32,11 @@ class Endpoints:
         SAVE = "/save"
         DETAIL = "/{habit_id}"
 
+    class PLAN_ITEMS:
+        PREFIX = "/plan"
+        TODAY = "/today"
+        DETAIL = "/{item_id}"
+
     class CHAT:
         PREFIX = "/chat"
         CONVERSATIONS = "/conversations" # to get list of sessions

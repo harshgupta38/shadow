@@ -7,7 +7,7 @@ from fastapi.exceptions import RequestValidationError
 
 from app.api.router import api_router
 from app.core.config import settings
-from app.db.session import engine
+from app.db.session import engine, SessionLocal
 from app.models.base import Base
 from app.core.exceptions import AppError
 
@@ -19,11 +19,27 @@ from app.models.milestone import MilestoneDBM
 from app.models.milestone_proposal import MilestoneProposalDBM
 from app.models.task import TaskDBM
 from app.models.habit import HabitDBM
+from app.models.plan_item import PlanItemDBM
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    from datetime import date
+    from sqlalchemy import select
+    from app.services import plan_service
+
     Base.metadata.create_all(bind=engine)
+
+    # Backfill plan items for all users on startup.
+    # get_today_plan() is read-only — it only fetches rows already in plan_items.
+    # This ensures those rows exist by running the planning engine for every user:
+    #   - marks any past planned items as missed
+    #   - generates planned items for the next 30 days from their active habits
+    # Safe to run every startup because generate_for_habit is idempotent.
+    with SessionLocal() as db:
+        user_ids = db.scalars(select(UserDBM.id)).all()
+        for uid in user_ids:
+            plan_service.sync_all_habits(db, uid, date.today())
 
     yield
 

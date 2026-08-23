@@ -31,6 +31,11 @@ export const ENDPOINTS = {
         SAVE: "/save",
         DETAIL: (id: number) => `/${id}`,
     },
+    PLAN_ITEMS: {
+        PREFIX: "/plan",
+        GET_TODAY: "/today",
+        DETAIL: (id: number) => `/${id}`,
+    },
     CHAT: {
         PREFIX: "/chat",
         CONVERSATIONS: "/conversations",

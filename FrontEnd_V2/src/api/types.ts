@@ -415,3 +415,38 @@ export interface HabitCreateRequest {
 export interface HabitUpdateRequest extends Partial<HabitCreateRequest> {
   status?: HabitStatus;
 }
+
+// ── Plan Items ─────────────────────────────────────────────────────────────
+export type PlanItemStatus = "planned" | "done" | "missed";
+export type PlanItemPriority = "highest" | "high" | "medium" | "low" | "lowest";
+
+export interface PlanDataResponse {
+  id: number;
+  source_type: string | null;
+  source_id: number | null;
+
+  title: string;
+  description: string | null;
+
+  scheduled_date: string;
+  scheduled_time: string | null;
+  duration_minutes: number | null;
+  
+  priority: PlanItemPriority;
+  status: PlanItemStatus;
+
+  habit_type: HabitType | null;
+  target_value: number | null;
+  target_unit: string | null;
+  time_span: HabitTimeSpan | null;
+
+  linked_items: Record<string, unknown>; // For storing related items in JSON format
+}
+
+export interface PlanResponse {
+  date: string;
+  items: PlanDataResponse[];
+  missed_yesterday_count: number; // items that user missed to do yesterday
+  carry_forward_count: number; // items that user missed, which is carried forward, these are scheduled items, not part of hbaits
+  workload_label: string; // a label for the workload, e.g. "Light", "Moderate", "Heavy"
+}

@@ -140,7 +140,7 @@ export function HabitFormPanel({ mode, initialDraft, editingId, onClose, onSaved
     const isEdit = mode === "edit";
 
     return (
-        <div className="goal-refined-review-backdrop" onClick={requestClose}>
+        <div className="goal-refined-review-backdrop habit-form-panel" onClick={requestClose}>
             <section
                 className={`goal-refined-review-panel${isClosing ? " is-closing" : ""}`}
                 aria-labelledby="habit-form-panel-title"
@@ -177,7 +177,7 @@ export function HabitFormPanel({ mode, initialDraft, editingId, onClose, onSaved
                             {/* Q1 – What is the habit? */}
                             <div>
                                 <label className="form-label" htmlFor="habit-panel-name">
-                                    What is the habit?
+                                    Name your new habit?
                                 </label>
                                 <input
                                     id="habit-panel-name"
@@ -190,29 +190,7 @@ export function HabitFormPanel({ mode, initialDraft, editingId, onClose, onSaved
                                 />
                             </div>
 
-                            {/* Q2 – Why? */}
-                            <div>
-                                <label className="form-label" htmlFor="habit-panel-motivation">
-                                    Why do you want to build this habit?{" "}
-                                    <span className="text-muted-2 fw-normal">(optional)</span>
-                                </label>
-                                <textarea
-                                    ref={motivationRef}
-                                    id="habit-panel-motivation"
-                                    className={`form-control${fieldErrors.motivation ? " is-invalid" : ""}`}
-                                    rows={1}
-                                    placeholder="Context helps your coach give better suggestions."
-                                    value={draft.motivation ?? ""}
-                                    disabled={saving}
-                                    style={{ overflowY: "hidden", resize: "none" }}
-                                    onChange={(e) => {
-                                        set("motivation", e.target.value);
-                                        resizeTextareaToMaxLines(e.target, 5);
-                                    }}
-                                />
-                            </div>
-
-                            {/* Q3 – How often? */}
+                            {/* Q2 – How often? */}
                             <div>
                                 <span className="form-label d-block mb-2">How often?</span>
                                 <div className="d-flex flex-wrap gap-2">
@@ -233,7 +211,47 @@ export function HabitFormPanel({ mode, initialDraft, editingId, onClose, onSaved
                                 </div>
                             </div>
 
-                            {/* Q4 – When do you prefer to do it? */}
+                            {/* Q3 – Priority */}
+                            <div>
+                                <label className="form-label" htmlFor="habit-panel-priority">
+                                    Priority
+                                </label>
+                                <select
+                                    id="habit-panel-priority"
+                                    className={`form-select${fieldErrors.priority ? " is-invalid" : ""}`}
+                                    value={draft.priority ?? "medium"}
+                                    disabled={saving}
+                                    onChange={(e) => set("priority", e.target.value as HabitCreateRequest["priority"])}
+                                >
+                                    {PRIORITY_OPTIONS.map(({ value, label }) => (
+                                        <option key={value} value={value}>{label}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Q4 – Why? */}
+                            <div>
+                                <label className="form-label" htmlFor="habit-panel-motivation">
+                                    Why do you want to build this habit?{" "}
+                                    <span className="text-muted-2 fw-normal">(optional)</span>
+                                </label>
+                                <textarea
+                                    ref={motivationRef}
+                                    id="habit-panel-motivation"
+                                    className={`form-control${fieldErrors.motivation ? " is-invalid" : ""}`}
+                                    rows={3}
+                                    placeholder="Context helps your daily planner give better suggestions."
+                                    value={draft.motivation ?? ""}
+                                    disabled={saving}
+                                    style={{ overflowY: "hidden", resize: "none" }}
+                                    onChange={(e) => {
+                                        set("motivation", e.target.value);
+                                        resizeTextareaToMaxLines(e.target, 5);
+                                    }}
+                                />
+                            </div>
+
+                            {/* Q5 – When do you prefer to do it? */}
                             <div>
                                 <label className="form-label" htmlFor="habit-panel-time">
                                     When do you prefer to do it?
@@ -277,7 +295,7 @@ export function HabitFormPanel({ mode, initialDraft, editingId, onClose, onSaved
                                 </div>
                             </div>
 
-                            {/* Q5 – How long does it take? */}
+                            {/* Q6 – How long does it take? */}
                             <div>
                                 <label className="form-label" htmlFor="habit-panel-duration">
                                     How long does it take?{" "}
@@ -296,25 +314,7 @@ export function HabitFormPanel({ mode, initialDraft, editingId, onClose, onSaved
                                 />
                             </div>
 
-                            {/* Q6 – Priority */}
-                            <div>
-                                <span className="form-label d-block mb-2">Priority</span>
-                                <div className="d-flex flex-wrap gap-2">
-                                    {PRIORITY_OPTIONS.map((opt) => (
-                                        <button
-                                            key={opt.value}
-                                            type="button"
-                                            className={`btn btn-sm ${draft.priority === opt.value ? "btn-brand" : "btn-outline-secondary"}`}
-                                            onClick={() => set("priority", opt.value)}
-                                            disabled={saving}
-                                        >
-                                            {opt.label}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Q7 + Q8 – Dates row */}
+                            {/* Q7 – Dates row */}
                             <div className="d-flex gap-3">
                                 <div className="flex-grow-1">
                                     <label className="form-label" htmlFor="habit-panel-start">

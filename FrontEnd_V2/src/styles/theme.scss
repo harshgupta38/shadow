@@ -284,6 +284,10 @@ a {
   background: var(--jv-brand-soft);
   color: var(--jv-brand-1);
   border: none;
+
+  &.outline {
+    border: 1px solid var(--jv-brand-1);
+  }
 }
 .btn-soft:hover {
   background: var(--jv-brand-soft);

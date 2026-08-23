@@ -286,7 +286,7 @@ export function HabitFormPanel({ mode, initialDraft, editingId, onClose, onSaved
                             </div>
 
                             {/* Q2 – How often? */}
-                            <div className="d-flex flex-column gap-3">
+                            <div className="d-flex flex-column gap-2">
                                 <span className="form-label mb-0">How often?</span>
 
                                 {/* Row 1 – days of week */}
@@ -295,7 +295,7 @@ export function HabitFormPanel({ mode, initialDraft, editingId, onClose, onSaved
                                         <button
                                             key={opt.value}
                                             type="button"
-                                            className={`btn btn-sm ${draft.frequencies.includes(opt.value) ? "btn-soft" : "btn-outline-secondary"}`}
+                                            className={`btn btn-sm ${draft.frequencies.includes(opt.value) ? "btn-soft outline" : "btn-outline-secondary"}`}
                                             onClick={() => toggleFrequency(opt.value)}
                                             disabled={saving || disabledFreqs.has(opt.value)}
                                         >
@@ -310,7 +310,7 @@ export function HabitFormPanel({ mode, initialDraft, editingId, onClose, onSaved
                                         <button
                                             key={opt.value}
                                             type="button"
-                                            className={`btn btn-sm ${draft.frequencies.includes(opt.value) ? "btn-soft" : "btn-outline-secondary"}`}
+                                            className={`btn btn-sm ${draft.frequencies.includes(opt.value) ? "btn-soft outline" : "btn-outline-secondary"}`}
                                             onClick={() => toggleFrequency(opt.value)}
                                             disabled={saving || disabledFreqs.has(opt.value)}
                                         >
@@ -319,7 +319,7 @@ export function HabitFormPanel({ mode, initialDraft, editingId, onClose, onSaved
                                     ))}
                                     <button
                                         type="button"
-                                        className={`btn btn-sm ${(dayPickerOpen || specificDays.length > 0) ? "btn-soft" : "btn-outline-secondary"}`}
+                                        className={`btn btn-sm ${(dayPickerOpen || specificDays.length > 0) ? "btn-soft outline" : "btn-outline-secondary"}`}
                                         onClick={() => {
                                             if (dayPickerOpen) {
                                                 setDayPickerOpen(false);

@@ -3,13 +3,13 @@ import type { FilterState, HabitCreateRequest, HabitPriority } from "@/api";
 export const SLIDE_OUT_DURATION_MS = 220;
 
 export const FREQUENCY_OPTIONS = [
-    { value: "sunday", label: "Sun" },
-    { value: "monday", label: "Mon" },
-    { value: "tuesday", label: "Tue" },
-    { value: "wednesday", label: "Wed" },
-    { value: "thursday", label: "Thu" },
-    { value: "friday", label: "Fri" },
-    { value: "saturday", label: "Sat" },
+    { value: "sunday", label: "Sunday" },
+    { value: "monday", label: "Monday" },
+    { value: "tuesday", label: "Tuesday" },
+    { value: "wednesday", label: "Wednesday" },
+    { value: "thursday", label: "Thursday" },
+    { value: "friday", label: "Friday" },
+    { value: "saturday", label: "Saturday" },
 
     { value: "daily", label: "Daily" },
     { value: "weekly", label: "Weekly" },

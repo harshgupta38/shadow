@@ -297,6 +297,10 @@
   // ── Card body ───────────────────────────────────────────────────────
   .hl-card-body {
     padding: 0.25rem 1.4rem 1.5rem;
+
+    &.less-padding-below {
+      padding-bottom: 1rem;
+    }
   }
 
   // ── Empty state ─────────────────────────────────────────────────────

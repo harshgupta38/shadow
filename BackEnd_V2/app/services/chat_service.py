@@ -18,6 +18,7 @@ from app.models.goal import GoalDBM
 from app.models.goal_proposal import GoalProposalDBM
 from app.models.milestone import MilestoneDBM
 from app.models.milestone_proposal import MilestoneProposalDBM
+from app.models.task_proposal import TaskProposalDBM
 from app.schemas.chat import (
     ConvoDataResponse,
     ConvoDataShortResponse,
@@ -164,6 +165,64 @@ def _attach_milestone_proposals(
     }
 
 
+def _attach_task_proposals(
+    db: Session,
+    current_user: UserDBM,
+    conversation: ConversationDBM,
+    assistant_message: MessageDBM,
+    action_data: dict | None,
+    content_index: int,
+) -> None:
+    """Persist task proposals to DB and attach them to the message linked_items.
+
+    Each task gets its own proposal row and UUID so the frontend can
+    track and save them independently. Existing proposals from prior
+    regenerations are preserved untouched.
+    """
+    if not action_data or "task_proposals" not in action_data:
+        return
+
+    proposal_data = action_data["task_proposals"]
+    goal_id = proposal_data["goal_id"]
+    milestone_id = proposal_data["milestone_id"]
+    tasks = proposal_data["tasks"]
+
+    existing_linked_items = assistant_message.linked_items or {}
+    existing_proposals = list(existing_linked_items.get("task_proposals") or [])
+
+    for task in tasks:
+        proposal_id = str(uuid.uuid4())
+        db.add(
+            TaskProposalDBM(
+                proposal_id=proposal_id,
+                user_id=current_user.id,
+                conversation_id=conversation.id,
+                message_id=assistant_message.id,
+                content_index=content_index,
+                goal_id=goal_id,
+                milestone_id=milestone_id,
+                status="pending",
+                task_id=None,
+            )
+        )
+        existing_proposals.append(
+            {
+                "proposal_id": proposal_id,
+                "content_index": content_index,
+                "goal_id": goal_id,
+                "milestone_id": milestone_id,
+                "status": "pending",
+                "task_id": None,
+                "task": task,
+            }
+        )
+
+    assistant_message.linked_items = {
+        **existing_linked_items,
+        "task_proposals": existing_proposals,
+    }
+
+
 def _attach_goal_proposal(
     db: Session,
     current_user: UserDBM,
@@ -282,6 +341,7 @@ async def create_conversation(
         db, current_user, conversation, assistant_message, tool_context.action_data, 0
     )
     _attach_milestone_proposals(db, current_user, conversation, assistant_message, tool_context.action_data, 0)
+    _attach_task_proposals(db, current_user, conversation, assistant_message, tool_context.action_data, 0)
 
     db.commit()
     db.refresh(conversation)
@@ -686,6 +746,7 @@ async def regenerate_response(
         new_content_index,
     )
     _attach_milestone_proposals(db, current_user, conversation, assistant_message, tool_context.action_data, new_content_index)
+    _attach_task_proposals(db, current_user, conversation, assistant_message, tool_context.action_data, new_content_index)
 
     conversation.updated_at = datetime.now(timezone.utc)
     db.commit()

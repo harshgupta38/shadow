@@ -91,11 +91,15 @@ class LLMService:
         self,
         data: NewConvoRequest,
         user_id: int,
+        goal_id: int | None = None,
+        milestone_id: int | None = None,
         tool_executor: Callable[[str, dict], dict] | None = None,
     ) -> NewConvoFromLLM:
         request = NewConvoToLLM(
             request_data=data,
             user_id=user_id,
+            goal_id=goal_id,
+            milestone_id=milestone_id,
             tool_executor=tool_executor,
         )
         response = await self._provider.create_conversation(request)
@@ -113,11 +117,15 @@ class LLMService:
         agent_type: str,
         recent_messages: list[dict[str, str]],
         user_id: int,
+        goal_id: int | None = None,
+        milestone_id: int | None = None,
         tool_executor: Callable[[str, dict], dict] | None = None,
     ) -> MessageFromLLM:
         request = MessageToLLM(
             request_data=data.content,
             user_id=user_id,
+            goal_id=goal_id,
+            milestone_id=milestone_id,
             agent_type=agent_type,
             stable_context=stable_context,
             context_summary=context_summary,

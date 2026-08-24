@@ -172,9 +172,9 @@ export function GoalMilestonesSection({ goal }: GoalMilestonesSectionProps) {
         const message = `I would like to generate milestones for my goal "${goalTitle}"`;
 
         if (sourceConversationId !== null) {
-            navigate(ROUTES.ASSISTANT, { state: { conversationId: sourceConversationId, prefillMessage: message } });
+            navigate(ROUTES.ASSISTANT, { state: { conversationId: sourceConversationId, prefillMessage: message, goal_id: goalId } });
         } else {
-            navigate(ROUTES.ASSISTANT, { state: { agentType: "goal_coach", autoMessage: message } });
+            navigate(ROUTES.ASSISTANT, { state: { agentType: "goal_coach", autoMessage: message, goal_id: goalId } });
         }
     }
 
@@ -247,7 +247,7 @@ export function GoalMilestonesSection({ goal }: GoalMilestonesSectionProps) {
                                 >
                                     <button
                                         type="button"
-                                        className={`goal-milestone-check${completed ? " is-done" : ""}`}
+                                        className={`goal-milestone-check mt-1${completed ? " is-done" : ""}`}
                                         disabled={busy}
                                         onClick={() => void requestStatusChange(milestone, completed ? "Not Started" : "Completed")}
                                         aria-label={completed ? "Mark as not completed" : "Mark as completed"}
@@ -309,6 +309,7 @@ export function GoalMilestonesSection({ goal }: GoalMilestonesSectionProps) {
                                                                 <CalendarEvent size={14} className="me-2" /> Set Target Date
                                                             </Dropdown.Item>
                                                         )}
+                                                        <Dropdown.Divider />
                                                         <Dropdown.Item
                                                             onClick={() => {
                                                                 navigate(
@@ -319,6 +320,18 @@ export function GoalMilestonesSection({ goal }: GoalMilestonesSectionProps) {
                                                             }}
                                                         >
                                                             <ListTask size={14} className="me-2" /> Add Task
+                                                        </Dropdown.Item>
+                                                        <Dropdown.Item
+                                                            onClick={() => {
+                                                                const prefillMessage = `Create a task for milestone "${milestone.title}" of my goal "${goalTitle}". Break the milestone into a concrete, actionable task that I can work on.`;
+                                                                if (sourceConversationId) {
+                                                                    navigate(ROUTES.ASSISTANT, { state: { conversationId: sourceConversationId, prefillMessage, goal_id: goalId, milestone_id: milestone.id } });
+                                                                } else {
+                                                                    navigate(ROUTES.ASSISTANT, { state: { agentType: "goal_coach", prefillMessage, goal_id: goalId, milestone_id: milestone.id } });
+                                                                }
+                                                            }}
+                                                        >
+                                                            <Stars size={14} className="me-2" /> Ask Goal Coach
                                                         </Dropdown.Item>
                                                         <Dropdown.Divider />
                                                         <Dropdown.Item onClick={() => setConfirmUpdateId(milestone.id)}>

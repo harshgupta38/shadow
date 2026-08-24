@@ -349,12 +349,17 @@ export interface MessageChunkResponse {
   has_more: boolean;
 }
 
-export interface NewConvoRequest {
+interface ExtraDataInRequest {
+  goal_id?: number;
+  milestone_id?: number;
+}
+
+export interface NewConvoRequest extends ExtraDataInRequest {
   content: string;
   agent_type: AssistantAgentType;
 }
 
-export interface MessageRequest {
+export interface MessageRequest extends ExtraDataInRequest {
   conversation_id: number;
   content: string;
 }
@@ -431,7 +436,7 @@ export interface PlanDataResponse {
   scheduled_date: string;
   scheduled_time: string | null;
   duration_minutes: number | null;
-  
+
   priority: PlanItemPriority;
   status: PlanItemStatus;
 

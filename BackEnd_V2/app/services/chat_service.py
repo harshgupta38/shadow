@@ -238,6 +238,9 @@ async def create_conversation(
         response = await llm_service.create_conversation(
             data, 
             user_id=current_user.id,
+            goal_id=data.goal_id,
+            milestone_id=data.milestone_id,
+            
             tool_executor=tool_executor,
         )
     except LLMError as exc:
@@ -420,6 +423,9 @@ async def _call_llm_and_save(
         response = await llm_service.respond_to_message(
             data,
             user_id=current_user.id,
+            goal_id=data.goal_id,
+            milestone_id=data.milestone_id,
+
             agent_type=conversation.agent_type,
             stable_context=conversation.stable_context,
             context_summary=conversation.context_summary,
@@ -528,15 +534,11 @@ async def respond_to_message(
                 messages=context_messages,
             )
         except LLMError as exc:
-            raise LLMRequestError(
-                f"Failed to update conversation context: {exc}"
-            ) from exc
+            raise LLMRequestError(f"Failed to update conversation context: {exc}") from exc
 
         context_data = context_response.llm_data
         if not context_data.context_summary.strip():
-            raise LLMRequestError(
-                "Conversation context update returned an empty summary."
-            )
+            raise LLMRequestError("Conversation context update returned an empty summary.")
 
         conversation.context_summary = context_data.context_summary
         if context_data.stable_context and context_data.stable_context.strip():

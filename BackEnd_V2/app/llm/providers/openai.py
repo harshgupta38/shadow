@@ -289,11 +289,19 @@ class OpenAIProvider(BaseLLMProvider):
                     request_data.agent_type
                 ],
             },
-            {
-                "role": Role.USER,
-                "content": request_data.content
-            },
         ]
+        if request.goal_id is not None:
+            messages.append(
+                {"role": Role.SYSTEM, "content": f"Goal ID: {request.goal_id}"}
+            )
+        if request.milestone_id is not None:
+            messages.append(
+                {
+                    "role": Role.SYSTEM,
+                    "content": f"Milestone ID: {request.milestone_id}",
+                }
+            )
+        messages.append({"role": Role.USER, "content": request_data.content})
 
         started_at = perf_counter()
         total_input_tokens = 0
@@ -463,11 +471,19 @@ class OpenAIProvider(BaseLLMProvider):
                 "content": conversation_context,
             },
             *request.recent_messages,
-            {
-                "role": Role.USER,
-                "content": request.request_data,
-            },
         ]
+        if request.goal_id is not None:
+            messages.append(
+                {"role": Role.SYSTEM, "content": f"Goal ID: {request.goal_id}"}
+            )
+        if request.milestone_id is not None:
+            messages.append(
+                {
+                    "role": Role.SYSTEM,
+                    "content": f"Milestone ID: {request.milestone_id}",
+                }
+            )
+        messages.append({"role": Role.USER, "content": request.request_data})
 
         started_at = perf_counter()
         total_input_tokens = 0

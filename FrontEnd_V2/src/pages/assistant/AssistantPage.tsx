@@ -22,10 +22,20 @@ import { resizeTextareaToMaxLines } from "@/services/textarea-resize.service";
 
 import "@/pages/assistant/AssistantPage.scss";
 
+interface State {
+  agentType?: string;
+  autoMessage?: string;
+  conversationId?: number;
+  prefillMessage?: string;
+  goal_id?: number;
+  milestone_id?: number;
+}
+
 export function AssistantPage() {
   const toast = useToast();
   const location = useLocation();
   const navigate = useNavigate();
+  const navigationState = location.state as State | null;
 
   const [showNewChatModal, setShowNewChatModal] = useState(false);
   const [inputText, setInputText] = useState("");
@@ -82,6 +92,8 @@ export function AssistantPage() {
         autoMessage?: string;
         conversationId?: number;
         prefillMessage?: string
+        goal_id?: number;
+        milestone_id?: number;
       } | null;
 
     if (state?.agentType) {
@@ -294,6 +306,8 @@ export function AssistantPage() {
         const response = await api.chat.startConversation({
           content: text,
           agent_type: activeItem.agent_type,
+          goal_id: navigationState?.goal_id,
+          milestone_id: navigationState?.milestone_id,
         });
         const activeItemCopy = {
           ...activeItem,
@@ -326,6 +340,8 @@ export function AssistantPage() {
         const response = await api.chat.sendMessage({
           conversation_id: targetConvId,
           content: text,
+          goal_id: navigationState?.goal_id,
+          milestone_id: navigationState?.milestone_id,
         });
         updateConversationMessages(targetConvId, prev => [...prev, response.message_data]);
       } catch (error) {
@@ -385,6 +401,8 @@ export function AssistantPage() {
         const response = await api.chat.startConversation({
           content: text,
           agent_type: activeItem.agent_type,
+          goal_id: navigationState?.goal_id,
+          milestone_id: navigationState?.milestone_id,
         });
         const activeItemCopy = { ...activeItem, ...response.conversation_data, is_local: false };
         const realId = activeItemCopy.id;

@@ -36,6 +36,9 @@ class TokenUsage(BaseModel):
 
 class MetadataToLLM(BaseModel):
     user_id: int
+    goal_id: int | None = None
+    milestone_id: int | None = None
+    
     model: str | None = None
     temperature: float | None = Field(default=None, ge=0.0, le=2.0)
     max_tokens: int | None = Field(default=None, gt=0)

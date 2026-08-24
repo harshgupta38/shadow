@@ -519,6 +519,9 @@ async def _call_llm_and_save(
     _attach_milestone_proposals(
         db, current_user, conversation, assistant_message, tool_context.action_data, 0
     )
+    _attach_task_proposals(
+        db, current_user, conversation, assistant_message, tool_context.action_data, 0
+    )
 
     conversation.updated_at = assistant_message.created_at
     db.commit()

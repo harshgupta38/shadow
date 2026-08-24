@@ -5,7 +5,7 @@ from app.schemas.goals import GoalListStatusFilter
 from app.llm.tools.context import ToolContext
 
 
-async def refine_goal(context: ToolContext, arguments: dict) -> dict:
+async def tool_refine_goal(context: ToolContext, arguments: dict) -> dict:
     from app.services.goals_service import refine_goal  # prevent circular import
     from app.schemas.goals import RefineGoalRequest
 
@@ -77,7 +77,7 @@ class GoalToolDefinitions(Enum):
     REFINE_GOAL = {
         "type": "function",
         "function": {
-            "name": "refine_goal",
+            "name": "tool_refine_goal",
             "description": (
                 "Use this tool to generate a structured goal after you have discussed it with the user "
                 "and collected answers to all five discovery questions. "
@@ -207,13 +207,13 @@ GOAL_TOOL_DEFINITIONS: list[dict] = [t.value for t in GoalToolDefinitions]
 
 
 class GoalToolsEnum(StrEnum):
-    REFINE_GOAL = "refine_goal"
+    REFINE_GOAL = "tool_refine_goal"
     GET_CURRENT_GOALS = "get_current_goals"
     GET_GOAL_DETAIL = "get_goal_detail"
 
 
 GOAL_TOOLS: dict[str, Callable] = {
-    GoalToolsEnum.REFINE_GOAL: refine_goal,
+    GoalToolsEnum.REFINE_GOAL: tool_refine_goal,
     GoalToolsEnum.GET_CURRENT_GOALS: get_current_goals,
     GoalToolsEnum.GET_GOAL_DETAIL: get_goal_detail,
 }

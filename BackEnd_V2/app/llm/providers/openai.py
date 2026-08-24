@@ -47,7 +47,7 @@ from app.schemas.chat import (
     MessageFromLLMSchema,
     NewConvoFromLLMSchema,
 )
-from app.llm.tools import MAX_TOOL_ITERATIONS, AGENT_TOOL_DEFINITIONS
+from app.llm.tools import MAX_TOOL_ITERATIONS, AGENT_TOOL_DEFINITIONS, TERMINAL_TOOL_NAMES
 
 
 class OpenAIProvider(BaseLLMProvider):
@@ -403,6 +403,7 @@ class OpenAIProvider(BaseLLMProvider):
             total_output_tokens += usage_delta.output_tokens
             total_tokens += usage_delta.total_tokens
 
+        terminal_break = False
         for _ in range(MAX_TOOL_ITERATIONS):
             first_choice = completion.choices[0]
             tool_calls = first_choice.message.tool_calls
@@ -433,12 +434,9 @@ class OpenAIProvider(BaseLLMProvider):
 
             for tool_call in tool_calls:
                 arguments = json.loads(tool_call.function.arguments or "{}")
-                try:
-                    result = request.tool_executor(tool_call.function.name, arguments)
-                    if asyncio.iscoroutine(result):
-                        result = await result
-                except Exception as exc:
-                    result = {"error": str(exc)}
+                result = request.tool_executor(tool_call.function.name, arguments)
+                if asyncio.iscoroutine(result):
+                    result = await result
                 messages.append(
                     {
                         "role": Role.TOOL,
@@ -446,6 +444,12 @@ class OpenAIProvider(BaseLLMProvider):
                         "content": json.dumps(result),
                     }
                 )
+
+            called_names = {tc.function.name for tc in tool_calls}
+            if called_names.issubset(TERMINAL_TOOL_NAMES):
+                # Tool completed the action; create_conversation_final composes the response.
+                terminal_break = True
+                break
 
             tool_names = "\n".join(tool_call.function.name for tool_call in tool_calls)
             completion, usage_delta = await self._tool_complete(
@@ -461,7 +465,7 @@ class OpenAIProvider(BaseLLMProvider):
                 total_output_tokens += usage_delta.output_tokens
                 total_tokens += usage_delta.total_tokens
 
-        if completion.choices[0].message.tool_calls:
+        if not terminal_break and completion.choices[0].message.tool_calls:
             raise LLMRequestError("OpenAI exceeded the maximum number of tool iterations.")
 
         final_started_at = perf_counter()
@@ -620,12 +624,9 @@ class OpenAIProvider(BaseLLMProvider):
 
             for tool_call in tool_calls:
                 arguments = json.loads(tool_call.function.arguments or "{}")
-                try:
-                    result = request.tool_executor(tool_call.function.name, arguments)
-                    if asyncio.iscoroutine(result):
-                        result = await result
-                except Exception as exc:
-                    result = {"error": str(exc)}
+                result = request.tool_executor(tool_call.function.name, arguments)
+                if asyncio.iscoroutine(result):
+                    result = await result
                 messages.append(
                     {
                         "role": Role.TOOL,

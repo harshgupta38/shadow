@@ -14,6 +14,9 @@ from app.llm.tools.tasks import (
 
 MAX_TOOL_ITERATIONS = 3
 
+# After these tools run, no re-query is needed — the final structured parse handles the response.
+TERMINAL_TOOL_NAMES: frozenset[str] = frozenset({"tool_refine_goal"})
+
 ALL_TOOL_DEFINITIONS: list[dict] = [
     *GOAL_TOOL_DEFINITIONS,
     *MILESTONE_TOOL_DEFINITIONS,

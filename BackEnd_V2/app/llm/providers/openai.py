@@ -369,17 +369,19 @@ class OpenAIProvider(BaseLLMProvider):
                 ],
             },
         ]
+        _ctx_parts = []
         if request.goal_id is not None:
-            messages.append(
-                {"role": Role.SYSTEM, "content": f"Goal ID: {request.goal_id}"}
-            )
+            _ctx_parts.append(f"Goal ID: {request.goal_id}")
         if request.milestone_id is not None:
-            messages.append(
-                {
-                    "role": Role.SYSTEM,
-                    "content": f"Milestone ID: {request.milestone_id}",
-                }
-            )
+            _ctx_parts.append(f"Milestone ID: {request.milestone_id}")
+        if _ctx_parts:
+            messages.append({
+                "role": Role.SYSTEM,
+                "content": (
+                    "Active context — " + ", ".join(_ctx_parts) + ". "
+                    "When calling tools that require a goal_id or milestone_id, use these exact values."
+                ),
+            })
         messages.append({"role": Role.USER, "content": request_data.content})
 
         started_at = perf_counter()
@@ -431,9 +433,12 @@ class OpenAIProvider(BaseLLMProvider):
 
             for tool_call in tool_calls:
                 arguments = json.loads(tool_call.function.arguments or "{}")
-                result = request.tool_executor(tool_call.function.name, arguments)
-                if asyncio.iscoroutine(result):
-                    result = await result
+                try:
+                    result = request.tool_executor(tool_call.function.name, arguments)
+                    if asyncio.iscoroutine(result):
+                        result = await result
+                except Exception as exc:
+                    result = {"error": str(exc)}
                 messages.append(
                     {
                         "role": Role.TOOL,
@@ -551,17 +556,19 @@ class OpenAIProvider(BaseLLMProvider):
             },
             *request.recent_messages,
         ]
+        _ctx_parts = []
         if request.goal_id is not None:
-            messages.append(
-                {"role": Role.SYSTEM, "content": f"Goal ID: {request.goal_id}"}
-            )
+            _ctx_parts.append(f"Goal ID: {request.goal_id}")
         if request.milestone_id is not None:
-            messages.append(
-                {
-                    "role": Role.SYSTEM,
-                    "content": f"Milestone ID: {request.milestone_id}",
-                }
-            )
+            _ctx_parts.append(f"Milestone ID: {request.milestone_id}")
+        if _ctx_parts:
+            messages.append({
+                "role": Role.SYSTEM,
+                "content": (
+                    "Active context — " + ", ".join(_ctx_parts) + ". "
+                    "When calling tools that require a goal_id or milestone_id, use these exact values."
+                ),
+            })
         messages.append({"role": Role.USER, "content": request.request_data})
 
         started_at = perf_counter()
@@ -613,9 +620,12 @@ class OpenAIProvider(BaseLLMProvider):
 
             for tool_call in tool_calls:
                 arguments = json.loads(tool_call.function.arguments or "{}")
-                result = request.tool_executor(tool_call.function.name, arguments)
-                if asyncio.iscoroutine(result):
-                    result = await result
+                try:
+                    result = request.tool_executor(tool_call.function.name, arguments)
+                    if asyncio.iscoroutine(result):
+                        result = await result
+                except Exception as exc:
+                    result = {"error": str(exc)}
                 messages.append(
                     {
                         "role": Role.TOOL,

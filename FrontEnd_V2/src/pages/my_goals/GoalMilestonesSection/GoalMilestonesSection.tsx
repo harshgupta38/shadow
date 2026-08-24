@@ -5,6 +5,7 @@ import { Link, useNavigate } from "react-router-dom";
 
 import { api, GoalDataResponse, type MilestoneDataResponse, type MilestoneStatus } from "@/api";
 import { ApiError } from "@/api/client";
+import { ChoiceDialog } from "@/components/ui/ChoiceDialog/ChoiceDialog";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { TargetDatePromptDialog } from "@/components/ui/TargetDatePromptDialog/TargetDatePromptDialog";
 import { useToast } from "@/context/ToastContext";
@@ -54,6 +55,11 @@ export function GoalMilestonesSection({ goal }: GoalMilestonesSectionProps) {
         milestoneId: number;
         initialTargetDate: string | null;
         allowSkipTargetDate: boolean;
+    } | null>(null);
+    const [pendingCoachAction, setPendingCoachAction] = useState<{
+        autoMessage: string;
+        goal_id: number;
+        milestone_id?: number;
     } | null>(null);
 
     const newMilestonePath = ROUTES.MY_GOAL_MILESTONE_CREATE.replace(":goalId", String(goalId));
@@ -172,7 +178,7 @@ export function GoalMilestonesSection({ goal }: GoalMilestonesSectionProps) {
         const message = `I would like to generate milestones for my goal "${goalTitle}"`;
 
         if (sourceConversationId !== null) {
-            navigate(ROUTES.ASSISTANT, { state: { conversationId: sourceConversationId, prefillMessage: message, goal_id: goalId } });
+            setPendingCoachAction({ autoMessage: message, goal_id: goalId });
         } else {
             navigate(ROUTES.ASSISTANT, { state: { agentType: "goal_coach", autoMessage: message, goal_id: goalId } });
         }
@@ -323,11 +329,11 @@ export function GoalMilestonesSection({ goal }: GoalMilestonesSectionProps) {
                                                         </Dropdown.Item>
                                                         <Dropdown.Item
                                                             onClick={() => {
-                                                                const prefillMessage = `Create a task for milestone "${milestone.title}" of my goal "${goalTitle}". Break the milestone into a concrete, actionable task that I can work on.`;
+                                                                const msg = `Create a task for milestone "${milestone.title}" of my goal "${goalTitle}". Break the milestone into a concrete, actionable task that I can work on.`;
                                                                 if (sourceConversationId) {
-                                                                    navigate(ROUTES.ASSISTANT, { state: { conversationId: sourceConversationId, prefillMessage, goal_id: goalId, milestone_id: milestone.id } });
+                                                                    setPendingCoachAction({ autoMessage: msg, goal_id: goalId, milestone_id: milestone.id });
                                                                 } else {
-                                                                    navigate(ROUTES.ASSISTANT, { state: { agentType: "goal_coach", prefillMessage, goal_id: goalId, milestone_id: milestone.id } });
+                                                                    navigate(ROUTES.ASSISTANT, { state: { agentType: "goal_coach", autoMessage: msg, goal_id: goalId, milestone_id: milestone.id } });
                                                                 }
                                                             }}
                                                         >
@@ -516,6 +522,42 @@ export function GoalMilestonesSection({ goal }: GoalMilestonesSectionProps) {
                 onClear={() => { void updatePendingTargetDate(null); }}
                 onSkip={() => setPendingTargetDatePrompt(null)}
                 onCancel={() => setPendingTargetDatePrompt(null)}
+            />
+
+            <ChoiceDialog
+                show={pendingCoachAction !== null}
+                title="Open Goal Coach"
+                message="You already have a Goal Coach conversation for this goal. Would you like to continue there or start a new chat?"
+                icon={<Stars size={26} />}
+                iconColor="var(--jv-brand-1)"
+                onHide={() => setPendingCoachAction(null)}
+                buttons={[
+                    {
+                        label: "New Chat",
+                        variant: "brand",
+                        onClick: () => {
+                            if (pendingCoachAction) {
+                                navigate(ROUTES.ASSISTANT, { state: { agentType: "goal_coach", autoMessage: pendingCoachAction.autoMessage, goal_id: pendingCoachAction.goal_id, milestone_id: pendingCoachAction.milestone_id } });
+                            }
+                            setPendingCoachAction(null);
+                        },
+                    },
+                    {
+                        label: "Existing Chat",
+                        variant: "soft",
+                        onClick: () => {
+                            if (pendingCoachAction && sourceConversationId) {
+                                navigate(ROUTES.ASSISTANT, { state: { conversationId: sourceConversationId, autoMessage: pendingCoachAction.autoMessage, goal_id: pendingCoachAction.goal_id, milestone_id: pendingCoachAction.milestone_id } });
+                            }
+                            setPendingCoachAction(null);
+                        },
+                    },
+                    {
+                        label: "Cancel",
+                        variant: "outline-secondary",
+                        onClick: () => setPendingCoachAction(null),
+                    },
+                ]}
             />
         </>
     );

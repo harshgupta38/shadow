@@ -46,7 +46,7 @@ from app.schemas.chat import (
     MessageFromLLMSchema,
     NewConvoFromLLMSchema,
 )
-from app.llm.tools import MAX_TOOL_ITERATIONS, AGENT_TOOL_DEFINITIONS
+from app.llm.tools import MAX_TOOL_ITERATIONS, AGENT_TOOL_DEFINITIONS, TERMINAL_TOOL_NAMES
 
 
 def _strip_schema_extras(obj):
@@ -322,6 +322,7 @@ class GeminiProvider(BaseLLMProvider):
             total_output_tokens += usage_delta.output_tokens
             total_tokens += usage_delta.total_tokens
 
+        terminal_break = False
         for _ in range(MAX_TOOL_ITERATIONS):
             function_calls = self._get_function_calls(response)
             if not function_calls:
@@ -344,6 +345,18 @@ class GeminiProvider(BaseLLMProvider):
                 )
             contents.append(types.Content(role="user", parts=result_parts))
 
+            # Terminal tools (e.g. create_goal_proposal) fully complete their action
+            # by writing to context.action_data; their return value is a scripted
+            # string telling the LLM what to say — re-invoking _tool_complete would
+            # narrate that string at extra token cost. Gemini cannot combine tools and
+            # response_schema in one call, so the final generate_content (with
+            # response_schema only, no tools) already handles structured output.
+            # Break here and let that call compose the response from tool results.
+            called_names = {fc.name for fc in function_calls}
+            if called_names.issubset(TERMINAL_TOOL_NAMES):
+                terminal_break = True
+                break
+
             tool_names = "\n".join(fc.name for fc in function_calls)
             response, usage_delta = await self._tool_complete(
                 model, contents, system_instruction, tool_names,
@@ -358,7 +371,7 @@ class GeminiProvider(BaseLLMProvider):
                 total_output_tokens += usage_delta.output_tokens
                 total_tokens += usage_delta.total_tokens
 
-        if self._get_function_calls(response):
+        if not terminal_break and self._get_function_calls(response):
             raise LLMRequestError("Gemini exceeded the maximum number of tool iterations.")
 
         final_started_at = perf_counter()
@@ -477,6 +490,7 @@ class GeminiProvider(BaseLLMProvider):
             total_output_tokens += usage_delta.output_tokens
             total_tokens += usage_delta.total_tokens
 
+        terminal_break = False
         for _ in range(MAX_TOOL_ITERATIONS):
             function_calls = self._get_function_calls(response)
             if not function_calls:
@@ -497,6 +511,18 @@ class GeminiProvider(BaseLLMProvider):
                 )
             contents.append(types.Content(role="user", parts=result_parts))
 
+            # Terminal tools (e.g. create_goal_proposal) fully complete their action
+            # by writing to context.action_data; their return value is a scripted
+            # string telling the LLM what to say — re-invoking _tool_complete would
+            # narrate that string at extra token cost. Gemini cannot combine tools and
+            # response_schema in one call, so the final generate_content (with
+            # response_schema only, no tools) already handles structured output.
+            # Break here and let that call compose the response from tool results.
+            called_names = {fc.name for fc in function_calls}
+            if called_names.issubset(TERMINAL_TOOL_NAMES):
+                terminal_break = True
+                break
+
             tool_names = "\n".join(fc.name for fc in function_calls)
             response, usage_delta = await self._tool_complete(
                 model, contents, system_instruction, tool_names,
@@ -511,7 +537,7 @@ class GeminiProvider(BaseLLMProvider):
                 total_output_tokens += usage_delta.output_tokens
                 total_tokens += usage_delta.total_tokens
 
-        if self._get_function_calls(response):
+        if not terminal_break and self._get_function_calls(response):
             raise LLMRequestError("Gemini exceeded the maximum number of tool iterations.")
 
         final_started_at = perf_counter()

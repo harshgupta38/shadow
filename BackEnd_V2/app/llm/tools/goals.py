@@ -5,7 +5,12 @@ from app.schemas.goals import GoalListStatusFilter
 from app.llm.tools.context import ToolContext
 
 
-async def tool_refine_goal(context: ToolContext, arguments: dict) -> dict:
+# Named "create_goal_proposal" (not "refine_goal") to match the naming pattern of
+# the other proposal-generating tools (create_milestone_proposals, create_task_proposals)
+# and to make it clear to the LLM that this creates a reviewable proposal, not a
+# final save. The name is also registered in TERMINAL_TOOL_NAMES so that all three
+# proposal tools are handled the same way in the tool loop.
+async def create_goal_proposal(context: ToolContext, arguments: dict) -> dict:
     from app.services.goals_service import refine_goal  # prevent circular import
     from app.schemas.goals import RefineGoalRequest
 
@@ -77,7 +82,7 @@ class GoalToolDefinitions(Enum):
     REFINE_GOAL = {
         "type": "function",
         "function": {
-            "name": "tool_refine_goal",
+            "name": "create_goal_proposal",
             "description": (
                 "Use this tool to generate a structured goal after you have discussed it with the user "
                 "and collected answers to all five discovery questions. "
@@ -207,13 +212,13 @@ GOAL_TOOL_DEFINITIONS: list[dict] = [t.value for t in GoalToolDefinitions]
 
 
 class GoalToolsEnum(StrEnum):
-    REFINE_GOAL = "tool_refine_goal"
+    REFINE_GOAL = "create_goal_proposal"
     GET_CURRENT_GOALS = "get_current_goals"
     GET_GOAL_DETAIL = "get_goal_detail"
 
 
 GOAL_TOOLS: dict[str, Callable] = {
-    GoalToolsEnum.REFINE_GOAL: tool_refine_goal,
+    GoalToolsEnum.REFINE_GOAL: create_goal_proposal,
     GoalToolsEnum.GET_CURRENT_GOALS: get_current_goals,
     GoalToolsEnum.GET_GOAL_DETAIL: get_goal_detail,
 }

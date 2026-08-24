@@ -1,6 +1,10 @@
+import asyncio
+import logging
 import uuid
 from datetime import datetime, timezone
 from json import JSONDecodeError
+
+logger = logging.getLogger(__name__)
 
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
@@ -587,26 +591,21 @@ async def respond_to_message(
     ]
 
     llm_service = get_llm_service()
+    context_task = None
     if summary_update_due:
-        try:
-            context_response = await llm_service.update_conversation_context(
+        # Fire the context summary update concurrently with the main LLM call
+        # instead of awaiting it first. Both run in parallel, so the extra
+        # latency is max(context_time, message_time) rather than their sum.
+        # The update is non-critical — if it fails, the next threshold retries.
+        context_task = asyncio.create_task(
+            llm_service.update_conversation_context(
                 user_id=current_user.id,
                 agent_type=conversation.agent_type,
                 stable_context=conversation.stable_context,
                 context_summary=conversation.context_summary,
                 messages=context_messages,
             )
-        except LLMError as exc:
-            raise LLMRequestError(f"Failed to update conversation context: {exc}") from exc
-
-        context_data = context_response.llm_data
-        if not context_data.context_summary.strip():
-            raise LLMRequestError("Conversation context update returned an empty summary.")
-
-        conversation.context_summary = context_data.context_summary
-        if context_data.stable_context and context_data.stable_context.strip():
-            conversation.stable_context = context_data.stable_context
-        conversation.summary_user_message_count = total_user_message_count
+        )
 
     user_message = MessageDBM(
         conversation_id=conversation.id,
@@ -616,7 +615,37 @@ async def respond_to_message(
     )
     db.add(user_message)
 
-    return await _call_llm_and_save(db, current_user, conversation, user_message, data, recent_message_data)
+    try:
+        message_response = await _call_llm_and_save(db, current_user, conversation, user_message, data, recent_message_data)
+    except Exception:
+        # If message generation fails, cancel and drain the context task so it
+        # doesn't run orphaned in the background. An unattended task exception
+        # produces "Task exception was never retrieved" warnings and wastes an
+        # LLM request that no one will read.
+        if context_task is not None:
+            context_task.cancel()
+            try:
+                await context_task
+            except (asyncio.CancelledError, Exception):
+                pass
+        raise
+
+    if context_task is not None:
+        try:
+            # context_task ran concurrently with _call_llm_and_save.
+            # Total wait = max(context_time, message_time), not their sum.
+            context_response = await context_task
+            context_data = context_response.llm_data
+            if context_data.context_summary.strip():
+                conversation.context_summary = context_data.context_summary
+                if context_data.stable_context and context_data.stable_context.strip():
+                    conversation.stable_context = context_data.stable_context
+                conversation.summary_user_message_count = total_user_message_count
+                db.commit()
+        except Exception:
+            logger.exception("Context summary update failed; will retry at next threshold.")
+
+    return message_response
 
 
 async def retry_failed_message(

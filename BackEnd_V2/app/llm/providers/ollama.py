@@ -46,7 +46,7 @@ from app.llm.exceptions import (
     LLMProviderError,
     LLMRequestError,
 )
-from app.llm.tools import MAX_TOOL_ITERATIONS, AGENT_TOOL_DEFINITIONS
+from app.llm.tools import MAX_TOOL_ITERATIONS, AGENT_TOOL_DEFINITIONS, TERMINAL_TOOL_NAMES
 
 
 class OllamaProvider(BaseLLMProvider):
@@ -365,19 +365,46 @@ class OllamaProvider(BaseLLMProvider):
         total_tokens = 0
         usage_received = False
 
-        completion, usage_delta = await self._tool_complete(
-            model, messages, "create_conversation",
-            temperature=request.temperature,
-            max_tokens=request.max_tokens,
-            user_id=request.user_id,
-            agent_type=request_data.agent_type,
-        )
-        if usage_delta:
-            usage_received = True
-            total_input_tokens += usage_delta.input_tokens
-            total_output_tokens += usage_delta.output_tokens
-            total_tokens += usage_delta.total_tokens
+        # Use beta.parse with both tools and response_format in a single call.
+        # Ollama's OpenAI-compatible endpoint supports this combination: when the
+        # model calls a tool, tool_calls is populated and message.parsed is None;
+        # when it answers directly, message.parsed already holds structured output.
+        # This avoids a mandatory second call in the no-tool path.
+        initial_kwargs: dict = {
+            "model": model,
+            "messages": messages,
+            "response_format": NewConvoFromLLMSchema,
+            "temperature": request.temperature,
+            "max_tokens": request.max_tokens,
+        }
+        _agent_tools = AGENT_TOOL_DEFINITIONS.get(request_data.agent_type, [])
+        if _agent_tools:
+            initial_kwargs["tools"] = _agent_tools
 
+        initial_started_at = perf_counter()
+        try:
+            completion = await self._client.beta.chat.completions.parse(**initial_kwargs)
+        except (APIConnectionError, APIStatusError, OpenAIError) as exc:
+            raise LLMProviderError(f"Ollama create_conversation failed: {exc}") from exc
+        initial_latency_ms = int((perf_counter() - initial_started_at) * 1000)
+
+        if completion.usage is not None:
+            usage_received = True
+            total_input_tokens += completion.usage.prompt_tokens or 0
+            total_output_tokens += completion.usage.completion_tokens or 0
+            total_tokens += completion.usage.total_tokens or 0
+
+        await log_ollama_completion_usage_async(
+            settings=self._settings,
+            model=model,
+            completion=completion,
+            latency_ms=initial_latency_ms,
+            user_id=request.user_id,
+            operation="create_conversation",
+        )
+
+        terminal_break = False
+        tools_were_called = False
         for _ in range(MAX_TOOL_ITERATIONS):
             first_choice = completion.choices[0]
             tool_calls = first_choice.message.tool_calls
@@ -385,6 +412,7 @@ class OllamaProvider(BaseLLMProvider):
             if not tool_calls:
                 break
 
+            tools_were_called = True
             if request.tool_executor is None:
                 raise LLMRequestError("Ollama requested a tool but no tool executor is available.")
 
@@ -419,6 +447,16 @@ class OllamaProvider(BaseLLMProvider):
                     }
                 )
 
+            # Terminal tools (e.g. create_goal_proposal) fully complete their action
+            # by writing to context.action_data; their return value is a scripted
+            # string telling the LLM what to say — re-invoking the LLM would just
+            # narrate that string at extra token cost. Skip straight to the final
+            # structured parse, which composes the response from the tool results.
+            called_names = {tc.function.name for tc in tool_calls}
+            if called_names.issubset(TERMINAL_TOOL_NAMES):
+                terminal_break = True
+                break
+
             tool_names = "\n".join(tool_call.function.name for tool_call in tool_calls)
             completion, usage_delta = await self._tool_complete(
                 model, messages, tool_names,
@@ -433,52 +471,67 @@ class OllamaProvider(BaseLLMProvider):
                 total_output_tokens += usage_delta.output_tokens
                 total_tokens += usage_delta.total_tokens
 
-        if completion.choices[0].message.tool_calls:
+        if not terminal_break and completion.choices[0].message.tool_calls:
             raise LLMRequestError("Ollama exceeded the maximum number of tool iterations.")
 
-        final_completion_started_at = perf_counter()
-        try:
-            final_completion = await self._client.beta.chat.completions.parse(
+        if not tools_were_called:
+            # Model answered directly without calling any tools — the initial beta.parse
+            # already produced structured output, so no second call is needed.
+            if not completion.choices:
+                raise LLMRequestError("Ollama returned no choices for create_conversation.")
+            first_choice = completion.choices[0]
+            message = first_choice.message
+            if message.refusal:
+                raise LLMRequestError(
+                    f"Ollama refused create_conversation response: {message.refusal}"
+                )
+            parsed = message.parsed
+            if parsed is None:
+                raise LLMRequestError("Ollama returned an unparsable create_conversation response.")
+            final_completion = completion
+        else:
+            # Tools were invoked — run the final structured parse to compose the response.
+            final_completion_started_at = perf_counter()
+            try:
+                final_completion = await self._client.beta.chat.completions.parse(
+                    model=model,
+                    messages=messages,
+                    response_format=NewConvoFromLLMSchema,
+                    temperature=request.temperature,
+                    max_tokens=request.max_tokens,
+                )
+            except (APIConnectionError, APIStatusError, OpenAIError) as exc:
+                raise LLMProviderError(f"Ollama create_conversation failed: {exc}") from exc
+            final_completion_time_ms = int((perf_counter() - final_completion_started_at) * 1000)
+
+            if final_completion.usage is not None:
+                usage_received = True
+                total_input_tokens += final_completion.usage.prompt_tokens or 0
+                total_output_tokens += final_completion.usage.completion_tokens or 0
+                total_tokens += final_completion.usage.total_tokens or 0
+
+            await log_ollama_completion_usage_async(
+                settings=self._settings,
                 model=model,
-                messages=messages,
-                response_format=NewConvoFromLLMSchema,
-                temperature=request.temperature,
-                max_tokens=request.max_tokens,
+                completion=final_completion,
+                latency_ms=final_completion_time_ms,
+                user_id=request.user_id,
+                operation="create_conversation_final",
             )
-        except (APIConnectionError, APIStatusError, OpenAIError) as exc:
-            raise LLMProviderError(f"Ollama create_conversation failed: {exc}") from exc
-        final_completion_time_ms = int((perf_counter() - final_completion_started_at) * 1000)
 
-        if final_completion.usage is not None:
-            usage_received = True
-            total_input_tokens += final_completion.usage.prompt_tokens or 0
-            total_output_tokens += final_completion.usage.completion_tokens or 0
-            total_tokens += final_completion.usage.total_tokens or 0
-
-        await log_ollama_completion_usage_async(
-            settings=self._settings,
-            model=model,
-            completion=final_completion,
-            latency_ms=final_completion_time_ms,
-            user_id=request.user_id,
-            operation="create_conversation_final",
-        )
-
-        if not final_completion.choices:
-            raise LLMRequestError("Ollama returned no choices for create_conversation.")
+            if not final_completion.choices:
+                raise LLMRequestError("Ollama returned no choices for create_conversation.")
+            first_choice = final_completion.choices[0]
+            message = first_choice.message
+            if message.refusal:
+                raise LLMRequestError(
+                    f"Ollama refused create_conversation response: {message.refusal}"
+                )
+            parsed = message.parsed
+            if parsed is None:
+                raise LLMRequestError("Ollama returned an unparsable create_conversation response.")
 
         response_time_ms = int((perf_counter() - started_at) * 1000)
-
-        first_choice = final_completion.choices[0]
-        message = first_choice.message
-        if message.refusal:
-            raise LLMRequestError(
-                f"Ollama refused create_conversation response: {message.refusal}"
-            )
-
-        parsed = message.parsed
-        if parsed is None:
-            raise LLMRequestError("Ollama returned an unparsable create_conversation response.")
 
         usage = None
         if usage_received:

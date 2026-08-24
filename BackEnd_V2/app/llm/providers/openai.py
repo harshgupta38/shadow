@@ -390,20 +390,48 @@ class OpenAIProvider(BaseLLMProvider):
         total_tokens = 0
         usage_received = False
 
-        completion, usage_delta = await self._tool_complete(
-            model, messages, "create_conversation",
-            temperature=request.temperature,
-            max_tokens=request.max_tokens,
-            user_id=request.user_id,
-            agent_type=request_data.agent_type
-        )
-        if usage_delta:
+        # Use beta.parse with both tools and response_format in a single call.
+        # The OpenAI SDK supports this combination: when the model calls a tool,
+        # tool_calls is populated and message.parsed is None; when it answers
+        # directly, message.parsed already holds the structured output. This
+        # avoids a mandatory second call in the no-tool path.
+        initial_kwargs: dict = {
+            "model": model,
+            "messages": messages,
+            "response_format": NewConvoFromLLMSchema,
+        }
+        _agent_tools = AGENT_TOOL_DEFINITIONS.get(request_data.agent_type, [])
+        if _agent_tools:
+            initial_kwargs["tools"] = _agent_tools
+        if request.temperature is not None:
+            initial_kwargs["temperature"] = request.temperature
+        if request.max_tokens is not None:
+            initial_kwargs["max_completion_tokens"] = request.max_tokens
+
+        initial_started_at = perf_counter()
+        try:
+            completion = await self._client.beta.chat.completions.parse(**initial_kwargs)
+        except (APIConnectionError, APIStatusError, OpenAIError) as exc:
+            raise LLMProviderError(f"OpenAI create_conversation failed: {exc}") from exc
+        initial_latency_ms = int((perf_counter() - initial_started_at) * 1000)
+
+        if completion.usage is not None:
             usage_received = True
-            total_input_tokens += usage_delta.input_tokens
-            total_output_tokens += usage_delta.output_tokens
-            total_tokens += usage_delta.total_tokens
+            total_input_tokens += completion.usage.prompt_tokens or 0
+            total_output_tokens += completion.usage.completion_tokens or 0
+            total_tokens += completion.usage.total_tokens or 0
+
+        await log_openai_completion_usage_async(
+            settings=self._settings,
+            model=model,
+            completion=completion,
+            latency_ms=initial_latency_ms,
+            user_id=request.user_id,
+            operation="create_conversation",
+        )
 
         terminal_break = False
+        tools_were_called = False
         for _ in range(MAX_TOOL_ITERATIONS):
             first_choice = completion.choices[0]
             tool_calls = first_choice.message.tool_calls
@@ -411,6 +439,7 @@ class OpenAIProvider(BaseLLMProvider):
             if not tool_calls:
                 break
 
+            tools_were_called = True
             if request.tool_executor is None:
                 raise LLMRequestError("OpenAI requested a tool but no tool executor is available.")
 
@@ -445,9 +474,13 @@ class OpenAIProvider(BaseLLMProvider):
                     }
                 )
 
+            # Terminal tools (e.g. create_goal_proposal) fully complete their action
+            # by writing to context.action_data; their return value is a scripted
+            # string telling the LLM what to say — re-invoking the LLM would just
+            # narrate that string at extra token cost. Skip straight to the final
+            # structured parse, which composes the response from the tool results.
             called_names = {tc.function.name for tc in tool_calls}
             if called_names.issubset(TERMINAL_TOOL_NAMES):
-                # Tool completed the action; create_conversation_final composes the response.
                 terminal_break = True
                 break
 
@@ -468,55 +501,65 @@ class OpenAIProvider(BaseLLMProvider):
         if not terminal_break and completion.choices[0].message.tool_calls:
             raise LLMRequestError("OpenAI exceeded the maximum number of tool iterations.")
 
-        final_started_at = perf_counter()
-        try:
-            final_kwargs = {
-                "model": model,
-                "messages": messages,
-                "response_format": NewConvoFromLLMSchema,
-            }
+        if not tools_were_called:
+            # Model answered directly without calling any tools — the initial beta.parse
+            # already produced structured output, so no second call is needed.
+            if not completion.choices:
+                raise LLMRequestError("OpenAI returned no choices for create_conversation.")
+            first_choice = completion.choices[0]
+            if first_choice.message.refusal:
+                raise LLMRequestError(
+                    f"OpenAI refused create_conversation response: {first_choice.message.refusal}"
+                )
+            parsed = first_choice.message.parsed
+            if parsed is None:
+                raise LLMRequestError("OpenAI returned an unparsable create_conversation response.")
+            final_completion = completion
+        else:
+            # Tools were invoked — run the final structured parse to compose the response.
+            final_started_at = perf_counter()
+            try:
+                final_kwargs: dict = {
+                    "model": model,
+                    "messages": messages,
+                    "response_format": NewConvoFromLLMSchema,
+                }
+                if request.temperature is not None:
+                    final_kwargs["temperature"] = request.temperature
+                if request.max_tokens is not None:
+                    final_kwargs["max_completion_tokens"] = request.max_tokens
+                final_completion = await self._client.beta.chat.completions.parse(**final_kwargs)
+            except (APIConnectionError, APIStatusError, OpenAIError) as exc:
+                raise LLMProviderError(f"OpenAI create_conversation failed: {exc}") from exc
+            final_time_ms = int((perf_counter() - final_started_at) * 1000)
 
-            if request.temperature is not None:
-                final_kwargs["temperature"] = request.temperature
+            if final_completion.usage is not None:
+                usage_received = True
+                total_input_tokens += final_completion.usage.prompt_tokens or 0
+                total_output_tokens += final_completion.usage.completion_tokens or 0
+                total_tokens += final_completion.usage.total_tokens or 0
 
-            if request.max_tokens is not None:
-                final_kwargs["max_completion_tokens"] = request.max_tokens
-
-            final_completion = await self._client.beta.chat.completions.parse(**final_kwargs)
-        except (APIConnectionError, APIStatusError, OpenAIError) as exc:
-            raise LLMProviderError(f"OpenAI create_conversation failed: {exc}") from exc
-        final_time_ms = int((perf_counter() - final_started_at) * 1000)
-
-        if final_completion.usage is not None:
-            usage_received = True
-            total_input_tokens += final_completion.usage.prompt_tokens or 0
-            total_output_tokens += final_completion.usage.completion_tokens or 0
-            total_tokens += final_completion.usage.total_tokens or 0
-
-        await log_openai_completion_usage_async(
-            settings=self._settings,
-            model=model,
-            completion=final_completion,
-            latency_ms=final_time_ms,
-            user_id=request.user_id,
-            operation="create_conversation_final",
-        )
-
-        if not final_completion.choices:
-            raise LLMRequestError("OpenAI returned no choices for create_conversation.")
-
-        response_time_ms = int((perf_counter() - started_at) * 1000)
-
-        first_choice = final_completion.choices[0]
-        message = first_choice.message
-        if message.refusal:
-            raise LLMRequestError(
-                f"OpenAI refused create_conversation response: {message.refusal}"
+            await log_openai_completion_usage_async(
+                settings=self._settings,
+                model=model,
+                completion=final_completion,
+                latency_ms=final_time_ms,
+                user_id=request.user_id,
+                operation="create_conversation_final",
             )
 
-        parsed = message.parsed
-        if parsed is None:
-            raise LLMRequestError("OpenAI returned an unparsable create_conversation response.")
+            if not final_completion.choices:
+                raise LLMRequestError("OpenAI returned no choices for create_conversation.")
+            first_choice = final_completion.choices[0]
+            if first_choice.message.refusal:
+                raise LLMRequestError(
+                    f"OpenAI refused create_conversation response: {first_choice.message.refusal}"
+                )
+            parsed = first_choice.message.parsed
+            if parsed is None:
+                raise LLMRequestError("OpenAI returned an unparsable create_conversation response.")
+
+        response_time_ms = int((perf_counter() - started_at) * 1000)
 
         usage = None
         if usage_received:

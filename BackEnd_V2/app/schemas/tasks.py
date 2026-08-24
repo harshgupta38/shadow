@@ -271,3 +271,66 @@ class TaskDataDBS(ORMModel):
 
 class TaskDataResponse(TaskDataDBS):
     pass
+
+
+# --- TASK PROPOSALS (Assistant flow) ---
+
+class TaskProposalLLMSchema(BaseModel):
+    title: str = Field(
+        description="A short, single-line title for the task. No line breaks, no punctuation at the end."
+    )
+    task_type: TaskType = Field(
+        description="'Binary' for done/not-done tasks. 'Numeric' for measurable tasks with a target value."
+    )
+    target_value: float | None = Field(
+        default=None,
+        description=(
+            "Required for Numeric tasks. The measurable target the user is working toward "
+            "(e.g. 200 for '200 problems'). Must be greater than 0. Null for Binary tasks."
+        ),
+    )
+    value_unit: str | None = Field(
+        default=None,
+        description=(
+            "Required for Numeric tasks. The unit that describes the target "
+            "(e.g. 'problems', 'pages', 'hours', 'chapters'). Null for Binary tasks."
+        ),
+    )
+    description: str | None = Field(
+        default=None,
+        description="Rich Markdown detail about what this task involves. Use null if not needed.",
+    )
+    reason: str = Field(
+        description="Why this task is important for completing the milestone."
+    )
+    assistant_context: str | None = Field(
+        default=None,
+        description="Context to support daily planning: key steps, daily focus, success indicators.",
+    )
+
+    @model_validator(mode="after")
+    def validate_numeric_fields(self) -> "TaskProposalLLMSchema":
+        if self.task_type == "Numeric":
+            if self.target_value is None:
+                raise ValueError("target_value is required for Numeric tasks.")
+            if self.target_value <= 0:
+                raise ValueError("target_value must be greater than 0.")
+            if not self.value_unit or not self.value_unit.strip():
+                raise ValueError("value_unit is required for Numeric tasks.")
+        else:
+            if self.target_value is not None:
+                raise ValueError("target_value must be null for Binary tasks.")
+            if self.value_unit is not None:
+                raise ValueError("value_unit must be null for Binary tasks.")
+        return self
+
+
+class TaskProposalListLLMSchema(BaseModel):
+    tasks: list[TaskProposalLLMSchema] = Field(
+        description="An ordered list of task proposals."
+    )
+
+
+class SaveTaskFromProposalRequest(BaseModel):
+    proposal_id: str
+    task: TaskProposalLLMSchema

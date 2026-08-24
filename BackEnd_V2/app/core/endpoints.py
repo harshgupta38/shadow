@@ -23,6 +23,7 @@ class Endpoints:
     class TASKS:
         PREFIX = "/task"
         SAVE = "/save"
+        FROM_PROPOSAL = "/from-proposal"
         GET_LIST = "/get-list"
         DETAIL = "/{task_id}"
 

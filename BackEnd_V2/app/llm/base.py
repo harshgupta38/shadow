@@ -5,6 +5,8 @@ from app.llm.models import (
     RefineGoalFromLLM,
     MilestoneProposalsToLLM,
     MilestoneProposalsFromLLM,
+    TaskProposalsToLLM,
+    TaskProposalsFromLLM,
     NewConvoToLLM,
     NewConvoFromLLM,
     MessageToLLM,
@@ -21,6 +23,10 @@ class BaseLLMProvider(ABC):
 
     @abstractmethod
     async def generate_milestone_proposals(self, request: MilestoneProposalsToLLM) -> MilestoneProposalsFromLLM:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def generate_task_proposals(self, request: TaskProposalsToLLM) -> TaskProposalsFromLLM:
         raise NotImplementedError
 
     @abstractmethod

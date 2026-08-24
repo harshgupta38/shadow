@@ -6,6 +6,8 @@ from app.llm.models import (
     RefineGoalFromLLM,
     MilestoneProposalsToLLM,
     MilestoneProposalsFromLLM,
+    TaskProposalsToLLM,
+    TaskProposalsFromLLM,
     NewConvoToLLM,
     NewConvoFromLLM,
     MessageToLLM,
@@ -84,6 +86,20 @@ class LLMService:
 
         if response is None or response.proposals is None:
             raise LLMConfigurationError("LLM provider returned no milestone proposals.")
+
+        return response
+
+    async def generate_task_proposals(
+        self,
+        goal_data: dict,
+        milestone_data: dict,
+        user_id: int,
+    ) -> TaskProposalsFromLLM:
+        request = TaskProposalsToLLM(goal_data=goal_data, milestone_data=milestone_data, user_id=user_id)
+        response = await self._provider.generate_task_proposals(request)
+
+        if response is None or response.proposals is None:
+            raise LLMConfigurationError("LLM provider returned no task proposals.")
 
         return response
 

@@ -4,10 +4,23 @@ from app.api.deps import get_current_user
 from app.core.endpoints import ENDPOINTS
 from app.db.session import get_db
 from app.models.user import UserDBM
-from app.schemas.tasks import TaskCreateRequest, TaskDataResponse, TaskUpdateRequest
+from app.schemas.tasks import TaskCreateRequest, TaskDataResponse, TaskUpdateRequest, SaveTaskFromProposalRequest
 from app.services import tasks_service
 
 router = APIRouter(prefix=ENDPOINTS.TASKS.PREFIX, tags=["Tasks"])
+
+
+@router.post(
+    ENDPOINTS.TASKS.FROM_PROPOSAL,
+    response_model=TaskDataResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def save_task_from_proposal(
+    data: SaveTaskFromProposalRequest,
+    db=Depends(get_db),
+    current_user: UserDBM = Depends(get_current_user),
+) -> TaskDataResponse:
+    return tasks_service.save_task_from_proposal(db, current_user, data)
 
 
 @router.post(

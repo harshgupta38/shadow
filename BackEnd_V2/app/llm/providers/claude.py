@@ -27,6 +27,8 @@ from app.llm.knowledge_base import (
 from app.llm.models import (
     ConversationContextToLLM,
     ConversationContextFromLLM,
+    TaskProposalsToLLM,
+    TaskProposalsFromLLM,
     MessageToLLM,
     MessageFromLLM,
     RefineGoalToLLM,
@@ -320,6 +322,12 @@ class ClaudeProvider(BaseLLMProvider):
                 ),
             ),
         )
+
+    async def generate_task_proposals(
+        self, request: TaskProposalsToLLM
+    ) -> TaskProposalsFromLLM:
+        # TODO: implement — mirror generate_milestone_proposals using TASK_PROPOSAL_SYSTEM_INSTRUCTION_CLAUDE
+        raise NotImplementedError
 
     async def create_conversation(self, request: NewConvoToLLM) -> NewConvoFromLLM:
         model = self._resolve_model(request)

@@ -343,11 +343,21 @@ class OllamaProvider(BaseLLMProvider):
                     request_data.agent_type
                 ],
             },
-            {
-                "role": Role.USER, 
-                "content": request_data.content
-            },
         ]
+        _ctx_parts = []
+        if request.goal_id is not None:
+            _ctx_parts.append(f"Goal ID: {request.goal_id}")
+        if request.milestone_id is not None:
+            _ctx_parts.append(f"Milestone ID: {request.milestone_id}")
+        if _ctx_parts:
+            messages.append({
+                "role": Role.SYSTEM,
+                "content": (
+                    "Active context — " + ", ".join(_ctx_parts) + ". "
+                    "When calling tools that require a goal_id or milestone_id, use these exact values."
+                ),
+            })
+        messages.append({"role": Role.USER, "content": request_data.content})
 
         started_at = perf_counter()
         total_input_tokens = 0
@@ -508,11 +518,21 @@ class OllamaProvider(BaseLLMProvider):
                 "content": conversation_context,
             },
             *request.recent_messages,
-            {
-                "role": Role.USER,
-                "content": request.request_data,
-            },
         ]
+        _ctx_parts = []
+        if request.goal_id is not None:
+            _ctx_parts.append(f"Goal ID: {request.goal_id}")
+        if request.milestone_id is not None:
+            _ctx_parts.append(f"Milestone ID: {request.milestone_id}")
+        if _ctx_parts:
+            messages.append({
+                "role": Role.SYSTEM,
+                "content": (
+                    "Active context — " + ", ".join(_ctx_parts) + ". "
+                    "When calling tools that require a goal_id or milestone_id, use these exact values."
+                ),
+            })
+        messages.append({"role": Role.USER, "content": request.request_data})
 
         started_at = perf_counter()
         total_input_tokens = 0

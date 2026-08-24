@@ -33,6 +33,8 @@ from app.llm.models import (
     RefineGoalFromLLM,
     MilestoneProposalsToLLM,
     MilestoneProposalsFromLLM,
+    TaskProposalsToLLM,
+    TaskProposalsFromLLM,
     NewConvoToLLM,
     NewConvoFromLLM,
     TokenUsage,
@@ -287,6 +289,9 @@ class GeminiProvider(BaseLLMProvider):
                 ),
             ),
         )
+
+    async def generate_task_proposals(self, request: TaskProposalsToLLM) -> TaskProposalsFromLLM:
+        raise NotImplementedError
 
     async def create_conversation(self, request: NewConvoToLLM) -> NewConvoFromLLM:
         model = self._resolve_model(request)

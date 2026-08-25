@@ -191,7 +191,7 @@ export function MilestoneTasksList({ milestoneId }: MilestoneTasksListProps) {
 	}
 
 	return (
-		<section className="milestone-tasks-subsection" aria-label="Milestone tasks">
+		<section className={`milestone-tasks-subsection ${!loading && error ? "ps-0" : ""}`} aria-label="Milestone tasks">
 			{loading && (
 				<div className="milestone-tasks-skeleton" aria-busy="true" aria-live="polite">
 					<div className="milestone-tasks-skeleton-line is-title" />

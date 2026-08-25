@@ -279,8 +279,8 @@ export function TaskProposalReviewPanel({ proposal, onClose, onSaved }: TaskProp
                                                 value={targetValue}
                                                 onChange={e => { setTargetValue(e.target.value); clearFieldError("target_value"); }}
                                                 placeholder="e.g. 50"
-                                                min={0.000001}
-                                                step="any"
+                                                min={1}
+                                                step="1"
                                                 disabled={saving}
                                             />
                                             {fieldErrors.target_value && <div className="invalid-feedback">{fieldErrors.target_value}</div>}

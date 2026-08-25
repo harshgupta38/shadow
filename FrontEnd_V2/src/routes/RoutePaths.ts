@@ -13,6 +13,8 @@ export const ROUTES = {
     MY_GOAL_MILESTONE_TASK_CREATE: "/my-goals/:goalId/milestones/:milestoneId/tasks/new",
     MY_GOAL_MILESTONE_TASK_EDIT: "/my-goals/:goalId/milestones/:milestoneId/tasks/:taskId/edit",
     HABIT_LIBRARY: "/habit-library",
+    HABIT_LIBRARY_CREATE: "/habit-library/new",
+    HABIT_LIBRARY_EDIT: "/habit-library/:habitId/edit",
     TRACK_PROGRESS: "/track-progress",
     REPORTS: "/reports",
     ASSISTANT: "/assistant",

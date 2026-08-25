@@ -6,10 +6,10 @@ import { useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { ROUTES } from "@/routes/RoutePaths";
-import { HabitFormPanel } from "@/pages/habit_library/HabitFormPanel/HabitFormPanel";
 import { api, ApiError } from "@/api";
 import type { FilterState, HabitCreateRequest, HabitDataResponse } from "@/api";
-import { EMPTY_FILTERS, DEFAULT_FILTERS, FILTER_STATUS_OPTIONS, FREQUENCY_OPTIONS, PREFERRED_TIME_OPTIONS, PRIORITY_OPTIONS } from "@/pages/habit_library/HabitFormPanel/HabitFormPanel.constants";
+import { FREQUENCY_OPTIONS, PREFERRED_TIME_OPTIONS, PRIORITY_OPTIONS } from "@/pages/habit_library/HabitWizard/HabitWizard.constants";
+import { DEFAULT_FILTERS, EMPTY_FILTERS, FILTER_STATUS_OPTIONS } from "@/pages/habit_library/HabitLibraryPage.constants";
 
 import "@/pages/habit_library/HabitLibraryPage.scss";
 
@@ -21,9 +21,6 @@ export function HabitLibraryPage() {
   const [habitsError, setHabitsError] = useState<string | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
-  const [showHabitPanel, setShowHabitPanel] = useState(false);
-  const [editingHabit, setEditingHabit] = useState<HabitDataResponse | null>(null);
-  const [createDraft, setCreateDraft] = useState<Partial<HabitCreateRequest> | null>(null);
   const [deleteTargetHabit, setDeleteTargetHabit] = useState<HabitDataResponse | null>(null);
   const [openHabitMenuId, setOpenHabitMenuId] = useState<number | null>(null);
   const [menuActionHabitId, setMenuActionHabitId] = useState<number | null>(null);
@@ -129,22 +126,17 @@ export function HabitLibraryPage() {
   const priorityLabelMap = useMemo(() => new Map(PRIORITY_OPTIONS.map((option) => [option.value, option.label])), []);
 
   function openCreatePanel() {
-    setEditingHabit(null);
-    setCreateDraft(null);
-    setShowHabitPanel(true);
+    navigate(ROUTES.HABIT_LIBRARY_CREATE);
   }
 
   function openEditPanel(habit: HabitDataResponse) {
     setOpenHabitMenuId(null);
-    setCreateDraft(null);
-    setEditingHabit(habit);
-    setShowHabitPanel(true);
+    navigate(ROUTES.HABIT_LIBRARY_EDIT.replace(":habitId", String(habit.id)), { state: { habit } });
   }
 
   function handleDuplicateHabit(habit: HabitDataResponse) {
     setOpenHabitMenuId(null);
-    setEditingHabit(null);
-    setCreateDraft({
+    const draft: Partial<HabitCreateRequest> = {
       name: `${habit.name} (Copy)`,
       motivation: habit.motivation,
       frequencies: [...habit.frequencies],
@@ -162,8 +154,8 @@ export function HabitLibraryPage() {
       target_value: habit.target_value,
       target_unit: habit.target_unit,
       time_span: habit.time_span,
-    });
-    setShowHabitPanel(true);
+    };
+    navigate(ROUTES.HABIT_LIBRARY_CREATE, { state: { draft } });
   }
 
   async function handleSetHabitStatus(habit: HabitDataResponse, status: "active" | "paused" | "archived") {
@@ -203,18 +195,6 @@ export function HabitLibraryPage() {
     }
   }
 
-  function closePanel() {
-    setShowHabitPanel(false);
-    setEditingHabit(null);
-    setCreateDraft(null);
-  }
-
-  function handleHabitSaved(saved: HabitDataResponse) {
-    setHabits((prev) => {
-      const exists = prev.some((h) => h.id === saved.id);
-      return exists ? prev.map((h) => (h.id === saved.id ? saved : h)) : [saved, ...prev];
-    });
-  }
 
   function openCoach() {
     navigate(ROUTES.ASSISTANT, {
@@ -609,36 +589,6 @@ export function HabitLibraryPage() {
           )}
         </div>
       </div>
-      {showHabitPanel && (
-        <HabitFormPanel
-          mode={editingHabit ? "edit" : "create"}
-          initialDraft={editingHabit
-            ? {
-              name: editingHabit.name,
-              motivation: editingHabit.motivation,
-              frequencies: [...editingHabit.frequencies],
-              preferred_time: editingHabit.preferred_time ?? "flexible",
-              specific_time: editingHabit.specific_time,
-              duration_minutes: editingHabit.duration_minutes,
-              start_date: editingHabit.start_date,
-              end_date: editingHabit.end_date,
-              priority: editingHabit.priority,
-              weekly_count: editingHabit.weekly_count,
-              monthly_count: editingHabit.monthly_count,
-              specific_days: editingHabit.specific_days,
-              day_fallback: editingHabit.day_fallback,
-              habit_type: editingHabit.habit_type,
-              target_value: editingHabit.target_value,
-              target_unit: editingHabit.target_unit,
-              time_span: editingHabit.time_span,
-            }
-            : createDraft ?? undefined}
-          editingId={editingHabit?.id}
-          onClose={closePanel}
-          onSaved={handleHabitSaved}
-        />
-
-      )}
 
       <ConfirmDialog
         show={deleteTargetHabit != null}

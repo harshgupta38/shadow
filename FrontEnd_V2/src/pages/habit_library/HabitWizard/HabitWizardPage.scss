@@ -1,0 +1,24 @@
+// Habit wizard uses the shared goal-wizard-* classes from GoalCreationWizard.scss,
+// GoalMilestoneWizardPage.scss, and GoalTaskWizardPage.scss.
+// This file holds any habit-wizard-specific overrides.
+
+.goal-wizard-title-input {
+    max-width: 100%;
+}
+
+.habit-fallback-label {
+    cursor: pointer;
+    color: var(--jv-muted);
+}
+
+.habit-checkbox {
+    width: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.habit-time-select {
+    max-width: 4.5rem;
+    padding-right: 0.5rem;
+}

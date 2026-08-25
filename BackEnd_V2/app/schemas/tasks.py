@@ -7,6 +7,7 @@ from app.schemas.common import ORMModel
 
 
 TaskType = Literal["Numeric", "Binary"]
+TaskPlannerType = Literal["simple", "metric"]
 NumericTaskStatus = Literal[
     "Not Started",
     "In Progress",
@@ -42,8 +43,8 @@ class TaskCreateRequest(BaseModel):
 
     # Planning configuration
     planning_enabled: bool = False
-    # planner_target: how much to complete per planned occurrence (Numeric only).
-    # Binary tasks are always treated as target = 1 occurrence internally.
+    planner_type: TaskPlannerType = "simple"
+    # planner_target: amount per session (Numeric+metric only).
     planner_target: float | None = None
 
     # Scheduling fields — same semantics as Habit.
@@ -130,9 +131,9 @@ class TaskCreateRequest(BaseModel):
                 raise ValueError("current_value cannot be greater than target_value.")
             if self.value_unit is None or not self.value_unit.strip():
                 raise ValueError("value_unit is required for Numeric tasks.")
-            if self.planning_enabled:
+            if self.planning_enabled and self.planner_type == "metric":
                 if self.planner_target is None:
-                    raise ValueError("planner_target is required for Numeric tasks when planning_enabled is true.")
+                    raise ValueError("planner_target is required for Numeric metric tasks when planning_enabled is true.")
 
         if self.task_type == "Binary":
             if self.planning_enabled:
@@ -169,6 +170,7 @@ class TaskUpdateRequest(BaseModel):
     value_unit: str | None = Field(default=None, max_length=64)
 
     planning_enabled: bool | None = None
+    planner_type: TaskPlannerType | None = None
     planner_target: float | None = None
 
     frequencies: list[str] | None = None
@@ -259,6 +261,7 @@ class TaskDataDBS(ORMModel):
 
     status: NumericTaskStatus
     planning_enabled: bool
+    planner_type: TaskPlannerType
     planner_target: float | None
 
     frequencies: list[str]

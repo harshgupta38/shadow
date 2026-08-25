@@ -52,6 +52,10 @@ class TaskDBM(Base):
             "planner_target IS NULL OR planner_target > 0",
             name="ck_tasks_planner_target",
         ),
+        CheckConstraint(
+            "planner_type IN ('simple', 'metric')",
+            name="ck_tasks_planner_type",
+        ),
         # Binary tasks are mark-done only — no numeric tracking, no planning.
         CheckConstraint(
             "task_type != 'Binary' OR (current_value IS NULL AND target_value IS NULL AND value_unit IS NULL AND planner_target IS NULL AND planning_enabled = 0)",
@@ -112,8 +116,14 @@ class TaskDBM(Base):
         default=False,
         server_default=text("0"),
     )
-    # planner_target: amount to complete per planned occurrence (Numeric only).
-    # For Binary tasks the planner treats each occurrence as target = 1 internally.
+    # planner_type: "simple" = mark done once per session; "metric" = track amount per session.
+    planner_type: Mapped[str] = mapped_column(
+        String(8),
+        nullable=False,
+        default="simple",
+        server_default=text("'simple'"),
+    )
+    # planner_target: amount to complete per planned occurrence (Numeric+metric only).
     planner_target: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     # Scheduling fields — mirror the Habit model so the planning engine

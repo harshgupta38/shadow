@@ -58,6 +58,7 @@ def _build_task_orm(data: TaskCreateRequest, **extra) -> dict:
         "target_value": data.target_value,
         "value_unit": data.value_unit.strip() if isinstance(data.value_unit, str) and data.value_unit.strip() else None,
         "planning_enabled": data.planning_enabled,
+        "planner_type": data.planner_type,
         "planner_target": data.planner_target,
         "frequencies": data.frequencies,
         "priority": data.priority,
@@ -332,19 +333,28 @@ def update_task(
                 errors={"planning_enabled": "planning_enabled is not allowed for Binary tasks."},
             )
         if data.planning_enabled and task.task_type == "Numeric":
-            effective_planner_target = (
-                data.planner_target
-                if "planner_target" in data.model_fields_set
-                else task.planner_target
-            )
-            if not effective_planner_target or effective_planner_target <= 0:
-                raise ValidationError(
-                    "Please correct the highlighted fields.",
-                    errors={"planner_target": "planner_target is required when enabling planning for Numeric tasks."},
+            effective_planner_type = data.planner_type if data.planner_type is not None else task.planner_type
+            if effective_planner_type == "metric":
+                effective_planner_target = (
+                    data.planner_target
+                    if "planner_target" in data.model_fields_set
+                    else task.planner_target
                 )
+                if not effective_planner_target or effective_planner_target <= 0:
+                    raise ValidationError(
+                        "Please correct the highlighted fields.",
+                        errors={"planner_target": "planner_target is required when enabling planning for Numeric metric tasks."},
+                    )
         if task.planning_enabled != data.planning_enabled:
             planning_changed = True
         task.planning_enabled = data.planning_enabled
+
+    if data.planner_type is not None:
+        if data.planner_type != task.planner_type:
+            planning_changed = True
+        if data.planner_type == "simple":
+            task.planner_target = None
+        task.planner_type = data.planner_type
 
     if "planner_target" in data.model_fields_set:
         if task.planner_target != data.planner_target:

@@ -1,4 +1,4 @@
-import type { TaskPriority, TaskPreferredTime, TaskType } from "@/api";
+import type { TaskPriority, TaskPreferredTime, TaskPlannerType, TaskType } from "@/api";
 
 export type TaskWizardStepKey = "defineTask" | "configureProgress" | "configurePlanning" | "additionalDetails";
 
@@ -13,7 +13,8 @@ export type TaskWizardAnswers = {
 
     // Planning configuration
     planningEnabled: boolean;
-    plannerTarget: string; // Numeric only; always empty/ignored for Binary tasks
+    plannerType: TaskPlannerType;
+    plannerTarget: string; // Numeric+metric only
 
     // Scheduling fields — same concepts as Habit.
     frequencies: string[];
@@ -69,6 +70,7 @@ export const EMPTY_ANSWERS: TaskWizardAnswers = {
     targetValue: "",
     valueUnit: "",
     planningEnabled: false,
+    plannerType: "simple",
     plannerTarget: "",
     frequencies: [],
     priority: "medium",

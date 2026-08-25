@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, Check2Circle, X } from "react-bootstrap-icons";
 import { useNavigate, useParams } from "react-router-dom";
 
-import { api, type GoalDataResponse, type MilestoneDataResponse, type TaskDataResponse, type TaskType, type TaskPreferredTime } from "@/api";
+import { api, type GoalDataResponse, type MilestoneDataResponse, type TaskDataResponse, type TaskPlannerType, type TaskType, type TaskPreferredTime } from "@/api";
 import { ApiError } from "@/api/client";
 import LOADING_IMAGE from "@/assets/loading_default.png";
 import { StepImageVisual } from "@/components/ui/StepImageVisual/StepImageVisual";
@@ -127,18 +127,23 @@ function computeDisabledFreqs(freqs: string[], hasSpecificDay: boolean): Set<str
 // ── Normalization ─────────────────────────────────────────────────────────────
 
 function normalizeForType(answers: TaskWizardAnswers): TaskWizardAnswers {
-	if (answers.taskType === "Binary") {
-		return {
-			...answers,
+	let result = answers;
+	if (result.taskType === "Binary") {
+		result = {
+			...result,
 			targetValue: "",
 			valueUnit: "",
+			plannerType: "simple",
 			plannerTarget: "",
 			planningEnabled: false,
 			frequencies: [],
 			specificDays: [],
 		};
 	}
-	return answers;
+	if (result.plannerType === "simple") {
+		result = { ...result, plannerTarget: "" };
+	}
+	return result;
 }
 
 // ── Error mapping ─────────────────────────────────────────────────────────────
@@ -191,7 +196,7 @@ function getStepValidationErrors(stepKey: TaskWizardStepKey, answers: TaskWizard
 
 	if (stepKey === "configurePlanning") {
 		if (!answers.planningEnabled) return errs;
-		if (answers.taskType === "Numeric" && parseRequiredPositive(answers.plannerTarget) === null) {
+		if (answers.taskType === "Numeric" && answers.plannerType === "metric" && parseRequiredPositive(answers.plannerTarget) === null) {
 			errs.plannerTarget = "Planner target must be greater than 0.";
 		}
 		if (answers.frequencies.length === 0) errs.frequencies = "Please select at least one frequency.";
@@ -280,6 +285,7 @@ export function GoalTaskWizardPage() {
 						targetValue: taskResponse.target_value !== null ? String(taskResponse.target_value) : "",
 						valueUnit: taskResponse.value_unit ?? "",
 						planningEnabled: taskResponse.planning_enabled,
+						plannerType: taskResponse.planner_type,
 						plannerTarget: taskResponse.planner_target !== null ? String(taskResponse.planner_target) : "",
 						frequencies: taskResponse.frequencies ?? [],
 						priority: taskResponse.priority,
@@ -407,8 +413,10 @@ export function GoalTaskWizardPage() {
 
 		try {
 			const taskType: TaskType = answers.taskType;
+			const plannerType: TaskPlannerType = answers.plannerType;
 			const isNumeric = taskType === "Numeric";
 			const isPlanned = answers.planningEnabled;
+			const isMetricSession = isNumeric && plannerType === "metric";
 			// Always build from the displayed selects — parsedSpecificTime defaults to
 			// 8:00 AM when specificTime is empty, matching what the user sees.
 			const specificTimeOut = answers.preferredTime === "custom"
@@ -435,7 +443,8 @@ export function GoalTaskWizardPage() {
 					task_type: taskType,
 					target_value: isNumeric ? parseRequiredPositive(answers.targetValue) : null,
 					value_unit: isNumeric ? trimOrNull(answers.valueUnit) : null,
-					planner_target: isNumeric && isPlanned ? parseRequiredPositive(answers.plannerTarget) : null,
+					planner_type: isPlanned ? plannerType : "simple",
+					planner_target: isMetricSession && isPlanned ? parseRequiredPositive(answers.plannerTarget) : null,
 					note: trimOrNull(answers.note),
 					...schedulingPayload,
 				});
@@ -449,7 +458,8 @@ export function GoalTaskWizardPage() {
 					current_value: isNumeric ? 0 : null,
 					target_value: isNumeric ? parseRequiredPositive(answers.targetValue) : null,
 					value_unit: isNumeric ? trimOrNull(answers.valueUnit) : null,
-					planner_target: isNumeric && isPlanned ? parseRequiredPositive(answers.plannerTarget) : null,
+					planner_type: isPlanned ? plannerType : "simple",
+					planner_target: isMetricSession && isPlanned ? parseRequiredPositive(answers.plannerTarget) : null,
 					assistant_context: null,
 					note: trimOrNull(answers.note),
 					...schedulingPayload,
@@ -504,12 +514,40 @@ export function GoalTaskWizardPage() {
 	function renderSchedulingSection() {
 		const isNumeric = answers.taskType === "Numeric";
 		const isActive = visibleSteps[currentStepIndex]?.key === "configurePlanning";
+		const isMetricSession = isNumeric && answers.plannerType === "metric";
 
 		return (
 			<div className="mt-3">
+				{/* Planner type — once per session vs. track amount */}
+				{isNumeric && (
+					<div className="mb-3">
+						<label className="form-label">How do you want to track each session?</label>
+						<div className="goal-task-type-toggle mt-0">
+							<button
+								type="button"
+								className={`goal-task-type-option ${answers.plannerType === "simple" ? "is-active" : ""}`.trim()}
+								onClick={() => updateAnswer("plannerType", "simple")}
+								disabled={!isActive || submitting}
+							>
+								<span className="goal-task-type-option-title">Once per session</span>
+								<span className="goal-task-type-option-subtitle">Mark this task done each session.</span>
+							</button>
+							<button
+								type="button"
+								className={`goal-task-type-option ${answers.plannerType === "metric" ? "is-active" : ""}`.trim()}
+								onClick={() => updateAnswer("plannerType", "metric")}
+								disabled={!isActive || submitting}
+							>
+								<span className="goal-task-type-option-title">Track amount</span>
+								<span className="goal-task-type-option-subtitle">Log how much you complete each session.</span>
+							</button>
+						</div>
+					</div>
+				)}
+
 				{/* Planner target + Priority row */}
 				<div className="row g-3 mb-3">
-					{isNumeric && (
+					{isMetricSession && (
 						<div className="col-md-6">
 							<label className="form-label">
 								How many {answers.valueUnit ? <strong>{answers.valueUnit}</strong> : "units"} per session?
@@ -529,7 +567,7 @@ export function GoalTaskWizardPage() {
 							)}
 						</div>
 					)}
-					<div className={isNumeric ? "col-md-6" : "col-12"}>
+					<div className={isMetricSession ? "col-md-6" : "col-12"}>
 						<label className="form-label">Priority</label>
 						<select
 							className="form-select"

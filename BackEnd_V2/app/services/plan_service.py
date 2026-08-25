@@ -441,9 +441,9 @@ def generate_for_task(
             scheduled_time = (
                 task.specific_time if task.preferred_time == "custom" else None
             )
-            # Numeric tasks carry a numeric planner_target; Binary tasks are mark-done occurrences.
-            target_value = round(task.planner_target) if task.task_type == "Numeric" and task.planner_target else None
-            target_unit = (task.value_unit or "units") if task.task_type == "Numeric" else "occurrence"
+            is_metric_session = task.task_type == "Numeric" and task.planner_type == "metric"
+            target_value = round(task.planner_target) if is_metric_session and task.planner_target else None
+            target_unit = (task.value_unit or "units") if is_metric_session else "occurrence"
             rows.append(
                 {
                     "user_id": task.user_id,
@@ -456,7 +456,7 @@ def generate_for_task(
                     "duration_minutes": task.duration_minutes,
                     "priority": task.priority,
                     "status": "planned",
-                    "habit_type": "metric" if task.task_type == "Numeric" else "simple",
+                    "habit_type": task.planner_type if task.task_type == "Numeric" else "simple",
                     "target_value": target_value,
                     "target_unit": target_unit,
                     "time_span": "Day",

@@ -234,6 +234,7 @@ export interface MilestoneDataResponse {
 }
 
 export type TaskType = "Numeric" | "Binary";
+export type TaskPlannerType = "simple" | "metric";
 export type TaskPriority = "highest" | "high" | "medium" | "low" | "lowest";
 export type TaskPreferredTime = "flexible" | "morning" | "afternoon" | "evening" | "night" | "custom";
 export type TaskCreatedBy = "User" | "Assistant";
@@ -264,8 +265,7 @@ export interface TaskCreateRequest extends TaskSchedulingFields {
   value_unit: string | null;
 
   planning_enabled: boolean;
-  // planner_target: amount per planned occurrence for Numeric tasks.
-  // Binary tasks are always treated as 1 occurrence internally; this field is null.
+  planner_type: TaskPlannerType;
   planner_target: number | null;
 
   assistant_context: Record<string, unknown> | null;
@@ -282,6 +282,7 @@ export interface TaskUpdateRequest extends Partial<TaskSchedulingFields> {
   value_unit?: string | null;
 
   planning_enabled?: boolean;
+  planner_type?: TaskPlannerType;
   planner_target?: number | null;
 
   note?: string | null;
@@ -301,6 +302,7 @@ export interface TaskDataResponse extends TaskSchedulingFields {
 
   status: TaskStatus;
   planning_enabled: boolean;
+  planner_type: TaskPlannerType;
   planner_target: number | null;
 
   assistant_context: Record<string, unknown> | null;

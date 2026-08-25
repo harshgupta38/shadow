@@ -137,8 +137,8 @@ export function HabitLibraryPage() {
   function handleDuplicateHabit(habit: HabitDataResponse) {
     setOpenHabitMenuId(null);
     const draft: Partial<HabitCreateRequest> = {
-      name: `${habit.name} (Copy)`,
-      motivation: habit.motivation,
+      title: `${habit.title} (Copy)`,
+      note: habit.note,
       frequencies: [...habit.frequencies],
       preferred_time: habit.preferred_time,
       specific_time: habit.specific_time,
@@ -150,10 +150,9 @@ export function HabitLibraryPage() {
       monthly_count: habit.monthly_count,
       specific_days: habit.specific_days ? [...habit.specific_days] : null,
       day_fallback: habit.day_fallback,
-      habit_type: habit.habit_type,
-      target_value: habit.target_value,
-      target_unit: habit.target_unit,
-      time_span: habit.time_span,
+      planner_type: habit.planner_type,
+      planner_target: habit.planner_target,
+      value_unit: habit.value_unit,
     };
     navigate(ROUTES.HABIT_LIBRARY_CREATE, { state: { draft } });
   }
@@ -448,8 +447,8 @@ export function HabitLibraryPage() {
                 <article key={h.id} className="hl-habit-card">
                   <div className="hl-habit-card-head">
                     <div>
-                      <h3 className="hl-habit-name">{h.name}</h3>
-                      {h.motivation && (<div className="hl-habit-motivation">{h.motivation}</div>)}
+                      <h3 className="hl-habit-name">{h.title}</h3>
+                      {h.note && (<div className="hl-habit-motivation">{h.note}</div>)}
                     </div>
                     <Dropdown
                       show={openHabitMenuId === h.id}
@@ -461,12 +460,12 @@ export function HabitLibraryPage() {
                         type="button"
                         className="btn btn-ghost btn-sm hl-habit-edit-btn"
                         id={`habit-menu-${h.id}`}
-                        aria-label={`Open menu for ${h.name}`}
+                        aria-label={`Open menu for ${h.title}`}
                       >
                         <ThreeDotsVertical size={14} />
                       </Dropdown.Toggle>
 
-                      <Dropdown.Menu className="hl-habit-menu-popover" aria-label={`Actions for ${h.name}`}>
+                      <Dropdown.Menu className="hl-habit-menu-popover" aria-label={`Actions for ${h.title}`}>
                         <Dropdown.Item
                           className="hl-habit-menu-item"
                           onClick={() => openEditPanel(h)}
@@ -524,9 +523,9 @@ export function HabitLibraryPage() {
                         <span className="hl-habit-chip-dot" aria-hidden="true" />
                         {formatStatusLabel(h.status)}
                       </span>
-                      {h.habit_type === "metric" && h.target_value != null && (
+                      {h.planner_type === "metric" && h.planner_target != null && (
                         <span className="hl-habit-chip hl-habit-chip--metric">
-                          {h.target_value}{h.target_unit && h.target_unit !== "count" ? ` ${h.target_unit}` : ""} / {h.time_span}
+                          {h.planner_target}{h.value_unit ? ` ${h.value_unit}` : ""} / {"h.time_span"}
                         </span>
                       )}
                       <span className="hl-habit-chip hl-habit-chip--priority">
@@ -593,7 +592,7 @@ export function HabitLibraryPage() {
       <ConfirmDialog
         show={deleteTargetHabit != null}
         title="Delete this habit?"
-        message={`This will permanently remove "${deleteTargetHabit?.name ?? "this habit"}". This cannot be undone.`}
+        message={`This will permanently remove "${deleteTargetHabit?.title ?? "this habit"}". This cannot be undone.`}
         confirmLabel="Delete"
         cancelLabel="Cancel"
         destructive

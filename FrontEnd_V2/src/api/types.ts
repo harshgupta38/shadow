@@ -234,30 +234,47 @@ export interface MilestoneDataResponse {
 }
 
 export type TaskType = "Numeric" | "Binary";
-export type TaskPlanningMethod = "Daily" | "Weekly" | "Monthly";
+export type TaskPriority = "highest" | "high" | "medium" | "low" | "lowest";
+export type TaskPreferredTime = "flexible" | "morning" | "afternoon" | "evening" | "night" | "custom";
 export type TaskCreatedBy = "User" | "Assistant";
 export type TaskStatus = "Not Started" | "In Progress" | "Paused" | "Completed" | "Cancelled";
 
-export interface TaskCreateRequest {
+// Scheduling fields shared between task create/update/response — mirrors Habit model.
+interface TaskSchedulingFields {
+  frequencies: string[];
+  priority: TaskPriority;
+  preferred_time: TaskPreferredTime;
+  specific_time: string | null;
+  duration_minutes: number | null;
+  weekly_count: number | null;
+  monthly_count: number | null;
+  specific_days: number[] | null;
+  day_fallback: boolean;
+}
+
+export interface TaskCreateRequest extends TaskSchedulingFields {
   goal_id: number;
   milestone_id: number;
   title: string;
   task_type: TaskType;
 
+  // Numeric-task progress fields — null for Binary tasks.
   current_value: number | null;
   target_value: number | null;
   value_unit: string | null;
 
   planning_enabled: boolean;
-  planning_method: TaskPlanningMethod | null;
+  // planner_target: amount per planned occurrence for Numeric tasks.
+  // Binary tasks are always treated as 1 occurrence internally; this field is null.
   planner_target: number | null;
 
   assistant_context: Record<string, unknown> | null;
   note: string | null;
 }
 
-export interface TaskUpdateRequest {
+export interface TaskUpdateRequest extends Partial<TaskSchedulingFields> {
   title?: string;
+  task_type?: TaskType;
   status?: TaskStatus;
 
   current_value?: number | null;
@@ -265,14 +282,13 @@ export interface TaskUpdateRequest {
   value_unit?: string | null;
 
   planning_enabled?: boolean;
-  planning_method?: TaskPlanningMethod | null;
   planner_target?: number | null;
 
   note?: string | null;
   position?: number;
 }
 
-export interface TaskDataResponse {
+export interface TaskDataResponse extends TaskSchedulingFields {
   id: number;
   goal_id: number;
   milestone_id: number;
@@ -285,7 +301,6 @@ export interface TaskDataResponse {
 
   status: TaskStatus;
   planning_enabled: boolean;
-  planning_method: TaskPlanningMethod | null;
   planner_target: number | null;
 
   assistant_context: Record<string, unknown> | null;

@@ -52,10 +52,9 @@ class TaskDBM(Base):
             "planner_target IS NULL OR planner_target > 0",
             name="ck_tasks_planner_target",
         ),
-        # Binary tasks have no numeric fields and no planner_target.
-        # planning_enabled IS allowed for Binary tasks (planner tracks as 1 occurrence internally).
+        # Binary tasks are mark-done only — no numeric tracking, no planning.
         CheckConstraint(
-            "task_type != 'Binary' OR (current_value IS NULL AND target_value IS NULL AND value_unit IS NULL AND planner_target IS NULL)",
+            "task_type != 'Binary' OR (current_value IS NULL AND target_value IS NULL AND value_unit IS NULL AND planner_target IS NULL AND planning_enabled = 0)",
             name="ck_tasks_simple_fields",
         ),
         CheckConstraint(

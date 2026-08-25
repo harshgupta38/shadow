@@ -135,6 +135,8 @@ class TaskCreateRequest(BaseModel):
                     raise ValueError("planner_target is required for Numeric tasks when planning_enabled is true.")
 
         if self.task_type == "Binary":
+            if self.planning_enabled:
+                raise ValueError("planning_enabled is not allowed for Binary tasks.")
             for field_name, field_value in {
                 "current_value": self.current_value,
                 "target_value": self.target_value,
@@ -159,6 +161,7 @@ class TaskCreateRequest(BaseModel):
 
 class TaskUpdateRequest(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=255)
+    task_type: TaskType | None = None
     status: NumericTaskStatus | None = None
 
     current_value: float | None = None
@@ -229,6 +232,12 @@ class TaskUpdateRequest(BaseModel):
             and self.current_value > self.target_value
         ):
             raise ValueError("current_value cannot be greater than target_value.")
+
+        if self.planning_enabled is True:
+            if self.frequencies is not None and len(self.frequencies) == 0:
+                raise ValueError("At least one frequency is required when planning_enabled is true.")
+            if self.preferred_time == "custom" and self.specific_time is not None and not self.specific_time.strip():
+                raise ValueError("specific_time is required when preferred_time is 'custom'.")
 
         if self.planning_enabled is False:
             if self.planner_target is not None:

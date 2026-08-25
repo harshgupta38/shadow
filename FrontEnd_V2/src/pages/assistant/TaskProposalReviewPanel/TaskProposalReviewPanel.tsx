@@ -6,7 +6,6 @@ import { ApiError } from "@/api/client";
 import type {
     TaskCreateRequest,
     TaskDataResponse,
-    TaskPlanningMethod,
     TaskProposal,
     TaskType,
 } from "@/api/types";
@@ -16,7 +15,15 @@ import "@/pages/my_goals/GoalCreationWizard/GoalCreationWizard.scss";
 import "@/pages/my_goals/GoalMilestoneWizard/GoalMilestoneWizardPage.scss";
 import "@/pages/assistant/RefinedGoalReviewPanel/RefinedGoalReviewPanel.scss";
 
-const PLANNING_METHODS: TaskPlanningMethod[] = ["Daily", "Weekly", "Monthly"];
+type PlanMethod = "Daily" | "Weekly" | "Monthly";
+const PLANNING_METHODS: PlanMethod[] = ["Daily", "Weekly", "Monthly"];
+
+function methodToFrequencies(method: PlanMethod): Pick<TaskCreateRequest, "frequencies" | "weekly_count" | "monthly_count"> {
+    if (method === "Daily")   return { frequencies: ["daily"],   weekly_count: null, monthly_count: null };
+    if (method === "Weekly")  return { frequencies: ["weekly"],  weekly_count: 1,    monthly_count: null };
+    if (method === "Monthly") return { frequencies: ["monthly"], weekly_count: null, monthly_count: 1    };
+    return { frequencies: ["daily"], weekly_count: null, monthly_count: null };
+}
 
 function parsePositiveNumber(value: string): number | null {
     const parsed = Number(value);
@@ -83,7 +90,7 @@ export function TaskProposalReviewPanel({ proposal, onClose, onSaved }: TaskProp
     const [note, setNote] = useState(proposal.task.note ?? "");
 
     const [planningEnabled, setPlanningEnabled] = useState(false);
-    const [planningMethod, setPlanningMethod] = useState<TaskPlanningMethod>("Daily");
+    const [planningMethod, setPlanningMethod] = useState<PlanMethod>("Daily");
     const [plannerTarget, setPlannerTarget] = useState("");
 
     const noteRef = useRef<HTMLTextAreaElement>(null);
@@ -159,19 +166,28 @@ export function TaskProposalReviewPanel({ proposal, onClose, onSaved }: TaskProp
             return;
         }
 
-        const isNumericWithPlanning = taskType === "Numeric" && planningEnabled;
+        const isNumeric = taskType === "Numeric";
+        const isNumericWithPlanning = isNumeric && planningEnabled;
+        const freqFields = isNumericWithPlanning ? methodToFrequencies(planningMethod) : { frequencies: [], weekly_count: null, monthly_count: null };
 
         const taskPayload: TaskCreateRequest = {
             goal_id: proposal.goal_id!,
             milestone_id: proposal.milestone_id!,
             title: trimmedTitle,
             task_type: taskType,
-            current_value: taskType === "Numeric" ? 0 : null,
-            target_value: taskType === "Numeric" ? parsePositiveNumber(targetValue) : null,
-            value_unit: taskType === "Numeric" ? (trimmedUnit || null) : null,
+            current_value: isNumeric ? 0 : null,
+            target_value: isNumeric ? parsePositiveNumber(targetValue) : null,
+            value_unit: isNumeric ? (trimmedUnit || null) : null,
             planning_enabled: isNumericWithPlanning,
-            planning_method: isNumericWithPlanning ? planningMethod : null,
             planner_target: isNumericWithPlanning ? parsePositiveNumber(plannerTarget) : null,
+            ...freqFields,
+            priority: "medium",
+            preferred_time: "flexible",
+            specific_time: null,
+            duration_minutes: null,
+
+            specific_days: null,
+            day_fallback: false,
             assistant_context: { text: proposal.task.assistant_context },
             note: note.trim() || null,
         };
@@ -253,7 +269,7 @@ export function TaskProposalReviewPanel({ proposal, onClose, onSaved }: TaskProp
                                         disabled={saving}
                                     >
                                         <span className="goal-task-type-option-title">Complete it</span>
-                                        <span className="goal-task-type-option-subtitle">Mark this task done when you finish it.</span>
+                                        <span className="goal-task-type-option-subtitle">Mark done when you finish it.</span>
                                     </button>
                                     <button
                                         type="button"
@@ -348,7 +364,7 @@ export function TaskProposalReviewPanel({ proposal, onClose, onSaved }: TaskProp
                                                         id="tp-planning-method"
                                                         className="form-select"
                                                         value={planningMethod}
-                                                        onChange={e => setPlanningMethod(e.target.value as TaskPlanningMethod)}
+                                                        onChange={e => setPlanningMethod(e.target.value as PlanMethod)}
                                                         disabled={saving}
                                                     >
                                                         {PLANNING_METHODS.map(m => (

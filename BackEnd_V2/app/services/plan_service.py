@@ -62,6 +62,7 @@ from sqlalchemy.orm import Session
 from app.core.exceptions import NotFoundError
 from app.models.habit import HabitDBM
 from app.models.plan_item import PlanItemDBM
+from app.models.task import TaskDBM
 from app.models.user import UserDBM
 from app.schemas.plan_items import PlanDataResponse, PlanStatusUpdateRequest, TodayPlanResponse
 
@@ -367,17 +368,176 @@ def delete_future_for_habit(db: Session, habit: HabitDBM, today: date) -> None:
     )
 
 
+def task_occurs_on_date(task: TaskDBM, d: date) -> bool:
+    """Return True if `task` should generate a PlanItem on date `d`.
+
+    Mirrors habit_occurs_on_date but operates on TaskDBM scheduling fields.
+    Respects planning_enabled and all frequency variants.
+    """
+    if not task.planning_enabled:
+        return False
+
+    for freq in (task.frequencies or []):
+        if freq == "daily":
+            return True
+        if freq in _WEEKDAY_MAP:
+            if d.weekday() == _WEEKDAY_MAP[freq]:
+                return True
+        elif freq == "weekdays":
+            if d.weekday() <= 4:
+                return True
+        elif freq == "weekends":
+            if d.weekday() >= 5:
+                return True
+        elif freq == "first_of_month":
+            if d.day == 1:
+                return True
+        elif freq == "end_of_month":
+            if d.day == calendar.monthrange(d.year, d.month)[1]:
+                return True
+        elif freq == "specific_day":
+            days = task.specific_days or []
+            days_in_month = calendar.monthrange(d.year, d.month)[1]
+            if d.day in days:
+                return True
+            if task.day_fallback and d.day == days_in_month:
+                if any(day > days_in_month for day in days):
+                    return True
+        elif freq == "weekly":
+            spread = _WEEKLY_SPREAD.get(task.weekly_count or 1, frozenset({0}))
+            if d.weekday() in spread:
+                return True
+        elif freq == "monthly":
+            occurrence_days = _monthly_occurrence_days(d.year, d.month, task.monthly_count or 1)
+            if d.day in occurrence_days:
+                return True
+
+    return False
+
+
+def generate_for_task(
+    db: Session,
+    task: TaskDBM,
+    today: date,
+    window_days: int = PLANNING_WINDOW_DAYS,
+) -> None:
+    """Generate PlanItems for `task` from `today` through `today + window_days`.
+
+    Idempotent — same guarantees as generate_for_habit.
+    Skips generation when planning is disabled or the task is terminal.
+    Does NOT commit — caller controls the transaction.
+    """
+    if not task.planning_enabled:
+        return
+    if task.status in ("Completed", "Cancelled"):
+        return
+
+    end_window = today + timedelta(days=window_days)
+    current = today
+    rows: list[dict] = []
+
+    while current <= end_window:
+        if task_occurs_on_date(task, current):
+            scheduled_time = (
+                task.specific_time if task.preferred_time == "custom" else None
+            )
+            # Numeric tasks carry a numeric planner_target; Binary tasks are mark-done occurrences.
+            target_value = round(task.planner_target) if task.task_type == "Numeric" and task.planner_target else None
+            target_unit = (task.value_unit or "units") if task.task_type == "Numeric" else "occurrence"
+            rows.append(
+                {
+                    "user_id": task.user_id,
+                    "source_type": "task",
+                    "source_id": task.id,
+                    "title": task.title,
+                    "description": task.note,
+                    "scheduled_date": current,
+                    "scheduled_time": scheduled_time,
+                    "duration_minutes": task.duration_minutes,
+                    "priority": task.priority,
+                    "status": "planned",
+                    "habit_type": "metric" if task.task_type == "Numeric" else "simple",
+                    "target_value": target_value,
+                    "target_unit": target_unit,
+                    "time_span": "Day",
+                }
+            )
+        current += timedelta(days=1)
+
+    if not rows:
+        return
+
+    candidate_dates = [r["scheduled_date"] for r in rows]
+    existing_dates = set(
+        db.scalars(
+            select(PlanItemDBM.scheduled_date).where(
+                PlanItemDBM.user_id == task.user_id,
+                PlanItemDBM.source_type == "task",
+                PlanItemDBM.source_id == task.id,
+                PlanItemDBM.scheduled_date.in_(candidate_dates),
+            )
+        ).all()
+    )
+
+    new_rows = [r for r in rows if r["scheduled_date"] not in existing_dates]
+    if new_rows:
+        db.execute(sa_insert(PlanItemDBM).values(new_rows))
+
+
+def sync_for_task(
+    db: Session,
+    task: TaskDBM,
+    today: date,
+    window_days: int = PLANNING_WINDOW_DAYS,
+) -> None:
+    """Re-synchronize future PlanItems when a task's planning config changes.
+
+    Deletes all future `planned` items for this task, then regenerates.
+    Historical done/missed records are preserved.
+    Does NOT commit — caller controls the transaction.
+    """
+    db.execute(
+        delete(PlanItemDBM).where(
+            PlanItemDBM.user_id == task.user_id,
+            PlanItemDBM.source_type == "task",
+            PlanItemDBM.source_id == task.id,
+            PlanItemDBM.status == "planned",
+            PlanItemDBM.scheduled_date >= today,
+        )
+    )
+    generate_for_task(db, task, today, window_days)
+
+
+def delete_future_for_task(db: Session, task: TaskDBM, today: date) -> None:
+    """Remove future `planned` items before a task is deleted.
+
+    Historical done/missed records are kept for history.
+    Call this BEFORE deleting the task row.
+    Does NOT commit — caller controls the transaction.
+    """
+    db.execute(
+        delete(PlanItemDBM).where(
+            PlanItemDBM.user_id == task.user_id,
+            PlanItemDBM.source_type == "task",
+            PlanItemDBM.source_id == task.id,
+            PlanItemDBM.status == "planned",
+            PlanItemDBM.scheduled_date >= today,
+        )
+    )
+
+
 def sync_all_habits(
     db: Session,
     user_id: int,
     today: date,
     window_days: int = PLANNING_WINDOW_DAYS,
 ) -> None:
-    """Full planning maintenance pass for a user.
+    """Full planning maintenance pass for a user (habits + planned tasks).
 
     Steps (all within a single transaction):
       1. Mark any still-planned items from past dates as `missed`.
       2. Generate/fill future plan items for all active habits.
+      3. Generate/fill future plan items for all planning-enabled tasks.
 
     Idempotent — safe to call repeatedly (e.g. from a background job).
     Commits its own transaction (standalone entry point).
@@ -392,6 +552,16 @@ def sync_all_habits(
     ).all()
     for habit in habits:
         generate_for_habit(db, habit, today, window_days)
+
+    tasks = db.scalars(
+        select(TaskDBM).where(
+            TaskDBM.user_id == user_id,
+            TaskDBM.planning_enabled.is_(True),
+            TaskDBM.status.notin_(["Completed", "Cancelled"]),
+        )
+    ).all()
+    for task in tasks:
+        generate_for_task(db, task, today, window_days)
 
     db.commit()
 

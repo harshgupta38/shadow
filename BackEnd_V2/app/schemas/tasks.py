@@ -14,9 +14,19 @@ NumericTaskStatus = Literal[
     "Completed",
     "Cancelled",
 ]
+# Binary tasks only allow: "Not Started", "Completed", "Cancelled".
+# Enforced in the service layer (update request doesn't carry task_type).
 BinaryTaskStatus = Literal["Not Started", "Completed", "Cancelled"]
-TaskPlanningMethod = Literal["Daily", "Weekly", "Monthly"]
 TaskCreatedBy = Literal["User", "Assistant"]
+TaskPriority = Literal["highest", "high", "medium", "low", "lowest"]
+TaskPreferredTime = Literal["flexible", "morning", "afternoon", "evening", "night", "custom"]
+
+# Valid frequency values — mirrors HabitFrequency.
+VALID_FREQUENCIES = frozenset({
+    "sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday",
+    "daily", "weekly", "monthly", "weekdays", "weekends",
+    "first_of_month", "end_of_month", "specific_day",
+})
 
 
 class TaskCreateRequest(BaseModel):
@@ -25,13 +35,27 @@ class TaskCreateRequest(BaseModel):
     title: str = Field(min_length=1, max_length=255)
     task_type: TaskType
 
+    # Numeric progress fields — NULL for Binary tasks.
     current_value: float | None = None
     target_value: float | None = None
     value_unit: str | None = Field(default=None, max_length=64)
 
+    # Planning configuration
     planning_enabled: bool = False
-    planning_method: TaskPlanningMethod | None = None
+    # planner_target: how much to complete per planned occurrence (Numeric only).
+    # Binary tasks are always treated as target = 1 occurrence internally.
     planner_target: float | None = None
+
+    # Scheduling fields — same semantics as Habit.
+    frequencies: list[str] = Field(default_factory=list)
+    priority: TaskPriority = "medium"
+    preferred_time: TaskPreferredTime = "flexible"
+    specific_time: str | None = Field(default=None, max_length=10)
+    duration_minutes: int | None = None
+    weekly_count: int | None = None
+    monthly_count: int | None = None
+    specific_days: list[int] | None = None
+    day_fallback: bool = False
 
     assistant_context: dict[str, Any] | None = None
     note: str | None = Field(default=None, max_length=2000)
@@ -50,51 +74,85 @@ class TaskCreateRequest(BaseModel):
     def validate_positive_numbers(cls, value: float | None, info: Any) -> float | None:
         if value is None:
             return value
-
         if info.field_name in {"target_value", "planner_target"} and value <= 0:
             raise ValueError(f"{info.field_name} must be greater than 0.")
-
         if info.field_name == "current_value" and value < 0:
             raise ValueError("current_value cannot be negative.")
+        return value
 
+    @field_validator("duration_minutes")
+    @classmethod
+    def validate_duration(cls, value: int | None) -> int | None:
+        if value is not None and value <= 0:
+            raise ValueError("duration_minutes must be greater than 0.")
+        return value
+
+    @field_validator("weekly_count")
+    @classmethod
+    def validate_weekly_count(cls, value: int | None) -> int | None:
+        if value is not None and not (1 <= value <= 6):
+            raise ValueError("weekly_count must be between 1 and 6.")
+        return value
+
+    @field_validator("monthly_count")
+    @classmethod
+    def validate_monthly_count(cls, value: int | None) -> int | None:
+        if value is not None and not (1 <= value <= 27):
+            raise ValueError("monthly_count must be between 1 and 27.")
+        return value
+
+    @field_validator("specific_days")
+    @classmethod
+    def validate_specific_days(cls, value: list[int] | None) -> list[int] | None:
+        if value is None:
+            return value
+        invalid = [d for d in value if not (1 <= d <= 31)]
+        if invalid:
+            raise ValueError(f"specific_days values must be between 1 and 31. Invalid: {invalid}.")
+        return value
+
+    @field_validator("frequencies")
+    @classmethod
+    def validate_frequencies(cls, value: list[str]) -> list[str]:
+        invalid = [f for f in value if f not in VALID_FREQUENCIES]
+        if invalid:
+            raise ValueError(f"Invalid frequency values: {invalid}.")
         return value
 
     @model_validator(mode="after")
-    def validate_task_type_rules(self) -> "TaskCreateRequest":
+    def validate_task_rules(self) -> "TaskCreateRequest":
         if self.task_type == "Numeric":
             if self.target_value is None:
                 raise ValueError("target_value is required for Numeric tasks.")
-
             if self.current_value is None:
                 self.current_value = 0
-
             if self.current_value > self.target_value:
                 raise ValueError("current_value cannot be greater than target_value.")
-
             if self.value_unit is None or not self.value_unit.strip():
                 raise ValueError("value_unit is required for Numeric tasks.")
-
             if self.planning_enabled:
-                if self.planning_method is None:
-                    raise ValueError("planning_method is required when planning_enabled is true.")
                 if self.planner_target is None:
-                    raise ValueError("planner_target is required when planning_enabled is true.")
+                    raise ValueError("planner_target is required for Numeric tasks when planning_enabled is true.")
 
         if self.task_type == "Binary":
-            blocked_fields = {
+            for field_name, field_value in {
                 "current_value": self.current_value,
                 "target_value": self.target_value,
                 "value_unit": self.value_unit,
-                "planning_method": self.planning_method,
                 "planner_target": self.planner_target,
-            }
-
-            for field_name, field_value in blocked_fields.items():
+            }.items():
                 if field_value is not None:
                     raise ValueError(f"{field_name} is not allowed for Binary tasks.")
 
-            if self.planning_enabled:
-                raise ValueError("planning_enabled must be false for Binary tasks.")
+        if self.planning_enabled:
+            if not self.frequencies:
+                raise ValueError("At least one frequency is required when planning_enabled is true.")
+            if self.preferred_time == "custom" and not (self.specific_time or "").strip():
+                raise ValueError("specific_time is required when preferred_time is 'custom'.")
+            if "weekly" in self.frequencies and self.weekly_count is None:
+                self.weekly_count = 1
+            if "monthly" in self.frequencies and self.monthly_count is None:
+                self.monthly_count = 1
 
         return self
 
@@ -108,8 +166,17 @@ class TaskUpdateRequest(BaseModel):
     value_unit: str | None = Field(default=None, max_length=64)
 
     planning_enabled: bool | None = None
-    planning_method: TaskPlanningMethod | None = None
     planner_target: float | None = None
+
+    frequencies: list[str] | None = None
+    priority: TaskPriority | None = None
+    preferred_time: TaskPreferredTime | None = None
+    specific_time: str | None = Field(default=None, max_length=10)
+    duration_minutes: int | None = None
+    weekly_count: int | None = None
+    monthly_count: int | None = None
+    specific_days: list[int] | None = None
+    day_fallback: bool | None = None
 
     note: str | None = Field(default=None, max_length=2000)
     position: int | None = Field(default=None, ge=0)
@@ -128,13 +195,30 @@ class TaskUpdateRequest(BaseModel):
     def validate_positive_numbers(cls, value: float | None, info: Any) -> float | None:
         if value is None:
             return value
-
         if info.field_name in {"target_value", "planner_target"} and value <= 0:
             raise ValueError(f"{info.field_name} must be greater than 0.")
-
         if info.field_name == "current_value" and value < 0:
             raise ValueError("current_value cannot be negative.")
+        return value
 
+    @field_validator("specific_days")
+    @classmethod
+    def validate_specific_days(cls, value: list[int] | None) -> list[int] | None:
+        if value is None:
+            return value
+        invalid = [d for d in value if not (1 <= d <= 31)]
+        if invalid:
+            raise ValueError(f"specific_days values must be between 1 and 31. Invalid: {invalid}.")
+        return value
+
+    @field_validator("frequencies")
+    @classmethod
+    def validate_frequencies(cls, value: list[str] | None) -> list[str] | None:
+        if value is None:
+            return value
+        invalid = [f for f in value if f not in VALID_FREQUENCIES]
+        if invalid:
+            raise ValueError(f"Invalid frequency values: {invalid}.")
         return value
 
     @model_validator(mode="after")
@@ -147,8 +231,6 @@ class TaskUpdateRequest(BaseModel):
             raise ValueError("current_value cannot be greater than target_value.")
 
         if self.planning_enabled is False:
-            if self.planning_method is not None:
-                raise ValueError("planning_method is not allowed when planning_enabled is false.")
             if self.planner_target is not None:
                 raise ValueError("planner_target is not allowed when planning_enabled is false.")
 
@@ -168,8 +250,17 @@ class TaskDataDBS(ORMModel):
 
     status: NumericTaskStatus
     planning_enabled: bool
-    planning_method: TaskPlanningMethod | None
     planner_target: float | None
+
+    frequencies: list[str]
+    priority: TaskPriority
+    preferred_time: TaskPreferredTime
+    specific_time: str | None
+    duration_minutes: int | None
+    weekly_count: int | None
+    monthly_count: int | None
+    specific_days: list[int] | None
+    day_fallback: bool
 
     assistant_context: dict[str, Any] | None
     note: str | None

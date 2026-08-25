@@ -309,7 +309,7 @@ export function MilestoneTasksList({ goalId, milestoneId }: MilestoneTasksListPr
 								{task.planning_enabled && (task.planner_target || 0) > 1 ? (
 									<>
 										<div className="milestone-task-meta">
-											{(task.planning_method && task.planner_target && task.value_unit) && (
+											{(task.planner_target && task.value_unit) && (
 												<span className="pill pill-info milestone-task-chip-font">
 													<Check2Circle size={12} />
 													<span>
@@ -317,8 +317,7 @@ export function MilestoneTasksList({ goalId, milestoneId }: MilestoneTasksListPr
 															task.planner_target === 1
 																? checkAndConvertPluralWord(task.value_unit).singular
 																: task.value_unit
-														} every
-														{task.planning_method === "Daily" ? " day" : task.planning_method === "Weekly" ? " week" : " month"}.
+														} per session.
 													</span>
 												</span>
 											)}

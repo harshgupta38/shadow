@@ -52,13 +52,23 @@ class TaskDBM(Base):
             "planner_target IS NULL OR planner_target > 0",
             name="ck_tasks_planner_target",
         ),
+        # Binary tasks have no numeric fields and no planner_target.
+        # planning_enabled IS allowed for Binary tasks (planner tracks as 1 occurrence internally).
         CheckConstraint(
-            "planning_method IS NULL OR planning_method IN ('Daily', 'Weekly', 'Monthly')",
-            name="ck_tasks_planning_method",
+            "task_type != 'Binary' OR (current_value IS NULL AND target_value IS NULL AND value_unit IS NULL AND planner_target IS NULL)",
+            name="ck_tasks_simple_fields",
         ),
         CheckConstraint(
-            "task_type != 'Binary' OR (current_value IS NULL AND target_value IS NULL AND value_unit IS NULL AND planning_enabled = 0 AND planning_method IS NULL AND planner_target IS NULL)",
-            name="ck_tasks_binary_fields",
+            "priority IN ('highest', 'high', 'medium', 'low', 'lowest')",
+            name="ck_tasks_priority",
+        ),
+        CheckConstraint(
+            "preferred_time IN ('flexible', 'morning', 'afternoon', 'evening', 'night', 'custom')",
+            name="ck_tasks_preferred_time",
+        ),
+        CheckConstraint(
+            "duration_minutes IS NULL OR duration_minutes > 0",
+            name="ck_tasks_duration_minutes",
         ),
     )
 
@@ -91,18 +101,56 @@ class TaskDBM(Base):
         server_default=text("'Not Started'"),
     )
 
+    # Numeric-task progress tracking — NULL for Binary tasks.
     current_value: Mapped[float | None] = mapped_column(Float, nullable=True)
     target_value: Mapped[float | None] = mapped_column(Float, nullable=True)
     value_unit: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
+    # Planning configuration
     planning_enabled: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
         default=False,
         server_default=text("0"),
     )
-    planning_method: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    # planner_target: amount to complete per planned occurrence (Numeric only).
+    # For Binary tasks the planner treats each occurrence as target = 1 internally.
     planner_target: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    # Scheduling fields — mirror the Habit model so the planning engine
+    # can operate on tasks and habits with the same logic.
+    frequencies: Mapped[list] = mapped_column(
+        JSON,
+        nullable=False,
+        default=list,
+        server_default=text("'[]'"),
+    )
+    priority: Mapped[str] = mapped_column(
+        String(16),
+        nullable=False,
+        default="medium",
+        server_default=text("'medium'"),
+    )
+    preferred_time: Mapped[str] = mapped_column(
+        String(16),
+        nullable=False,
+        default="flexible",
+        server_default=text("'flexible'"),
+    )
+    # HH:MM; only when preferred_time == "custom".
+    specific_time: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    duration_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # weekly / monthly sub-counts — same semantics as HabitDBM.
+    weekly_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    monthly_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    specific_days: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    day_fallback: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default=text("0"),
+    )
+
     assistant_context: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     note: Mapped[str | None] = mapped_column(String(2000), nullable=True)
 

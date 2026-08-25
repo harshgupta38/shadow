@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Dropdown } from "react-bootstrap";
-import { CheckLg, ExclamationTriangle, PencilSquare, PlusLg, Stars, ThreeDotsVertical, Trash3, ArrowsAngleContract, ArrowsAngleExpand, CalendarEvent, ListTask } from "react-bootstrap-icons";
+import { CheckLg, ExclamationTriangle, PencilSquare, PlusLg, Stars, ThreeDotsVertical, Trash3, ArrowsAngleContract, ArrowsAngleExpand, CalendarEvent, ListTask, Eye, EyeSlash } from "react-bootstrap-icons";
 import { Link, useNavigate } from "react-router-dom";
 
 import { api, GoalDataResponse, type MilestoneDataResponse, type MilestoneStatus } from "@/api";
@@ -61,6 +61,9 @@ export function GoalMilestonesSection({ goal }: GoalMilestonesSectionProps) {
         goal_id: number;
         milestone_id?: number;
     } | null>(null);
+    const [blockedCompletionMilestoneId, setBlockedCompletionMilestoneId] = useState<number | null>(null);
+    const [cancelMotivationMilestone, setCancelMotivationMilestone] = useState<MilestoneDataResponse | null>(null);
+    const [hiddenTasksMilestones, setHiddenTasksMilestones] = useState<Set<number>>(new Set());
 
     const newMilestonePath = ROUTES.MY_GOAL_MILESTONE_CREATE.replace(":goalId", String(goalId));
 
@@ -71,6 +74,7 @@ export function GoalMilestonesSection({ goal }: GoalMilestonesSectionProps) {
         try {
             const data = await api.milestones.getList(goalId);
             setMilestones(data);
+            setHiddenTasksMilestones(new Set(data.filter((m) => m.status === "Cancelled").map((m) => m.id)));
         } catch (err) {
             setLoadError(err instanceof ApiError ? err.message : "Couldn't load milestones. Please try again later.");
         } finally {
@@ -107,6 +111,27 @@ export function GoalMilestonesSection({ goal }: GoalMilestonesSectionProps) {
     async function requestStatusChange(milestone: MilestoneDataResponse, status: MilestoneStatus) {
         if (milestone.status === status) return;
 
+        if (status === "Completed" && milestone.total_tasks > 0) {
+            setBusyId(milestone.id);
+            try {
+                const tasks = await api.tasks.getList(milestone.id);
+                const allDone = tasks.every((t) => t.status === "Completed" || t.status === "Cancelled");
+                if (!allDone) {
+                    setBlockedCompletionMilestoneId(milestone.id);
+                    return;
+                }
+            } catch {
+                // If task fetch fails, allow the user to proceed
+            } finally {
+                setBusyId(null);
+            }
+        }
+
+        if (status === "Cancelled") {
+            setCancelMotivationMilestone(milestone);
+            return;
+        }
+
         const shouldPromptForTargetDate = (
             milestone.status === "Not Started"
             && status === "In Progress"
@@ -121,6 +146,13 @@ export function GoalMilestonesSection({ goal }: GoalMilestonesSectionProps) {
                 allowSkipTargetDate: true,
             });
         }
+    }
+
+    async function confirmCancelMilestone() {
+        if (!cancelMotivationMilestone) return;
+        const milestone = cancelMotivationMilestone;
+        setCancelMotivationMilestone(null);
+        await setStatus(milestone, "Cancelled");
     }
 
     async function updatePendingTargetDate(targetDate: string | null) {
@@ -164,6 +196,15 @@ export function GoalMilestonesSection({ goal }: GoalMilestonesSectionProps) {
 
     function toggleMilestoneExpanded(id: number) {
         setExpandedMilestoneId((prev) => (prev === id ? null : id));
+    }
+
+    function toggleMilestoneTasks(id: number) {
+        setHiddenTasksMilestones((prev) => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
     }
 
     function openTargetDatePrompt(milestoneId: number, initialTargetDate: string | null) {
@@ -310,6 +351,14 @@ export function GoalMilestonesSection({ goal }: GoalMilestonesSectionProps) {
                                                                 : <><ArrowsAngleExpand size={14} className="me-2" /> Expand</>
                                                             }
                                                         </Dropdown.Item>
+                                                        {milestone.total_tasks > 0 && (
+                                                            <Dropdown.Item onClick={() => toggleMilestoneTasks(milestone.id)}>
+                                                                {hiddenTasksMilestones.has(milestone.id)
+                                                                    ? <><Eye size={14} className="me-2" /> Show Tasks</>
+                                                                    : <><EyeSlash size={14} className="me-2" /> Hide Tasks</>
+                                                                }
+                                                            </Dropdown.Item>
+                                                        )}
                                                         {!milestone.target_date && (
                                                             <Dropdown.Item onClick={() => openTargetDatePrompt(milestone.id, milestone.target_date)}>
                                                                 <CalendarEvent size={14} className="me-2" /> Set Target Date
@@ -370,6 +419,18 @@ export function GoalMilestonesSection({ goal }: GoalMilestonesSectionProps) {
                                                         Est. {milestone.estimated_duration_days}d
                                                     </span>
                                                 )}
+                                                {milestone.total_tasks > 0 && hiddenTasksMilestones.has(milestone.id) && (
+                                                    <button
+                                                        type="button"
+                                                        className="btn p-0 border-0 bg-transparent shadow-none"
+                                                        onClick={() => toggleMilestoneTasks(milestone.id)}
+                                                        aria-label="Show tasks"
+                                                    >
+                                                        <span className="pill">
+                                                            {milestone.total_tasks} {milestone.total_tasks === 1 ? "task" : "tasks"}
+                                                        </span>
+                                                    </button>
+                                                )}
                                                 {milestone.target_date && (
                                                     <button
                                                         type="button"
@@ -402,7 +463,7 @@ export function GoalMilestonesSection({ goal }: GoalMilestonesSectionProps) {
                                             </>
                                         ) : (
                                             <>
-                                                {milestone.total_tasks > 0 && (
+                                                {milestone.total_tasks > 0 && !hiddenTasksMilestones.has(milestone.id) && (
                                                     <MilestoneTasksList goalId={goalId} milestoneId={milestone.id} />
                                                 )}
                                                 <div className={`goal-milestone-expanded${isExpanded ? " is-expanded" : ""}`}>
@@ -522,6 +583,44 @@ export function GoalMilestonesSection({ goal }: GoalMilestonesSectionProps) {
                 onClear={() => { void updatePendingTargetDate(null); }}
                 onSkip={() => setPendingTargetDatePrompt(null)}
                 onCancel={() => setPendingTargetDatePrompt(null)}
+            />
+
+            <ChoiceDialog
+                show={blockedCompletionMilestoneId !== null}
+                title="Tasks still in progress"
+                message="All tasks under this milestone must be completed or cancelled before you can mark it as complete."
+                icon={<ListTask size={26} />}
+                iconColor="var(--jv-warn)"
+                onHide={() => setBlockedCompletionMilestoneId(null)}
+                buttons={[
+                    { label: "Got it", variant: "brand", onClick: () => setBlockedCompletionMilestoneId(null) },
+                ]}
+            />
+
+            <ChoiceDialog
+                show={cancelMotivationMilestone !== null}
+                title="Don't give up just yet!"
+                message={
+                    cancelMotivationMilestone
+                        ? `You set out to achieve "${goalTitle}" and "${cancelMotivationMilestone.title}" is a key part of that journey.${cancelMotivationMilestone.reason ? ` You started this because: ${cancelMotivationMilestone.reason}.` : ""} Every setback is temporary — you've already come this far. Consider pausing instead of walking away.`
+                        : undefined
+                }
+                icon={<Stars size={26} />}
+                iconColor="var(--jv-brand-1)"
+                onHide={() => setCancelMotivationMilestone(null)}
+                buttons={[
+                    { label: "Keep Going", variant: "brand", onClick: () => setCancelMotivationMilestone(null) },
+                    {
+                        label: "Pause Instead",
+                        variant: "soft",
+                        onClick: () => {
+                            const m = cancelMotivationMilestone;
+                            setCancelMotivationMilestone(null);
+                            if (m) void setStatus(m, "Paused");
+                        },
+                    },
+                    { label: "Cancel Anyway", variant: "outline-secondary", onClick: () => { void confirmCancelMilestone(); } },
+                ]}
             />
 
             <ChoiceDialog

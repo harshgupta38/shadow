@@ -11,6 +11,7 @@ export const ROUTES = {
     MY_GOAL_MILESTONE_CREATE: "/my-goals/:goalId/milestones/new",
     MY_GOAL_MILESTONE_UPDATE: "/my-goals/:goalId/milestones/:milestoneId/update",
     MY_GOAL_MILESTONE_TASK_CREATE: "/my-goals/:goalId/milestones/:milestoneId/tasks/new",
+    MY_GOAL_MILESTONE_TASK_EDIT: "/my-goals/:goalId/milestones/:milestoneId/tasks/:taskId/edit",
     HABIT_LIBRARY: "/habit-library",
     TRACK_PROGRESS: "/track-progress",
     REPORTS: "/reports",

@@ -1,15 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Dropdown } from "react-bootstrap";
 import { PencilSquare, ThreeDotsVertical, Check2Circle, Trash3, DashLg, PlusLg, Floppy } from "react-bootstrap-icons";
+import { useNavigate } from "react-router-dom";
 
 import { api, type TaskDataResponse, type TaskStatus } from "@/api";
 import { ApiError } from "@/api/client";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { checkAndConvertPluralWord } from "@/services/word-plurality.service";
+import { ROUTES } from "@/routes/RoutePaths";
 
 import "@/pages/my_goals/MilestoneTasksList/MilestoneTasksList.scss";
 
 interface MilestoneTasksListProps {
+	goalId: number;
 	milestoneId: number;
 }
 
@@ -29,7 +32,9 @@ function toPercent(current: number | null, target: number | null): number | null
 	return Math.max(0, Math.min(100, Math.round((current / target) * 100)));
 }
 
-export function MilestoneTasksList({ milestoneId }: MilestoneTasksListProps) {
+export function MilestoneTasksList({ goalId, milestoneId }: MilestoneTasksListProps) {
+	const navigate = useNavigate();
+	
 	const [tasks, setTasks] = useState<TaskDataResponse[]>([]);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
@@ -285,8 +290,13 @@ export function MilestoneTasksList({ milestoneId }: MilestoneTasksListProps) {
 												<ThreeDotsVertical size={16} />
 											</Dropdown.Toggle>
 											<Dropdown.Menu>
-												<Dropdown.Item>
-													<PencilSquare size={14} className="me-2" /> Update
+												<Dropdown.Item onClick={() => navigate(
+													ROUTES.MY_GOAL_MILESTONE_TASK_EDIT
+														.replace(":goalId", String(goalId))
+														.replace(":milestoneId", String(milestoneId))
+														.replace(":taskId", String(task.id))
+												)}>
+													<PencilSquare size={14} className="me-2" /> Edit
 												</Dropdown.Item>
 												<Dropdown.Item className="text-danger" onClick={() => setConfirmDeleteId(task.id)}>
 													<Trash3 size={14} className="me-2" /> Delete
@@ -296,7 +306,7 @@ export function MilestoneTasksList({ milestoneId }: MilestoneTasksListProps) {
 									</div>
 								</div>
 
-								{task.planning_enabled ? (
+								{task.planning_enabled && (task.planner_target || 0) > 1 ? (
 									<>
 										<div className="milestone-task-meta">
 											{(task.planning_method && task.planner_target && task.value_unit) && (
@@ -393,6 +403,7 @@ export function MilestoneTasksList({ milestoneId }: MilestoneTasksListProps) {
 				onConfirm={() => { if (confirmDeleteId !== null) void handleDelete(confirmDeleteId); }}
 				onCancel={() => setConfirmDeleteId(null)}
 			/>
+
 		</section>
 	);
 }

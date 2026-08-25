@@ -48,6 +48,18 @@ def get_task_list(
     return tasks_service.get_list(db, current_user, milestone_id)
 
 
+@router.get(
+    ENDPOINTS.TASKS.DETAIL,
+    response_model=TaskDataResponse,
+)
+def get_task_detail(
+    task_id: int,
+    db=Depends(get_db),
+    current_user: UserDBM = Depends(get_current_user),
+) -> TaskDataResponse:
+    return tasks_service.get_task_detail(db, current_user, task_id)
+
+
 @router.patch(
     ENDPOINTS.TASKS.DETAIL,
     response_model=TaskDataResponse,

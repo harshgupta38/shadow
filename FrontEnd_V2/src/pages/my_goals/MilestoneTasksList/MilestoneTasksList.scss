@@ -104,7 +104,7 @@
     height: 7px;
     border-radius: 999px;
     overflow: hidden;
-    background: color-mix(in srgb, var(--jv-border) 72%, var(--jv-surface) 28%);
+    background: var(--jv-border);
 }
 
 .milestone-task-progress-bar {

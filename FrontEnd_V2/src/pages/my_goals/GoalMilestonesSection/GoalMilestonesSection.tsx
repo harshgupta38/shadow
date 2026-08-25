@@ -403,7 +403,7 @@ export function GoalMilestonesSection({ goal }: GoalMilestonesSectionProps) {
                                         ) : (
                                             <>
                                                 {milestone.total_tasks > 0 && (
-                                                    <MilestoneTasksList milestoneId={milestone.id} />
+                                                    <MilestoneTasksList goalId={goalId} milestoneId={milestone.id} />
                                                 )}
                                                 <div className={`goal-milestone-expanded${isExpanded ? " is-expanded" : ""}`}>
                                                     <div className="goal-milestone-expanded-inner">

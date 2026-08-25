@@ -18,6 +18,10 @@ export const tasksApi = {
         });
     },
 
+    async getDetail(taskId: number): Promise<TaskDataResponse> {
+        return http.get<TaskDataResponse>(`${ENDPOINTS.TASKS.PREFIX}${ENDPOINTS.TASKS.DETAIL(taskId)}`);
+    },
+
     async update(taskId: number, data: TaskUpdateRequest): Promise<TaskDataResponse> {
         return http.patch<TaskDataResponse>(`${ENDPOINTS.TASKS.PREFIX}${ENDPOINTS.TASKS.DETAIL(taskId)}`, data);
     },

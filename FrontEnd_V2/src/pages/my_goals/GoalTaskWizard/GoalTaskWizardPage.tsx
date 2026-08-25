@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, Check2Circle, X } from "react-bootstrap-icons";
 import { useNavigate, useParams } from "react-router-dom";
 
-import { api, type GoalDataResponse, type MilestoneDataResponse, type TaskType } from "@/api";
+import { api, type GoalDataResponse, type MilestoneDataResponse, type TaskDataResponse, type TaskType } from "@/api";
 import { ApiError } from "@/api/client";
 import LOADING_IMAGE from "@/assets/loading_default.png";
 import { StepImageVisual } from "@/components/ui/StepImageVisual/StepImageVisual";
@@ -164,9 +164,12 @@ function getStepValidationErrors(stepKey: TaskWizardStepKey, answers: TaskWizard
 }
 
 export function GoalTaskWizardPage() {
-	const { goalId, milestoneId } = useParams();
+	const { goalId, milestoneId, taskId } = useParams();
 	const navigate = useNavigate();
 	const toast = useToast();
+
+	const isEditMode = Boolean(taskId);
+	const numericTaskId = Number(taskId);
 
 	const [goal, setGoal] = useState<GoalDataResponse | null>(null);
 	const [milestone, setMilestone] = useState<MilestoneDataResponse | null>(null);
@@ -199,13 +202,22 @@ export function GoalTaskWizardPage() {
 			return;
 		}
 
+		if (isEditMode && (!Number.isInteger(numericTaskId) || numericTaskId <= 0)) {
+			toast.error("Task not found.");
+			navigate(ROUTES.MY_GOALS, { replace: true });
+			return;
+		}
+
 		setLoadingContext(true);
 
-		void Promise.all([
+		const requests: [Promise<GoalDataResponse>, Promise<MilestoneDataResponse>, Promise<TaskDataResponse | null>] = [
 			api.goals.getDetail(numericGoalId),
 			api.milestones.getDetail(numericMilestoneId),
-		])
-			.then(([goalResponse, milestoneResponse]) => {
+			isEditMode ? api.tasks.getDetail(numericTaskId) : Promise.resolve(null),
+		];
+
+		void Promise.all(requests)
+			.then(([goalResponse, milestoneResponse, taskResponse]) => {
 				if (milestoneResponse.goal_id !== goalResponse.id) {
 					toast.error("Milestone does not belong to this goal.");
 					navigate(ROUTES.MY_GOALS, { replace: true });
@@ -214,17 +226,31 @@ export function GoalTaskWizardPage() {
 
 				setGoal(goalResponse);
 				setMilestone(milestoneResponse);
+
+				if (taskResponse) {
+					setAnswers({
+						title: taskResponse.title,
+						note: taskResponse.note ?? "",
+						taskType: taskResponse.task_type,
+						targetValue: taskResponse.target_value !== null ? String(taskResponse.target_value) : "",
+						valueUnit: taskResponse.value_unit ?? "",
+						planningEnabled: taskResponse.planning_enabled,
+						planningMethod: taskResponse.planning_method ?? "Daily",
+						plannerTarget: taskResponse.planner_target !== null ? String(taskResponse.planner_target) : "",
+					});
+				}
+
 				setLoadingContext(false);
 			})
 			.catch((requestError) => {
 				if (requestError instanceof ApiError) {
-					toast.error(requestError.status === 404 ? "Milestone not found." : requestError.message);
+					toast.error(requestError.status === 404 ? "Task not found." : requestError.message);
 				} else {
-					toast.error("Could not load milestone context right now.");
+					toast.error("Could not load context right now.");
 				}
 				navigate(ROUTES.MY_GOALS, { replace: true });
 			});
-	}, [navigate, numericGoalId, numericMilestoneId, toast]);
+	}, [navigate, numericGoalId, numericMilestoneId, numericTaskId, isEditMode, toast]);
 
 	useEffect(() => {
 		if (!loadingContext) {
@@ -306,23 +332,37 @@ export function GoalTaskWizardPage() {
 
 		try {
 			const taskType: TaskType = answers.taskType;
+			const isNumericWithPlanning = taskType === "Numeric" && answers.planningEnabled;
 
-			await api.tasks.save({
-				goal_id: numericGoalId,
-				milestone_id: numericMilestoneId,
-				title: answers.title.trim(),
-				task_type: taskType,
-				current_value: taskType === "Numeric" ? 0 : null,
-				target_value: taskType === "Numeric" ? parseRequiredPositive(answers.targetValue) : null,
-				value_unit: taskType === "Numeric" ? trimOrNull(answers.valueUnit) : null,
-				planning_enabled: taskType === "Numeric" ? answers.planningEnabled : false,
-				planning_method: taskType === "Numeric" && answers.planningEnabled ? answers.planningMethod : null,
-				planner_target: taskType === "Numeric" && answers.planningEnabled ? parseRequiredPositive(answers.plannerTarget) : null,
-				assistant_context: null,
-				note: trimOrNull(answers.note),
-			});
+			if (isEditMode) {
+				await api.tasks.update(numericTaskId, {
+					title: answers.title.trim(),
+					target_value: taskType === "Numeric" ? parseRequiredPositive(answers.targetValue) : null,
+					value_unit: taskType === "Numeric" ? trimOrNull(answers.valueUnit) : null,
+					planning_enabled: isNumericWithPlanning,
+					planning_method: isNumericWithPlanning ? answers.planningMethod : null,
+					planner_target: isNumericWithPlanning ? parseRequiredPositive(answers.plannerTarget) : null,
+					note: trimOrNull(answers.note),
+				});
+				toast.success("Task updated successfully.");
+			} else {
+				await api.tasks.save({
+					goal_id: numericGoalId,
+					milestone_id: numericMilestoneId,
+					title: answers.title.trim(),
+					task_type: taskType,
+					current_value: taskType === "Numeric" ? 0 : null,
+					target_value: taskType === "Numeric" ? parseRequiredPositive(answers.targetValue) : null,
+					value_unit: taskType === "Numeric" ? trimOrNull(answers.valueUnit) : null,
+					planning_enabled: isNumericWithPlanning,
+					planning_method: isNumericWithPlanning ? answers.planningMethod : null,
+					planner_target: isNumericWithPlanning ? parseRequiredPositive(answers.plannerTarget) : null,
+					assistant_context: null,
+					note: trimOrNull(answers.note),
+				});
+				toast.success("Task created successfully.");
+			}
 
-			toast.success("Task created successfully.");
 			navigate(ROUTES.MY_GOAL_DETAIL.replace(":goalId", String(numericGoalId)));
 		} catch (submitError) {
 			if (submitError instanceof ApiError) {
@@ -438,7 +478,7 @@ export function GoalTaskWizardPage() {
 								<X size={30} />
 							</button>
 							<div className="goal-wizard-header-copy">
-								<h3 id="goal-wizard-title">Create Task</h3>
+								<h3 id="goal-wizard-title">{isEditMode ? "Edit Task" : "Create Task"}</h3>
 								{currentSubtitle && <p>{currentSubtitle}</p>}
 							</div>
 						</div>
@@ -642,7 +682,7 @@ export function GoalTaskWizardPage() {
 															onClick={() => void handleSubmit()}
 															disabled={!isActive || submitting || !canSubmit}
 														>
-															{submitting ? "Saving..." : "Set Task"} <Check2Circle size={16} className="ms-1" />
+															{submitting ? "Saving..." : isEditMode ? "Save Changes" : "Set Task"} <Check2Circle size={16} className="ms-1" />
 														</button>
 													)}
 

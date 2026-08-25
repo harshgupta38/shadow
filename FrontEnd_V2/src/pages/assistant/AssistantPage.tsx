@@ -7,7 +7,7 @@ import ReactMarkdown from "react-markdown";
 import boySitting from "@/assets/boy_sitting.png";
 import { api } from "@/api";
 import { ApiError } from "@/api/client";
-import type { ConvoDataShortResponse, GoalProposal, MessageDataResponse, MilestoneProposal } from "@/api/types";
+import type { ConvoDataShortResponse, GoalProposal, MessageDataResponse, MilestoneProposal, TaskProposal } from "@/api/types";
 import { ROUTES } from "@/routes/RoutePaths";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
@@ -16,6 +16,7 @@ import { AssistantMessageSkeleton } from "@/pages/assistant/AssistantMessageSkel
 import { ASSISTANT_AGENTS, ASSISTANT_LOADER_STEPS, type AssistantAgent } from "@/pages/assistant/AssistantPage.constants";
 import { RefinedGoalReviewPanel } from "@/pages/assistant/RefinedGoalReviewPanel/RefinedGoalReviewPanel";
 import { MilestoneProposalReviewPanel } from "@/pages/assistant/MilestoneProposalReviewPanel/MilestoneProposalReviewPanel";
+import { TaskProposalReviewPanel } from "@/pages/assistant/TaskProposalReviewPanel/TaskProposalReviewPanel";
 import { useToast } from "@/context/ToastContext";
 import { formatChatTime } from "@/services/chat-time.service";
 import { resizeTextareaToMaxLines } from "@/services/textarea-resize.service";
@@ -57,6 +58,7 @@ export function AssistantPage() {
   const [renameTarget, setRenameTarget] = useState<ConvoDataShortResponse | null>(null);
   const [reviewingProposal, setReviewingProposal] = useState<GoalProposal | null>(null);
   const [reviewingMilestoneProposal, setReviewingMilestoneProposal] = useState<MilestoneProposal | null>(null);
+  const [reviewingTaskProposal, setReviewingTaskProposal] = useState<TaskProposal | null>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const composerTextareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesRequestIdRef = useRef(0);
@@ -384,6 +386,10 @@ export function AssistantPage() {
     return msg.linked_items.milestone_proposals?.filter(p => p.content_index === contentIndex) ?? [];
   }
 
+  function getActiveTaskProposals(msg: MessageDataResponse, contentIndex: number): TaskProposal[] {
+    return msg.linked_items.task_proposals?.filter(p => p.content_index === contentIndex) ?? [];
+  }
+
   async function retryMessage(message: MessageDataResponse) {
     if (isLoadingMessages || !activeItem) return;
 
@@ -674,6 +680,7 @@ export function AssistantPage() {
                         const activeContent = msg.content[activeContentIndex];
                         const activeProposal = getActiveGoalProposal(msg, activeContentIndex);
                         const activeMilestoneProposals = getActiveMilestoneProposals(msg, activeContentIndex);
+                        const activeTaskProposals = getActiveTaskProposals(msg, activeContentIndex);
                         return (
                           <div
                             key={msgKey}
@@ -736,6 +743,33 @@ export function AssistantPage() {
                                             type="button"
                                             className="btn btn-link p-0 fw-medium text-decoration-none milestone-proposal-cta"
                                             onClick={() => navigate(ROUTES.MY_GOAL_DETAIL.replace(":goalId", String(mp.goal_id)))}
+                                          >
+                                            Open &rarr;
+                                          </button>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                                {activeTaskProposals.length > 0 && (
+                                  <div className="task-proposals-list">
+                                    <span className="task-proposals-label">Proposed tasks</span>
+                                    {activeTaskProposals.map((tp) => (
+                                      <div key={tp.proposal_id} className="task-proposal-row">
+                                        <span className="task-proposal-title">{tp.task.title}</span>
+                                        {tp.task_action === "create" ? (
+                                          <button
+                                            type="button"
+                                            className="btn btn-link p-0 fw-medium text-decoration-none task-proposal-cta"
+                                            onClick={() => setReviewingTaskProposal(tp)}
+                                          >
+                                            Save &rarr;
+                                          </button>
+                                        ) : (
+                                          <button
+                                            type="button"
+                                            className="btn btn-link p-0 fw-medium text-decoration-none task-proposal-cta"
+                                            onClick={() => navigate(ROUTES.MY_GOAL_DETAIL.replace(":goalId", String(tp.goal_id)))}
                                           >
                                             Open &rarr;
                                           </button>
@@ -944,6 +978,32 @@ export function AssistantPage() {
               };
             }));
             toast.success("Milestone created successfully.");
+          }}
+        />
+      )}
+
+      {reviewingTaskProposal && (
+        <TaskProposalReviewPanel
+          proposal={reviewingTaskProposal}
+          onClose={() => setReviewingTaskProposal(null)}
+          onSaved={(task) => {
+            const proposalId = reviewingTaskProposal.proposal_id;
+            if (!activeConversation) return;
+            updateConversationMessages(activeConversation.id, prev => prev.map(m => {
+              if (!m.linked_items.task_proposals?.some(p => p.proposal_id === proposalId)) return m;
+              return {
+                ...m,
+                linked_items: {
+                  ...m.linked_items,
+                  task_proposals: m.linked_items.task_proposals!.map(p => (
+                    p.proposal_id === proposalId
+                      ? { ...p, status: "saved", task_id: task.id, task_action: "view" }
+                      : p
+                  )),
+                },
+              };
+            }));
+            toast.success("Task created successfully.");
           }}
         />
       )}

@@ -329,7 +329,7 @@ export function GoalMilestonesSection({ goal }: GoalMilestonesSectionProps) {
                                                         </Dropdown.Item>
                                                         <Dropdown.Item
                                                             onClick={() => {
-                                                                const msg = `Create a task for milestone "${milestone.title}" of my goal "${goalTitle}". Break the milestone into a concrete, actionable task that I can work on.`;
+                                                                const msg = `Create tasks for milestone "${milestone.title}" of my goal "${goalTitle}". Break the milestone into a concrete, actionable task that I can work on.`;
                                                                 if (sourceConversationId) {
                                                                     setPendingCoachAction({ autoMessage: msg, goal_id: goalId, milestone_id: milestone.id });
                                                                 } else {

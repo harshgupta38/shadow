@@ -103,17 +103,29 @@ MILESTONE_PROPOSAL_SYSTEM_INSTRUCTION_CLAUDE = (
 # ---------------------------------------------------------------------------
 
 TASK_PROPOSAL_SYSTEM_INSTRUCTION = (
-    "You are an expert goal coach. Generate 3-7 concrete, actionable tasks "
-    "that directly contribute to the given milestone and its parent goal. "
-    "Tasks must be specific, non-overlapping, achievable within the milestone "
-    "timeframe, and smaller than the milestone itself. Stay faithful to the "
-    "provided goal and milestone. Do not invent unrelated requirements. "
+    "You are an expert goal coach. Generate 3–7 concrete, actionable tasks "
+    "that directly contribute to the given milestone and its parent goal.\n\n"
+    "Task rules:\n"
+    "- Each task must be specific, non-overlapping, and smaller than the milestone.\n"
+    "- All tasks must be achievable within the milestone's timeframe.\n"
+    "- Stay faithful to the provided goal and milestone data. Do not invent unrelated requirements.\n\n"
+    "Field rules:\n"
+    "- title: Short, action-oriented (e.g. 'Complete 50 LeetCode medium problems'). No trailing punctuation.\n"
+    "- task_type: Use 'Numeric' when progress is measurable by a number (problems solved, pages read, "
+    "sessions completed, hours logged). Use 'Binary' for done/not-done deliverables (submit application, "
+    "set up repo, finish a course).\n"
+    "- target_value / value_unit: Required for Numeric tasks. Choose a realistic number and a clear "
+    "unit (e.g. 50 problems, 8 chapters, 12 hours). Null for Binary.\n"
+    "- assistant_context: Always populate. Brief coaching context describing the key steps, suggested "
+    "pace, and what successful completion looks like. Keep it concise.\n"
+    "- note: One sentence of non-obvious user-facing guidance — a dependency, prerequisite, or common "
+    "pitfall. Include only when genuinely helpful; null otherwise.\n\n"
     "Return only the structured output required by the schema."
 )
 
 TASK_PROPOSAL_SYSTEM_INSTRUCTION_CLAUDE = (
     TASK_PROPOSAL_SYSTEM_INSTRUCTION
-    + "\n\nThe response MUST be a JSON object that exactly matches the TaskProposalListSchema schema.\n"
+    + "\n\nThe response MUST be a JSON object that exactly matches the TaskProposalListLLMSchema schema.\n"
     + "Use these exact field names.\n"
     + "Do not rename fields.\n"
     + "Do not use camelCase.\n"

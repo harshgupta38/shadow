@@ -105,12 +105,46 @@ def _resolve_milestone_proposal_actions(
     return {**linked_items, "milestone_proposals": resolved_proposals}
 
 
+def _resolve_task_proposal_actions(
+    db: Session, current_user: UserDBM, linked_items: dict
+) -> dict:
+    """Derive each task proposal's CTA from whether its task still exists."""
+    proposals = linked_items.get("task_proposals")
+    if not proposals:
+        return linked_items
+
+    from app.models.task import TaskDBM
+
+    task_ids = {p["task_id"] for p in proposals if p.get("task_id") is not None}
+    existing_task_ids: set[int] = set()
+    if task_ids:
+        existing_task_ids = set(
+            db.scalars(
+                select(TaskDBM.id).where(
+                    TaskDBM.id.in_(task_ids),
+                    TaskDBM.user_id == current_user.id,
+                )
+            ).all()
+        )
+
+    resolved_proposals = [
+        {
+            **proposal,
+            "task_action": "view" if proposal.get("task_id") in existing_task_ids else "create",
+        }
+        for proposal in proposals
+    ]
+
+    return {**linked_items, "task_proposals": resolved_proposals}
+
+
 def _serialize_message(
     db: Session, current_user: UserDBM, message: MessageDBM
 ) -> MessageDataResponse:
     data = MessageDataResponse.model_validate(message)
     data.linked_items = _resolve_goal_proposal_actions(db, current_user, data.linked_items)
     data.linked_items = _resolve_milestone_proposal_actions(db, current_user, data.linked_items)
+    data.linked_items = _resolve_task_proposal_actions(db, current_user, data.linked_items)
     return data
 
 
@@ -355,6 +389,9 @@ async def create_conversation(
         db, current_user, assistant_message.linked_items
     )
     resolved_linked_items = _resolve_milestone_proposal_actions(
+        db, current_user, resolved_linked_items
+    )
+    resolved_linked_items = _resolve_task_proposal_actions(
         db, current_user, resolved_linked_items
     )
 

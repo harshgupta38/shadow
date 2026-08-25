@@ -1,11 +1,15 @@
 import { ENDPOINTS } from "@/constant/shadow-endpoints";
 
 import { http } from "@/api/client";
-import { TaskCreateRequest, TaskDataResponse, TaskUpdateRequest } from "@/api/types";
+import { SaveTaskFromProposalRequest, TaskCreateRequest, TaskDataResponse, TaskUpdateRequest } from "@/api/types";
 
 export const tasksApi = {
     async save(data: TaskCreateRequest): Promise<TaskDataResponse> {
         return http.post<TaskDataResponse>(`${ENDPOINTS.TASKS.PREFIX}${ENDPOINTS.TASKS.SAVE}`, data);
+    },
+
+    async saveFromProposal(data: SaveTaskFromProposalRequest): Promise<TaskDataResponse> {
+        return http.post<TaskDataResponse>(`${ENDPOINTS.TASKS.PREFIX}${ENDPOINTS.TASKS.FROM_PROPOSAL}`, data);
     },
 
     async getList(milestoneId: number): Promise<TaskDataResponse[]> {

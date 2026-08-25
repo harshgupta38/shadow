@@ -1,9 +1,8 @@
-from datetime import date, datetime
+from datetime import datetime
 
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
-    Date,
     DateTime,
     Float,
     ForeignKey,
@@ -58,23 +57,7 @@ class TaskDBM(Base):
             name="ck_tasks_planning_method",
         ),
         CheckConstraint(
-            "planning_end_date IS NULL OR planning_start_date IS NULL OR planning_end_date >= planning_start_date",
-            name="ck_tasks_planning_date_range",
-        ),
-        CheckConstraint(
-            "start_with_milestone = 0 OR end_with_milestone = 1",
-            name="ck_tasks_start_implies_end_milestone",
-        ),
-        CheckConstraint(
-            "start_with_milestone = 0 OR planning_start_date IS NULL",
-            name="ck_tasks_start_milestone_no_start_date",
-        ),
-        CheckConstraint(
-            "end_with_milestone = 0 OR planning_end_date IS NULL",
-            name="ck_tasks_end_milestone_no_end_date",
-        ),
-        CheckConstraint(
-            "task_type != 'Binary' OR (current_value IS NULL AND target_value IS NULL AND value_unit IS NULL AND planning_enabled = 0 AND planning_method IS NULL AND planner_target IS NULL AND planning_start_date IS NULL AND start_with_milestone = 0 AND planning_end_date IS NULL AND end_with_milestone = 0)",
+            "task_type != 'Binary' OR (current_value IS NULL AND target_value IS NULL AND value_unit IS NULL AND planning_enabled = 0 AND planning_method IS NULL AND planner_target IS NULL)",
             name="ck_tasks_binary_fields",
         ),
     )
@@ -120,21 +103,6 @@ class TaskDBM(Base):
     )
     planning_method: Mapped[str | None] = mapped_column(String(16), nullable=True)
     planner_target: Mapped[float | None] = mapped_column(Float, nullable=True)
-    planning_start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
-    start_with_milestone: Mapped[bool] = mapped_column(
-        Boolean,
-        nullable=False,
-        default=False,
-        server_default=text("0"),
-    )
-    planning_end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
-    end_with_milestone: Mapped[bool] = mapped_column(
-        Boolean,
-        nullable=False,
-        default=False,
-        server_default=text("0"),
-    )
-
     assistant_context: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     note: Mapped[str | None] = mapped_column(String(2000), nullable=True)
 

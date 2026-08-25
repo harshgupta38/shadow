@@ -24,20 +24,32 @@ async def create_task_proposals(context: ToolContext, arguments: dict) -> dict:
         user_id=context.current_user.id,
     )
 
+    tasks = result.proposals.tasks
+
     context.action_data = {
         **(context.action_data or {}),
         "task_proposals": {
             "goal_id": milestone.goal_id,
             "milestone_id": milestone_id,
-            "tasks": [t.model_dump(mode="json") for t in result.proposals.tasks],
+            "tasks": [t.model_dump(mode="json") for t in tasks],
         },
     }
 
+    task_summary = "\n".join(
+        f"{i + 1}. {t.title} ({t.task_type})"
+        for i, t in enumerate(tasks)
+    )
+
     return {
         "status": "done",
-        "message": (
-            "Task proposals have been generated and are now attached to the assistant message. "
-            "Tell the user they can review the proposed tasks below your response."
+        "task_count": len(tasks),
+        "tasks": task_summary,
+        "instruction": (
+            "The task proposals above are now attached as interactive cards in the UI. "
+            "In your response, briefly introduce what you created and reference ONLY these exact tasks by title. "
+            "Do NOT add, invent, or describe tasks that are not in this list. "
+            "Do NOT re-enumerate them with full details — the cards already show that. "
+            "Just introduce the set and invite the user to review or ask for changes."
         ),
     }
 

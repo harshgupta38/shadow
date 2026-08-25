@@ -11,10 +11,6 @@ export type TaskWizardAnswers = {
     planningEnabled: boolean;
     planningMethod: TaskPlanningMethod;
     plannerTarget: string;
-    planningStartDate: string;
-    startWithMilestone: boolean;
-    planningEndDate: string;
-    endWithMilestone: boolean;
 };
 
 export type TaskWizardStep = {
@@ -60,10 +56,6 @@ export const EMPTY_ANSWERS: TaskWizardAnswers = {
     planningEnabled: false,
     planningMethod: "Daily",
     plannerTarget: "",
-    planningStartDate: "",
-    startWithMilestone: false,
-    planningEndDate: "",
-    endWithMilestone: false,
 };
 
 export const NUMERIC_TASK_STATUSES: TaskStatus[] = [

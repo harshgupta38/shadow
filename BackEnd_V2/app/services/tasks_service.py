@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import UTC, datetime
 
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
@@ -71,6 +71,7 @@ def save_task_from_proposal(db: Session, current_user: UserDBM, data: SaveTaskFr
     stale_task_id = proposal.task_id
 
     task_data = data.task
+
     next_position = db.scalar(
         select(func.coalesce(func.max(TaskDBM.position), -1) + 1).where(
             TaskDBM.milestone_id == milestone.id,
@@ -84,12 +85,16 @@ def save_task_from_proposal(db: Session, current_user: UserDBM, data: SaveTaskFr
         title=task_data.title.strip(),
         task_type=task_data.task_type,
         status="Not Started",
+        current_value=task_data.current_value,
         target_value=task_data.target_value,
         value_unit=task_data.value_unit.strip() if task_data.value_unit else None,
-        planning_enabled=False,
+        planning_enabled=task_data.planning_enabled,
+        planning_method=task_data.planning_method,
+        planner_target=task_data.planner_target,
         position=int(next_position or 0),
         created_by="Assistant",
-        assistant_context={"text": task_data.assistant_context} if task_data.assistant_context else None,
+        note=task_data.note,
+        assistant_context=task_data.assistant_context,
     )
     db.add(task)
     db.flush()
@@ -136,39 +141,6 @@ def save_task(db: Session, current_user: UserDBM, data: TaskCreateRequest) -> Ta
             "Milestone not found. Please check the goal and milestone and try again."
         )
 
-    if data.task_type == "Numeric" and data.planning_enabled:
-        today = date.today()
-        effective_start = data.planning_start_date
-        if data.start_with_milestone:
-            effective_start = (
-                milestone.started_at.date()
-                if milestone.started_at is not None
-                else today
-            )
-
-        effective_end = data.planning_end_date
-        if data.end_with_milestone:
-            if milestone.target_date is None:
-                raise ValidationError(
-                    "Please correct the highlighted fields.",
-                    errors={
-                        "planning_end_date": "Milestone target date is required when end_with_milestone is true."
-                    },
-                )
-            effective_end = milestone.target_date
-
-        if (
-            effective_start is not None
-            and effective_end is not None
-            and effective_end < effective_start
-        ):
-            raise ValidationError(
-                "Please correct the highlighted fields.",
-                errors={
-                    "planning_end_date": "Planning end date must be on or after planning start date."
-                },
-            )
-
     next_position = db.scalar(
         select(func.coalesce(func.max(TaskDBM.position), -1) + 1).where(
             TaskDBM.milestone_id == milestone.id,
@@ -192,10 +164,6 @@ def save_task(db: Session, current_user: UserDBM, data: TaskCreateRequest) -> Ta
         planning_enabled=data.planning_enabled,
         planning_method=data.planning_method,
         planner_target=data.planner_target,
-        planning_start_date=data.planning_start_date,
-        start_with_milestone=data.start_with_milestone,
-        planning_end_date=data.planning_end_date,
-        end_with_milestone=data.end_with_milestone,
         assistant_context=data.assistant_context,
         note=(
             data.note.strip()
@@ -283,6 +251,15 @@ def update_task(
 
     if data.status is not None:
         task.status = data.status
+        now = datetime.now(UTC)
+        if data.status == "In Progress" and task.started_at is None:
+            task.started_at = now
+        elif data.status == "Paused":
+            task.paused_at = now
+        elif data.status == "Completed":
+            task.completed_at = now
+        elif data.status == "Cancelled":
+            task.cancelled_at = now
 
     if data.current_value is not None:
         task.current_value = data.current_value
@@ -305,18 +282,6 @@ def update_task(
 
     if "planner_target" in data.model_fields_set:
         task.planner_target = data.planner_target
-
-    if "planning_start_date" in data.model_fields_set:
-        task.planning_start_date = data.planning_start_date
-
-    if "start_with_milestone" in data.model_fields_set and data.start_with_milestone is not None:
-        task.start_with_milestone = data.start_with_milestone
-
-    if "planning_end_date" in data.model_fields_set:
-        task.planning_end_date = data.planning_end_date
-
-    if "end_with_milestone" in data.model_fields_set and data.end_with_milestone is not None:
-        task.end_with_milestone = data.end_with_milestone
 
     if "note" in data.model_fields_set:
         task.note = (

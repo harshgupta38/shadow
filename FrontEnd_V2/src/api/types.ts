@@ -145,16 +145,16 @@ export interface GoalDataResponse {
   habits_active: number;
 }
 
-export type GoalProposalStatus = "pending" | "saved";
-export type GoalProposalAction = "create" | "view";
+export type ProposalStatus = "pending" | "saved";
+export type ProposalAction = "create" | "view";
 
 export interface GoalProposal {
   proposal_id: string;
   content_index: number;
-  status: GoalProposalStatus;
+  status: ProposalStatus;
   goal_id: number | null;
   goal: RefineGoalFromLLMSchema;
-  goal_action: GoalProposalAction;
+  goal_action: ProposalAction;
 }
 
 export interface SaveGoalFromProposalRequest {
@@ -170,17 +170,14 @@ export interface MilestoneProposalLLMSchema {
   assistant_context: string | null;
 }
 
-export type MilestoneProposalStatus = "pending" | "saved";
-export type MilestoneProposalAction = "create" | "view";
-
 export interface MilestoneProposal {
   proposal_id: string;
   content_index: number;
-  status: MilestoneProposalStatus;
+  status: ProposalStatus;
   goal_id: number | null;
   milestone_id: number | null;
   milestone: MilestoneProposalLLMSchema;
-  milestone_action: MilestoneProposalAction;
+  milestone_action: ProposalAction;
 }
 
 export interface SaveMilestoneFromProposalRequest {
@@ -254,10 +251,6 @@ export interface TaskCreateRequest {
   planning_enabled: boolean;
   planning_method: TaskPlanningMethod | null;
   planner_target: number | null;
-  planning_start_date: string | null;
-  start_with_milestone: boolean;
-  planning_end_date: string | null;
-  end_with_milestone: boolean;
 
   assistant_context: Record<string, unknown> | null;
   note: string | null;
@@ -274,10 +267,6 @@ export interface TaskUpdateRequest {
   planning_enabled?: boolean;
   planning_method?: TaskPlanningMethod | null;
   planner_target?: number | null;
-  planning_start_date?: string | null;
-  start_with_milestone?: boolean;
-  planning_end_date?: string | null;
-  end_with_milestone?: boolean;
 
   note?: string | null;
   position?: number;
@@ -298,10 +287,6 @@ export interface TaskDataResponse {
   planning_enabled: boolean;
   planning_method: TaskPlanningMethod | null;
   planner_target: number | null;
-  planning_start_date: string | null;
-  start_with_milestone: boolean;
-  planning_end_date: string | null;
-  end_with_milestone: boolean;
 
   assistant_context: Record<string, unknown> | null;
   note: string | null;
@@ -329,9 +314,35 @@ export interface ConvoDataShortResponse {
   is_local?: boolean;
 }
 
+export interface TaskProposalLLMSchema {
+  title: string;
+  task_type: TaskType;
+  target_value: number | null;
+  value_unit: string | null;
+  note: string | null;
+  assistant_context: string;
+}
+
+export interface TaskProposal {
+  proposal_id: string;
+  content_index: number;
+  status: ProposalStatus;
+  goal_id: number | null;
+  milestone_id: number | null;
+  task_id: number | null;
+  task: TaskProposalLLMSchema;
+  task_action: ProposalAction;
+}
+
+export interface SaveTaskFromProposalRequest {
+  proposal_id: string;
+  task: TaskCreateRequest;
+}
+
 export interface MessageLinkedItems {
   goal_proposals?: GoalProposal[];
   milestone_proposals?: MilestoneProposal[];
+  task_proposals?: TaskProposal[];
 }
 
 export interface MessageDataResponse {

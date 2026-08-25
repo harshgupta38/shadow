@@ -32,9 +32,7 @@ type TaskFieldErrorKey =
 	| "taskType"
 	| "targetValue"
 	| "valueUnit"
-	| "plannerTarget"
-	| "planningStartDate"
-	| "planningEndDate";
+	| "plannerTarget";
 
 type TaskFieldErrors = Partial<Record<TaskFieldErrorKey, string>>;
 
@@ -66,14 +64,6 @@ function trimOrNull(raw: string): string | null {
 	return trimmed ? trimmed : null;
 }
 
-function getTodayIsoLocalDate(): string {
-	const now = new Date();
-	const year = now.getFullYear();
-	const month = String(now.getMonth() + 1).padStart(2, "0");
-	const day = String(now.getDate()).padStart(2, "0");
-	return `${year}-${month}-${day}`;
-}
-
 function normalizeForType(answers: TaskWizardAnswers): TaskWizardAnswers {
 	if (answers.taskType === "Binary") {
 		return {
@@ -83,10 +73,6 @@ function normalizeForType(answers: TaskWizardAnswers): TaskWizardAnswers {
 			planningEnabled: false,
 			planningMethod: "Daily",
 			plannerTarget: "",
-			planningStartDate: "",
-			startWithMilestone: false,
-			planningEndDate: "",
-			endWithMilestone: false,
 		};
 	}
 
@@ -102,8 +88,6 @@ function mapTaskFieldErrors(fieldErrors: Partial<Record<string, string>>): TaskF
 		targetValue: ["target_value"],
 		valueUnit: ["value_unit"],
 		plannerTarget: ["planner_target"],
-		planningStartDate: ["planning_start_date"],
-		planningEndDate: ["planning_end_date"],
 	};
 
 	for (const key of Object.keys(aliases) as TaskFieldErrorKey[]) {
@@ -130,12 +114,7 @@ function getStepBannerError(stepKey: TaskWizardStepKey, fieldErrors: TaskFieldEr
 	}
 
 	if (stepKey === "configurePlanning") {
-		return (
-			fieldErrors.plannerTarget
-			?? fieldErrors.planningStartDate
-			?? fieldErrors.planningEndDate
-			?? null
-		);
+		return fieldErrors.plannerTarget ?? null;
 	}
 
 	return null;
@@ -174,37 +153,8 @@ function getStepValidationErrors(stepKey: TaskWizardStepKey, answers: TaskWizard
 			return nextErrors;
 		}
 
-		if (answers.startWithMilestone && !answers.endWithMilestone) {
-			nextErrors.planningEndDate = "When start is tied to milestone, end must also be tied to milestone.";
-			return nextErrors;
-		}
-
-		const today = getTodayIsoLocalDate();
-		const plannerTarget = parseRequiredPositive(answers.plannerTarget);
-		if (plannerTarget === null) {
+		if (parseRequiredPositive(answers.plannerTarget) === null) {
 			nextErrors.plannerTarget = "Planner target must be greater than 0.";
-		}
-
-		if (!answers.startWithMilestone && !answers.planningStartDate) {
-			nextErrors.planningStartDate = "Planning start date is required.";
-		}
-
-		if (!answers.startWithMilestone && answers.planningStartDate && answers.planningStartDate < today) {
-			nextErrors.planningStartDate = "Planning start date cannot be in the past.";
-		}
-
-		if (!answers.endWithMilestone && !answers.planningEndDate) {
-			nextErrors.planningEndDate = "Planning end date is required.";
-		}
-
-		if (
-			!answers.startWithMilestone
-			&& !answers.endWithMilestone
-			&& answers.planningStartDate
-			&& answers.planningEndDate
-			&& answers.planningEndDate < answers.planningStartDate
-		) {
-			nextErrors.planningEndDate = "Planning end date must be on or after planning start date.";
 		}
 
 		return nextErrors;
@@ -298,19 +248,6 @@ export function GoalTaskWizardPage() {
 				[key]: value,
 			};
 
-			if (key === "planningStartDate") {
-				nextDraft.planningEndDate = "";
-			}
-
-			if (key === "startWithMilestone" && value === true) {
-				nextDraft.endWithMilestone = true;
-				nextDraft.planningEndDate = "";
-			}
-
-			if (key === "endWithMilestone" && value === false && current.startWithMilestone) {
-				nextDraft.endWithMilestone = true;
-			}
-
 			const next = normalizeForType(nextDraft);
 			return next;
 		});
@@ -381,10 +318,6 @@ export function GoalTaskWizardPage() {
 				planning_enabled: taskType === "Numeric" ? answers.planningEnabled : false,
 				planning_method: taskType === "Numeric" && answers.planningEnabled ? answers.planningMethod : null,
 				planner_target: taskType === "Numeric" && answers.planningEnabled ? parseRequiredPositive(answers.plannerTarget) : null,
-				planning_start_date: taskType === "Numeric" && answers.planningEnabled && !answers.startWithMilestone ? answers.planningStartDate : null,
-				start_with_milestone: taskType === "Numeric" ? answers.planningEnabled && answers.startWithMilestone : false,
-				planning_end_date: taskType === "Numeric" && answers.planningEnabled && !answers.endWithMilestone ? answers.planningEndDate : null,
-				end_with_milestone: taskType === "Numeric" ? answers.planningEnabled && answers.endWithMilestone : false,
 				assistant_context: null,
 				note: trimOrNull(answers.note),
 			});
@@ -430,9 +363,6 @@ export function GoalTaskWizardPage() {
 	const stepBannerError = getStepBannerError(activeStepKey, fieldErrors);
 	const displayError = stepBannerError ?? error;
 	const loaderMessage = GOAL_LOADER_STEPS[Math.min(loaderIndex, GOAL_LOADER_STEPS.length - 1)];
-	const minPlanningStartDate = getTodayIsoLocalDate();
-	const minPlanningEndDate = answers.planningStartDate || minPlanningStartDate;
-
 	useEffect(() => {
 		if (noteTextareaRef.current) {
 			resizeTextareaToMaxLines(noteTextareaRef.current, 8, 20);
@@ -673,99 +603,6 @@ export function GoalTaskWizardPage() {
 																		{answers.planningMethod === "Daily" ? " day" : answers.planningMethod === "Weekly" ? " week" : " month"}.
 																	</p>
 																)}
-
-																<div className="row g-3 mt-1">
-																	<div className="col-md-6">
-																		<label className="form-label mb-2">When should planning start?</label>
-																		<div className="input-group">
-																			<input
-																				type="date"
-																				className={`form-control ${fieldErrors.planningStartDate ? "is-invalid" : ""}`.trim()}
-																				value={answers.planningStartDate}
-																				onChange={(event) => updateAnswer("planningStartDate", event.target.value)}
-																				min={minPlanningStartDate}
-																				disabled={!isActive || submitting || answers.startWithMilestone}
-																			/>
-																			{answers.planningStartDate ? (
-																				<button
-																					type="button"
-																					className="btn btn-outline-secondary"
-																					onClick={() => updateAnswer("planningStartDate", "")}
-																					disabled={!isActive || submitting || answers.startWithMilestone}
-																					aria-label="Clear planning start date"
-																					title="Clear date"
-																				>
-																					<X size={24} />
-																				</button>
-																			) : null}
-																		</div>
-																		<div className="form-check form-switch mt-2">
-																			<input
-																				id="planning-start-with-milestone"
-																				type="checkbox"
-																				className="form-check-input"
-																				checked={answers.startWithMilestone}
-																				onChange={() => {
-																					const nextValue = !answers.startWithMilestone;
-																					updateAnswer("startWithMilestone", nextValue);
-																					if (nextValue) {
-																						updateAnswer("planningStartDate", "");
-																					}
-																				}}
-																				disabled={!isActive || submitting}
-																			/>
-																			<label className="form-check-label small" htmlFor="planning-start-with-milestone">
-																				Starts with milestone
-																			</label>
-																		</div>
-																	</div>
-																	{(answers.planningStartDate || answers.startWithMilestone) && (
-																		<div className="col-md-6">
-																			<label className="form-label mb-2">When should planning end?</label>
-																			<div className="input-group">
-																				<input
-																					type="date"
-																					className={`form-control ${fieldErrors.planningEndDate ? "is-invalid" : ""}`.trim()}
-																					value={answers.planningEndDate}
-																					onChange={(event) => updateAnswer("planningEndDate", event.target.value)}
-																					min={minPlanningEndDate}
-																					disabled={!isActive || submitting || answers.endWithMilestone}
-																				/>
-																				{answers.planningEndDate ? (
-																					<button
-																						type="button"
-																						className="btn btn-outline-secondary"
-																						onClick={() => updateAnswer("planningEndDate", "")}
-																						disabled={!isActive || submitting || answers.endWithMilestone}
-																						aria-label="Clear planning end date"
-																						title="Clear date"
-																					>
-																						<X size={24} />
-																					</button>
-																				) : null}
-																			</div>
-																			<div className="form-check form-switch mt-2">
-																				<input
-																					id="planning-end-with-milestone"
-																					type="checkbox"
-																					className="form-check-input"
-																					checked={answers.endWithMilestone}
-																					onChange={() => {
-																						const nextValue = !answers.endWithMilestone;
-																						updateAnswer("endWithMilestone", nextValue);
-																						if (nextValue) {
-																							updateAnswer("planningEndDate", "");
-																						}
-																					}}
-																					disabled={!isActive || submitting || answers.startWithMilestone}
-																				/>
-																				<label className="form-check-label small" htmlFor="planning-end-with-milestone">
-																					Ends with milestone
-																				</label>
-																			</div>
-																		</div>
-																	)}
-																</div>
 															</>
 														)}
 													</>

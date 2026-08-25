@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Dropdown } from "react-bootstrap";
-import { CalendarEvent, PencilSquare, ThreeDotsVertical, Check2Circle, Trash3, DashLg, PlusLg, Floppy } from "react-bootstrap-icons";
+import { PencilSquare, ThreeDotsVertical, Check2Circle, Trash3, DashLg, PlusLg, Floppy } from "react-bootstrap-icons";
 
 import { api, type TaskDataResponse, type TaskStatus } from "@/api";
 import { ApiError } from "@/api/client";
@@ -23,13 +23,6 @@ const STATUS_PILL_CLASS: Record<TaskDataResponse["status"], string> = {
 
 const NUMERIC_STATUS_CYCLE: TaskStatus[] = ["Not Started", "In Progress", "Paused", "Completed", "Cancelled"];
 const BINARY_STATUS_CYCLE: TaskStatus[] = ["Not Started", "Completed", "Cancelled"];
-
-function formatDate(value: string | null): string {
-	if (!value) return "-";
-	const parsed = Date.parse(value);
-	if (Number.isNaN(parsed)) return value;
-	return new Date(parsed).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
-}
 
 function toPercent(current: number | null, target: number | null): number | null {
 	if (current === null || target === null || target <= 0) return null;
@@ -303,10 +296,10 @@ export function MilestoneTasksList({ milestoneId }: MilestoneTasksListProps) {
 									</div>
 								</div>
 
-								{(task.planning_enabled || task.planning_start_date || task.planning_end_date) ? (
+								{task.planning_enabled ? (
 									<>
 										<div className="milestone-task-meta">
-											{(task.planning_enabled && task.planning_method && task.planner_target && task.value_unit) && (
+											{(task.planning_method && task.planner_target && task.value_unit) && (
 												<span className="pill pill-info milestone-task-chip-font">
 													<Check2Circle size={12} />
 													<span>
@@ -319,23 +312,15 @@ export function MilestoneTasksList({ milestoneId }: MilestoneTasksListProps) {
 													</span>
 												</span>
 											)}
-											{(task.planning_start_date || task.planning_end_date) && (
-												<span className="milestone-task-chip">
-													<CalendarEvent size={12} />
-													<span>
-														{formatDate(task.planning_start_date)} - {formatDate(task.planning_end_date)}
-													</span>
-												</span>
-											)}
 										</div>
-										{task.note && <p className="milestone-task-note mt-2">{task.note}</p>}
+										{task.note && <p className="milestone-task-note mt-2 pe-2">{task.note}</p>}
 									</>
 								) : task.note && (
 									<p className="milestone-task-note">{task.note}</p>
 								)}
 
 								{task.task_type === "Numeric" && progressPercent !== null && (
-									<div className={`milestone-task-progress ${canEditProgress ? "mt-0" : ""}`} aria-label="Numeric task progress">
+									<div className={`milestone-task-progress ${canEditProgress ? "mt-0" : "me-3"}`} aria-label="Numeric task progress">
 										<span className="milestone-task-progress-left">
 											{(task.target_value ?? 0) - effectiveCurrentValue}
 											{task.value_unit ? ` ${task.value_unit}` : " Units"} left

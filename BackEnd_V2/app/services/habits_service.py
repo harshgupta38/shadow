@@ -1,3 +1,5 @@
+from datetime import date
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -5,6 +7,7 @@ from app.core.exceptions import NotFoundError, ValidationError
 from app.models.habit import HabitDBM
 from app.models.user import UserDBM
 from app.schemas.habits import HabitCreateRequest, HabitDataResponse, HabitUpdateRequest
+from app.services import plan_service
 
 
 def _serialize(habit: HabitDBM) -> HabitDataResponse:
@@ -55,7 +58,9 @@ def save_habit(
         time_span=data.time_span,
     )
     db.add(habit)
-    db.commit()
+    db.flush()  # Assigns habit.id within the current transaction (no commit yet)
+    plan_service.generate_for_habit(db, habit, date.today())
+    db.commit()  # Single commit — habit row + plan items together
     db.refresh(habit)
     return _serialize(habit)
 
@@ -144,7 +149,8 @@ def update_habit(
     if "time_span" in fields and data.time_span is not None:
         habit.time_span = data.time_span
 
-    db.commit()
+    plan_service.sync_for_habit(db, habit, date.today())
+    db.commit()  # Single commit — habit changes + plan sync together
     db.refresh(habit)
     return _serialize(habit)
 
@@ -158,5 +164,6 @@ def delete_habit(db: Session, current_user: UserDBM, habit_id: int) -> None:
     )
     if habit is None:
         raise NotFoundError("Habit not found.")
+    plan_service.delete_future_for_habit(db, habit, date.today())
     db.delete(habit)
     db.commit()

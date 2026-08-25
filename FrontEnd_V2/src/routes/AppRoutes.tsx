@@ -48,6 +48,7 @@ export function AppRoutes() {
 					<Route path={ROUTES.MY_GOAL_MILESTONE_CREATE} element={<GoalMilestoneWizardPage />} />
 					<Route path={ROUTES.MY_GOAL_MILESTONE_UPDATE} element={<GoalMilestoneWizardPage />} />
 					<Route path={ROUTES.MY_GOAL_MILESTONE_TASK_CREATE} element={<GoalTaskWizardPage />} />
+					<Route path={ROUTES.MY_GOAL_MILESTONE_TASK_EDIT} element={<GoalTaskWizardPage />} />
 					
 					<Route path={ROUTES.HABIT_LIBRARY} element={<HabitLibraryPage />} />
 					<Route path={ROUTES.TRACK_PROGRESS} element={<TrackProgressPage />} />

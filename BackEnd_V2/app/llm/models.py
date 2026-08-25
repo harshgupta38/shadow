@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 from app.llm.enums import LLMProvider, ModelKey
 from app.schemas.goals import RefineGoalRequest, RefineGoalFromLLMSchema
 from app.schemas.milestones import MilestoneProposalListLLMSchema
+from app.schemas.tasks import TaskProposalListLLMSchema
 from app.schemas.chat import (
     MessageDataResponse,
     ConvoDataResponse,
@@ -36,6 +37,9 @@ class TokenUsage(BaseModel):
 
 class MetadataToLLM(BaseModel):
     user_id: int
+    goal_id: int | None = None
+    milestone_id: int | None = None
+    
     model: str | None = None
     temperature: float | None = Field(default=None, ge=0.0, le=2.0)
     max_tokens: int | None = Field(default=None, gt=0)
@@ -69,6 +73,16 @@ class MilestoneProposalsToLLM(MetadataToLLM):
 
 class MilestoneProposalsFromLLM(MetadataFromLLM):
     proposals: MilestoneProposalListLLMSchema
+
+
+# --- TASK PROPOSALS ---
+class TaskProposalsToLLM(MetadataToLLM):
+    goal_data: dict
+    milestone_data: dict
+
+
+class TaskProposalsFromLLM(MetadataFromLLM):
+    proposals: TaskProposalListLLMSchema
 
 
 # --- CHAT - Start Conversation ---

@@ -23,6 +23,7 @@ class Endpoints:
     class TASKS:
         PREFIX = "/task"
         SAVE = "/save"
+        FROM_PROPOSAL = "/from-proposal"
         GET_LIST = "/get-list"
         DETAIL = "/{task_id}"
 
@@ -31,6 +32,11 @@ class Endpoints:
         GET_LIST = "/get-list"
         SAVE = "/save"
         DETAIL = "/{habit_id}"
+
+    class PLAN_ITEMS:
+        PREFIX = "/plan"
+        TODAY = "/today"
+        DETAIL = "/{item_id}"
 
     class CHAT:
         PREFIX = "/chat"

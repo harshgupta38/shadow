@@ -145,16 +145,16 @@ export interface GoalDataResponse {
   habits_active: number;
 }
 
-export type GoalProposalStatus = "pending" | "saved";
-export type GoalProposalAction = "create" | "view";
+export type ProposalStatus = "pending" | "saved";
+export type ProposalAction = "create" | "view";
 
 export interface GoalProposal {
   proposal_id: string;
   content_index: number;
-  status: GoalProposalStatus;
+  status: ProposalStatus;
   goal_id: number | null;
   goal: RefineGoalFromLLMSchema;
-  goal_action: GoalProposalAction;
+  goal_action: ProposalAction;
 }
 
 export interface SaveGoalFromProposalRequest {
@@ -170,17 +170,14 @@ export interface MilestoneProposalLLMSchema {
   assistant_context: string | null;
 }
 
-export type MilestoneProposalStatus = "pending" | "saved";
-export type MilestoneProposalAction = "create" | "view";
-
 export interface MilestoneProposal {
   proposal_id: string;
   content_index: number;
-  status: MilestoneProposalStatus;
+  status: ProposalStatus;
   goal_id: number | null;
   milestone_id: number | null;
   milestone: MilestoneProposalLLMSchema;
-  milestone_action: MilestoneProposalAction;
+  milestone_action: ProposalAction;
 }
 
 export interface SaveMilestoneFromProposalRequest {
@@ -237,34 +234,47 @@ export interface MilestoneDataResponse {
 }
 
 export type TaskType = "Numeric" | "Binary";
-export type TaskPlanningMethod = "Daily" | "Weekly" | "Monthly";
+export type TaskPlannerType = "simple" | "metric";
+export type TaskPriority = "highest" | "high" | "medium" | "low" | "lowest";
+export type TaskPreferredTime = "flexible" | "morning" | "afternoon" | "evening" | "night" | "custom";
 export type TaskCreatedBy = "User" | "Assistant";
 export type TaskStatus = "Not Started" | "In Progress" | "Paused" | "Completed" | "Cancelled";
 
-export interface TaskCreateRequest {
+// Scheduling fields shared between task create/update/response — mirrors Habit model.
+interface TaskSchedulingFields {
+  frequencies: string[];
+  priority: TaskPriority;
+  preferred_time: TaskPreferredTime;
+  specific_time: string | null;
+  duration_minutes: number | null;
+  weekly_count: number | null;
+  monthly_count: number | null;
+  specific_days: number[] | null;
+  day_fallback: boolean;
+}
+
+export interface TaskCreateRequest extends TaskSchedulingFields {
   goal_id: number;
   milestone_id: number;
   title: string;
   task_type: TaskType;
 
+  // Numeric-task progress fields — null for Binary tasks.
   current_value: number | null;
   target_value: number | null;
   value_unit: string | null;
 
   planning_enabled: boolean;
-  planning_method: TaskPlanningMethod | null;
+  planner_type: TaskPlannerType;
   planner_target: number | null;
-  planning_start_date: string | null;
-  start_with_milestone: boolean;
-  planning_end_date: string | null;
-  end_with_milestone: boolean;
 
   assistant_context: Record<string, unknown> | null;
   note: string | null;
 }
 
-export interface TaskUpdateRequest {
+export interface TaskUpdateRequest extends Partial<TaskSchedulingFields> {
   title?: string;
+  task_type?: TaskType;
   status?: TaskStatus;
 
   current_value?: number | null;
@@ -272,18 +282,14 @@ export interface TaskUpdateRequest {
   value_unit?: string | null;
 
   planning_enabled?: boolean;
-  planning_method?: TaskPlanningMethod | null;
+  planner_type?: TaskPlannerType;
   planner_target?: number | null;
-  planning_start_date?: string | null;
-  start_with_milestone?: boolean;
-  planning_end_date?: string | null;
-  end_with_milestone?: boolean;
 
   note?: string | null;
   position?: number;
 }
 
-export interface TaskDataResponse {
+export interface TaskDataResponse extends TaskSchedulingFields {
   id: number;
   goal_id: number;
   milestone_id: number;
@@ -296,12 +302,8 @@ export interface TaskDataResponse {
 
   status: TaskStatus;
   planning_enabled: boolean;
-  planning_method: TaskPlanningMethod | null;
+  planner_type: TaskPlannerType;
   planner_target: number | null;
-  planning_start_date: string | null;
-  start_with_milestone: boolean;
-  planning_end_date: string | null;
-  end_with_milestone: boolean;
 
   assistant_context: Record<string, unknown> | null;
   note: string | null;
@@ -329,9 +331,35 @@ export interface ConvoDataShortResponse {
   is_local?: boolean;
 }
 
+export interface TaskProposalLLMSchema {
+  title: string;
+  task_type: TaskType;
+  target_value: number | null;
+  value_unit: string | null;
+  note: string | null;
+  assistant_context: string;
+}
+
+export interface TaskProposal {
+  proposal_id: string;
+  content_index: number;
+  status: ProposalStatus;
+  goal_id: number | null;
+  milestone_id: number | null;
+  task_id: number | null;
+  task: TaskProposalLLMSchema;
+  task_action: ProposalAction;
+}
+
+export interface SaveTaskFromProposalRequest {
+  proposal_id: string;
+  task: TaskCreateRequest;
+}
+
 export interface MessageLinkedItems {
   goal_proposals?: GoalProposal[];
   milestone_proposals?: MilestoneProposal[];
+  task_proposals?: TaskProposal[];
 }
 
 export interface MessageDataResponse {
@@ -349,12 +377,17 @@ export interface MessageChunkResponse {
   has_more: boolean;
 }
 
-export interface NewConvoRequest {
+interface ExtraDataInRequest {
+  goal_id?: number;
+  milestone_id?: number;
+}
+
+export interface NewConvoRequest extends ExtraDataInRequest {
   content: string;
   agent_type: AssistantAgentType;
 }
 
-export interface MessageRequest {
+export interface MessageRequest extends ExtraDataInRequest {
   conversation_id: number;
   content: string;
 }
@@ -414,4 +447,39 @@ export interface HabitCreateRequest {
 
 export interface HabitUpdateRequest extends Partial<HabitCreateRequest> {
   status?: HabitStatus;
+}
+
+// ── Plan Items ─────────────────────────────────────────────────────────────
+export type PlanItemStatus = "planned" | "done" | "missed";
+export type PlanItemPriority = "highest" | "high" | "medium" | "low" | "lowest";
+
+export interface PlanDataResponse {
+  id: number;
+  source_type: string | null;
+  source_id: number | null;
+
+  title: string;
+  description: string | null;
+
+  scheduled_date: string;
+  scheduled_time: string | null;
+  duration_minutes: number | null;
+
+  priority: PlanItemPriority;
+  status: PlanItemStatus;
+
+  habit_type: HabitType | null;
+  target_value: number | null;
+  target_unit: string | null;
+  time_span: HabitTimeSpan | null;
+
+  linked_items: Record<string, unknown>; // For storing related items in JSON format
+}
+
+export interface PlanResponse {
+  date: string;
+  items: PlanDataResponse[];
+  missed_yesterday_count: number; // items that user missed to do yesterday
+  carry_forward_count: number; // items that user missed, which is carried forward, these are scheduled items, not part of hbaits
+  workload_label: string; // a label for the workload, e.g. "Light", "Moderate", "Heavy"
 }

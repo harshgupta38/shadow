@@ -8,6 +8,7 @@ from app.schemas.chat import (
 )
 from app.schemas.goals import RefineGoalRequest, RefineGoalFromLLMSchema
 from app.schemas.milestones import MilestoneProposalListLLMSchema
+from app.schemas.tasks import TaskProposalListLLMSchema
 
 # ---------------------------------------------------------------------------
 # Goal refinement: turns five collected discovery answers into a structured
@@ -96,10 +97,131 @@ MILESTONE_PROPOSAL_SYSTEM_INSTRUCTION_CLAUDE = (
 )
 
 
+# ---------------------------------------------------------------------------
+# Task proposal generation: turns a milestone + its parent goal into an
+# ordered set of concrete task proposals. Separate, narrowly-scoped call.
+# ---------------------------------------------------------------------------
+
+TASK_PROPOSAL_SYSTEM_INSTRUCTION = (
+    "You are an expert goal coach. Generate 3–7 concrete tasks "
+    "that directly contribute to the given milestone and its parent goal.\n\n"
+
+    "Task rules:\n"
+    "- Tasks are actionable commitments the user can work on consistently "
+    "over days or weeks to make progress toward the milestone.\n"
+    "- A task should represent a meaningful piece of ongoing work or a "
+    "concrete deliverable that can be scheduled and progressed over time.\n"
+    "- For measurable work, prefer a cumulative Numeric task that can be "
+    "broken into smaller daily or weekly amounts by the planner.\n"
+    "- Each task must be specific, non-overlapping, and smaller than the milestone.\n"
+    "- All tasks must be achievable within the milestone's timeframe.\n"
+    "- Do not make a task so broad that it is effectively another milestone.\n"
+    "- Stay faithful to the provided goal and milestone data. Do not invent "
+    "unrelated requirements.\n"
+    "- NEVER propose tasks about setting up trackers, logs, journals, habit apps, "
+    "or tracking systems. Shadow already handles progress tracking and daily planning.\n\n"
+
+    "Field rules:\n"
+    "- title: Short, action-oriented. No trailing punctuation.\n"
+    "- task_type: Use 'Numeric' when progress is measurable by a cumulative "
+    "quantity (problems solved, pages read, sessions completed, hours logged). "
+    "Use 'Binary' for a concrete deliverable that is simply done or not done.\n"
+    "- target_value / value_unit: Required for Numeric tasks. The target_value "
+    "must represent the total amount to complete. The Daily Planner will divide "
+    "this target across the available timeframe to create smaller daily or weekly "
+    "targets. Null for Binary tasks.\n"
+    "- assistant_context: Always populate. Brief coaching context describing "
+    "the key steps, suggested pace, and what successful completion looks like.\n"
+    "- note: One short user-facing tip or prerequisite. Null when unnecessary.\n\n"
+
+    "Return only the structured output required by the schema."
+)
+
+TASK_PROPOSAL_SYSTEM_INSTRUCTION_CLAUDE = (
+    TASK_PROPOSAL_SYSTEM_INSTRUCTION
+    + "\n\nThe response MUST be a JSON object that exactly matches the TaskProposalListLLMSchema schema.\n"
+    + "Use these exact field names.\n"
+    + "Do not rename fields.\n"
+    + "Do not use camelCase.\n"
+    + "Do not add, remove, merge, or restructure fields.\n"
+    + "Return only the JSON object.\n"
+    + "Do not wrap it in Markdown.\n"
+    + "Do not use backticks.\n"
+    + "\n\nSchema:\n"
+    + build_schema_prompt(TaskProposalListLLMSchema)
+)
+
+
+# def build_task_proposal_user_prompt(goal_data: dict, milestone_data: dict) -> str:
+#     challenges = goal_data.get("challenges") or []
+#     strengths = goal_data.get("strengths") or []
+#     success_metrics = goal_data.get("success_metrics") or []
+
+#     return (
+#         f"Current Date: {date.today().isoformat()}\n\n"
+
+#         "Parent Goal:\n"
+#         f"Title: {goal_data.get('title', '')}\n"
+#         f"Summary: {goal_data.get('summary', '')}\n"
+#         f"Category: {goal_data.get('category', '')}\n"
+#         f"Target Date: {goal_data.get('target_date') or 'Not specified'}\n"
+#         f"Motivation: {goal_data.get('motivation', '')}\n"
+#         f"Success Definition: {goal_data.get('success_definition', '')}\n"
+#         f"Success Metrics: "
+#         f"{', '.join(str(m) for m in success_metrics) if success_metrics else 'None listed'}\n"
+#         f"Current State: {goal_data.get('current_state', '')}\n"
+#         f"Challenges: "
+#         f"{', '.join(str(c) for c in challenges) if challenges else 'None listed'}\n"
+#         f"Strengths: "
+#         f"{', '.join(str(s) for s in strengths) if strengths else 'None listed'}\n\n"
+
+#         "Milestone:\n"
+#         f"Title: {milestone_data.get('title', '')}\n"
+#         f"Description: {milestone_data.get('description') or ''}\n"
+#         f"Reason: {milestone_data.get('reason') or ''}\n"
+#         f"Estimated Duration: "
+#         f"{milestone_data.get('estimated_duration_days') or 'Not specified'} days\n"
+#         f"Target Date: "
+#         f"{milestone_data.get('target_date') or 'Not specified'}\n"
+#         f"Position: {milestone_data.get('position', 0)}\n\n"
+
+#         "Additional Instructions:\n"
+#         "- Generate concrete tasks that directly contribute to this milestone.\n"
+#         "- Tasks should be actionable outcomes or pieces of work, not milestones.\n"
+#         "- Do not create tasks unrelated to the milestone or parent goal.\n"
+#         "- Avoid overlapping or duplicate tasks.\n"
+#         "- Keep the number of tasks small and meaningful.\n"
+#         "- Respect the milestone's target date and estimated duration.\n"
+#         "- Make tasks specific enough that the user can understand what needs to be done.\n"
+#         "- Use the goal's success definition and success metrics when deciding what tasks are necessary.\n"
+#         "- Do not invent requirements that are unrelated to the user's goal.\n"
+#     )
+
+def build_task_proposal_user_prompt(
+    goal_data: dict,
+    milestone_data: dict,
+) -> str:
+    success_metrics = goal_data.get("success_metrics") or []
+
+    return (
+        f"Current Date: {date.today().isoformat()}\n\n"
+        "Goal:\n"
+        f"Title: {goal_data.get('title', '')}\n"
+        f"Success Definition: {goal_data.get('success_definition', '')}\n"
+        f"Success Metrics: {', '.join(map(str, success_metrics)) if success_metrics else 'None'}\n\n"
+        "Milestone:\n"
+        f"Title: {milestone_data.get('title', '')}\n"
+        f"Description: {milestone_data.get('description') or ''}\n"
+        f"Reason: {milestone_data.get('reason') or ''}\n"
+        f"Target Date: {milestone_data.get('target_date') or 'Not specified'}\n"
+        f"Duration: {milestone_data.get('estimated_duration_days') or 'Not specified'} days"
+    )
+
 def build_milestone_proposal_user_prompt(goal_data: dict) -> str:
     challenges = goal_data.get("challenges") or []
     strengths = goal_data.get("strengths") or []
     success_metrics = goal_data.get("success_metrics") or []
+
     return (
         f"Current Date: {date.today().isoformat()}\n\n"
         "Goal:\n"

@@ -27,6 +27,8 @@ from app.llm.knowledge_base import (
 from app.llm.models import (
     ConversationContextToLLM,
     ConversationContextFromLLM,
+    TaskProposalsToLLM,
+    TaskProposalsFromLLM,
     MessageToLLM,
     MessageFromLLM,
     RefineGoalToLLM,
@@ -45,7 +47,7 @@ from app.schemas.chat import (
     MessageFromLLMSchema,
     NewConvoFromLLMSchema,
 )
-from app.llm.tools import MAX_TOOL_ITERATIONS, AGENT_TOOL_DEFINITIONS
+from app.llm.tools import MAX_TOOL_ITERATIONS, AGENT_TOOL_DEFINITIONS, TERMINAL_TOOL_NAMES
 
 
 def _to_claude_tools(tool_defs: list[dict]) -> list[dict]:
@@ -321,6 +323,12 @@ class ClaudeProvider(BaseLLMProvider):
             ),
         )
 
+    async def generate_task_proposals(
+        self, request: TaskProposalsToLLM
+    ) -> TaskProposalsFromLLM:
+        # TODO: implement — mirror generate_milestone_proposals using TASK_PROPOSAL_SYSTEM_INSTRUCTION_CLAUDE
+        raise NotImplementedError
+
     async def create_conversation(self, request: NewConvoToLLM) -> NewConvoFromLLM:
         model = self._resolve_model(request)
 
@@ -347,6 +355,7 @@ class ClaudeProvider(BaseLLMProvider):
             total_output_tokens += usage_delta.output_tokens
             total_tokens += usage_delta.total_tokens
 
+        terminal_break = False
         for _ in range(MAX_TOOL_ITERATIONS):
             if completion.stop_reason != "tool_use":
                 break
@@ -375,6 +384,17 @@ class ClaudeProvider(BaseLLMProvider):
             tool_results.append({"type": "text", "text": "Tool completed. Now return only the required JSON response."})
             messages.append({"role": "user", "content": tool_results})
 
+            # Terminal tools (e.g. create_goal_proposal) fully complete their action
+            # by writing to context.action_data; their return value is a scripted
+            # string telling the LLM what to say — re-invoking _tool_complete would
+            # resend all tool schemas unnecessarily. Break here and let the lean
+            # final call below (no tools, system prompt carries the JSON schema) write
+            # the structured response at lower token cost.
+            called_names = {b.name for b in tool_use_blocks}
+            if called_names.issubset(TERMINAL_TOOL_NAMES):
+                terminal_break = True
+                break
+
             tool_names = "\n".join(b.name for b in tool_use_blocks)
             completion, usage_delta = await self._tool_complete(
                 model, system, messages, tool_names,
@@ -389,9 +409,43 @@ class ClaudeProvider(BaseLLMProvider):
                 total_output_tokens += usage_delta.output_tokens
                 total_tokens += usage_delta.total_tokens
 
-        if completion.stop_reason == "tool_use":
+        if not terminal_break and completion.stop_reason == "tool_use":
             raise LLMRequestError(
                 "Claude exceeded the maximum number of tool iterations."
+            )
+
+        if terminal_break:
+            # Claude's API has no response_format parameter, so structured output is
+            # enforced by the system prompt (CREATE_CONVERSATION_SYSTEM_INSTRUCTION_CLAUDE
+            # embeds the JSON schema). After a terminal tool, we call messages.create
+            # directly — without tools — so the tool schema tokens aren't wasted on a
+            # call whose only job is to emit JSON.
+            final_started_at = perf_counter()
+            try:
+                final_kwargs: dict = {
+                    "model": model,
+                    "system": system,
+                    "messages": messages,
+                    "max_tokens": request.max_tokens or 2048,
+                }
+                if request.temperature is not None:
+                    final_kwargs["temperature"] = request.temperature
+                completion = await self._client.messages.create(**final_kwargs)
+            except (APIConnectionError, APIStatusError, APIError) as exc:
+                raise LLMProviderError(f"Claude create_conversation failed: {exc}") from exc
+            final_latency_ms = int((perf_counter() - final_started_at) * 1000)
+            if completion.usage is not None:
+                usage_received = True
+                total_input_tokens += completion.usage.input_tokens
+                total_output_tokens += completion.usage.output_tokens
+                total_tokens += completion.usage.input_tokens + completion.usage.output_tokens
+            await log_claude_completion_usage_async(
+                settings=self._settings,
+                model=model,
+                completion=completion,
+                latency_ms=final_latency_ms,
+                user_id=request.user_id,
+                operation="create_conversation_final",
             )
 
         response_time_ms = int((perf_counter() - started_at) * 1000)

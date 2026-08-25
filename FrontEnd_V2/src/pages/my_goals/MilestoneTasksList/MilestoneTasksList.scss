@@ -1,11 +1,13 @@
 .milestone-tasks-subsection {
     margin-top: 0.55rem;
-    margin-left: 0.32rem;
+    // margin-left: 0.32rem;
     padding-left: 0.8rem;
-    border-left: 2px dashed color-mix(in srgb, var(--jv-brand-1) 45%, var(--jv-border) 55%);
-    background: linear-gradient(90deg,
-        color-mix(in srgb, var(--jv-brand-1) 8%, var(--jv-surface) 92%) 0%,
-        transparent 100%);
+    // border-left: 2px dashed color-mix(in srgb, var(--jv-brand-1) 45%, var(--jv-border) 55%);
+    // background: linear-gradient(90deg,
+    //     color-mix(in srgb, var(--jv-brand-1) 8%, var(--jv-surface) 92%) 0%,
+    //     transparent 100%);
+    background: color-mix(in srgb, var(--jv-brand-1) 8%, var(--jv-surface) 92%);
+    border-radius: 0.6rem;
 }
 
 .milestone-tasks-list {
@@ -89,6 +91,10 @@
     align-items: center;
     gap: 0.56rem;
     flex-wrap: wrap;
+
+    &.need-margin-end {
+        margin-right: 0.6rem;
+    }
 }
 
 .milestone-task-progress-track {
@@ -98,7 +104,7 @@
     height: 7px;
     border-radius: 999px;
     overflow: hidden;
-    background: color-mix(in srgb, var(--jv-border) 72%, var(--jv-surface) 28%);
+    background: var(--jv-border);
 }
 
 .milestone-task-progress-bar {

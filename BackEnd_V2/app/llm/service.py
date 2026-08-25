@@ -6,6 +6,8 @@ from app.llm.models import (
     RefineGoalFromLLM,
     MilestoneProposalsToLLM,
     MilestoneProposalsFromLLM,
+    TaskProposalsToLLM,
+    TaskProposalsFromLLM,
     NewConvoToLLM,
     NewConvoFromLLM,
     MessageToLLM,
@@ -87,15 +89,33 @@ class LLMService:
 
         return response
 
+    async def generate_task_proposals(
+        self,
+        goal_data: dict,
+        milestone_data: dict,
+        user_id: int,
+    ) -> TaskProposalsFromLLM:
+        request = TaskProposalsToLLM(goal_data=goal_data, milestone_data=milestone_data, user_id=user_id)
+        response = await self._provider.generate_task_proposals(request)
+
+        if response is None or response.proposals is None:
+            raise LLMConfigurationError("LLM provider returned no task proposals.")
+
+        return response
+
     async def create_conversation(
         self,
         data: NewConvoRequest,
         user_id: int,
+        goal_id: int | None = None,
+        milestone_id: int | None = None,
         tool_executor: Callable[[str, dict], dict] | None = None,
     ) -> NewConvoFromLLM:
         request = NewConvoToLLM(
             request_data=data,
             user_id=user_id,
+            goal_id=goal_id,
+            milestone_id=milestone_id,
             tool_executor=tool_executor,
         )
         response = await self._provider.create_conversation(request)
@@ -113,11 +133,15 @@ class LLMService:
         agent_type: str,
         recent_messages: list[dict[str, str]],
         user_id: int,
+        goal_id: int | None = None,
+        milestone_id: int | None = None,
         tool_executor: Callable[[str, dict], dict] | None = None,
     ) -> MessageFromLLM:
         request = MessageToLLM(
             request_data=data.content,
             user_id=user_id,
+            goal_id=goal_id,
+            milestone_id=milestone_id,
             agent_type=agent_type,
             stable_context=stable_context,
             context_summary=context_summary,

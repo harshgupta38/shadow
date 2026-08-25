@@ -22,6 +22,7 @@ export const ENDPOINTS = {
     TASKS: {
         PREFIX: "/task",
         SAVE: "/save",
+        FROM_PROPOSAL: "/from-proposal",
         GET_LIST: "/get-list",
         DETAIL: (id: number) => `/${id}`,
     },
@@ -29,6 +30,11 @@ export const ENDPOINTS = {
         PREFIX: "/habit",
         GET_LIST: "/get-list",
         SAVE: "/save",
+        DETAIL: (id: number) => `/${id}`,
+    },
+    PLAN_ITEMS: {
+        PREFIX: "/plan",
+        GET_TODAY: "/today",
         DETAIL: (id: number) => `/${id}`,
     },
     CHAT: {

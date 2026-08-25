@@ -47,8 +47,14 @@ class ConvoDataResponse(ConvoDataLongDBS):
     pass
 
 
+# extra details frontedn can send in request
+class ExtraDataInRequest(BaseModel):
+    goal_id: int | None = None
+    milestone_id: int | None = None
+
+
 # request to start a new conversation
-class NewConvoRequest(BaseModel):
+class NewConvoRequest(ExtraDataInRequest):
     content: str = Field(min_length=1)
     agent_type: AssistantAgentType
 
@@ -103,7 +109,7 @@ class NewConvoFromLLMSchema(BaseModel):
     )
 
 
-class MessageRequest(BaseModel):
+class MessageRequest(ExtraDataInRequest):
     content: str = Field(min_length=1)
 
     @field_validator("content", mode="before")

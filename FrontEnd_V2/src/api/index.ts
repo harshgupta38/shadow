@@ -14,6 +14,7 @@ import { goalsApi } from "@/api/goals";
 import { milestonesApi } from "@/api/milestones";
 import { tasksApi } from "@/api/tasks";
 import { habitsApi } from "@/api/habits";
+import { planItemsApi } from "@/api/plan_items";
 
 export const api = {
   auth: authApi,
@@ -23,6 +24,7 @@ export const api = {
   milestones: milestonesApi,
   tasks: tasksApi,
   habits: habitsApi,
+  planItems: planItemsApi,
 };
 
 export type Api = typeof api;

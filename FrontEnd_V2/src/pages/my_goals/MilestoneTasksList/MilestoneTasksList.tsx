@@ -1,15 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Dropdown } from "react-bootstrap";
-import { CalendarEvent, PencilSquare, ThreeDotsVertical, Check2Circle, Trash3, DashLg, PlusLg, Floppy } from "react-bootstrap-icons";
+import { PencilSquare, ThreeDotsVertical, Check2Circle, Trash3, DashLg, PlusLg, Floppy } from "react-bootstrap-icons";
+import { useNavigate } from "react-router-dom";
 
 import { api, type TaskDataResponse, type TaskStatus } from "@/api";
 import { ApiError } from "@/api/client";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { checkAndConvertPluralWord } from "@/services/word-plurality.service";
+import { ROUTES } from "@/routes/RoutePaths";
 
 import "@/pages/my_goals/MilestoneTasksList/MilestoneTasksList.scss";
 
 interface MilestoneTasksListProps {
+	goalId: number;
 	milestoneId: number;
 }
 
@@ -24,19 +27,14 @@ const STATUS_PILL_CLASS: Record<TaskDataResponse["status"], string> = {
 const NUMERIC_STATUS_CYCLE: TaskStatus[] = ["Not Started", "In Progress", "Paused", "Completed", "Cancelled"];
 const BINARY_STATUS_CYCLE: TaskStatus[] = ["Not Started", "Completed", "Cancelled"];
 
-function formatDate(value: string | null): string {
-	if (!value) return "-";
-	const parsed = Date.parse(value);
-	if (Number.isNaN(parsed)) return value;
-	return new Date(parsed).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
-}
-
 function toPercent(current: number | null, target: number | null): number | null {
 	if (current === null || target === null || target <= 0) return null;
 	return Math.max(0, Math.min(100, Math.round((current / target) * 100)));
 }
 
-export function MilestoneTasksList({ milestoneId }: MilestoneTasksListProps) {
+export function MilestoneTasksList({ goalId, milestoneId }: MilestoneTasksListProps) {
+	const navigate = useNavigate();
+	
 	const [tasks, setTasks] = useState<TaskDataResponse[]>([]);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
@@ -198,7 +196,7 @@ export function MilestoneTasksList({ milestoneId }: MilestoneTasksListProps) {
 	}
 
 	return (
-		<section className="milestone-tasks-subsection" aria-label="Milestone tasks">
+		<section className={`milestone-tasks-subsection ${!loading && error ? "ps-0" : ""}`} aria-label="Milestone tasks">
 			{loading && (
 				<div className="milestone-tasks-skeleton" aria-busy="true" aria-live="polite">
 					<div className="milestone-tasks-skeleton-line is-title" />
@@ -292,8 +290,13 @@ export function MilestoneTasksList({ milestoneId }: MilestoneTasksListProps) {
 												<ThreeDotsVertical size={16} />
 											</Dropdown.Toggle>
 											<Dropdown.Menu>
-												<Dropdown.Item>
-													<PencilSquare size={14} className="me-2" /> Update
+												<Dropdown.Item onClick={() => navigate(
+													ROUTES.MY_GOAL_MILESTONE_TASK_EDIT
+														.replace(":goalId", String(goalId))
+														.replace(":milestoneId", String(milestoneId))
+														.replace(":taskId", String(task.id))
+												)}>
+													<PencilSquare size={14} className="me-2" /> Edit
 												</Dropdown.Item>
 												<Dropdown.Item className="text-danger" onClick={() => setConfirmDeleteId(task.id)}>
 													<Trash3 size={14} className="me-2" /> Delete
@@ -303,10 +306,10 @@ export function MilestoneTasksList({ milestoneId }: MilestoneTasksListProps) {
 									</div>
 								</div>
 
-								{(task.planning_enabled || task.planning_start_date || task.planning_end_date) ? (
+								{task.planning_enabled && (task.planner_target || 0) > 1 ? (
 									<>
 										<div className="milestone-task-meta">
-											{(task.planning_enabled && task.planning_method && task.planner_target && task.value_unit) && (
+											{(task.planner_target && task.value_unit) && (
 												<span className="pill pill-info milestone-task-chip-font">
 													<Check2Circle size={12} />
 													<span>
@@ -314,28 +317,19 @@ export function MilestoneTasksList({ milestoneId }: MilestoneTasksListProps) {
 															task.planner_target === 1
 																? checkAndConvertPluralWord(task.value_unit).singular
 																: task.value_unit
-														} every
-														{task.planning_method === "Daily" ? " day" : task.planning_method === "Weekly" ? " week" : " month"}.
-													</span>
-												</span>
-											)}
-											{(task.planning_start_date || task.planning_end_date) && (
-												<span className="milestone-task-chip">
-													<CalendarEvent size={12} />
-													<span>
-														{formatDate(task.planning_start_date)} - {formatDate(task.planning_end_date)}
+														} per session.
 													</span>
 												</span>
 											)}
 										</div>
-										{task.note && <p className="milestone-task-note mt-2">{task.note}</p>}
+										{task.note && <p className="milestone-task-note mt-2 pe-2">{task.note}</p>}
 									</>
 								) : task.note && (
 									<p className="milestone-task-note">{task.note}</p>
 								)}
 
 								{task.task_type === "Numeric" && progressPercent !== null && (
-									<div className={`milestone-task-progress ${canEditProgress ? "mt-0" : ""}`} aria-label="Numeric task progress">
+									<div className={`milestone-task-progress ${canEditProgress ? "mt-0" : "me-3"}`} aria-label="Numeric task progress">
 										<span className="milestone-task-progress-left">
 											{(task.target_value ?? 0) - effectiveCurrentValue}
 											{task.value_unit ? ` ${task.value_unit}` : " Units"} left
@@ -408,6 +402,7 @@ export function MilestoneTasksList({ milestoneId }: MilestoneTasksListProps) {
 				onConfirm={() => { if (confirmDeleteId !== null) void handleDelete(confirmDeleteId); }}
 				onCancel={() => setConfirmDeleteId(null)}
 			/>
+
 		</section>
 	);
 }

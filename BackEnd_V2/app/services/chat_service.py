@@ -1,6 +1,10 @@
+import asyncio
+import logging
 import uuid
 from datetime import datetime, timezone
 from json import JSONDecodeError
+
+logger = logging.getLogger(__name__)
 
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
@@ -18,6 +22,7 @@ from app.models.goal import GoalDBM
 from app.models.goal_proposal import GoalProposalDBM
 from app.models.milestone import MilestoneDBM
 from app.models.milestone_proposal import MilestoneProposalDBM
+from app.models.task_proposal import TaskProposalDBM
 from app.schemas.chat import (
     ConvoDataResponse,
     ConvoDataShortResponse,
@@ -100,12 +105,46 @@ def _resolve_milestone_proposal_actions(
     return {**linked_items, "milestone_proposals": resolved_proposals}
 
 
+def _resolve_task_proposal_actions(
+    db: Session, current_user: UserDBM, linked_items: dict
+) -> dict:
+    """Derive each task proposal's CTA from whether its task still exists."""
+    proposals = linked_items.get("task_proposals")
+    if not proposals:
+        return linked_items
+
+    from app.models.task import TaskDBM
+
+    task_ids = {p["task_id"] for p in proposals if p.get("task_id") is not None}
+    existing_task_ids: set[int] = set()
+    if task_ids:
+        existing_task_ids = set(
+            db.scalars(
+                select(TaskDBM.id).where(
+                    TaskDBM.id.in_(task_ids),
+                    TaskDBM.user_id == current_user.id,
+                )
+            ).all()
+        )
+
+    resolved_proposals = [
+        {
+            **proposal,
+            "task_action": "view" if proposal.get("task_id") in existing_task_ids else "create",
+        }
+        for proposal in proposals
+    ]
+
+    return {**linked_items, "task_proposals": resolved_proposals}
+
+
 def _serialize_message(
     db: Session, current_user: UserDBM, message: MessageDBM
 ) -> MessageDataResponse:
     data = MessageDataResponse.model_validate(message)
     data.linked_items = _resolve_goal_proposal_actions(db, current_user, data.linked_items)
     data.linked_items = _resolve_milestone_proposal_actions(db, current_user, data.linked_items)
+    data.linked_items = _resolve_task_proposal_actions(db, current_user, data.linked_items)
     return data
 
 
@@ -161,6 +200,64 @@ def _attach_milestone_proposals(
     assistant_message.linked_items = {
         **existing_linked_items,
         "milestone_proposals": existing_proposals,
+    }
+
+
+def _attach_task_proposals(
+    db: Session,
+    current_user: UserDBM,
+    conversation: ConversationDBM,
+    assistant_message: MessageDBM,
+    action_data: dict | None,
+    content_index: int,
+) -> None:
+    """Persist task proposals to DB and attach them to the message linked_items.
+
+    Each task gets its own proposal row and UUID so the frontend can
+    track and save them independently. Existing proposals from prior
+    regenerations are preserved untouched.
+    """
+    if not action_data or "task_proposals" not in action_data:
+        return
+
+    proposal_data = action_data["task_proposals"]
+    goal_id = proposal_data["goal_id"]
+    milestone_id = proposal_data["milestone_id"]
+    tasks = proposal_data["tasks"]
+
+    existing_linked_items = assistant_message.linked_items or {}
+    existing_proposals = list(existing_linked_items.get("task_proposals") or [])
+
+    for task in tasks:
+        proposal_id = str(uuid.uuid4())
+        db.add(
+            TaskProposalDBM(
+                proposal_id=proposal_id,
+                user_id=current_user.id,
+                conversation_id=conversation.id,
+                message_id=assistant_message.id,
+                content_index=content_index,
+                goal_id=goal_id,
+                milestone_id=milestone_id,
+                status="pending",
+                task_id=None,
+            )
+        )
+        existing_proposals.append(
+            {
+                "proposal_id": proposal_id,
+                "content_index": content_index,
+                "goal_id": goal_id,
+                "milestone_id": milestone_id,
+                "status": "pending",
+                "task_id": None,
+                "task": task,
+            }
+        )
+
+    assistant_message.linked_items = {
+        **existing_linked_items,
+        "task_proposals": existing_proposals,
     }
 
 
@@ -238,6 +335,9 @@ async def create_conversation(
         response = await llm_service.create_conversation(
             data, 
             user_id=current_user.id,
+            goal_id=data.goal_id,
+            milestone_id=data.milestone_id,
+            
             tool_executor=tool_executor,
         )
     except LLMError as exc:
@@ -279,6 +379,7 @@ async def create_conversation(
         db, current_user, conversation, assistant_message, tool_context.action_data, 0
     )
     _attach_milestone_proposals(db, current_user, conversation, assistant_message, tool_context.action_data, 0)
+    _attach_task_proposals(db, current_user, conversation, assistant_message, tool_context.action_data, 0)
 
     db.commit()
     db.refresh(conversation)
@@ -288,6 +389,9 @@ async def create_conversation(
         db, current_user, assistant_message.linked_items
     )
     resolved_linked_items = _resolve_milestone_proposal_actions(
+        db, current_user, resolved_linked_items
+    )
+    resolved_linked_items = _resolve_task_proposal_actions(
         db, current_user, resolved_linked_items
     )
 
@@ -420,6 +524,9 @@ async def _call_llm_and_save(
         response = await llm_service.respond_to_message(
             data,
             user_id=current_user.id,
+            goal_id=data.goal_id,
+            milestone_id=data.milestone_id,
+
             agent_type=conversation.agent_type,
             stable_context=conversation.stable_context,
             context_summary=conversation.context_summary,
@@ -451,6 +558,9 @@ async def _call_llm_and_save(
         db, current_user, conversation, assistant_message, tool_context.action_data, 0
     )
     _attach_milestone_proposals(
+        db, current_user, conversation, assistant_message, tool_context.action_data, 0
+    )
+    _attach_task_proposals(
         db, current_user, conversation, assistant_message, tool_context.action_data, 0
     )
 
@@ -518,30 +628,21 @@ async def respond_to_message(
     ]
 
     llm_service = get_llm_service()
+    context_task = None
     if summary_update_due:
-        try:
-            context_response = await llm_service.update_conversation_context(
+        # Fire the context summary update concurrently with the main LLM call
+        # instead of awaiting it first. Both run in parallel, so the extra
+        # latency is max(context_time, message_time) rather than their sum.
+        # The update is non-critical — if it fails, the next threshold retries.
+        context_task = asyncio.create_task(
+            llm_service.update_conversation_context(
                 user_id=current_user.id,
                 agent_type=conversation.agent_type,
                 stable_context=conversation.stable_context,
                 context_summary=conversation.context_summary,
                 messages=context_messages,
             )
-        except LLMError as exc:
-            raise LLMRequestError(
-                f"Failed to update conversation context: {exc}"
-            ) from exc
-
-        context_data = context_response.llm_data
-        if not context_data.context_summary.strip():
-            raise LLMRequestError(
-                "Conversation context update returned an empty summary."
-            )
-
-        conversation.context_summary = context_data.context_summary
-        if context_data.stable_context and context_data.stable_context.strip():
-            conversation.stable_context = context_data.stable_context
-        conversation.summary_user_message_count = total_user_message_count
+        )
 
     user_message = MessageDBM(
         conversation_id=conversation.id,
@@ -551,7 +652,37 @@ async def respond_to_message(
     )
     db.add(user_message)
 
-    return await _call_llm_and_save(db, current_user, conversation, user_message, data, recent_message_data)
+    try:
+        message_response = await _call_llm_and_save(db, current_user, conversation, user_message, data, recent_message_data)
+    except Exception:
+        # If message generation fails, cancel and drain the context task so it
+        # doesn't run orphaned in the background. An unattended task exception
+        # produces "Task exception was never retrieved" warnings and wastes an
+        # LLM request that no one will read.
+        if context_task is not None:
+            context_task.cancel()
+            try:
+                await context_task
+            except (asyncio.CancelledError, Exception):
+                pass
+        raise
+
+    if context_task is not None:
+        try:
+            # context_task ran concurrently with _call_llm_and_save.
+            # Total wait = max(context_time, message_time), not their sum.
+            context_response = await context_task
+            context_data = context_response.llm_data
+            if context_data.context_summary.strip():
+                conversation.context_summary = context_data.context_summary
+                if context_data.stable_context and context_data.stable_context.strip():
+                    conversation.stable_context = context_data.stable_context
+                conversation.summary_user_message_count = total_user_message_count
+                db.commit()
+        except Exception:
+            logger.exception("Context summary update failed; will retry at next threshold.")
+
+    return message_response
 
 
 async def retry_failed_message(
@@ -684,6 +815,7 @@ async def regenerate_response(
         new_content_index,
     )
     _attach_milestone_proposals(db, current_user, conversation, assistant_message, tool_context.action_data, new_content_index)
+    _attach_task_proposals(db, current_user, conversation, assistant_message, tool_context.action_data, new_content_index)
 
     conversation.updated_at = datetime.now(timezone.utc)
     db.commit()

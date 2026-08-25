@@ -1,4 +1,4 @@
-import type { TaskPlanningMethod, TaskStatus, TaskType } from "@/api";
+import type { TaskPriority, TaskPreferredTime, TaskPlannerType, TaskType } from "@/api";
 
 export type TaskWizardStepKey = "defineTask" | "configureProgress" | "configurePlanning" | "additionalDetails";
 
@@ -6,15 +6,27 @@ export type TaskWizardAnswers = {
     title: string;
     note: string;
     taskType: TaskType;
+
+    // Numeric progress fields — ignored for Binary tasks.
     targetValue: string;
     valueUnit: string;
+
+    // Planning configuration
     planningEnabled: boolean;
-    planningMethod: TaskPlanningMethod;
-    plannerTarget: string;
-    planningStartDate: string;
-    startWithMilestone: boolean;
-    planningEndDate: string;
-    endWithMilestone: boolean;
+    plannerType: TaskPlannerType;
+    plannerTarget: string; // Numeric+metric only
+
+    // Scheduling fields — same concepts as Habit.
+    frequencies: string[];
+    priority: TaskPriority;
+    preferredTime: TaskPreferredTime;
+    specificTime: string;
+    durationMinutes: string;
+
+    weeklyCount: number;
+    monthlyCount: number;
+    specificDays: number[];
+    dayFallback: boolean;
 };
 
 export type TaskWizardStep = {
@@ -58,25 +70,59 @@ export const EMPTY_ANSWERS: TaskWizardAnswers = {
     targetValue: "",
     valueUnit: "",
     planningEnabled: false,
-    planningMethod: "Daily",
+    plannerType: "simple",
     plannerTarget: "",
-    planningStartDate: "",
-    startWithMilestone: false,
-    planningEndDate: "",
-    endWithMilestone: false,
+    frequencies: [],
+    priority: "medium",
+    preferredTime: "flexible",
+    specificTime: "",
+    durationMinutes: "",
+
+    weeklyCount: 1,
+    monthlyCount: 1,
+    specificDays: [],
+    dayFallback: false,
 };
 
-export const NUMERIC_TASK_STATUSES: TaskStatus[] = [
-    "Not Started",
-    "In Progress",
-    "Paused",
-    "Completed",
-    "Cancelled",
+export const FREQUENCY_OPTIONS = [
+    { value: "sunday",        label: "Sunday" },
+    { value: "monday",        label: "Monday" },
+    { value: "tuesday",       label: "Tuesday" },
+    { value: "wednesday",     label: "Wednesday" },
+    { value: "thursday",      label: "Thursday" },
+    { value: "friday",        label: "Friday" },
+    { value: "saturday",      label: "Saturday" },
+    { value: "daily",         label: "Daily" },
+    { value: "weekly",        label: "Weekly" },
+    { value: "monthly",       label: "Monthly" },
+    { value: "weekdays",      label: "Weekdays" },
+    { value: "weekends",      label: "Weekends" },
+    { value: "first_of_month", label: "First of month" },
+    { value: "end_of_month",  label: "End of month" },
+    { value: "specific_day",  label: "Specific day" },
 ];
 
-export const BINARY_TASK_STATUSES: TaskStatus[] = ["Not Started", "Completed", "Cancelled"];
+export const FREQ_DAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"] as const;
+export const FREQ_PERIODS = ["daily", "weekly", "monthly", "weekdays", "weekends", "first_of_month", "end_of_month"] as const;
 
-export const PLANNING_METHODS: TaskPlanningMethod[] = ["Daily", "Weekly", "Monthly"];
+export const PRIORITY_OPTIONS: { value: TaskPriority; label: string }[] = [
+    { value: "highest", label: "Highest: non-negotiable" },
+    { value: "high",    label: "High: do it today" },
+    { value: "medium",  label: "Medium: fits in the week" },
+    { value: "low",     label: "Low: when I get to it" },
+    { value: "lowest",  label: "Lowest: nice to have" },
+];
+
+export const PREFERRED_TIME_OPTIONS: { value: TaskPreferredTime; label: string }[] = [
+    { value: "flexible",  label: "Flexible (any time of day)" },
+    { value: "morning",   label: "Morning (before 12 pm)" },
+    { value: "afternoon", label: "Afternoon (12 pm – 5 pm)" },
+    { value: "evening",   label: "Evening (5 pm – 9 pm)" },
+    { value: "night",     label: "Night (after 9 pm)" },
+    { value: "custom",    label: "Specific time…" },
+];
+
+export const MINUTES = ["00","05","10","15","20","25","30","35","40","45","50","55"] as const;
 
 export const GOAL_LOADER_STEPS = [
     "Loading your goal details",
@@ -85,4 +131,3 @@ export const GOAL_LOADER_STEPS = [
     "Almost there",
 ];
 
-export const MAX_ANSWER_LINES = 8;

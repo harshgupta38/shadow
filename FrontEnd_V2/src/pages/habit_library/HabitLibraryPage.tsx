@@ -24,7 +24,19 @@ export function HabitLibraryPage() {
   const [deleteTargetHabit, setDeleteTargetHabit] = useState<HabitDataResponse | null>(null);
   const [openHabitMenuId, setOpenHabitMenuId] = useState<number | null>(null);
   const [menuActionHabitId, setMenuActionHabitId] = useState<number | null>(null);
-  const [viewMode, setViewMode] = useState<"list" | "grid">("grid");
+  const [viewMode, setViewMode] = useState<"list" | "grid">(() => {
+    try {
+      const saved = localStorage.getItem("habit-library-view-mode");
+      return saved === "list" || saved === "grid" ? saved : "grid";
+    } catch {
+      return "grid";
+    }
+  });
+
+  const setAndPersistViewMode = (mode: "list" | "grid") => {
+    try { localStorage.setItem("habit-library-view-mode", mode); } catch { /* ignore */ }
+    setViewMode(mode);
+  };
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const loadHabits = useCallback(async () => {
@@ -71,7 +83,7 @@ export function HabitLibraryPage() {
 
   useEffect(() => {
     function enforceListView() {
-      if (window.innerWidth < 1024) setViewMode("list");
+      if (window.innerWidth < 1024) setAndPersistViewMode("list");
     }
 
     enforceListView();
@@ -304,7 +316,7 @@ export function HabitLibraryPage() {
                 className="hl-view-toggle-btn"
                 aria-label="Switch to grid view"
                 title="Switch to grid view"
-                onClick={() => setViewMode("grid")}
+                onClick={() => setAndPersistViewMode("grid")}
               >
                 <List size={15} />
               </button>)}
@@ -313,7 +325,7 @@ export function HabitLibraryPage() {
                 className="hl-view-toggle-btn"
                 aria-label="Switch to list view"
                 title="Switch to list view"
-                onClick={() => setViewMode("list")}
+                onClick={() => setAndPersistViewMode("list")}
               >
                 <Grid3x3Gap size={14} />
               </button>)}

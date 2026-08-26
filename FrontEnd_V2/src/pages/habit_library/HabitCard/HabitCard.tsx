@@ -1,15 +1,15 @@
 import { Archive, ArrowCounterclockwise, CaretRightFill, PauseFill, PencilSquare, Plus, ThreeDotsVertical, Trash } from "react-bootstrap-icons";
 import { Dropdown } from "react-bootstrap";
+import { createPortal } from "react-dom";
 
 import type { HabitDataResponse } from "@/api";
 import {
   ChipTooltip,
   formatStatusLabel,
-  frequencyLabelMap,
   getHabitDateLabel,
-  getPrimaryFrequencyLabel,
+  getMetricFrequencyLabel,
+  getSimpleFrequencyLabel,
   getPreferredTimeLabel,
-  ordinal,
   priorityLabelMap,
 } from "./HabitCard.constants";
 
@@ -40,6 +40,10 @@ export function HabitCard({
   onToggleArchive,
   onDeleteRequest,
 }: HabitCardProps) {
+  const frequencyLabel = h.planner_type === "metric"
+    ? getMetricFrequencyLabel(h)
+    : getSimpleFrequencyLabel(h);
+
   return (
     <article className="hl-habit-card">
       <div className="hl-habit-card-head">
@@ -62,6 +66,7 @@ export function HabitCard({
             <ThreeDotsVertical size={14} />
           </Dropdown.Toggle>
 
+          {createPortal(
           <Dropdown.Menu
             className="hl-habit-menu-popover"
             aria-label={`Actions for ${h.title}`}
@@ -91,7 +96,7 @@ export function HabitCard({
               <Trash size={14} />
               Delete
             </Dropdown.Item>
-          </Dropdown.Menu>
+          </Dropdown.Menu>, document.body)}
         </Dropdown>
       </div>
 
@@ -101,47 +106,34 @@ export function HabitCard({
             <span className="hl-habit-chip-dot" aria-hidden="true" />
             {formatStatusLabel(h.status)}
           </span>
-          {h.planner_type === "metric" && h.planner_target != null && (
-            <span className="hl-habit-chip hl-habit-chip--metric">
-              {h.planner_target}{h.value_unit ? ` ${h.value_unit}` : ""} / day
-            </span>
-          )}
           <span className="hl-habit-chip hl-habit-chip--priority">
             {(priorityLabelMap.get(h.priority) ?? h.priority).split(":")[0]}
           </span>
-          {h.frequencies.length > 1 ? (
-            <ChipTooltip
-              label="Frequency"
-              items={h.frequencies.map((f) => frequencyLabelMap.get(f) ?? f)}
-            >
-              <span className="hl-habit-chip hl-habit-chip--detail">
-                +{h.frequencies.length}
+          {h.planner_type === "metric" && h.planner_target != null && (
+            frequencyLabel.tooltip ? (
+              <ChipTooltip label="Days" items={frequencyLabel.tooltip}>
+                <span className="hl-habit-chip hl-habit-chip--metric">
+                  {h.planner_target}{h.value_unit ? ` ${h.value_unit}` : ""} {frequencyLabel.suffix}
+                </span>
+              </ChipTooltip>
+            ) : (
+              <span className="hl-habit-chip hl-habit-chip--metric">
+                {h.planner_target}{h.value_unit ? ` ${h.value_unit}` : ""} {frequencyLabel.suffix}
               </span>
-            </ChipTooltip>
-          ) : h.weekly_count != null && h.frequencies.includes("weekly") ? (
-            <span className="hl-habit-chip hl-habit-chip--detail">
-              {h.weekly_count}×/week
-            </span>
-          ) : h.monthly_count != null && h.frequencies.includes("monthly") ? (
-            <span className="hl-habit-chip hl-habit-chip--detail">
-              {h.monthly_count}×/month
-            </span>
-          ) : h.frequencies.length > 0 && h.frequencies[0] !== "specific_day" && (
-            <span className="hl-habit-chip hl-habit-chip--frequency">
-              {getPrimaryFrequencyLabel(h.frequencies)}
-            </span>
+            )
           )}
-          {h.specific_days != null && h.specific_days.length > 0 && h.frequencies.includes("specific_day") && (
-            <ChipTooltip
-              label="Days"
-              items={h.specific_days.map((d) => ordinal(d))}
-            >
-              <span className="hl-habit-chip hl-habit-chip--detail">
-                {h.specific_days.length <= 3
-                  ? `Day${h.specific_days.length > 1 ? "s" : ""} ${h.specific_days.join(", ")}`
-                  : `${h.specific_days.length} days/mo`}
+          {h.planner_type === "simple" && (
+            frequencyLabel.tooltip ? (
+              <ChipTooltip label="Days" items={frequencyLabel.tooltip}>
+                <span className="hl-habit-chip hl-habit-chip--metric">
+                  {frequencyLabel.suffix}
+                </span>
+              </ChipTooltip>
+            ) : (
+              <span className="hl-habit-chip hl-habit-chip--metric">
+                {frequencyLabel.suffix}
               </span>
-            </ChipTooltip>
+            )
           )}
           {getPreferredTimeLabel(h) && (
             <span className="hl-habit-chip hl-habit-chip--detail">

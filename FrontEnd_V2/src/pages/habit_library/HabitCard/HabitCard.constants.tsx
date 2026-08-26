@@ -57,6 +57,99 @@ export function getPrimaryFrequencyLabel(frequencies: string[]): string {
   return frequencyLabelMap.get(frequencies[0]) ?? frequencies[0];
 }
 
+// ── Metric frequency label ────────────────────────────────────────────────────
+
+const NAMED_DAYS = new Set(["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"]);
+
+const DAY_SHORT: Record<string, string> = {
+  sunday: "Sun", monday: "Mon", tuesday: "Tue", wednesday: "Wed",
+  thursday: "Thu", friday: "Fri", saturday: "Sat",
+};
+
+function joinWithAmpersand(items: string[]): string {
+  if (items.length === 1) return items[0];
+  return `${items.slice(0, -1).join(", ")} & ${items[items.length - 1]}`;
+}
+
+export function getSimpleFrequencyLabel(habit: HabitDataResponse): {
+  suffix: string;
+  tooltip: string[] | null;
+} {
+  const freqs = habit.frequencies;
+
+  if (!freqs.length) return { suffix: "daily", tooltip: null };
+  if (freqs.includes("daily")) return { suffix: "daily", tooltip: null };
+
+  const hasFirst = freqs.includes("first_of_month");
+  const hasEnd   = freqs.includes("end_of_month");
+  if (hasFirst && hasEnd) return { suffix: "first & last of month", tooltip: null };
+  if (hasFirst)           return { suffix: "first of month",        tooltip: null };
+  if (hasEnd)             return { suffix: "end of month",          tooltip: null };
+
+  if (freqs.includes("weekdays")) return { suffix: "on weekdays", tooltip: null };
+  if (freqs.includes("weekends")) return { suffix: "on weekends", tooltip: null };
+  if (freqs.includes("weekly"))   return { suffix: `${habit.weekly_count ?? ""}×/week`,   tooltip: null };
+  if (freqs.includes("monthly"))  return { suffix: `${habit.monthly_count ?? ""}×/month`, tooltip: null };
+
+  if (freqs.includes("specific_day") && habit.specific_days?.length) {
+    const days = [...habit.specific_days].sort((a, b) => a - b);
+    if (days.length <= 3) {
+      return { suffix: `${joinWithAmpersand(days.map(ordinal))} of month`, tooltip: null };
+    }
+    return { suffix: `${days.length} days/month`, tooltip: days.map(ordinal) };
+  }
+
+  const namedDays = freqs.filter((f) => NAMED_DAYS.has(f));
+  if (namedDays.length > 0) {
+    if (namedDays.length <= 3) {
+      return { suffix: `every ${joinWithAmpersand(namedDays.map((d) => DAY_SHORT[d] ?? d))}`, tooltip: null };
+    }
+    return { suffix: `${namedDays.length}×/week`, tooltip: null };
+  }
+
+  return { suffix: "daily", tooltip: null };
+}
+
+export function getMetricFrequencyLabel(habit: HabitDataResponse): {
+  suffix: string;
+  tooltip: string[] | null;
+} {
+  const freqs = habit.frequencies;
+  const fallback = { suffix: "/ day", tooltip: null };
+
+  if (!freqs.length) return fallback;
+  if (freqs.includes("daily")) return { suffix: "/ day", tooltip: null };
+
+  const hasFirst = freqs.includes("first_of_month");
+  const hasEnd   = freqs.includes("end_of_month");
+  if (hasFirst && hasEnd) return { suffix: "first & last of month", tooltip: null };
+  if (hasFirst)           return { suffix: "on month start",        tooltip: null };
+  if (hasEnd)             return { suffix: "on month end",          tooltip: null };
+
+  if (freqs.includes("weekdays")) return { suffix: "on weekdays", tooltip: null };
+  if (freqs.includes("weekends")) return { suffix: "on weekends", tooltip: null };
+  if (freqs.includes("weekly"))   return { suffix: `${habit.weekly_count ?? ""}×/week`,   tooltip: null };
+  if (freqs.includes("monthly"))  return { suffix: `${habit.monthly_count ?? ""}×/month`, tooltip: null };
+
+  if (freqs.includes("specific_day") && habit.specific_days?.length) {
+    const days = [...habit.specific_days].sort((a, b) => a - b);
+    if (days.length < 4) {
+      return { suffix: `${joinWithAmpersand(days.map(ordinal))} of month`, tooltip: null };
+    }
+    return { suffix: `${days.length} days/month`, tooltip: days.map(ordinal) };
+  }
+
+  const namedDays = freqs.filter((f) => NAMED_DAYS.has(f));
+  if (namedDays.length > 0) {
+    if (namedDays.length <= 3) {
+      return { suffix: `every ${joinWithAmpersand(namedDays.map((d) => DAY_SHORT[d] ?? d))}`, tooltip: null };
+    }
+    return { suffix: `${namedDays.length}×/week`, tooltip: null };
+  }
+
+  return fallback;
+}
+
 export function ChipTooltip({
   label,
   items,

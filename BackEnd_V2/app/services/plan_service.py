@@ -294,7 +294,7 @@ def generate_for_habit(
                     "habit_type": habit.habit_type,
                     "target_value": habit.target_value if habit.habit_type == "metric" else None,
                     "target_unit": habit.target_unit,
-                    "time_span": habit.time_span,
+                    # "time_span": habit.time_span,
                 }
             )
         current += timedelta(days=1)

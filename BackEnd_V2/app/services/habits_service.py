@@ -1,17 +1,49 @@
-from datetime import date
-
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import NotFoundError, ValidationError
+from app.models.goal import GoalDBM
 from app.models.habit import HabitDBM
 from app.models.user import UserDBM
 from app.schemas.habits import HabitCreateRequest, HabitDataResponse, HabitUpdateRequest
-from app.services import plan_service
 
 
 def _serialize(habit: HabitDBM) -> HabitDataResponse:
-    return HabitDataResponse.model_validate(habit)
+    is_metric = habit.planner_type == "metric"
+    return HabitDataResponse(
+        id=habit.id,
+        title=habit.title,
+        note=habit.note,
+        planner_type=habit.planner_type,
+        planner_target=habit.planner_target if is_metric else None,
+        value_unit=habit.value_unit if is_metric else None,
+        goal_id=habit.goal_id,
+        frequencies=habit.frequencies,
+        priority=habit.priority,
+        weekly_count=habit.weekly_count,
+        monthly_count=habit.monthly_count,
+        specific_days=habit.specific_days,
+        day_fallback=habit.day_fallback,
+        start_date=habit.start_date,
+        end_date=habit.end_date,
+        preferred_time=habit.preferred_time,
+        specific_time=habit.specific_time or "",
+        duration_minutes=habit.duration_minutes,
+        status=habit.status,
+        created_at=habit.created_at,
+        updated_at=habit.updated_at,
+    )
+
+
+def _resolve_goal(db: Session, current_user: UserDBM, goal_id: int | None) -> int | None:
+    if goal_id is None:
+        return None
+    goal = db.scalar(
+        select(GoalDBM).where(GoalDBM.id == goal_id, GoalDBM.user_id == current_user.id)
+    )
+    if goal is None:
+        raise NotFoundError("Goal not found.")
+    return goal_id
 
 
 def get_list(
@@ -32,17 +64,20 @@ def save_habit(
     current_user: UserDBM,
     data: HabitCreateRequest,
 ) -> HabitDataResponse:
+    goal_id = _resolve_goal(db, current_user, data.goal_id)
+
     specific_days = data.specific_days or None
     day_fallback  = data.day_fallback and bool(specific_days) and any(d >= 29 for d in specific_days)
 
-    is_metric = data.habit_type == "metric"
+    is_metric = data.planner_type == "metric"
     habit = HabitDBM(
         user_id=current_user.id,
-        name=data.name.strip(),
-        motivation=data.motivation.strip() if data.motivation and data.motivation.strip() else None,
+        goal_id=goal_id,
+        title=data.title.strip(),
+        note=data.note.strip() if data.note and data.note.strip() else None,
         frequencies=list(data.frequencies),
         preferred_time=data.preferred_time,
-        specific_time=data.specific_time.strip() if data.preferred_time == "custom" else None,
+        specific_time=data.specific_time.strip() if data.preferred_time == "custom" and data.specific_time else None,
         duration_minutes=data.duration_minutes,
         start_date=data.start_date,
         end_date=data.end_date,
@@ -52,15 +87,12 @@ def save_habit(
         monthly_count=data.monthly_count if "monthly" in data.frequencies else None,
         specific_days=specific_days,
         day_fallback=day_fallback,
-        habit_type=data.habit_type,
-        target_value=data.target_value if is_metric else None,
-        target_unit=data.target_unit.strip() if data.target_unit and data.target_unit.strip() else "count",
-        time_span=data.time_span,
+        planner_type=data.planner_type,
+        planner_target=data.planner_target if is_metric else None,
+        value_unit=data.value_unit.strip() if is_metric and data.value_unit and data.value_unit.strip() else None,
     )
     db.add(habit)
-    db.flush()  # Assigns habit.id within the current transaction (no commit yet)
-    plan_service.generate_for_habit(db, habit, date.today())
-    db.commit()  # Single commit — habit row + plan items together
+    db.commit()
     db.refresh(habit)
     return _serialize(habit)
 
@@ -82,17 +114,15 @@ def update_habit(
 
     fields = data.model_fields_set
 
-    if "name" in fields and data.name is not None:
-        habit.name = data.name.strip()
-    if "motivation" in fields:
-        habit.motivation = (
-            data.motivation.strip()
-            if data.motivation and data.motivation.strip()
-            else None
-        )
+    if "title" in fields and data.title is not None:
+        habit.title = data.title.strip()
+    if "note" in fields:
+        habit.note = data.note.strip() if data.note and data.note.strip() else None
+    if "goal_id" in fields:
+        habit.goal_id = _resolve_goal(db, current_user, data.goal_id)
+
     if "frequencies" in fields and data.frequencies is not None:
         habit.frequencies = list(data.frequencies)
-        # Clear derived fields when their corresponding frequency type is removed.
         if "weekly" not in habit.frequencies:
             habit.weekly_count = None
         if "monthly" not in habit.frequencies:
@@ -100,6 +130,7 @@ def update_habit(
         if "specific_day" not in habit.frequencies:
             habit.specific_days = None
             habit.day_fallback = False
+
     if "preferred_time" in fields and data.preferred_time is not None:
         habit.preferred_time = data.preferred_time
         if data.preferred_time != "custom":
@@ -116,8 +147,8 @@ def update_habit(
         habit.priority = data.priority
     if "status" in fields and data.status is not None:
         habit.status = data.status
-    # Use the post-update frequencies list for all derived nullifications.
-    effective_freqs = habit.frequencies  # already updated above if "frequencies" was in fields
+
+    effective_freqs = habit.frequencies
 
     if "weekly_count" in fields:
         habit.weekly_count = data.weekly_count if "weekly" in effective_freqs else None
@@ -133,24 +164,23 @@ def update_habit(
         if not new_days or not any(d >= 29 for d in new_days):
             habit.day_fallback = False
     if "day_fallback" in fields and data.day_fallback is not None:
-        # Only store True when there are days ≥ 29 to apply it to
         current_days = habit.specific_days or []
         habit.day_fallback = data.day_fallback and any(d >= 29 for d in current_days)
 
-    if "habit_type" in fields and data.habit_type is not None:
-        habit.habit_type = data.habit_type
-        if data.habit_type == "simple":
-            habit.target_value = None
-            habit.time_span = "Day"
-    if "target_value" in fields:
-        habit.target_value = data.target_value if habit.habit_type == "metric" else None
-    if "target_unit" in fields and data.target_unit is not None:
-        habit.target_unit = data.target_unit.strip() or "count"
-    if "time_span" in fields and data.time_span is not None:
-        habit.time_span = data.time_span
+    if "planner_type" in fields and data.planner_type is not None:
+        habit.planner_type = data.planner_type
+        if data.planner_type == "simple":
+            habit.planner_target = None
+            habit.value_unit = None
+    if "planner_target" in fields:
+        habit.planner_target = data.planner_target if habit.planner_type == "metric" else None
+    if "value_unit" in fields:
+        if habit.planner_type == "metric":
+            habit.value_unit = data.value_unit.strip() if data.value_unit and data.value_unit.strip() else None
+        else:
+            habit.value_unit = None
 
-    plan_service.sync_for_habit(db, habit, date.today())
-    db.commit()  # Single commit — habit changes + plan sync together
+    db.commit()
     db.refresh(habit)
     return _serialize(habit)
 
@@ -164,6 +194,5 @@ def delete_habit(db: Session, current_user: UserDBM, habit_id: int) -> None:
     )
     if habit is None:
         raise NotFoundError("Habit not found.")
-    plan_service.delete_future_for_habit(db, habit, date.today())
     db.delete(habit)
     db.commit()

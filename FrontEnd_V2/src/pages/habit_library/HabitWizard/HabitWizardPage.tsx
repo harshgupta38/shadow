@@ -7,6 +7,7 @@ import {
     type GoalDataShortResponse,
     type HabitCreateRequest,
     type HabitDataResponse,
+    type HabitPreferredTime,
 } from "@/api";
 import { ApiError } from "@/api/client";
 import LOADING_IMAGE from "@/assets/loading_default.png";
@@ -31,7 +32,6 @@ import {
     mapApiFieldErrors,
     MINUTES,
     parseOptionalPositiveInt,
-    parseRequiredPositive,
     parseTime,
     PREFERRED_TIME_OPTIONS,
     PRIORITY_OPTIONS,
@@ -227,7 +227,7 @@ export function HabitWizardPage() {
             const payload: HabitCreateRequest = {
                 title: answers.title.trim(),
                 planner_type: answers.plannerType,
-                planner_target: isMetric ? parseRequiredPositive(answers.plannerTarget) : null,
+                planner_target: isMetric ? parseOptionalPositiveInt(answers.plannerTarget) : null,
                 value_unit: isMetric ? (answers.valueUnit.trim() || null) : null,
                 note: answers.note.trim() || null,
                 frequencies: answers.frequencies,
@@ -315,7 +315,7 @@ export function HabitWizardPage() {
                                 onChange={(e) => updateAnswer("plannerTarget", e.target.value)}
                                 placeholder="e.g. 10"
                                 min={1}
-                                step="any"
+                                step={1}
                                 disabled={!isActive || submitting}
                             />
                             {fieldErrors.plannerTarget && (
@@ -743,7 +743,7 @@ export function HabitWizardPage() {
                                                                     className="form-select"
                                                                     value={answers.preferredTime}
                                                                     onChange={(e) => {
-                                                                        updateAnswer("preferredTime", e.target.value);
+                                                                        updateAnswer("preferredTime", e.target.value as HabitPreferredTime);
                                                                         if (e.target.value !== "custom") updateAnswer("specificTime", "");
                                                                     }}
                                                                     disabled={!isActive || submitting}

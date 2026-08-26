@@ -525,7 +525,7 @@ export function HabitLibraryPage() {
                       </span>
                       {h.planner_type === "metric" && h.planner_target != null && (
                         <span className="hl-habit-chip hl-habit-chip--metric">
-                          {h.planner_target}{h.value_unit ? ` ${h.value_unit}` : ""} / {"h.time_span"}
+                          {h.planner_target}{h.value_unit ? ` ${h.value_unit}` : ""} / day
                         </span>
                       )}
                       <span className="hl-habit-chip hl-habit-chip--priority">

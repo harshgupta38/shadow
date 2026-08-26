@@ -414,6 +414,7 @@ export interface RetryFailedMessageRequest {
 export type HabitStatus = "active" | "paused" | "archived";
 export type HabitPriority = "highest" | "high" | "medium" | "low" | "lowest";
 export type HabitType = "simple" | "metric";
+export type HabitPreferredTime = "flexible" | "morning" | "afternoon" | "evening" | "night" | "custom";
 export type FilterState = { status: string[]; priority: string[]; frequency: string[] };
 
 export interface HabitCreateRequest {
@@ -432,7 +433,7 @@ export interface HabitCreateRequest {
   start_date: string | null;
   end_date: string | null;
 
-  preferred_time: string;
+  preferred_time: HabitPreferredTime;
   specific_time: string | null;
   duration_minutes: number | null;
   note: string | null;

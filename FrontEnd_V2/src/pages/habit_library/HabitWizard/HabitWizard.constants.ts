@@ -1,4 +1,4 @@
-import type { HabitCreateRequest, HabitDataResponse, HabitPriority, HabitType } from "@/api";
+import type { HabitCreateRequest, HabitDataResponse, HabitPreferredTime, HabitPriority, HabitType } from "@/api";
 
 export type HabitWizardStepKey = "defineHabit" | "configurePlanning" | "habitTimeline" | "additionalDetails";
 
@@ -24,7 +24,7 @@ export type HabitWizardAnswers = {
     endDate: string; // YYYY-MM-DD
 
     // Step 4: Additional Details
-    preferredTime: string;
+    preferredTime: HabitPreferredTime;
     specificTime: string;
     durationMinutes: string;
     note: string;
@@ -247,7 +247,7 @@ export function getStepValidationErrors(stepKey: HabitWizardStepKey, answers: Ha
     if (stepKey === "configurePlanning") {
         if (answers.frequencies.length === 0) errs.frequencies = "Please select at least one frequency.";
         if (answers.plannerType === "metric") {
-            if (parseRequiredPositive(answers.plannerTarget) === null) errs.plannerTarget = "Target must be greater than 0.";
+            if (parseOptionalPositiveInt(answers.plannerTarget) === null) errs.plannerTarget = "Target must be a whole number greater than 0.";
             if (!answers.valueUnit.trim()) errs.valueUnit = "Value unit is required for metric habits.";
         }
         return errs;

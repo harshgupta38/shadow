@@ -1,6 +1,5 @@
-import { Archive, ArrowCounterclockwise, ArrowRepeat, CaretRightFill, ChevronDown, Grid3x3Gap, List, PauseFill, PencilSquare, PlusLg, Plus, Stars, ThreeDotsVertical, Trash } from "react-bootstrap-icons";
+import { ArrowRepeat, ChevronDown, Grid3x3Gap, List, PlusLg, Stars } from "react-bootstrap-icons";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Dropdown } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
@@ -8,8 +7,9 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { ROUTES } from "@/routes/RoutePaths";
 import { api, ApiError } from "@/api";
 import type { FilterState, HabitCreateRequest, HabitDataResponse } from "@/api";
-import { FREQUENCY_OPTIONS, PREFERRED_TIME_OPTIONS, PRIORITY_OPTIONS } from "@/pages/habit_library/HabitWizard/HabitWizard.constants";
+import { FREQUENCY_OPTIONS, PRIORITY_OPTIONS } from "@/pages/habit_library/HabitWizard/HabitWizard.constants";
 import { DEFAULT_FILTERS, EMPTY_FILTERS, FILTER_STATUS_OPTIONS } from "@/pages/habit_library/HabitLibraryPage.constants";
+import { HabitCard } from "@/pages/habit_library/HabitCard/HabitCard";
 
 import "@/pages/habit_library/HabitLibraryPage.scss";
 
@@ -122,7 +122,6 @@ export function HabitLibraryPage() {
     });
   }, [habits, filters]);
 
-  const frequencyLabelMap = useMemo(() => new Map(FREQUENCY_OPTIONS.map((option) => [option.value, option.label])), []);
   const priorityLabelMap = useMemo(() => new Map(PRIORITY_OPTIONS.map((option) => [option.value, option.label])), []);
 
   function openCreatePanel() {
@@ -203,45 +202,6 @@ export function HabitLibraryPage() {
           "Review my active goals and milestones, then suggest specific habits I should build to make consistent progress toward accomplishing them.",
       },
     });
-  }
-
-  function getPrimaryFrequencyLabel(frequencies: string[]): string {
-    if (frequencies.length === 0) return "Flexible";
-    return frequencyLabelMap.get(frequencies[0]) ?? frequencies[0];
-  }
-
-  function formatStatusLabel(status: HabitDataResponse["status"]): string {
-    return status.charAt(0).toUpperCase() + status.slice(1);
-  }
-
-  function formatHabitDate(value: string): string {
-    const parsed = new Date(`${value}T00:00:00`);
-    if (Number.isNaN(parsed.getTime())) return value;
-    return parsed.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
-  }
-
-  function getHabitDateLabel(habit: HabitDataResponse): string | null {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    if (habit.start_date) {
-      const startDate = new Date(`${habit.start_date}T00:00:00`);
-      if (!Number.isNaN(startDate.getTime()) && startDate >= today) {
-        return `Starts ${formatHabitDate(habit.start_date)}`;
-      }
-    }
-
-    return habit.end_date ? `Ends ${formatHabitDate(habit.end_date)}` : null;
-  }
-
-  function getPreferredTimeLabel(habit: HabitDataResponse): string | null {
-    if (habit.preferred_time === "flexible") return null;
-    if (habit.preferred_time === "custom") {
-      const t = habit.specific_time?.trim();
-      return t ? `${t} hrs` : null;
-    }
-    const option = PREFERRED_TIME_OPTIONS.find((item) => item.value === habit.preferred_time);
-    return option?.label.split(" (")[0] ?? habit.preferred_time;
   }
 
   return (
@@ -444,145 +404,18 @@ export function HabitLibraryPage() {
           ) : (
             <div className={`hl-habit-grid${viewMode === "grid" ? " hl-habit-grid--grid" : ""}`}>
               {filteredHabits.map((h) => (
-                <article key={h.id} className="hl-habit-card">
-                  <div className="hl-habit-card-head">
-                    <div>
-                      <h3 className="hl-habit-name">{h.title}</h3>
-                      {h.note && (<div className="hl-habit-motivation">{h.note}</div>)}
-                    </div>
-                    <Dropdown
-                      show={openHabitMenuId === h.id}
-                      onToggle={(nextShow) => setOpenHabitMenuId(nextShow ? h.id : null)}
-                      align="end"
-                    >
-                      <Dropdown.Toggle
-                        as="button"
-                        type="button"
-                        className="btn btn-ghost btn-sm hl-habit-edit-btn"
-                        id={`habit-menu-${h.id}`}
-                        aria-label={`Open menu for ${h.title}`}
-                      >
-                        <ThreeDotsVertical size={14} />
-                      </Dropdown.Toggle>
-
-                      <Dropdown.Menu className="hl-habit-menu-popover" aria-label={`Actions for ${h.title}`}>
-                        <Dropdown.Item
-                          className="hl-habit-menu-item"
-                          onClick={() => openEditPanel(h)}
-                          disabled={menuActionHabitId === h.id}
-                        >
-                          <PencilSquare size={14} />
-                          Edit
-                        </Dropdown.Item>
-                        {/* <Dropdown.Item className="hl-habit-menu-item" onClick={() => setOpenHabitMenuId(null)}>
-                          <Stars size={14} />
-                          Create metric
-                        </Dropdown.Item> */}
-                        <Dropdown.Item
-                          className="hl-habit-menu-item"
-                          onClick={() => void handleDuplicateHabit(h)}
-                          disabled={menuActionHabitId === h.id}
-                        >
-                          <Plus size={14} />
-                          Duplicate
-                        </Dropdown.Item>
-                        <Dropdown.Item
-                          className="hl-habit-menu-item"
-                          onClick={() => void handleSetHabitStatus(h, h.status === "paused" ? "active" : "paused")}
-                          disabled={menuActionHabitId === h.id}
-                        >
-                          {h.status === "paused" ? <CaretRightFill size={14} /> : <PauseFill size={14} />}
-                          {h.status === "paused" ? "Resume" : "Pause"}
-                        </Dropdown.Item>
-                        <Dropdown.Item
-                          className="hl-habit-menu-item"
-                          onClick={() => void handleSetHabitStatus(h, h.status === "archived" ? "active" : "archived")}
-                          disabled={menuActionHabitId === h.id}
-                        >
-                          {h.status === "archived" ? <ArrowCounterclockwise size={14} /> : <Archive size={14} />}
-                          {h.status === "archived" ? "Restore" : "Archive"}
-                        </Dropdown.Item>
-                        <Dropdown.Item
-                          className="hl-habit-menu-item hl-habit-menu-item--danger"
-                          onClick={() => {
-                            setOpenHabitMenuId(null);
-                            setDeleteTargetHabit(h);
-                          }}
-                          disabled={menuActionHabitId === h.id}
-                        >
-                          <Trash size={14} />
-                          Delete
-                        </Dropdown.Item>
-                      </Dropdown.Menu>
-                    </Dropdown>
-                  </div>
-
-                  <div className="hl-habit-card-foot">
-                    <div className="hl-habit-tags">
-                      <span className={`hl-habit-chip hl-habit-chip--status-${h.status}`}>
-                        <span className="hl-habit-chip-dot" aria-hidden="true" />
-                        {formatStatusLabel(h.status)}
-                      </span>
-                      {h.planner_type === "metric" && h.planner_target != null && (
-                        <span className="hl-habit-chip hl-habit-chip--metric">
-                          {h.planner_target}{h.value_unit ? ` ${h.value_unit}` : ""} / day
-                        </span>
-                      )}
-                      <span className="hl-habit-chip hl-habit-chip--priority">
-                        {(priorityLabelMap.get(h.priority) ?? h.priority).split(":")[0]}
-                      </span>
-                      {h.frequencies.length > 1 ? (
-                        <ChipTooltip
-                          label="Frequency"
-                          items={h.frequencies.map((f) => frequencyLabelMap.get(f) ?? f)}
-                        >
-                          <span className="hl-habit-chip hl-habit-chip--detail">
-                            +{h.frequencies.length}
-                          </span>
-                        </ChipTooltip>
-                      ) : h.weekly_count != null && h.frequencies.includes("weekly") ? (
-                        <span className="hl-habit-chip hl-habit-chip--detail">
-                          {h.weekly_count}×/week
-                        </span>
-                      ) : h.monthly_count != null && h.frequencies.includes("monthly") ? (
-                        <span className="hl-habit-chip hl-habit-chip--detail">
-                          {h.monthly_count}×/month
-                        </span>
-                      ) : h.frequencies.length > 0 && h.frequencies[0] !== "specific_day" && (
-                        <span className="hl-habit-chip hl-habit-chip--frequency">
-                          {getPrimaryFrequencyLabel(h.frequencies)}
-                        </span>
-                      )}
-                      {h.specific_days != null && h.specific_days.length > 0 && h.frequencies.includes("specific_day") && (
-                        <ChipTooltip
-                          label="Days"
-                          items={h.specific_days.map((d) => ordinal(d))}
-                        >
-                          <span className="hl-habit-chip hl-habit-chip--detail">
-                            {h.specific_days.length <= 3
-                              ? `Day${h.specific_days.length > 1 ? "s" : ""} ${h.specific_days.join(", ")}`
-                              : `${h.specific_days.length} days/mo`}
-                          </span>
-                        </ChipTooltip>
-                      )}
-                      {getPreferredTimeLabel(h) && (
-                        <span className="hl-habit-chip hl-habit-chip--detail">
-                          {getPreferredTimeLabel(h)}
-                        </span>
-                      )}
-                      {h.duration_minutes != null && h.duration_minutes > 0 && (
-                        <span className="hl-habit-chip hl-habit-chip--detail">
-                          {h.duration_minutes} min
-                        </span>
-                      )}
-                      {getHabitDateLabel(h) && (
-                        <span className="hl-habit-chip hl-habit-chip--detail">
-                          {getHabitDateLabel(h)}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </article>
+                <HabitCard
+                  key={h.id}
+                  habit={h}
+                  isMenuOpen={openHabitMenuId === h.id}
+                  isBusy={menuActionHabitId === h.id}
+                  onMenuToggle={(nextShow) => setOpenHabitMenuId(nextShow ? h.id : null)}
+                  onEdit={() => openEditPanel(h)}
+                  onDuplicate={() => handleDuplicateHabit(h)}
+                  onTogglePause={() => void handleSetHabitStatus(h, h.status === "paused" ? "active" : "paused")}
+                  onToggleArchive={() => void handleSetHabitStatus(h, h.status === "archived" ? "active" : "archived")}
+                  onDeleteRequest={() => { setOpenHabitMenuId(null); setDeleteTargetHabit(h); }}
+                />
               ))}
             </div>
           )}
@@ -660,35 +493,3 @@ function FilterSection({
   );
 }
 
-function ordinal(n: number): string {
-  const v = n % 100;
-  if (v >= 11 && v <= 13) return `${n}th`;
-  switch (n % 10) {
-    case 1: return `${n}st`;
-    case 2: return `${n}nd`;
-    case 3: return `${n}rd`;
-    default: return `${n}th`;
-  }
-}
-
-function ChipTooltip({
-  label,
-  items,
-  children,
-}: {
-  label: string;
-  items: string[];
-  children: React.ReactNode;
-}) {
-  return (
-    <span className="hl-chip-tooltip-host">
-      {children}
-      <span className="hl-chip-tooltip" role="tooltip">
-        <span className="hl-chip-tooltip-label">{label}</span>
-        {items.map((item) => (
-          <span key={item} className="hl-chip-tooltip-item">{item}</span>
-        ))}
-      </span>
-    </span>
-  );
-}

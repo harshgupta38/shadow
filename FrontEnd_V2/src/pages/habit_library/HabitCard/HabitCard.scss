@@ -1,0 +1,266 @@
+.hl-habit-card {
+  position: relative;
+  border: 1px solid color-mix(in srgb, var(--jv-border) 88%, var(--jv-brand-1) 12%);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--jv-surface-2) 90%, var(--jv-surface) 10%);
+  padding: 0.86rem 0.9rem 0.74rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  transition: border-color var(--jv-transition), box-shadow var(--jv-transition);
+
+  &:hover {
+    border-color: color-mix(in srgb, var(--jv-brand-1) 28%, var(--jv-border) 72%);
+    box-shadow: 0 6px 16px color-mix(in srgb, var(--jv-brand-1) 12%, transparent);
+  }
+}
+
+.hl-habit-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.hl-habit-name {
+  margin: 0;
+  font-size: 1.02rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--jv-text);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hl-habit-motivation {
+  margin-top: 0.25rem;
+  font-size: 13px;
+  color: var(--jv-muted);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hl-habit-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.hl-habit-tags {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.hl-habit-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1;
+  padding: 0.3rem 0.68rem;
+  border-radius: var(--jv-radius-pill);
+  border: 1px solid transparent;
+  background: var(--jv-surface);
+  color: var(--jv-muted);
+}
+
+.hl-habit-chip-dot {
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.9;
+}
+
+.hl-habit-chip--status-active {
+  color: var(--jv-success);
+  background: color-mix(in srgb, var(--jv-success) 14%, var(--jv-surface) 86%);
+}
+
+.hl-habit-chip--status-paused {
+  color: var(--jv-warn);
+  background: color-mix(in srgb, var(--jv-warn) 14%, var(--jv-surface) 86%);
+}
+
+.hl-habit-chip--status-archived {
+  color: var(--jv-muted);
+  background: color-mix(in srgb, var(--jv-muted) 14%, var(--jv-surface) 86%);
+}
+
+.hl-habit-chip--priority {
+  color: var(--jv-info);
+  background: color-mix(in srgb, var(--jv-info) 14%, var(--jv-surface) 86%);
+}
+
+.hl-habit-chip--frequency {
+  border-color: color-mix(in srgb, var(--jv-border) 82%, transparent);
+  color: var(--jv-muted);
+}
+
+.hl-habit-chip--metric {
+  background: color-mix(in srgb, var(--jv-violet) 12%, var(--jv-surface) 88%);
+  border-color: color-mix(in srgb, var(--jv-violet) 30%, transparent);
+  color: var(--jv-violet);
+}
+
+.hl-habit-chip--detail {
+  border-color: color-mix(in srgb, var(--jv-border) 82%, transparent);
+  color: var(--jv-muted);
+}
+
+.hl-chip-tooltip-host {
+  position: relative;
+  display: inline-flex;
+
+  .hl-chip-tooltip {
+    position: absolute;
+    bottom: calc(100% + 10px);
+    left: 50%;
+    transform: translateX(-50%) translateY(5px);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 100;
+
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.3rem;
+    white-space: nowrap;
+    padding: 0.42rem 0.65rem;
+    background: var(--jv-surface);
+    border: 1px solid var(--jv-border);
+    border-radius: 10px;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.1);
+    transition: opacity 0.14s ease, transform 0.14s ease;
+
+    // border arrow
+    &::before {
+      content: "";
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 6px solid transparent;
+      border-top-color: var(--jv-border);
+    }
+
+    // fill arrow (covers border)
+    &::after {
+      content: "";
+      position: absolute;
+      top: calc(100% - 1px);
+      left: 50%;
+      transform: translateX(-50%);
+      border: 5px solid transparent;
+      border-top-color: var(--jv-surface);
+      z-index: 1;
+    }
+  }
+
+  .hl-chip-tooltip-label {
+    font-size: 0.71rem;
+    font-weight: 600;
+    color: var(--jv-muted);
+    padding-right: 0.2rem;
+  }
+
+  .hl-chip-tooltip-item {
+    font-size: 0.71rem;
+    font-weight: 600;
+    line-height: 1;
+    padding: 0.22rem 0.52rem;
+    border-radius: 2rem;
+    color: var(--jv-text);
+    background: color-mix(in srgb, var(--jv-border) 55%, var(--jv-surface) 45%);
+  }
+
+  &:hover .hl-chip-tooltip {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+    pointer-events: auto;
+  }
+}
+
+.hl-habit-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  flex-shrink: 0;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 8px;
+  padding: 0;
+  color: var(--jv-text);
+
+  &::after {
+    display: none;
+  }
+}
+
+.hl-habit-menu-popover {
+  width: 10.25rem;
+  z-index: 120;
+  background: var(--jv-surface);
+  border: 1px solid color-mix(in srgb, var(--jv-border) 86%, transparent);
+  border-radius: 10px;
+  box-shadow: var(--jv-shadow-lg);
+  padding: 0.32rem;
+  max-height: min(240px, calc(100vh - 1rem));
+  overflow-y: auto;
+}
+
+.hl-habit-menu-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--jv-text);
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-align: left;
+  padding: 0.25rem 0 0.25rem 0.5rem;
+  transition: background var(--jv-transition), color var(--jv-transition);
+
+  &:hover,
+  &:focus-visible {
+    background: var(--jv-surface-2);
+    color: var(--jv-text);
+  }
+
+  svg {
+    flex-shrink: 0;
+    opacity: 0.9;
+  }
+}
+
+.hl-habit-menu-item--danger {
+  color: var(--jv-danger);
+
+  &:hover,
+  &:focus-visible {
+    color: var(--jv-danger);
+    background: color-mix(in srgb, var(--jv-danger) 9%, var(--jv-surface) 91%);
+  }
+}
+
+@media (max-width: 767.98px) {
+  .hl-habit-card-foot {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.55rem;
+  }
+}

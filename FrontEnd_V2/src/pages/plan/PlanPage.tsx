@@ -11,50 +11,20 @@ import {
 } from "react-bootstrap-icons";
 
 import { api, ApiError } from "@/api";
-import type { PlanResponse, PlanItemPriority } from "@/api";
+import type { PlanResponse } from "@/api";
 import { ROUTES } from "@/routes/RoutePaths";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { ProgressRing } from "@/components/ui/ProgressRing/ProgressRing";
+import {
+  toDateInputValue,
+  formatDisplayDate,
+  shiftDate,
+  formatDuration,
+} from "@/pages/plan/PlanPage.constants";
+import { PlanCard } from "@/pages/plan/PlanCard/PlanCard";
 import "@/pages/plan/PlanPage.scss";
 
 const TODAY = new Date();
-
-const PRIORITY_LABEL: Record<PlanItemPriority, string> = {
-  highest: "Highest",
-  high: "High",
-  medium: "Medium",
-  low: "Low",
-  lowest: "Lowest",
-};
-
-function toDateInputValue(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-function formatDisplayDate(date: Date): string {
-  return date.toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  });
-}
-
-function shiftDate(date: Date, days: number): Date {
-  const shifted = new Date(date);
-  shifted.setDate(shifted.getDate() + days);
-  return shifted;
-}
-
-function formatDuration(minutes: number): string {
-  if (minutes === 0) return "0m";
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  if (h === 0) return `${m}m`;
-  return m > 0 ? `${h}h ${m}m` : `${h}h`;
-}
 
 export function PlanPage() {
   const navigate = useNavigate();
@@ -70,7 +40,7 @@ export function PlanPage() {
     setLoadingPlan(true);
     setPlanError(null);
     try {
-      const response = await api.planItems.getToday(toDateInputValue(selectedDate));
+      const response = await api.planItems.getForDate(toDateInputValue(selectedDate));
       setPlanData(response);
     } catch (err) {
       setPlanError(err instanceof ApiError ? err.message : "Couldn't load the plan.");
@@ -209,21 +179,13 @@ export function PlanPage() {
             ) : (
               <div className="plan-task-list">
                 {activeItems.map((item) => (
-                  <div key={item.id} className="plan-task-item">
-                    <span className="plan-task-title">{item.title}</span>
-                    <span className={`plan-task-priority plan-task-priority--${item.priority}`}>
-                      {PRIORITY_LABEL[item.priority]}
-                    </span>
-                  </div>
+                  <PlanCard key={item.plan_id} item={item} />
                 ))}
                 {doneItems.length > 0 && (
                   <>
                     <div className="plan-task-section-label">Completed</div>
                     {doneItems.map((item) => (
-                      <div key={item.id} className="plan-task-item plan-task-item--done">
-                        <span className="plan-task-title">{item.title}</span>
-                        <span className="plan-task-badge plan-task-badge--done">Done</span>
-                      </div>
+                      <PlanCard key={item.plan_id} item={item} done />
                     ))}
                   </>
                 )}

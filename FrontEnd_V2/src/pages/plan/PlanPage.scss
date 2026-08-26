@@ -270,31 +270,6 @@
     gap: 0.45rem;
   }
 
-  .plan-task-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-    padding: 0.65rem 0.85rem;
-    border: 1px solid var(--jv-border);
-    border-radius: 10px;
-    background: var(--jv-surface-2);
-  }
-
-  .plan-task-item--done .plan-task-title {
-    opacity: 0.45;
-    text-decoration: line-through;
-  }
-
-  .plan-task-title {
-    min-width: 0;
-    overflow: hidden;
-    font-size: 0.875rem;
-    font-weight: 600;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
   .plan-task-section-label {
     margin: 0.35rem 0 0.1rem;
     color: var(--jv-faint);
@@ -302,49 +277,6 @@
     font-weight: 700;
     letter-spacing: 0.05em;
     text-transform: uppercase;
-  }
-
-  .plan-task-priority {
-    flex: 0 0 auto;
-    padding: 0.15rem 0.5rem;
-    border-radius: 6px;
-    font-size: 0.72rem;
-    font-weight: 600;
-  }
-
-  .plan-task-priority--highest {
-    background: var(--jv-danger-soft);
-    color: var(--jv-danger);
-  }
-
-  .plan-task-priority--high {
-    background: var(--jv-warn-soft);
-    color: var(--jv-warn);
-  }
-
-  .plan-task-priority--medium {
-    background: var(--jv-info-soft);
-    color: var(--jv-info);
-  }
-
-  .plan-task-priority--low {
-    background: color-mix(in srgb, var(--jv-muted) 12%, transparent);
-    color: var(--jv-muted);
-  }
-
-  .plan-task-priority--lowest {
-    background: color-mix(in srgb, var(--jv-faint) 12%, transparent);
-    color: var(--jv-faint);
-  }
-
-  .plan-task-badge--done {
-    flex: 0 0 auto;
-    padding: 0.15rem 0.5rem;
-    border-radius: 6px;
-    background: var(--jv-success-soft);
-    color: var(--jv-success);
-    font-size: 0.72rem;
-    font-weight: 600;
   }
 
   @media (max-width: 800px) {

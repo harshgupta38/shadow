@@ -20,7 +20,7 @@ from app.models.habit import HabitDBM
 from app.models.plan import PlanDBM
 from app.models.task import TaskDBM
 from app.models.user import UserDBM
-from app.schemas.planner import DailyPlanItemResponse
+from app.schemas.planner import DailyPlanItemResponse, DailyPlanResponse
 
 
 # Ordered Monday=0 … Sunday=6, matching date.weekday().
@@ -260,7 +260,7 @@ def get_plans_for_date(
     db: Session,
     current_user: UserDBM,
     target_date: date,
-) -> list[DailyPlanItemResponse]:
+) -> DailyPlanResponse:
     """Return all recurring plans that apply to target_date for current_user.
 
     Does NOT create any new database rows — purely a read + filter operation.
@@ -278,19 +278,25 @@ def get_plans_for_date(
         key=_sort_key,
     )
 
-    return [
-        DailyPlanItemResponse(
-            plan_id=p.id,
-            source_type=p.source_type,
-            source_id=p.source_id,
-            title=p.title,
-            planner_type=p.planner_type,
-            planner_target=p.planner_target,
-            value_unit=p.value_unit,
-            priority=p.priority,
-            preferred_time=p.preferred_time,
-            specific_time=p.specific_time,
-            duration_minutes=p.duration_minutes,
-        )
-        for p in matched
-    ]
+    return DailyPlanResponse(
+        items=[
+            DailyPlanItemResponse(
+                plan_id=p.id,
+                source_type=p.source_type,
+                source_id=p.source_id,
+                title=p.title,
+                planner_type=p.planner_type,
+                planner_target=p.planner_target,
+                value_unit=p.value_unit,
+                priority=p.priority,
+                preferred_time=p.preferred_time,
+                specific_time=p.specific_time,
+                duration_minutes=p.duration_minutes,
+                status="due",
+            )
+            for p in matched
+        ],
+        missed_yesterday_count=0,
+        carry_forward_count=0,
+        workload_label="", # TODO
+    )

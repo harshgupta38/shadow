@@ -452,36 +452,30 @@ export interface HabitUpdateRequest extends Partial<HabitCreateRequest> {
   status?: HabitStatus;
 }
 
-// ── Plan Items ─────────────────────────────────────────────────────────────
-export type PlanItemStatus = "planned" | "done" | "missed";
-export type PlanItemPriority = "highest" | "high" | "medium" | "low" | "lowest";
-export type HabitTimeSpan = "Day" | "Week" | "Month" | "Year";
+// ── Planner ─────────────────────────────────────────────────────────────────
+export type PlanPriority = "highest" | "high" | "medium" | "low" | "lowest";
+export type PlanSourceType = "habit" | "task";
+export type PlannerType = "simple" | "metric";
+export type PlanPreferredTime = "flexible" | "morning" | "afternoon" | "evening" | "night" | "custom";
+export type PlanStatus = "due" | "done" | "missed";
 
 export interface PlanDataResponse {
-  id: number;
-  source_type: string | null;
-  source_id: number | null;
-
+  plan_id: number;
+  source_type: PlanSourceType;
+  source_id: number;
   title: string;
-  description: string | null;
-
-  scheduled_date: string;
-  scheduled_time: string | null;
+  planner_type: PlannerType;
+  planner_target: number | null;
+  value_unit: string | null;
+  priority: PlanPriority;
+  preferred_time: PlanPreferredTime;
+  specific_time: string | null;
   duration_minutes: number | null;
-
-  priority: PlanItemPriority;
-  status: PlanItemStatus;
-
-  habit_type: HabitType | null;
-  target_value: number | null;
-  target_unit: string | null;
-  time_span: HabitTimeSpan | null;
-
-  linked_items: Record<string, unknown>; // For storing related items in JSON format
+  
+  status: PlanStatus;
 }
 
 export interface PlanResponse {
-  date: string;
   items: PlanDataResponse[];
   missed_yesterday_count: number; // items that user missed to do yesterday
   carry_forward_count: number; // items that user missed, which is carried forward, these are scheduled items, not part of hbaits

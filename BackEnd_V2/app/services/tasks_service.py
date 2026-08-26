@@ -1,4 +1,4 @@
-from datetime import UTC, date, datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
@@ -11,7 +11,6 @@ from app.models.task import TaskDBM
 from app.models.task_proposal import TaskProposalDBM
 from app.models.user import UserDBM
 from app.schemas.tasks import TaskCreateRequest, TaskDataResponse, TaskUpdateRequest, SaveTaskFromProposalRequest
-from app.services import plan_service
 
 
 def _serialize_task(task: TaskDBM) -> TaskDataResponse:
@@ -118,9 +117,6 @@ def save_task_from_proposal(db: Session, current_user: UserDBM, data: SaveTaskFr
     db.add(task)
     db.flush()
 
-    if task.planning_enabled:
-        plan_service.generate_for_task(db, task, date.today())
-
     result = db.execute(
         update(TaskProposalDBM)
         .where(
@@ -182,9 +178,6 @@ def save_task(db: Session, current_user: UserDBM, data: TaskCreateRequest) -> Ta
 
     db.add(task)
     db.flush()
-
-    if task.planning_enabled:
-        plan_service.generate_for_task(db, task, date.today())
 
     milestone.total_tasks = (milestone.total_tasks or 0) + 1
 
@@ -249,8 +242,6 @@ def update_task(
     if task is None:
         raise NotFoundError("Task not found. Please check and try again.")
 
-    planning_changed = False
-
     # ── Task-type conversion ──────────────────────────────────────────────────
     if data.task_type is not None and data.task_type != task.task_type:
         if data.task_type == "Binary":
@@ -284,7 +275,6 @@ def update_task(
             task.target_value = incoming_target
             task.value_unit = incoming_unit
         task.task_type = data.task_type
-        planning_changed = True
 
     # ── Status validation (uses effective task_type after conversion) ─────────
     effective_type = task.task_type
@@ -309,9 +299,6 @@ def update_task(
             task.completed_at = now
         elif data.status == "Cancelled":
             task.cancelled_at = now
-        # Terminal status: clear future plan items.
-        if data.status in ("Completed", "Cancelled") and task.planning_enabled:
-            planning_changed = True
 
     if data.current_value is not None:
         task.current_value = data.current_value
@@ -345,20 +332,14 @@ def update_task(
                         "Please correct the highlighted fields.",
                         errors={"planner_target": "planner_target is required when enabling planning for Numeric metric tasks."},
                     )
-        if task.planning_enabled != data.planning_enabled:
-            planning_changed = True
         task.planning_enabled = data.planning_enabled
 
     if data.planner_type is not None:
-        if data.planner_type != task.planner_type:
-            planning_changed = True
         if data.planner_type == "simple":
             task.planner_target = None
         task.planner_type = data.planner_type
 
     if "planner_target" in data.model_fields_set:
-        if task.planner_target != data.planner_target:
-            planning_changed = True
         task.planner_target = data.planner_target
 
     for field in (
@@ -367,15 +348,10 @@ def update_task(
         "weekly_count", "monthly_count", "specific_days", "day_fallback",
     ):
         if field in data.model_fields_set:
-            new_val = getattr(data, field)
-            if getattr(task, field) != new_val:
-                planning_changed = True
-            setattr(task, field, new_val)
+            setattr(task, field, getattr(data, field))
 
     # Clear specific_time when preferred_time is changed away from "custom".
     if "preferred_time" in data.model_fields_set and data.preferred_time != "custom":
-        if task.specific_time is not None:
-            planning_changed = True
         task.specific_time = None
 
     if "note" in data.model_fields_set:
@@ -387,9 +363,6 @@ def update_task(
 
     if data.position is not None:
         task.position = data.position
-
-    if planning_changed:
-        plan_service.sync_for_task(db, task, date.today())
 
     db.commit()
     db.refresh(task)
@@ -409,9 +382,6 @@ def delete_task(db: Session, current_user: UserDBM, task_id: int) -> None:
         raise NotFoundError("Task not found. Please check and try again.")
 
     milestone = db.scalar(select(MilestoneDBM).where(MilestoneDBM.id == task.milestone_id))
-
-    if task.planning_enabled:
-        plan_service.delete_future_for_task(db, task, date.today())
 
     db.delete(task)
 

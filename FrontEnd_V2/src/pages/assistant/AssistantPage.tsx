@@ -987,6 +987,7 @@ export function AssistantPage() {
       {reviewingTaskProposal && (
         <TaskProposalReviewPanel
           proposal={reviewingTaskProposal}
+          conversationId={activeConversation?.id}
           onClose={() => setReviewingTaskProposal(null)}
           onSaved={(task) => {
             const proposalId = reviewingTaskProposal.proposal_id;

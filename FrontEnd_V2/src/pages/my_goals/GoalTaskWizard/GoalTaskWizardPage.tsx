@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, Check2Circle, X } from "react-bootstrap-icons";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 import { api, type GoalDataResponse, type MilestoneDataResponse, type TaskDataResponse, type TaskPlannerType, type TaskType, type TaskPreferredTime } from "@/api";
 import { ApiError } from "@/api/client";
@@ -211,19 +211,33 @@ function getStepValidationErrors(stepKey: TaskWizardStepKey, answers: TaskWizard
 export function GoalTaskWizardPage() {
 	const { goalId, milestoneId, taskId } = useParams();
 	const navigate = useNavigate();
+	const location = useLocation();
 	const toast = useToast();
+
 
 	const isEditMode = Boolean(taskId);
 	const numericTaskId = Number(taskId);
 	const numericGoalId = Number(goalId);
 	const numericMilestoneId = Number(milestoneId);
 
+	const _navState = location.state as { proposalId?: string; returnConversationId?: number } | null;
+	const proposalId = _navState?.proposalId ?? null;
+	const returnConversationId = _navState?.returnConversationId ?? null;
+
 	const [goal, setGoal] = useState<GoalDataResponse | null>(null);
 	const [milestone, setMilestone] = useState<MilestoneDataResponse | null>(null);
 	const [loadingContext, setLoadingContext] = useState(true);
 	const [loaderIndex, setLoaderIndex] = useState(0);
-	const [currentStepIndex, setCurrentStepIndex] = useState(0);
-	const [answers, setAnswers] = useState<TaskWizardAnswers>(EMPTY_ANSWERS);
+	const [currentStepIndex, setCurrentStepIndex] = useState(() => {
+		const s = location.state as { initialStepKey?: TaskWizardStepKey } | null;
+		if (!s?.initialStepKey) return 0;
+		const idx = STEPS.findIndex((step) => step.key === s.initialStepKey);
+		return idx >= 0 ? idx : 0;
+	});
+	const [answers, setAnswers] = useState<TaskWizardAnswers>(() => {
+		const s = location.state as { draft?: Partial<TaskWizardAnswers> } | null;
+		return s?.draft ? { ...EMPTY_ANSWERS, ...s.draft } : EMPTY_ANSWERS;
+	});
 	const [fieldErrors, setFieldErrors] = useState<TaskFieldErrors>({});
 	const [error, setError] = useState<string | null>(null);
 	const [submitting, setSubmitting] = useState(false);
@@ -450,7 +464,7 @@ export function GoalTaskWizardPage() {
 				});
 				toast.success("Task updated successfully.");
 			} else {
-				await api.tasks.save({
+				const taskPayload = {
 					goal_id: numericGoalId,
 					milestone_id: numericMilestoneId,
 					title: answers.title.trim(),
@@ -463,11 +477,21 @@ export function GoalTaskWizardPage() {
 					assistant_context: null,
 					note: trimOrNull(answers.note),
 					...schedulingPayload,
-				});
+				};
+
+				if (proposalId !== null) {
+					await api.tasks.saveFromProposal({ proposal_id: proposalId, task: taskPayload });
+				} else {
+					await api.tasks.save(taskPayload);
+				}
 				toast.success("Task created successfully.");
 			}
 
-			navigate(ROUTES.MY_GOAL_DETAIL.replace(":goalId", String(numericGoalId)));
+			if (returnConversationId !== null) {
+				navigate(ROUTES.ASSISTANT, { state: { conversationId: returnConversationId } });
+			} else {
+				navigate(ROUTES.MY_GOAL_DETAIL.replace(":goalId", String(numericGoalId)));
+			}
 		} catch (submitError) {
 			if (submitError instanceof ApiError) {
 				const mapped = mapTaskFieldErrors(submitError.fieldErrors ?? {});

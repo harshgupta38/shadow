@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronRight } from "react-bootstrap-icons";
+import { useNavigate } from "react-router-dom";
 
 import { api } from "@/api";
 import { ApiError } from "@/api/client";
@@ -9,21 +10,12 @@ import type {
     TaskProposal,
     TaskType,
 } from "@/api/types";
+import { ROUTES } from "@/routes/RoutePaths";
 import { resizeTextareaToMaxLines } from "@/services/textarea-resize.service";
 
 import "@/pages/my_goals/GoalCreationWizard/GoalCreationWizard.scss";
 import "@/pages/my_goals/GoalMilestoneWizard/GoalMilestoneWizardPage.scss";
 import "@/pages/assistant/RefinedGoalReviewPanel/RefinedGoalReviewPanel.scss";
-
-type PlanMethod = "Daily" | "Weekly" | "Monthly";
-const PLANNING_METHODS: PlanMethod[] = ["Daily", "Weekly", "Monthly"];
-
-function methodToFrequencies(method: PlanMethod): Pick<TaskCreateRequest, "frequencies" | "weekly_count" | "monthly_count"> {
-    if (method === "Daily")   return { frequencies: ["daily"],   weekly_count: null, monthly_count: null };
-    if (method === "Weekly")  return { frequencies: ["weekly"],  weekly_count: 1,    monthly_count: null };
-    if (method === "Monthly") return { frequencies: ["monthly"], weekly_count: null, monthly_count: 1    };
-    return { frequencies: ["daily"], weekly_count: null, monthly_count: null };
-}
 
 function parsePositiveNumber(value: string): number | null {
     const parsed = Number(value);
@@ -31,7 +23,7 @@ function parsePositiveNumber(value: string): number | null {
     return parsed;
 }
 
-type TaskFieldKey = "title" | "target_value" | "value_unit" | "planner_target";
+type TaskFieldKey = "title" | "target_value" | "value_unit";
 type TaskFieldErrors = Partial<Record<TaskFieldKey, string>>;
 
 function validate(
@@ -39,8 +31,6 @@ function validate(
     taskType: TaskType,
     targetValue: string,
     valueUnit: string,
-    planningEnabled: boolean,
-    plannerTarget: string,
 ): TaskFieldErrors {
     const errors: TaskFieldErrors = {};
 
@@ -55,9 +45,6 @@ function validate(
         if (!valueUnit.trim()) {
             errors.value_unit = "Unit is required for numeric tasks (e.g. pages, hours).";
         }
-        if (planningEnabled && parsePositiveNumber(plannerTarget) === null) {
-            errors.planner_target = "Planner target must be greater than 0.";
-        }
     }
 
     return errors;
@@ -68,19 +55,21 @@ function mapServerFieldErrors(fieldErrors: Partial<Record<string, string>>): Tas
     if (fieldErrors.title) mapped.title = fieldErrors.title;
     if (fieldErrors.target_value) mapped.target_value = fieldErrors.target_value;
     if (fieldErrors.value_unit) mapped.value_unit = fieldErrors.value_unit;
-    if (fieldErrors.planner_target) mapped.planner_target = fieldErrors.planner_target;
     return mapped;
 }
 
 interface TaskProposalReviewPanelProps {
     proposal: TaskProposal;
+    conversationId?: number;
     onClose: () => void;
     onSaved?: (task: TaskDataResponse) => void | Promise<void>;
 }
 
 const SLIDE_OUT_DURATION_MS = 220;
 
-export function TaskProposalReviewPanel({ proposal, onClose, onSaved }: TaskProposalReviewPanelProps) {
+export function TaskProposalReviewPanel({ proposal, conversationId, onClose, onSaved }: TaskProposalReviewPanelProps) {
+    const navigate = useNavigate();
+
     const [title, setTitle] = useState(proposal.task.title);
     const [taskType, setTaskType] = useState<TaskType>(proposal.task.task_type);
     const [targetValue, setTargetValue] = useState(
@@ -88,10 +77,6 @@ export function TaskProposalReviewPanel({ proposal, onClose, onSaved }: TaskProp
     );
     const [valueUnit, setValueUnit] = useState(proposal.task.value_unit ?? "");
     const [note, setNote] = useState(proposal.task.note ?? "");
-
-    const [planningEnabled, setPlanningEnabled] = useState(false);
-    const [planningMethod, setPlanningMethod] = useState<PlanMethod>("Daily");
-    const [plannerTarget, setPlannerTarget] = useState("");
 
     const noteRef = useRef<HTMLTextAreaElement>(null);
 
@@ -129,23 +114,11 @@ export function TaskProposalReviewPanel({ proposal, onClose, onSaved }: TaskProp
         setGeneralError(null);
     }
 
-    function resetPlanning() {
-        setPlanningEnabled(false);
-        setPlanningMethod("Daily");
-        setPlannerTarget("");
-        setFieldErrors(prev => {
-            const next = { ...prev };
-            delete next.planner_target;
-            return next;
-        });
-    }
-
     function handleTaskTypeChange(newType: TaskType) {
         setTaskType(newType);
         if (newType === "Binary") {
             setTargetValue("");
             setValueUnit("");
-            resetPlanning();
             setFieldErrors(prev => {
                 const next = { ...prev };
                 delete next.target_value;
@@ -156,19 +129,45 @@ export function TaskProposalReviewPanel({ proposal, onClose, onSaved }: TaskProp
         setGeneralError(null);
     }
 
+    function handleAddToPlan() {
+        const trimmedTitle = title.trim();
+        const trimmedUnit = valueUnit.trim();
+        const isNumeric = taskType === "Numeric";
+
+        const url = ROUTES.MY_GOAL_MILESTONE_TASK_CREATE
+            .replace(":goalId", String(proposal.goal_id))
+            .replace(":milestoneId", String(proposal.milestone_id));
+
+        navigate(url, {
+            state: {
+                draft: {
+                    title: trimmedTitle,
+                    taskType,
+                    targetValue: isNumeric ? targetValue : "",
+                    valueUnit: isNumeric ? trimmedUnit : "",
+                    note: note.trim(),
+                    planningEnabled: true,
+                    plannerType: "metric",
+                },
+                initialStepKey: "configurePlanning",
+                proposalId: proposal.proposal_id,
+                returnConversationId: conversationId,
+            },
+        });
+        onClose();
+    }
+
     async function handleSave() {
         const trimmedTitle = title.trim();
         const trimmedUnit = valueUnit.trim();
 
-        const errors = validate(trimmedTitle, taskType, targetValue, trimmedUnit, planningEnabled, plannerTarget);
+        const errors = validate(trimmedTitle, taskType, targetValue, trimmedUnit);
         if (Object.keys(errors).length > 0) {
             setFieldErrors(errors);
             return;
         }
 
         const isNumeric = taskType === "Numeric";
-        const isNumericWithPlanning = isNumeric && planningEnabled;
-        const freqFields = isNumericWithPlanning ? methodToFrequencies(planningMethod) : { frequencies: [], weekly_count: null, monthly_count: null };
 
         const taskPayload: TaskCreateRequest = {
             goal_id: proposal.goal_id!,
@@ -178,15 +177,16 @@ export function TaskProposalReviewPanel({ proposal, onClose, onSaved }: TaskProp
             current_value: isNumeric ? 0 : null,
             target_value: isNumeric ? parsePositiveNumber(targetValue) : null,
             value_unit: isNumeric ? (trimmedUnit || null) : null,
-            planning_enabled: isNumericWithPlanning,
-            planner_type: isNumericWithPlanning ? "metric" : "simple",
-            planner_target: isNumericWithPlanning ? parsePositiveNumber(plannerTarget) : null,
-            ...freqFields,
+            planning_enabled: false,
+            planner_type: "simple",
+            planner_target: null,
+            frequencies: [],
+            weekly_count: null,
+            monthly_count: null,
             priority: "medium",
             preferred_time: "flexible",
             specific_time: null,
             duration_minutes: null,
-
             specific_days: null,
             day_fallback: false,
             assistant_context: { text: proposal.task.assistant_context },
@@ -322,67 +322,23 @@ export function TaskProposalReviewPanel({ proposal, onClose, onSaved }: TaskProp
                                         <div className="goal-task-type-toggle mt-0">
                                             <button
                                                 type="button"
-                                                className={`goal-task-type-option${planningEnabled ? " is-active" : ""}`}
-                                                onClick={() => { setPlanningEnabled(true); setGeneralError(null); }}
+                                                className="goal-task-type-option"
+                                                onClick={handleAddToPlan}
                                                 disabled={saving}
                                             >
                                                 <span className="goal-task-type-option-title">Yes</span>
-                                                <span className="goal-task-type-option-subtitle">Include this task in your daily planner.</span>
+                                                <span className="goal-task-type-option-subtitle">Open full setup to configure your plan.</span>
                                             </button>
                                             <button
                                                 type="button"
-                                                className={`goal-task-type-option${!planningEnabled ? " is-active" : ""}`}
-                                                onClick={() => { resetPlanning(); setGeneralError(null); }}
+                                                className="goal-task-type-option is-active"
                                                 disabled={saving}
                                             >
                                                 <span className="goal-task-type-option-title">No</span>
-                                                <span className="goal-task-type-option-subtitle">Exclude this task from your daily planner.</span>
+                                                <span className="goal-task-type-option-subtitle">Save directly without a daily plan.</span>
                                             </button>
                                         </div>
                                     </div>
-
-                                    {planningEnabled && (
-                                        <>
-                                            <div className="row g-3">
-                                                <div className="col-3">
-                                                    <label className="form-label" htmlFor="tp-planner-target">Planner target</label>
-                                                    <input
-                                                        id="tp-planner-target"
-                                                        type="number"
-                                                        className={`form-control${fieldErrors.planner_target ? " is-invalid" : ""}`}
-                                                        value={plannerTarget}
-                                                        onChange={e => { setPlannerTarget(e.target.value); clearFieldError("planner_target"); }}
-                                                        placeholder="1"
-                                                        min={1}
-                                                        step="1"
-                                                        disabled={saving}
-                                                    />
-                                                    {fieldErrors.planner_target && <div className="invalid-feedback">{fieldErrors.planner_target}</div>}
-                                                </div>
-                                                <div className="col-9">
-                                                    <label className="form-label" htmlFor="tp-planning-method">Method</label>
-                                                    <select
-                                                        id="tp-planning-method"
-                                                        className="form-select"
-                                                        value={planningMethod}
-                                                        onChange={e => setPlanningMethod(e.target.value as PlanMethod)}
-                                                        disabled={saving}
-                                                    >
-                                                        {PLANNING_METHODS.map(m => (
-                                                            <option key={m} value={m}>{m}</option>
-                                                        ))}
-                                                    </select>
-                                                </div>
-                                            </div>
-
-                                            {parsePositiveNumber(plannerTarget) !== null && valueUnit.trim() && (
-                                                <p className="text-muted small mb-0">
-                                                    Plan to complete {plannerTarget} {valueUnit} every
-                                                    {planningMethod === "Daily" ? " day" : planningMethod === "Weekly" ? " week" : " month"}.
-                                                </p>
-                                            )}
-                                        </>
-                                    )}
                                 </>
                             )}
 

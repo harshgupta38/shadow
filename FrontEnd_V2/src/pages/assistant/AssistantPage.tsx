@@ -112,6 +112,8 @@ export function AssistantPage() {
         void getMessages(conversation);
         if (state.prefillMessage)
           setInputText(state.prefillMessage);
+        else if (state.autoMessage)
+          setPendingAutoMessage(state.autoMessage);
       }
     } else {
       return;
@@ -136,12 +138,12 @@ export function AssistantPage() {
   }, [messages.length, isProcessingMessage]);
 
   useEffect(() => {
-    if (!pendingAutoMessage || !activeConversation) return;
+    if (!pendingAutoMessage || !activeConversation || isLoadingMessages) return;
     const message = pendingAutoMessage;
     setPendingAutoMessage(null);
     void sendMessage(message);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingAutoMessage, activeConversation]);
+  }, [pendingAutoMessage, activeConversation, isLoadingMessages]);
 
   useEffect(() => {
     if (composerTextareaRef.current) {

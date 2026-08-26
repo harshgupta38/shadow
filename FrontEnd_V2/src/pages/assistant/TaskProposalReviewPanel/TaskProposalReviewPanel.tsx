@@ -179,6 +179,7 @@ export function TaskProposalReviewPanel({ proposal, onClose, onSaved }: TaskProp
             target_value: isNumeric ? parsePositiveNumber(targetValue) : null,
             value_unit: isNumeric ? (trimmedUnit || null) : null,
             planning_enabled: isNumericWithPlanning,
+            planner_type: isNumericWithPlanning ? "metric" : "simple",
             planner_target: isNumericWithPlanning ? parsePositiveNumber(plannerTarget) : null,
             ...freqFields,
             priority: "medium",

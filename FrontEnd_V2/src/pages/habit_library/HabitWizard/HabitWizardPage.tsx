@@ -673,17 +673,35 @@ export function HabitWizardPage() {
 
                                                         {answers.setStartDate === "yes" && (
                                                             <>
-                                                                <div className="mb-3">
-                                                                    <label className="form-label">Start date</label>
-                                                                    <input
-                                                                        type="date"
-                                                                        className={`form-control ${fieldErrors.startDate ? "is-invalid" : ""}`.trim()}
-                                                                        value={answers.startDate}
-                                                                        onChange={(e) => updateAnswer("startDate", e.target.value)}
-                                                                        disabled={!isActive || submitting}
-                                                                    />
-                                                                    {fieldErrors.startDate && (
-                                                                        <div className="text-danger small mt-1">{fieldErrors.startDate}</div>
+                                                                <div className="row g-3 mb-3">
+                                                                    <div className={`col-12 ${answers.setEndDate ? "col-md-6" : ""}`}>
+                                                                        <label className="form-label">Start date</label>
+                                                                        <input
+                                                                            type="date"
+                                                                            className={`form-control ${fieldErrors.startDate ? "is-invalid" : ""}`.trim()}
+                                                                            value={answers.startDate}
+                                                                            onChange={(e) => updateAnswer("startDate", e.target.value)}
+                                                                            disabled={!isActive || submitting}
+                                                                        />
+                                                                        {fieldErrors.startDate && (
+                                                                            <div className="text-danger small mt-1">{fieldErrors.startDate}</div>
+                                                                        )}
+                                                                    </div>
+                                                                    {answers.setEndDate && (
+                                                                        <div className="col-12 col-md-6">
+                                                                            <label className="form-label">End date</label>
+                                                                            <input
+                                                                                type="date"
+                                                                                className={`form-control ${fieldErrors.endDate ? "is-invalid" : ""}`.trim()}
+                                                                                value={answers.endDate}
+                                                                                min={answers.startDate}
+                                                                                onChange={(e) => updateAnswer("endDate", e.target.value)}
+                                                                                disabled={!isActive || submitting}
+                                                                            />
+                                                                            {fieldErrors.endDate && (
+                                                                                <div className="text-danger small mt-1">{fieldErrors.endDate}</div>
+                                                                            )}
+                                                                        </div>
                                                                     )}
                                                                 </div>
 
@@ -703,23 +721,6 @@ export function HabitWizardPage() {
                                                                         <span className="form-label mb-0">Set an end date?</span>
                                                                     </label>
                                                                 </div>
-
-                                                                {answers.setEndDate && (
-                                                                    <div className="mb-3">
-                                                                        <label className="form-label">End date</label>
-                                                                        <input
-                                                                            type="date"
-                                                                            className={`form-control ${fieldErrors.endDate ? "is-invalid" : ""}`.trim()}
-                                                                            value={answers.endDate}
-                                                                            min={answers.startDate}
-                                                                            onChange={(e) => updateAnswer("endDate", e.target.value)}
-                                                                            disabled={!isActive || submitting}
-                                                                        />
-                                                                        {fieldErrors.endDate && (
-                                                                            <div className="text-danger small mt-1">{fieldErrors.endDate}</div>
-                                                                        )}
-                                                                    </div>
-                                                                )}
 
                                                                 <p className="text-muted small">
                                                                     The daily planner will only include this habit between the start and end dates.

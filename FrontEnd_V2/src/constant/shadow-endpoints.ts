@@ -33,8 +33,8 @@ export const ENDPOINTS = {
         DETAIL: (id: number) => `/${id}`,
     },
     PLAN_ITEMS: {
-        PREFIX: "/plan",
-        GET_TODAY: "/today",
+        PREFIX: "/planner",
+        FOR_DATE: "/for-date",
         DETAIL: (id: number) => `/${id}`,
     },
     CHAT: {

@@ -11,6 +11,7 @@ from app.models.task import TaskDBM
 from app.models.task_proposal import TaskProposalDBM
 from app.models.user import UserDBM
 from app.schemas.tasks import TaskCreateRequest, TaskDataResponse, TaskUpdateRequest, SaveTaskFromProposalRequest
+from app.services import planner_service
 
 
 def _serialize_task(task: TaskDBM) -> TaskDataResponse:
@@ -141,6 +142,7 @@ def save_task_from_proposal(db: Session, current_user: UserDBM, data: SaveTaskFr
 
     db.commit()
     db.refresh(task)
+    planner_service.sync_plan_from_task(db, task)
 
     return _serialize_task(task)
 
@@ -183,6 +185,7 @@ def save_task(db: Session, current_user: UserDBM, data: TaskCreateRequest) -> Ta
 
     db.commit()
     db.refresh(task)
+    planner_service.sync_plan_from_task(db, task)
 
     return _serialize_task(task)
 
@@ -366,6 +369,7 @@ def update_task(
 
     db.commit()
     db.refresh(task)
+    planner_service.sync_plan_from_task(db, task)
 
     return _serialize_task(task)
 
@@ -381,6 +385,7 @@ def delete_task(db: Session, current_user: UserDBM, task_id: int) -> None:
     if task is None:
         raise NotFoundError("Task not found. Please check and try again.")
 
+    planner_service.deactivate_plan(db, "task", task_id)
     milestone = db.scalar(select(MilestoneDBM).where(MilestoneDBM.id == task.milestone_id))
 
     db.delete(task)

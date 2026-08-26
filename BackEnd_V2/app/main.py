@@ -7,7 +7,7 @@ from fastapi.exceptions import RequestValidationError
 
 from app.api.router import api_router
 from app.core.config import settings
-from app.db.session import engine
+from app.db.session import SessionLocal, engine
 from app.models.base import Base
 from app.core.exceptions import AppError
 
@@ -19,11 +19,15 @@ from app.models.milestone import MilestoneDBM
 from app.models.milestone_proposal import MilestoneProposalDBM
 from app.models.task import TaskDBM
 from app.models.habit import HabitDBM
+from app.models.plan import PlanDBM
+from app.services import planner_service
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    with SessionLocal() as db:
+        planner_service.sync_all_plans(db)
     yield
 
 

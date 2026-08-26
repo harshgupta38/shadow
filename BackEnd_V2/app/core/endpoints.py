@@ -33,10 +33,9 @@ class Endpoints:
         SAVE = "/save"
         DETAIL = "/{habit_id}"
 
-    class PLAN_ITEMS:
-        PREFIX = "/plan"
-        TODAY = "/today"
-        DETAIL = "/{item_id}"
+    class PLANNER:
+        PREFIX = "/planner"
+        FOR_DATE = "/for-date"
 
     class CHAT:
         PREFIX = "/chat"

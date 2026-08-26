@@ -37,15 +37,15 @@ class TaskCreateRequest(BaseModel):
     task_type: TaskType
 
     # Numeric progress fields — NULL for Binary tasks.
-    current_value: float | None = None
-    target_value: float | None = None
+    current_value: int | None = None
+    target_value: int | None = None
     value_unit: str | None = Field(default=None, max_length=64)
 
     # Planning configuration
     planning_enabled: bool = False
     planner_type: TaskPlannerType = "simple"
     # planner_target: amount per session (Numeric+metric only).
-    planner_target: float | None = None
+    planner_target: int | None = None
 
     # Scheduling fields — same semantics as Habit.
     frequencies: list[str] = Field(default_factory=list)
@@ -72,7 +72,7 @@ class TaskCreateRequest(BaseModel):
 
     @field_validator("current_value", "target_value", "planner_target")
     @classmethod
-    def validate_positive_numbers(cls, value: float | None, info: Any) -> float | None:
+    def validate_positive_numbers(cls, value: int | None, info: Any) -> int | None:
         if value is None:
             return value
         if info.field_name in {"target_value", "planner_target"} and value <= 0:
@@ -165,13 +165,13 @@ class TaskUpdateRequest(BaseModel):
     task_type: TaskType | None = None
     status: NumericTaskStatus | None = None
 
-    current_value: float | None = None
-    target_value: float | None = None
+    current_value: int | None = None
+    target_value: int | None = None
     value_unit: str | None = Field(default=None, max_length=64)
 
     planning_enabled: bool | None = None
     planner_type: TaskPlannerType | None = None
-    planner_target: float | None = None
+    planner_target: int | None = None
 
     frequencies: list[str] | None = None
     priority: TaskPriority | None = None
@@ -197,7 +197,7 @@ class TaskUpdateRequest(BaseModel):
 
     @field_validator("current_value", "target_value", "planner_target")
     @classmethod
-    def validate_positive_numbers(cls, value: float | None, info: Any) -> float | None:
+    def validate_positive_numbers(cls, value: int | None, info: Any) -> int | None:
         if value is None:
             return value
         if info.field_name in {"target_value", "planner_target"} and value <= 0:
@@ -255,14 +255,14 @@ class TaskDataDBS(ORMModel):
     title: str
     task_type: TaskType
 
-    current_value: float | None
-    target_value: float | None
+    current_value: int | None
+    target_value: int | None
     value_unit: str | None
 
     status: NumericTaskStatus
     planning_enabled: bool
     planner_type: TaskPlannerType
-    planner_target: float | None
+    planner_target: int | None
 
     frequencies: list[str]
     priority: TaskPriority
@@ -305,7 +305,7 @@ class TaskProposalLLMSchema(BaseModel):
             "Use 'Binary' for done/not-done deliverables (e.g. submit an application, finish a course)."
         )
     )
-    target_value: float | None = Field(
+    target_value: int | None = Field(
         default=None,
         description=(
             "Required for Numeric tasks. A realistic positive target number the user is working toward "

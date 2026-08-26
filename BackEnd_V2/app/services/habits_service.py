@@ -6,6 +6,7 @@ from app.models.goal import GoalDBM
 from app.models.habit import HabitDBM
 from app.models.user import UserDBM
 from app.schemas.habits import HabitCreateRequest, HabitDataResponse, HabitUpdateRequest
+from app.services import planner_service
 
 
 def _serialize(habit: HabitDBM) -> HabitDataResponse:
@@ -94,6 +95,7 @@ def save_habit(
     db.add(habit)
     db.commit()
     db.refresh(habit)
+    planner_service.sync_plan_from_habit(db, habit)
     return _serialize(habit)
 
 
@@ -182,6 +184,7 @@ def update_habit(
 
     db.commit()
     db.refresh(habit)
+    planner_service.sync_plan_from_habit(db, habit)
     return _serialize(habit)
 
 
@@ -194,5 +197,6 @@ def delete_habit(db: Session, current_user: UserDBM, habit_id: int) -> None:
     )
     if habit is None:
         raise NotFoundError("Habit not found.")
+    planner_service.deactivate_plan(db, "habit", habit_id)
     db.delete(habit)
     db.commit()

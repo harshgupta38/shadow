@@ -4,7 +4,6 @@ from sqlalchemy import (
     Boolean,
     CheckConstraint,
     DateTime,
-    Float,
     ForeignKey,
     Integer,
     JSON,
@@ -105,8 +104,8 @@ class TaskDBM(Base):
     )
 
     # Numeric-task progress tracking — NULL for Binary tasks.
-    current_value: Mapped[float | None] = mapped_column(Float, nullable=True)
-    target_value: Mapped[float | None] = mapped_column(Float, nullable=True)
+    current_value: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    target_value: Mapped[int | None] = mapped_column(Integer, nullable=True)
     value_unit: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
     # Planning configuration
@@ -124,7 +123,7 @@ class TaskDBM(Base):
         server_default=text("'simple'"),
     )
     # planner_target: amount to complete per planned occurrence (Numeric+metric only).
-    planner_target: Mapped[float | None] = mapped_column(Float, nullable=True)
+    planner_target: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     # Scheduling fields — mirror the Habit model so the planning engine
     # can operate on tasks and habits with the same logic.

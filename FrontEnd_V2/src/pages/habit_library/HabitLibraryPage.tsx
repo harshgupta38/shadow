@@ -370,7 +370,8 @@ export function HabitLibraryPage() {
           </div>
         </div>
 
-        <div className={`hl-card-body${viewMode === "grid" ? " less-padding-below" : ""}`}>
+        {/* ${viewMode === "grid" ? " less-padding-below" : ""} */}
+        <div className={`hl-card-body`}>
           {loadingHabits ? (
             <HabitLibrarySkeleton />
           ) : habitsError ? (

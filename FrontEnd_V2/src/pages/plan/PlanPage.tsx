@@ -270,6 +270,7 @@ export function PlanPage() {
                   <PlanCard
                     key={item.saved_data?.record_id ?? item.plan_id}
                     item={item}
+                    readOnly={!isToday}
                     onToggle={() => void toggleItemStatus(item.plan_id)}
                     onSaveProgress={(value) => handleSaveProgress(item.plan_id, value)}
                   />
@@ -281,6 +282,7 @@ export function PlanPage() {
                       <PlanCard
                         key={item.saved_data?.record_id ?? item.plan_id}
                         item={item}
+                        readOnly={!isToday}
                         onToggle={() => void toggleItemStatus(item.plan_id)}
                         onSaveProgress={(value) => handleSaveProgress(item.plan_id, value)}
                       />

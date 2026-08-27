@@ -27,6 +27,7 @@ interface PlanCardProps {
   onToggle?: () => void;
   onSaveProgress?: (value: number) => Promise<void>;
   busy?: boolean;
+  readOnly?: boolean;
 }
 
 function toPercent(current: number, target: number): number {
@@ -70,7 +71,7 @@ function PriorityIcon({ priority }: { priority: PlanPriority }) {
   return <DashLg size={11} />;
 }
 
-export function PlanCard({ item, onToggle, onSaveProgress, busy = false }: PlanCardProps) {
+export function PlanCard({ item, onToggle, onSaveProgress, busy = false, readOnly = false }: PlanCardProps) {
   const navigate = useNavigate();
   const isDone = item.saved_data?.status === "done";
   const isMissed = item.saved_data?.status === "missed";
@@ -150,7 +151,7 @@ export function PlanCard({ item, onToggle, onSaveProgress, busy = false }: PlanC
           )}
         </div>
 
-        {!isMetric && (
+        {!isMetric && !readOnly && (
           <button
             type="button"
             className={`plan-card-check${isDone ? " is-done" : ""}`}
@@ -212,43 +213,45 @@ export function PlanCard({ item, onToggle, onSaveProgress, busy = false }: PlanC
             <div className="plan-card-progress-bar" style={{ width: `${pct}%` }} />
           </div>
           <span className="plan-card-progress-pct">{pct}%</span>
-          <div className="plan-card-progress-actions">
-            {hasDraft && onSaveProgress && (
+          {!readOnly && (
+            <div className="plan-card-progress-actions">
+              {hasDraft && onSaveProgress && (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-icon border-0 plan-card-progress-action plan-card-progress-action-save"
+                  aria-label="Save progress"
+                  onClick={() => { void handleSaveProgress(); }}
+                  disabled={busy || savingProgress}
+                >
+                  <Floppy size={13} />
+                </button>
+              )}
               <button
                 type="button"
-                className="btn btn-ghost btn-icon border-0 plan-card-progress-action plan-card-progress-action-save"
-                aria-label="Save progress"
-                onClick={() => { void handleSaveProgress(); }}
+                className="btn btn-ghost btn-icon border-0 plan-card-progress-action"
+                aria-label="Decrease"
+                onPointerDown={() => startProgressHold(-1)}
+                onPointerUp={stopProgressHold}
+                onPointerCancel={stopProgressHold}
+                onPointerLeave={stopProgressHold}
+                disabled={busy || savingProgress || effectiveCurrent <= 0}
+              >
+                <DashLg size={13} />
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost btn-icon border-0 plan-card-progress-action"
+                aria-label="Increase"
+                onPointerDown={() => startProgressHold(1)}
+                onPointerUp={stopProgressHold}
+                onPointerCancel={stopProgressHold}
+                onPointerLeave={stopProgressHold}
                 disabled={busy || savingProgress}
               >
-                <Floppy size={13} />
+                <PlusLg size={13} />
               </button>
-            )}
-            <button
-              type="button"
-              className="btn btn-ghost btn-icon border-0 plan-card-progress-action"
-              aria-label="Decrease"
-              onPointerDown={() => startProgressHold(-1)}
-              onPointerUp={stopProgressHold}
-              onPointerCancel={stopProgressHold}
-              onPointerLeave={stopProgressHold}
-              disabled={busy || savingProgress || effectiveCurrent <= 0}
-            >
-              <DashLg size={13} />
-            </button>
-            <button
-              type="button"
-              className="btn btn-ghost btn-icon border-0 plan-card-progress-action"
-              aria-label="Increase"
-              onPointerDown={() => startProgressHold(1)}
-              onPointerUp={stopProgressHold}
-              onPointerCancel={stopProgressHold}
-              onPointerLeave={stopProgressHold}
-              disabled={busy || savingProgress}
-            >
-              <PlusLg size={13} />
-            </button>
-          </div>
+            </div>
+          )}
         </div>
       )}
     </article>

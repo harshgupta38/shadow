@@ -677,6 +677,9 @@ def update_daily_record(
     if record is None:
         raise NotFoundError("Daily plan record not found.")
 
+    if record.scheduled_date != date.today():
+        raise AppError("Past date records cannot be modified.")
+
     # For metric plans: actual_value drives status automatically.
     if actual_value is not None and record.planner_type == "metric":
         record.actual_value = actual_value

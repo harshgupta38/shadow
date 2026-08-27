@@ -5,18 +5,9 @@
 
   .plan-actions,
   .date-controls,
-  .plan-action-buttons,
-  .summary-heading {
+  .plan-action-buttons {
     display: flex;
     align-items: center;
-  }
-
-  .panel-heading p,
-  .summary-heading p {
-    margin: 0;
-    color: var(--jv-muted);
-    font-size: 0.8rem;
-    line-height: 1.45;
   }
 
   .progress-panel p,
@@ -145,46 +136,6 @@
     box-shadow: var(--jv-shadow);
   }
 
-  .insights-panel {
-    padding: 1.35rem 1.35rem 1.15rem;
-  }
-
-  .panel-heading h2,
-  .today-panel>h2,
-  .summary-heading h2 {
-    margin: 0 0 0.3rem;
-    font-size: 0.97rem;
-    font-weight: 750;
-  }
-
-  .insight-stats {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem;
-    margin: 1rem 0 0;
-  }
-
-  .insight-stats div {
-    flex: 1 1 0;
-    min-height: 71px;
-    padding: 0.9rem 0.8rem;
-    border: 1px solid var(--jv-border);
-    border-radius: 13px;
-    background: var(--jv-surface-2);
-    white-space: nowrap;
-  }
-
-  .insight-stats span {
-    display: block;
-    margin-bottom: 0.22rem;
-    color: var(--jv-faint);
-    font-size: 0.75rem;
-  }
-
-  .insight-stats strong {
-    font-size: 0.88rem;
-  }
-
   .progress-panel {
     display: flex;
     min-height: 222px;
@@ -212,12 +163,9 @@
   }
 
   .today-panel>h2 {
-    margin-bottom: 0;
-  }
-
-  .summary-panel {
-    min-height: 319px;
-    padding: 1.35rem;
+    margin: 0;
+    font-size: 0.97rem;
+    font-weight: 750;
   }
 
   .empty-state {
@@ -251,22 +199,6 @@
     line-height: 1.5;
   }
 
-  .summary-heading {
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 1rem;
-  }
-
-  .summary-heading>svg {
-    flex: 0 0 auto;
-    margin-top: 0.15rem;
-    color: var(--jv-text);
-  }
-
-  .summary-empty-state {
-    min-height: 244px;
-  }
-
   .plan-task-list {
     margin-top: 1rem;
     display: flex;
@@ -281,6 +213,57 @@
     font-weight: 700;
     letter-spacing: 0.05em;
     text-transform: uppercase;
+  }
+
+  // ── Plan card skeleton ───────────────────────────────────────────────────────
+
+  .pcs {
+    display: block;
+    position: relative;
+    overflow: hidden;
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--jv-border) 78%, var(--jv-surface) 22%);
+
+    &::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      transform: translateX(-100%);
+      background: linear-gradient(
+        90deg,
+        transparent 0%,
+        color-mix(in srgb, #fff 52%, transparent) 50%,
+        transparent 100%
+      );
+      animation: pcs-shimmer 1.4s ease-in-out infinite;
+    }
+
+    &-title { flex: 1; height: 0.9rem; }
+    &-check { flex-shrink: 0; width: 20px; height: 20px; border-radius: 50%; }
+    &-chip  { height: 1.3rem; width: 3.5rem; border-radius: 999px; &--wide { width: 5rem; } }
+  }
+
+  .plan-card-skeleton {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.75rem 0.875rem;
+    border: 1px solid var(--jv-border);
+    border-radius: 12px;
+    background: var(--jv-surface);
+  }
+
+  .pcs-row {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+
+    &--chips { gap: 0.35rem; }
+  }
+
+  @keyframes pcs-shimmer {
+    0%   { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
   }
 
   @media (max-width: 800px) {
@@ -308,10 +291,6 @@
     .plan-primary-button {
       flex: 1;
       justify-content: center;
-    }
-
-    .insight-stats {
-      grid-template-columns: repeat(2, 1fr);
     }
 
     .desktop-break {

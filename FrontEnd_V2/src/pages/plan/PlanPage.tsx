@@ -5,8 +5,6 @@ import {
   CalendarCheckFill,
   ChevronLeft,
   ChevronRight,
-  Clock,
-  ListTask,
   Plus,
 } from "react-bootstrap-icons";
 
@@ -19,9 +17,9 @@ import {
   toDateInputValue,
   formatDisplayDate,
   shiftDate,
-  formatDuration,
 } from "@/pages/plan/PlanPage.constants";
 import { PlanCard } from "@/pages/plan/PlanCard/PlanCard";
+import { DayOverviewPanel } from "@/pages/plan/DayOverviewPanel/DayOverviewPanel";
 import "@/pages/plan/PlanPage.scss";
 
 const TODAY = new Date();
@@ -213,39 +211,23 @@ export function PlanPage() {
 
       <div className="plan-columns">
         <div className="plan-column">
-          <section className="plan-panel insights-panel">
-            <div className="panel-heading">
-              <h2>Daily insights</h2>
-              <p>What Shadow noticed for this date.</p>
-            </div>
-            <div className="insight-stats">
-              <div className="insight-item">
-                <span>Missed yesterday</span>
-                <strong>{loadingPlan ? "---" : (planData?.missed_yesterday_count ?? "---")}</strong>
-              </div>
-              <div className="insight-item">
-                <span>Carry forward</span>
-                <strong>{loadingPlan ? "---" : (planData?.carry_forward_count ?? "---")}</strong>
-              </div>
-              <div className="insight-item">
-                <span>Workload</span>
-                <strong>{loadingPlan ? "---" : (planData?.workload_label ?? "---")}</strong>
-              </div>
-              {estimatedMinutes > 0 && (
-                <div className="insight-item">
-                  <span>Estimated time</span>
-                  <strong>{loadingPlan ? "---" : formatDuration(estimatedMinutes)}</strong>
-                </div>
-              )}
-            </div>
-          </section>
-
           <section className="plan-panel today-panel">
             <h2>{isToday ? "Your Today's Plan" : formatDisplayDate(selectedDate)}</h2>
 
             {loadingPlan ? (
-              <div className="empty-state">
-                <h3 className="text-normal">Loading...</h3>
+              <div className="plan-task-list">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="plan-card-skeleton">
+                    <div className="pcs-row">
+                      <span className="pcs pcs-title" style={{ width: `${55 + (i % 3) * 12}%` }} />
+                      <span className="pcs pcs-check" />
+                    </div>
+                    <div className="pcs-row pcs-row--chips">
+                      <span className="pcs pcs-chip" />
+                      <span className="pcs pcs-chip pcs-chip--wide" />
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : planError ? (
               <div className="empty-state">
@@ -258,10 +240,9 @@ export function PlanPage() {
                 <span className="empty-state-icon"><CalendarCheckFill size={20} /></span>
                 <h3 className="text-normal">{isToday ? "No plans for today" : "Nothing was planned for this date."}</h3>
                 <p>
-                  {isToday ?
-                    "You're all clear. Enjoy the day or add something manually."
-                    : "You can add something manually or check another date."
-                  }
+                  {isToday
+                    ? "You're all clear. Enjoy the day or add something manually."
+                    : "You can add something manually or check another date."}
                 </p>
               </div>
             ) : (
@@ -295,7 +276,7 @@ export function PlanPage() {
         </div>
 
         <div className="plan-column">
-          {totalCount > 0 && (
+          {!loadingPlan && totalCount > 0 && (
             <section className="plan-panel progress-panel">
               <ProgressRing percentage={completion} />
               <h2>{doneCount} of {totalCount} done</h2>
@@ -303,20 +284,11 @@ export function PlanPage() {
             </section>
           )}
 
-          <section className="plan-panel summary-panel">
-            <div className="summary-heading">
-              <div>
-                <h2>Today's plan summary</h2>
-                <p>A quick snapshot of planned items and timing<br />for today.</p>
-              </div>
-              <ListTask size={17} />
-            </div>
-            <div className="empty-state summary-empty-state">
-              <span className="empty-state-icon"><Clock size={20} /></span>
-              <h3 className="text-normal">No plan summary yet</h3>
-              <p>Generate a plan to see today's planned<br />items and timing.</p>
-            </div>
-          </section>
+          <DayOverviewPanel
+            items={planItems}
+            loading={loadingPlan}
+            estimatedMinutes={estimatedMinutes}
+          />
         </div>
       </div>
     </section>

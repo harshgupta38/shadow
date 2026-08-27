@@ -46,13 +46,14 @@ function TimeChip({ preferredTime, label }: { preferredTime: string; label: stri
     icon = <SunFill size={12} />;
     mod = "plan-card-time--afternoon";
   } else if (t === "evening") {
-    icon = <MoonFill size={12} />;
+    icon = <MoonFill size={11} />;
     mod = "plan-card-time--evening";
   } else if (t === "night") {
-    icon = <MoonStarsFill size={12} />;
+    icon = <MoonStarsFill size={11} />;
     mod = "plan-card-time--night";
   } else {
     icon = <Clock size={12} />;
+    mod = "plan-card-time--clock";
   }
 
   return (

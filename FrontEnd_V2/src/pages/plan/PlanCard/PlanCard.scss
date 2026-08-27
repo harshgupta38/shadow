@@ -53,7 +53,6 @@
 
 .plan-card-time {
   display: inline-flex;
-  align-items: center;
   gap: 0.3rem;
   font-size: 0.8125rem;
   font-weight: 500;
@@ -61,10 +60,26 @@
   white-space: nowrap;
   flex-shrink: 0;
 
-  &--morning   svg { color: #f0a830; }
-  &--afternoon svg { color: #e09020; }
-  &--evening   svg { color: var(--jv-violet); }
-  &--night     svg { color: var(--jv-violet); }
+  &--morning svg { 
+    margin-top: 3px;
+    color: #f0a830; 
+  }
+  &--afternoon svg { 
+    margin-top: 3px;
+    color: #e09020; 
+  }
+  &--evening svg { 
+    margin-top: 3px;
+    color: var(--jv-violet); 
+  }
+  &--night svg { 
+    margin-top: 4px;
+    color: var(--jv-violet); 
+  }
+  &--clock svg { 
+    margin-top: 2px;
+    color: var(--jv-violet); 
+  }
 }
 
 // ── Checkbox ──────────────────────────────────────────────────────────────────

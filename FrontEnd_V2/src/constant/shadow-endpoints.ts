@@ -35,6 +35,7 @@ export const ENDPOINTS = {
     PLAN_ITEMS: {
         PREFIX: "/planner",
         FOR_DATE: "/for-date",
+        RECORD: (record_id: number) => `/records/${record_id}`,
         DETAIL: (id: number) => `/${id}`,
     },
     CHAT: {

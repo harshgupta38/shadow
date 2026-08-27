@@ -20,6 +20,7 @@ from app.models.milestone_proposal import MilestoneProposalDBM
 from app.models.task import TaskDBM
 from app.models.habit import HabitDBM
 from app.models.plan import PlanDBM
+from app.models.daily_plan_record import DailyPlanRecordDBM
 from app.services import planner_service
 
 

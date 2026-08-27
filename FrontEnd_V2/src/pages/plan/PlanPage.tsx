@@ -11,7 +11,7 @@ import {
 } from "react-bootstrap-icons";
 
 import { api, ApiError } from "@/api";
-import type { PlanResponse } from "@/api";
+import type { DailyPlanSavedData, PlanResponse } from "@/api";
 import { ROUTES } from "@/routes/RoutePaths";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { ProgressRing } from "@/components/ui/ProgressRing/ProgressRing";
@@ -86,50 +86,75 @@ export function PlanPage() {
     [planItems],
   );
 
-  function toggleItemStatus(planId: number) {
+  function updateItemSavedData(recordId: number, savedData: DailyPlanSavedData) {
     setPlanData((prev) => {
       if (!prev) return prev;
       return {
         ...prev,
-        items: prev.items.map((item) => {
-          if (item.plan_id !== planId) return item;
-          const currentStatus = item.saved_data?.status ?? "due";
-          return {
-            ...item,
-            saved_data: {
-              status: currentStatus === "done" ? ("due" as const) : ("done" as const),
-              current_value: item.saved_data?.current_value ?? 0,
-              current_streak: item.saved_data?.current_streak ?? 0,
-              max_streak: item.saved_data?.max_streak ?? 0,
-              note: item.saved_data?.note ?? "",
-            },
-          };
-        }),
+        items: prev.items.map((item) =>
+          item.saved_data?.record_id === recordId
+            ? { ...item, saved_data: savedData }
+            : item,
+        ),
       };
     });
   }
 
-  async function handleSaveProgress(planId: number, value: number) {
-    // TODO: wire to API once per-date occurrence endpoint exists
+  async function toggleItemStatus(planId: number) {
+    const item = planData?.items.find((i) => i.plan_id === planId);
+    const recordId = item?.saved_data?.record_id;
+    if (!recordId) return;
+
+    const currentStatus = item?.saved_data?.status ?? "due";
+    const newStatus = currentStatus === "done" ? ("due" as const) : ("done" as const);
+
+    // Optimistic update
     setPlanData((prev) => {
       if (!prev) return prev;
       return {
         ...prev,
-        items: prev.items.map((item) => {
-          if (item.plan_id !== planId) return item;
+        items: prev.items.map((i) => {
+          if (i.plan_id !== planId) return i;
           return {
-            ...item,
-            saved_data: {
-              status: item.saved_data?.status ?? "due",
-              current_value: value,
-              current_streak: item.saved_data?.current_streak ?? 0,
-              max_streak: item.saved_data?.max_streak ?? 0,
-              note: item.saved_data?.note ?? "",
-            },
+            ...i,
+            saved_data: i.saved_data ? { ...i.saved_data, status: newStatus } : i.saved_data,
           };
         }),
       };
     });
+
+    try {
+      const savedData = await api.planItems.updateRecord(recordId, { status: newStatus });
+      updateItemSavedData(recordId, savedData);
+    } catch {
+      // Revert on failure
+      setPlanData((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          items: prev.items.map((i) => {
+            if (i.plan_id !== planId) return i;
+            return {
+              ...i,
+              saved_data: i.saved_data ? { ...i.saved_data, status: currentStatus } : i.saved_data,
+            };
+          }),
+        };
+      });
+    }
+  }
+
+  async function handleSaveProgress(planId: number, value: number) {
+    const item = planData?.items.find((i) => i.plan_id === planId);
+    const recordId = item?.saved_data?.record_id;
+    if (!recordId) return;
+
+    try {
+      const savedData = await api.planItems.updateRecord(recordId, { actual_value: value });
+      updateItemSavedData(recordId, savedData);
+    } catch {
+      // silently ignore — user can retry
+    }
   }
 
   const progressMessage =
@@ -160,11 +185,19 @@ export function PlanPage() {
             <input
               type="date"
               value={toDateInputValue(selectedDate)}
+              max={toDateInputValue(TODAY)}
               onChange={(event) => setSelectedDate(new Date(`${event.target.value}T00:00:00`))}
+              onClick={(e) => e.currentTarget.showPicker?.()}
               aria-label="Plan date"
             />
           </label>
-          <button type="button" className="plan-icon-button" aria-label="Next day" onClick={() => setSelectedDate((date) => shiftDate(date, 1))}>
+          <button
+            type="button"
+            className="plan-icon-button"
+            aria-label="Next day"
+            disabled={isToday}
+            onClick={() => setSelectedDate((date) => shiftDate(date, 1))}
+          >
             <ChevronRight size={18} />
           </button>
         </div>
@@ -235,9 +268,9 @@ export function PlanPage() {
               <div className="plan-task-list">
                 {activeItems.map((item) => (
                   <PlanCard
-                    key={item.plan_id}
+                    key={item.saved_data?.record_id ?? item.plan_id}
                     item={item}
-                    onToggle={() => toggleItemStatus(item.plan_id)}
+                    onToggle={() => void toggleItemStatus(item.plan_id)}
                     onSaveProgress={(value) => handleSaveProgress(item.plan_id, value)}
                   />
                 ))}
@@ -246,9 +279,9 @@ export function PlanPage() {
                     <div className="plan-task-section-label">Completed</div>
                     {doneItems.map((item) => (
                       <PlanCard
-                        key={item.plan_id}
+                        key={item.saved_data?.record_id ?? item.plan_id}
                         item={item}
-                        onToggle={() => toggleItemStatus(item.plan_id)}
+                        onToggle={() => void toggleItemStatus(item.plan_id)}
                         onSaveProgress={(value) => handleSaveProgress(item.plan_id, value)}
                       />
                     ))}

@@ -36,6 +36,7 @@ class Endpoints:
     class PLANNER:
         PREFIX = "/planner"
         FOR_DATE = "/for-date"
+        RECORD = "/records/{record_id}"
 
     class CHAT:
         PREFIX = "/chat"

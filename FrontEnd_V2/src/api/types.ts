@@ -485,11 +485,18 @@ export interface GoalDataInPlan {
 }
 
 export interface DailyPlanSavedData {
+  record_id: number | null; // null for synthesized missed occurrences (no DB record)
   status: PlanStatus;
   current_value: number;
-  current_streak: number;
-  max_streak: number;
+  current_streak: number; // computed from recurrence + history, never stored
+  max_streak: number;     // computed from recurrence + history, never stored
   note: string;
+}
+
+export interface UpdatePlanRequest {
+  status?: PlanStatus;
+  actual_value?: number;
+  note?: string;
 }
 
 export interface PlanResponse {

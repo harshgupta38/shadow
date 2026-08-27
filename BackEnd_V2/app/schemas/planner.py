@@ -12,10 +12,11 @@ PlanStatus = Literal["due", "done", "missed"]
 
 
 class DailyPlanSavedData(BaseModel):
+    record_id: int | None  # None for synthesized missed occurrences (no DB record)
     status: PlanStatus
     current_value: int
-    current_streak: int
-    max_streak: int
+    current_streak: int  # computed from recurrence + history, never stored
+    max_streak: int      # computed from recurrence + history, never stored
     note: str
 
 
@@ -49,3 +50,9 @@ class DailyPlanResponse(BaseModel):
     missed_yesterday_count: int
     carry_forward_count: int
     workload_label: str
+
+
+class UpdatePlanRequest(BaseModel):
+    status: PlanStatus | None = None
+    actual_value: int | None = None
+    note: str | None = None

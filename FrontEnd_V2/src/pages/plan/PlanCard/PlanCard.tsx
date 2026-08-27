@@ -132,11 +132,6 @@ export function PlanCard({ item, onToggle, onSaveProgress, busy = false }: PlanC
     try {
       await onSaveProgress(progressDraft);
       setProgressDraft(null);
-      if (progressDraft >= target && !isDone) {
-        onToggle?.();
-      } else if (progressDraft < target && isDone) {
-        onToggle?.();
-      }
     } finally {
       setSavingProgress(false);
     }
@@ -163,7 +158,7 @@ export function PlanCard({ item, onToggle, onSaveProgress, busy = false }: PlanC
             onClick={onToggle}
             aria-label={isDone ? "Mark as due" : "Mark as done"}
           >
-            {isDone && <CheckLg size={14} />}
+            {isDone && <CheckLg size={12} />}
           </button>
         )}
       </div>

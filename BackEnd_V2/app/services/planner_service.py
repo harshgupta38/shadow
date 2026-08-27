@@ -16,11 +16,12 @@ from datetime import date
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.models.goal import GoalDBM
 from app.models.habit import HabitDBM
 from app.models.plan import PlanDBM
 from app.models.task import TaskDBM
 from app.models.user import UserDBM
-from app.schemas.planner import DailyPlanItemResponse, DailyPlanResponse
+from app.schemas.planner import DailyPlanItemResponse, DailyPlanResponse, DailyPlanSavedData, GoalDataInPlan
 
 
 # Ordered Monday=0 … Sunday=6, matching date.weekday().
@@ -209,8 +210,8 @@ def sync_plan_from_task(db: Session, task: TaskDBM) -> None:
         "specific_time": task.specific_time,
         "duration_minutes": task.duration_minutes,
         "priority": task.priority,
-        # Tasks have no explicit date window, so anchor to creation date.
-        "start_date": task.created_at.date(),
+        # Anchor to when the task was started, falling back to creation date.
+        "start_date": (task.started_at or task.created_at).date(),
         "end_date": None,
         "status": "active",
     }
@@ -278,25 +279,66 @@ def get_plans_for_date(
         key=_sort_key,
     )
 
-    return DailyPlanResponse(
-        items=[
-            DailyPlanItemResponse(
-                plan_id=p.id,
-                source_type=p.source_type,
-                source_id=p.source_id,
-                title=p.title,
-                planner_type=p.planner_type,
-                planner_target=p.planner_target,
-                value_unit=p.value_unit,
-                priority=p.priority,
-                preferred_time=p.preferred_time,
-                specific_time=p.specific_time,
-                duration_minutes=p.duration_minutes,
+    # ── Enrich with goal info (2 bulk queries, not N+1) ───────────────────────
+
+    habit_ids = [p.source_id for p in matched if p.source_type == "habit"]
+    task_ids  = [p.source_id for p in matched if p.source_type == "task"]
+
+    # habit source_id → goal_id (nullable)
+    habit_goal_map: dict[int, int | None] = {}
+    if habit_ids:
+        habits = db.scalars(select(HabitDBM).where(HabitDBM.id.in_(habit_ids))).all()
+        habit_goal_map = {h.id: h.goal_id for h in habits}
+
+    # task source_id → goal_id (always set on tasks)
+    task_goal_map: dict[int, int] = {}
+    if task_ids:
+        tasks = db.scalars(select(TaskDBM).where(TaskDBM.id.in_(task_ids))).all()
+        task_goal_map = {t.id: t.goal_id for t in tasks}
+
+    # fetch all referenced goals in one query
+    all_goal_ids = {gid for gid in habit_goal_map.values() if gid is not None} | set(task_goal_map.values())
+    goal_map: dict[int, GoalDBM] = {}
+    if all_goal_ids:
+        goals = db.scalars(select(GoalDBM).where(GoalDBM.id.in_(all_goal_ids))).all()
+        goal_map = {g.id: g for g in goals}
+
+    def _goal_info(p: PlanDBM) -> GoalDataInPlan | None:
+        gid = habit_goal_map.get(p.source_id) if p.source_type == "habit" else task_goal_map.get(p.source_id)
+        if not gid or gid not in goal_map:
+            return None
+        g = goal_map[gid]
+        return GoalDataInPlan(id=gid, title=g.title, category=g.category)
+
+    # ── Build response ────────────────────────────────────────────────────────
+
+    items = []
+    for p in matched:
+        items.append(DailyPlanItemResponse(
+            plan_id=p.id,
+            source_type=p.source_type,
+            source_id=p.source_id,
+            title=p.title,
+            planner_type=p.planner_type,
+            planner_target=p.planner_target,
+            value_unit=p.value_unit,
+            priority=p.priority,
+            preferred_time=p.preferred_time,
+            specific_time=p.specific_time,
+            duration_minutes=p.duration_minutes,
+            goal=_goal_info(p),
+            saved_data=DailyPlanSavedData(
                 status="due",
-            )
-            for p in matched
-        ],
+                current_value=0,
+                current_streak=0,
+                max_streak=0,
+                note="",
+            ),
+        ))
+
+    return DailyPlanResponse(
+        items=items,
         missed_yesterday_count=0,
         carry_forward_count=0,
-        workload_label="", # TODO
+        workload_label="todo",  # TODO
     )

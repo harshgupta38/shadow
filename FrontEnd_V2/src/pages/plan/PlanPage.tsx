@@ -57,11 +57,20 @@ export function PlanPage() {
   const planItems = planData?.items ?? [];
 
   const doneCount = useMemo(
-    () => planItems.filter((item) => item.status === "done").length,
+    () => planItems.filter((item) => item.saved_data?.status === "done").length,
     [planItems],
   );
   const totalCount = planItems.length;
-  const completion = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
+  const completionSum = useMemo(
+    () => planItems.reduce((sum, item) => {
+      if (item.planner_type === "metric" && (item.planner_target ?? 0) > 0) {
+        return sum + Math.min(1, (item.saved_data?.current_value ?? 0) / item.planner_target!);
+      }
+      return sum + (item.saved_data?.status === "done" ? 1 : 0);
+    }, 0),
+    [planItems],
+  );
+  const completion = totalCount > 0 ? Math.round((completionSum / totalCount) * 100) : 0;
 
   const estimatedMinutes = useMemo(
     () => planItems.reduce((sum, item) => sum + (item.duration_minutes ?? 0), 0),
@@ -69,13 +78,59 @@ export function PlanPage() {
   );
 
   const activeItems = useMemo(
-    () => planItems.filter((item) => item.status !== "done"),
+    () => planItems.filter((item) => item.saved_data?.status !== "done"),
     [planItems],
   );
   const doneItems = useMemo(
-    () => planItems.filter((item) => item.status === "done"),
+    () => planItems.filter((item) => item.saved_data?.status === "done"),
     [planItems],
   );
+
+  function toggleItemStatus(planId: number) {
+    setPlanData((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        items: prev.items.map((item) => {
+          if (item.plan_id !== planId) return item;
+          const currentStatus = item.saved_data?.status ?? "due";
+          return {
+            ...item,
+            saved_data: {
+              status: currentStatus === "done" ? ("due" as const) : ("done" as const),
+              current_value: item.saved_data?.current_value ?? 0,
+              current_streak: item.saved_data?.current_streak ?? 0,
+              max_streak: item.saved_data?.max_streak ?? 0,
+              note: item.saved_data?.note ?? "",
+            },
+          };
+        }),
+      };
+    });
+  }
+
+  async function handleSaveProgress(planId: number, value: number) {
+    // TODO: wire to API once per-date occurrence endpoint exists
+    setPlanData((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        items: prev.items.map((item) => {
+          if (item.plan_id !== planId) return item;
+          return {
+            ...item,
+            saved_data: {
+              status: item.saved_data?.status ?? "due",
+              current_value: value,
+              current_streak: item.saved_data?.current_streak ?? 0,
+              max_streak: item.saved_data?.max_streak ?? 0,
+              note: item.saved_data?.note ?? "",
+            },
+          };
+        }),
+      };
+    });
+  }
 
   const progressMessage =
     totalCount === 0
@@ -179,13 +234,23 @@ export function PlanPage() {
             ) : (
               <div className="plan-task-list">
                 {activeItems.map((item) => (
-                  <PlanCard key={item.plan_id} item={item} />
+                  <PlanCard
+                    key={item.plan_id}
+                    item={item}
+                    onToggle={() => toggleItemStatus(item.plan_id)}
+                    onSaveProgress={(value) => handleSaveProgress(item.plan_id, value)}
+                  />
                 ))}
                 {doneItems.length > 0 && (
                   <>
                     <div className="plan-task-section-label">Completed</div>
                     {doneItems.map((item) => (
-                      <PlanCard key={item.plan_id} item={item} done />
+                      <PlanCard
+                        key={item.plan_id}
+                        item={item}
+                        onToggle={() => toggleItemStatus(item.plan_id)}
+                        onSaveProgress={(value) => handleSaveProgress(item.plan_id, value)}
+                      />
                     ))}
                   </>
                 )}

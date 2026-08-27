@@ -471,8 +471,25 @@ export interface PlanDataResponse {
   preferred_time: PlanPreferredTime;
   specific_time: string | null;
   duration_minutes: number | null;
-  
+
+  // Goal-linked fields — populated when the source habit/task is linked to a goal
+  goal?: GoalDataInPlan;
+
+  saved_data: DailyPlanSavedData | null;
+}
+
+export interface GoalDataInPlan {
+  id: number;
+  title: string;
+  category: GoalCategory | null;
+}
+
+export interface DailyPlanSavedData {
   status: PlanStatus;
+  current_value: number;
+  current_streak: number;
+  max_streak: number;
+  note: string;
 }
 
 export interface PlanResponse {

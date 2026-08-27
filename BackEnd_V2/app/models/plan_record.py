@@ -28,7 +28,7 @@ class DailyPlanRecordDBM(Base):
     rules and are never persisted.
     """
 
-    __tablename__ = "daily_plan_records"
+    __tablename__ = "plan_records"
     __table_args__ = (
         # Idempotency: one record per plan per date. NULL plan_id (after plan
         # deletion) is exempt — SQLite considers NULL != NULL in UNIQUE.

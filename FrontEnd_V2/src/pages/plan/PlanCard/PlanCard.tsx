@@ -207,7 +207,11 @@ export function PlanCard({ item, onToggle, onSaveProgress, busy = false, readOnl
       {isMetric && (
         <div className="plan-card-progress" aria-label="Session progress">
           <span className="plan-card-progress-label">
-            {effectiveCurrent} / {target} {item.value_unit}
+            {effectiveCurrent < target
+              ? `${target - effectiveCurrent} ${item.value_unit ?? "items"} left`
+              : effectiveCurrent === target
+                ? "Target Reached 🥳"
+                : "Few extra steps for better future"}
           </span>
           <div className="plan-card-progress-track" aria-hidden="true">
             <div className="plan-card-progress-bar" style={{ width: `${pct}%` }} />

@@ -22,7 +22,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import AppError, NotFoundError
-from app.models.daily_plan_record import DailyPlanRecordDBM
+from app.models.plan_record import DailyPlanRecordDBM
 from app.models.goal import GoalDBM
 from app.models.habit import HabitDBM
 from app.models.plan import PlanDBM
@@ -707,6 +707,22 @@ def update_daily_record(
 
     if note is not None:
         record.note = note.strip() or None
+
+    # For task plans: propagate cumulative progress back to the parent Task.
+    # Flush first because autoflush=False — without it the sum query would
+    # read the stale actual_value from the DB and undercount.
+    if record.source_type == "task" and record.source_id is not None:
+        db.flush()
+        task = db.get(TaskDBM, record.source_id)
+        if task is not None:
+            total: int = db.scalar(
+                select(func.sum(DailyPlanRecordDBM.actual_value)).where(
+                    DailyPlanRecordDBM.source_type == "task",
+                    DailyPlanRecordDBM.source_id == record.source_id,
+                    DailyPlanRecordDBM.user_id == current_user.id,
+                )
+            ) or 0
+            task.current_value = total
 
     db.commit()
     db.refresh(record)

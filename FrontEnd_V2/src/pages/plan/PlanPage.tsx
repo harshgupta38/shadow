@@ -241,7 +241,7 @@ export function PlanPage() {
           </section>
 
           <section className="plan-panel today-panel">
-            <h2>{isToday ? "Today" : formatDisplayDate(selectedDate)}</h2>
+            <h2>{isToday ? "Your Today's Plan" : formatDisplayDate(selectedDate)}</h2>
 
             {loadingPlan ? (
               <div className="empty-state">

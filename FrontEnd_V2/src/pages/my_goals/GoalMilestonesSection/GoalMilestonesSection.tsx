@@ -62,8 +62,13 @@ export function GoalMilestonesSection({ goal }: GoalMilestonesSectionProps) {
         milestone_id?: number;
     } | null>(null);
     const [blockedCompletionMilestoneId, setBlockedCompletionMilestoneId] = useState<number | null>(null);
+    const [blockedNotStartedMilestoneId, setBlockedNotStartedMilestoneId] = useState<number | null>(null);
     const [cancelMotivationMilestone, setCancelMotivationMilestone] = useState<MilestoneDataResponse | null>(null);
     const [hiddenTasksMilestones, setHiddenTasksMilestones] = useState<Set<number>>(new Set());
+    const [pendingTaskInProgress, setPendingTaskInProgress] = useState<{
+        milestoneId: number;
+        proceed: () => Promise<void>;
+    } | null>(null);
 
     const newMilestonePath = ROUTES.MY_GOAL_MILESTONE_CREATE.replace(":goalId", String(goalId));
 
@@ -110,6 +115,22 @@ export function GoalMilestonesSection({ goal }: GoalMilestonesSectionProps) {
 
     async function requestStatusChange(milestone: MilestoneDataResponse, status: MilestoneStatus) {
         if (milestone.status === status) return;
+
+        if (status === "Not Started" && milestone.total_tasks > 0) {
+            setBusyId(milestone.id);
+            try {
+                const tasks = await api.tasks.getList(milestone.id);
+                const hasInProgress = tasks.some((t) => t.status === "In Progress");
+                if (hasInProgress) {
+                    setBlockedNotStartedMilestoneId(milestone.id);
+                    return;
+                }
+            } catch {
+                // If task fetch fails, allow the user to proceed
+            } finally {
+                setBusyId(null);
+            }
+        }
 
         if (status === "Completed" && milestone.total_tasks > 0) {
             setBusyId(milestone.id);
@@ -205,6 +226,17 @@ export function GoalMilestonesSection({ goal }: GoalMilestonesSectionProps) {
             else next.add(id);
             return next;
         });
+    }
+
+    async function handleSetBothInProgress() {
+        if (!pendingTaskInProgress) return;
+        const { milestoneId, proceed } = pendingTaskInProgress;
+        setPendingTaskInProgress(null);
+        const milestone = milestones.find((m) => m.id === milestoneId);
+        if (milestone && milestone.status !== "In Progress") {
+            await setStatus(milestone, "In Progress");
+        }
+        await proceed();
     }
 
     function openTargetDatePrompt(milestoneId: number, initialTargetDate: string | null) {
@@ -464,7 +496,12 @@ export function GoalMilestonesSection({ goal }: GoalMilestonesSectionProps) {
                                         ) : (
                                             <>
                                                 {milestone.total_tasks > 0 && !hiddenTasksMilestones.has(milestone.id) && (
-                                                    <MilestoneTasksList goalId={goalId} milestoneId={milestone.id} />
+                                                    <MilestoneTasksList
+                                                        goalId={goalId}
+                                                        milestoneId={milestone.id}
+                                                        milestoneStatus={milestone.status}
+                                                        onNeedMilestoneInProgress={(proceed) => setPendingTaskInProgress({ milestoneId: milestone.id, proceed })}
+                                                    />
                                                 )}
                                                 <div className={`goal-milestone-expanded${isExpanded ? " is-expanded" : ""}`}>
                                                     <div className="goal-milestone-expanded-inner">
@@ -598,6 +635,18 @@ export function GoalMilestonesSection({ goal }: GoalMilestonesSectionProps) {
             />
 
             <ChoiceDialog
+                show={blockedNotStartedMilestoneId !== null}
+                title="Tasks still in progress"
+                message="One or more tasks under this milestone are still in progress. Mark them as paused, completed, or cancelled before resetting the milestone to Not Started."
+                icon={<ListTask size={26} />}
+                iconColor="var(--jv-warn)"
+                onHide={() => setBlockedNotStartedMilestoneId(null)}
+                buttons={[
+                    { label: "Got it", variant: "brand", onClick: () => setBlockedNotStartedMilestoneId(null) },
+                ]}
+            />
+
+            <ChoiceDialog
                 show={cancelMotivationMilestone !== null}
                 title="Don't give up just yet!"
                 message={
@@ -620,6 +669,19 @@ export function GoalMilestonesSection({ goal }: GoalMilestonesSectionProps) {
                         },
                     },
                     { label: "Cancel Anyway", variant: "outline-secondary", onClick: () => { void confirmCancelMilestone(); } },
+                ]}
+            />
+
+            <ChoiceDialog
+                show={pendingTaskInProgress !== null}
+                title="Milestone not in progress"
+                message="This task can't be marked as In Progress because its milestone hasn't been started yet. Would you like to set the milestone to In Progress as well?"
+                icon={<ExclamationTriangle size={26} />}
+                iconColor="var(--jv-warn)"
+                onHide={() => setPendingTaskInProgress(null)}
+                buttons={[
+                    { label: "Set Both to 'In Progress'", variant: "brand", onClick: () => { void handleSetBothInProgress(); } },
+                    { label: "Cancel", variant: "outline-secondary", onClick: () => setPendingTaskInProgress(null) },
                 ]}
             />
 

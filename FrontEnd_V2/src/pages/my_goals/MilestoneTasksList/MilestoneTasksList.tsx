@@ -3,7 +3,7 @@ import { Dropdown } from "react-bootstrap";
 import { PencilSquare, ThreeDotsVertical, Check2Circle, Trash3, DashLg, PlusLg, Floppy } from "react-bootstrap-icons";
 import { useNavigate } from "react-router-dom";
 
-import { api, type TaskDataResponse, type TaskStatus } from "@/api";
+import { api, type MilestoneStatus, type TaskDataResponse, type TaskStatus } from "@/api";
 import { ApiError } from "@/api/client";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { checkAndConvertPluralWord } from "@/services/word-plurality.service";
@@ -14,6 +14,8 @@ import "@/pages/my_goals/MilestoneTasksList/MilestoneTasksList.scss";
 interface MilestoneTasksListProps {
 	goalId: number;
 	milestoneId: number;
+	milestoneStatus: MilestoneStatus;
+	onNeedMilestoneInProgress: (proceed: () => Promise<void>) => void;
 }
 
 const STATUS_PILL_CLASS: Record<TaskDataResponse["status"], string> = {
@@ -32,7 +34,7 @@ function toPercent(current: number | null, target: number | null): number | null
 	return Math.max(0, Math.min(100, Math.round((current / target) * 100)));
 }
 
-export function MilestoneTasksList({ goalId, milestoneId }: MilestoneTasksListProps) {
+export function MilestoneTasksList({ goalId, milestoneId, milestoneStatus, onNeedMilestoneInProgress }: MilestoneTasksListProps) {
 	const navigate = useNavigate();
 	
 	const [tasks, setTasks] = useState<TaskDataResponse[]>([]);
@@ -82,9 +84,7 @@ export function MilestoneTasksList({ goalId, milestoneId }: MilestoneTasksListPr
 		[tasks],
 	);
 
-	async function setStatus(task: TaskDataResponse, status: TaskStatus): Promise<boolean> {
-		if (task.status === status) return false;
-
+	async function applyStatus(task: TaskDataResponse, status: TaskStatus): Promise<boolean> {
 		setBusyId(task.id);
 		try {
 			const updated = await api.tasks.update(task.id, { status });
@@ -97,6 +97,17 @@ export function MilestoneTasksList({ goalId, milestoneId }: MilestoneTasksListPr
 		} finally {
 			setBusyId(null);
 		}
+	}
+
+	async function setStatus(task: TaskDataResponse, status: TaskStatus): Promise<boolean> {
+		if (task.status === status) return false;
+
+		if (status === "In Progress" && milestoneStatus !== "In Progress") {
+			onNeedMilestoneInProgress(async () => { await applyStatus(task, "In Progress"); });
+			return false;
+		}
+
+		return applyStatus(task, status);
 	}
 
 	function getStatusCycle(task: TaskDataResponse): TaskStatus[] {

@@ -314,6 +314,15 @@ def update_milestone(
             milestone.paused_at = now
         elif data.status == "Completed":
             milestone.completed_at = now
+        elif data.status == "Not Started" and prev_status != "Not Started":
+            db.execute(
+                update(TaskDBM)
+                .where(
+                    TaskDBM.milestone_id == milestone.id,
+                    TaskDBM.status == "In Progress",
+                )
+                .values(status="Not Started")
+            )
 
     db.commit()
     db.refresh(milestone)

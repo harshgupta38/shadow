@@ -292,6 +292,12 @@ def update_task(
         task.title = data.title.strip()
 
     if data.status is not None:
+        if data.status == "In Progress":
+            milestone = db.scalar(select(MilestoneDBM).where(MilestoneDBM.id == task.milestone_id))
+            if milestone is not None and milestone.status == "Not Started":
+                raise ValidationError(
+                    "The parent milestone is Not Started. Set the milestone to In Progress before starting this task."
+                )
         task.status = data.status
         now = datetime.now(UTC)
         if data.status == "In Progress" and task.started_at is None:

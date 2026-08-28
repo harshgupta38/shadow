@@ -47,9 +47,6 @@ class DailyPlanItemResponse(BaseModel):
 
 class DailyPlanResponse(BaseModel):
     items: list[DailyPlanItemResponse]
-    missed_yesterday_count: int
-    carry_forward_count: int
-    workload_label: str
 
 
 class UpdatePlanRequest(BaseModel):

@@ -18,7 +18,7 @@ import calendar
 from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import AppError, NotFoundError
@@ -281,15 +281,6 @@ def _materialize_record(
     return record
 
 
-def _workload_label(n: int) -> str:
-    if n == 0:
-        return "Free"
-    if n <= 3:
-        return "Light"
-    if n <= 6:
-        return "Moderate"
-    return "Heavy"
-
 
 def _enrich_goals(
     db: Session,
@@ -365,6 +356,9 @@ def sync_plan_from_habit(db: Session, habit: HabitDBM) -> None:
     else:
         _apply_fields(plan, fields)
 
+    if habit.status in ("paused", "archived"):
+        _purge_today_records(db, "habit", habit.id)
+
     db.commit()
 
 
@@ -380,7 +374,8 @@ def sync_plan_from_task(db: Session, task: TaskDBM) -> None:
     if not should_be_active:
         if plan is not None and plan.status != "archived":
             plan.status = "archived"
-            db.commit()
+        _purge_today_records(db, "task", task.id)
+        db.commit()
         return
 
     target, unit = _normalize(task.planner_type, task.planner_target, task.value_unit)
@@ -416,11 +411,23 @@ def sync_plan_from_task(db: Session, task: TaskDBM) -> None:
     db.commit()
 
 
+def _purge_today_records(db: Session, source_type: str, source_id: int) -> None:
+    """Delete plan_records for today onwards — keeps past history intact."""
+    db.execute(
+        delete(DailyPlanRecordDBM).where(
+            DailyPlanRecordDBM.source_type == source_type,
+            DailyPlanRecordDBM.source_id == source_id,
+            DailyPlanRecordDBM.scheduled_date >= date.today(),
+        )
+    )
+
+
 def deactivate_plan(db: Session, source_type: str, source_id: int) -> None:
     plan = _find_plan(db, source_type, source_id)
     if plan is not None and plan.status != "archived":
         plan.status = "archived"
-        db.commit()
+    _purge_today_records(db, source_type, source_id)
+    db.commit()
 
 
 # ── Backfill ─────────────────────────────────────────────────────────────────
@@ -479,22 +486,6 @@ def get_plans_for_date(
         history_by_plan: dict[int, list[DailyPlanRecordDBM]] = defaultdict(list)
         for r in all_history:
             history_by_plan[r.plan_id].append(r)
-
-        # missed_yesterday_count: applicable yesterday − done yesterday.
-        # A missing record for an applicable plan counts as missed.
-        yesterday = today - timedelta(days=1)
-        yesterday_applicable = [p for p in active_plans if _matches_date(p, yesterday)]
-        yesterday_plan_ids = [p.id for p in yesterday_applicable]
-        done_yesterday = (
-            db.scalar(
-                select(func.count()).select_from(DailyPlanRecordDBM).where(
-                    DailyPlanRecordDBM.plan_id.in_(yesterday_plan_ids),
-                    DailyPlanRecordDBM.scheduled_date == yesterday,
-                    DailyPlanRecordDBM.status == "done",
-                )
-            ) or 0
-        ) if yesterday_plan_ids else 0
-        missed_yesterday_count: int = len(yesterday_applicable) - done_yesterday
 
         records.sort(key=_sort_key_record)
 
@@ -587,7 +578,6 @@ def get_plans_for_date(
             )
 
         occurrences.sort(key=_occ_sort_key)
-        missed_yesterday_count = 0
 
         # Collect source pairs for goal enrichment.
         source_pairs = []
@@ -652,12 +642,7 @@ def get_plans_for_date(
                     ),
                 ))
 
-    return DailyPlanResponse(
-        items=items,
-        missed_yesterday_count=missed_yesterday_count,
-        carry_forward_count=0,
-        workload_label=_workload_label(len(items)),
-    )
+    return DailyPlanResponse(items=items)
 
 
 def update_daily_record(

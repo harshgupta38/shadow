@@ -200,11 +200,13 @@ export function PlanPage() {
           </button>
         </div>
         <div className="plan-action-buttons">
-          <button type="button" className="plan-secondary-button" onClick={() => navigate(ROUTES.SCHEDULE)}>
-            <Plus size={16} /> Schedule
-          </button>
-          <button type="button" className="plan-primary-button" onClick={() => setSelectedDate(TODAY)}>
-            <CalendarCheckFill size={15} /> {isToday ? "Today's Plan" : "Today"}
+          {!isToday && (
+            <button type="button" className="plan-secondary-button" onClick={() => setSelectedDate(TODAY)}>
+              <CalendarCheckFill size={15} /> {"Today"}
+            </button>
+          )}
+          <button type="button" className="plan-primary-button" onClick={() => navigate(ROUTES.SCHEDULE)}>
+            <Plus size={26} /> Schedule
           </button>
         </div>
       </div>

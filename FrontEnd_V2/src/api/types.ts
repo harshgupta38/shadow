@@ -501,7 +501,4 @@ export interface UpdatePlanRequest {
 
 export interface PlanResponse {
   items: PlanDataResponse[];
-  missed_yesterday_count: number; // items that user missed to do yesterday
-  carry_forward_count: number; // items that user missed, which is carried forward, these are scheduled items, not part of hbaits
-  workload_label: string; // a label for the workload, e.g. "Light", "Moderate", "Heavy"
 }

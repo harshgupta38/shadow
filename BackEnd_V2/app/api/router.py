@@ -7,6 +7,7 @@ from app.api import (
     habits,
     milestones,
     planner,
+    schedule,
     tasks,
 )
 
@@ -19,6 +20,7 @@ for _module in (
     habits,
     milestones,
     planner,
+    schedule,
     tasks,
 ):
     api_router.include_router(_module.router)

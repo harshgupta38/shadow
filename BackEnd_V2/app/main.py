@@ -21,6 +21,7 @@ from app.models.task import TaskDBM
 from app.models.habit import HabitDBM
 from app.models.plan import PlanDBM
 from app.models.plan_record import DailyPlanRecordDBM
+from app.models.schedule_task import ScheduledTaskDBM
 from app.services import planner_service
 
 

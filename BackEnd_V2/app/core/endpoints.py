@@ -33,6 +33,12 @@ class Endpoints:
         GET_LIST = "/get-habit-list"
         DETAIL = "/{habit_id}"
 
+    class SCHEDULE:
+        PREFIX = "/schedule"
+        SAVE = "/save-schedule-task"
+        GET_LIST = "/get-schedule-task-list"
+        DETAIL = "/{schedule_task_id}"
+
     class PLANNER:
         PREFIX = "/planner"
         FOR_DATE = "/for-date"

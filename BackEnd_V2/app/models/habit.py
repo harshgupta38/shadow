@@ -12,7 +12,7 @@ from sqlalchemy import (
     func,
     text,
 )  # pyright: ignore[reportMissingImports]
-from sqlalchemy.orm import Mapped, mapped_column  # pyright: ignore[reportMissingImports]
+from sqlalchemy.orm import Mapped, mapped_column, relationship  # pyright: ignore[reportMissingImports]
 
 from app.models.base import Base
 
@@ -133,3 +133,9 @@ class HabitDBM(Base):
     )
     planner_target: Mapped[int | None] = mapped_column(Integer, nullable=True)
     value_unit: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
+    goal: Mapped["GoalDBM | None"] = relationship(  # type: ignore[name-defined]
+        "GoalDBM",
+        foreign_keys=[goal_id],
+        lazy="select",
+    )

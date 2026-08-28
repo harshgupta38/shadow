@@ -440,9 +440,9 @@ export interface HabitCreateRequest {
   goal_id: number | null;
 }
 
-export interface HabitDataResponse extends HabitCreateRequest {
+export interface HabitDataResponse extends Omit<HabitCreateRequest, "goal_id"> {
   id: number;
-  
+  goal?: GoalDataInPlan;
   status: HabitStatus;
   created_at: string;
   updated_at: string;

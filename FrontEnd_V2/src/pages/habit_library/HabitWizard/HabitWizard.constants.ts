@@ -174,7 +174,7 @@ export function answersFromHabit(habit: HabitDataResponse): HabitWizardAnswers {
         specificTime: habit.specific_time ?? "",
         durationMinutes: habit.duration_minutes !== null ? String(habit.duration_minutes) : "",
         note: habit.note ?? "",
-        goalId: habit.goal_id !== null ? String(habit.goal_id) : "",
+        goalId: habit.goal?.id != null ? String(habit.goal.id) : "",
     };
 }
 

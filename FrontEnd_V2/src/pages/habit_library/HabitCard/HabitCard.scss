@@ -114,11 +114,25 @@
   background: color-mix(in srgb, var(--jv-violet) 12%, var(--jv-surface) 88%);
   border-color: color-mix(in srgb, var(--jv-violet) 30%, transparent);
   color: var(--jv-violet);
+  text-transform: capitalize;
 }
 
 .hl-habit-chip--detail {
   border-color: color-mix(in srgb, var(--jv-border) 82%, transparent);
   color: var(--jv-muted);
+}
+
+.hl-habit-chip--goal {
+  background: var(--jv-success-soft);
+  border-color: transparent;
+  color: var(--jv-success);
+}
+
+.hl-habit-chip--clickable {
+  cursor: pointer;
+  transition: filter var(--jv-transition);
+  &:hover { filter: brightness(0.92); }
+  &:focus-visible { outline: none; box-shadow: var(--jv-ring); }
 }
 
 .hl-chip-tooltip-host {

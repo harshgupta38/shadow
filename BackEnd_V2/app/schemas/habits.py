@@ -232,6 +232,12 @@ class HabitUpdateRequest(BaseModel):
         return self
 
 
+class GoalSummary(BaseModel):
+    id: int
+    title: str
+    category: str | None
+
+
 class HabitDataResponse(BaseModel):
     model_config = ORMModel.model_config
 
@@ -241,7 +247,7 @@ class HabitDataResponse(BaseModel):
     planner_type: HabitType
     planner_target: int | None
     value_unit: str | None
-    goal_id: int | None
+    goal: GoalSummary | None = None
 
     frequencies: list[HabitFrequency]
     priority: HabitPriority

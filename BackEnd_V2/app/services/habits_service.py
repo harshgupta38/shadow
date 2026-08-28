@@ -1,16 +1,23 @@
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.core.exceptions import NotFoundError, ValidationError
 from app.models.goal import GoalDBM
 from app.models.habit import HabitDBM
 from app.models.user import UserDBM
-from app.schemas.habits import HabitCreateRequest, HabitDataResponse, HabitUpdateRequest
+from app.schemas.habits import GoalSummary, HabitCreateRequest, HabitDataResponse, HabitUpdateRequest
 from app.services import planner_service
 
 
 def _serialize(habit: HabitDBM) -> HabitDataResponse:
     is_metric = habit.planner_type == "metric"
+    goal_summary: GoalSummary | None = None
+    if habit.goal_id is not None and habit.goal is not None:
+        goal_summary = GoalSummary(
+            id=habit.goal.id,
+            title=habit.goal.title,
+            category=habit.goal.category,
+        )
     return HabitDataResponse(
         id=habit.id,
         title=habit.title,
@@ -18,7 +25,7 @@ def _serialize(habit: HabitDBM) -> HabitDataResponse:
         planner_type=habit.planner_type,
         planner_target=habit.planner_target if is_metric else None,
         value_unit=habit.value_unit if is_metric else None,
-        goal_id=habit.goal_id,
+        goal=goal_summary,
         frequencies=habit.frequencies,
         priority=habit.priority,
         weekly_count=habit.weekly_count,
@@ -53,7 +60,7 @@ def get_list(
     *,
     status: str | None = None,
 ) -> list[HabitDataResponse]:
-    stmt = select(HabitDBM).where(HabitDBM.user_id == current_user.id)
+    stmt = select(HabitDBM).options(joinedload(HabitDBM.goal)).where(HabitDBM.user_id == current_user.id)
     if status is not None:
         stmt = stmt.where(HabitDBM.status == status)
     habits = db.scalars(stmt.order_by(HabitDBM.updated_at.desc(), HabitDBM.id.desc())).all()

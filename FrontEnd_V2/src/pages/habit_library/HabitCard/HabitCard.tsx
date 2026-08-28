@@ -1,6 +1,9 @@
-import { Archive, ArrowCounterclockwise, CaretRightFill, PauseFill, PencilSquare, Plus, ThreeDotsVertical, Trash } from "react-bootstrap-icons";
+import { Archive, ArrowCounterclockwise, CaretRightFill, Link45deg, PauseFill, PencilSquare, Plus, ThreeDotsVertical, Trash } from "react-bootstrap-icons";
 import { Dropdown } from "react-bootstrap";
 import { createPortal } from "react-dom";
+import { useNavigate } from "react-router-dom";
+
+import { ROUTES } from "@/routes/RoutePaths";
 
 import type { HabitDataResponse } from "@/api";
 import {
@@ -42,6 +45,7 @@ export function HabitCard({
   onToggleArchive,
   onDeleteRequest,
 }: HabitCardProps) {
+  const navigate = useNavigate();  
   const frequencyLabel = h.planner_type === "metric"
     ? getMetricFrequencyLabel(h)
     : getSimpleFrequencyLabel(h);
@@ -151,6 +155,17 @@ export function HabitCard({
             <span className="hl-habit-chip hl-habit-chip--detail">
               {getHabitDateLabel(h)}
             </span>
+          )}
+          {h.goal && (
+            <button
+              type="button"
+              className="hl-habit-chip hl-habit-chip--goal hl-habit-chip--clickable"
+              title={h.goal.title}
+              onClick={() => navigate(ROUTES.MY_GOAL_DETAIL.replace(":goalId", String(h.goal!.id)))}
+            >
+              <Link45deg size={11} />
+              {h.goal.title.length > 15 ? `${h.goal.title.slice(0, 15)}…` : h.goal.title}
+            </button>
           )}
         </div>
       </div>

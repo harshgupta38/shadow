@@ -21,6 +21,7 @@ interface HabitCardProps {
   habit: HabitDataResponse;
   isMenuOpen: boolean;
   isBusy: boolean;
+  viewMode: "grid" | "list";
   onMenuToggle: (nextShow: boolean) => void;
   onEdit: () => void;
   onDuplicate: () => void;
@@ -33,6 +34,7 @@ export function HabitCard({
   habit: h,
   isMenuOpen,
   isBusy,
+  viewMode,
   onMenuToggle,
   onEdit,
   onDuplicate,
@@ -48,7 +50,7 @@ export function HabitCard({
     <article className="hl-habit-card">
       <div className="hl-habit-card-head">
         <div>
-          <h3 className="hl-habit-name">{h.title}</h3>
+          <h3 className={`hl-habit-name${viewMode === "grid" ? " hl-habit-name--grid" : ""}`}>{h.title}</h3>
           {h.note && <div className="hl-habit-motivation">{h.note}</div>}
         </div>
         <Dropdown

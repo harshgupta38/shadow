@@ -32,6 +32,10 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  
+  &.hl-habit-name--grid{
+    max-width: 30ch;
+  }
 }
 
 .hl-habit-motivation {

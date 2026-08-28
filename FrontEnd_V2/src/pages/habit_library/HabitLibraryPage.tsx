@@ -422,6 +422,7 @@ export function HabitLibraryPage() {
                   habit={h}
                   isMenuOpen={openHabitMenuId === h.id}
                   isBusy={menuActionHabitId === h.id}
+                  viewMode={viewMode}
                   onMenuToggle={(nextShow) => setOpenHabitMenuId(nextShow ? h.id : null)}
                   onEdit={() => openEditPanel(h)}
                   onDuplicate={() => handleDuplicateHabit(h)}

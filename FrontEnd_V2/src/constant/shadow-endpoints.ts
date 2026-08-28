@@ -39,6 +39,12 @@ export const ENDPOINTS = {
         RECORD: (record_id: number) => `/records/${record_id}`,
         DETAIL: (id: number) => `/${id}`,
     },
+    SCHEDULE: {
+        PREFIX: "/schedule",
+        SAVE: "/save-schedule-task",
+        GET_LIST: "/get-schedule-task-list",
+        DETAIL: (id: number) => `/${id}`,
+    },
     CHAT: {
         PREFIX: "/chat",
         CONVERSATIONS: "/conversations",

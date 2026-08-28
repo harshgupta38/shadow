@@ -16,6 +16,7 @@ import { RegisterPage } from "@/pages/auth/RegisterPage";
 import { DashboardPage } from "@/pages/dashboard/DashboardPage";
 import { PlanPage } from "@/pages/plan/PlanPage";
 import { SchedulePage } from "@/pages/schedule/SchedulePage";
+import { ScheduleWizardPage } from "@/pages/schedule/ScheduleWizard/ScheduleWizardPage";
 import { MyGoalsPage } from "@/pages/my_goals/MyGoalsPage";
 import { GoalDetailPage } from "@/pages/my_goals/GoalDetailPage/GoalDetailPage";
 import { GoalMilestoneWizardPage } from "@/pages/my_goals/GoalMilestoneWizard/GoalMilestoneWizardPage";
@@ -42,7 +43,10 @@ export function AppRoutes() {
 				<Route element={<AppLayout />}>
 					<Route path={ROUTES.DASHBOARD} element={<DashboardPage />} />
 					<Route path={ROUTES.PLAN} element={<PlanPage />} />
+
 					<Route path={ROUTES.SCHEDULE} element={<SchedulePage />} />
+					<Route path={ROUTES.SCHEDULE_CREATE} element={<ScheduleWizardPage />} />
+					<Route path={ROUTES.SCHEDULE_EDIT} element={<ScheduleWizardPage />} />
 
 					<Route path={ROUTES.MY_GOALS} element={<MyGoalsPage />} />
 					<Route path={ROUTES.MY_GOAL_DETAIL} element={<GoalDetailPage />} />
@@ -54,6 +58,7 @@ export function AppRoutes() {
 					<Route path={ROUTES.HABIT_LIBRARY} element={<HabitLibraryPage />} />
 					<Route path={ROUTES.HABIT_LIBRARY_CREATE} element={<HabitWizardPage />} />
 					<Route path={ROUTES.HABIT_LIBRARY_EDIT} element={<HabitWizardPage />} />
+					
 					<Route path={ROUTES.TRACK_PROGRESS} element={<TrackProgressPage />} />
 					<Route path={ROUTES.REPORTS} element={<ReportsPage />} />
 					<Route path={ROUTES.ASSISTANT} element={<AssistantPage />} />

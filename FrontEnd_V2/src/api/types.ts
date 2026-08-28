@@ -502,3 +502,33 @@ export interface UpdatePlanRequest {
 export interface PlanResponse {
   items: PlanDataResponse[];
 }
+
+// ── Scheduled Tasks ──────────────────────────────────────────────────────────
+export type ScheduledTaskType = "simple" | "metric";
+export type ScheduledTaskPriority = "highest" | "high" | "medium" | "low" | "lowest";
+export type ScheduledTaskPreferredTime = "flexible" | "morning" | "afternoon" | "evening" | "night" | "custom";
+
+export interface ScheduledTaskCreateRequest {
+  title: string;
+  planner_type: ScheduledTaskType;
+
+  planner_target: number | null;
+  value_unit: string | null;
+  priority: ScheduledTaskPriority;
+  scheduled_date: string; // YYYY-MM-DD
+  preferred_time: ScheduledTaskPreferredTime;
+  specific_time: string | null;
+  
+  allow_snoozing: boolean;
+  snooze_limit: number | null; // null = infinite
+  duration_minutes: number | null;
+  note: string | null;
+}
+
+export interface ScheduledTaskUpdateRequest extends Partial<ScheduledTaskCreateRequest> {}
+
+export interface ScheduledTaskDataResponse extends ScheduledTaskCreateRequest {
+  id: number;
+  created_at: string;
+  updated_at: string;
+}

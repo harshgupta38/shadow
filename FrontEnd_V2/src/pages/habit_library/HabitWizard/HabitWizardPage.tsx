@@ -41,6 +41,8 @@ import {
     type HabitWizardAnswers,
 } from "@/pages/habit_library/HabitWizard/HabitWizard.constants";
 
+import { resizeTextareaToMaxLines } from "@/services/textarea-resize.service";
+
 import "@/pages/my_goals/GoalCreationWizard/GoalCreationWizard.scss";
 import "@/pages/my_goals/GoalMilestoneWizard/GoalMilestoneWizardPage.scss";
 import "@/pages/my_goals/GoalTaskWizard/GoalTaskWizardPage.scss";
@@ -795,14 +797,17 @@ export function HabitWizardPage() {
                                                             <label className="form-label">
                                                                 Note <span className="text-muted fw-normal">(optional)</span>
                                                             </label>
-                                                            <input
-                                                                type="text"
-                                                                className="form-control"
+                                                            <textarea
+                                                                className="form-control goal-wizard-reason"
                                                                 value={answers.note}
                                                                 autoComplete="off"
-                                                                onChange={(e) => updateAnswer("note", e.target.value)}
+                                                                onChange={(e) => {
+                                                                    updateAnswer("note", e.target.value);
+                                                                    resizeTextareaToMaxLines(e.currentTarget, 5);
+                                                                }}
                                                                 placeholder="Any extra details for this habit"
                                                                 disabled={!isActive || submitting}
+                                                                rows={1}
                                                             />
                                                         </div>
 

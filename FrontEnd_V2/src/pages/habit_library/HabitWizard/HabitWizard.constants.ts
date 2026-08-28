@@ -1,4 +1,5 @@
 import type { HabitCreateRequest, HabitDataResponse, HabitPreferredTime, HabitPriority, HabitType } from "@/api";
+import { todayIso } from "@/services/date.service";
 
 export type HabitWizardStepKey = "defineHabit" | "configurePlanning" | "habitTimeline" | "additionalDetails";
 
@@ -65,9 +66,6 @@ export const STEPS: HabitWizardStep[] = [
     },
 ];
 
-function todayIso(): string {
-    return new Date().toISOString().slice(0, 10);
-}
 
 export function makeEmptyAnswers(): HabitWizardAnswers {
     return {

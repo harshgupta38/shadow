@@ -87,6 +87,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         restoreSession();
     }, []);
 
+    useEffect(() => {
+        const handleUnauthorized = () => logout();
+        window.addEventListener("unauthorized", handleUnauthorized);
+        return () => window.removeEventListener("unauthorized", handleUnauthorized);
+    }, [logout]);
+
     const value = useMemo<AuthContextValue>(
         () => ({
             user, // provides the current user object (or null if not logged in)

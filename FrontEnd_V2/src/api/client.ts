@@ -35,7 +35,7 @@ function createClient(): AxiosInstance {
         (response) => response,
         (error: AxiosError) => {
             if (error.response?.status === 401) {
-                // emitUnauthorized(); // TODO
+                window.dispatchEvent(new Event("unauthorized"));
             }
             return Promise.reject(normaliseError(error));
         },

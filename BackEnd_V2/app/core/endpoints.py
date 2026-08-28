@@ -3,34 +3,34 @@ class Endpoints:
         PREFIX = "/auth"
         LOGIN = "/login"
         REGISTER = "/register"
-        USER_DATA = "/me"
+        USER_DATA = "/my-data"
 
     class GOALS:
         PREFIX = "/goal"
         REFINE = "/refine"
-        SAVE = "/save"
-        FROM_PROPOSAL = "/from-proposal"
-        GET_LIST = "/get-list"
+        SAVE = "/save-goal"
+        FROM_PROPOSAL = "/save-goal-from-proposal"
+        GET_LIST = "/get-goal-list"
         DETAIL = "/{goal_id}"
 
     class MILESTONES:
         PREFIX = "/milestone"
-        SAVE = "/save"
-        FROM_PROPOSAL = "/from-proposal"
-        GET_LIST = "/get-list"
+        SAVE = "/save-milestone"
+        FROM_PROPOSAL = "/save-milestone-from-proposal"
+        GET_LIST = "/get-milestone-list"
         DETAIL = "/{milestone_id}"
 
     class TASKS:
         PREFIX = "/task"
-        SAVE = "/save"
-        FROM_PROPOSAL = "/from-proposal"
-        GET_LIST = "/get-list"
+        SAVE = "/save-task"
+        FROM_PROPOSAL = "/save-task-from-proposal"
+        GET_LIST = "/get-task-list"
         DETAIL = "/{task_id}"
 
     class HABITS:
         PREFIX = "/habit"
-        GET_LIST = "/get-list"
-        SAVE = "/save"
+        SAVE = "/save-habit"
+        GET_LIST = "/get-habit-list"
         DETAIL = "/{habit_id}"
 
     class PLANNER:

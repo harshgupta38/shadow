@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, Check2Circle, X } from "react-bootstrap-icons";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 
@@ -77,6 +77,9 @@ export function HabitWizardPage() {
     const [fieldErrors, setFieldErrors] = useState<HabitFieldErrors>({});
     const [error, setError] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
+    const startDateInputRef = useRef<HTMLInputElement>(null);
+    const endDateInputRef = useRef<HTMLInputElement>(null);
+
     const [dayPickerOpen, setDayPickerOpen] = useState(
         () => (answers.specificDays.length > 0) || (answers.frequencies.includes("specific_day")),
     );
@@ -678,13 +681,29 @@ export function HabitWizardPage() {
                                                                 <div className="row g-3 mb-3">
                                                                     <div className={`col-12 ${answers.setEndDate ? "col-md-6" : ""}`}>
                                                                         <label className="form-label">Start date</label>
-                                                                        <input
-                                                                            type="date"
-                                                                            className={`form-control ${fieldErrors.startDate ? "is-invalid" : ""}`.trim()}
-                                                                            value={answers.startDate}
-                                                                            onChange={(e) => updateAnswer("startDate", e.target.value)}
-                                                                            disabled={!isActive || submitting}
-                                                                        />
+                                                                        <div
+                                                                            className={`form-control schedule-date-display ${fieldErrors.startDate ? "is-invalid" : ""} ${!isActive || submitting ? "disabled" : ""}`.trim()}
+                                                                            onClick={() => { if (isActive && !submitting) startDateInputRef.current?.showPicker(); }}
+                                                                            onKeyDown={(e) => { if ((e.key === "Enter" || e.key === " ") && isActive && !submitting) startDateInputRef.current?.showPicker(); }}
+                                                                            role="button"
+                                                                            tabIndex={isActive && !submitting ? 0 : -1}
+                                                                            aria-label="Open start date picker"
+                                                                        >
+                                                                            {answers.startDate
+                                                                                ? new Date(answers.startDate + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" })
+                                                                                : <span className="schedule-date-placeholder">Pick a date</span>
+                                                                            }
+                                                                            <input
+                                                                                ref={startDateInputRef}
+                                                                                type="date"
+                                                                                value={answers.startDate}
+                                                                                onChange={(e) => updateAnswer("startDate", e.target.value)}
+                                                                                disabled={!isActive || submitting}
+                                                                                className="schedule-date-hidden-input"
+                                                                                tabIndex={-1}
+                                                                                aria-hidden="true"
+                                                                            />
+                                                                        </div>
                                                                         {fieldErrors.startDate && (
                                                                             <div className="text-danger small mt-1">{fieldErrors.startDate}</div>
                                                                         )}
@@ -692,14 +711,30 @@ export function HabitWizardPage() {
                                                                     {answers.setEndDate && (
                                                                         <div className="col-12 col-md-6">
                                                                             <label className="form-label">End date</label>
-                                                                            <input
-                                                                                type="date"
-                                                                                className={`form-control ${fieldErrors.endDate ? "is-invalid" : ""}`.trim()}
-                                                                                value={answers.endDate}
-                                                                                min={answers.startDate}
-                                                                                onChange={(e) => updateAnswer("endDate", e.target.value)}
-                                                                                disabled={!isActive || submitting}
-                                                                            />
+                                                                            <div
+                                                                                className={`form-control schedule-date-display ${fieldErrors.endDate ? "is-invalid" : ""} ${!isActive || submitting ? "disabled" : ""}`.trim()}
+                                                                                onClick={() => { if (isActive && !submitting) endDateInputRef.current?.showPicker(); }}
+                                                                                onKeyDown={(e) => { if ((e.key === "Enter" || e.key === " ") && isActive && !submitting) endDateInputRef.current?.showPicker(); }}
+                                                                                role="button"
+                                                                                tabIndex={isActive && !submitting ? 0 : -1}
+                                                                                aria-label="Open end date picker"
+                                                                            >
+                                                                                {answers.endDate
+                                                                                    ? new Date(answers.endDate + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" })
+                                                                                    : <span className="schedule-date-placeholder">Pick a date</span>
+                                                                                }
+                                                                                <input
+                                                                                    ref={endDateInputRef}
+                                                                                    type="date"
+                                                                                    value={answers.endDate}
+                                                                                    min={answers.startDate}
+                                                                                    onChange={(e) => updateAnswer("endDate", e.target.value)}
+                                                                                    disabled={!isActive || submitting}
+                                                                                    className="schedule-date-hidden-input"
+                                                                                    tabIndex={-1}
+                                                                                    aria-hidden="true"
+                                                                                />
+                                                                            </div>
                                                                             {fieldErrors.endDate && (
                                                                                 <div className="text-danger small mt-1">{fieldErrors.endDate}</div>
                                                                             )}

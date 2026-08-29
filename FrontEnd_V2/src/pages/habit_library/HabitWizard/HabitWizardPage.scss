@@ -18,3 +18,30 @@
     max-width: 4.5rem;
     padding-right: 0.5rem;
 }
+
+.schedule-date-display {
+  cursor: pointer;
+  position: relative;
+  user-select: none;
+
+  &.disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  .schedule-date-placeholder {
+    color: var(--jv-muted, #9ca3af);
+  }
+
+  .schedule-date-hidden-input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    border: none;
+    padding: 0;
+  }
+}

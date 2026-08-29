@@ -454,7 +454,7 @@ export interface HabitUpdateRequest extends Partial<HabitCreateRequest> {
 
 // ── Planner ─────────────────────────────────────────────────────────────────
 export type PlanPriority = "highest" | "high" | "medium" | "low" | "lowest";
-export type PlanSourceType = "habit" | "task";
+export type PlanSourceType = "habit" | "task" | "schedule";
 export type PlannerType = "simple" | "metric";
 export type PlanPreferredTime = "flexible" | "morning" | "afternoon" | "evening" | "night" | "custom";
 export type PlanStatus = "due" | "done" | "missed";

@@ -172,7 +172,8 @@ export function SchedulePage() {
                         ) : tasks.length === 0 ? (
                             <div className="schedule-empty-state">
                                 <CalendarWeek size={28} className="mb-2 schedule-empty-icon" />
-                                <p className="small mb-0">No scheduled tasks yet.</p>
+                                <p className="schedule-empty-title">No commitments scheduled yet.</p>
+                                <p className="schedule-empty-sub">Schedule a one-time task to keep it on your radar.</p>
                             </div>
                         ) : filteredTasks.length === 0 ? (
                             <div className="schedule-empty-state">

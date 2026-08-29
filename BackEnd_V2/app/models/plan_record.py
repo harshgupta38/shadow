@@ -38,7 +38,7 @@ class DailyPlanRecordDBM(Base):
         # Fast "has plan been materialised for date?" checks.
         Index("ix_dpr_plan_date", "plan_id", "scheduled_date"),
         CheckConstraint(
-            "source_type IS NULL OR source_type IN ('habit', 'task')",
+            "source_type IS NULL OR source_type IN ('habit', 'task', 'schedule')",
             name="ck_dpr_source_type",
         ),
         CheckConstraint(

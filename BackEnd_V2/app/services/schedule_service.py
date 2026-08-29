@@ -9,6 +9,7 @@ from app.schemas.schedule import (
     ScheduledTaskDataResponse,
     ScheduledTaskUpdateRequest,
 )
+from app.services.planner_service import deactivate_plan, sync_plan_from_scheduled_task
 
 
 def _serialize(task: ScheduledTaskDBM) -> ScheduledTaskDataResponse:
@@ -67,6 +68,7 @@ def save_task(
     db.add(task)
     db.commit()
     db.refresh(task)
+    sync_plan_from_scheduled_task(db, task)
     return _serialize(task)
 
 
@@ -95,6 +97,9 @@ def update_task(
         task.priority = data.priority
     if "scheduled_date" in fields and data.scheduled_date is not None:
         task.scheduled_date = data.scheduled_date
+        # Rescheduling reactivates a completed or missed task.
+        if task.status in ("completed", "missed"):
+            task.status = "upcoming"
 
     if "preferred_time" in fields and data.preferred_time is not None:
         task.preferred_time = data.preferred_time
@@ -148,6 +153,7 @@ def update_task(
 
     db.commit()
     db.refresh(task)
+    sync_plan_from_scheduled_task(db, task)
     return _serialize(task)
 
 
@@ -160,5 +166,7 @@ def delete_task(db: Session, current_user: UserDBM, task_id: int) -> None:
     )
     if task is None:
         raise NotFoundError("Scheduled task not found.")
+    deactivate_plan(db, "schedule", task.id)  # archives plan + purges records, commits
+    db.refresh(task)
     db.delete(task)
     db.commit()

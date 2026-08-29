@@ -2,7 +2,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-PlanSourceType = Literal["habit", "task"]
+PlanSourceType = Literal["habit", "task", "schedule"]
 PlannerType = Literal["simple", "metric"]
 PlanPriority = Literal["highest", "high", "medium", "low", "lowest"]
 PlanPreferredTime = Literal[

@@ -63,6 +63,19 @@
     color: var(--jv-text);
   }
 
+  .schedule-empty-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--jv-text);
+    margin: 0 0 0.25rem;
+  }
+
+  .schedule-empty-sub {
+    font-size: 0.78rem;
+    color: var(--jv-muted);
+    margin: 0;
+  }
+
   // ── Right: calendar panel ──────────────────────────────────────────────
 
   .schedule-cal-panel {

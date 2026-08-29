@@ -75,7 +75,8 @@ export function DayOverviewPanel({ items, loading, estimatedMinutes }: Props) {
   }
 
   const habitCount = items.filter((i) => i.source_type === "habit").length;
-  const taskCount = items.filter((i) => i.source_type === "task").length;
+  const scheduleCount = items.filter((i) => i.source_type === "schedule").length;
+  const taskCount = scheduleCount + items.filter((i) => i.source_type === "task").length;
 
   const priorityCounts = new Map<PlanPriority, number>();
   for (const item of items) {
@@ -120,6 +121,7 @@ export function DayOverviewPanel({ items, loading, estimatedMinutes }: Props) {
               {[
                 habitCount > 0 && `${habitCount} habit${habitCount !== 1 ? "s" : ""}`,
                 taskCount > 0 && `${taskCount} task${taskCount !== 1 ? "s" : ""}`,
+                // scheduleCount > 0 && `${scheduleCount} scheduled`,
               ]
                 .filter(Boolean)
                 .join(" · ")}

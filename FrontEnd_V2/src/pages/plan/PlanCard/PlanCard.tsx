@@ -4,6 +4,7 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   Bullseye,
+  CalendarEvent,
   ChatSquareDots,
   CheckLg,
   CheckSquareFill,
@@ -203,8 +204,12 @@ export function PlanCard({ item, onToggle, onSaveProgress, onSaveNote, busy = fa
       <div className="plan-card-pills">
         <div className="plan-card-pills-left">
           <span className={`plan-card-pill plan-card-pill--type-${item.source_type}`}>
-            {item.source_type === "habit" ? <Bullseye size={11} /> : <CheckSquareFill size={11} />}
-            {item.source_type === "habit" ? "Habit" : "Task"}
+            {item.source_type === "habit"
+              ? <Bullseye size={11} />
+              : item.source_type === "schedule"
+                ? <CalendarEvent size={11} />
+                : <CheckSquareFill size={11} />}
+            {item.source_type === "habit" ? "Habit" : item.source_type === "schedule" ? "Scheduled" : "Task"}
           </span>
 
           <span className={`plan-card-pill plan-card-pill--priority-${item.priority}`}>

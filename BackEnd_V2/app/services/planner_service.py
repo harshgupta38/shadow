@@ -26,6 +26,7 @@ from app.models.plan_record import DailyPlanRecordDBM
 from app.models.goal import GoalDBM
 from app.models.habit import HabitDBM
 from app.models.plan import PlanDBM
+from app.models.schedule_task import ScheduledTaskDBM
 from app.models.task import TaskDBM
 from app.models.user import UserDBM
 from app.schemas.planner import (
@@ -534,6 +535,102 @@ def deactivate_plan(db: Session, source_type: str, source_id: int) -> None:
     db.commit()
 
 
+# ── Scheduled-task sync ───────────────────────────────────────────────────────
+
+def _sync_plan_for_scheduled_task(db: Session, task: ScheduledTaskDBM) -> None:
+    """Create or update PlanDBM for a one-time scheduled task (no commit).
+
+    scheduled_date is never mutated.  For snoozed tasks, end_date is extended
+    to today so _matches_date includes the current day; for upcoming tasks
+    end_date equals scheduled_date (one-time occurrence).
+    """
+    plan = _find_plan(db, "schedule", task.id)
+    target, unit = _normalize(task.planner_type, task.planner_target, task.value_unit)
+
+    # Snoozed: extend the window to today; upcoming/completed/missed: keep original.
+    effective_end = date.today() if task.status == "snoozed" else task.scheduled_date
+
+    fields = {
+        "user_id": task.user_id,
+        "source_type": "schedule",
+        "source_id": task.id,
+        "title": task.title,
+        "planner_type": task.planner_type,
+        "planner_target": target,
+        "value_unit": unit,
+        "frequencies": ["daily"],
+        "weekly_count": None,
+        "monthly_count": None,
+        "specific_days": None,
+        "day_fallback": False,
+        "preferred_time": task.preferred_time,
+        "specific_time": task.specific_time,
+        "duration_minutes": task.duration_minutes,
+        "priority": task.priority,
+        "start_date": task.scheduled_date,
+        "end_date": effective_end,
+        "status": "active",
+    }
+
+    if plan is None:
+        plan = PlanDBM(**fields)
+        db.add(plan)
+        db.flush()
+    else:
+        _apply_fields(plan, fields)
+
+    _sync_today_record(db, plan)
+
+
+def sync_plan_from_scheduled_task(db: Session, task: ScheduledTaskDBM) -> None:
+    _sync_plan_for_scheduled_task(db, task)
+    db.commit()
+
+
+def tick_scheduled_tasks(db: Session, user_id: int, today: date) -> None:
+    """Process overdue scheduled tasks: snooze eligible ones, mark the rest missed.
+
+    scheduled_date is NEVER mutated — it always reflects the original intent.
+    snooze_limit is interpreted as "max days after scheduled_date we will keep
+    showing the task"; the count is derived as (today − scheduled_date).days.
+    """
+    overdue = list(db.scalars(
+        select(ScheduledTaskDBM).where(
+            ScheduledTaskDBM.user_id == user_id,
+            ScheduledTaskDBM.scheduled_date < today,
+            ScheduledTaskDBM.status.in_(["upcoming", "snoozed"]),
+        )
+    ).all())
+
+    if not overdue:
+        return
+
+    for task in overdue:
+        days_overdue = (today - task.scheduled_date).days
+        can_snooze = (
+            task.allow_snoozing
+            and (task.snooze_limit is None or days_overdue <= task.snooze_limit)
+        )
+
+        if can_snooze:
+            task.status = "snoozed"
+            _sync_plan_for_scheduled_task(db, task)  # extends end_date to today
+        else:
+            task.status = "missed"
+            plan = _find_plan(db, "schedule", task.id)
+            if plan is not None and plan.status != "archived":
+                plan.status = "archived"
+            db.execute(
+                delete(DailyPlanRecordDBM).where(
+                    DailyPlanRecordDBM.source_type == "schedule",
+                    DailyPlanRecordDBM.source_id == task.id,
+                    DailyPlanRecordDBM.scheduled_date >= today,
+                )
+            )
+
+    db.commit()
+
+
 # ── Backfill ─────────────────────────────────────────────────────────────────
 
 def sync_all_plans(db: Session) -> None:
@@ -559,6 +656,11 @@ def get_plans_for_date(
 
     if target_date > today:
         raise AppError("Future dates are not allowed.")
+
+    # Tick overdue scheduled tasks before loading plans so snoozed tasks
+    # show as today's items and missed tasks don't appear.
+    if target_date == today:
+        tick_scheduled_tasks(db, current_user.id, today)
 
     # Shared: load all active plans once (reused for today + yesterday calculations).
     active_plans = list(db.scalars(
@@ -812,6 +914,20 @@ def update_daily_record(
                 )
             ) or 0
             task.current_value = total
+
+    # For schedule plans: mirror record status back to the source ScheduledTask
+    # in both directions so the Schedule page always stays in sync.
+    if record.source_type == "schedule" and record.source_id is not None:
+        sched_task = db.get(ScheduledTaskDBM, record.source_id)
+        if sched_task is not None:
+            if record.status == "done":
+                sched_task.status = "completed"
+            elif record.status == "due":
+                # Restore to the correct in-progress status: snoozed if the
+                # task is past its original date, upcoming if it's still on it.
+                sched_task.status = (
+                    "snoozed" if date.today() > sched_task.scheduled_date else "upcoming"
+                )
 
     db.commit()
     db.refresh(record)

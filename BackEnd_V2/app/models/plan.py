@@ -27,7 +27,7 @@ class PlanDBM(Base):
             name="uq_plan_source",
         ),
         CheckConstraint(
-            "source_type IN ('habit', 'task')",
+            "source_type IN ('habit', 'task', 'schedule')",
             name="ck_plan_source_type",
         ),
         CheckConstraint(

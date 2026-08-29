@@ -150,8 +150,9 @@
   white-space: nowrap;
 
   // source type
-  &--type-habit { background: var(--jv-brand-soft);   color: var(--jv-brand-1); }
-  &--type-task  { background: var(--jv-info-soft);    color: var(--jv-info);    }
+  &--type-habit     { background: var(--jv-brand-soft);                                  color: var(--jv-brand-1); }
+  &--type-task      { background: var(--jv-info-soft);                                   color: var(--jv-info);    }
+  &--type-schedule  { background: color-mix(in srgb, #0d9488 12%, transparent);          color: #0d9488;           }
 
   // priority
   &--priority-highest { background: var(--jv-danger-soft); color: var(--jv-danger); }

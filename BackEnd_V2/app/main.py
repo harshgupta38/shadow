@@ -10,6 +10,8 @@ from fastapi.exceptions import RequestValidationError
 
 from app.api.router import api_router
 from app.core.config import settings
+from sqlalchemy import text  # pyright: ignore[reportMissingImports]
+
 from app.db.session import SessionLocal, engine
 from app.models.base import Base
 from app.core.exceptions import AppError
@@ -32,9 +34,18 @@ from app.models.schedule_task import ScheduledTaskDBM
 from app.services import planner_service
 
 
+def _run_migrations() -> None:
+    with engine.connect() as conn:
+        existing = {row[1] for row in conn.execute(text("PRAGMA table_info(habits)"))}
+        if "category" not in existing:
+            conn.execute(text("ALTER TABLE habits ADD COLUMN category TEXT"))
+            conn.commit()
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    _run_migrations()
     with SessionLocal() as db:
         planner_service.sync_all_plans(db)
     yield

@@ -1,5 +1,5 @@
-import { ArrowRepeat, ChevronDown, Grid3x3Gap, List, PlusLg, Stars } from "react-bootstrap-icons";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ArrowRepeat, Grid3x3Gap, List, PlusLg, Stars } from "react-bootstrap-icons";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
@@ -10,6 +10,7 @@ import type { FilterState, HabitCreateRequest, HabitDataResponse } from "@/api";
 import { FREQUENCY_OPTIONS, PRIORITY_OPTIONS } from "@/pages/habit_library/HabitWizard/HabitWizard.constants";
 import { DEFAULT_FILTERS, EMPTY_FILTERS, FILTER_STATUS_OPTIONS } from "@/pages/habit_library/HabitLibraryPage.constants";
 import { HabitCard } from "@/pages/habit_library/HabitCard/HabitCard";
+import { FilterDropdown } from "@/components/ui/FilterDropdown/FilterDropdown";
 
 import "@/pages/habit_library/HabitLibraryPage.scss";
 
@@ -19,7 +20,6 @@ export function HabitLibraryPage() {
   const [habits, setHabits] = useState<HabitDataResponse[]>([]);
   const [loadingHabits, setLoadingHabits] = useState(false);
   const [habitsError, setHabitsError] = useState<string | null>(null);
-  const [filterOpen, setFilterOpen] = useState(false);
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
   const [deleteTargetHabit, setDeleteTargetHabit] = useState<HabitDataResponse | null>(null);
   const [openHabitMenuId, setOpenHabitMenuId] = useState<number | null>(null);
@@ -37,7 +37,6 @@ export function HabitLibraryPage() {
     try { localStorage.setItem("habit-library-view-mode", mode); } catch { /* ignore */ }
     setViewMode(mode);
   };
-  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const loadHabits = useCallback(async () => {
     setLoadingHabits(true);
@@ -70,16 +69,6 @@ export function HabitLibraryPage() {
     }),
     [habits],
   );
-
-  useEffect(() => {
-    function onClickOutside(e: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setFilterOpen(false);
-      }
-    }
-    if (filterOpen) document.addEventListener("mousedown", onClickOutside);
-    return () => document.removeEventListener("mousedown", onClickOutside);
-  }, [filterOpen]);
 
   useEffect(() => {
     function enforceListView() {
@@ -133,8 +122,6 @@ export function HabitLibraryPage() {
       return true;
     });
   }, [habits, filters]);
-
-  const priorityLabelMap = useMemo(() => new Map(PRIORITY_OPTIONS.map((option) => [option.value, option.label])), []);
 
   function openCreatePanel() {
     navigate(ROUTES.HABIT_LIBRARY_CREATE);
@@ -331,54 +318,33 @@ export function HabitLibraryPage() {
               </button>)}
             </div>)}
 
-            <div className="hl-filter-wrapper" ref={dropdownRef}>
-              <button
-                type="button"
-                className={`hl-filter-btn${filterOpen ? " hl-filter-btn--open" : ""}`}
-                onClick={() => setFilterOpen((v) => !v)}
-              >
-                Filters
-                <ChevronDown size={12} className={`hl-chevron${filterOpen ? " hl-chevron--up" : ""}`} />
-              </button>
-
-              {filterOpen && (
-                <div className="hl-filter-dropdown">
-                  <FilterSection
-                    label="Status"
-                    options={FILTER_STATUS_OPTIONS}
-                    selected={filters.status}
-                    onToggle={(v) => toggleFilter("status", v)}
-                  />
-                  <FilterSection
-                    label="Priority"
-                    options={PRIORITY_OPTIONS.map((option) => ({ value: option.value, label: (priorityLabelMap.get(option.value) ?? option.value).split(":")[0] }))}
-                    selected={filters.priority}
-                    onToggle={(v) => toggleFilter("priority", v)}
-                  />
-                  {/* <FilterSection
-                  label="Goal linkage"
-                  options={GOAL_LINKAGE_OPTIONS}
-                  selected={filters.goalLinkage}
-                  onToggle={(v) => toggleFilter("goalLinkage", v)}
-                /> */}
-                  <FilterSection
-                    label="Frequency"
-                    options={FREQUENCY_OPTIONS}
-                    selected={filters.frequency}
-                    onToggle={(v) => toggleFilter("frequency", v)}
-                  />
-                  <div className="hl-filter-reset">
-                    <button
-                      type="button"
-                      className="hl-reset-btn"
-                      onClick={() => setFilters(EMPTY_FILTERS)}
-                    >
-                      Reset filters
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
+            <FilterDropdown
+              width={360}
+              sections={[
+                {
+                  key: "status",
+                  label: "Status",
+                  options: FILTER_STATUS_OPTIONS,
+                  selected: filters.status,
+                  onToggle: (v) => toggleFilter("status", v),
+                },
+                {
+                  key: "priority",
+                  label: "Priority",
+                  options: PRIORITY_OPTIONS.map(o => ({ value: o.value, label: o.label.split(":")[0] })),
+                  selected: filters.priority,
+                  onToggle: (v) => toggleFilter("priority", v),
+                },
+                {
+                  key: "frequency",
+                  label: "Frequency",
+                  options: FREQUENCY_OPTIONS,
+                  selected: filters.frequency,
+                  onToggle: (v) => toggleFilter("frequency", v),
+                },
+              ]}
+              onReset={() => setFilters(EMPTY_FILTERS)}
+            />
           </div>
         </div>
 
@@ -476,34 +442,3 @@ function HabitLibrarySkeleton() {
     </div>
   );
 }
-
-function FilterSection({
-  label,
-  options,
-  selected,
-  onToggle,
-}: {
-  label: string;
-  options: Array<{ value: string; label: string }>;
-  selected: string[];
-  onToggle: (v: string) => void;
-}) {
-  return (
-    <div className="hl-filter-section">
-      <p className="hl-filter-label">{label}</p>
-      <div className="hl-filter-chips">
-        {options.map((opt) => (
-          <button
-            key={opt.value}
-            type="button"
-            className={`hl-chip${selected.includes(opt.value) ? " hl-chip--active" : ""}`}
-            onClick={() => onToggle(opt.value)}
-          >
-            {opt.label}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-

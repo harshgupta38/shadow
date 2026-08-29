@@ -150,12 +150,6 @@
     line-height: 1.45;
   }
 
-  // ── Filter button & dropdown ────────────────────────────────────────
-  .hl-filter-wrapper {
-    position: relative;
-    flex-shrink: 0;
-  }
-
   .hl-view-toggle {
     display: inline-flex;
     align-items: center;
@@ -181,117 +175,6 @@
     border: 0;
     background: transparent;
     color: var(--jv-muted);
-  }
-
-  .hl-filter-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3rem;
-    padding: 0.35rem 0.9rem;
-    border-radius: 999px;
-    border: 1.5px solid var(--jv-border, #dee2e6);
-    background: transparent;
-    font-size: 0.8125rem;
-    font-weight: 500;
-    cursor: pointer;
-    color: var(--jv-text);
-    transition: background 0.15s, color 0.15s, border-color 0.15s;
-    white-space: nowrap;
-
-    &:hover:not(.hl-filter-btn--open) {
-      background: var(--jv-brand-soft);
-      border-color: var(--jv-brand-1);
-      color: var(--jv-brand-1);
-    }
-
-    &--open {
-      background: var(--jv-brand-gradient);
-      color: #fff;
-      border-color: transparent;
-    }
-  }
-
-  .hl-chevron {
-    transition: transform 0.2s;
-
-    &--up {
-      transform: rotate(180deg);
-    }
-  }
-
-  .hl-filter-dropdown {
-    position: absolute;
-    right: 0;
-    top: calc(100% + 6px);
-    width: 360px;
-    background: var(--jv-surface);
-    border-radius: 10px;
-    box-shadow: var(--jv-shadow-lg);
-    z-index: 300;
-    overflow: hidden;
-  }
-
-  .hl-filter-section {
-    padding: 0.75rem 1rem;
-
-    & + .hl-filter-section {
-      border-top: 1px solid var(--jv-border, #e9ecef);
-    }
-  }
-
-  .hl-filter-label {
-    font-size: 0.75rem;
-    font-weight: 500;
-    color: var(--jv-muted);
-    margin: 0 0 0.5rem;
-  }
-
-  .hl-filter-chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.4rem;
-  }
-
-  .hl-chip {
-    display: inline-flex;
-    align-items: center;
-    padding: 0.22rem 0.7rem;
-    border-radius: 999px;
-    border: 1.5px solid var(--jv-border, #dee2e6);
-    background: transparent;
-    font-size: 0.78rem;
-    cursor: pointer;
-    color: var(--jv-text);
-    transition: background 0.12s, border-color 0.12s, color 0.12s;
-
-    &--active {
-      background: var(--jv-brand-soft);
-      border-color: var(--jv-brand-1);
-      color: var(--jv-brand-1);
-    }
-
-    &:hover:not(.hl-chip--active) {
-      background: var(--jv-surface-3);
-    }
-  }
-
-  .hl-filter-reset {
-    border-top: 1px solid var(--jv-border, #e9ecef);
-    padding: 0.65rem 1rem;
-    text-align: center;
-  }
-
-  .hl-reset-btn {
-    background: none;
-    border: none;
-    font-size: 0.8125rem;
-    color: var(--jv-text);
-    cursor: pointer;
-    padding: 0;
-
-    &:hover {
-      text-decoration: underline;
-    }
   }
 
   // ── Card body ───────────────────────────────────────────────────────
@@ -465,10 +348,6 @@
 
     .hl-card-header-actions {
       gap: 0.35rem;
-    }
-
-    .hl-filter-btn {
-      padding-inline: 0.7rem;
     }
 
     .hl-habit-grid--grid {

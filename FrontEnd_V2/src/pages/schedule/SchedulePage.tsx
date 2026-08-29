@@ -1,9 +1,20 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CalendarWeek, ChevronLeft, ChevronRight, PlusLg } from "react-bootstrap-icons";
 import { useNavigate } from "react-router-dom";
 
 import { api } from "@/api";
-import type { ScheduledTaskDataResponse } from "@/api/types";
+import type { ScheduledTaskDataResponse, ScheduledTaskPreferredTime, ScheduledTaskPriority } from "@/api/types";
+import {
+    buildCalendarCells,
+    DEFAULT_FILTERS,
+    MONTH_NAMES,
+    DAY_NAMES,
+    PRIORITY_FILTER_OPTIONS,
+    TIME_FILTER_OPTIONS,
+    TIMELINE_OPTIONS,
+} from "@/pages/schedule/SchedulePage.constants";
+import type { ScheduleFilterState, ScheduleTimeline } from "@/pages/schedule/SchedulePage.constants";
+import { FilterDropdown } from "@/components/ui/FilterDropdown/FilterDropdown";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { useToast } from "@/context/ToastContext";
@@ -13,50 +24,6 @@ import { ScheduleCard } from "@/pages/schedule/ScheduleCard/ScheduleCard";
 import { PRIORITY_COLOR } from "@/pages/schedule/ScheduleCard/ScheduleCard.constants";
 
 import "@/pages/schedule/SchedulePage.scss";
-
-// ── Constants ───────────────────────────────────────────────────────────────
-
-const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-const MONTH_NAMES = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December",
-];
-
-// ── Calendar helpers ─────────────────────────────────────────────────────────
-
-interface CalCell {
-    iso: string;
-    day: number;
-    isCurrentMonth: boolean;
-}
-
-function calIso(year: number, month: number, day: number): string {
-    return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-}
-
-function buildCalendarCells(year: number, month: number): CalCell[] {
-    const firstDay = new Date(year, month, 1);
-    const startDow = firstDay.getDay();
-    const totalDays = new Date(year, month + 1, 0).getDate();
-    const cells: CalCell[] = [];
-
-    for (let i = 0; i < startDow; i++) {
-        const d = new Date(year, month, i - startDow + 1);
-        cells.push({ iso: calIso(d.getFullYear(), d.getMonth(), d.getDate()), day: d.getDate(), isCurrentMonth: false });
-    }
-    for (let d = 1; d <= totalDays; d++) {
-        cells.push({ iso: calIso(year, month, d), day: d, isCurrentMonth: true });
-    }
-    const remainder = cells.length % 7;
-    if (remainder > 0) {
-        for (let i = 1; i <= 7 - remainder; i++) {
-            const d = new Date(year, month + 1, i);
-            cells.push({ iso: calIso(d.getFullYear(), d.getMonth(), d.getDate()), day: d.getDate(), isCurrentMonth: false });
-        }
-    }
-    return cells;
-}
 
 // ── Component ────────────────────────────────────────────────────────────────
 
@@ -68,6 +35,7 @@ export function SchedulePage() {
     const [tasks, setTasks] = useState<ScheduledTaskDataResponse[]>([]);
     const [deleteTarget, setDeleteTarget] = useState<ScheduledTaskDataResponse | null>(null);
     const [deleting, setDeleting] = useState(false);
+    const [filters, setFilters] = useState<ScheduleFilterState>(DEFAULT_FILTERS);
     const [calYear, setCalYear] = useState(() => {
         const [y] = todayIso().split("-").map(Number);
         return y;
@@ -82,7 +50,7 @@ export function SchedulePage() {
             .then(setTasks)
             .catch(() => toast.error("Failed to load scheduled tasks."))
             .finally(() => setLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     function handleDuplicate(task: ScheduledTaskDataResponse) {
@@ -104,6 +72,16 @@ export function SchedulePage() {
         }
     }
 
+    const currentTodayIso = todayIso();
+
+    const filteredTasks = useMemo(() => tasks.filter(t => {
+        if (filters.timeline === "upcoming" && t.scheduled_date <  currentTodayIso) return false;
+        if (filters.timeline === "past"     && t.scheduled_date >= currentTodayIso) return false;
+        if (filters.priority.length     && !filters.priority.includes(t.priority))             return false;
+        if (filters.preferredTime.length && !filters.preferredTime.includes(t.preferred_time)) return false;
+        return true;
+    }), [tasks, filters, currentTodayIso]);
+
     const tasksByDate = tasks.reduce<Record<string, ScheduledTaskDataResponse[]>>((acc, t) => {
         const key = t.scheduled_date;
         if (!acc[key]) acc[key] = [];
@@ -112,7 +90,6 @@ export function SchedulePage() {
     }, {});
 
     const calCells = buildCalendarCells(calYear, calMonth);
-    const currentTodayIso = todayIso();
 
     function prevMonth() {
         if (calMonth === 0) { setCalYear(y => y - 1); setCalMonth(11); }
@@ -129,16 +106,59 @@ export function SchedulePage() {
                 title="Schedule"
                 subtitle="Plan one-time commitments and never lose track of them."
                 icon={<CalendarWeek size={20} />}
+                actions={[
+                    {
+                        key: "new-task",
+                        label: "New Task",
+                        icon: <PlusLg size={14} />,
+                        tone: "brand",
+                        onClick: () => navigate(ROUTES.SCHEDULE_CREATE),
+                    },
+                ]}
             />
 
             <div className="schedule-layout">
                 {/* ── Left: task list ──────────────────────────────────── */}
                 <div className="surface schedule-tasks-panel">
                     <div className="schedule-panel-head">
-                        <span className="schedule-panel-title">Upcoming</span>
-                        <button className="btn btn-soft btn-sm" onClick={() => navigate(ROUTES.SCHEDULE_CREATE)}>
-                            <PlusLg size={13} className="me-1" /> New
-                        </button>
+                        <span className="schedule-panel-title">Your Commitments</span>
+                        <FilterDropdown
+                            sections={[
+                                {
+                                    key: "timeline",
+                                    label: "Show",
+                                    options: TIMELINE_OPTIONS,
+                                    selected: [filters.timeline],
+                                    single: true,
+                                    onToggle: v => setFilters(prev => ({ ...prev, timeline: v as ScheduleTimeline })),
+                                },
+                                {
+                                    key: "priority",
+                                    label: "Priority",
+                                    options: PRIORITY_FILTER_OPTIONS,
+                                    selected: filters.priority,
+                                    onToggle: v => setFilters(prev => ({
+                                        ...prev,
+                                        priority: prev.priority.includes(v as ScheduledTaskPriority)
+                                            ? prev.priority.filter(p => p !== v)
+                                            : [...prev.priority, v as ScheduledTaskPriority],
+                                    })),
+                                },
+                                {
+                                    key: "time",
+                                    label: "Time",
+                                    options: TIME_FILTER_OPTIONS,
+                                    selected: filters.preferredTime,
+                                    onToggle: v => setFilters(prev => ({
+                                        ...prev,
+                                        preferredTime: prev.preferredTime.includes(v as ScheduledTaskPreferredTime)
+                                            ? prev.preferredTime.filter(t => t !== v)
+                                            : [...prev.preferredTime, v as ScheduledTaskPreferredTime],
+                                    })),
+                                },
+                            ]}
+                            onReset={() => setFilters(DEFAULT_FILTERS)}
+                        />
                     </div>
 
                     <div className="schedule-tasks-list">
@@ -151,7 +171,12 @@ export function SchedulePage() {
                                 <CalendarWeek size={28} className="mb-2 schedule-empty-icon" />
                                 <p className="small mb-0">No scheduled tasks yet.</p>
                             </div>
-                        ) : tasks.map(task => (
+                        ) : filteredTasks.length === 0 ? (
+                            <div className="schedule-empty-state">
+                                <CalendarWeek size={28} className="mb-2 schedule-empty-icon" />
+                                <p className="small mb-0">No tasks match the current filters.</p>
+                            </div>
+                        ) : filteredTasks.map(task => (
                             <ScheduleCard
                                 key={task.id}
                                 task={task}

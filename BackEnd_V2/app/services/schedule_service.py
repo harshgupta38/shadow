@@ -27,6 +27,7 @@ def _serialize(task: ScheduledTaskDBM) -> ScheduledTaskDataResponse:
         allow_snoozing=task.allow_snoozing,
         snooze_limit=task.snooze_limit if task.allow_snoozing else None,
         duration_minutes=task.duration_minutes,
+        status=task.status,
         created_at=task.created_at,
         updated_at=task.updated_at,
     )
@@ -61,6 +62,7 @@ def save_task(
         allow_snoozing=data.allow_snoozing,
         snooze_limit=data.snooze_limit if data.allow_snoozing else None,
         duration_minutes=data.duration_minutes,
+        status="upcoming",
     )
     db.add(task)
     db.commit()

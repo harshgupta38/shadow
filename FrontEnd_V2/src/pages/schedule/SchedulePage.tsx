@@ -15,6 +15,7 @@ import {
 } from "@/pages/schedule/SchedulePage.constants";
 import type { ScheduleFilterState, ScheduleTimeline } from "@/pages/schedule/SchedulePage.constants";
 import { FilterDropdown } from "@/components/ui/FilterDropdown/FilterDropdown";
+import { ScheduleTaskDetail } from "@/pages/schedule/ScheduleTaskDetail/ScheduleTaskDetail";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { useToast } from "@/context/ToastContext";
@@ -36,6 +37,7 @@ export function SchedulePage() {
     const [deleteTarget, setDeleteTarget] = useState<ScheduledTaskDataResponse | null>(null);
     const [deleting, setDeleting] = useState(false);
     const [filters, setFilters] = useState<ScheduleFilterState>(DEFAULT_FILTERS);
+    const [selectedTask, setSelectedTask] = useState<ScheduledTaskDataResponse | null>(null);
     const [calYear, setCalYear] = useState(() => {
         const [y] = todayIso().split("-").map(Number);
         return y;
@@ -64,6 +66,7 @@ export function SchedulePage() {
             await api.schedule.removeScheduleTask(deleteTarget.id);
             setTasks(prev => prev.filter(t => t.id !== deleteTarget.id));
             setDeleteTarget(null);
+            setSelectedTask(null);
             toast.success("Task deleted.");
         } catch {
             toast.error("Failed to delete task.");
@@ -180,10 +183,8 @@ export function SchedulePage() {
                             <ScheduleCard
                                 key={task.id}
                                 task={task}
-                                onEdit={() => navigate(
-                                    ROUTES.SCHEDULE_EDIT.replace(":taskId", String(task.id)),
-                                    { state: { task } },
-                                )}
+                                onSelect={() => setSelectedTask(task)}
+                                onEdit={() => navigate(ROUTES.SCHEDULE_EDIT.replace(":taskId", String(task.id)), { state: { task } })}
                                 onDuplicate={() => handleDuplicate(task)}
                                 onDelete={() => setDeleteTarget(task)}
                             />
@@ -191,65 +192,82 @@ export function SchedulePage() {
                     </div>
                 </div>
 
-                {/* ── Right: calendar ──────────────────────────────────── */}
+                {/* ── Right: calendar or task detail ───────────────────── */}
                 <div className="surface schedule-cal-panel">
-                    <div className="schedule-cal-header">
-                        <button type="button" className="btn btn-ghost btn-icon border-0" onClick={prevMonth} aria-label="Previous month">
-                            <ChevronLeft size={16} />
-                        </button>
-                        <span className="schedule-cal-month-label">
-                            {MONTH_NAMES[calMonth]} {calYear}
-                        </span>
-                        <button type="button" className="btn btn-ghost btn-icon border-0" onClick={nextMonth} aria-label="Next month">
-                            <ChevronRight size={16} />
-                        </button>
-                    </div>
+                    {selectedTask && (
+                        <ScheduleTaskDetail
+                            task={selectedTask}
+                            onClose={() => setSelectedTask(null)}
+                            onEdit={() => {
+                                setSelectedTask(null);
+                                navigate(
+                                    ROUTES.SCHEDULE_EDIT.replace(":taskId", String(selectedTask.id)),
+                                    { state: { task: selectedTask } },
+                                );
+                            }}
+                            onDuplicate={() => {
+                                setSelectedTask(null);
+                                handleDuplicate(selectedTask);
+                            }}
+                            onDelete={() => setDeleteTarget(selectedTask)}
+                        />
+                    )}
+                    <div className={`schedule-cal-view${selectedTask ? " schedule-cal-view--compact" : ""}`}>
+                        <div className="schedule-cal-header">
+                            <button type="button" className="btn btn-ghost btn-icon border-0" onClick={prevMonth} aria-label="Previous month">
+                                <ChevronLeft size={16} />
+                            </button>
+                            <span className="schedule-cal-month-label">
+                                {MONTH_NAMES[calMonth]} {calYear}
+                            </span>
+                            <button type="button" className="btn btn-ghost btn-icon border-0" onClick={nextMonth} aria-label="Next month">
+                                <ChevronRight size={16} />
+                            </button>
+                        </div>
 
-                    <div className="schedule-cal-day-names">
-                        {DAY_NAMES.map(d => (
-                            <div key={d} className="schedule-cal-day-name">{d}</div>
-                        ))}
-                    </div>
+                        <div className="schedule-cal-day-names">
+                            {DAY_NAMES.map(d => (
+                                <div key={d} className="schedule-cal-day-name">{d}</div>
+                            ))}
+                        </div>
 
-                    <div className="schedule-cal-grid">
-                        {calCells.map((cell, i) => {
-                            const cellTasks = tasksByDate[cell.iso] ?? [];
-                            const isToday = cell.iso === currentTodayIso;
-                            return (
-                                <div
-                                    key={i}
-                                    className={[
-                                        "schedule-cal-cell",
-                                        !cell.isCurrentMonth && "is-outside",
-                                        isToday && "is-today",
-                                    ].filter(Boolean).join(" ")}
-                                >
-                                    <div className={`schedule-cal-day-num${isToday ? " is-today" : ""}`}>
-                                        {cell.day}
+                        <div className="schedule-cal-grid">
+                            {calCells.map((cell, i) => {
+                                const cellTasks = tasksByDate[cell.iso] ?? [];
+                                const isToday = cell.iso === currentTodayIso;
+                                return (
+                                    <div
+                                        key={i}
+                                        className={[
+                                            "schedule-cal-cell",
+                                            !cell.isCurrentMonth && "is-outside",
+                                            isToday && "is-today",
+                                        ].filter(Boolean).join(" ")}
+                                    >
+                                        <div className={`schedule-cal-day-num${isToday ? " is-today" : ""}`}>
+                                            {cell.day}
+                                        </div>
+                                        <div className="schedule-cal-chips">
+                                            {cellTasks.slice(0, 2).map(t => (
+                                                <button
+                                                    key={t.id}
+                                                    type="button"
+                                                    className="schedule-task-chip"
+                                                    style={{ "--chip-color": PRIORITY_COLOR[t.priority] } as React.CSSProperties}
+                                                    title={t.title}
+                                                    onClick={() => setSelectedTask(t)}
+                                                >
+                                                    {t.title}
+                                                </button>
+                                            ))}
+                                            {cellTasks.length > 2 && (
+                                                <span className="schedule-cal-overflow">+{cellTasks.length - 2} more</span>
+                                            )}
+                                        </div>
                                     </div>
-                                    <div className="schedule-cal-chips">
-                                        {cellTasks.slice(0, 3).map(t => (
-                                            <button
-                                                key={t.id}
-                                                type="button"
-                                                className="schedule-task-chip"
-                                                style={{ "--chip-color": PRIORITY_COLOR[t.priority] } as React.CSSProperties}
-                                                title={t.title}
-                                                onClick={() => navigate(
-                                                    ROUTES.SCHEDULE_EDIT.replace(":taskId", String(t.id)),
-                                                    { state: { task: t } },
-                                                )}
-                                            >
-                                                {t.title}
-                                            </button>
-                                        ))}
-                                        {cellTasks.length > 3 && (
-                                            <span className="schedule-cal-overflow">+{cellTasks.length - 3} more</span>
-                                        )}
-                                    </div>
-                                </div>
-                            );
-                        })}
+                                );
+                            })}
+                        </div>
                     </div>
                 </div>
             </div>

@@ -36,6 +36,10 @@ class ScheduledTaskDBM(Base):
             "snooze_limit IS NULL OR snooze_limit > 0",
             name="ck_scheduled_tasks_snooze_limit",
         ),
+        CheckConstraint(
+            "status IN ('upcoming', 'completed', 'snoozed', 'missed')",
+            name="ck_scheduled_tasks_status",
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -58,6 +62,8 @@ class ScheduledTaskDBM(Base):
     snooze_limit: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     duration_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="upcoming", server_default=text("'upcoming'"))
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())

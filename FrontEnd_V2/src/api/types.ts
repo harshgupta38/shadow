@@ -507,6 +507,7 @@ export interface PlanResponse {
 export type ScheduledTaskType = "simple" | "metric";
 export type ScheduledTaskPriority = "highest" | "high" | "medium" | "low" | "lowest";
 export type ScheduledTaskPreferredTime = "flexible" | "morning" | "afternoon" | "evening" | "night" | "custom";
+export type ScheduledTaskStatus = "upcoming" | "completed" | "snoozed" | "missed";
 
 export interface ScheduledTaskCreateRequest {
   title: string;
@@ -529,6 +530,7 @@ export interface ScheduledTaskUpdateRequest extends Partial<ScheduledTaskCreateR
 
 export interface ScheduledTaskDataResponse extends ScheduledTaskCreateRequest {
   id: number;
+  status: ScheduledTaskStatus;
   created_at: string;
   updated_at: string;
 }

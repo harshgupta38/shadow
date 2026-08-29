@@ -72,6 +72,19 @@
     overflow: hidden;
   }
 
+  .schedule-cal-view {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+
+    &--compact .schedule-cal-header {
+      padding-top: 0.3rem;
+      padding-bottom: 0.3rem;
+    }
+  }
+
   .schedule-cal-header {
     display: flex;
     align-items: center;
@@ -222,6 +235,10 @@
     .schedule-cal-panel {
       overflow: visible;
       min-height: 0;
+    }
+
+    .schedule-cal-view {
+      overflow: visible;
     }
 
     .schedule-cal-grid {

@@ -6,6 +6,7 @@
     overflow: hidden;
     margin-bottom: 0.45rem;
     background: var(--jv-surface-2);
+    cursor: pointer;
     transition: background var(--jv-transition);
 
     &:hover {
@@ -93,4 +94,56 @@
     font-size: 0.71rem;
     color: var(--jv-muted);
     margin-top: 0.25rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+// ── Right-click context menu ──────────────────────────────────────────────────
+
+.sc-ctx-menu {
+    background: var(--jv-surface);
+    border: 1px solid color-mix(in srgb, var(--jv-border) 86%, transparent);
+    border-radius: 10px;
+    box-shadow: var(--jv-shadow-lg);
+    padding: 0.32rem;
+    min-width: 10rem;
+}
+
+.sc-ctx-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    border: none;
+    background: transparent;
+    border-radius: 8px;
+    color: var(--jv-text);
+    font-size: 0.85rem;
+    font-weight: 500;
+    padding: 0.3rem 0.5rem;
+    cursor: pointer;
+    text-align: left;
+    transition: background var(--jv-transition), color var(--jv-transition);
+
+    &:hover {
+        background: var(--jv-surface-2);
+        color: var(--jv-text);
+    }
+
+    &--danger {
+        color: var(--jv-danger);
+
+        &:hover {
+            color: var(--jv-danger);
+            background: color-mix(in srgb, var(--jv-danger) 9%, var(--jv-surface) 91%);
+        }
+    }
+}
+
+.sc-ctx-divider {
+    height: 1px;
+    background: var(--jv-border);
+    margin: 0.25rem 0.32rem;
 }

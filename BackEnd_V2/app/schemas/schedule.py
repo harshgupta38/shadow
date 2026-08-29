@@ -8,6 +8,7 @@ from app.schemas.common import ORMModel
 ScheduledTaskType = Literal["simple", "metric"]
 ScheduledTaskPriority = Literal["highest", "high", "medium", "low", "lowest"]
 ScheduledTaskPreferredTime = Literal["flexible", "morning", "afternoon", "evening", "night", "custom"]
+ScheduledTaskStatus = Literal["upcoming", "completed", "snoozed", "missed"]
 
 _IST = timezone(timedelta(hours=5, minutes=30))
 
@@ -116,6 +117,8 @@ class ScheduledTaskDataResponse(BaseModel):
     snooze_limit: int | None
 
     duration_minutes: int | None
+
+    status: ScheduledTaskStatus
 
     created_at: datetime
     updated_at: datetime

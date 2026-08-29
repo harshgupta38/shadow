@@ -68,6 +68,7 @@ export function ScheduleWizardPage() {
     const [error, setError] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
     const dateInputRef = useRef<HTMLInputElement>(null);
+    const noteRef = useRef<HTMLTextAreaElement>(null);
 
     // ── Load context (edit mode fallback) ─────────────────────────────────────
     useEffect(() => {
@@ -97,6 +98,10 @@ export function ScheduleWizardPage() {
             });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    useEffect(() => {
+        if (noteRef.current) resizeTextareaToMaxLines(noteRef.current, 5);
+    }, [answers.note]);
 
     useEffect(() => {
         if (!loadingContext) { setLoaderIndex(0); return; }
@@ -575,6 +580,7 @@ export function ScheduleWizardPage() {
                                                                 Note <span className="text-muted fw-normal">(optional)</span>
                                                             </label>
                                                             <textarea
+                                                                ref={noteRef}
                                                                 className="form-control goal-wizard-reason"
                                                                 value={answers.note}
                                                                 autoComplete="off"

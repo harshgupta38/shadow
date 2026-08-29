@@ -1,6 +1,6 @@
 import { Clock, MoonFill, MoonStarsFill, SunFill } from "react-bootstrap-icons";
 
-import type { ScheduledTaskPreferredTime, ScheduledTaskPriority } from "@/api/types";
+import type { ScheduledTaskPreferredTime, ScheduledTaskPriority, ScheduledTaskStatus } from "@/api/types";
 
 export const PRIORITY_COLOR: Record<ScheduledTaskPriority, string> = {
     highest: "var(--bs-danger)",
@@ -8,6 +8,13 @@ export const PRIORITY_COLOR: Record<ScheduledTaskPriority, string> = {
     medium: "var(--jv-brand-1)",
     low: "var(--bs-info)",
     lowest: "var(--jv-muted)",
+};
+
+export const STATUS_LABEL: Record<ScheduledTaskStatus, string> = {
+    upcoming:  "Upcoming",
+    completed: "Completed",
+    snoozed:   "Snoozed",
+    missed:    "Missed",
 };
 
 export const PRIORITY_LABEL: Record<ScheduledTaskPriority, string> = {

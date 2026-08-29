@@ -20,12 +20,14 @@ import {
 } from "@/pages/plan/PlanPage.constants";
 import { PlanCard } from "@/pages/plan/PlanCard/PlanCard";
 import { DayOverviewPanel } from "@/pages/plan/DayOverviewPanel/DayOverviewPanel";
+import { useToast } from "@/context/ToastContext";
 import "@/pages/plan/PlanPage.scss";
 
 const TODAY = new Date();
 
 export function PlanPage() {
   const navigate = useNavigate();
+  const toast = useToast();
 
   const [selectedDate, setSelectedDate] = useState(TODAY);
   const [planData, setPlanData] = useState<PlanResponse | null>(null);
@@ -125,7 +127,7 @@ export function PlanPage() {
       const savedData = await api.planItems.updateRecord(recordId, { status: newStatus });
       updateItemSavedData(recordId, savedData);
     } catch {
-      // Revert on failure
+      toast.error("Couldn't update status. Please try again.");
       setPlanData((prev) => {
         if (!prev) return prev;
         return {
@@ -151,7 +153,20 @@ export function PlanPage() {
       const savedData = await api.planItems.updateRecord(recordId, { actual_value: value });
       updateItemSavedData(recordId, savedData);
     } catch {
-      // silently ignore — user can retry
+      toast.error("Couldn't save progress. Please try again.");
+    }
+  }
+
+  async function handleSaveNote(planId: number, note: string) {
+    const item = planData?.items.find((i) => i.plan_id === planId);
+    const recordId = item?.saved_data?.record_id;
+    if (!recordId) return;
+
+    try {
+      const savedData = await api.planItems.updateRecord(recordId, { note });
+      updateItemSavedData(recordId, savedData);
+    } catch {
+      toast.error("Couldn't save note. Please try again.");
     }
   }
 
@@ -256,6 +271,7 @@ export function PlanPage() {
                     readOnly={!isToday}
                     onToggle={() => void toggleItemStatus(item.plan_id)}
                     onSaveProgress={(value) => handleSaveProgress(item.plan_id, value)}
+                    onSaveNote={(note) => handleSaveNote(item.plan_id, note)}
                   />
                 ))}
                 {doneItems.length > 0 && (
@@ -268,6 +284,7 @@ export function PlanPage() {
                         readOnly={!isToday}
                         onToggle={() => void toggleItemStatus(item.plan_id)}
                         onSaveProgress={(value) => handleSaveProgress(item.plan_id, value)}
+                        onSaveNote={(note) => handleSaveNote(item.plan_id, note)}
                       />
                     ))}
                   </>

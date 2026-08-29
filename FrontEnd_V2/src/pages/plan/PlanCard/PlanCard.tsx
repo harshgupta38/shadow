@@ -4,6 +4,7 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   Bullseye,
+  ChatSquareDots,
   CheckLg,
   CheckSquareFill,
   Clock,
@@ -12,10 +13,13 @@ import {
   Link45deg,
   MoonFill,
   MoonStarsFill,
+  PencilFill,
   PlusLg,
   SunFill,
   TagFill,
 } from "react-bootstrap-icons";
+
+import { NoteDialog } from "@/components/ui/NoteDialog/NoteDialog";
 
 import type { PlanDataResponse, PlanPriority } from "@/api";
 import { ROUTES } from "@/routes/RoutePaths";
@@ -26,6 +30,7 @@ interface PlanCardProps {
   item: PlanDataResponse;
   onToggle?: () => void;
   onSaveProgress?: (value: number) => Promise<void>;
+  onSaveNote?: (note: string) => Promise<void>;
   busy?: boolean;
   readOnly?: boolean;
 }
@@ -71,7 +76,7 @@ function PriorityIcon({ priority }: { priority: PlanPriority }) {
   return <DashLg size={11} />;
 }
 
-export function PlanCard({ item, onToggle, onSaveProgress, busy = false, readOnly = false }: PlanCardProps) {
+export function PlanCard({ item, onToggle, onSaveProgress, onSaveNote, busy = false, readOnly = false }: PlanCardProps) {
   const navigate = useNavigate();
   const isDone = item.saved_data?.status === "done";
   const isMissed = item.saved_data?.status === "missed";
@@ -91,6 +96,10 @@ export function PlanCard({ item, onToggle, onSaveProgress, busy = false, readOnl
   const [savingProgress, setSavingProgress] = useState(false);
   const holdTimeoutRef = useRef<number | null>(null);
   const holdIntervalRef = useRef<number | null>(null);
+
+  const existingNote = item.saved_data?.note ?? "";
+  const [noteOpen, setNoteOpen] = useState(false);
+  const [savingNote, setSavingNote] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -125,6 +134,17 @@ export function PlanCard({ item, onToggle, onSaveProgress, busy = false, readOnl
     holdTimeoutRef.current = window.setTimeout(() => {
       holdIntervalRef.current = window.setInterval(() => changeProgress(delta), 90);
     }, 260);
+  }
+
+  async function handleSaveNote(note: string) {
+    if (!onSaveNote) return;
+    setSavingNote(true);
+    try {
+      await onSaveNote(note);
+      setNoteOpen(false);
+    } finally {
+      setSavingNote(false);
+    }
   }
 
   async function handleSaveProgress() {
@@ -164,46 +184,74 @@ export function PlanCard({ item, onToggle, onSaveProgress, busy = false, readOnl
         )}
       </div>
 
-      {/* Row 2 — pills */}
-      <div className="plan-card-pills">
-        <span className={`plan-card-pill plan-card-pill--type-${item.source_type}`}>
-          {item.source_type === "habit" ? <Bullseye size={11} /> : <CheckSquareFill size={11} />}
-          {item.source_type === "habit" ? "Habit" : "Task"}
-        </span>
-
-        <span className={`plan-card-pill plan-card-pill--priority-${item.priority}`}>
-          <PriorityIcon priority={item.priority} />
-          {PRIORITY_LABEL[item.priority]}
-        </span>
-
-        {item.goal?.category && (
-          <span className="plan-card-pill plan-card-pill--category">
-            <TagFill size={11} />
-            {item.goal.category}
-          </span>
-        )}
-
-        {item.goal && (
+      {/* Row 2 — saved note */}
+      {existingNote && (
+        <p className="plan-card-note">
+          <span className="plan-card-note-text">{existingNote}</span>
           <button
             type="button"
-            className="plan-card-pill plan-card-pill--goal plan-card-pill--clickable"
-            title={item.goal.title}
-            onClick={() => navigate(ROUTES.MY_GOAL_DETAIL.replace(":goalId", String(item.goal!.id)))}
+            className="plan-card-note-edit"
+            onClick={() => setNoteOpen(true)}
+            aria-label="Edit note"
           >
-            <Link45deg size={12} />
-            {item.goal.title.length > 15 ? `${item.goal.title.slice(0, 15)}…` : item.goal.title}
+            <PencilFill size={12} />
           </button>
-        )}
+        </p>
+      )}
 
-        {hasDuration && (
-          <span className="plan-card-pill plan-card-pill--duration">
-            <Clock size={11} />
-            {formatDuration(item.duration_minutes!)}
+      {/* Row 3 — pills */}
+      <div className="plan-card-pills">
+        <div className="plan-card-pills-left">
+          <span className={`plan-card-pill plan-card-pill--type-${item.source_type}`}>
+            {item.source_type === "habit" ? <Bullseye size={11} /> : <CheckSquareFill size={11} />}
+            {item.source_type === "habit" ? "Habit" : "Task"}
           </span>
+
+          <span className={`plan-card-pill plan-card-pill--priority-${item.priority}`}>
+            <PriorityIcon priority={item.priority} />
+            {PRIORITY_LABEL[item.priority]}
+          </span>
+
+          {item.goal?.category && (
+            <span className="plan-card-pill plan-card-pill--category">
+              <TagFill size={11} />
+              {item.goal.category}
+            </span>
+          )}
+
+          {item.goal && (
+            <button
+              type="button"
+              className="plan-card-pill plan-card-pill--goal plan-card-pill--clickable"
+              title={item.goal.title}
+              onClick={() => navigate(ROUTES.MY_GOAL_DETAIL.replace(":goalId", String(item.goal!.id)))}
+            >
+              <Link45deg size={12} />
+              {item.goal.title.length > 15 ? `${item.goal.title.slice(0, 15)}…` : item.goal.title}
+            </button>
+          )}
+
+          {hasDuration && (
+            <span className="plan-card-pill plan-card-pill--duration">
+              <Clock size={11} />
+              {formatDuration(item.duration_minutes!)}
+            </span>
+          )}
+        </div>
+
+        {!readOnly && !existingNote && (
+          <button
+            type="button"
+            className="plan-card-pill plan-card-pill--note plan-card-pill--clickable"
+            onClick={() => setNoteOpen(true)}
+          >
+            <ChatSquareDots size={11} />
+            {"Add Note"}
+          </button>
         )}
       </div>
 
-      {/* Row 3 — metric progress */}
+      {/* Row 4 — metric progress */}
       {isMetric && (
         <div className="plan-card-progress" aria-label="Session progress">
           <span className="plan-card-progress-label">
@@ -258,6 +306,13 @@ export function PlanCard({ item, onToggle, onSaveProgress, busy = false, readOnl
           )}
         </div>
       )}
+      <NoteDialog
+        show={noteOpen}
+        initialValue={existingNote}
+        busy={savingNote}
+        onConfirm={(note) => { void handleSaveNote(note); }}
+        onCancel={() => setNoteOpen(false)}
+      />
     </article>
   );
 }

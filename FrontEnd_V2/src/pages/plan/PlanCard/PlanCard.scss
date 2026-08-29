@@ -14,7 +14,10 @@
   }
 
   &--done {
-    opacity: 0.75;
+    // opacity: 0.75;
+    .plan-card-title{
+      color: var(--jv-muted);
+    }
   }
 }
 
@@ -123,6 +126,14 @@
 .plan-card-pills {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.plan-card-pills-left {
+  display: flex;
+  align-items: center;
   gap: 0.35rem;
   flex-wrap: wrap;
 }
@@ -168,6 +179,44 @@
     background: color-mix(in srgb, var(--jv-border) 55%, var(--jv-surface) 45%);
     color: var(--jv-muted);
   }
+
+  // note action
+  &--note {
+    background: transparent;
+    color: var(--jv-muted);
+    border: 1px dashed var(--jv-border-strong);
+    flex-shrink: 0;
+  }
+}
+
+// ── Note row ───────────────────────────────────────────────────────────────────
+
+.plan-card-note {
+  margin: 0;
+  margin-top: -0.25rem;
+  font-size: 12px;
+  color: var(--jv-muted);
+  line-height: 1.45;
+}
+
+.plan-card-note-text {
+  display: inline;
+}
+
+.plan-card-note-edit {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  background: none;
+  border: none;
+  padding: 0;
+  margin-left: 0.3rem;
+  color: var(--jv-muted);
+  cursor: pointer;
+  transition: color var(--jv-transition);
+
+  &:hover { color: var(--jv-text); }
+  &:focus-visible { outline: none; color: var(--jv-text); }
 }
 
 // ── Metric progress row ────────────────────────────────────────────────────────

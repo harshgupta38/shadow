@@ -245,6 +245,25 @@ def _record_to_saved_data(
     )
 
 
+def _build_plan_snapshot(plan: PlanDBM) -> dict:
+    """Return the snapshot fields that a DailyPlanRecordDBM copies from its plan.
+
+    Single source of truth used by both initial materialisation and today's sync,
+    so the two paths can never drift apart.
+    """
+    target, unit = _normalize(plan.planner_type, plan.planner_target, plan.value_unit)
+    return {
+        "title": plan.title,
+        "planner_type": plan.planner_type,
+        "planner_target": target,
+        "value_unit": unit,
+        "priority": plan.priority,
+        "preferred_time": plan.preferred_time,
+        "specific_time": plan.specific_time,
+        "duration_minutes": plan.duration_minutes,
+    }
+
+
 def _materialize_record(
     db: Session, plan: PlanDBM, scheduled_date: date
 ) -> DailyPlanRecordDBM:
@@ -258,23 +277,15 @@ def _materialize_record(
     if existing is not None:
         return existing
 
-    target, unit = _normalize(plan.planner_type, plan.planner_target, plan.value_unit)
     record = DailyPlanRecordDBM(
         user_id=plan.user_id,
         plan_id=plan.id,
         source_type=plan.source_type,
         source_id=plan.source_id,
         scheduled_date=scheduled_date,
-        title=plan.title,
-        planner_type=plan.planner_type,
-        planner_target=target,
-        value_unit=unit,
-        priority=plan.priority,
-        preferred_time=plan.preferred_time,
-        specific_time=plan.specific_time,
-        duration_minutes=plan.duration_minutes,
         status="due",
         actual_value=0,
+        **_build_plan_snapshot(plan),
     )
     db.add(record)
     db.flush()
@@ -321,6 +332,90 @@ def _enrich_goals(
     return result
 
 
+# ── Today-record synchronisation ─────────────────────────────────────────────
+
+def _recompute_task_progress(db: Session, task_id: int) -> None:
+    """Re-derive TaskDBM.current_value from the surviving plan records.
+
+    Deleting a record removes the progress it carried, so the task total has to
+    be recomputed or it keeps counting rows that no longer exist.  Binary tasks
+    are skipped: ck_tasks_simple_fields requires their current_value to be NULL.
+    """
+    db.flush()  # emit pending ORM deletes so the SUM below excludes them
+    task = db.get(TaskDBM, task_id)
+    if task is None or task.task_type != "Numeric":
+        return
+    task.current_value = db.scalar(
+        select(func.sum(DailyPlanRecordDBM.actual_value)).where(
+            DailyPlanRecordDBM.source_type == "task",
+            DailyPlanRecordDBM.source_id == task_id,
+        )
+    ) or 0
+
+
+def _apply_metric_status(record: DailyPlanRecordDBM) -> None:
+    """Re-derive status and completed_at from actual_value vs planner_target.
+
+    Called after planner_target changes so the record stays internally consistent.
+    'missed' is a deliberate user action and is never overridden here.
+    """
+    if record.status == "missed":
+        return
+    target = record.planner_target or 0
+    if target > 0 and record.actual_value >= target:
+        record.status = "done"
+        if record.completed_at is None:
+            record.completed_at = datetime.now(timezone.utc)
+    else:
+        record.status = "due"
+        record.completed_at = None
+
+
+def _sync_today_record(db: Session, plan: PlanDBM) -> None:
+    """Synchronise today's DailyPlanRecordDBM with the current plan state.
+
+    Called immediately after a Habit or Task edit so the planner reflects the
+    change without the user needing to reload.
+
+    Three cases:
+      today matches + record exists   → refresh snapshot fields; preserve progress;
+                                        re-derive metric completion if target changed.
+      today matches + no record       → create a fresh record (same as first open).
+      today no longer matches         → delete today's record, mirroring pause/archive:
+                                        a habit that is not scheduled today has no
+                                        entry today and leaves none in history.
+    Past records are never touched.
+    """
+    today = date.today()
+    today_matches = _matches_date(plan, today)
+
+    record: DailyPlanRecordDBM | None = db.scalar(
+        select(DailyPlanRecordDBM).where(
+            DailyPlanRecordDBM.plan_id == plan.id,
+            DailyPlanRecordDBM.scheduled_date == today,
+        )
+    )
+
+    if not today_matches:
+        if record is not None:
+            db.delete(record)
+            if plan.source_type == "task":
+                _recompute_task_progress(db, plan.source_id)
+        return
+
+    if record is None:
+        _materialize_record(db, plan, today)
+        return
+
+    # Today matches and record already exists — update snapshot, preserve progress.
+    snapshot = _build_plan_snapshot(plan)
+    for key, value in snapshot.items():
+        setattr(record, key, value)
+
+    if record.planner_type == "metric":
+        _apply_metric_status(record)
+
+
 # ── Public sync API ───────────────────────────────────────────────────────────
 
 def sync_plan_from_habit(db: Session, habit: HabitDBM) -> None:
@@ -352,12 +447,16 @@ def sync_plan_from_habit(db: Session, habit: HabitDBM) -> None:
     }
 
     if plan is None:
-        db.add(PlanDBM(**fields))
+        plan = PlanDBM(**fields)
+        db.add(plan)
+        db.flush()  # populate plan.id before _sync_today_record queries by it
     else:
         _apply_fields(plan, fields)
 
     if habit.status in ("paused", "archived"):
         _purge_today_records(db, "habit", habit.id)
+    else:
+        _sync_today_record(db, plan)
 
     db.commit()
 
@@ -404,10 +503,13 @@ def sync_plan_from_task(db: Session, task: TaskDBM) -> None:
     }
 
     if plan is None:
-        db.add(PlanDBM(**fields))
+        plan = PlanDBM(**fields)
+        db.add(plan)
+        db.flush()  # populate plan.id before _sync_today_record queries by it
     else:
         _apply_fields(plan, fields)
 
+    _sync_today_record(db, plan)
     db.commit()
 
 
@@ -420,6 +522,8 @@ def _purge_today_records(db: Session, source_type: str, source_id: int) -> None:
             DailyPlanRecordDBM.scheduled_date >= date.today(),
         )
     )
+    if source_type == "task":
+        _recompute_task_progress(db, source_id)
 
 
 def deactivate_plan(db: Session, source_type: str, source_id: int) -> None:

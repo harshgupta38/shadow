@@ -4,6 +4,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.schemas.common import ORMModel
+from app.schemas.goals import CategoryType
 
 ScheduledTaskType = Literal["simple", "metric"]
 ScheduledTaskPriority = Literal["highest", "high", "medium", "low", "lowest"]
@@ -20,7 +21,7 @@ def _today_ist() -> date:
 class GoalSummary(BaseModel):
     id: int
     title: str
-    category: str | None
+    category: CategoryType | None
 
 
 class ScheduledTaskCreateRequest(BaseModel):
@@ -41,7 +42,7 @@ class ScheduledTaskCreateRequest(BaseModel):
     duration_minutes: int | None = Field(default=None, ge=1)
     note: str | None = Field(default=None, max_length=2000)
 
-    category: str | None = Field(default=None, max_length=64)
+    category: CategoryType | None = Field(default=None)
     goal_id: int | None = None
 
     @field_validator("title", mode="before")
@@ -97,7 +98,7 @@ class ScheduledTaskUpdateRequest(BaseModel):
     duration_minutes: int | None = Field(default=None, ge=1)
     note: str | None = Field(default=None, max_length=2000)
 
-    category: str | None = Field(default=None, max_length=64)
+    category: CategoryType | None = Field(default=None)
     goal_id: int | None = None
 
     @field_validator("scheduled_date", mode="after")
@@ -130,7 +131,7 @@ class ScheduledTaskDataResponse(BaseModel):
 
     duration_minutes: int | None
 
-    category: str | None
+    category: CategoryType | None
     goal: GoalSummary | None = None
 
     status: ScheduledTaskStatus

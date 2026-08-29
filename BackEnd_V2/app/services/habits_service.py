@@ -25,6 +25,7 @@ def _serialize(habit: HabitDBM) -> HabitDataResponse:
         planner_type=habit.planner_type,
         planner_target=habit.planner_target if is_metric else None,
         value_unit=habit.value_unit if is_metric else None,
+        category=habit.category,
         goal=goal_summary,
         frequencies=habit.frequencies,
         priority=habit.priority,
@@ -43,7 +44,7 @@ def _serialize(habit: HabitDBM) -> HabitDataResponse:
     )
 
 
-def _resolve_goal(db: Session, current_user: UserDBM, goal_id: int | None) -> int | None:
+def _resolve_goal(db: Session, current_user: UserDBM, goal_id: int | None) -> GoalDBM | None:
     if goal_id is None:
         return None
     goal = db.scalar(
@@ -51,7 +52,7 @@ def _resolve_goal(db: Session, current_user: UserDBM, goal_id: int | None) -> in
     )
     if goal is None:
         raise NotFoundError("Goal not found.")
-    return goal_id
+    return goal
 
 
 def get_list(
@@ -72,7 +73,7 @@ def save_habit(
     current_user: UserDBM,
     data: HabitCreateRequest,
 ) -> HabitDataResponse:
-    goal_id = _resolve_goal(db, current_user, data.goal_id)
+    goal = _resolve_goal(db, current_user, data.goal_id)
 
     specific_days = data.specific_days or None
     day_fallback  = data.day_fallback and bool(specific_days) and any(d >= 29 for d in specific_days)
@@ -80,7 +81,7 @@ def save_habit(
     is_metric = data.planner_type == "metric"
     habit = HabitDBM(
         user_id=current_user.id,
-        goal_id=goal_id,
+        goal_id=goal.id if goal is not None else None,
         title=data.title.strip(),
         note=data.note.strip() if data.note and data.note.strip() else None,
         frequencies=list(data.frequencies),
@@ -98,6 +99,7 @@ def save_habit(
         planner_type=data.planner_type,
         planner_target=data.planner_target if is_metric else None,
         value_unit=data.value_unit.strip() if is_metric and data.value_unit and data.value_unit.strip() else None,
+        category=goal.category if goal is not None else (data.category.strip() if data.category and data.category.strip() else None),
     )
     db.add(habit)
     db.commit()
@@ -128,7 +130,8 @@ def update_habit(
     if "note" in fields:
         habit.note = data.note.strip() if data.note and data.note.strip() else None
     if "goal_id" in fields:
-        habit.goal_id = _resolve_goal(db, current_user, data.goal_id)
+        goal = _resolve_goal(db, current_user, data.goal_id)
+        habit.goal_id = goal.id if goal is not None else None
 
     if "frequencies" in fields and data.frequencies is not None:
         habit.frequencies = list(data.frequencies)
@@ -188,6 +191,14 @@ def update_habit(
             habit.value_unit = data.value_unit.strip() if data.value_unit and data.value_unit.strip() else None
         else:
             habit.value_unit = None
+    if "goal_id" in fields or "category" in fields:
+        if habit.goal_id is not None:
+            linked_goal = db.get(GoalDBM, habit.goal_id)
+            habit.category = linked_goal.category if linked_goal is not None else None
+        elif "category" in fields:
+            habit.category = data.category.strip() if data.category and data.category.strip() else None
+        else:
+            habit.category = None
 
     db.commit()
     db.refresh(habit)

@@ -7,6 +7,19 @@ from app.schemas.common import ORMModel
 GoalStatus = Literal["Active", "Paused", "Completed"]
 GoalListStatusFilter = Literal["All", "Active", "Paused", "Completed"]
 GoalProposalStatus = Literal["pending", "saved"]
+CategoryType = Literal[
+    "Career",
+    "Business",
+    "Finance",
+    "Health",
+    "Fitness",
+    "Education",
+    "Relationships",
+    "Productivity",
+    "Personal Growth",
+    "Travel",
+    "Other",
+]
 
 
 class RefineGoalRequest(BaseModel):
@@ -80,19 +93,7 @@ class RefineGoalFromLLMSchema(BaseModel):
     summary: str = Field(description="A one-paragraph summary of the goal.")
 
     # Goal Classification
-    category: Literal[
-        "Career",
-        "Business",
-        "Finance",
-        "Health",
-        "Fitness",
-        "Education",
-        "Relationships",
-        "Productivity",
-        "Personal Growth",
-        "Travel",
-        "Other",
-    ] = Field(description="The most appropriate category for the goal.")
+    category: CategoryType = Field(description="The most appropriate category for the goal.")
 
     # Goal Analysis
     motivation: str = Field(

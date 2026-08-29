@@ -14,13 +14,13 @@ from app.schemas.schedule import (
 from app.services.planner_service import deactivate_plan, sync_plan_from_scheduled_task
 
 
-def _resolve_goal(db: Session, current_user: UserDBM, goal_id: int | None) -> int | None:
+def _resolve_goal(db: Session, current_user: UserDBM, goal_id: int | None) -> GoalDBM | None:
     if goal_id is None:
         return None
     goal = db.scalar(select(GoalDBM).where(GoalDBM.id == goal_id, GoalDBM.user_id == current_user.id))
     if goal is None:
         raise NotFoundError("Goal not found.")
-    return goal_id
+    return goal
 
 
 def _serialize(task: ScheduledTaskDBM) -> ScheduledTaskDataResponse:
@@ -65,14 +65,14 @@ def save_task(
     current_user: UserDBM,
     data: ScheduledTaskCreateRequest,
 ) -> ScheduledTaskDataResponse:
-    goal_id = _resolve_goal(db, current_user, data.goal_id)
+    goal = _resolve_goal(db, current_user, data.goal_id)
     is_metric = data.planner_type == "metric"
     task = ScheduledTaskDBM(
         user_id=current_user.id,
-        goal_id=goal_id,
+        goal_id=goal.id if goal is not None else None,
         title=data.title.strip(),
         note=data.note.strip() if data.note and data.note.strip() else None,
-        category=data.category.strip() if data.category and data.category.strip() else None,
+        category=goal.category if goal is not None else (data.category.strip() if data.category and data.category.strip() else None),
         planner_type=data.planner_type,
         planner_target=data.planner_target if is_metric else None,
         value_unit=data.value_unit.strip() if is_metric and data.value_unit and data.value_unit.strip() else None,
@@ -138,10 +138,18 @@ def update_task(
     if "duration_minutes" in fields:
         task.duration_minutes = data.duration_minutes
 
-    if "category" in fields:
-        task.category = data.category.strip() if data.category and data.category.strip() else None
     if "goal_id" in fields:
-        task.goal_id = _resolve_goal(db, current_user, data.goal_id)
+        goal = _resolve_goal(db, current_user, data.goal_id)
+        task.goal_id = goal.id if goal is not None else None
+
+    if "goal_id" in fields or "category" in fields:
+        if task.goal_id is not None:
+            linked_goal = db.get(GoalDBM, task.goal_id)
+            task.category = linked_goal.category if linked_goal is not None else None
+        elif "category" in fields:
+            task.category = data.category.strip() if data.category and data.category.strip() else None
+        else:
+            task.category = None
 
     if "planner_type" in fields and data.planner_type is not None:
         task.planner_type = data.planner_type

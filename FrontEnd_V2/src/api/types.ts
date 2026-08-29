@@ -438,6 +438,7 @@ export interface HabitCreateRequest {
   duration_minutes: number | null;
   note: string | null;
   goal_id: number | null;
+  category: GoalCategory | null;
 }
 
 export interface HabitDataResponse extends Omit<HabitCreateRequest, "goal_id"> {

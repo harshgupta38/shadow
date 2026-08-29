@@ -133,6 +133,7 @@ class HabitDBM(Base):
     )
     planner_target: Mapped[int | None] = mapped_column(Integer, nullable=True)
     value_unit: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    category: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
     goal: Mapped["GoalDBM | None"] = relationship(  # type: ignore[name-defined]
         "GoalDBM",

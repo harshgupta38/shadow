@@ -27,6 +27,7 @@ import {
     FREQUENCY_OPTIONS,
     getStepBannerError,
     getStepValidationErrors,
+    GOAL_CATEGORY_OPTIONS,
     HABIT_LOADER_STEPS,
     makeEmptyAnswers,
     mapApiFieldErrors,
@@ -247,6 +248,7 @@ export function HabitWizardPage() {
                 specific_time: specificTimeOut || null,
                 duration_minutes: parseOptionalPositiveInt(answers.durationMinutes),
                 goal_id: answers.goalId ? Number(answers.goalId) : null,
+                category: answers.category || null,
             };
 
             if (isEditMode) {
@@ -846,25 +848,48 @@ export function HabitWizardPage() {
                                                             />
                                                         </div>
 
-                                                        {/* Link to a goal */}
-                                                        {goals.length > 0 && (
-                                                            <div className="mb-3">
+                                                        {/* Goal + Category row */}
+                                                        <div className="row g-3 mb-3">
+                                                            {goals.length > 0 && (
+                                                                <div className="col-md-6">
+                                                                    <label className="form-label">
+                                                                        Link to a goal <span className="text-muted fw-normal">(optional)</span>
+                                                                    </label>
+                                                                    <select
+                                                                        className="form-select"
+                                                                        value={answers.goalId}
+                                                                        onChange={(e) => {
+                                                                            const newGoalId = e.target.value;
+                                                                            updateAnswer("goalId", newGoalId);
+                                                                            const linked = goals.find((g) => String(g.id) === newGoalId);
+                                                                            updateAnswer("category", linked?.category ?? "");
+                                                                        }}
+                                                                        disabled={!isActive || submitting}
+                                                                    >
+                                                                        <option value="">No goal linked</option>
+                                                                        {goals.map((g) => (
+                                                                            <option key={g.id} value={String(g.id)}>{g.title}</option>
+                                                                        ))}
+                                                                    </select>
+                                                                </div>
+                                                            )}
+                                                            <div className={goals.length > 0 ? "col-md-6" : "col-12"}>
                                                                 <label className="form-label">
-                                                                    Link to a goal <span className="text-muted fw-normal">(optional)</span>
+                                                                    Category <span className="text-muted fw-normal">(optional)</span>
                                                                 </label>
                                                                 <select
                                                                     className="form-select"
-                                                                    value={answers.goalId}
-                                                                    onChange={(e) => updateAnswer("goalId", e.target.value)}
-                                                                    disabled={!isActive || submitting}
+                                                                    value={answers.category}
+                                                                    onChange={(e) => updateAnswer("category", e.target.value as typeof answers.category)}
+                                                                    disabled={!isActive || submitting || !!answers.goalId}
                                                                 >
-                                                                    <option value="">No goal linked</option>
-                                                                    {goals.map((g) => (
-                                                                        <option key={g.id} value={String(g.id)}>{g.title}</option>
+                                                                    <option value="">{answers.goalId ? "From linked goal" : "No category"}</option>
+                                                                    {GOAL_CATEGORY_OPTIONS.map((cat) => (
+                                                                        <option key={cat} value={cat}>{cat}</option>
                                                                     ))}
                                                                 </select>
                                                             </div>
-                                                        )}
+                                                        </div>
                                                     </div>
                                                 )}
 

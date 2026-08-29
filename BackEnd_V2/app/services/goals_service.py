@@ -7,7 +7,9 @@ from app.llm import RefineGoalFromLLM, get_llm_service, LLMError, LLMRequestErro
 from app.models.chat import MessageDBM
 from app.models.goal import GoalDBM
 from app.models.goal_proposal import GoalProposalDBM
+from app.models.habit import HabitDBM
 from app.models.milestone import MilestoneDBM
+from app.models.schedule_task import ScheduledTaskDBM
 from app.models.task import TaskDBM
 from app.models.user import UserDBM
 from app.schemas.goals import (
@@ -148,7 +150,7 @@ def save_goal_from_proposal(
         milestones_completed=0,
         habits_total=0,
         habits_active=0,
-        source_conversation_id=proposal.conversation_id
+        source_conversation_id=proposal.conversation_id,
     )
     db.add(goal)
     db.flush()
@@ -171,7 +173,9 @@ def save_goal_from_proposal(
             .filter(GoalProposalDBM.proposal_id == data.proposal_id)
             .first()
         )
-        existing_goal = _find_goal(db, current_user, proposal.goal_id if proposal else None)
+        existing_goal = _find_goal(
+            db, current_user, proposal.goal_id if proposal else None
+        )
         if existing_goal is None:
             raise ConflictError("Goal proposal could not be resolved.")
         return _serialize_goal_detail(existing_goal)
@@ -285,6 +289,17 @@ def update_goal(
     goal.success_metrics = _clean_list(data.success_metrics)
     goal.insights = _clean_list(data.insights)
     goal.target_date = date.fromisoformat(data.target_date)
+
+    db.execute(
+        update(HabitDBM)
+        .where(HabitDBM.goal_id == goal.id)
+        .values(category=goal.category)
+    )
+    db.execute(
+        update(ScheduledTaskDBM)
+        .where(ScheduledTaskDBM.goal_id == goal.id)
+        .values(category=goal.category)
+    )
 
     db.commit()
     db.refresh(goal)

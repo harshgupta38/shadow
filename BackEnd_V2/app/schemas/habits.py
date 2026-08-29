@@ -4,6 +4,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.schemas.common import ORMModel
+from app.schemas.goals import CategoryType
 
 HabitFrequency = Literal[
     "sunday",
@@ -92,6 +93,7 @@ class HabitCreateRequest(BaseModel):
     # Unit label (e.g. "pages", "km"); only meaningful for metric habits
     value_unit: str | None = Field(default=None, max_length=64)
     goal_id: int | None = None
+    category: CategoryType | None = Field(default=None)
 
     frequencies: list[HabitFrequency] = Field(min_length=1, max_length=15)
     preferred_time: HabitPreferredTime = "flexible"
@@ -173,6 +175,7 @@ class HabitUpdateRequest(BaseModel):
     planner_target: int | None = Field(default=None, gt=0)
     value_unit: str | None = Field(default=None, max_length=64)
     goal_id: int | None = None
+    category: CategoryType | None = Field(default=None)
 
     frequencies: list[HabitFrequency] | None = Field(default=None, min_length=1, max_length=15)
     preferred_time: HabitPreferredTime | None = None
@@ -247,6 +250,7 @@ class HabitDataResponse(BaseModel):
     planner_type: HabitType
     planner_target: int | None
     value_unit: str | None
+    category: CategoryType | None
     goal: GoalSummary | None = None
 
     frequencies: list[HabitFrequency]

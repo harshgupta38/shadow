@@ -1,4 +1,4 @@
-import type { HabitCreateRequest, HabitDataResponse, HabitPreferredTime, HabitPriority, HabitType } from "@/api";
+import type { GoalCategory, HabitCreateRequest, HabitDataResponse, HabitPreferredTime, HabitPriority, HabitType } from "@/api";
 import { todayIso } from "@/services/date.service";
 
 export type HabitWizardStepKey = "defineHabit" | "configurePlanning" | "habitTimeline" | "additionalDetails";
@@ -30,6 +30,7 @@ export type HabitWizardAnswers = {
     durationMinutes: string;
     note: string;
     goalId: string; // "" means null
+    category: GoalCategory | "";
 };
 
 export type HabitWizardStep = {
@@ -88,6 +89,7 @@ export function makeEmptyAnswers(): HabitWizardAnswers {
         durationMinutes: "",
         note: "",
         goalId: "",
+        category: "",
     };
 }
 
@@ -127,6 +129,11 @@ export const PREFERRED_TIME_OPTIONS = [
     { value: "evening",   label: "Evening (5 pm – 9 pm)" },
     { value: "night",     label: "Night (after 9 pm)" },
     { value: "custom",    label: "Specific time…" },
+];
+
+export const GOAL_CATEGORY_OPTIONS: GoalCategory[] = [
+    "Career", "Business", "Finance", "Health", "Fitness",
+    "Education", "Relationships", "Productivity", "Personal Growth", "Travel", "Other",
 ];
 
 export const MINUTES = ["00", "05", "10", "15", "20", "25", "30", "35", "40", "45", "50", "55"] as const;
@@ -173,6 +180,7 @@ export function answersFromHabit(habit: HabitDataResponse): HabitWizardAnswers {
         durationMinutes: habit.duration_minutes !== null ? String(habit.duration_minutes) : "",
         note: habit.note ?? "",
         goalId: habit.goal?.id != null ? String(habit.goal.id) : "",
+        category: (habit.category as GoalCategory | null) ?? "",
     };
 }
 
@@ -198,6 +206,7 @@ export function answersFromDraft(draft: Partial<HabitCreateRequest>): HabitWizar
         specificTime: draft.specific_time ?? "",
         durationMinutes: draft.duration_minutes != null ? String(draft.duration_minutes) : "",
         note: draft.note ?? "",
+        category: (draft.category as GoalCategory | null | undefined) ?? "",
     };
 }
 

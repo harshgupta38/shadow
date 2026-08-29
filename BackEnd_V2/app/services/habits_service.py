@@ -60,10 +60,13 @@ def get_list(
     current_user: UserDBM,
     *,
     status: str | None = None,
+    goal_id: int | None = None,
 ) -> list[HabitDataResponse]:
     stmt = select(HabitDBM).options(joinedload(HabitDBM.goal)).where(HabitDBM.user_id == current_user.id)
     if status is not None:
         stmt = stmt.where(HabitDBM.status == status)
+    if goal_id is not None:
+        stmt = stmt.where(HabitDBM.goal_id == goal_id)
     habits = db.scalars(stmt.order_by(HabitDBM.updated_at.desc(), HabitDBM.id.desc())).all()
     return [_serialize(h) for h in habits]
 

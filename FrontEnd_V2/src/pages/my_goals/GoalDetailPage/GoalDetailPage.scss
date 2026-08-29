@@ -234,6 +234,28 @@
 }
 
 .goal-detail-page {
+  .habit-library-page {
+    .hl-card {
+      box-shadow: none;
+      border-radius: var(--jv-radius);
+      border: 1px solid color-mix(in srgb, var(--jv-border) 82%, var(--jv-brand-1) 18%);
+    }
+
+    .hl-title {
+      font-family: var(--jv-font-display);
+      font-size: 1.16rem;
+      font-weight: 600;
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+    }
+
+    .hl-subtitle {
+      font-size: 0.9rem;
+    }
+  }
+}
+
+.goal-detail-page {
   .goal-detail-progress-bar-track {
     flex: 1;
     height: 6px;

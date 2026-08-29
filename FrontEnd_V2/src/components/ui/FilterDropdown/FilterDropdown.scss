@@ -41,7 +41,8 @@
   border-radius: 10px;
   box-shadow: var(--jv-shadow-lg);
   z-index: 1050;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .jv-filter-section {

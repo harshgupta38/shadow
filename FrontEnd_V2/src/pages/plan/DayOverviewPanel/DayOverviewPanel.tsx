@@ -18,16 +18,19 @@ import "./DayOverviewPanel.scss";
 interface Props {
   items: PlanDataResponse[];
   loading: boolean;
+  isToday: boolean;
   estimatedMinutes: number;
 }
 
-export function DayOverviewPanel({ items, loading, estimatedMinutes }: Props) {
+export function DayOverviewPanel({ items, loading, isToday, estimatedMinutes }: Props) {
+  const title = isToday ? "Today's Overview" : "Overview";
+
   if (loading) {
     return (
       <section className="plan-panel overview-panel">
         <div className="overview-header">
           <ListTask size={15} />
-          <h2>Today&apos;s Overview</h2>
+          <h2>{title}</h2>
         </div>
         <div className="overview-body">
           {/* Stat row */}
@@ -61,7 +64,7 @@ export function DayOverviewPanel({ items, loading, estimatedMinutes }: Props) {
       <section className="plan-panel overview-panel">
         <div className="overview-header">
           <ListTask size={15} />
-          <h2>Today&apos;s Overview</h2>
+          <h2>{title}</h2>
         </div>
         <div className="overview-empty">
           <span className="overview-empty-icon"><CalendarX size={18} /></span>
@@ -102,7 +105,7 @@ export function DayOverviewPanel({ items, loading, estimatedMinutes }: Props) {
     <section className="plan-panel overview-panel">
       <div className="overview-header">
         <ListTask size={15} />
-        <h2>Today&apos;s Overview</h2>
+        <h2>{title}</h2>
       </div>
 
       <div className="overview-body">

@@ -36,7 +36,7 @@ export function FilterDropdown({
     const uid = useId();
     const dropdownId = `jv-filter-dropdown-${uid}`;
     const [open, setOpen] = useState(false);
-    const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null);
+    const [pos, setPos] = useState<{ top: number; left: number; width: number; maxHeight: number } | null>(null);
     const btnRef = useRef<HTMLButtonElement>(null);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -44,9 +44,17 @@ export function FilterDropdown({
         if (!btnRef.current) return null;
         const rect = btnRef.current.getBoundingClientRect();
         const vw = window.innerWidth;
+        const vh = window.innerHeight;
         const dropW = Math.min(width, vw - 16);
         const left = Math.max(8, Math.min(rect.right - dropW, vw - dropW - 8));
-        return { top: rect.bottom + 6, left, width: dropW };
+        const estimatedH = dropdownRef.current?.offsetHeight ?? 320;
+        const spaceBelow = vh - rect.bottom - 8;
+        const spaceAbove = rect.top - 8;
+        if (spaceBelow >= estimatedH || spaceBelow >= spaceAbove) {
+            return { top: rect.bottom + 6, left, width: dropW, maxHeight: Math.max(160, spaceBelow - 4) };
+        }
+        const clampedH = Math.min(estimatedH, spaceAbove);
+        return { top: rect.top - clampedH - 6, left, width: dropW, maxHeight: Math.max(160, spaceAbove - 4) };
     }
 
     function toggle() {
@@ -71,9 +79,18 @@ export function FilterDropdown({
             if (!btnRef.current) { setOpen(false); return; }
             const rect = btnRef.current.getBoundingClientRect();
             const vw = window.innerWidth;
+            const vh = window.innerHeight;
             const dropW = Math.min(width, vw - 16);
             const left = Math.max(8, Math.min(rect.right - dropW, vw - dropW - 8));
-            setPos({ top: rect.bottom + 6, left, width: dropW });
+            const actualH = dropdownRef.current?.offsetHeight ?? 320;
+            const spaceBelow = vh - rect.bottom - 8;
+            const spaceAbove = rect.top - 8;
+            if (spaceBelow >= actualH || spaceBelow >= spaceAbove) {
+                setPos({ top: rect.bottom + 6, left, width: dropW, maxHeight: Math.max(160, spaceBelow - 4) });
+            } else {
+                const clampedH = Math.min(actualH, spaceAbove);
+                setPos({ top: rect.top - clampedH - 6, left, width: dropW, maxHeight: Math.max(160, spaceAbove - 4) });
+            }
         }
 
         document.addEventListener("mousedown", onClickOutside);
@@ -106,7 +123,7 @@ export function FilterDropdown({
                     ref={dropdownRef}
                     id={dropdownId}
                     className="jv-filter-dropdown"
-                    style={{ top: pos.top, left: pos.left, width: pos.width }}
+                    style={{ top: pos.top, left: pos.left, width: pos.width, maxHeight: pos.maxHeight }}
                 >
                     {sections.map(section => (
                         <div key={section.key} className="jv-filter-section">

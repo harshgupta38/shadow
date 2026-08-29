@@ -3,8 +3,8 @@ import { http } from "@/api/client";
 import type { HabitDataResponse, HabitCreateRequest, HabitUpdateRequest } from "@/api/types";
 
 export const habitsApi = {
-    async getList(): Promise<HabitDataResponse[]> {
-        return http.get<HabitDataResponse[]>(`${ENDPOINTS.HABITS.PREFIX}${ENDPOINTS.HABITS.GET_LIST}`);
+    async getList(params?: { goal_id?: number }): Promise<HabitDataResponse[]> {
+        return http.get<HabitDataResponse[]>(`${ENDPOINTS.HABITS.PREFIX}${ENDPOINTS.HABITS.GET_LIST}`, { params });
     },
 
     async createHabit(data: HabitCreateRequest): Promise<HabitDataResponse> {

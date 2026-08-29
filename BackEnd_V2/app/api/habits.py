@@ -13,10 +13,11 @@ router = APIRouter(prefix=ENDPOINTS.HABITS.PREFIX, tags=["Habits"])
 @router.get(ENDPOINTS.HABITS.GET_LIST, response_model=list[HabitDataResponse])
 def get_habit_list(
     status: str | None = None,
+    goal_id: int | None = None,
     db=Depends(get_db),
     current_user: UserDBM = Depends(get_current_user),
 ) -> list[HabitDataResponse]:
-    return habits_service.get_list(db, current_user, status=status)
+    return habits_service.get_list(db, current_user, status=status, goal_id=goal_id)
 
 
 @router.post(

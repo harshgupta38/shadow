@@ -259,7 +259,7 @@ export function HabitWizardPage() {
                 toast.success("Habit created successfully.");
             }
 
-            navigate(ROUTES.HABIT_LIBRARY);
+            navigate(-1);
         } catch (submitError) {
             if (submitError instanceof ApiError) {
                 const mapped = mapApiFieldErrors(submitError.fieldErrors ?? {});
@@ -555,7 +555,7 @@ export function HabitWizardPage() {
                             <button
                                 type="button"
                                 className="btn btn-ghost btn-icon goal-wizard-close"
-                                onClick={() => navigate(ROUTES.HABIT_LIBRARY)}
+                                onClick={() => navigate(-1)}
                                 aria-label="Close habit setup"
                                 disabled={submitting}
                             >

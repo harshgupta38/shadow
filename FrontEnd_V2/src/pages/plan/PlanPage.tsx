@@ -306,6 +306,7 @@ export function PlanPage() {
           <DayOverviewPanel
             items={planItems}
             loading={loadingPlan}
+            isToday={isToday}
             estimatedMinutes={estimatedMinutes}
           />
         </div>

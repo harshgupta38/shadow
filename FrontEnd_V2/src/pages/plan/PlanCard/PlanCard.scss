@@ -186,6 +186,12 @@
     color: var(--jv-muted);
     border: 1px dashed var(--jv-border-strong);
     flex-shrink: 0;
+    transition: border-color var(--jv-transition), color var(--jv-transition);
+
+    &:hover {
+      color: var(--jv-text);
+      border-color: var(--jv-text);
+    }
   }
 }
 

@@ -1,0 +1,96 @@
+.schedule-task-card {
+    display: flex;
+    align-items: center;
+    border: 1px solid var(--jv-border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 0.45rem;
+    background: var(--jv-surface-2);
+    transition: background var(--jv-transition);
+
+    &:hover {
+        background: var(--jv-surface-3, color-mix(in srgb, var(--jv-surface-2) 88%, #888 12%));
+    }
+}
+
+.schedule-task-bar {
+    width: 3px;
+    align-self: stretch;
+    flex-shrink: 0;
+}
+
+.schedule-task-body {
+    flex: 1;
+    min-width: 0;
+    padding: 0.5rem 0.7rem;
+}
+
+.schedule-task-title-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+    min-width: 0;
+}
+
+.schedule-task-title {
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: var(--jv-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+    flex: 1;
+}
+
+.schedule-task-priority {
+    font-size: 0.69rem;
+    font-weight: 700;
+    opacity: 0.9;
+    flex-shrink: 0;
+}
+
+.schedule-task-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.4rem;
+    margin-top: 0.2rem;
+}
+
+.schedule-task-date {
+    font-size: 0.71rem;
+    color: var(--jv-muted);
+}
+
+.schedule-task-time {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.71rem;
+    color: var(--jv-muted);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.sc-time-icon {
+    margin-top: 1px;
+
+    &--sun-am { color: #f0a830; }
+    &--sun-pm { color: #e09020; }
+    &--moon   { color: var(--jv-violet, #7c5cbf); }
+    &--clock  { color: var(--jv-violet, #7c5cbf); }
+}
+
+.schedule-task-target {
+    font-size: 0.71rem;
+    color: var(--jv-muted);
+    margin-top: 0.15rem;
+}
+
+.schedule-task-note {
+    font-size: 0.71rem;
+    color: var(--jv-muted);
+    margin-top: 0.25rem;
+}

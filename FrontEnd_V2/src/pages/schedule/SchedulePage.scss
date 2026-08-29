@@ -1,3 +1,232 @@
-.schedule-page {
-  // page body styles will go here
+.schedule-page-container {
+  $offset: 4.5rem;
+
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - var(--jv-topbar-h) - #{$offset});
+  min-height: calc(100vh - var(--jv-topbar-h) - #{$offset});
+  overflow: hidden;
+
+  // ── Two-column layout ──────────────────────────────────────────────────
+
+  .schedule-layout {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 1.15rem;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  // ── Left: task list panel ──────────────────────────────────────────────
+
+  .schedule-tasks-panel {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .schedule-panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--jv-border);
+    flex-shrink: 0;
+  }
+
+  .schedule-panel-title {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--jv-text);
+  }
+
+  .schedule-tasks-list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 0.5rem 0.5rem 0.05rem 0.5rem;
+  }
+
+  .schedule-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2.5rem 1rem;
+    text-align: center;
+    color: var(--jv-muted);
+  }
+
+  .schedule-empty-icon {
+    color: var(--jv-text);
+  }
+
+  // ── Right: calendar panel ──────────────────────────────────────────────
+
+  .schedule-cal-panel {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .schedule-cal-header {
+    display: flex;
+    align-items: center;
+    padding: 0.7rem 1rem;
+    border-bottom: 1px solid var(--jv-border);
+    flex-shrink: 0;
+  }
+
+  .schedule-cal-month-label {
+    flex: 1;
+    text-align: center;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--jv-text);
+  }
+
+  .schedule-cal-day-names {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    border-bottom: 1px solid var(--jv-border);
+    flex-shrink: 0;
+  }
+
+  .schedule-cal-day-name {
+    padding: 0.45rem 0;
+    text-align: center;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--jv-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .schedule-cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    grid-auto-rows: 1fr;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+
+    // cell borders via selector (avoid double borders)
+    .schedule-cal-cell {
+      border-right: 1px solid var(--jv-border);
+      border-bottom: 1px solid var(--jv-border);
+
+      &:nth-child(7n) {
+        border-right: none;
+      }
+    }
+  }
+
+  .schedule-cal-cell {
+    padding: 0.3rem 0.35rem;
+    overflow: hidden;
+    min-height: 0;
+
+    &.is-outside {
+      background: color-mix(in srgb, var(--jv-surface) 60%, transparent);
+
+      .schedule-cal-day-num {
+        color: var(--jv-faint);
+      }
+    }
+
+    &.is-today {
+      background: color-mix(in srgb, var(--jv-brand-1) 7%, transparent);
+    }
+  }
+
+  .schedule-cal-day-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.55rem;
+    height: 1.55rem;
+    border-radius: 50%;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--jv-text);
+    margin-bottom: 0.25rem;
+
+    &.is-today {
+      background: var(--jv-brand-1);
+      color: #fff;
+      font-weight: 700;
+    }
+  }
+
+  .schedule-cal-chips {
+    display: flex;
+    flex-direction: column;
+    gap: 0.18rem;
+  }
+
+  .schedule-task-chip {
+    display: block;
+    width: 100%;
+    font-size: 0.68rem;
+    font-weight: 500;
+    padding: 0.12rem 0.38rem;
+    border-radius: 4px;
+    background: color-mix(in srgb, var(--chip-color, var(--jv-brand-1)) 14%, transparent);
+    color: var(--chip-color, var(--jv-brand-1));
+    border: none;
+    border-left: 2.5px solid var(--chip-color, var(--jv-brand-1));
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: left;
+    cursor: pointer;
+    transition: background var(--jv-transition);
+    line-height: 1.5;
+
+    &:hover {
+      background: color-mix(in srgb, var(--chip-color, var(--jv-brand-1)) 24%, transparent);
+    }
+  }
+
+  .schedule-cal-overflow {
+    font-size: 0.67rem;
+    color: var(--jv-muted);
+    padding: 0.08rem 0.35rem;
+  }
+
+  // ── Responsive ────────────────────────────────────────────────────────
+
+  @media (max-width: 991.98px) {
+    height: auto;
+    min-height: auto;
+    overflow: visible;
+
+    .schedule-layout {
+      grid-template-columns: 1fr;
+      grid-template-rows: auto auto;
+      overflow: visible;
+    }
+
+    .schedule-tasks-panel {
+      overflow: visible;
+      max-height: 300px;
+
+      .schedule-tasks-list {
+        overflow-y: auto;
+      }
+    }
+
+    .schedule-cal-panel {
+      overflow: visible;
+      min-height: 0;
+    }
+
+    .schedule-cal-grid {
+      overflow: visible;
+      grid-auto-rows: 72px;
+    }
+  }
 }

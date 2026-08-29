@@ -50,13 +50,18 @@ export function ScheduleWizardPage() {
     const isEditMode = Boolean(taskId);
     const numericTaskId = Number(taskId);
 
-    const stateTask = (location.state as { task?: ScheduledTaskDataResponse } | null)?.task ?? null;
+    const stateTask  = (location.state as { task?:  ScheduledTaskDataResponse } | null)?.task  ?? null;
+    const stateDraft = (location.state as { draft?: ScheduledTaskDataResponse } | null)?.draft ?? null;
 
     const [loadingContext, setLoadingContext] = useState(isEditMode && !stateTask);
     const [loaderIndex, setLoaderIndex] = useState(0);
     const [currentStepIndex, setCurrentStepIndex] = useState(0);
     const [answers, setAnswers] = useState<ScheduleWizardAnswers>(() => {
         if (isEditMode && stateTask) return answersFromTask(stateTask);
+        if (!isEditMode && stateDraft) {
+            // Duplicate: pre-fill all fields but reset the date so user picks a new one
+            return { ...answersFromTask(stateDraft), scheduledDate: "" };
+        }
         return makeEmptyAnswers();
     });
     const [fieldErrors, setFieldErrors] = useState<ScheduleFieldErrors>({});

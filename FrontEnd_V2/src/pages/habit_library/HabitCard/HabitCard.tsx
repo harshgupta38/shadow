@@ -1,4 +1,4 @@
-import { Archive, ArrowCounterclockwise, CaretRightFill, Link45deg, PauseFill, PencilSquare, Plus, ThreeDotsVertical, Trash } from "react-bootstrap-icons";
+import { Archive, ArrowCounterclockwise, CaretRightFill, Link45deg, PauseFill, PencilSquare, Plus, TagFill, ThreeDotsVertical, Trash } from "react-bootstrap-icons";
 import { Dropdown } from "react-bootstrap";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
@@ -154,6 +154,12 @@ export function HabitCard({
           {getHabitDateLabel(h) && (
             <span className="hl-habit-chip hl-habit-chip--detail">
               {getHabitDateLabel(h)}
+            </span>
+          )}
+          {h.category && (
+            <span className="hl-habit-chip hl-habit-chip--category">
+              <TagFill size={10} />
+              {h.category}
             </span>
           )}
           {h.goal && (

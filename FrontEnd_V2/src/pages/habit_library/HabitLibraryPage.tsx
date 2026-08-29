@@ -151,6 +151,7 @@ export function HabitLibraryPage() {
       planner_type: habit.planner_type,
       planner_target: habit.planner_target,
       value_unit: habit.value_unit,
+      goal_id: habit.goal ? habit.goal.id : null,
       category: habit.category,
     };
     navigate(ROUTES.HABIT_LIBRARY_CREATE, { state: { draft } });

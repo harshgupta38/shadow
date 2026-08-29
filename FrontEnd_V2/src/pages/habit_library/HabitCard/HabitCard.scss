@@ -122,6 +122,12 @@
   color: var(--jv-muted);
 }
 
+.hl-habit-chip--category {
+  background: var(--jv-violet-soft);
+  border-color: transparent;
+  color: var(--jv-violet);
+}
+
 .hl-habit-chip--goal {
   background: var(--jv-success-soft);
   border-color: transparent;

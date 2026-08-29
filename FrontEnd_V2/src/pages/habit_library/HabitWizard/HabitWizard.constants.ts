@@ -206,6 +206,7 @@ export function answersFromDraft(draft: Partial<HabitCreateRequest>): HabitWizar
         specificTime: draft.specific_time ?? "",
         durationMinutes: draft.duration_minutes != null ? String(draft.duration_minutes) : "",
         note: draft.note ?? "",
+        goalId: draft.goal_id != null ? String(draft.goal_id) : "",
         category: (draft.category as GoalCategory | null | undefined) ?? "",
     };
 }

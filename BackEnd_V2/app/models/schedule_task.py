@@ -4,7 +4,7 @@ from sqlalchemy import (
     Boolean, CheckConstraint, Date, DateTime, ForeignKey,
     Integer, String, func, text,
 )
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
 
@@ -44,9 +44,11 @@ class ScheduledTaskDBM(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
+    goal_id: Mapped[int | None] = mapped_column(ForeignKey("goals.id", ondelete="SET NULL"), index=True, nullable=True)
 
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     note: Mapped[str | None] = mapped_column(String(2000), nullable=True)
+    category: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
     planner_type: Mapped[str] = mapped_column(String(8), nullable=False, default="simple", server_default=text("'simple'"))
     planner_target: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -67,3 +69,9 @@ class ScheduledTaskDBM(Base):
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+    goal: Mapped["GoalDBM | None"] = relationship(  # type: ignore[name-defined]
+        "GoalDBM",
+        foreign_keys=[goal_id],
+        lazy="select",
+    )

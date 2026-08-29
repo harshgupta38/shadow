@@ -1,10 +1,12 @@
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.core.exceptions import NotFoundError, ValidationError
+from app.models.goal import GoalDBM
 from app.models.schedule_task import ScheduledTaskDBM
 from app.models.user import UserDBM
 from app.schemas.schedule import (
+    GoalSummary,
     ScheduledTaskCreateRequest,
     ScheduledTaskDataResponse,
     ScheduledTaskUpdateRequest,
@@ -12,8 +14,20 @@ from app.schemas.schedule import (
 from app.services.planner_service import deactivate_plan, sync_plan_from_scheduled_task
 
 
+def _resolve_goal(db: Session, current_user: UserDBM, goal_id: int | None) -> int | None:
+    if goal_id is None:
+        return None
+    goal = db.scalar(select(GoalDBM).where(GoalDBM.id == goal_id, GoalDBM.user_id == current_user.id))
+    if goal is None:
+        raise NotFoundError("Goal not found.")
+    return goal_id
+
+
 def _serialize(task: ScheduledTaskDBM) -> ScheduledTaskDataResponse:
     is_metric = task.planner_type == "metric"
+    goal_summary: GoalSummary | None = None
+    if task.goal_id is not None and task.goal is not None:
+        goal_summary = GoalSummary(id=task.goal.id, title=task.goal.title, category=task.goal.category)
     return ScheduledTaskDataResponse(
         id=task.id,
         title=task.title,
@@ -28,6 +42,8 @@ def _serialize(task: ScheduledTaskDBM) -> ScheduledTaskDataResponse:
         allow_snoozing=task.allow_snoozing,
         snooze_limit=task.snooze_limit if task.allow_snoozing else None,
         duration_minutes=task.duration_minutes,
+        category=task.category,
+        goal=goal_summary,
         status=task.status,
         created_at=task.created_at,
         updated_at=task.updated_at,
@@ -37,6 +53,7 @@ def _serialize(task: ScheduledTaskDBM) -> ScheduledTaskDataResponse:
 def get_list(db: Session, current_user: UserDBM) -> list[ScheduledTaskDataResponse]:
     tasks = db.scalars(
         select(ScheduledTaskDBM)
+        .options(joinedload(ScheduledTaskDBM.goal))
         .where(ScheduledTaskDBM.user_id == current_user.id)
         .order_by(ScheduledTaskDBM.scheduled_date.asc(), ScheduledTaskDBM.id.asc())
     ).all()
@@ -48,11 +65,14 @@ def save_task(
     current_user: UserDBM,
     data: ScheduledTaskCreateRequest,
 ) -> ScheduledTaskDataResponse:
+    goal_id = _resolve_goal(db, current_user, data.goal_id)
     is_metric = data.planner_type == "metric"
     task = ScheduledTaskDBM(
         user_id=current_user.id,
+        goal_id=goal_id,
         title=data.title.strip(),
         note=data.note.strip() if data.note and data.note.strip() else None,
+        category=data.category.strip() if data.category and data.category.strip() else None,
         planner_type=data.planner_type,
         planner_target=data.planner_target if is_metric else None,
         value_unit=data.value_unit.strip() if is_metric and data.value_unit and data.value_unit.strip() else None,
@@ -117,6 +137,11 @@ def update_task(
 
     if "duration_minutes" in fields:
         task.duration_minutes = data.duration_minutes
+
+    if "category" in fields:
+        task.category = data.category.strip() if data.category and data.category.strip() else None
+    if "goal_id" in fields:
+        task.goal_id = _resolve_goal(db, current_user, data.goal_id)
 
     if "planner_type" in fields and data.planner_type is not None:
         task.planner_type = data.planner_type

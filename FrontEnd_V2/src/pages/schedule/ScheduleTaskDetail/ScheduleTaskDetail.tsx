@@ -62,7 +62,7 @@ export function ScheduleTaskDetail({ task, onClose, onEdit, onDuplicate, onDelet
             <div className="std-body">
                 <div className="std-rows">
                     {/* Left column */}
-                    <div className="std-col">
+                    <div className="std-col one">
                         <div className="std-row">
                             <span className="std-row-label">Priority</span>
                             <span className="std-row-value" style={{ color: PRIORITY_COLOR[task.priority] }}>
@@ -91,16 +91,16 @@ export function ScheduleTaskDetail({ task, onClose, onEdit, onDuplicate, onDelet
                                 </span>
                             </div>
                         )}
-                    </div>
-
-                    {/* Right column */}
-                    <div className="std-col">
                         <div className="std-row">
                             <span className="std-row-label">Status</span>
                             <span className={`std-status-badge std-status-badge--${task.status}`}>
                                 {STATUS_LABEL[task.status]}
                             </span>
                         </div>
+                    </div>
+
+                    {/* Right column */}
+                    <div className="std-col two">
                         {!!task.duration_minutes && (
                             <div className="std-row">
                                 <span className="std-row-label">Duration</span>
@@ -115,6 +115,18 @@ export function ScheduleTaskDetail({ task, onClose, onEdit, onDuplicate, onDelet
                                 <span className="std-row-value">
                                     {task.snooze_limit === null ? "Until Done" : `Up to ${task.snooze_limit} ${task.snooze_limit === 1 ? "time" : "times"}`}
                                 </span>
+                            </div>
+                        )}
+                        {task.category && (
+                            <div className="std-row">
+                                <span className="std-row-label">Category</span>
+                                <span className="std-row-value">{task.category}</span>
+                            </div>
+                        )}
+                        {task.goal && (
+                            <div className="std-row">
+                                <span className="std-row-label">Goal</span>
+                                <span className="std-row-value">{task.goal.title}</span>
                             </div>
                         )}
                     </div>

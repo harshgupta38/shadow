@@ -75,7 +75,15 @@
 }
 
 .std-col {
-  flex: 1;
+
+  &.one{
+    flex: 1;
+  }
+
+  &.two{
+    flex: 2;
+  }
+
   min-width: 0;
   display: flex;
   flex-direction: column;

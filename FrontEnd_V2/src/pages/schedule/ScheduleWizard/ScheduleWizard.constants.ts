@@ -1,4 +1,5 @@
 import type {
+    GoalCategory,
     ScheduledTaskDataResponse,
     ScheduledTaskPreferredTime,
     ScheduledTaskPriority,
@@ -26,6 +27,8 @@ export type ScheduleWizardAnswers = {
     snoozeLimit: string;   // "" = null (infinite)
     durationMinutes: string;
     note: string;
+    category: GoalCategory | "";
+    goalId: string;  // "" = null
 };
 
 export type ScheduleWizardStep = {
@@ -71,6 +74,8 @@ export function makeEmptyAnswers(): ScheduleWizardAnswers {
         snoozeLimit: "",
         durationMinutes: "",
         note: "",
+        category: "",
+        goalId: "",
     };
 }
 
@@ -88,8 +93,15 @@ export function answersFromTask(task: ScheduledTaskDataResponse): ScheduleWizard
         snoozeLimit: task.snooze_limit !== null ? String(task.snooze_limit) : "",
         durationMinutes: task.duration_minutes !== null ? String(task.duration_minutes) : "",
         note: task.note ?? "",
+        category: (task.category as GoalCategory | "") ?? "",
+        goalId: task.goal?.id ? String(task.goal.id) : "",
     };
 }
+
+export const GOAL_CATEGORY_OPTIONS: GoalCategory[] = [
+    "Career", "Business", "Finance", "Health", "Fitness",
+    "Education", "Relationships", "Productivity", "Personal Growth", "Travel", "Other",
+];
 
 export const PRIORITY_OPTIONS: { value: ScheduledTaskPriority; label: string }[] = [
     { value: "highest", label: "Highest: non-negotiable" },

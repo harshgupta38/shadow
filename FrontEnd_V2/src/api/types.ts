@@ -519,17 +519,21 @@ export interface ScheduledTaskCreateRequest {
   scheduled_date: string; // YYYY-MM-DD
   preferred_time: ScheduledTaskPreferredTime;
   specific_time: string | null;
-  
+
   allow_snoozing: boolean;
   snooze_limit: number | null; // null = infinite
   duration_minutes: number | null;
   note: string | null;
+
+  category: GoalCategory | null;
+  goal_id: number | null;
 }
 
 export interface ScheduledTaskUpdateRequest extends Partial<ScheduledTaskCreateRequest> {}
 
-export interface ScheduledTaskDataResponse extends ScheduledTaskCreateRequest {
+export interface ScheduledTaskDataResponse extends Omit<ScheduledTaskCreateRequest, "goal_id"> {
   id: number;
+  goal?: GoalDataInPlan;
   status: ScheduledTaskStatus;
   created_at: string;
   updated_at: string;

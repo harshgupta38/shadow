@@ -17,6 +17,12 @@ def _today_ist() -> date:
     return datetime.now(_IST).date()
 
 
+class GoalSummary(BaseModel):
+    id: int
+    title: str
+    category: str | None
+
+
 class ScheduledTaskCreateRequest(BaseModel):
     title: str = Field(min_length=1, max_length=255)
     planner_type: ScheduledTaskType = "simple"
@@ -34,6 +40,9 @@ class ScheduledTaskCreateRequest(BaseModel):
 
     duration_minutes: int | None = Field(default=None, ge=1)
     note: str | None = Field(default=None, max_length=2000)
+
+    category: str | None = Field(default=None, max_length=64)
+    goal_id: int | None = None
 
     @field_validator("title", mode="before")
     @classmethod
@@ -88,6 +97,9 @@ class ScheduledTaskUpdateRequest(BaseModel):
     duration_minutes: int | None = Field(default=None, ge=1)
     note: str | None = Field(default=None, max_length=2000)
 
+    category: str | None = Field(default=None, max_length=64)
+    goal_id: int | None = None
+
     @field_validator("scheduled_date", mode="after")
     @classmethod
     def scheduled_date_not_past(cls, value: date | None) -> date | None:
@@ -117,6 +129,9 @@ class ScheduledTaskDataResponse(BaseModel):
     snooze_limit: int | None
 
     duration_minutes: int | None
+
+    category: str | None
+    goal: GoalSummary | None = None
 
     status: ScheduledTaskStatus
 

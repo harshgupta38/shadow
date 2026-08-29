@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, Check2Circle, X } from "react-bootstrap-icons";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 
-import { api, type ScheduledTaskDataResponse } from "@/api";
+import { api, type GoalDataShortResponse, type ScheduledTaskDataResponse } from "@/api";
 import { ApiError } from "@/api/client";
 import LOADING_IMAGE from "@/assets/loading_default.png";
 import { StepImageVisual } from "@/components/ui/StepImageVisual/StepImageVisual";
@@ -16,6 +16,7 @@ import {
     buildTime,
     getStepBannerError,
     getStepValidationErrors,
+    GOAL_CATEGORY_OPTIONS,
     makeEmptyAnswers,
     mapApiFieldErrors,
     MINUTES,
@@ -67,8 +68,15 @@ export function ScheduleWizardPage() {
     const [fieldErrors, setFieldErrors] = useState<ScheduleFieldErrors>({});
     const [error, setError] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
+    const [goals, setGoals] = useState<GoalDataShortResponse[]>([]);
     const dateInputRef = useRef<HTMLInputElement>(null);
     const noteRef = useRef<HTMLTextAreaElement>(null);
+
+    // ── Load goals for step 3 ─────────────────────────────────────────────────
+    useEffect(() => {
+        void api.goals.getList("Active").then(setGoals).catch(() => { /* goals optional */ });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // ── Load context (edit mode fallback) ─────────────────────────────────────
     useEffect(() => {
@@ -187,6 +195,8 @@ export function ScheduleWizardPage() {
                     : null,
                 duration_minutes: parseOptionalPositiveInt(answers.durationMinutes),
                 note: answers.note.trim() || null,
+                category: answers.category || null,
+                goal_id: answers.goalId ? Number(answers.goalId) : null,
             };
 
             if (isEditMode) {
@@ -552,10 +562,53 @@ export function ScheduleWizardPage() {
                                                                     <div className="text-danger small mt-1">{fieldErrors.snoozeLimit}</div>
                                                                 )}
                                                                 <p className="text-muted small mt-1">
-                                                                    The task will keep appearing in your planner for this many days after the original date if not completed.
+                                                                    The task will keep appearing in your planner for {answers.snoozeLimit ? `${answers.snoozeLimit} day${answers.snoozeLimit === "1" ? "" : "s"}` : "this many days"} after the original date if not completed.
                                                                 </p>
                                                             </div>
                                                         )}
+
+                                                        {/* Goal + Category row */}
+                                                        <div className="row g-3 mb-3">
+                                                            {goals.length > 0 && (
+                                                                <div className="col-md-6">
+                                                                    <label className="form-label">
+                                                                        Goal <span className="text-muted fw-normal">(optional)</span>
+                                                                    </label>
+                                                                    <select
+                                                                        className="form-select"
+                                                                        value={answers.goalId}
+                                                                        onChange={(e) => {
+                                                                            const newGoalId = e.target.value;
+                                                                            updateAnswer("goalId", newGoalId);
+                                                                            const linked = goals.find((g) => String(g.id) === newGoalId);
+                                                                            updateAnswer("category", linked?.category ?? "");
+                                                                        }}
+                                                                        disabled={!isActive || submitting}
+                                                                    >
+                                                                        <option value="">No goal linked</option>
+                                                                        {goals.map((g) => (
+                                                                            <option key={g.id} value={String(g.id)}>{g.title}</option>
+                                                                        ))}
+                                                                    </select>
+                                                                </div>
+                                                            )}
+                                                            <div className={goals.length > 0 ? "col-md-6" : "col-12"}>
+                                                                <label className="form-label">
+                                                                    Category <span className="text-muted fw-normal">(optional)</span>
+                                                                </label>
+                                                                <select
+                                                                    className="form-select"
+                                                                    value={answers.category}
+                                                                    onChange={(e) => updateAnswer("category", e.target.value as typeof answers.category)}
+                                                                    disabled={!isActive || submitting || !!answers.goalId}
+                                                                >
+                                                                    <option value="">{answers.goalId ? "From linked goal" : "No category"}</option>
+                                                                    {GOAL_CATEGORY_OPTIONS.map((cat) => (
+                                                                        <option key={cat} value={cat}>{cat}</option>
+                                                                    ))}
+                                                                </select>
+                                                            </div>
+                                                        </div>
 
                                                         {/* Duration */}
                                                         <div className="mb-3">

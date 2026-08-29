@@ -301,6 +301,7 @@ def _enrich_goals(
     """Bulk-load goal info for (source_type, source_id) pairs — no N+1 queries."""
     habit_ids = [sid for st, sid in source_pairs if st == "habit" and sid]
     task_ids = [sid for st, sid in source_pairs if st == "task" and sid]
+    schedule_ids = [sid for st, sid in source_pairs if st == "schedule" and sid]
 
     habit_goal: dict[int, int | None] = {}
     if habit_ids:
@@ -312,7 +313,16 @@ def _enrich_goals(
         for t in db.scalars(select(TaskDBM).where(TaskDBM.id.in_(task_ids))).all():
             task_goal[t.id] = t.goal_id
 
-    all_goal_ids = {g for g in habit_goal.values() if g} | {g for g in task_goal.values() if g}
+    schedule_goal: dict[int, int | None] = {}
+    if schedule_ids:
+        for s in db.scalars(select(ScheduledTaskDBM).where(ScheduledTaskDBM.id.in_(schedule_ids))).all():
+            schedule_goal[s.id] = s.goal_id
+
+    all_goal_ids = (
+        {g for g in habit_goal.values() if g}
+        | {g for g in task_goal.values() if g}
+        | {g for g in schedule_goal.values() if g}
+    )
     goal_objs: dict[int, GoalDBM] = {}
     if all_goal_ids:
         for g in db.scalars(select(GoalDBM).where(GoalDBM.id.in_(all_goal_ids))).all():
@@ -325,6 +335,8 @@ def _enrich_goals(
             gid = habit_goal.get(sid)
         elif st == "task" and sid:
             gid = task_goal.get(sid)
+        elif st == "schedule" and sid:
+            gid = schedule_goal.get(sid)
         if gid and gid in goal_objs:
             g = goal_objs[gid]
             result[(st, sid)] = GoalDataInPlan(id=gid, title=g.title, category=g.category)

@@ -34,6 +34,7 @@ interface PlanCardProps {
   onSaveNote?: (note: string) => Promise<void>;
   busy?: boolean;
   readOnly?: boolean;
+  isCompleting?: boolean;
 }
 
 function toPercent(current: number, target: number): number {
@@ -77,7 +78,7 @@ function PriorityIcon({ priority }: { priority: PlanPriority }) {
   return <DashLg size={11} />;
 }
 
-export function PlanCard({ item, onToggle, onSaveProgress, onSaveNote, busy = false, readOnly = false }: PlanCardProps) {
+export function PlanCard({ item, onToggle, onSaveProgress, onSaveNote, busy = false, readOnly = false, isCompleting = false }: PlanCardProps) {
   const navigate = useNavigate();
   const isDone = item.saved_data?.status === "done";
   const isMissed = item.saved_data?.status === "missed";
@@ -161,7 +162,7 @@ export function PlanCard({ item, onToggle, onSaveProgress, onSaveNote, busy = fa
 
   return (
     <article
-      className={`plan-card${isDone ? " plan-card--done" : ""}${isMissed ? " plan-card--missed" : ""}`}
+      className={`plan-card${isDone ? " plan-card--done" : ""}${isMissed ? " plan-card--missed" : ""}${isCompleting ? " plan-card--completing" : ""}`}
     >
       {/* Row 1 — title · time · checkbox */}
       <div className="plan-card-row">
@@ -173,15 +174,21 @@ export function PlanCard({ item, onToggle, onSaveProgress, onSaveNote, busy = fa
         </div>
 
         {!isMetric && !readOnly && (
-          <button
-            type="button"
-            className={`plan-card-check${isDone ? " is-done" : ""}`}
-            disabled={isMissed || busy}
-            onClick={onToggle}
-            aria-label={isDone ? "Mark as due" : "Mark as done"}
-          >
-            {isDone && <CheckLg size={12} />}
-          </button>
+          busy ? (
+            <span className="plan-card-check-spinner" role="status" aria-label="Updating status">
+              <span className="spinner-border spinner-border-sm" aria-hidden="true" />
+            </span>
+          ) : (
+            <button
+              type="button"
+              className={`plan-card-check${isDone ? " is-done" : ""}`}
+              disabled={isMissed}
+              onClick={onToggle}
+              aria-label={isDone ? "Mark as due" : "Mark as done"}
+            >
+              {isDone && <CheckLg size={12} />}
+            </button>
+          )
         )}
       </div>
 

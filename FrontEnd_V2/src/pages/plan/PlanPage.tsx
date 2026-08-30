@@ -24,6 +24,7 @@ import { useToast } from "@/context/ToastContext";
 import "@/pages/plan/PlanPage.scss";
 
 const TODAY = new Date();
+const COMPLETE_ANIM_MS = 520;
 
 export function PlanPage() {
   const navigate = useNavigate();
@@ -33,6 +34,8 @@ export function PlanPage() {
   const [planData, setPlanData] = useState<PlanResponse | null>(null);
   const [loadingPlan, setLoadingPlan] = useState(false);
   const [planError, setPlanError] = useState<string | null>(null);
+  const [completingIds, setCompletingIds] = useState<Set<number>>(new Set());
+  const [busyIds, setBusyIds] = useState<Set<number>>(new Set());
 
   const isToday = selectedDate.toDateString() === TODAY.toDateString();
 
@@ -78,12 +81,16 @@ export function PlanPage() {
   );
 
   const activeItems = useMemo(
-    () => planItems.filter((item) => item.saved_data?.status !== "done"),
-    [planItems],
+    () => planItems.filter(
+      (item) => item.saved_data?.status !== "done" || completingIds.has(item.plan_id),
+    ),
+    [planItems, completingIds],
   );
   const doneItems = useMemo(
-    () => planItems.filter((item) => item.saved_data?.status === "done"),
-    [planItems],
+    () => planItems.filter(
+      (item) => item.saved_data?.status === "done" && !completingIds.has(item.plan_id),
+    ),
+    [planItems, completingIds],
   );
 
   function updateItemSavedData(recordId: number, savedData: DailyPlanSavedData) {
@@ -100,46 +107,62 @@ export function PlanPage() {
     });
   }
 
-  async function toggleItemStatus(planId: number) {
+  function removeCompletingId(planId: number) {
+    setCompletingIds((prev) => {
+      const next = new Set(prev);
+      next.delete(planId);
+      return next;
+    });
+  }
+
+  function handleToggle(planId: number) {
+    const item = planData?.items.find((i) => i.plan_id === planId);
+    const currentStatus = item?.saved_data?.status ?? "due";
+    if (currentStatus === "done") {
+      void toggleToDue(planId);
+    } else {
+      void toggleToDone(planId);
+    }
+  }
+
+  async function toggleToDone(planId: number) {
     const item = planData?.items.find((i) => i.plan_id === planId);
     const recordId = item?.saved_data?.record_id;
     if (!recordId) return;
 
-    const currentStatus = item?.saved_data?.status ?? "due";
-    const newStatus = currentStatus === "done" ? ("due" as const) : ("done" as const);
-
-    // Optimistic update
-    setPlanData((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        items: prev.items.map((i) => {
-          if (i.plan_id !== planId) return i;
-          return {
-            ...i,
-            saved_data: i.saved_data ? { ...i.saved_data, status: newStatus } : i.saved_data,
-          };
-        }),
-      };
-    });
-
+    setBusyIds((prev) => new Set([...prev, planId]));
     try {
-      const savedData = await api.planItems.updateRecord(recordId, { status: newStatus });
+      const savedData = await api.planItems.updateRecord(recordId, { status: "done" });
+      updateItemSavedData(recordId, savedData);
+      setCompletingIds((prev) => new Set([...prev, planId]));
+      setTimeout(() => removeCompletingId(planId), COMPLETE_ANIM_MS);
+    } catch {
+      toast.error("Couldn't update status. Please try again.");
+    } finally {
+      setBusyIds((prev) => {
+        const next = new Set(prev);
+        next.delete(planId);
+        return next;
+      });
+    }
+  }
+
+  async function toggleToDue(planId: number) {
+    const item = planData?.items.find((i) => i.plan_id === planId);
+    const recordId = item?.saved_data?.record_id;
+    if (!recordId) return;
+
+    setBusyIds((prev) => new Set([...prev, planId]));
+    try {
+      const savedData = await api.planItems.updateRecord(recordId, { status: "due" });
       updateItemSavedData(recordId, savedData);
     } catch {
       toast.error("Couldn't update status. Please try again.");
-      setPlanData((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          items: prev.items.map((i) => {
-            if (i.plan_id !== planId) return i;
-            return {
-              ...i,
-              saved_data: i.saved_data ? { ...i.saved_data, status: currentStatus } : i.saved_data,
-            };
-          }),
-        };
+    } finally {
+      setBusyIds((prev) => {
+        const next = new Set(prev);
+        next.delete(planId);
+        return next;
       });
     }
   }
@@ -148,10 +171,23 @@ export function PlanPage() {
     const item = planData?.items.find((i) => i.plan_id === planId);
     const recordId = item?.saved_data?.record_id;
     if (!recordId) return;
+    const prevStatus = item?.saved_data?.status;
 
     try {
       const savedData = await api.planItems.updateRecord(recordId, { actual_value: value });
-      updateItemSavedData(recordId, savedData);
+      if (savedData.status === "done" && prevStatus !== "done") {
+        setCompletingIds((prev) => new Set([...prev, planId]));
+        updateItemSavedData(recordId, savedData);
+        setTimeout(() => {
+          setCompletingIds((prev) => {
+            const next = new Set(prev);
+            next.delete(planId);
+            return next;
+          });
+        }, COMPLETE_ANIM_MS);
+      } else {
+        updateItemSavedData(recordId, savedData);
+      }
     } catch {
       toast.error("Couldn't save progress. Please try again.");
     }
@@ -269,7 +305,9 @@ export function PlanPage() {
                     key={item.saved_data?.record_id ?? item.plan_id}
                     item={item}
                     readOnly={!isToday}
-                    onToggle={() => void toggleItemStatus(item.plan_id)}
+                    isCompleting={completingIds.has(item.plan_id)}
+                    busy={busyIds.has(item.plan_id)}
+                    onToggle={() => handleToggle(item.plan_id)}
                     onSaveProgress={(value) => handleSaveProgress(item.plan_id, value)}
                     onSaveNote={(note) => handleSaveNote(item.plan_id, note)}
                   />
@@ -282,11 +320,13 @@ export function PlanPage() {
                         key={item.saved_data?.record_id ?? item.plan_id}
                         item={item}
                         readOnly={!isToday}
-                        onToggle={() => void toggleItemStatus(item.plan_id)}
+                        busy={busyIds.has(item.plan_id)}
+                        onToggle={() => handleToggle(item.plan_id)}
                         onSaveProgress={(value) => handleSaveProgress(item.plan_id, value)}
                         onSaveNote={(note) => handleSaveNote(item.plan_id, note)}
                       />
                     ))}
+
                   </>
                 )}
               </div>

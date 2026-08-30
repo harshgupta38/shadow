@@ -11,7 +11,6 @@ ColorKey = Literal["success", "info", "brand", "warn", "violet"]
 class EligibleHabitItem(BaseModel):
     id: int
     title: str
-    category: CategoryType | None
     planner_type: HabitType
 
 

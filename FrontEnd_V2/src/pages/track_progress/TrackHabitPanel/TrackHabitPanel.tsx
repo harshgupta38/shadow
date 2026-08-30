@@ -9,7 +9,6 @@ import "./TrackHabitPanel.scss";
 export interface HabitListItem {
   id: number;
   title: string;
-  category: string | null;
   type: "Metric" | "Simple";
   active: boolean;
 }

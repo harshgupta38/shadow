@@ -37,7 +37,6 @@ def get_eligible_habits(
         EligibleHabitItem(
             id=h.id,
             title=h.title,
-            category=h.category,
             planner_type=h.planner_type,
         )
         for h in habits

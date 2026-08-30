@@ -180,7 +180,6 @@ export function TrackProgressPage() {
       return allHabits.map(h => ({
         id: h.id,
         title: h.title,
-        category: h.category,
         type: h.planner_type === "metric" ? ("Metric" as const) : ("Simple" as const),
         active: trackedIds.has(h.id),
       }));

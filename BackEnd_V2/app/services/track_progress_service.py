@@ -26,7 +26,6 @@ def get_eligible_habits(
         select(HabitDBM)
         .where(
             HabitDBM.user_id == current_user.id,
-            HabitDBM.tracking_enabled == True,
             HabitDBM.status == "active",
             or_(HabitDBM.start_date.is_(None), HabitDBM.start_date <= today),
             or_(HabitDBM.end_date.is_(None), HabitDBM.end_date >= today),

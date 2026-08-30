@@ -1,5 +1,5 @@
 import type React from "react";
-import type { MetricHabitData } from "@/pages/track_progress/trackProgress.types";
+import type { MetricHabitData } from "@/api/types";
 import "./MetricHabitCard.scss";
 
 // ── Sparkline SVG ─────────────────────────────────────────────────────────────
@@ -56,7 +56,7 @@ function Sparkline({ values, habitId, color }: { values: number[]; habitId: numb
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function MetricHabitCard({ habit: h }: { habit: MetricHabitData }) {
-  const todayVal = h.history[h.history.length - 1];
+  const todayVal = h.current_value;
   const pct = Math.min(100, Math.round((todayVal / h.planner_target) * 100));
 
   const nonZero = h.history.filter(v => v > 0);
@@ -64,7 +64,7 @@ export function MetricHabitCard({ habit: h }: { habit: MetricHabitData }) {
     ? nonZero.reduce((a, b) => a + b, 0) / nonZero.length
     : 0;
   const best = Math.max(...h.history);
-  const weekTotal = h.history.slice(-7).reduce((a, b) => a + b, 0);
+  const weekTotal = h.history.reduce((a, b) => a + b, 0);
   const goalMet = pct >= 100;
 
   return (
@@ -78,7 +78,7 @@ export function MetricHabitCard({ habit: h }: { habit: MetricHabitData }) {
             {h.current_streak > 0 && (
               <span className="tp-mc-streak">🔥 {h.current_streak}</span>
             )}
-            <span className={`tp-mc-cat tp-mc-cat--${h.color}`}>{h.category}</span>
+            {h.category && (<span className={`tp-mc-cat tp-mc-cat--${h.color}`}>{h.category}</span>)}
           </div>
         </div>
 
@@ -108,8 +108,8 @@ export function MetricHabitCard({ habit: h }: { habit: MetricHabitData }) {
 
       {/* ── Sparkline ── */}
       <div className="tp-mc-spark-wrap">
-        <Sparkline values={h.history.slice(-14)} habitId={h.id} color={h.color} />
-        <span className="tp-mc-spark-label">14-day trend</span>
+        <Sparkline values={h.history} habitId={h.id} color={h.color} />
+        <span className="tp-mc-spark-label">7-day trend</span>
       </div>
 
       {/* ── Footer Stats ── */}
@@ -120,7 +120,7 @@ export function MetricHabitCard({ habit: h }: { habit: MetricHabitData }) {
         </div>
         <div className="tp-mc-fsep" />
         <div className="tp-mc-fstat">
-          <span className="tp-mc-fval">{weekTotal.toFixed(1)}<em> {h.value_unit}</em></span>
+          <span className="tp-mc-fval">{weekTotal}<em> {h.value_unit}</em></span>
           <span className="tp-mc-fkey">this week</span>
         </div>
         <div className="tp-mc-fsep" />

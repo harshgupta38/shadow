@@ -1,129 +1,28 @@
-import { useState } from "react";
-import { GraphUp, PlusLg } from "react-bootstrap-icons";
+import { useEffect, useMemo, useState } from "react";
+import { ExclamationCircle, GraphUp, PlusLg } from "react-bootstrap-icons";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { MetricHabitCard } from "./MetricHabitCard/MetricHabitCard";
 import { SimpleHabitCard } from "./SimpleHabitCard/SimpleHabitCard";
 import { TrackHabitPanel } from "./TrackHabitPanel/TrackHabitPanel";
-import type { MetricHabitData, SimpleHabitData } from "./trackProgress.types";
+import { habitsApi } from "@/api/habits";
+import { trackProgressApi } from "@/api/track_progress";
+import type { HabitDataResponse, HabitTrackItem } from "@/api/types";
+import { TODAY_COL, WEEK_DAY_LABELS, WEEK_RANGE, toMetricData, toSimpleData } from "./TrackProgressPage.constants";
 import "@/pages/track_progress/TrackProgressPage.scss";
 
-// ── Mock Data ─────────────────────────────────────────────────────────────────
 
-const MOCK_METRIC: MetricHabitData[] = [
-  {
-    id: 1,
-    title: "Morning Run",
-    value_unit: "km",
-    planner_target: 5,
-    current_streak: 12,
-    max_streak: 18,
-    category: "Fitness",
-    history: [4.2, 5.1, 0, 4.8, 5.0, 3.5, 4.2, 5.2, 4.9, 5.0, 4.7, 0, 5.1, 4.3, 4.8, 5.0, 4.6, 0, 5.2, 4.8, 4.9, 5.1, 4.4, 5.0, 4.7, 4.9, 5.0, 4.8],
-    color: "success",
-  },
-  {
-    id: 2,
-    title: "Deep Work",
-    value_unit: "hrs",
-    planner_target: 4,
-    current_streak: 7,
-    max_streak: 21,
-    category: "Productivity",
-    history: [3.5, 4.0, 2.5, 4.2, 0, 3.8, 4.1, 4.5, 3.9, 4.2, 4.0, 3.5, 4.3, 4.0, 3.8, 4.1, 0, 4.3, 4.2, 3.9, 4.0, 4.2, 3.8, 4.1, 4.0, 3.9, 4.3, 3.2],
-    color: "info",
-  },
-  {
-    id: 3,
-    title: "Water Intake",
-    value_unit: "L",
-    planner_target: 3,
-    current_streak: 21,
-    max_streak: 21,
-    category: "Health",
-    history: [2.8, 3.2, 3.1, 2.5, 3.0, 3.4, 3.2, 3.1, 2.9, 3.0, 3.3, 3.5, 2.7, 3.0, 3.2, 3.1, 3.4, 3.0, 3.3, 2.9, 3.1, 3.2, 3.0, 3.4, 3.1, 3.2, 3.0, 2.1],
-    color: "brand",
-  },
-  {
-    id: 4,
-    title: "LeetCode",
-    value_unit: "problems",
-    planner_target: 3,
-    current_streak: 5,
-    max_streak: 14,
-    category: "Career",
-    history: [3, 2, 3, 0, 3, 3, 1, 3, 2, 3, 3, 0, 3, 2, 3, 1, 3, 3, 2, 0, 3, 3, 2, 3, 0, 3, 2, 1],
-    color: "warn",
-  },
-];
-
-const MOCK_SIMPLE: SimpleHabitData[] = [
-  {
-    id: 5,
-    title: "Morning Meditation",
-    current_streak: 21,
-    max_streak: 21,
-    category: "Mindfulness",
-    history: [
-      true, true, false, true, true, true, true,
-      true, true, true, false, true, true, true,
-      true, false, true, true, true, true, true,
-      true, true, true, true, true, false, true,
-    ],
-    done_today: true,
-    color: "violet",
-  },
-  {
-    id: 6,
-    title: "Evening Journaling",
-    current_streak: 8,
-    max_streak: 22,
-    category: "Mindfulness",
-    history: [
-      false, true, true, false, true, false, true,
-      true, true, false, true, true, true, false,
-      true, true, true, false, true, true, true,
-      false, true, true, true, false, true, true,
-    ],
-    done_today: false,
-    color: "success",
-  },
-  {
-    id: 7,
-    title: "Read 30 Minutes",
-    current_streak: 14,
-    max_streak: 14,
-    category: "Learning",
-    history: [
-      true, false, true, true, true, false, true,
-      true, true, true, false, true, true, true,
-      true, true, false, true, true, true, true,
-      true, true, true, true, true, true, true,
-    ],
-    done_today: true,
-    color: "warn",
-  },
-  {
-    id: 8,
-    title: "No Phone Before 8AM",
-    current_streak: 4,
-    max_streak: 30,
-    category: "Wellness",
-    history: [
-      true, false, false, true, true, true, false,
-      true, true, false, true, false, true, true,
-      false, true, true, true, false, false, true,
-      true, true, false, true, true, true, true,
-    ],
-    done_today: true,
-    color: "info",
-  },
-];
-
-// ── Empty State ───────────────────────────────────────────────────────────────
+// ── Ghost Shell (shared layout for empty / loading / error) ──────────────────
 
 const GHOST_WIDTHS = [58, 75, 50, 68, 62];
 
-function EmptyState({ onTrack }: { onTrack: () => void }) {
+interface GhostShellProps {
+  icon: React.ReactNode;
+  title: string;
+  subtitle: string;
+  cta?: { label: React.ReactNode; onClick: () => void };
+}
+
+function GhostShell({ icon, title, subtitle, cta }: GhostShellProps) {
   return (
     <div className="tp-empty">
       <div className="tp-empty-ghost-shell">
@@ -131,10 +30,10 @@ function EmptyState({ onTrack }: { onTrack: () => void }) {
           <div className="tp-matrix-wrap">
             <div className="tp-matrix-row tp-matrix-row--header">
               <div className="tp-matrix-label tp-matrix-label--hdr">Habit</div>
-              {DAY_LABELS.map((d, i) => (
-                <div key={d} className={`tp-matrix-day-hdr${i === TODAY_COL ? " tp-matrix-day-hdr--today" : ""}`}>{d}</div>
+              {WEEK_DAY_LABELS.map((d, i) => (
+                <div key={`${d}-${i}`} className={`tp-matrix-day-hdr${i === TODAY_COL ? " tp-matrix-day-hdr--today" : ""}`}>{d}</div>
               ))}
-              <div className="tp-matrix-pct-hdr">Week</div>
+              <div className="tp-matrix-pct-hdr">Progress</div>
             </div>
             {GHOST_WIDTHS.map((w, i) => (
               <div key={i} className="tp-matrix-row">
@@ -154,16 +53,14 @@ function EmptyState({ onTrack }: { onTrack: () => void }) {
       </div>
 
       <div className="tp-empty-core">
-        <div className="tp-empty-icon">
-          <GraphUp size={20} />
-        </div>
-        <h3 className="tp-empty-title">No habits tracked yet</h3>
-        <p className="tp-empty-sub">
-          Add your first habit to start building streaks and seeing your progress over time.
-        </p>
-        <button className="btn btn-primary btn-sm" onClick={onTrack}>
-          <PlusLg size={12} className="me-1" /> Track your first habit
-        </button>
+        <div className="tp-empty-icon">{icon}</div>
+        <h3 className="tp-empty-title">{title}</h3>
+        <p className="tp-empty-sub">{subtitle}</p>
+        {cta && (
+          <button className="btn btn-primary btn-sm" onClick={cta.onClick}>
+            {cta.label}
+          </button>
+        )}
       </div>
     </div>
   );
@@ -171,49 +68,29 @@ function EmptyState({ onTrack }: { onTrack: () => void }) {
 
 // ── Weekly Accountability Matrix ──────────────────────────────────────────────
 
-const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const TODAY_COL = 0; // today is Sunday (2026-08-30)
-
 interface MatrixRow {
   id: number;
   title: string;
-  week: boolean[]; // [Sun, Mon, Tue, Wed, Thu, Fri, Sat]
+  week: boolean[];
 }
 
-function rotateToSunFirst(w: boolean[]): boolean[] {
-  return [w[6], ...w.slice(0, 6)];
-}
-
-const MATRIX_ROWS: MatrixRow[] = [
-  ...MOCK_METRIC.map(h => ({
-    id: h.id,
-    title: h.title,
-    week: rotateToSunFirst(h.history.slice(-7).map(v => v >= h.planner_target)),
-  })),
-  ...MOCK_SIMPLE.map(h => ({
-    id: h.id,
-    title: h.title,
-    week: rotateToSunFirst([...h.history.slice(-6), h.done_today]),
-  })),
-];
-
-function WeeklyMatrix() {
+function WeeklyMatrix({ rows }: { rows: MatrixRow[] }) {
   return (
     <div className="tp-matrix-wrap">
       <div className="tp-matrix-row tp-matrix-row--header">
         <div className="tp-matrix-label tp-matrix-label--hdr">Habit</div>
-        {DAY_LABELS.map((d, i) => (
+        {WEEK_DAY_LABELS.map((d, i) => (
           <div
-            key={d}
+            key={`${d}-${i}`}
             className={`tp-matrix-day-hdr${i === TODAY_COL ? " tp-matrix-day-hdr--today" : ""}`}
           >
             {d}
           </div>
         ))}
-        <div className="tp-matrix-pct-hdr">Week</div>
+        <div className="tp-matrix-pct-hdr">Progress</div>
       </div>
 
-      {MATRIX_ROWS.map(r => {
+      {rows.map(r => {
         const pct = Math.round((r.week.filter(Boolean).length / 7) * 100);
         return (
           <div key={r.id} className="tp-matrix-row">
@@ -223,7 +100,12 @@ function WeeklyMatrix() {
             {r.week.map((done, i) => (
               <div
                 key={i}
-                className={`tp-matrix-cell${done ? " tp-matrix-cell--done" : " tp-matrix-cell--miss"}${i === TODAY_COL ? " tp-matrix-cell--today" : ""}`}
+                className={[
+                  "tp-matrix-cell",
+                  done ? "tp-matrix-cell--done" : "tp-matrix-cell--miss",
+                  i === TODAY_COL ? "tp-matrix-cell--today" : "",
+                  i > TODAY_COL ? "tp-matrix-cell--future" : "",
+                ].filter(Boolean).join(" ")}
               />
             ))}
             <div className="tp-matrix-pct-cell">
@@ -236,74 +118,178 @@ function WeeklyMatrix() {
   );
 }
 
-// ── Habit list for the panel ─────────────────────────────────────────────────
-
-const ALL_HABITS_FOR_PANEL = [
-  ...MOCK_METRIC.map(h => ({ id: h.id, title: h.title, category: h.category, type: "Metric" as const })),
-  ...MOCK_SIMPLE.map(h => ({ id: h.id, title: h.title, category: h.category, type: "Simple" as const })),
-];
-
 // ── Page ──────────────────────────────────────────────────────────────────────
 
+type LoadState = "loading" | "error" | "loaded";
+
 export function TrackProgressPage() {
+  const [habits, setHabits] = useState<HabitTrackItem[]>([]);
+  const [allHabits, setAllHabits] = useState<HabitDataResponse[]>([]);
+  const [loadState, setLoadState] = useState<LoadState>("loading");
   const [panelOpen, setPanelOpen] = useState(false);
-  const isEmpty = MOCK_METRIC.length === 0 && MOCK_SIMPLE.length === 0;
+
+  function fetchHabits() {
+    setLoadState("loading");
+    Promise.all([trackProgressApi.getHabits(), habitsApi.getList()])
+      .then(([trackData, allData]) => {
+        setHabits(trackData);
+        setAllHabits(allData);
+        setLoadState("loaded");
+      })
+      .catch(() => setLoadState("error"));
+  }
+
+  useEffect(() => { fetchHabits(); }, []);
+
+
+  function handlePanelSave(enabledIds: Set<number>) {
+    setPanelOpen(false);
+    const updates = allHabits.flatMap(h => {
+      const shouldBeActive = enabledIds.has(h.id);
+      const isActive = h.status === "active";
+      if (shouldBeActive && !isActive) return [habitsApi.updateHabit(h.id, { status: "active" })];
+      if (!shouldBeActive && isActive) return [habitsApi.updateHabit(h.id, { status: "paused" })];
+      return [];
+    });
+    if (updates.length === 0) return;
+    Promise.all(updates)
+      .then(() => Promise.all([trackProgressApi.getHabits(), habitsApi.getList()] as [Promise<HabitTrackItem[]>, Promise<HabitDataResponse[]>]))
+      .then(([trackData, allData]) => { setHabits(trackData); setAllHabits(allData); })
+      .catch(() => { });
+  }
+
+  const metricHabits = useMemo(
+    () => habits.filter(h => h.planner_type === "metric").map(toMetricData),
+    [habits],
+  );
+  const simpleHabits = useMemo(
+    () => habits.filter(h => h.planner_type === "simple").map(toSimpleData),
+    [habits],
+  );
+  const matrixRows = useMemo(
+    () => habits.map(h => ({
+      id: h.id,
+      title: h.title,
+      week: h.history.map(val =>
+        h.planner_type === "metric" ? val >= (h.planner_target ?? 1) : val > 0
+      ),
+    })),
+    [habits],
+  );
+
+  const panelHabits = useMemo(
+    () => allHabits.map(h => ({
+      id: h.id,
+      title: h.title,
+      category: h.category,
+      type: h.planner_type === "metric" ? ("Metric" as const) : ("Simple" as const),
+      active: h.status === "active",
+    })),
+    [allHabits],
+  );
+
+  const isEmpty = loadState === "loaded" && habits.length === 0;
+
+  const pageHeader = (
+    <PageHeader
+      title="Track Progress"
+      subtitle="Log what moves you forward. Seeing the numbers keeps you aligned."
+      actions={[{ key: "add", label: "Track Habit", icon: <PlusLg size={14} />, tone: "soft", onClick: () => setPanelOpen(true) }]}
+    />
+  );
+
+  // ── Loading ────────────────────────────────────────────────────────────────
+
+  if (loadState === "loading") {
+    return (
+      <div className="tp-page">
+        {pageHeader}
+        <GhostShell
+          icon={<span className="tp-loading-spinner" />}
+          title="Loading your habits…"
+          subtitle="Fetching your progress data, just a moment."
+        />
+      </div>
+    );
+  }
+
+  // ── Error ──────────────────────────────────────────────────────────────────
+
+  if (loadState === "error") {
+    return (
+      <div className="tp-page">
+        {pageHeader}
+        <GhostShell
+          icon={<ExclamationCircle size={20} />}
+          title="Couldn't load habits"
+          subtitle="Something went wrong. Check your connection and try again."
+          cta={{ label: "Retry", onClick: fetchHabits }}
+        />
+      </div>
+    );
+  }
+
+  // ── Loaded ─────────────────────────────────────────────────────────────────
 
   return (
     <div className="tp-page">
 
       {panelOpen && (
         <TrackHabitPanel
-          habits={ALL_HABITS_FOR_PANEL}
+          habits={panelHabits}
           onClose={() => setPanelOpen(false)}
+          onSave={handlePanelSave}
         />
       )}
 
-      <PageHeader
-        title="Track Progress"
-        subtitle="Log what moves you forward. Seeing the numbers keeps you aligned."
-        actions={[{
-          key: "add-tracking",
-          label: "Track Habit",
-          icon: <PlusLg size={14} />,
-          tone: "soft",
-          onClick: () => setPanelOpen(true),
-        }]}
-      />
+      {pageHeader}
 
       {isEmpty ? (
-        <EmptyState onTrack={() => setPanelOpen(true)} />
+        <GhostShell
+          icon={<GraphUp size={20} />}
+          title="No habits tracked yet"
+          subtitle="Add your first habit to start building streaks and seeing your progress over time."
+          cta={{ label: <><PlusLg size={12} className="me-1" />Track your first habit</>, onClick: () => setPanelOpen(true) }}
+        />
       ) : (
         <>
           <section className="tp-section">
             <div className="tp-section-head">
               <h2 className="tp-section-title">This Week</h2>
-              <span className="tp-section-chip">Aug 25 – 31, 2026</span>
+              <span className="tp-section-chip">{WEEK_RANGE}</span>
             </div>
             <div className="tp-matrix-shell">
-              <WeeklyMatrix />
+              <WeeklyMatrix rows={matrixRows} />
             </div>
           </section>
 
-          <section className="tp-section mt-4">
-            <div className="tp-section-head">
-              <h2 className="tp-section-title">Metric Habits</h2>
-              <span className="tp-section-chip">{MOCK_METRIC.length} tracked</span>
-            </div>
-            <div className="tp-cards-grid">
-              {MOCK_METRIC.map(h => <MetricHabitCard key={h.id} habit={h} />)}
-            </div>
-          </section>
+          {metricHabits.length > 0 && (
+            <section className="tp-section mt-4">
+              <div className="tp-section-head">
+                <h2 className="tp-section-title">Metric Habits</h2>
+                <span className="tp-section-chip">{metricHabits.length}</span>
+              </div>
+              <div className="tp-cards-grid">
+                {metricHabits.map(h => (
+                  <MetricHabitCard key={h.id} habit={h} />
+                ))}
+              </div>
+            </section>
+          )}
 
-          <section className="tp-section mt-4">
-            <div className="tp-section-head">
-              <h2 className="tp-section-title">Habit Streaks</h2>
-              <span className="tp-section-chip">{MOCK_SIMPLE.length} tracked</span>
-            </div>
-            <div className="tp-cards-grid">
-              {MOCK_SIMPLE.map(h => <SimpleHabitCard key={h.id} habit={h} />)}
-            </div>
-          </section>
+          {simpleHabits.length > 0 && (
+            <section className="tp-section mt-4">
+              <div className="tp-section-head">
+                <h2 className="tp-section-title">Habit Streaks</h2>
+                <span className="tp-section-chip">{simpleHabits.length}</span>
+              </div>
+              <div className="tp-cards-grid">
+                {simpleHabits.map(h => (
+                  <SimpleHabitCard key={h.id} habit={h} />
+                ))}
+              </div>
+            </section>
+          )}
         </>
       )}
 

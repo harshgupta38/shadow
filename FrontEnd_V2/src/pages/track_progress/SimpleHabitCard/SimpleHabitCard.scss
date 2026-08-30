@@ -143,6 +143,10 @@
     &.tp-heatmap-cell--violet  { background: var(--jv-violet); }
   }
 
+  &--future {
+    opacity: 0.35;
+  }
+
   // Today: ring highlight
   &--today {
     outline: 2px solid var(--jv-text);
@@ -228,3 +232,4 @@
   letter-spacing: 0.04em;
   font-weight: 600;
 }
+

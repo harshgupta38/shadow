@@ -9,20 +9,22 @@ import "./TrackHabitPanel.scss";
 export interface HabitListItem {
   id: number;
   title: string;
-  category: string;
+  category: string | null;
   type: "Metric" | "Simple";
+  active: boolean;
 }
 
 interface TrackHabitPanelProps {
   habits: HabitListItem[];
   onClose: () => void;
+  onSave: (enabledIds: Set<number>) => void;
 }
 
 const SLIDE_OUT_DURATION_MS = 220;
 
-export function TrackHabitPanel({ habits, onClose }: TrackHabitPanelProps) {
+export function TrackHabitPanel({ habits, onClose, onSave }: TrackHabitPanelProps) {
   const [isClosing, setIsClosing] = useState(false);
-  const [enabled, setEnabled] = useState<Set<number>>(() => new Set(habits.map(h => h.id)));
+  const [enabled, setEnabled] = useState<Set<number>>(() => new Set(habits.filter(h => h.active).map(h => h.id)));
 
   function requestClose() {
     if (isClosing) return;
@@ -93,7 +95,7 @@ export function TrackHabitPanel({ habits, onClose }: TrackHabitPanelProps) {
         </div>
 
         <footer className="thp-footer">
-          <button type="button" className="btn btn-primary" onClick={requestClose}>
+          <button type="button" className="btn btn-primary" onClick={() => { onSave(enabled); requestClose(); }}>
             Save
           </button>
           <button type="button" className="btn btn-soft" onClick={requestClose}>

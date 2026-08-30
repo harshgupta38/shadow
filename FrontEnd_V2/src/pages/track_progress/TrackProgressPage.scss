@@ -138,6 +138,8 @@
     border: none;
   }
 
+  &--future::after { opacity: 0.3; }
+
   &:hover::after { transform: scale(1.2); }
 }
 
@@ -231,4 +233,19 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(275px, 1fr));
   gap: 1rem;
+}
+
+// ── Spinner ───────────────────────────────────────────────────────────────────
+
+@keyframes tp-spin {
+  to { transform: rotate(360deg); }
+}
+
+.tp-loading-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--jv-border);
+  border-top-color: var(--jv-brand-1);
+  border-radius: 50%;
+  animation: tp-spin 700ms linear infinite;
 }

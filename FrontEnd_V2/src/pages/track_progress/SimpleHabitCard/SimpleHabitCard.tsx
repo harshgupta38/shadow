@@ -1,52 +1,36 @@
-import type { SimpleHabitData } from "@/pages/track_progress/trackProgress.types";
+import type { SimpleHabitData } from "@/api/types";
+import { todayDate } from "@/services/date.service";
 import "./SimpleHabitCard.scss";
 
 // ── Mini Heatmap ──────────────────────────────────────────────────────────────
 
-const DAY_INITIALS = ["S", "M", "T", "W", "T", "F", "S"];
+const WEEK_DAYS = ["S", "M", "T", "W", "T", "F", "S"];
+const _TODAY_IDX = todayDate().getDay(); // 0=Sun … 6=Sat
 
-function MiniHeatmap({
-  history,
-  doneToday,
-  color,
-}: {
-  history: boolean[];
-  doneToday: boolean;
-  color: string;
-}) {
-  // history[0..27] = 28 days ago → yesterday; doneToday = today
-  // Display as 4 rows of 7 days each (row 0 = oldest)
-  const allDays = [...history, doneToday]; // 29 items: use last 28 for display
-  const displayDays = allDays.slice(-28);  // always show 28 cells: 4 × 7
-
+function MiniHeatmap({ history, color }: { history: boolean[]; color: string }) {
+  // history[0]=Sun … history[6]=Sat; index matches JS getDay()
   return (
-    <div className="tp-heatmap" aria-label="28-day completion history">
+    <div className="tp-heatmap" aria-label="This week's completion">
       <div className="tp-heatmap-header">
-        {DAY_INITIALS.map((d, i) => (
+        {WEEK_DAYS.map((d, i) => (
           <span key={i} className="tp-heatmap-day">{d}</span>
         ))}
       </div>
-      {[0, 1, 2, 3].map(week => (
-        <div key={week} className="tp-heatmap-row">
-          {[0, 1, 2, 3, 4, 5, 6].map(day => {
-            const idx = week * 7 + day;
-            const done = displayDays[idx];
-            const isToday = idx === 27;
-            return (
-              <div
-                key={day}
-                className={[
-                  "tp-heatmap-cell",
-                  done ? `tp-heatmap-cell--done tp-heatmap-cell--${color}` : "tp-heatmap-cell--miss",
-                  isToday ? "tp-heatmap-cell--today" : "",
-                ].join(" ").trim()}
-                style={{ animationDelay: `${idx * 18}ms` }}
-                aria-label={done ? "completed" : "missed"}
-              />
-            );
-          })}
-        </div>
-      ))}
+      <div className="tp-heatmap-row">
+        {history.map((done, idx) => (
+          <div
+            key={idx}
+            className={[
+              "tp-heatmap-cell",
+              done ? `tp-heatmap-cell--done tp-heatmap-cell--${color}` : "tp-heatmap-cell--miss",
+              idx === _TODAY_IDX ? "tp-heatmap-cell--today" : "",
+              idx > _TODAY_IDX ? "tp-heatmap-cell--future" : "",
+            ].filter(Boolean).join(" ")}
+            style={{ animationDelay: `${idx * 18}ms` }}
+            aria-label={done ? "completed" : "missed"}
+          />
+        ))}
+      </div>
     </div>
   );
 }
@@ -54,9 +38,8 @@ function MiniHeatmap({
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function SimpleHabitCard({ habit: h }: { habit: SimpleHabitData }) {
-  const allDays = [...h.history, h.done_today];
-  const done28 = allDays.slice(-28).filter(Boolean).length;
-  const monthPct = Math.round((done28 / 28) * 100);
+  const done7 = h.history.filter(Boolean).length;
+  const weekPct = Math.round((done7 / 7) * 100);
 
   const isPersonalBest = h.current_streak > 0 && h.current_streak >= h.max_streak;
 
@@ -74,20 +57,20 @@ export function SimpleHabitCard({ habit: h }: { habit: SimpleHabitData }) {
                 {isPersonalBest && <span className="tp-sc-pb"> PB!</span>}
               </span>
             )}
-            <span className={`tp-sc-cat tp-sc-cat--${h.color}`}>{h.category}</span>
+            {h.category && (<span className={`tp-sc-cat tp-sc-cat--${h.color}`}>{h.category}</span>)}
           </div>
         </div>
 
         {/* ── Heatmap ── */}
-        <MiniHeatmap history={h.history} doneToday={h.done_today} color={h.color} />
+        <MiniHeatmap history={h.history} color={h.color} />
 
       </div>
 
       {/* ── Footer ── */}
       <div className="tp-sc-footer">
         <div className="tp-sc-fstat">
-          <span className="tp-sc-fval">{monthPct}%</span>
-          <span className="tp-sc-fkey">This month</span>
+          <span className="tp-sc-fval">{weekPct}%</span>
+          <span className="tp-sc-fkey">This week</span>
         </div>
         <div className="tp-sc-fsep" />
         <div className="tp-sc-fstat">
@@ -96,7 +79,7 @@ export function SimpleHabitCard({ habit: h }: { habit: SimpleHabitData }) {
         </div>
         <div className="tp-sc-fsep" />
         <div className="tp-sc-fstat">
-          <span className="tp-sc-fval">{done28}</span>
+          <span className="tp-sc-fval">{done7}</span>
           <span className="tp-sc-fkey">Days done</span>
         </div>
       </div>

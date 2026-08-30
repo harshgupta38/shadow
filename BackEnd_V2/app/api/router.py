@@ -9,6 +9,7 @@ from app.api import (
     planner,
     schedule,
     tasks,
+    track_progress,
 )
 
 api_router = APIRouter()
@@ -22,5 +23,6 @@ for _module in (
     planner,
     schedule,
     tasks,
+    track_progress,
 ):
     api_router.include_router(_module.router)

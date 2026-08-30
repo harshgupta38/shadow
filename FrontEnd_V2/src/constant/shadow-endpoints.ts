@@ -45,6 +45,10 @@ export const ENDPOINTS = {
         GET_LIST: "/get-schedule-task-list",
         DETAIL: (id: number) => `/${id}`,
     },
+    TRACK_PROGRESS: {
+        PREFIX: "/track",
+        HABITS: "/habit-record",
+    },
     CHAT: {
         PREFIX: "/chat",
         CONVERSATIONS: "/conversations",

@@ -3,17 +3,17 @@ import { CalendarWeek, ChevronDoubleLeft, ChevronDoubleRight, ChevronLeft, Chevr
 import { useNavigate } from "react-router-dom";
 
 import { api } from "@/api";
-import type { ScheduledTaskDataResponse, ScheduledTaskPreferredTime, ScheduledTaskPriority } from "@/api/types";
+import type { ScheduledTaskDataResponse, ScheduledTaskPreferredTime, ScheduledTaskPriority, ScheduledTaskStatus } from "@/api/types";
 import {
     buildCalendarCells,
     DEFAULT_FILTERS,
     MONTH_NAMES,
     DAY_NAMES,
     PRIORITY_FILTER_OPTIONS,
+    STATUS_FILTER_OPTIONS,
     TIME_FILTER_OPTIONS,
-    TIMELINE_OPTIONS,
 } from "@/pages/schedule/SchedulePage.constants";
-import type { ScheduleFilterState, ScheduleTimeline } from "@/pages/schedule/SchedulePage.constants";
+import type { ScheduleFilterState } from "@/pages/schedule/SchedulePage.constants";
 import { FilterDropdown } from "@/components/ui/FilterDropdown/FilterDropdown";
 import { ScheduleTaskDetail } from "@/pages/schedule/ScheduleTaskDetail/ScheduleTaskDetail";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
@@ -78,12 +78,11 @@ export function SchedulePage() {
     const currentTodayIso = todayIso();
 
     const filteredTasks = useMemo(() => tasks.filter(t => {
-        if (filters.timeline === "upcoming" && t.scheduled_date <  currentTodayIso) return false;
-        if (filters.timeline === "past"     && t.scheduled_date >= currentTodayIso) return false;
         if (filters.priority.length     && !filters.priority.includes(t.priority))             return false;
         if (filters.preferredTime.length && !filters.preferredTime.includes(t.preferred_time)) return false;
+        if (filters.status.length        && !filters.status.includes(t.status))                return false;
         return true;
-    }), [tasks, filters, currentTodayIso]);
+    }), [tasks, filters]);
 
     const tasksByDate = tasks.reduce<Record<string, ScheduledTaskDataResponse[]>>((acc, t) => {
         const key = t.scheduled_date;
@@ -129,13 +128,18 @@ export function SchedulePage() {
                         <span className="schedule-panel-title">Your Commitments</span>
                         <FilterDropdown
                             sections={[
+                                
                                 {
-                                    key: "timeline",
-                                    label: "Show",
-                                    options: TIMELINE_OPTIONS,
-                                    selected: [filters.timeline],
-                                    single: true,
-                                    onToggle: v => setFilters(prev => ({ ...prev, timeline: v as ScheduleTimeline })),
+                                    key: "status",
+                                    label: "Status",
+                                    options: STATUS_FILTER_OPTIONS,
+                                    selected: filters.status,
+                                    onToggle: v => setFilters(prev => ({
+                                        ...prev,
+                                        status: prev.status.includes(v as ScheduledTaskStatus)
+                                            ? prev.status.filter(s => s !== v)
+                                            : [...prev.status, v as ScheduledTaskStatus],
+                                    })),
                                 },
                                 {
                                     key: "priority",

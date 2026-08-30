@@ -1,4 +1,4 @@
-import type { ScheduledTaskPreferredTime, ScheduledTaskPriority } from "@/api/types";
+import type { ScheduledTaskPreferredTime, ScheduledTaskPriority, ScheduledTaskStatus } from "@/api/types";
 
 // ── Calendar display ─────────────────────────────────────────────────────────
 
@@ -11,20 +11,13 @@ export const MONTH_NAMES = [
 
 // ── Filter types & constants ─────────────────────────────────────────────────
 
-export type ScheduleTimeline = "upcoming" | "past";
-
 export interface ScheduleFilterState {
-    timeline: ScheduleTimeline;
     priority: ScheduledTaskPriority[];
     preferredTime: ScheduledTaskPreferredTime[];
+    status: ScheduledTaskStatus[];
 }
 
-export const DEFAULT_FILTERS: ScheduleFilterState = { timeline: "upcoming", priority: [], preferredTime: [] };
-
-export const TIMELINE_OPTIONS: Array<{ value: ScheduleTimeline; label: string }> = [
-    { value: "upcoming", label: "Upcoming" },
-    { value: "past",     label: "Past"     },
-];
+export const DEFAULT_FILTERS: ScheduleFilterState = { priority: [], preferredTime: [], status: ["upcoming"] };
 
 export const PRIORITY_FILTER_OPTIONS: Array<{ value: ScheduledTaskPriority; label: string }> = [
     { value: "highest", label: "Highest" },
@@ -32,6 +25,13 @@ export const PRIORITY_FILTER_OPTIONS: Array<{ value: ScheduledTaskPriority; labe
     { value: "medium",  label: "Medium"  },
     { value: "low",     label: "Low"     },
     { value: "lowest",  label: "Lowest"  },
+];
+
+export const STATUS_FILTER_OPTIONS: Array<{ value: ScheduledTaskStatus; label: string }> = [
+    { value: "upcoming",  label: "Upcoming"  },
+    { value: "completed", label: "Completed" },
+    { value: "snoozed",   label: "Snoozed"   },
+    { value: "missed",    label: "Missed"    },
 ];
 
 export const TIME_FILTER_OPTIONS: Array<{ value: ScheduledTaskPreferredTime; label: string }> = [

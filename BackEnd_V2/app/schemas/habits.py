@@ -270,3 +270,7 @@ class HabitDataResponse(BaseModel):
     max_streak: int
     created_at: datetime
     updated_at: datetime
+
+
+class SetTrackingRequest(BaseModel):
+    enabled_ids: list[int]

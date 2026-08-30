@@ -42,6 +42,7 @@ class Endpoints:
     class TRACK_PROGRESS:
         PREFIX = "/track"
         HABITS = "/habit-record"
+        SET_TRACKING = "/set-habit-tracking"
 
     class PLANNER:
         PREFIX = "/planner"

@@ -9,7 +9,13 @@ from app.models.habit import HabitDBM
 from app.models.plan import PlanDBM
 from app.models.plan_record import DailyPlanRecordDBM
 from app.models.user import UserDBM
-from app.schemas.habits import GoalSummary, HabitCreateRequest, HabitDataResponse, HabitUpdateRequest
+from app.schemas.habits import (
+    GoalSummary,
+    HabitCreateRequest,
+    HabitDataResponse,
+    HabitUpdateRequest,
+    SetTrackingRequest,
+)
 from app.services import planner_service
 
 
@@ -292,6 +298,19 @@ def update_habit(
     db.refresh(habit)
     planner_service.sync_plan_from_habit(db, habit)
     return _serialize(habit, _compute_habit_streak(db, habit))
+
+
+def set_tracking(db: Session, current_user: UserDBM, data: SetTrackingRequest) -> None:
+    habits = db.scalars(
+        select(HabitDBM).where(
+            HabitDBM.user_id == current_user.id,
+            HabitDBM.status != "archived",
+        )
+    ).all()
+    enabled_set = set(data.enabled_ids)
+    for habit in habits:
+        habit.tracking_enabled = habit.id in enabled_set
+    db.commit()
 
 
 def delete_habit(db: Session, current_user: UserDBM, habit_id: int) -> None:

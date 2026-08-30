@@ -24,10 +24,25 @@
 
 .thp-checkbox {
   flex-shrink: 0;
-  width: 1rem;
-  height: 1rem;
-  accent-color: var(--jv-brand-1);
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1.5px solid var(--jv-brand-1);
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
+  color: var(--jv-brand-1);
+  padding: 0;
+  transition: background var(--jv-transition), box-shadow var(--jv-transition);
+  pointer-events: none;
+
+  &--on {
+    background: var(--jv-brand-gradient);
+    border-color: transparent;
+    color: #fff;
+  }
 }
 
 .thp-name {

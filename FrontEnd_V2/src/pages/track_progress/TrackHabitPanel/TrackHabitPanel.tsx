@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { ChevronRight } from "react-bootstrap-icons";
+import { CheckLg, ChevronRight } from "react-bootstrap-icons";
 
 import "@/pages/my_goals/GoalCreationWizard/GoalCreationWizard.scss";
 import "@/pages/assistant/RefinedGoalReviewPanel/RefinedGoalReviewPanel.scss";
@@ -81,16 +81,20 @@ export function TrackHabitPanel({ habits, onClose, onSave }: TrackHabitPanelProp
 
         <div className="thp-list">
           {habits.map(h => (
-            <label key={h.id} className="thp-row">
-              <input
-                type="checkbox"
-                className="thp-checkbox"
-                checked={enabled.has(h.id)}
-                onChange={() => toggleHabit(h.id)}
-              />
+            <div key={h.id} className="thp-row" onClick={() => toggleHabit(h.id)}>
+              <button
+                type="button"
+                className={`thp-checkbox${enabled.has(h.id) ? " thp-checkbox--on" : ""}`}
+                aria-checked={enabled.has(h.id)}
+                aria-label={`Toggle ${h.title}`}
+                role="checkbox"
+                tabIndex={-1}
+              >
+                {enabled.has(h.id) && <CheckLg size={10} />}
+              </button>
               <span className="thp-name">{h.title}</span>
               <span className={`thp-pill thp-pill--${h.type.toLowerCase()}`}>{h.type}</span>
-            </label>
+            </div>
           ))}
         </div>
 

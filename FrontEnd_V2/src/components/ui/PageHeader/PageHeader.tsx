@@ -86,7 +86,7 @@ export function PageHeader({ title, subtitle, icon, actions }: PageHeaderProps) 
                                 className={`btn text-nowrap flex-shrink-0 ${DESKTOP_TONE_CLASS[desktopTone]} ${action.className ?? ""}`.trim()}
                                 onClick={action.onClick}
                             >
-                                {action.icon && <span className="me-1 d-inline-flex">{action.icon}</span>}
+                                {action.icon && <span className="me-1 mt-1 d-inline-flex">{action.icon}</span>}
                                 {action.label}
                             </button>
                         );

@@ -128,31 +128,29 @@ export function TrackProgressPage() {
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [panelOpen, setPanelOpen] = useState(false);
 
-  function fetchHabits() {
+  function fetchTrackData() {
     setLoadState("loading");
-    Promise.all([trackProgressApi.getHabits(), habitsApi.getList()])
-      .then(([trackData, allData]) => {
-        setHabits(trackData);
-        setAllHabits(allData);
-        setLoadState("loaded");
-      })
+    trackProgressApi.getHabits()
+      .then(trackData => { setHabits(trackData); setLoadState("loaded"); })
       .catch(() => setLoadState("error"));
   }
 
-  useEffect(() => { fetchHabits(); }, []);
+  useEffect(() => { fetchTrackData(); }, []);
+
+  function openPanel() {
+    if (allHabits.length === 0) {
+      habitsApi.getList()
+        .then(allData => { setAllHabits(allData); setPanelOpen(true); })
+        .catch(() => {});
+    } else {
+      setPanelOpen(true);
+    }
+  }
 
 
   function handlePanelSave(enabledIds: Set<number>) {
     setPanelOpen(false);
-    const updates = allHabits.flatMap(h => {
-      const shouldBeActive = enabledIds.has(h.id);
-      const isActive = h.status === "active";
-      if (shouldBeActive && !isActive) return [habitsApi.updateHabit(h.id, { status: "active" })];
-      if (!shouldBeActive && isActive) return [habitsApi.updateHabit(h.id, { status: "paused" })];
-      return [];
-    });
-    if (updates.length === 0) return;
-    Promise.all(updates)
+    trackProgressApi.setTracking(Array.from(enabledIds))
       .then(() => Promise.all([trackProgressApi.getHabits(), habitsApi.getList()] as [Promise<HabitTrackItem[]>, Promise<HabitDataResponse[]>]))
       .then(([trackData, allData]) => { setHabits(trackData); setAllHabits(allData); })
       .catch(() => { });
@@ -178,14 +176,17 @@ export function TrackProgressPage() {
   );
 
   const panelHabits = useMemo(
-    () => allHabits.map(h => ({
-      id: h.id,
-      title: h.title,
-      category: h.category,
-      type: h.planner_type === "metric" ? ("Metric" as const) : ("Simple" as const),
-      active: h.status === "active",
-    })),
-    [allHabits],
+    () => {
+      const trackedIds = new Set(habits.map(h => h.id));
+      return allHabits.map(h => ({
+        id: h.id,
+        title: h.title,
+        category: h.category,
+        type: h.planner_type === "metric" ? ("Metric" as const) : ("Simple" as const),
+        active: trackedIds.has(h.id),
+      }));
+    },
+    [allHabits, habits],
   );
 
   const isEmpty = loadState === "loaded" && habits.length === 0;
@@ -194,7 +195,7 @@ export function TrackProgressPage() {
     <PageHeader
       title="Track Progress"
       subtitle="Log what moves you forward. Seeing the numbers keeps you aligned."
-      actions={[{ key: "add", label: "Track Habit", icon: <PlusLg size={14} />, tone: "soft", onClick: () => setPanelOpen(true) }]}
+      actions={[{ key: "add", label: "Track Habit", icon: <PlusLg size={14} />, tone: "soft", onClick: openPanel }]}
     />
   );
 
@@ -223,7 +224,7 @@ export function TrackProgressPage() {
           icon={<ExclamationCircle size={20} />}
           title="Couldn't load habits"
           subtitle="Something went wrong. Check your connection and try again."
-          cta={{ label: "Retry", onClick: fetchHabits }}
+          cta={{ label: "Retry", onClick: fetchTrackData }}
         />
       </div>
     );
@@ -249,7 +250,7 @@ export function TrackProgressPage() {
           icon={<GraphUp size={20} />}
           title="No habits tracked yet"
           subtitle="Add your first habit to start building streaks and seeing your progress over time."
-          cta={{ label: <><PlusLg size={12} className="me-1" />Track your first habit</>, onClick: () => setPanelOpen(true) }}
+          cta={{ label: <><PlusLg size={12} className="me-1" />Track your first habit</>, onClick: openPanel }}
         />
       ) : (
         <>

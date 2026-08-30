@@ -33,6 +33,7 @@ def get_habits_with_history(
         select(HabitDBM)
         .where(
             HabitDBM.user_id == current_user.id,
+            HabitDBM.tracking_enabled == True,  # noqa: E712
             HabitDBM.status == "active",
         )
         .order_by(HabitDBM.updated_at.desc(), HabitDBM.id.desc())

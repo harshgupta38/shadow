@@ -105,6 +105,9 @@ def save_habit(
         category=goal.category if goal is not None else (data.category.strip() if data.category and data.category.strip() else None),
     )
     db.add(habit)
+    if goal is not None:
+        goal.habits_total = (goal.habits_total or 0) + 1
+        goal.habits_active = (goal.habits_active or 0) + 1
     db.commit()
     db.refresh(habit)
     planner_service.sync_plan_from_habit(db, habit)
@@ -125,6 +128,9 @@ def update_habit(
     )
     if habit is None:
         raise NotFoundError("Habit not found.")
+
+    old_goal_id = habit.goal_id
+    old_status = habit.status
 
     fields = data.model_fields_set
 
@@ -203,6 +209,32 @@ def update_habit(
         else:
             habit.category = None
 
+    new_goal_id = habit.goal_id
+    new_status = habit.status
+    goal_id_changed = "goal_id" in fields and old_goal_id != new_goal_id
+    status_changed = "status" in fields and old_status != new_status
+
+    if goal_id_changed:
+        if old_goal_id is not None:
+            old_goal = db.get(GoalDBM, old_goal_id)
+            if old_goal is not None:
+                old_goal.habits_total = max(0, (old_goal.habits_total or 1) - 1)
+                if old_status == "active":
+                    old_goal.habits_active = max(0, (old_goal.habits_active or 1) - 1)
+        if new_goal_id is not None:
+            new_goal = db.get(GoalDBM, new_goal_id)
+            if new_goal is not None:
+                new_goal.habits_total = (new_goal.habits_total or 0) + 1
+                if new_status == "active":
+                    new_goal.habits_active = (new_goal.habits_active or 0) + 1
+    elif status_changed and new_goal_id is not None:
+        linked_goal = db.get(GoalDBM, new_goal_id)
+        if linked_goal is not None:
+            if old_status == "active" and new_status != "active":
+                linked_goal.habits_active = max(0, (linked_goal.habits_active or 1) - 1)
+            elif old_status != "active" and new_status == "active":
+                linked_goal.habits_active = (linked_goal.habits_active or 0) + 1
+
     db.commit()
     db.refresh(habit)
     planner_service.sync_plan_from_habit(db, habit)
@@ -218,6 +250,18 @@ def delete_habit(db: Session, current_user: UserDBM, habit_id: int) -> None:
     )
     if habit is None:
         raise NotFoundError("Habit not found.")
+
+    goal_id = habit.goal_id
+    habit_status = habit.status
+
     planner_service.deactivate_plan(db, "habit", habit_id)
     db.delete(habit)
+
+    if goal_id is not None:
+        goal = db.get(GoalDBM, goal_id)
+        if goal is not None:
+            goal.habits_total = max(0, (goal.habits_total or 1) - 1)
+            if habit_status == "active":
+                goal.habits_active = max(0, (goal.habits_active or 1) - 1)
+
     db.commit()

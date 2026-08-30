@@ -4,9 +4,8 @@ import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { MetricHabitCard } from "./MetricHabitCard/MetricHabitCard";
 import { SimpleHabitCard } from "./SimpleHabitCard/SimpleHabitCard";
 import { TrackHabitPanel } from "./TrackHabitPanel/TrackHabitPanel";
-import { habitsApi } from "@/api/habits";
 import { trackProgressApi } from "@/api/track_progress";
-import type { HabitDataResponse, HabitTrackItem } from "@/api/types";
+import type { EligibleHabitItem, HabitTrackItem } from "@/api/types";
 import { TODAY_COL, WEEK_DAY_LABELS, WEEK_RANGE, toMetricData, toSimpleData } from "./TrackProgressPage.constants";
 import "@/pages/track_progress/TrackProgressPage.scss";
 
@@ -124,7 +123,7 @@ type LoadState = "loading" | "error" | "loaded";
 
 export function TrackProgressPage() {
   const [habits, setHabits] = useState<HabitTrackItem[]>([]);
-  const [allHabits, setAllHabits] = useState<HabitDataResponse[]>([]);
+  const [allHabits, setAllHabits] = useState<EligibleHabitItem[]>([]);
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [panelOpen, setPanelOpen] = useState(false);
 
@@ -139,7 +138,7 @@ export function TrackProgressPage() {
 
   function openPanel() {
     if (allHabits.length === 0) {
-      habitsApi.getList()
+      trackProgressApi.getEligibleHabits()
         .then(allData => { setAllHabits(allData); setPanelOpen(true); })
         .catch(() => {});
     } else {
@@ -151,7 +150,7 @@ export function TrackProgressPage() {
   function handlePanelSave(enabledIds: Set<number>) {
     setPanelOpen(false);
     trackProgressApi.setTracking(Array.from(enabledIds))
-      .then(() => Promise.all([trackProgressApi.getHabits(), habitsApi.getList()] as [Promise<HabitTrackItem[]>, Promise<HabitDataResponse[]>]))
+      .then(() => Promise.all([trackProgressApi.getHabits(), trackProgressApi.getEligibleHabits()] as [Promise<HabitTrackItem[]>, Promise<EligibleHabitItem[]>]))
       .then(([trackData, allData]) => { setHabits(trackData); setAllHabits(allData); })
       .catch(() => { });
   }

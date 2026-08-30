@@ -565,6 +565,13 @@ export interface HabitTrackItem extends HabitBaseData {
   current_value: number;
 }
 
+export interface EligibleHabitItem {
+  id: number;
+  title: string;
+  category: GoalCategory | null;
+  planner_type: HabitType;
+}
+
 export interface MetricHabitData extends HabitBaseData {
   value_unit: string;
   planner_target: number;

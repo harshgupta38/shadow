@@ -7,7 +7,7 @@ from app.models.habit import HabitDBM
 from app.models.plan import PlanDBM
 from app.models.plan_record import DailyPlanRecordDBM
 from app.models.user import UserDBM
-from app.schemas.track_progress import HabitTrackItem
+from app.schemas.track_progress import EligibleHabitItem, HabitTrackItem
 from app.services import planner_service
 
 _COLOR_KEYS = ["success", "info", "brand", "warn", "violet"]
@@ -15,6 +15,33 @@ _COLOR_KEYS = ["success", "info", "brand", "warn", "violet"]
 
 def _color(habit_id: int) -> str:
     return _COLOR_KEYS[habit_id % len(_COLOR_KEYS)]
+
+
+def get_eligible_habits(
+    db: Session,
+    current_user: UserDBM,
+) -> list[EligibleHabitItem]:
+    today = date.today()
+    habits = db.scalars(
+        select(HabitDBM)
+        .where(
+            HabitDBM.user_id == current_user.id,
+            HabitDBM.tracking_enabled == True,
+            HabitDBM.status == "active",
+            or_(HabitDBM.start_date.is_(None), HabitDBM.start_date <= today),
+            or_(HabitDBM.end_date.is_(None), HabitDBM.end_date >= today),
+        )
+        .order_by(HabitDBM.updated_at.desc(), HabitDBM.id.desc())
+    ).all()
+    return [
+        EligibleHabitItem(
+            id=h.id,
+            title=h.title,
+            category=h.category,
+            planner_type=h.planner_type,
+        )
+        for h in habits
+    ]
 
 
 def get_habits_with_history(

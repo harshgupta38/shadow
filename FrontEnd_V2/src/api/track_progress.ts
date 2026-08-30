@@ -1,10 +1,14 @@
 import { ENDPOINTS } from "@/constant/shadow-endpoints";
 import { http } from "@/api/client";
-import type { HabitTrackItem } from "@/api/types";
+import type { EligibleHabitItem, HabitTrackItem } from "@/api/types";
 
 export const trackProgressApi = {
     async getHabits(): Promise<HabitTrackItem[]> {
         return http.get<HabitTrackItem[]>(`${ENDPOINTS.TRACK_PROGRESS.PREFIX}${ENDPOINTS.TRACK_PROGRESS.HABITS}`);
+    },
+
+    async getEligibleHabits(): Promise<EligibleHabitItem[]> {
+        return http.get<EligibleHabitItem[]>(`${ENDPOINTS.TRACK_PROGRESS.PREFIX}${ENDPOINTS.TRACK_PROGRESS.ELIGIBLE_HABITS}`);
     },
 
     async setTracking(enabledIds: number[]): Promise<void> {

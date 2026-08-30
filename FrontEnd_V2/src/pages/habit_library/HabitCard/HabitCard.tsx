@@ -54,7 +54,14 @@ export function HabitCard({
     <article className="hl-habit-card">
       <div className="hl-habit-card-head">
         <div>
-          <h3 className={`hl-habit-name${viewMode === "grid" ? " hl-habit-name--grid" : ""}`}>{h.title}</h3>
+          <div className="hl-habit-title-row">
+            {h.current_streak > 0 && (
+              <span className="hl-habit-streak-pill" aria-label={`${h.current_streak} day streak`}>
+                🔥 {h.current_streak}
+              </span>
+            )}
+            <h3 className={`hl-habit-name${viewMode === "grid" ? " hl-habit-name--grid" : ""}`}>{h.title}</h3>
+          </div>
           {h.note && <div className="hl-habit-motivation">{h.note}</div>}
         </div>
         <Dropdown

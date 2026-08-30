@@ -266,5 +266,7 @@ class HabitDataResponse(BaseModel):
     duration_minutes: int | None
 
     status: HabitStatus
+    current_streak: int
+    max_streak: int
     created_at: datetime
     updated_at: datetime

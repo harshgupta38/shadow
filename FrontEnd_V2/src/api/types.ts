@@ -445,6 +445,8 @@ export interface HabitDataResponse extends Omit<HabitCreateRequest, "goal_id"> {
   id: number;
   goal?: GoalDataInPlan;
   status: HabitStatus;
+  current_streak: number;
+  max_streak: number;
   created_at: string;
   updated_at: string;
 }

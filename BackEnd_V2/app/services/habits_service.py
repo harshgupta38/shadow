@@ -1,15 +1,19 @@
+from datetime import date
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.exceptions import NotFoundError, ValidationError
 from app.models.goal import GoalDBM
 from app.models.habit import HabitDBM
+from app.models.plan import PlanDBM
+from app.models.plan_record import DailyPlanRecordDBM
 from app.models.user import UserDBM
 from app.schemas.habits import GoalSummary, HabitCreateRequest, HabitDataResponse, HabitUpdateRequest
 from app.services import planner_service
 
 
-def _serialize(habit: HabitDBM) -> HabitDataResponse:
+def _serialize(habit: HabitDBM, streaks: tuple[int, int] = (0, 0)) -> HabitDataResponse:
     is_metric = habit.planner_type == "metric"
     goal_summary: GoalSummary | None = None
     if habit.goal_id is not None and habit.goal is not None:
@@ -18,6 +22,7 @@ def _serialize(habit: HabitDBM) -> HabitDataResponse:
             title=habit.goal.title,
             category=habit.goal.category,
         )
+    current_streak, max_streak = streaks
     return HabitDataResponse(
         id=habit.id,
         title=habit.title,
@@ -39,9 +44,24 @@ def _serialize(habit: HabitDBM) -> HabitDataResponse:
         specific_time=habit.specific_time or "",
         duration_minutes=habit.duration_minutes,
         status=habit.status,
+        current_streak=current_streak,
+        max_streak=max_streak,
         created_at=habit.created_at,
         updated_at=habit.updated_at,
     )
+
+
+def _compute_habit_streak(db: Session, habit: HabitDBM) -> tuple[int, int]:
+    plan = db.scalar(
+        select(PlanDBM).where(
+            PlanDBM.source_type == "habit",
+            PlanDBM.source_id == habit.id,
+            PlanDBM.user_id == habit.user_id,
+        )
+    )
+    if plan is None:
+        return 0, 0
+    return planner_service.compute_streaks_for_plan(db, plan, date.today())
 
 
 def _resolve_goal(db: Session, current_user: UserDBM, goal_id: int | None) -> GoalDBM | None:
@@ -68,7 +88,40 @@ def get_list(
     if goal_id is not None:
         stmt = stmt.where(HabitDBM.goal_id == goal_id)
     habits = db.scalars(stmt.order_by(HabitDBM.updated_at.desc(), HabitDBM.id.desc())).all()
-    return [_serialize(h) for h in habits]
+    if not habits:
+        return []
+
+    today = date.today()
+    habit_ids = [h.id for h in habits]
+
+    plans = db.scalars(
+        select(PlanDBM).where(
+            PlanDBM.source_type == "habit",
+            PlanDBM.source_id.in_(habit_ids),
+            PlanDBM.user_id == current_user.id,
+        )
+    ).all()
+    plan_by_habit_id = {p.source_id: p for p in plans}
+    plan_ids = [p.id for p in plans]
+
+    records_by_plan_id: dict[int, list[DailyPlanRecordDBM]] = {}
+    if plan_ids:
+        for r in db.scalars(
+            select(DailyPlanRecordDBM).where(
+                DailyPlanRecordDBM.plan_id.in_(plan_ids),
+                DailyPlanRecordDBM.user_id == current_user.id,
+                DailyPlanRecordDBM.scheduled_date <= today,
+            )
+        ).all():
+            records_by_plan_id.setdefault(r.plan_id, []).append(r)
+
+    streak_by_habit_id: dict[int, tuple[int, int]] = {}
+    for habit_id, plan in plan_by_habit_id.items():
+        streak_by_habit_id[habit_id] = planner_service.compute_streaks(
+            plan, records_by_plan_id.get(plan.id, []), today
+        )
+
+    return [_serialize(h, streak_by_habit_id.get(h.id, (0, 0))) for h in habits]
 
 
 def save_habit(
@@ -111,7 +164,7 @@ def save_habit(
     db.commit()
     db.refresh(habit)
     planner_service.sync_plan_from_habit(db, habit)
-    return _serialize(habit)
+    return _serialize(habit, _compute_habit_streak(db, habit))
 
 
 def update_habit(
@@ -238,7 +291,7 @@ def update_habit(
     db.commit()
     db.refresh(habit)
     planner_service.sync_plan_from_habit(db, habit)
-    return _serialize(habit)
+    return _serialize(habit, _compute_habit_streak(db, habit))
 
 
 def delete_habit(db: Session, current_user: UserDBM, habit_id: int) -> None:

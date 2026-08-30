@@ -56,7 +56,7 @@ export function HabitCard({
         <div>
           <div className="hl-habit-title-row">
             {h.current_streak > 0 && (
-              <span className="hl-habit-streak-pill" aria-label={`${h.current_streak} day streak`}>
+              <span className="hl-habit-streak-pill" role="img" aria-label={`${h.current_streak} day streak`}>
                 🔥 {h.current_streak}
               </span>
             )}

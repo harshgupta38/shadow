@@ -513,6 +513,14 @@ export function GoalTaskWizardPage() {
 		}
 	}
 
+	const handleCancel = () => {
+		if (returnConversationId !== null) {
+			navigate(ROUTES.ASSISTANT, { state: { conversationId: returnConversationId } });
+		} else {
+			navigate(-1);
+		}
+	};
+
 	const canGoNext = useMemo(() => {
 		const activeStep = visibleSteps[currentStepIndex];
 		if (!activeStep) return false;
@@ -760,7 +768,7 @@ export function GoalTaskWizardPage() {
 					<div className="goal-wizard-main">
 						<header className="goal-wizard-header">
 							<div className="goal-wizard-header-main">
-								<button type="button" className="btn btn-ghost btn-icon goal-wizard-close" onClick={() => navigate(-1)} aria-label="Close task setup">
+								<button type="button" className="btn btn-ghost btn-icon goal-wizard-close" onClick={handleCancel} aria-label="Close task setup">
 									<X size={30} />
 								</button>
 								<div className="goal-wizard-header-copy">
@@ -798,7 +806,7 @@ export function GoalTaskWizardPage() {
 				<div className="goal-wizard-main">
 					<header className="goal-wizard-header">
 						<div className="goal-wizard-header-main">
-							<button type="button" className="btn btn-ghost btn-icon goal-wizard-close" onClick={() => navigate(-1)} aria-label="Close task setup" disabled={submitting}>
+							<button type="button" className="btn btn-ghost btn-icon goal-wizard-close" onClick={handleCancel} aria-label="Close task setup" disabled={submitting}>
 								<X size={30} />
 							</button>
 							<div className="goal-wizard-header-copy">

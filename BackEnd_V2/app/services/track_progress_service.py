@@ -1,6 +1,6 @@
 from datetime import date, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.models.habit import HabitDBM
@@ -35,6 +35,8 @@ def get_habits_with_history(
             HabitDBM.user_id == current_user.id,
             HabitDBM.tracking_enabled == True,  # noqa: E712
             HabitDBM.status == "active",
+            or_(HabitDBM.start_date.is_(None), HabitDBM.start_date <= today),
+            or_(HabitDBM.end_date.is_(None), HabitDBM.end_date >= today),
         )
         .order_by(HabitDBM.updated_at.desc(), HabitDBM.id.desc())
     ).all()

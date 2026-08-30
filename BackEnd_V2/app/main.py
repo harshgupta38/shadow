@@ -33,26 +33,9 @@ from app.models.schedule_task import ScheduledTaskDBM
 from app.services import planner_service
 
 
-_MIGRATIONS = [
-    "ALTER TABLE habits ADD COLUMN tracking_enabled BOOLEAN NOT NULL DEFAULT 0",
-]
-
-
-def _run_migrations() -> None:
-    from sqlalchemy import text
-    with engine.connect() as conn:
-        for stmt in _MIGRATIONS:
-            try:
-                conn.execute(text(stmt))
-                conn.commit()
-            except Exception:
-                pass  # column already exists
-
-
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     Base.metadata.create_all(bind=engine)
-    _run_migrations()
     with SessionLocal() as db:
         planner_service.sync_all_plans(db)
     yield

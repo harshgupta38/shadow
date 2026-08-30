@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { CalendarWeek, ChevronLeft, ChevronRight, PlusLg } from "react-bootstrap-icons";
+import { CalendarWeek, ChevronDoubleLeft, ChevronDoubleRight, ChevronLeft, ChevronRight, PlusLg } from "react-bootstrap-icons";
 import { useNavigate } from "react-router-dom";
 
 import { api } from "@/api";
@@ -102,6 +102,8 @@ export function SchedulePage() {
         if (calMonth === 11) { setCalYear(y => y + 1); setCalMonth(0); }
         else setCalMonth(m => m + 1);
     }
+    function prevYear() { setCalYear(y => y - 1); }
+    function nextYear() { setCalYear(y => y + 1); }
 
     return (
         <section className="schedule-page-container">
@@ -215,6 +217,9 @@ export function SchedulePage() {
                     )}
                     <div className={`schedule-cal-view${selectedTask ? " schedule-cal-view--compact" : ""}`}>
                         <div className="schedule-cal-header">
+                            <button type="button" className="btn btn-ghost btn-icon border-0" onClick={prevYear} aria-label="Previous year">
+                                <ChevronDoubleLeft size={16} />
+                            </button>
                             <button type="button" className="btn btn-ghost btn-icon border-0" onClick={prevMonth} aria-label="Previous month">
                                 <ChevronLeft size={16} />
                             </button>
@@ -223,6 +228,9 @@ export function SchedulePage() {
                             </span>
                             <button type="button" className="btn btn-ghost btn-icon border-0" onClick={nextMonth} aria-label="Next month">
                                 <ChevronRight size={16} />
+                            </button>
+                            <button type="button" className="btn btn-ghost btn-icon border-0" onClick={nextYear} aria-label="Next year">
+                                <ChevronDoubleRight size={16} />
                             </button>
                         </div>
 
@@ -243,7 +251,12 @@ export function SchedulePage() {
                                             "schedule-cal-cell",
                                             !cell.isCurrentMonth && "is-outside",
                                             isToday && "is-today",
+                                            cell.iso < currentTodayIso && "is-past",
                                         ].filter(Boolean).join(" ")}
+                                        role={cell.iso >= currentTodayIso ? "button" : undefined}
+                                        tabIndex={cell.iso >= currentTodayIso ? 0 : undefined}
+                                        onClick={cell.iso >= currentTodayIso ? () => navigate(ROUTES.SCHEDULE_CREATE, { state: { date: cell.iso } }) : undefined}
+                                        onKeyDown={cell.iso >= currentTodayIso ? (e) => { if (e.key === "Enter" || e.key === " ") navigate(ROUTES.SCHEDULE_CREATE, { state: { date: cell.iso } }); } : undefined}
                                     >
                                         <div className={`schedule-cal-day-num${isToday ? " is-today" : ""}`}>
                                             {cell.day}
@@ -256,7 +269,7 @@ export function SchedulePage() {
                                                     className="schedule-task-chip"
                                                     style={{ "--chip-color": PRIORITY_COLOR[t.priority] } as React.CSSProperties}
                                                     title={t.title}
-                                                    onClick={() => setSelectedTask(t)}
+                                                    onClick={(e) => { e.stopPropagation(); setSelectedTask(t); }}
                                                 >
                                                     {t.title}
                                                 </button>

@@ -167,6 +167,12 @@ html[data-reduced-motion="true"] *::after {
 /* ----------------------------------------------------------------------------
    4. Base
    -------------------------------------------------------------------------- */
+
+/* Bootstrap reboot sets svg { overflow: hidden } which clips react-bootstrap-icons */
+svg {
+  overflow: visible;
+}
+
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--jv-border-strong) transparent;

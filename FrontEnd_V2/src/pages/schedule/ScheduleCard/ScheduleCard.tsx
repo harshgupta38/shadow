@@ -114,7 +114,7 @@ export function ScheduleCard({ task, onSelect, onEdit, onDuplicate, onDelete }: 
                             <PencilFill size={12} /> Edit
                         </Dropdown.Item>
                         <Dropdown.Item className="sc-ctx-item" onClick={() => { setShowCtx(false); onDuplicate(); }}>
-                            <Files size={12} style={{ overflow: "visible" }} /> Duplicate
+                            <Files size={12} /> Duplicate
                         </Dropdown.Item>
                         <Dropdown.Divider />
                         <Dropdown.Item className="sc-ctx-item sc-ctx-item--danger" onClick={() => { setShowCtx(false); onDelete(); }}>

@@ -3,6 +3,7 @@ import { ArrowLeft, Files, PencilFill, ThreeDotsVertical, Trash3Fill } from "rea
 import { Dropdown } from "react-bootstrap";
 
 import type { ScheduledTaskDataResponse } from "@/api/types";
+import { todayIso } from "@/services/date.service";
 import {
     formatDateDisplay,
     formatTimeDisplay,
@@ -46,7 +47,7 @@ export function ScheduleTaskDetail({ task, onClose, onEdit, onDuplicate, onDelet
                                 <PencilFill size={12} /> Edit
                             </Dropdown.Item>
                             <Dropdown.Item className="std-action-item" onClick={onDuplicate}>
-                                <Files size={13} style={{ overflow: "visible" }} /> Duplicate
+                                <Files size={13} /> Duplicate
                             </Dropdown.Item>
                             <Dropdown.Divider />
                             <Dropdown.Item className="std-action-item std-action-item--danger" onClick={onDelete}>
@@ -94,7 +95,9 @@ export function ScheduleTaskDetail({ task, onClose, onEdit, onDuplicate, onDelet
                         <div className="std-row">
                             <span className="std-row-label">Status</span>
                             <span className={`std-status-badge std-status-badge--${task.status}`}>
-                                {STATUS_LABEL[task.status]}
+                                {task.status === "upcoming" && task.scheduled_date === todayIso()
+                                    ? "Due Today"
+                                    : STATUS_LABEL[task.status]}
                             </span>
                         </div>
                     </div>

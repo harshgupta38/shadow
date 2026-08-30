@@ -156,17 +156,47 @@
     padding: 0.3rem 0.35rem;
     overflow: hidden;
     min-height: 0;
+    cursor: pointer;
+    transition: background var(--jv-transition);
+
+    &:hover {
+      background: color-mix(in srgb, var(--jv-brand-1) 5%, transparent);
+    }
+
+    &.is-past {
+      cursor: default;
+
+      &:hover {
+        background: transparent;
+      }
+
+      .schedule-cal-day-num {
+        opacity: 0.4;
+      }
+    }
 
     &.is-outside {
       background: color-mix(in srgb, var(--jv-surface) 60%, transparent);
+
+      &:hover {
+        background: color-mix(in srgb, var(--jv-brand-1) 4%, transparent);
+      }
 
       .schedule-cal-day-num {
         color: var(--jv-faint);
       }
     }
 
+    &.is-past.is-outside:hover {
+      background: color-mix(in srgb, var(--jv-surface) 60%, transparent);
+    }
+
     &.is-today {
       background: color-mix(in srgb, var(--jv-brand-1) 7%, transparent);
+
+      &:hover {
+        background: color-mix(in srgb, var(--jv-brand-1) 12%, transparent);
+      }
     }
   }
 

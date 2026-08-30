@@ -10,6 +10,7 @@ import { ThemeToggle } from "@/components/ui/ThemeToggle/ThemeToggle";
 import { useToast } from "@/context/ToastContext";
 import { GoalWizardVisual } from "@/pages/my_goals/GoalCreationWizard/GoalWizardVisual";
 import { ROUTES } from "@/routes/RoutePaths";
+import { todayIso } from "@/services/date.service";
 
 import {
     answersFromTask,
@@ -53,6 +54,7 @@ export function ScheduleWizardPage() {
 
     const stateTask  = (location.state as { task?:  ScheduledTaskDataResponse } | null)?.task  ?? null;
     const stateDraft = (location.state as { draft?: ScheduledTaskDataResponse } | null)?.draft ?? null;
+    const stateDate  = (location.state as { date?:  string } | null)?.date ?? null;
 
     const [loadingContext, setLoadingContext] = useState(isEditMode && !stateTask);
     const [loaderIndex, setLoaderIndex] = useState(0);
@@ -63,6 +65,7 @@ export function ScheduleWizardPage() {
             // Duplicate: pre-fill all fields but reset the date so user picks a new one
             return { ...answersFromTask(stateDraft), scheduledDate: "" };
         }
+        if (stateDate && stateDate >= todayIso()) return { ...makeEmptyAnswers(), scheduledDate: stateDate };
         return makeEmptyAnswers();
     });
     const [fieldErrors, setFieldErrors] = useState<ScheduleFieldErrors>({});
@@ -456,6 +459,7 @@ export function ScheduleWizardPage() {
                                                                         ref={dateInputRef}
                                                                         type="date"
                                                                         value={answers.scheduledDate}
+                                                                        min={todayIso()}
                                                                         onChange={(e) => updateAnswer("scheduledDate", e.target.value)}
                                                                         disabled={!isActive || submitting}
                                                                         className="schedule-date-hidden-input"

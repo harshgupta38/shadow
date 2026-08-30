@@ -34,6 +34,24 @@
   100% { opacity: 0; transform: scale(0.97) translateY(6px); box-shadow: none; }
 }
 
+// ── Streak pill ───────────────────────────────────────────────────────────────
+
+.plan-card-streak {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.18rem;
+  padding: 0.18rem 0.45rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, #f97316 13%, transparent);
+  color: #ea6010;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  flex-shrink: 0;
+  letter-spacing: 0.01em;
+}
+
 // ── Main row ──────────────────────────────────────────────────────────────────
 
 .plan-card-row {

@@ -167,6 +167,11 @@ export function PlanCard({ item, onToggle, onSaveProgress, onSaveNote, busy = fa
       {/* Row 1 — title · time · checkbox */}
       <div className="plan-card-row">
         <div className="plan-card-left">
+          {(item.saved_data?.current_streak ?? 0) >= 1 && (
+            <span className="plan-card-streak" aria-label={`${item.saved_data!.current_streak} day streak`}>
+              🔥 {item.saved_data!.current_streak}
+            </span>
+          )}
           <span className="plan-card-title">{item.title}</span>
           {timeLabel && (
             <TimeChip preferredTime={item.preferred_time} label={timeLabel} />

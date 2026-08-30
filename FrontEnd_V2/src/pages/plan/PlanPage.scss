@@ -185,6 +185,7 @@
     height: 57px;
     margin-bottom: 0.9rem;
     border-radius: 16px;
+    font-size: 1.6rem;
     color: var(--jv-brand-1);
     background: var(--jv-brand-soft);
   }
@@ -213,6 +214,62 @@
     font-weight: 700;
     letter-spacing: 0.05em;
     text-transform: uppercase;
+  }
+
+  // ── Completed panel ──────────────────────────────────────────────────────────
+
+  .completed-panel {
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .completed-panel-header {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.85rem 1.1rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--jv-text);
+    font: inherit;
+    text-align: left;
+  }
+
+  .completed-panel-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+  }
+
+  .completed-panel-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 0.4rem;
+    border-radius: 999px;
+    background: var(--jv-brand-soft);
+    color: var(--jv-brand-1);
+    font-size: 0.72rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .completed-panel-chevron {
+    margin-left: auto;
+    color: var(--jv-muted);
+    transition: transform var(--jv-transition);
+    flex-shrink: 0;
+
+    &.is-open {
+      transform: rotate(180deg);
+    }
+  }
+
+  .completed-panel .plan-task-list {
+    padding: 0 1.1rem 1rem;
   }
 
   // ── Plan card skeleton ───────────────────────────────────────────────────────
@@ -295,6 +352,14 @@
 
     .desktop-break {
       display: none;
+    }
+
+    .plan-task-list {
+      margin-top: 0.75rem;
+    }
+    
+    .today-panel {
+      padding: 1.35rem 1rem 1rem 1rem;
     }
   }
 }

@@ -152,6 +152,11 @@ export function DayOverviewPanel({ items, loading, isToday, estimatedMinutes }: 
               <ArrowRightShort size={16} className="overview-nextup-arrow" />
               <span className="overview-nextup-title">{nextUp.title}</span>
               <span className="overview-nextup-time">{nextUpTimeLabel(nextUp)}</span>
+              {(nextUp.saved_data?.current_streak ?? 0) >= 1 && (
+                <span className="overview-nextup-streak" aria-label={`${nextUp.saved_data!.current_streak} day streak`}>
+                  🔥 {nextUp.saved_data!.current_streak}
+                </span>
+              )}
             </div>
           ) : (
             <span className="overview-none">No timed items</span>

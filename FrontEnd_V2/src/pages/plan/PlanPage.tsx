@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import {
   Calendar3,
   CalendarCheckFill,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Plus,
@@ -36,6 +37,7 @@ export function PlanPage() {
   const [planError, setPlanError] = useState<string | null>(null);
   const [completingIds, setCompletingIds] = useState<Set<number>>(new Set());
   const [busyIds, setBusyIds] = useState<Set<number>>(new Set());
+  const [completedOpen, setCompletedOpen] = useState(false);
 
   const isToday = selectedDate.toDateString() === TODAY.toDateString();
 
@@ -298,6 +300,12 @@ export function PlanPage() {
                     : "You can add something manually or check another date."}
                 </p>
               </div>
+            ) : activeItems.length === 0 ? (
+              <div className="empty-state">
+                <span className="empty-state-icon">🎉</span>
+                <h3 className="text-normal">{isToday ? "All done — great work!" : "You crushed it that day!"}</h3>
+                <p>{isToday ? "You've completed everything on your list. Keep it up!" : "Everything was completed on this date."}</p>
+              </div>
             ) : (
               <div className="plan-task-list">
                 {activeItems.map((item) => (
@@ -312,26 +320,42 @@ export function PlanPage() {
                     onSaveNote={(note) => handleSaveNote(item.plan_id, note)}
                   />
                 ))}
-                {doneItems.length > 0 && (
-                  <>
-                    <div className="plan-task-section-label">Completed</div>
-                    {doneItems.map((item) => (
-                      <PlanCard
-                        key={item.saved_data?.record_id ?? item.plan_id}
-                        item={item}
-                        readOnly={!isToday}
-                        busy={busyIds.has(item.plan_id)}
-                        onToggle={() => handleToggle(item.plan_id)}
-                        onSaveProgress={(value) => handleSaveProgress(item.plan_id, value)}
-                        onSaveNote={(note) => handleSaveNote(item.plan_id, note)}
-                      />
-                    ))}
-
-                  </>
-                )}
               </div>
             )}
           </section>
+
+          {!loadingPlan && !planError && doneItems.length > 0 && (
+            <section className="plan-panel completed-panel">
+              <button
+                type="button"
+                className="completed-panel-header"
+                onClick={() => setCompletedOpen((o) => !o)}
+                aria-expanded={completedOpen}
+              >
+                <span className="completed-panel-title">Completed</span>
+                <span className="completed-panel-count">{doneItems.length}</span>
+                <ChevronDown
+                  className={`completed-panel-chevron${completedOpen ? " is-open" : ""}`}
+                  size={15}
+                />
+              </button>
+              {completedOpen && (
+                <div className="plan-task-list mt-0">
+                  {doneItems.map((item) => (
+                    <PlanCard
+                      key={item.saved_data?.record_id ?? item.plan_id}
+                      item={item}
+                      readOnly={!isToday}
+                      busy={busyIds.has(item.plan_id)}
+                      onToggle={() => handleToggle(item.plan_id)}
+                      onSaveProgress={(value) => handleSaveProgress(item.plan_id, value)}
+                      onSaveNote={(note) => handleSaveNote(item.plan_id, note)}
+                    />
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
         </div>
 
         <div className="plan-column">

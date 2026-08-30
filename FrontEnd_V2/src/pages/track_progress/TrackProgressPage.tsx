@@ -1,7 +1,9 @@
-import { PlusLg } from "react-bootstrap-icons";
+import { useState } from "react";
+import { GraphUp, PlusLg } from "react-bootstrap-icons";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { MetricHabitCard } from "./MetricHabitCard/MetricHabitCard";
 import { SimpleHabitCard } from "./SimpleHabitCard/SimpleHabitCard";
+import { TrackHabitPanel } from "./TrackHabitPanel/TrackHabitPanel";
 import type { MetricHabitData, SimpleHabitData } from "./trackProgress.types";
 import "@/pages/track_progress/TrackProgressPage.scss";
 
@@ -117,6 +119,56 @@ const MOCK_SIMPLE: SimpleHabitData[] = [
   },
 ];
 
+// ── Empty State ───────────────────────────────────────────────────────────────
+
+const GHOST_WIDTHS = [58, 75, 50, 68, 62];
+
+function EmptyState({ onTrack }: { onTrack: () => void }) {
+  return (
+    <div className="tp-empty">
+      <div className="tp-empty-ghost-shell">
+        <div className="tp-matrix-shell">
+          <div className="tp-matrix-wrap">
+            <div className="tp-matrix-row tp-matrix-row--header">
+              <div className="tp-matrix-label tp-matrix-label--hdr">Habit</div>
+              {DAY_LABELS.map((d, i) => (
+                <div key={d} className={`tp-matrix-day-hdr${i === TODAY_COL ? " tp-matrix-day-hdr--today" : ""}`}>{d}</div>
+              ))}
+              <div className="tp-matrix-pct-hdr">Week</div>
+            </div>
+            {GHOST_WIDTHS.map((w, i) => (
+              <div key={i} className="tp-matrix-row">
+                <div className="tp-matrix-label">
+                  <span className="tp-ghost-name" style={{ width: `${w}%` }} />
+                </div>
+                {Array.from({ length: 7 }).map((_, d) => (
+                  <div key={d} className="tp-matrix-cell tp-matrix-cell--miss" />
+                ))}
+                <div className="tp-matrix-pct-cell">
+                  <span className="tp-ghost-pct" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="tp-empty-core">
+        <div className="tp-empty-icon">
+          <GraphUp size={20} />
+        </div>
+        <h3 className="tp-empty-title">No habits tracked yet</h3>
+        <p className="tp-empty-sub">
+          Add your first habit to start building streaks and seeing your progress over time.
+        </p>
+        <button className="btn btn-primary btn-sm" onClick={onTrack}>
+          <PlusLg size={12} className="me-1" /> Track your first habit
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── Weekly Accountability Matrix ──────────────────────────────────────────────
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -184,11 +236,28 @@ function WeeklyMatrix() {
   );
 }
 
+// ── Habit list for the panel ─────────────────────────────────────────────────
+
+const ALL_HABITS_FOR_PANEL = [
+  ...MOCK_METRIC.map(h => ({ id: h.id, title: h.title, category: h.category, type: "Metric" as const })),
+  ...MOCK_SIMPLE.map(h => ({ id: h.id, title: h.title, category: h.category, type: "Simple" as const })),
+];
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export function TrackProgressPage() {
+  const [panelOpen, setPanelOpen] = useState(false);
+  const isEmpty = MOCK_METRIC.length === 0 && MOCK_SIMPLE.length === 0;
+
   return (
     <div className="tp-page">
+
+      {panelOpen && (
+        <TrackHabitPanel
+          habits={ALL_HABITS_FOR_PANEL}
+          onClose={() => setPanelOpen(false)}
+        />
+      )}
 
       <PageHeader
         title="Track Progress"
@@ -198,39 +267,45 @@ export function TrackProgressPage() {
           label: "Track Habit",
           icon: <PlusLg size={14} />,
           tone: "soft",
-          onClick: () => {},
+          onClick: () => setPanelOpen(true),
         }]}
       />
 
-      <section className="tp-section">
-        <div className="tp-section-head">
-          <h2 className="tp-section-title">This Week</h2>
-          <span className="tp-section-chip">Aug 25 – 31, 2026</span>
-        </div>
-        <div className="tp-matrix-shell">
-          <WeeklyMatrix />
-        </div>
-      </section>
+      {isEmpty ? (
+        <EmptyState onTrack={() => setPanelOpen(true)} />
+      ) : (
+        <>
+          <section className="tp-section">
+            <div className="tp-section-head">
+              <h2 className="tp-section-title">This Week</h2>
+              <span className="tp-section-chip">Aug 25 – 31, 2026</span>
+            </div>
+            <div className="tp-matrix-shell">
+              <WeeklyMatrix />
+            </div>
+          </section>
 
-      <section className="tp-section mt-4">
-        <div className="tp-section-head">
-          <h2 className="tp-section-title">Metric Habits</h2>
-          <span className="tp-section-chip">{MOCK_METRIC.length} tracked</span>
-        </div>
-        <div className="tp-cards-grid">
-          {MOCK_METRIC.map(h => <MetricHabitCard key={h.id} habit={h} />)}
-        </div>
-      </section>
+          <section className="tp-section mt-4">
+            <div className="tp-section-head">
+              <h2 className="tp-section-title">Metric Habits</h2>
+              <span className="tp-section-chip">{MOCK_METRIC.length} tracked</span>
+            </div>
+            <div className="tp-cards-grid">
+              {MOCK_METRIC.map(h => <MetricHabitCard key={h.id} habit={h} />)}
+            </div>
+          </section>
 
-      <section className="tp-section mt-4">
-        <div className="tp-section-head">
-          <h2 className="tp-section-title">Habit Streaks</h2>
-          <span className="tp-section-chip">{MOCK_SIMPLE.length} tracked</span>
-        </div>
-        <div className="tp-cards-grid">
-          {MOCK_SIMPLE.map(h => <SimpleHabitCard key={h.id} habit={h} />)}
-        </div>
-      </section>
+          <section className="tp-section mt-4">
+            <div className="tp-section-head">
+              <h2 className="tp-section-title">Habit Streaks</h2>
+              <span className="tp-section-chip">{MOCK_SIMPLE.length} tracked</span>
+            </div>
+            <div className="tp-cards-grid">
+              {MOCK_SIMPLE.map(h => <SimpleHabitCard key={h.id} habit={h} />)}
+            </div>
+          </section>
+        </>
+      )}
 
     </div>
   );

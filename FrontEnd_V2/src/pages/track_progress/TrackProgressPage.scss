@@ -157,6 +157,74 @@
   font-variant-numeric: tabular-nums;
 }
 
+// ── Empty State ───────────────────────────────────────────────────────────────
+
+.tp-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.tp-empty-ghost-shell {
+  width: 100%;
+  pointer-events: none;
+  user-select: none;
+  mask-image: linear-gradient(to bottom, black 0%, black 40%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black 0%, black 40%, transparent 100%);
+}
+
+.tp-ghost-name {
+  display: block;
+  height: 10px;
+  border-radius: 5px;
+  background: var(--jv-surface-3);
+}
+
+.tp-ghost-pct {
+  display: block;
+  width: 32px;
+  height: 9px;
+  border-radius: 4px;
+  background: var(--jv-surface-3);
+}
+
+.tp-empty-core {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  max-width: 300px;
+  margin-top: -0.5rem;
+}
+
+.tp-empty-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 14px;
+  background: var(--jv-brand-soft);
+  border: 1px solid color-mix(in srgb, var(--jv-brand-1) 28%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--jv-brand-1);
+  margin-bottom: 1.1rem;
+}
+
+.tp-empty-title {
+  margin: 0 0 0.45rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--jv-text);
+}
+
+.tp-empty-sub {
+  margin: 0 0 1.4rem;
+  font-size: 0.875rem;
+  color: var(--jv-muted);
+  line-height: 1.58;
+}
+
 // ── Cards Grid ────────────────────────────────────────────────────────────────
 
 .tp-cards-grid {

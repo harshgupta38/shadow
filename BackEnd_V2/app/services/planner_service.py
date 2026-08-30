@@ -180,7 +180,7 @@ def compute_streaks(
         return 0, 0
 
     record_status: dict[date, str] = {r.scheduled_date: r.status for r in records}
-    today = date.today()
+    today = as_of_date
     running = 0
     max_streak = 0
 
@@ -544,7 +544,6 @@ def deactivate_plan(db: Session, source_type: str, source_id: int) -> None:
     if plan is not None and plan.status != "archived":
         plan.status = "archived"
     _purge_today_records(db, source_type, source_id)
-    db.commit()
 
 
 # ── Scheduled-task sync ───────────────────────────────────────────────────────

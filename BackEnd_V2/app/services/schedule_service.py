@@ -199,7 +199,7 @@ def delete_task(db: Session, current_user: UserDBM, task_id: int) -> None:
     )
     if task is None:
         raise NotFoundError("Scheduled task not found.")
-    deactivate_plan(db, "schedule", task.id)  # archives plan + purges records, commits
+    deactivate_plan(db, "schedule", task.id)  # archives plan + purges future records
     db.refresh(task)
     db.delete(task)
     db.commit()

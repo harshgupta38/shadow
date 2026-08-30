@@ -4,7 +4,7 @@ from app.api.deps import get_current_user
 from app.core.endpoints import ENDPOINTS
 from app.db.session import get_db
 from app.models.user import UserDBM
-from app.schemas.habits import HabitCreateRequest, HabitDataResponse, HabitUpdateRequest
+from app.schemas.habits import HabitCreateRequest, HabitDataResponse, HabitStatus, HabitUpdateRequest
 from app.services import habits_service
 
 router = APIRouter(prefix=ENDPOINTS.HABITS.PREFIX, tags=["Habits"])
@@ -12,7 +12,7 @@ router = APIRouter(prefix=ENDPOINTS.HABITS.PREFIX, tags=["Habits"])
 
 @router.get(ENDPOINTS.HABITS.GET_LIST, response_model=list[HabitDataResponse])
 def get_habit_list(
-    status: str | None = None,
+    status: HabitStatus | None = None,
     goal_id: int | None = None,
     db=Depends(get_db),
     current_user: UserDBM = Depends(get_current_user),

@@ -4,6 +4,7 @@ from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import ConflictError, NotFoundError
+from app.services import planner_service
 from app.models.chat import MessageDBM
 from app.models.goal import GoalDBM
 from app.models.milestone import MilestoneDBM
@@ -343,6 +344,10 @@ def delete_milestone(
         raise NotFoundError("Milestone not found. Please check and try again.")
 
     goal = db.scalar(select(GoalDBM).where(GoalDBM.id == milestone.goal_id))
+
+    task_ids = db.scalars(select(TaskDBM.id).where(TaskDBM.milestone_id == milestone.id)).all()
+    for task_id in task_ids:
+        planner_service.deactivate_plan(db, "task", task_id)
 
     db.execute(delete(TaskDBM).where(TaskDBM.milestone_id == milestone.id))
 

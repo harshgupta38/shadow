@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     jwt_secret: str = "change-this-in-production"
     jwt_algorithm: str = "HS256"
 
-    access_token_expire_minutes: int = 60 * 24 * 30
+    access_token_expire_minutes: int = 60
 
     # Comma-separated list of allowed CORS origins.
     cors_origins: str = "http://localhost:5173,http://localhost:5174"

@@ -97,7 +97,7 @@ class HabitCreateRequest(BaseModel):
 
     frequencies: list[HabitFrequency] = Field(min_length=1, max_length=15)
     preferred_time: HabitPreferredTime = "flexible"
-    specific_time: str | None = Field(default=None, max_length=10)  # required (non-empty) when preferred_time == "custom"
+    specific_time: str | None = Field(default=None, pattern=r"^([01]\d|2[0-3]):[0-5]\d$")  # required when preferred_time == "custom"
     duration_minutes: int | None = Field(default=None, ge=1)
     start_date: date | None = None
     end_date: date | None = None
@@ -179,7 +179,7 @@ class HabitUpdateRequest(BaseModel):
 
     frequencies: list[HabitFrequency] | None = Field(default=None, min_length=1, max_length=15)
     preferred_time: HabitPreferredTime | None = None
-    specific_time: str | None = Field(default=None, max_length=10)
+    specific_time: str | None = Field(default=None, pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
     duration_minutes: int | None = Field(default=None, ge=1)
     start_date: date | None = None
     end_date: date | None = None

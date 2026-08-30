@@ -1,6 +1,6 @@
 from datetime import date
 
-from sqlalchemy import select
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.exceptions import NotFoundError, ValidationError
@@ -9,7 +9,7 @@ from app.models.habit import HabitDBM
 from app.models.plan import PlanDBM
 from app.models.plan_record import DailyPlanRecordDBM
 from app.models.user import UserDBM
-from app.schemas.habits import GoalSummary, HabitCreateRequest, HabitDataResponse, HabitUpdateRequest
+from app.schemas.habits import GoalSummary, HabitCreateRequest, HabitDataResponse, HabitStatus, HabitUpdateRequest
 from app.services import planner_service
 
 
@@ -79,7 +79,7 @@ def get_list(
     db: Session,
     current_user: UserDBM,
     *,
-    status: str | None = None,
+    status: HabitStatus | None = None,
     goal_id: int | None = None,
 ) -> list[HabitDataResponse]:
     stmt = select(HabitDBM).options(joinedload(HabitDBM.goal)).where(HabitDBM.user_id == current_user.id)
@@ -159,8 +159,14 @@ def save_habit(
     )
     db.add(habit)
     if goal is not None:
-        goal.habits_total = (goal.habits_total or 0) + 1
-        goal.habits_active = (goal.habits_active or 0) + 1
+        db.execute(
+            update(GoalDBM)
+            .where(GoalDBM.id == goal.id)
+            .values(
+                habits_total=func.coalesce(GoalDBM.habits_total, 0) + 1,
+                habits_active=func.coalesce(GoalDBM.habits_active, 0) + 1,
+            )
+        )
     db.commit()
     db.refresh(habit)
     planner_service.sync_plan_from_habit(db, habit)
@@ -269,24 +275,42 @@ def update_habit(
 
     if goal_id_changed:
         if old_goal_id is not None:
-            old_goal = db.get(GoalDBM, old_goal_id)
-            if old_goal is not None:
-                old_goal.habits_total = max(0, (old_goal.habits_total or 1) - 1)
-                if old_status == "active":
-                    old_goal.habits_active = max(0, (old_goal.habits_active or 1) - 1)
+            db.execute(
+                update(GoalDBM)
+                .where(GoalDBM.id == old_goal_id, GoalDBM.habits_total > 0)
+                .values(habits_total=GoalDBM.habits_total - 1)
+            )
+            if old_status == "active":
+                db.execute(
+                    update(GoalDBM)
+                    .where(GoalDBM.id == old_goal_id, GoalDBM.habits_active > 0)
+                    .values(habits_active=GoalDBM.habits_active - 1)
+                )
         if new_goal_id is not None:
-            new_goal = db.get(GoalDBM, new_goal_id)
-            if new_goal is not None:
-                new_goal.habits_total = (new_goal.habits_total or 0) + 1
-                if new_status == "active":
-                    new_goal.habits_active = (new_goal.habits_active or 0) + 1
+            db.execute(
+                update(GoalDBM)
+                .where(GoalDBM.id == new_goal_id)
+                .values(habits_total=func.coalesce(GoalDBM.habits_total, 0) + 1)
+            )
+            if new_status == "active":
+                db.execute(
+                    update(GoalDBM)
+                    .where(GoalDBM.id == new_goal_id)
+                    .values(habits_active=func.coalesce(GoalDBM.habits_active, 0) + 1)
+                )
     elif status_changed and new_goal_id is not None:
-        linked_goal = db.get(GoalDBM, new_goal_id)
-        if linked_goal is not None:
-            if old_status == "active" and new_status != "active":
-                linked_goal.habits_active = max(0, (linked_goal.habits_active or 1) - 1)
-            elif old_status != "active" and new_status == "active":
-                linked_goal.habits_active = (linked_goal.habits_active or 0) + 1
+        if old_status == "active" and new_status != "active":
+            db.execute(
+                update(GoalDBM)
+                .where(GoalDBM.id == new_goal_id, GoalDBM.habits_active > 0)
+                .values(habits_active=GoalDBM.habits_active - 1)
+            )
+        elif old_status != "active" and new_status == "active":
+            db.execute(
+                update(GoalDBM)
+                .where(GoalDBM.id == new_goal_id)
+                .values(habits_active=func.coalesce(GoalDBM.habits_active, 0) + 1)
+            )
 
     db.commit()
     db.refresh(habit)
@@ -311,10 +335,16 @@ def delete_habit(db: Session, current_user: UserDBM, habit_id: int) -> None:
     db.delete(habit)
 
     if goal_id is not None:
-        goal = db.get(GoalDBM, goal_id)
-        if goal is not None:
-            goal.habits_total = max(0, (goal.habits_total or 1) - 1)
-            if habit_status == "active":
-                goal.habits_active = max(0, (goal.habits_active or 1) - 1)
+        db.execute(
+            update(GoalDBM)
+            .where(GoalDBM.id == goal_id, GoalDBM.habits_total > 0)
+            .values(habits_total=GoalDBM.habits_total - 1)
+        )
+        if habit_status == "active":
+            db.execute(
+                update(GoalDBM)
+                .where(GoalDBM.id == goal_id, GoalDBM.habits_active > 0)
+                .values(habits_active=GoalDBM.habits_active - 1)
+            )
 
     db.commit()

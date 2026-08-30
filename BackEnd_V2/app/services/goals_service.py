@@ -1,8 +1,9 @@
 from datetime import date
 
-from sqlalchemy import delete, update
+from sqlalchemy import delete, select, update
 
 from app.core.exceptions import NotFoundError, ConflictError
+from app.services import planner_service
 from app.llm import RefineGoalFromLLM, get_llm_service, LLMError, LLMRequestError
 from app.models.chat import MessageDBM
 from app.models.goal import GoalDBM
@@ -256,6 +257,10 @@ def delete_goal(
 
     if goal is None:
         raise NotFoundError("Goal not found.")
+
+    task_ids = db.scalars(select(TaskDBM.id).where(TaskDBM.goal_id == goal.id)).all()
+    for task_id in task_ids:
+        planner_service.deactivate_plan(db, "task", task_id)
 
     db.execute(delete(TaskDBM).where(TaskDBM.goal_id == goal.id))
     db.execute(delete(MilestoneDBM).where(MilestoneDBM.goal_id == goal.id))

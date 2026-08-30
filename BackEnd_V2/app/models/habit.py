@@ -135,6 +135,13 @@ class HabitDBM(Base):
     value_unit: Mapped[str | None] = mapped_column(String(64), nullable=True)
     category: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
+    tracking_enabled: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default=text("false"),
+    )
+
     goal: Mapped["GoalDBM | None"] = relationship(  # type: ignore[name-defined]
         "GoalDBM",
         foreign_keys=[goal_id],

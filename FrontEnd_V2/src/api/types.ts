@@ -429,7 +429,7 @@ export interface HabitCreateRequest {
   monthly_count: number | null;
   specific_days: number[] | null;
   day_fallback: boolean;
-  
+
   start_date: string | null;
   end_date: string | null;
 
@@ -532,7 +532,7 @@ export interface ScheduledTaskCreateRequest {
   goal_id: number | null;
 }
 
-export interface ScheduledTaskUpdateRequest extends Partial<ScheduledTaskCreateRequest> {}
+export interface ScheduledTaskUpdateRequest extends Partial<ScheduledTaskCreateRequest> { }
 
 export interface ScheduledTaskDataResponse extends Omit<ScheduledTaskCreateRequest, "goal_id"> {
   id: number;
@@ -540,4 +540,40 @@ export interface ScheduledTaskDataResponse extends Omit<ScheduledTaskCreateReque
   status: ScheduledTaskStatus;
   created_at: string;
   updated_at: string;
+}
+
+// ── Track Progress ──────────────────────────────────────────────────────────
+
+export type ColorKey = "success" | "info" | "brand" | "warn" | "violet";
+
+interface HabitBaseData {
+  id: number;
+  title: string;
+  category: GoalCategory | null;
+  current_streak: number;
+  max_streak: number;
+  done_today: boolean;
+  color: ColorKey;
+};
+
+export interface HabitTrackItem extends HabitBaseData {
+  planner_type: HabitType;
+  planner_target: number | null;
+  value_unit: string | null;
+  /** 7 integers — index 0 = Sunday, index 6 = Saturday; simple=0|1, metric=actual_value, future=0 */
+  history: number[];
+  current_value: number;
+}
+
+export interface MetricHabitData extends HabitBaseData {
+  value_unit: string;
+  planner_target: number;
+  /** 7 entries — index 0 = Sunday, index 6 = Saturday of the current week */
+  history: number[];
+  current_value: number;
+}
+
+export interface SimpleHabitData extends HabitBaseData {
+  /** 7 entries — index 0 = Sunday, index 6 = Saturday of the current week */
+  history: boolean[];
 }

@@ -39,6 +39,11 @@ class Endpoints:
         GET_LIST = "/get-schedule-task-list"
         DETAIL = "/{schedule_task_id}"
 
+    class TRACK_PROGRESS:
+        PREFIX = "/track"
+        HABITS = "/habit-record"
+        SET_TRACKING = "/set-habit-tracking"
+
     class PLANNER:
         PREFIX = "/planner"
         FOR_DATE = "/for-date"

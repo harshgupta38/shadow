@@ -214,7 +214,7 @@
 
     &.is-today {
       background: var(--jv-brand-1);
-      color: #fff;
+      color: #fff !important;
       font-weight: 700;
     }
   }

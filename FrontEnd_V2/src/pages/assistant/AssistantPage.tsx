@@ -13,6 +13,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { TextFieldPromptDialog } from "@/components/ui/TextFieldPromptDialog/TextFieldPromptDialog";
 import { AssistantMessageSkeleton } from "@/pages/assistant/AssistantMessageSkeleton";
+import { AssistantThinkingIndicator } from "@/pages/assistant/AssistantThinkingIndicator/AssistantThinkingIndicator";
 import { ASSISTANT_AGENTS, ASSISTANT_LOADER_STEPS, type AssistantAgent } from "@/pages/assistant/AssistantPage.constants";
 import { RefinedGoalReviewPanel } from "@/pages/assistant/RefinedGoalReviewPanel/RefinedGoalReviewPanel";
 import { MilestoneProposalReviewPanel } from "@/pages/assistant/MilestoneProposalReviewPanel/MilestoneProposalReviewPanel";
@@ -856,14 +857,8 @@ export function AssistantPage() {
                         );
                       })}
                       {isProcessingMessage && (
-                        <div className="d-flex justify-content-start" aria-live="polite" aria-label="Assistant is typing">
-                          <div className="d-flex flex-column gap-1 align-items-start" style={{ maxWidth: "75%" }}>
-                            <div className="px-3 py-2 rounded-3 small surface-2 assistant-typing-indicator">
-                              <span className="assistant-typing-dot" />
-                              <span className="assistant-typing-dot" />
-                              <span className="assistant-typing-dot" />
-                            </div>
-                          </div>
+                        <div className="d-flex justify-content-start">
+                          <AssistantThinkingIndicator />
                         </div>
                       )}
                     </div>

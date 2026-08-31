@@ -1,15 +1,26 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { CheckLg, ChevronRight } from "react-bootstrap-icons";
+import { ArrowDownRight, ArrowUpRight, CheckLg, ChevronRight, DashLg, TagFill } from "react-bootstrap-icons";
 
 import "@/pages/my_goals/GoalCreationWizard/GoalCreationWizard.scss";
 import "@/pages/assistant/RefinedGoalReviewPanel/RefinedGoalReviewPanel.scss";
 import "./TrackHabitPanel.scss";
 
+import type { HabitPriority } from "@/api/types";
+import { PRIORITY_LABEL } from "@/pages/plan/PlanPage.constants";
+
+function PriorityIcon({ priority }: { priority: HabitPriority }) {
+  if (priority === "highest" || priority === "high") return <ArrowUpRight size={11} />;
+  if (priority === "low" || priority === "lowest") return <ArrowDownRight size={11} />;
+  return <DashLg size={11} />;
+}
+
 export interface HabitListItem {
   id: number;
   title: string;
   type: "Metric" | "Simple";
+  priority: HabitPriority;
+  category: string | null;
   active: boolean;
 }
 
@@ -91,8 +102,22 @@ export function TrackHabitPanel({ habits, onClose, onSave }: TrackHabitPanelProp
               >
                 {enabled.has(h.id) && <CheckLg size={10} />}
               </button>
-              <span className="thp-name">{h.title}</span>
-              <span className={`thp-pill thp-pill--${h.type.toLowerCase()}`}>{h.type}</span>
+              <div className="thp-row-body">
+                <span className="thp-name">{h.title}</span>
+                <div className="thp-pills">
+                  {h.category && (
+                    <span className="thp-pill thp-pill--category">
+                      <TagFill size={10} />
+                      {h.category}
+                    </span>
+                  )}
+                  <span className={`thp-pill thp-pill--priority-${h.priority}`}>
+                    <PriorityIcon priority={h.priority} />
+                    {PRIORITY_LABEL[h.priority]}
+                  </span>
+                  <span className={`thp-pill thp-pill--${h.type.toLowerCase()}`}>{h.type}</span>
+                </div>
+              </div>
             </div>
           ))}
         </div>

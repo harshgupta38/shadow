@@ -181,6 +181,8 @@ export function TrackProgressPage() {
         id: h.id,
         title: h.title,
         type: h.planner_type === "metric" ? ("Metric" as const) : ("Simple" as const),
+        priority: h.priority,
+        category: h.category ?? null,
         active: trackedIds.has(h.id),
       }));
     },

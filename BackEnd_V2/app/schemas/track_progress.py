@@ -3,7 +3,7 @@ from typing import Literal
 from pydantic import BaseModel
 
 from app.schemas.goals import CategoryType
-from app.schemas.habits import HabitType
+from app.schemas.habits import HabitPriority, HabitType
 
 ColorKey = Literal["success", "info", "brand", "warn", "violet"]
 
@@ -11,6 +11,8 @@ ColorKey = Literal["success", "info", "brand", "warn", "violet"]
 class EligibleHabitItem(BaseModel):
     id: int
     title: str
+    category: CategoryType | None
+    priority: HabitPriority
     planner_type: HabitType
 
 

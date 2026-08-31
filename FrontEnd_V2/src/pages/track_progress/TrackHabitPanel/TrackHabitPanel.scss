@@ -54,8 +54,18 @@
   }
 }
 
+.thp-row-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.75rem;
+}
+
 .thp-name {
   flex: 1;
+  min-width: 120px;
   font-size: 0.9375rem;
   color: var(--jv-text);
   font-weight: 500;
@@ -71,7 +81,17 @@
   background: var(--jv-surface);
 }
 
+.thp-pills {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
 .thp-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
   font-size: 0.7rem;
   font-weight: 600;
   padding: 0.2rem 0.55rem;
@@ -79,13 +99,14 @@
   white-space: nowrap;
   letter-spacing: 0.01em;
 
-  &--metric {
-    background: var(--jv-info-soft);
-    color: var(--jv-info);
-  }
+  &--metric { background: var(--jv-info-soft);    color: var(--jv-info);    }
+  &--simple { background: var(--jv-success-soft); color: var(--jv-success); }
 
-  &--simple {
-    background: var(--jv-success-soft);
-    color: var(--jv-success);
-  }
+  &--category { background: var(--jv-violet-soft); color: var(--jv-violet); }
+
+  &--priority-highest { background: var(--jv-danger-soft); color: var(--jv-danger); }
+  &--priority-high    { background: var(--jv-warn-soft);   color: var(--jv-warn);   }
+  &--priority-medium  { background: var(--jv-info-soft);   color: var(--jv-info);   }
+  &--priority-low     { background: color-mix(in srgb, var(--jv-muted) 12%, transparent); color: var(--jv-muted); }
+  &--priority-lowest  { background: color-mix(in srgb, var(--jv-faint) 12%, transparent); color: var(--jv-faint); }
 }

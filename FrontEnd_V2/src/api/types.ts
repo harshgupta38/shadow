@@ -568,6 +568,8 @@ export interface HabitTrackItem extends HabitBaseData {
 export interface EligibleHabitItem {
   id: number;
   title: string;
+  category: GoalCategory | null;
+  priority: HabitPriority;
   planner_type: HabitType;
 }
 

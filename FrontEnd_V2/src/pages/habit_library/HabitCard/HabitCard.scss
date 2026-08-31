@@ -113,10 +113,11 @@
   background: color-mix(in srgb, var(--jv-muted) 14%, var(--jv-surface) 86%);
 }
 
-.hl-habit-chip--priority {
-  color: var(--jv-info);
-  background: color-mix(in srgb, var(--jv-info) 14%, var(--jv-surface) 86%);
-}
+.hl-habit-chip--priority-highest { background: var(--jv-danger-soft); color: var(--jv-danger); }
+.hl-habit-chip--priority-high    { background: var(--jv-warn-soft);   color: var(--jv-warn);   }
+.hl-habit-chip--priority-medium  { background: var(--jv-info-soft);   color: var(--jv-info);   }
+.hl-habit-chip--priority-low     { background: color-mix(in srgb, var(--jv-muted) 12%, transparent); color: var(--jv-muted); }
+.hl-habit-chip--priority-lowest  { background: color-mix(in srgb, var(--jv-faint) 12%, transparent); color: var(--jv-faint); }
 
 .hl-habit-chip--frequency {
   border-color: color-mix(in srgb, var(--jv-border) 82%, transparent);

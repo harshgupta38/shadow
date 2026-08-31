@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { ROUTES } from "@/routes/RoutePaths";
 
 import type { HabitDataResponse } from "@/api";
+import { PRIORITY_LABEL } from "@/pages/plan/PlanPage.constants";
 import {
   ChipTooltip,
   formatStatusLabel,
@@ -13,7 +14,7 @@ import {
   getMetricFrequencyLabel,
   getSimpleFrequencyLabel,
   getPreferredTimeLabel,
-  priorityLabelMap,
+  PriorityIcon,
 } from "./HabitCard.constants";
 
 import "./HabitCard.scss";
@@ -119,8 +120,9 @@ export function HabitCard({
             <span className="hl-habit-chip-dot" aria-hidden="true" />
             {formatStatusLabel(h.status)}
           </span>
-          <span className="hl-habit-chip hl-habit-chip--priority">
-            {(priorityLabelMap.get(h.priority) ?? h.priority).split(":")[0]}
+          <span className={`hl-habit-chip hl-habit-chip--priority-${h.priority}`}>
+            <PriorityIcon priority={h.priority} />
+            {PRIORITY_LABEL[h.priority]}
           </span>
           {h.planner_type === "metric" && h.planner_target != null && (
             frequencyLabel.tooltip ? (

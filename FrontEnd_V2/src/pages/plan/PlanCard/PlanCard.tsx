@@ -201,14 +201,16 @@ export function PlanCard({ item, onToggle, onSaveProgress, onSaveNote, busy = fa
       {existingNote && (
         <p className="plan-card-note">
           <span className="plan-card-note-text">{existingNote}</span>
-          <button
-            type="button"
-            className="plan-card-note-edit"
-            onClick={() => setNoteOpen(true)}
-            aria-label="Edit note"
-          >
-            <PencilFill size={12} />
-          </button>
+          {!readOnly && (
+            <button
+              type="button"
+              className="plan-card-note-edit"
+              onClick={() => setNoteOpen(true)}
+              aria-label="Edit note"
+            >
+              <PencilFill size={12} />
+            </button>
+          )}
         </p>
       )}
 

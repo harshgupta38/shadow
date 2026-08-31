@@ -267,7 +267,12 @@ export function PlanPage() {
       <div className="plan-columns">
         <div className="plan-column">
           <section className="plan-panel today-panel">
-            <h2>{isToday ? "Your Today's Plan" : formatDisplayDate(selectedDate)}</h2>
+            <h2 style={{ display: "flex", alignItems: "baseline", gap: "0.5rem" }}>
+              {isToday ? "Your Today's Plan" : formatDisplayDate(selectedDate)}
+              <span style={{ fontSize: "0.9rem", fontWeight: 400, color: "var(--jv-muted)" }}>
+                {selectedDate.toLocaleDateString(undefined, { weekday: "long" })}
+              </span>
+            </h2>
 
             {loadingPlan ? (
               <div className="plan-task-list">

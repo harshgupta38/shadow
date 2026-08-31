@@ -1,3 +1,4 @@
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -20,6 +21,16 @@ class Settings(BaseSettings):
         return [
             origin.strip() for origin in self.cors_origins.split(",") if origin.strip()
         ]
+
+    # DB backup scheduler — comma-separated HHMM values, e.g. "0800,1600,2359".
+    # Leave empty to disable backups.
+    db_backup_runtimes: str = "2355"
+    db_backup_limit: int = Field(default=30, ge=10)
+    db_backup_dir: str = "backups"
+
+    @property
+    def db_backup_runtime_list(self) -> list[str]:
+        return [t.strip() for t in self.db_backup_runtimes.split(",") if t.strip()]
 
     model_config = SettingsConfigDict(
         env_file=".env",

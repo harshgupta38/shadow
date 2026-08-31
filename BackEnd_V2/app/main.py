@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 
+import asyncio
 import json
 import subprocess
 
@@ -31,7 +32,7 @@ from app.models.habit import HabitDBM
 from app.models.plan import PlanDBM
 from app.models.plan_record import DailyPlanRecordDBM
 from app.models.schedule_task import ScheduledTaskDBM
-from app.services import planner_service
+from app.services import planner_service, backup_service
 
 
 @asynccontextmanager
@@ -39,7 +40,14 @@ async def lifespan(_app: FastAPI):
     Base.metadata.create_all(bind=engine)
     with SessionLocal() as db:
         planner_service.sync_all_plans(db)
+
+    scheduler = asyncio.create_task(backup_service.backup_scheduler_loop())
     yield
+    scheduler.cancel()
+    try:
+        await scheduler
+    except asyncio.CancelledError:
+        pass
 
 
 app = FastAPI(

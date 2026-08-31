@@ -35,6 +35,9 @@ from app.services import planner_service
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    from app.db.migrations import run_all as run_migrations
+    with engine.begin() as conn:
+        run_migrations(conn)
     Base.metadata.create_all(bind=engine)
     with SessionLocal() as db:
         planner_service.sync_all_plans(db)

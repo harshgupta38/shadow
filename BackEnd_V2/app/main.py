@@ -12,7 +12,6 @@ from app.api.router import api_router
 from app.core.config import settings
 
 from app.db.session import SessionLocal, engine
-from app.db.migrations import run_all as run_migrations # extra
 from app.models.base import Base
 from app.core.exceptions import AppError
 
@@ -36,8 +35,6 @@ from app.services import planner_service
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    with engine.begin() as conn: # extra
-        run_migrations(conn) # extra
     Base.metadata.create_all(bind=engine)
     with SessionLocal() as db:
         planner_service.sync_all_plans(db)

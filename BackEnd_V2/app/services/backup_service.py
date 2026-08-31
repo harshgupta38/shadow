@@ -62,12 +62,21 @@ def create_backup() -> Path | None:
     ms = now.microsecond // 1000
     dest = backup_dir / f"shadow-{now.strftime('%d%m%Y-%H%M%S')}{ms:03d}.db"
 
+    if not src.exists():
+        log.error("DB backup skipped: database file not found at %s", src)
+        return None
+
     src_conn = sqlite3.connect(str(src))
-    dst_conn = sqlite3.connect(str(dest))
     try:
-        src_conn.backup(dst_conn)
-    finally:
+        dst_conn = sqlite3.connect(str(dest))
+        try:
+            src_conn.backup(dst_conn)
+        except Exception:
+            dst_conn.close()
+            dest.unlink(missing_ok=True)
+            raise
         dst_conn.close()
+    finally:
         src_conn.close()
 
     _enforce_limit(backup_dir)
@@ -98,10 +107,10 @@ async def backup_scheduler_loop() -> None:
     if not raw:
         return
 
-    runtimes: list[str] = []
+    runtimes: list[tuple[str, int]] = []
     for slot in raw:
         if _is_valid_slot(slot):
-            runtimes.append(slot)
+            runtimes.append((slot, int(slot[:2]) * 60 + int(slot[2:])))
         else:
             log.warning(
                 "DB backup: ignoring invalid runtime slot %r — "
@@ -117,7 +126,7 @@ async def backup_scheduler_loop() -> None:
         log.info("DB backup scheduler: another worker is already running it, skipping.")
         return
 
-    log.info("DB backup scheduler started. Slots: %s", ", ".join(runtimes))
+    log.info("DB backup scheduler started. Slots: %s", ", ".join(s for s, _ in runtimes))
 
     triggered_today: set[str] = set()
     last_date: date = datetime.now().date()
@@ -133,9 +142,9 @@ async def backup_scheduler_loop() -> None:
             triggered_today.clear()
             last_date = today
 
-        current_slot = now.strftime("%H%M")
-        for slot in runtimes:
-            if slot == current_slot and slot not in triggered_today:
+        current_hhmm = now.hour * 60 + now.minute
+        for slot, slot_minutes in runtimes:
+            if slot_minutes <= current_hhmm < slot_minutes + 2 and slot not in triggered_today:
                 triggered_today.add(slot)
                 try:
                     create_backup()

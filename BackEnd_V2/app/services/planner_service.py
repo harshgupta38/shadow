@@ -371,8 +371,10 @@ def _apply_metric_status(record: DailyPlanRecordDBM) -> None:
 
     Called after planner_target changes so the record stays internally consistent.
     'missed' is a deliberate user action and is never overridden here.
+    'done' is re-evaluated: if the target was raised above actual_value, the
+    record reverts to 'due' so the planner does not show a false completion.
     """
-    if record.status in ("missed", "done"):
+    if record.status == "missed":
         return
     target = record.planner_target or 0
     if target > 0 and record.actual_value >= target:

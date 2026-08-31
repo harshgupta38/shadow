@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ExclamationCircle, GraphUp, PlusLg } from "react-bootstrap-icons";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
+import { useToast } from "@/context/ToastContext";
 import { MetricHabitCard } from "./MetricHabitCard/MetricHabitCard";
 import { SimpleHabitCard } from "./SimpleHabitCard/SimpleHabitCard";
 import { TrackHabitPanel } from "./TrackHabitPanel/TrackHabitPanel";
@@ -122,6 +123,7 @@ function WeeklyMatrix({ rows }: { rows: MatrixRow[] }) {
 type LoadState = "loading" | "error" | "loaded";
 
 export function TrackProgressPage() {
+  const toast = useToast();
   const [habits, setHabits] = useState<HabitTrackItem[]>([]);
   const [allHabits, setAllHabits] = useState<EligibleHabitItem[]>([]);
   const [loadState, setLoadState] = useState<LoadState>("loading");
@@ -137,22 +139,21 @@ export function TrackProgressPage() {
   useEffect(() => { fetchTrackData(); }, []);
 
   function openPanel() {
-    if (allHabits.length === 0) {
-      trackProgressApi.getEligibleHabits()
-        .then(allData => { setAllHabits(allData); setPanelOpen(true); })
-        .catch(() => {});
-    } else {
-      setPanelOpen(true);
-    }
+    trackProgressApi.getEligibleHabits()
+      .then(allData => { setAllHabits(allData); setPanelOpen(true); })
+      .catch(() => { toast.error("Could not load habits. Please try again."); });
   }
 
 
   function handlePanelSave(enabledIds: Set<number>) {
-    setPanelOpen(false);
     trackProgressApi.setTracking(Array.from(enabledIds))
-      .then(() => Promise.all([trackProgressApi.getHabits(), trackProgressApi.getEligibleHabits()] as [Promise<HabitTrackItem[]>, Promise<EligibleHabitItem[]>]))
-      .then(([trackData, allData]) => { setHabits(trackData); setAllHabits(allData); })
-      .catch(() => { });
+      .then(() => {
+        setPanelOpen(false);
+        Promise.all([trackProgressApi.getHabits(), trackProgressApi.getEligibleHabits()] as [Promise<HabitTrackItem[]>, Promise<EligibleHabitItem[]>])
+          .then(([trackData, allData]) => { setHabits(trackData); setAllHabits(allData); })
+          .catch(() => { toast.error("Tracking saved, but we could not refresh habits. Please reload."); });
+      })
+      .catch(() => { toast.error("Could not save tracking changes. Please try again."); });
   }
 
   const metricHabits = useMemo(

@@ -84,14 +84,13 @@ export function SchedulePage() {
         return true;
     }), [tasks, filters]);
 
-    const tasksByDate = tasks.reduce<Record<string, ScheduledTaskDataResponse[]>>((acc, t) => {
-        const key = t.scheduled_date;
-        if (!acc[key]) acc[key] = [];
-        acc[key].push(t);
+    const tasksByDate = useMemo(() => tasks.reduce<Record<string, ScheduledTaskDataResponse[]>>((acc, t) => {
+        if (!acc[t.scheduled_date]) acc[t.scheduled_date] = [];
+        acc[t.scheduled_date].push(t);
         return acc;
-    }, {});
+    }, {}), [tasks]);
 
-    const calCells = buildCalendarCells(calYear, calMonth);
+    const calCells = useMemo(() => buildCalendarCells(calYear, calMonth), [calYear, calMonth]);
 
     function prevMonth() {
         if (calMonth === 0) { setCalYear(y => y - 1); setCalMonth(11); }

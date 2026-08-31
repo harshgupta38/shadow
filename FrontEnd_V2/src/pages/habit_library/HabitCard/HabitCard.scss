@@ -22,6 +22,11 @@
   gap: 0.5rem;
 }
 
+.hl-habit-card-head-content {
+  min-width: 0;
+  flex: 1;
+}
+
 .hl-habit-title-row {
   display: flex;
   align-items: center;

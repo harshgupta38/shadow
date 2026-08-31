@@ -52,7 +52,7 @@ export function TrackHabitPanel({ habits, onClose, onSave }: TrackHabitPanelProp
   return createPortal(
     <div className="goal-refined-review-backdrop" onClick={requestClose}>
       <section
-        className={`goal-refined-review-panel${isClosing ? " is-closing" : ""}`}
+        className={`goal-refined-review-panel thp-panel${isClosing ? " is-closing" : ""}`}
         onClick={e => e.stopPropagation()}
         aria-labelledby="track-habit-panel-title"
       >

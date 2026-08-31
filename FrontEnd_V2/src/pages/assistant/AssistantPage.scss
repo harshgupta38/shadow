@@ -1,13 +1,13 @@
 .assistant-page-container {
-  $page-height-offset-desktop: 4.5rem;
+  // $page-height-offset-desktop: 4.5rem;
   $session-action-size: 1.7rem;
 
   /* Fills the viewport height below the topbar. Lets a child flex to fill. */
   &.page-fill-height {
     display: flex;
     flex-direction: column;
-    height: calc(100vh - var(--jv-topbar-h) - #{$page-height-offset-desktop});
-    min-height: calc(100vh - var(--jv-topbar-h) - #{$page-height-offset-desktop});
+    height: calc(100vh - var(--jv-topbar-h));
+    min-height: calc(100vh - var(--jv-topbar-h));
     overflow: hidden;
   }
 
@@ -463,9 +463,6 @@
     color: var(--jv-text);
     min-width: 0;
     flex: 1;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
 
   .milestone-proposal-cta {
@@ -506,9 +503,6 @@
     color: var(--jv-text);
     min-width: 0;
     flex: 1;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
 
   .task-proposal-cta {
@@ -671,7 +665,7 @@
       display: none;
     }
 
-    .app-content:has(.assistant-page) {
+    @at-root .app-content:has(.assistant-page) {
       padding: 0;
     }
 

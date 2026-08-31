@@ -53,7 +53,7 @@ export function HabitCard({
   return (
     <article className="hl-habit-card">
       <div className="hl-habit-card-head">
-        <div>
+        <div className="hl-habit-card-head-content">
           <div className="hl-habit-title-row">
             {h.current_streak > 0 && (
               <span className="hl-habit-streak-pill" role="img" aria-label={`${h.current_streak} day streak`}>

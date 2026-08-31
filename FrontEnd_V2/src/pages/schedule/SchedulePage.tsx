@@ -248,6 +248,7 @@ export function SchedulePage() {
                             {calCells.map((cell, i) => {
                                 const cellTasks = tasksByDate[cell.iso] ?? [];
                                 const isToday = cell.iso === currentTodayIso;
+                                const cellTaskLimit = selectedTask ? 1 : 2;
                                 return (
                                     <div
                                         key={i}
@@ -266,7 +267,7 @@ export function SchedulePage() {
                                             {cell.day}
                                         </div>
                                         <div className="schedule-cal-chips">
-                                            {cellTasks.slice(0, 2).map(t => (
+                                            {cellTasks.slice(0, cellTaskLimit).map(t => (
                                                 <button
                                                     key={t.id}
                                                     type="button"
@@ -278,8 +279,8 @@ export function SchedulePage() {
                                                     {t.title}
                                                 </button>
                                             ))}
-                                            {cellTasks.length > 2 && (
-                                                <span className="schedule-cal-overflow">+{cellTasks.length - 2} more</span>
+                                            {cellTasks.length > cellTaskLimit && (
+                                                <span className="schedule-cal-overflow">+{cellTasks.length - cellTaskLimit} more</span>
                                             )}
                                         </div>
                                     </div>

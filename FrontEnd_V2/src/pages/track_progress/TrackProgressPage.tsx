@@ -177,14 +177,17 @@ export function TrackProgressPage() {
   const panelHabits = useMemo(
     () => {
       const trackedIds = new Set(habits.map(h => h.id));
-      return allHabits.map(h => ({
-        id: h.id,
-        title: h.title,
-        type: h.planner_type === "metric" ? ("Metric" as const) : ("Simple" as const),
-        priority: h.priority,
-        category: h.category ?? null,
-        active: trackedIds.has(h.id),
-      }));
+      const priorityRank: Record<string, number> = { highest: 0, high: 1, medium: 2, low: 3, lowest: 4 };
+      return allHabits
+        .map(h => ({
+          id: h.id,
+          title: h.title,
+          type: h.planner_type === "metric" ? ("Metric" as const) : ("Simple" as const),
+          priority: h.priority,
+          category: h.category ?? null,
+          active: trackedIds.has(h.id),
+        }))
+        .sort((a, b) => (priorityRank[a.priority] ?? 99) - (priorityRank[b.priority] ?? 99));
     },
     [allHabits, habits],
   );

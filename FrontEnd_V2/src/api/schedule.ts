@@ -7,12 +7,14 @@ export const scheduleApi = {
         return http.post<ScheduledTaskDataResponse>(`${ENDPOINTS.SCHEDULE.PREFIX}${ENDPOINTS.SCHEDULE.SAVE}`, data);
     },
 
-    async updateScheduleTask(id: number, data: ScheduledTaskUpdateRequest): Promise<ScheduledTaskDataResponse> {
-        return http.patch<ScheduledTaskDataResponse>(`${ENDPOINTS.SCHEDULE.PREFIX}${ENDPOINTS.SCHEDULE.DETAIL(id)}`, data);
+    async updateScheduleTask(id: number, data: ScheduledTaskUpdateRequest, isYearly = false): Promise<ScheduledTaskDataResponse> {
+        const qs = isYearly ? "?is_yearly=true" : "";
+        return http.patch<ScheduledTaskDataResponse>(`${ENDPOINTS.SCHEDULE.PREFIX}${ENDPOINTS.SCHEDULE.DETAIL(id)}${qs}`, data);
     },
 
-    async removeScheduleTask(id: number): Promise<void> {
-        return http.delete<void>(`${ENDPOINTS.SCHEDULE.PREFIX}${ENDPOINTS.SCHEDULE.DETAIL(id)}`);
+    async removeScheduleTask(id: number, isYearly = false): Promise<void> {
+        const qs = isYearly ? "?is_yearly=true" : "";
+        return http.delete<void>(`${ENDPOINTS.SCHEDULE.PREFIX}${ENDPOINTS.SCHEDULE.DETAIL(id)}${qs}`);
     },
 
     async getScheduleList(): Promise<ScheduledTaskDataResponse[]> {

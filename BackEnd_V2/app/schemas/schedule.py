@@ -44,6 +44,7 @@ class ScheduledTaskCreateRequest(BaseModel):
 
     category: CategoryType | None = Field(default=None)
     goal_id: int | None = None
+    repeat_yearly: bool = False
 
     @field_validator("title", mode="before")
     @classmethod
@@ -54,7 +55,8 @@ class ScheduledTaskCreateRequest(BaseModel):
 
     @model_validator(mode="after")
     def validate_fields(self) -> "ScheduledTaskCreateRequest":
-        if self.scheduled_date < _today_ist():
+        # For yearly tasks, any date is valid — only month + day are stored.
+        if not self.repeat_yearly and self.scheduled_date < _today_ist():
             raise ValueError("scheduled_date cannot be in the past.")
 
         if self.preferred_time == "custom":
@@ -100,13 +102,15 @@ class ScheduledTaskUpdateRequest(BaseModel):
 
     category: CategoryType | None = Field(default=None)
     goal_id: int | None = None
+    repeat_yearly: bool | None = None
 
-    @field_validator("scheduled_date", mode="after")
-    @classmethod
-    def scheduled_date_not_past(cls, value: date | None) -> date | None:
-        if value is not None and value < _today_ist():
-            raise ValueError("scheduled_date cannot be in the past.")
-        return value
+    @model_validator(mode="after")
+    def validate_scheduled_date(self) -> "ScheduledTaskUpdateRequest":
+        # Mirror the create rule: yearly tasks store only month+day, so past dates are valid.
+        if self.scheduled_date is not None and self.repeat_yearly is not True:
+            if self.scheduled_date < _today_ist():
+                raise ValueError("scheduled_date cannot be in the past.")
+        return self
 
 
 class ScheduledTaskDataResponse(BaseModel):
@@ -130,6 +134,7 @@ class ScheduledTaskDataResponse(BaseModel):
     snooze_limit: int | None
 
     duration_minutes: int | None
+    repeat_yearly: bool = False
 
     category: CategoryType | None
     goal: GoalSummary | None = None

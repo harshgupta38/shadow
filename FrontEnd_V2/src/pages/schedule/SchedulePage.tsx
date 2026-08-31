@@ -63,8 +63,8 @@ export function SchedulePage() {
         if (!deleteTarget) return;
         setDeleting(true);
         try {
-            await api.schedule.removeScheduleTask(deleteTarget.id);
-            setTasks(prev => prev.filter(t => t.id !== deleteTarget.id));
+            await api.schedule.removeScheduleTask(deleteTarget.id, deleteTarget.repeat_yearly);
+            setTasks(prev => prev.filter(t => !(t.id === deleteTarget.id && t.repeat_yearly === deleteTarget.repeat_yearly)));
             setDeleteTarget(null);
             setSelectedTask(null);
             toast.success("Task deleted.");
@@ -187,10 +187,10 @@ export function SchedulePage() {
                             </div>
                         ) : filteredTasks.map(task => (
                             <ScheduleCard
-                                key={task.id}
+                                key={`${task.repeat_yearly ? "y" : "n"}-${task.id}`}
                                 task={task}
                                 onSelect={() => setSelectedTask(task)}
-                                onEdit={() => navigate(ROUTES.SCHEDULE_EDIT.replace(":taskId", String(task.id)), { state: { task } })}
+                                onEdit={() => navigate(ROUTES.SCHEDULE_EDIT.replace(":taskId", String(task.id)) + (task.repeat_yearly ? "?yearly=1" : ""), { state: { task } })}
                                 onDuplicate={() => handleDuplicate(task)}
                                 onDelete={() => setDeleteTarget(task)}
                             />
@@ -207,7 +207,7 @@ export function SchedulePage() {
                             onEdit={() => {
                                 setSelectedTask(null);
                                 navigate(
-                                    ROUTES.SCHEDULE_EDIT.replace(":taskId", String(selectedTask.id)),
+                                    ROUTES.SCHEDULE_EDIT.replace(":taskId", String(selectedTask.id)) + (selectedTask.repeat_yearly ? "?yearly=1" : ""),
                                     { state: { task: selectedTask } },
                                 );
                             }}
@@ -268,7 +268,7 @@ export function SchedulePage() {
                                         <div className="schedule-cal-chips">
                                             {cellTasks.slice(0, cellTaskLimit).map(t => (
                                                 <button
-                                                    key={t.id}
+                                                    key={`${t.repeat_yearly ? "y" : "n"}-${t.id}`}
                                                     type="button"
                                                     className="schedule-task-chip"
                                                     style={{ "--chip-color": PRIORITY_COLOR[t.priority] } as React.CSSProperties}

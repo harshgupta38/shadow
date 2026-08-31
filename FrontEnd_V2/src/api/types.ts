@@ -522,6 +522,7 @@ export interface ScheduledTaskCreateRequest {
   scheduled_date: string; // YYYY-MM-DD
   preferred_time: ScheduledTaskPreferredTime;
   specific_time: string | null;
+  repeat_yearly?: boolean; // true → saved to yearly_tasks; false/omitted → scheduled_tasks
 
   allow_snoozing: boolean;
   snooze_limit: number | null; // null = infinite
@@ -534,8 +535,9 @@ export interface ScheduledTaskCreateRequest {
 
 export interface ScheduledTaskUpdateRequest extends Partial<ScheduledTaskCreateRequest> { }
 
-export interface ScheduledTaskDataResponse extends Omit<ScheduledTaskCreateRequest, "goal_id"> {
+export interface ScheduledTaskDataResponse extends Omit<ScheduledTaskCreateRequest, "goal_id" | "repeat_yearly"> {
   id: number;
+  repeat_yearly: boolean; // true if from yearly_tasks — derived from table membership, not a stored column
   goal?: GoalDataInPlan;
   status: ScheduledTaskStatus;
   created_at: string;

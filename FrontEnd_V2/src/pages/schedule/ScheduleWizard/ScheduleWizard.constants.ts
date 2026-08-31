@@ -21,6 +21,7 @@ export type ScheduleWizardAnswers = {
     scheduledDate: string; // YYYY-MM-DD
     preferredTime: ScheduledTaskPreferredTime;
     specificTime: string;  // "HH:MM" when preferredTime === "custom"
+    repeatYearly: boolean;
 
     // Step 3: Additional Details
     allowSnoozing: boolean;
@@ -72,6 +73,7 @@ export function makeEmptyAnswers(): ScheduleWizardAnswers {
         specificTime: "",
         allowSnoozing: false,
         snoozeLimit: "",
+        repeatYearly: false,
         durationMinutes: "",
         note: "",
         category: "",
@@ -91,6 +93,7 @@ export function answersFromTask(task: ScheduledTaskDataResponse): ScheduleWizard
         specificTime: task.specific_time ?? "",
         allowSnoozing: task.allow_snoozing,
         snoozeLimit: task.snooze_limit !== null ? String(task.snooze_limit) : "",
+        repeatYearly: task.repeat_yearly,
         durationMinutes: task.duration_minutes !== null ? String(task.duration_minutes) : "",
         note: task.note ?? "",
         category: (task.category as GoalCategory | "") ?? "",

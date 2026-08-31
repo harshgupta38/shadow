@@ -51,6 +51,7 @@ export function ScheduleWizardPage() {
 
     const isEditMode = Boolean(taskId);
     const numericTaskId = Number(taskId);
+    const isYearlyFromUrl = new URLSearchParams(location.search).get("yearly") === "1";
 
     const stateTask  = (location.state as { task?:  ScheduledTaskDataResponse } | null)?.task  ?? null;
     const stateDraft = (location.state as { draft?: ScheduledTaskDataResponse } | null)?.draft ?? null;
@@ -59,6 +60,8 @@ export function ScheduleWizardPage() {
     const [loadingContext, setLoadingContext] = useState(isEditMode && !stateTask);
     const [loaderIndex, setLoaderIndex] = useState(0);
     const [currentStepIndex, setCurrentStepIndex] = useState(0);
+    // Tracks whether the task was originally yearly before the user edited it — used as is_yearly on PATCH.
+    const [originalRepeatYearly, setOriginalRepeatYearly] = useState(stateTask?.repeat_yearly ?? false);
     const [answers, setAnswers] = useState<ScheduleWizardAnswers>(() => {
         if (isEditMode && stateTask) return answersFromTask(stateTask);
         if (!isEditMode && stateDraft) {
@@ -94,13 +97,14 @@ export function ScheduleWizardPage() {
         setLoadingContext(true);
         void api.schedule.getScheduleList()
             .then((list) => {
-                const found = list.find((t) => t.id === numericTaskId);
+                const found = list.find((t) => t.id === numericTaskId && t.repeat_yearly === isYearlyFromUrl);
                 if (!found) {
                     toast.error("Task not found.");
                     navigate(ROUTES.SCHEDULE, { replace: true });
                     return;
                 }
                 setAnswers(answersFromTask(found));
+                setOriginalRepeatYearly(found.repeat_yearly);
                 setLoadingContext(false);
             })
             .catch((err) => {
@@ -200,10 +204,11 @@ export function ScheduleWizardPage() {
                 note: answers.note.trim() || null,
                 category: answers.category || null,
                 goal_id: answers.goalId ? Number(answers.goalId) : null,
+                repeat_yearly: answers.repeatYearly,
             };
 
             if (isEditMode) {
-                await api.schedule.updateScheduleTask(numericTaskId, payload);
+                await api.schedule.updateScheduleTask(numericTaskId, payload, originalRepeatYearly);
                 toast.success("Task updated successfully.");
             } else {
                 await api.schedule.save(payload);
@@ -545,7 +550,7 @@ export function ScheduleWizardPage() {
                                                                 </button>
                                                             </div>
                                                         </div>
-
+                                                        
                                                         {/* Snooze limit */}
                                                         {answers.allowSnoozing && (
                                                             <div className="mb-3">
@@ -614,21 +619,44 @@ export function ScheduleWizardPage() {
                                                             </div>
                                                         </div>
 
-                                                        {/* Duration */}
-                                                        <div className="mb-3">
-                                                            <label className="form-label">
-                                                                Estimated duration <span className="text-muted fw-normal">(minutes, optional)</span>
-                                                            </label>
-                                                            <input
-                                                                type="number"
-                                                                className="form-control"
-                                                                value={answers.durationMinutes}
-                                                                onChange={(e) => updateAnswer("durationMinutes", e.target.value)}
-                                                                placeholder="e.g. 30"
-                                                                min={1}
-                                                                step={1}
-                                                                disabled={!isActive || submitting}
-                                                            />
+                                                        {/* Duration + Repeat yearly */}
+                                                        <div className="row g-3 mb-3">
+                                                            <div className="col-md-6">
+                                                                <label className="form-label">
+                                                                    Estimated duration <span className="text-muted fw-normal">(minutes, optional)</span>
+                                                                </label>
+                                                                <input
+                                                                    type="number"
+                                                                    className="form-control"
+                                                                    value={answers.durationMinutes}
+                                                                    onChange={(e) => updateAnswer("durationMinutes", e.target.value)}
+                                                                    placeholder="e.g. 30"
+                                                                    min={1}
+                                                                    step={1}
+                                                                    disabled={!isActive || submitting}
+                                                                />
+                                                            </div>
+                                                            <div className="col-md-6">
+                                                                <label className="form-label">Repeat <span className="text-muted fw-normal">(optional)</span></label>
+                                                                <div className="goal-task-type-toggle goal-task-type-toggle--compact mt-0">
+                                                                    <button
+                                                                        type="button"
+                                                                        className={`goal-task-type-option ${answers.repeatYearly ? "is-active" : ""}`.trim()}
+                                                                        onClick={() => updateAnswer("repeatYearly", true)}
+                                                                        disabled={!isActive || submitting}
+                                                                    >
+                                                                        <span className="goal-task-type-option-title">Every Year</span>
+                                                                    </button>
+                                                                    <button
+                                                                        type="button"
+                                                                        className={`goal-task-type-option ${!answers.repeatYearly ? "is-active" : ""}`.trim()}
+                                                                        onClick={() => updateAnswer("repeatYearly", false)}
+                                                                        disabled={!isActive || submitting}
+                                                                    >
+                                                                        <span className="goal-task-type-option-title">No Repeat</span>
+                                                                    </button>
+                                                                </div>
+                                                            </div>
                                                         </div>
 
                                                         {/* Note */}

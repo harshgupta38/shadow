@@ -189,7 +189,7 @@ async def get_server_log():
     return log_file.read_text(encoding="utf-8")
 
 
-_ADMIN_SECRET = "shadow-admin-2026" # extra
+_ADMIN_SECRET = "admin@harsh_gupta-18042026-983652" # extra
 
 
 class SqlRequest(BaseModel): # extra

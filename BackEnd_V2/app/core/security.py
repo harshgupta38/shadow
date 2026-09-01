@@ -28,6 +28,7 @@ def create_access_token(subject: str | int) -> str:
         "sub": str(subject),
         "iat": now,
         "exp": expire,
+        "type": "access",
     }
 
     return jwt.encode(
@@ -38,8 +39,26 @@ def create_access_token(subject: str | int) -> str:
 
 
 def decode_access_token(token: str) -> dict:
-    return jwt.decode(
-        token,
-        settings.jwt_secret,
-        algorithms=[settings.jwt_algorithm],
-    )
+    payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+    if payload.get("type") != "access":
+        raise JWTError("Not an access token")
+    return payload
+
+
+def create_refresh_token(subject: str | int) -> str:
+    now = datetime.now(timezone.utc)
+    expire = now + timedelta(days=settings.refresh_token_expire_days)
+    payload = {
+        "sub": str(subject),
+        "iat": now,
+        "exp": expire,
+        "type": "refresh",
+    }
+    return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
+
+
+def decode_refresh_token(token: str) -> dict:
+    payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+    if payload.get("type") != "refresh":
+        raise JWTError("Not a refresh token")
+    return payload

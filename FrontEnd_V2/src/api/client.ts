@@ -9,9 +9,20 @@
  * modules in `src/api/*` which use this client.
  */
 import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from "axios";
-import { ApiErrorShape, FieldError } from "@/api/types";
+import { ApiErrorShape, FieldError, TokenResponse } from "@/api/types";
 
 const TOKEN_STORAGE_KEY = "shadow.token";
+const REFRESH_TOKEN_KEY = "shadow.refresh_token";
+
+// State for coordinating concurrent refresh attempts
+let isRefreshing = false;
+type PendingItem = { resolve: (token: string) => void; reject: (err: unknown) => void };
+let pendingQueue: PendingItem[] = [];
+
+function processPendingQueue(error: unknown, token: string | null): void {
+    pendingQueue.forEach(({ resolve, reject }) => (error ? reject(error) : resolve(token!)));
+    pendingQueue = [];
+}
 
 function createClient(): AxiosInstance {
     const baseURL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api";
@@ -34,10 +45,60 @@ function createClient(): AxiosInstance {
     instance.interceptors.response.use(
         (response) => response,
         (error: AxiosError) => {
-            if (error.response?.status === 401) {
-                window.dispatchEvent(new Event("unauthorized"));
+            if (error.response?.status !== 401) {
+                return Promise.reject(normaliseError(error));
             }
-            return Promise.reject(normaliseError(error));
+
+            const original = error.config as AxiosRequestConfig & { _retry?: boolean };
+
+            // Already retried once after a refresh — don't loop
+            if (!original || original._retry || original.url === "/auth/refresh") {
+                tokenStore.clear();
+                tokenStore.clearRefreshToken();
+                window.dispatchEvent(new Event("unauthorized"));
+                return Promise.reject(normaliseError(error));
+            }
+
+            const refreshToken = tokenStore.getRefreshToken();
+            if (!refreshToken) {
+                window.dispatchEvent(new Event("unauthorized"));
+                return Promise.reject(normaliseError(error));
+            }
+
+            // Another refresh is in flight — queue this request to retry once it resolves
+            if (isRefreshing) {
+                return new Promise<string>((resolve, reject) => {
+                    pendingQueue.push({ resolve, reject });
+                }).then((token) => {
+                    if (original.headers) original.headers["Authorization"] = `Bearer ${token}`;
+                    return instance(original);
+                }).catch(() => Promise.reject(normaliseError(error)));
+            }
+
+            original._retry = true;
+            isRefreshing = true;
+
+            return new Promise((resolve, reject) => {
+                instance
+                    .post<TokenResponse>("/auth/refresh", { refresh_token: refreshToken })
+                    .then(({ data }) => {
+                        tokenStore.set(data.access_token);
+                        tokenStore.setRefreshToken(data.refresh_token);
+                        processPendingQueue(null, data.access_token);
+                        if (original.headers) original.headers["Authorization"] = `Bearer ${data.access_token}`;
+                        resolve(instance(original));
+                    })
+                    .catch((err) => {
+                        processPendingQueue(err, null);
+                        tokenStore.clear();
+                        tokenStore.clearRefreshToken();
+                        window.dispatchEvent(new Event("unauthorized"));
+                        reject(normaliseError(error));
+                    })
+                    .finally(() => {
+                        isRefreshing = false;
+                    });
+            });
         },
     );
 
@@ -99,6 +160,27 @@ export const tokenStore = {
     clear(): void {
         try {
             localStorage.removeItem(TOKEN_STORAGE_KEY);
+        } catch {
+            /* noop */
+        }
+    },
+    getRefreshToken(): string | null {
+        try {
+            return localStorage.getItem(REFRESH_TOKEN_KEY);
+        } catch {
+            return null;
+        }
+    },
+    setRefreshToken(token: string): void {
+        try {
+            localStorage.setItem(REFRESH_TOKEN_KEY, token);
+        } catch {
+            /* ignore storage errors (private mode, etc.) */
+        }
+    },
+    clearRefreshToken(): void {
+        try {
+            localStorage.removeItem(REFRESH_TOKEN_KEY);
         } catch {
             /* noop */
         }

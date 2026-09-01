@@ -3,6 +3,7 @@ class Endpoints:
         PREFIX = "/auth"
         LOGIN = "/login"
         REGISTER = "/register"
+        REFRESH = "/refresh"
         USER_DATA = "/my-data"
 
     class GOALS:

@@ -3,6 +3,7 @@ export const ENDPOINTS = {
         PREFIX: "/auth",
         LOGIN: "/login",
         REGISTER: "/register",
+        REFRESH: "/refresh",
         USER_DATA: "/my-data",
     },
     GOALS: {

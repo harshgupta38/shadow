@@ -456,7 +456,7 @@ def sync_plan_from_habit(db: Session, habit: HabitDBM) -> None:
         "priority": habit.priority,
         # If user set no start_date, use creation date so the plan never
         # appears on dates before the habit existed.
-        "start_date": habit.start_date or habit.created_at.date(),
+        "start_date": habit.start_date or habit.created_at.replace(tzinfo=timezone.utc).astimezone().date(),
         "end_date": habit.end_date,
         "status": habit.status,  # active / paused / archived — direct mirror
     }

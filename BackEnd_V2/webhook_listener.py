@@ -28,18 +28,18 @@ class WebhookHandler(BaseHTTPRequestHandler):
                 payload = {}
 
             ref = payload.get("ref", "")
-            if ref != "refs/heads/main":
+            if ref != "refs/heads/R202609/develop":
                 print(
-                    f"⏭️ Push to '{ref}' ignored — only main branch triggers deployment."
+                    f"⏭️ Push to '{ref}' ignored — only R202609/develop triggers deployment."
                 )
                 self.send_response(200)
                 self.end_headers()
-                self.wfile.write(b"Ignored: not main branch")
+                self.wfile.write(b"Ignored: not R202609/develop branch")
                 return
 
-            print("🚀 GitHub push to main detected! Updating repository...")
+            print("🚀 GitHub push to R202609/develop detected! Updating repository...")
             os.system(
-                "cd ~/shadow/BackEnd_V2 && git pull origin R202609/develop && ./restart_server.sh &"
+                "cd ~/shadow/BackEnd_V2 && git fetch origin && git checkout R202609/develop && git pull origin R202609/develop && ./restart_server.sh &"
             )
             self.send_response(200)
             self.end_headers()

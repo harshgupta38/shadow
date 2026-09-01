@@ -84,11 +84,20 @@ export function SchedulePage() {
         return true;
     }), [tasks, filters]);
 
-    const tasksByDate = useMemo(() => tasks.reduce<Record<string, ScheduledTaskDataResponse[]>>((acc, t) => {
-        if (!acc[t.scheduled_date]) acc[t.scheduled_date] = [];
-        acc[t.scheduled_date].push(t);
-        return acc;
-    }, {}), [tasks]);
+    // Regular tasks keyed by full ISO date; yearly tasks keyed by "MM-DD" only.
+    const { regularByDate, yearlyByMonthDay } = useMemo(() => {
+        const regularByDate: Record<string, ScheduledTaskDataResponse[]> = {};
+        const yearlyByMonthDay: Record<string, ScheduledTaskDataResponse[]> = {};
+        for (const t of tasks) {
+            if (t.repeat_yearly) {
+                const md = t.scheduled_date.slice(5); // "MM-DD"
+                (yearlyByMonthDay[md] ??= []).push(t);
+            } else {
+                (regularByDate[t.scheduled_date] ??= []).push(t);
+            }
+        }
+        return { regularByDate, yearlyByMonthDay };
+    }, [tasks]);
 
     const calCells = useMemo(() => buildCalendarCells(calYear, calMonth), [calYear, calMonth]);
 
@@ -245,7 +254,10 @@ export function SchedulePage() {
 
                         <div className="schedule-cal-grid">
                             {calCells.map((cell, i) => {
-                                const cellTasks = tasksByDate[cell.iso] ?? [];
+                                const cellTasks = [
+                                    ...(regularByDate[cell.iso] ?? []),
+                                    ...(yearlyByMonthDay[cell.iso.slice(5)] ?? []),
+                                ];
                                 const isToday = cell.iso === currentTodayIso;
                                 const cellTaskLimit = selectedTask ? 1 : 2;
                                 return (

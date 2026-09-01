@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Files, PencilFill, Trash3Fill } from "react-bootstrap-icons";
+import { ArrowRepeat, Files, PencilFill, Trash3Fill } from "react-bootstrap-icons";
 import { Dropdown } from "react-bootstrap";
 
 import type { ScheduledTaskDataResponse } from "@/api/types";
-import { PRIORITY_COLOR, PRIORITY_LABEL, formatDateDisplay, formatTimeDisplay, TimeIcon } from "./ScheduleCard.constants";
+import { PRIORITY_COLOR, PRIORITY_LABEL, formatDateDisplay, formatDateDisplayYearly, formatTimeDisplay, TimeIcon } from "./ScheduleCard.constants";
 
 import "./ScheduleCard.scss";
 
@@ -66,7 +66,10 @@ export function ScheduleCard({ task, onSelect, onEdit, onDuplicate, onDelete }: 
                     {/* Row 2 - date (left) · time chip (right) */}
                     <div className="schedule-task-meta">
                         <span className="schedule-task-date">
-                            {formatDateDisplay(task.scheduled_date)}
+                            {task.repeat_yearly
+                                ? <>{formatDateDisplayYearly(task.scheduled_date)}<ArrowRepeat size={11} className="sc-repeat-icon" /></>
+                                : formatDateDisplay(task.scheduled_date)
+                            }
                         </span>
                         {timeDisplay && (
                             <span className="schedule-task-time">

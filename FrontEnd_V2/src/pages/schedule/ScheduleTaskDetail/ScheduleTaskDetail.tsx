@@ -1,11 +1,12 @@
 import { createPortal } from "react-dom";
-import { ArrowLeft, Files, PencilFill, ThreeDotsVertical, Trash3Fill } from "react-bootstrap-icons";
+import { ArrowLeft, ArrowRepeat, Files, PencilFill, ThreeDotsVertical, Trash3Fill } from "react-bootstrap-icons";
 import { Dropdown } from "react-bootstrap";
 
 import type { ScheduledTaskDataResponse } from "@/api/types";
 import { todayIso } from "@/services/date.service";
 import {
     formatDateDisplay,
+    formatDateDisplayYearly,
     formatTimeDisplay,
     PRIORITY_COLOR,
     PRIORITY_LABEL,
@@ -72,7 +73,12 @@ export function ScheduleTaskDetail({ task, onClose, onEdit, onDuplicate, onDelet
                         </div>
                         <div className="std-row">
                             <span className="std-row-label">Date</span>
-                            <span className="std-row-value">{formatDateDisplay(task.scheduled_date)}</span>
+                            <span className="std-row-value">
+                                {task.repeat_yearly
+                                    ? <>{formatDateDisplayYearly(task.scheduled_date)}<ArrowRepeat size={11} className="sc-repeat-icon" /></>
+                                    : formatDateDisplay(task.scheduled_date)
+                                }
+                            </span>
                         </div>
                         <div className="std-row">
                             <span className="std-row-label">Time</span>

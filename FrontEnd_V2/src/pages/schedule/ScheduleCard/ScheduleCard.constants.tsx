@@ -35,6 +35,11 @@ export function formatDateDisplay(iso: string): string {
     return `${String(d).padStart(2, "0")} ${MONTH_NAMES[m - 1]} ${y}`;
 }
 
+export function formatDateDisplayYearly(iso: string): string {
+    const [, m, d] = iso.split("-").map(Number);
+    return `${String(d).padStart(2, "0")} ${MONTH_NAMES[m - 1]}`;
+}
+
 const PREFERRED_TIME_LABEL: Partial<Record<ScheduledTaskPreferredTime, string>> = {
     morning:   "Morning",
     afternoon: "Afternoon",

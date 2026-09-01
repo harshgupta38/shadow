@@ -61,8 +61,17 @@
 }
 
 .schedule-task-date {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
     font-size: 0.71rem;
     color: var(--jv-muted);
+}
+
+.sc-repeat-icon {
+    color: var(--jv-brand-1);
+    opacity: 0.85;
+    flex-shrink: 0;
 }
 
 .schedule-task-time {

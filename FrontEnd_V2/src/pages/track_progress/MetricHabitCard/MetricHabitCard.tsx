@@ -1,4 +1,5 @@
 import type React from "react";
+import { CheckLg } from "react-bootstrap-icons";
 import type { MetricHabitData } from "@/api/types";
 import "./MetricHabitCard.scss";
 
@@ -89,7 +90,7 @@ export function MetricHabitCard({ habit: h }: { habit: MetricHabitData }) {
             <span className="tp-mc-unit">{h.value_unit}</span>
             <span className="tp-mc-of-target">/ {h.planner_target} today</span>
           </div>
-          {goalMet && <span className="tp-mc-goal-pill">✓ Goal met</span>}
+          {goalMet && <span className="tp-mc-goal-pill"><CheckLg size={12} /></span>}
         </div>
 
         {/* ── Progress Bar ── */}

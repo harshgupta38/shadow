@@ -1,3 +1,14 @@
+.note-dialog-header {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+
+  .empty-icon {
+    flex-shrink: 0;
+    margin: 0;
+  }
+}
+
 .note-dialog {
   textarea.form-control {
     resize: none;

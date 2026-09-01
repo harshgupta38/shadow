@@ -208,6 +208,21 @@ export function PlanPage() {
     }
   }
 
+  async function handleSaveNoteAndDone(planId: number, note: string) {
+    const item = planData?.items.find((i) => i.plan_id === planId);
+    const recordId = item?.saved_data?.record_id;
+    if (!recordId) return;
+
+    try {
+      const savedData = await api.planItems.updateRecord(recordId, { note, status: "done" });
+      updateItemSavedData(recordId, savedData);
+      setCompletingIds((prev) => new Set([...prev, planId]));
+      setTimeout(() => removeCompletingId(planId), COMPLETE_ANIM_MS);
+    } catch {
+      toast.error("Couldn't save. Please try again.");
+    }
+  }
+
   const progressMessage =
     totalCount === 0
       ? "Plan a few tasks to get started."
@@ -323,6 +338,7 @@ export function PlanPage() {
                     onToggle={() => handleToggle(item.plan_id)}
                     onSaveProgress={(value) => handleSaveProgress(item.plan_id, value)}
                     onSaveNote={(note) => handleSaveNote(item.plan_id, note)}
+                    onSaveNoteAndDone={(note) => handleSaveNoteAndDone(item.plan_id, note)}
                   />
                 ))}
               </div>

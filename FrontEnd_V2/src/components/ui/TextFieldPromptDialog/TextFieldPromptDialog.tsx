@@ -54,11 +54,15 @@ export function TextFieldPromptDialog({
   return (
     <Modal show={show} onHide={onCancel} centered backdrop="static">
       <Modal.Body className="p-4 text-field-prompt-dialog">
-        <div className="empty-icon mx-auto mb-3" aria-hidden="true">
-          <PencilSquare size={24} />
+        <div className="note-dialog-header mb-3">
+          <div className="empty-icon" aria-hidden="true">
+            <PencilSquare size={24} />
+          </div>
+          <div>
+            <h2 className="h5 fw-bold mb-0">{title}</h2>
+            {message && <p className="text-muted-2 mb-0">{message}</p>}
+          </div>
         </div>
-        <h2 className="h5 fw-bold text-center">{title}</h2>
-        {message && <p className="text-muted-2 mb-3 text-center">{message}</p>}
 
         <label htmlFor="text-field-prompt-input" className="form-label fw-semibold">
           {label}

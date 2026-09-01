@@ -32,6 +32,7 @@ interface PlanCardProps {
   onToggle?: () => void;
   onSaveProgress?: (value: number) => Promise<void>;
   onSaveNote?: (note: string) => Promise<void>;
+  onSaveNoteAndDone?: (note: string) => Promise<void>;
   busy?: boolean;
   readOnly?: boolean;
   isCompleting?: boolean;
@@ -78,7 +79,7 @@ function PriorityIcon({ priority }: { priority: PlanPriority }) {
   return <DashLg size={11} />;
 }
 
-export function PlanCard({ item, onToggle, onSaveProgress, onSaveNote, busy = false, readOnly = false, isCompleting = false }: PlanCardProps) {
+export function PlanCard({ item, onToggle, onSaveProgress, onSaveNote, onSaveNoteAndDone, busy = false, readOnly = false, isCompleting = false }: PlanCardProps) {
   const navigate = useNavigate();
   const isDone = item.saved_data?.status === "done";
   const isMissed = item.saved_data?.status === "missed";
@@ -144,6 +145,17 @@ export function PlanCard({ item, onToggle, onSaveProgress, onSaveNote, busy = fa
     setSavingNote(true);
     try {
       await onSaveNote(note);
+      setNoteOpen(false);
+    } finally {
+      setSavingNote(false);
+    }
+  }
+
+  async function handleSaveNoteAndDone(note: string) {
+    if (!onSaveNoteAndDone) return;
+    setSavingNote(true);
+    try {
+      await onSaveNoteAndDone(note);
       setNoteOpen(false);
     } finally {
       setSavingNote(false);
@@ -393,6 +405,10 @@ export function PlanCard({ item, onToggle, onSaveProgress, onSaveNote, busy = fa
         busy={savingNote}
         onConfirm={(note) => { void handleSaveNote(note); }}
         onCancel={() => setNoteOpen(false)}
+        onConfirmAndDone={!isMetric && !isDone && !isMissed && onSaveNoteAndDone
+          ? (note) => { void handleSaveNoteAndDone(note); }
+          : undefined
+        }
       />
     </article>
   );

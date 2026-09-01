@@ -96,6 +96,7 @@ export function PlanCard({ item, onToggle, onSaveProgress, onSaveNote, busy = fa
 
   const [progressDraft, setProgressDraft] = useState<number | null>(null);
   const [savingProgress, setSavingProgress] = useState(false);
+  const [inputDelta, setInputDelta] = useState("");
   const holdTimeoutRef = useRef<number | null>(null);
   const holdIntervalRef = useRef<number | null>(null);
 
@@ -155,6 +156,18 @@ export function PlanCard({ item, onToggle, onSaveProgress, onSaveNote, busy = fa
     try {
       await onSaveProgress(progressDraft);
       setProgressDraft(null);
+    } finally {
+      setSavingProgress(false);
+    }
+  }
+
+  async function handleSaveProgressDelta() {
+    const delta = parseInt(inputDelta, 10);
+    if (isNaN(delta) || delta === 0 || !onSaveProgress) return;
+    setSavingProgress(true);
+    try {
+      await onSaveProgress(Math.max(0, baseCurrent + delta));
+      setInputDelta("");
     } finally {
       setSavingProgress(false);
     }
@@ -286,41 +299,90 @@ export function PlanCard({ item, onToggle, onSaveProgress, onSaveNote, busy = fa
           <span className="plan-card-progress-pct">{pct}%</span>
           {!readOnly && (
             <div className="plan-card-progress-actions">
-              {hasDraft && onSaveProgress && (
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-icon border-0 plan-card-progress-action plan-card-progress-action-save"
-                  aria-label="Save progress"
-                  onClick={() => { void handleSaveProgress(); }}
-                  disabled={busy || savingProgress}
-                >
-                  <Floppy size={13} />
-                </button>
+              {target > 100 ? (
+                <>
+                  {busy || savingProgress ? (
+                    <span className="plan-card-check-spinner me-1" role="status" aria-label="Updating status">
+                      <span className="spinner-border spinner-border-sm" aria-hidden="true" />
+                    </span>
+                  ) : (
+                    <>
+                      {inputDelta && (
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-icon border-0 plan-card-progress-action plan-card-progress-action-save"
+                          aria-label="Save progress"
+                          onClick={() => { void handleSaveProgressDelta(); }}
+                          disabled={busy || savingProgress}
+                        >
+                          <Floppy size={13} />
+                        </button>
+                      )}
+                    </>
+                  )}
+                  <input
+                    type="number"
+                    className="plan-card-progress-input"
+                    value={inputDelta}
+                    placeholder="Add..."
+                    min={target * -2}
+                    max={target * 2}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value, 10);
+                      if (isNaN(val)) { setInputDelta(""); return; }
+                      setInputDelta(String(Math.min(Math.max(target * -2, val), target * 2)));
+                    }}
+                    disabled={busy || savingProgress}
+                    aria-label="Progress amount to add"
+                  />
+                </>
+              ) : (
+                <>
+                  {busy || savingProgress ? (
+                    <span className="plan-card-check-spinner me-1" role="status" aria-label="Updating status">
+                      <span className="spinner-border spinner-border-sm" aria-hidden="true" />
+                    </span>
+                  ) : (
+                    <>
+                      {hasDraft && onSaveProgress && (
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-icon border-0 plan-card-progress-action plan-card-progress-action-save"
+                          aria-label="Save progress"
+                          onClick={() => { void handleSaveProgress(); }}
+                          disabled={busy || savingProgress}
+                        >
+                          <Floppy size={13} />
+                        </button>
+                      )}
+                    </>
+                  )}
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-icon border-0 plan-card-progress-action"
+                    aria-label="Decrease"
+                    onPointerDown={() => startProgressHold(-1)}
+                    onPointerUp={stopProgressHold}
+                    onPointerCancel={stopProgressHold}
+                    onPointerLeave={stopProgressHold}
+                    disabled={busy || savingProgress || effectiveCurrent <= 0}
+                  >
+                    <DashLg size={13} />
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-icon border-0 plan-card-progress-action"
+                    aria-label="Increase"
+                    onPointerDown={() => startProgressHold(1)}
+                    onPointerUp={stopProgressHold}
+                    onPointerCancel={stopProgressHold}
+                    onPointerLeave={stopProgressHold}
+                    disabled={busy || savingProgress}
+                  >
+                    <PlusLg size={13} />
+                  </button>
+                </>
               )}
-              <button
-                type="button"
-                className="btn btn-ghost btn-icon border-0 plan-card-progress-action"
-                aria-label="Decrease"
-                onPointerDown={() => startProgressHold(-1)}
-                onPointerUp={stopProgressHold}
-                onPointerCancel={stopProgressHold}
-                onPointerLeave={stopProgressHold}
-                disabled={busy || savingProgress || effectiveCurrent <= 0}
-              >
-                <DashLg size={13} />
-              </button>
-              <button
-                type="button"
-                className="btn btn-ghost btn-icon border-0 plan-card-progress-action"
-                aria-label="Increase"
-                onPointerDown={() => startProgressHold(1)}
-                onPointerUp={stopProgressHold}
-                onPointerCancel={stopProgressHold}
-                onPointerLeave={stopProgressHold}
-                disabled={busy || savingProgress}
-              >
-                <PlusLg size={13} />
-              </button>
             </div>
           )}
         </div>

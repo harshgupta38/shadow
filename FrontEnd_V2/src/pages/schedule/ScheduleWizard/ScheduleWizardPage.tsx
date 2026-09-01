@@ -95,16 +95,10 @@ export function ScheduleWizardPage() {
         }
 
         setLoadingContext(true);
-        void api.schedule.getScheduleList()
-            .then((list) => {
-                const found = list.find((t) => t.id === numericTaskId && t.repeat_yearly === isYearlyFromUrl);
-                if (!found) {
-                    toast.error("Task not found.");
-                    navigate(ROUTES.SCHEDULE, { replace: true });
-                    return;
-                }
-                setAnswers(answersFromTask(found));
-                setOriginalRepeatYearly(found.repeat_yearly);
+        void api.schedule.getScheduleTask(numericTaskId, isYearlyFromUrl)
+            .then((task) => {
+                setAnswers(answersFromTask(task));
+                setOriginalRepeatYearly(task.repeat_yearly);
                 setLoadingContext(false);
             })
             .catch((err) => {

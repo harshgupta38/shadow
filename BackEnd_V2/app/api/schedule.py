@@ -16,10 +16,22 @@ router = APIRouter(prefix=ENDPOINTS.SCHEDULE.PREFIX, tags=["Schedule"])
 
 @router.get(ENDPOINTS.SCHEDULE.GET_LIST, response_model=list[ScheduledTaskDataResponse])
 def get_schedule_task_list(
+    year: int = Query(..., ge=2020, le=2220),
+    month: int = Query(..., ge=1, le=12),
     db=Depends(get_db),
     current_user: UserDBM = Depends(get_current_user),
 ) -> list[ScheduledTaskDataResponse]:
-    return schedule_service.get_list(db, current_user)
+    return schedule_service.get_list(db, current_user, year, month)
+
+
+@router.get(ENDPOINTS.SCHEDULE.DETAIL, response_model=ScheduledTaskDataResponse)
+def get_schedule_task(
+    schedule_task_id: int,
+    is_yearly: bool = Query(default=False),
+    db=Depends(get_db),
+    current_user: UserDBM = Depends(get_current_user),
+) -> ScheduledTaskDataResponse:
+    return schedule_service.get_task(db, current_user, schedule_task_id, is_yearly)
 
 
 @router.post(

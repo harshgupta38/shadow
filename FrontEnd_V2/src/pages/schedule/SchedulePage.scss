@@ -255,6 +255,35 @@
     padding: 0.08rem 0.35rem;
   }
 
+  // ── Card skeleton ─────────────────────────────────────────────────────
+
+  .sch-skel-card { pointer-events: none; }
+
+  .sch-skel {
+    border-radius: 4px;
+    background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--jv-border) 80%, transparent) 25%,
+      color-mix(in srgb, var(--jv-border) 40%, transparent) 50%,
+      color-mix(in srgb, var(--jv-border) 80%, transparent) 75%
+    );
+    background-size: 200% 100%;
+    animation: sch-shimmer 1.5s infinite linear;
+  }
+
+  .sch-skel-title    { height: 0.72rem; width: 62%; margin-top: 1px; }
+  .sch-skel-priority { height: 0.62rem; width: 17%; }
+  .sch-skel-date     { height: 0.6rem;  width: 46%; margin-top: 1px; }
+  .sch-skel-time     { height: 0.6rem;  width: 28%; }
+
+  // Vary widths across cards so the skeleton looks natural
+  .sch-skel-card:nth-child(2) .sch-skel-title { width: 76%; }
+  .sch-skel-card:nth-child(3) .sch-skel-title { width: 52%; }
+  .sch-skel-card:nth-child(4) .sch-skel-title { width: 82%; }
+  .sch-skel-card:nth-child(5) .sch-skel-title { width: 58%; }
+  .sch-skel-card:nth-child(3) .sch-skel-date  { width: 38%; }
+  .sch-skel-card:nth-child(5) .sch-skel-date  { width: 54%; }
+
   // ── Responsive ────────────────────────────────────────────────────────
 
   @media (max-width: 991.98px) {
@@ -291,4 +320,9 @@
       grid-auto-rows: 72px;
     }
   }
+}
+
+@keyframes sch-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
 }

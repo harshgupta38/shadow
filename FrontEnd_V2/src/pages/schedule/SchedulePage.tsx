@@ -26,6 +26,26 @@ import { PRIORITY_COLOR } from "@/pages/schedule/ScheduleCard/ScheduleCard.const
 
 import "@/pages/schedule/SchedulePage.scss";
 
+// ── Skeleton ─────────────────────────────────────────────────────────────────
+
+function ScheduleCardSkeleton() {
+    return (
+        <div className="schedule-task-card sch-skel-card" aria-hidden="true">
+            <div className="schedule-task-body">
+                <div className="schedule-task-title-row">
+                    <div className="sch-skel sch-skel-title" />
+                    <div className="sch-skel sch-skel-priority" />
+                </div>
+                <div className="schedule-task-meta mt-2">
+                    <div className="sch-skel sch-skel-date" />
+                    <div className="sch-skel sch-skel-time" />
+                </div>
+                <div className="sch-skel sch-skel-date mt-2 w-75"></div>
+            </div>
+        </div>
+    );
+}
+
 // ── Component ────────────────────────────────────────────────────────────────
 
 export function SchedulePage() {
@@ -48,12 +68,13 @@ export function SchedulePage() {
     });
 
     useEffect(() => {
-        void api.schedule.getScheduleList()
+        setLoading(true);
+        setSelectedTask(null);
+        void api.schedule.getScheduleList(calYear, calMonth + 1)
             .then(setTasks)
             .catch(() => toast.error("Failed to load scheduled tasks."))
             .finally(() => setLoading(false));
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [calYear, calMonth]); // eslint-disable-line react-hooks/exhaustive-deps
 
     function handleDuplicate(task: ScheduledTaskDataResponse) {
         navigate(ROUTES.SCHEDULE_CREATE, { state: { draft: task } });
@@ -84,20 +105,11 @@ export function SchedulePage() {
         return true;
     }), [tasks, filters]);
 
-    // Regular tasks keyed by full ISO date; yearly tasks keyed by "MM-DD" only.
-    const { regularByDate, yearlyByMonthDay } = useMemo(() => {
-        const regularByDate: Record<string, ScheduledTaskDataResponse[]> = {};
-        const yearlyByMonthDay: Record<string, ScheduledTaskDataResponse[]> = {};
-        for (const t of tasks) {
-            if (t.repeat_yearly) {
-                const md = t.scheduled_date.slice(5); // "MM-DD"
-                (yearlyByMonthDay[md] ??= []).push(t);
-            } else {
-                (regularByDate[t.scheduled_date] ??= []).push(t);
-            }
-        }
-        return { regularByDate, yearlyByMonthDay };
-    }, [tasks]);
+    const tasksByDate = useMemo(() => tasks.reduce<Record<string, ScheduledTaskDataResponse[]>>((acc, t) => {
+        if (!acc[t.scheduled_date]) acc[t.scheduled_date] = [];
+        acc[t.scheduled_date].push(t);
+        return acc;
+    }, {}), [tasks]);
 
     const calCells = useMemo(() => buildCalendarCells(calYear, calMonth), [calYear, calMonth]);
 
@@ -180,9 +192,7 @@ export function SchedulePage() {
 
                     <div className="schedule-tasks-list">
                         {loading ? (
-                            <div className="schedule-empty-state">
-                                <span className="spinner-border spinner-border-sm" aria-hidden="true" />
-                            </div>
+                            Array.from({ length: 5 }, (_, i) => <ScheduleCardSkeleton key={i} />)
                         ) : tasks.length === 0 ? (
                             <div className="schedule-empty-state">
                                 <CalendarWeek size={28} className="mb-2 schedule-empty-icon" />
@@ -254,10 +264,7 @@ export function SchedulePage() {
 
                         <div className="schedule-cal-grid">
                             {calCells.map((cell, i) => {
-                                const cellTasks = [
-                                    ...(regularByDate[cell.iso] ?? []),
-                                    ...(yearlyByMonthDay[cell.iso.slice(5)] ?? []),
-                                ];
+                                const cellTasks = tasksByDate[cell.iso] ?? [];
                                 const isToday = cell.iso === currentTodayIso;
                                 const cellTaskLimit = selectedTask ? 1 : 2;
                                 return (

@@ -17,7 +17,16 @@ export const scheduleApi = {
         return http.delete<void>(`${ENDPOINTS.SCHEDULE.PREFIX}${ENDPOINTS.SCHEDULE.DETAIL(id)}${qs}`);
     },
 
-    async getScheduleList(): Promise<ScheduledTaskDataResponse[]> {
-        return http.get<ScheduledTaskDataResponse[]>(`${ENDPOINTS.SCHEDULE.PREFIX}${ENDPOINTS.SCHEDULE.GET_LIST}`);
+    async getScheduleList(year: number, month: number): Promise<ScheduledTaskDataResponse[]> {
+        return http.get<ScheduledTaskDataResponse[]>(
+            `${ENDPOINTS.SCHEDULE.PREFIX}${ENDPOINTS.SCHEDULE.GET_LIST}?year=${year}&month=${month}`,
+        );
+    },
+
+    async getScheduleTask(id: number, isYearly = false): Promise<ScheduledTaskDataResponse> {
+        const qs = isYearly ? "?is_yearly=true" : "";
+        return http.get<ScheduledTaskDataResponse>(
+            `${ENDPOINTS.SCHEDULE.PREFIX}${ENDPOINTS.SCHEDULE.DETAIL(id)}${qs}`,
+        );
     },
 };

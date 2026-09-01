@@ -71,7 +71,15 @@ def _next_yearly_occurrence(month: int, day: int, today: date) -> date:
         return date(next_year, month, min(day, last))
 
 
-def _serialize_yearly(task: YearlyTaskDBM, today: date) -> ScheduledTaskDataResponse:
+def _date_for_year_month(month: int, day: int, year: int) -> date:
+    try:
+        return date(year, month, day)
+    except ValueError:
+        last = calendar.monthrange(year, month)[1]
+        return date(year, month, min(day, last))
+
+
+def _serialize_yearly(task: YearlyTaskDBM, scheduled_date: date) -> ScheduledTaskDataResponse:
     is_metric = task.planner_type == "metric"
     goal_summary: GoalSummary | None = None
     if task.goal_id is not None and task.goal is not None:
@@ -84,7 +92,7 @@ def _serialize_yearly(task: YearlyTaskDBM, today: date) -> ScheduledTaskDataResp
         planner_target=task.planner_target if is_metric else None,
         value_unit=task.value_unit if is_metric else None,
         priority=task.priority,
-        scheduled_date=_next_yearly_occurrence(task.recurrence_month, task.recurrence_day, today),
+        scheduled_date=scheduled_date,
         preferred_time=task.preferred_time,
         specific_time=task.specific_time,
         allow_snoozing=task.allow_snoozing,
@@ -99,25 +107,58 @@ def _serialize_yearly(task: YearlyTaskDBM, today: date) -> ScheduledTaskDataResp
     )
 
 
-def get_list(db: Session, current_user: UserDBM) -> list[ScheduledTaskDataResponse]:
-    today = date.today()
+def get_list(db: Session, current_user: UserDBM, year: int, month: int) -> list[ScheduledTaskDataResponse]:
+    first_day = date(year, month, 1)
+    last_day = date(year, month, calendar.monthrange(year, month)[1])
 
     tasks = db.scalars(
         select(ScheduledTaskDBM)
         .options(joinedload(ScheduledTaskDBM.goal))
-        .where(ScheduledTaskDBM.user_id == current_user.id)
+        .where(
+            ScheduledTaskDBM.user_id == current_user.id,
+            ScheduledTaskDBM.scheduled_date >= first_day,
+            ScheduledTaskDBM.scheduled_date <= last_day,
+        )
     ).all()
 
     yearly_tasks = db.scalars(
         select(YearlyTaskDBM)
         .options(joinedload(YearlyTaskDBM.goal))
-        .where(YearlyTaskDBM.user_id == current_user.id)
+        .where(
+            YearlyTaskDBM.user_id == current_user.id,
+            YearlyTaskDBM.recurrence_month == month,
+        )
     ).all()
 
     result: list[ScheduledTaskDataResponse] = [_serialize(t) for t in tasks]
-    result += [_serialize_yearly(t, today) for t in yearly_tasks]
+    result += [
+        _serialize_yearly(t, occ)
+        for t in yearly_tasks
+        if (occ := _date_for_year_month(t.recurrence_month, t.recurrence_day, year)) >= t.created_at.date()
+    ]
     result.sort(key=lambda r: (r.scheduled_date, r.id))
     return result
+
+
+def get_task(db: Session, current_user: UserDBM, task_id: int, is_yearly: bool) -> ScheduledTaskDataResponse:
+    if is_yearly:
+        task = db.scalar(
+            select(YearlyTaskDBM)
+            .options(joinedload(YearlyTaskDBM.goal))
+            .where(YearlyTaskDBM.id == task_id, YearlyTaskDBM.user_id == current_user.id)
+        )
+        if task is None:
+            raise NotFoundError("Yearly task not found.")
+        return _serialize_yearly(task, _next_yearly_occurrence(task.recurrence_month, task.recurrence_day, date.today()))
+
+    task = db.scalar(
+        select(ScheduledTaskDBM)
+        .options(joinedload(ScheduledTaskDBM.goal))
+        .where(ScheduledTaskDBM.id == task_id, ScheduledTaskDBM.user_id == current_user.id)
+    )
+    if task is None:
+        raise NotFoundError("Scheduled task not found.")
+    return _serialize(task)
 
 
 def save_task(
@@ -150,7 +191,7 @@ def save_task(
         db.add(yearly_task)
         db.commit()
         db.refresh(yearly_task)
-        return _serialize_yearly(yearly_task, date.today())
+        return _serialize_yearly(yearly_task, _next_yearly_occurrence(yearly_task.recurrence_month, yearly_task.recurrence_day, date.today()))
 
     task = ScheduledTaskDBM(
         user_id=current_user.id,
@@ -251,7 +292,7 @@ def update_task(
         db.delete(task)
         db.commit()
         db.refresh(yearly)
-        return _serialize_yearly(yearly, date.today())
+        return _serialize_yearly(yearly, _next_yearly_occurrence(yearly.recurrence_month, yearly.recurrence_day, date.today()))
 
     # ── Switch: yearly → non-yearly ──────────────────────────────────────────
     if is_yearly and wants_yearly is False:
@@ -356,7 +397,7 @@ def update_task(
         _validate_yearly_state(yearly)
         db.commit()
         db.refresh(yearly)
-        return _serialize_yearly(yearly, date.today())
+        return _serialize_yearly(yearly, _next_yearly_occurrence(yearly.recurrence_month, yearly.recurrence_day, date.today()))
 
     # ── In-place update: non-yearly task ─────────────────────────────────────
     task = db.scalar(

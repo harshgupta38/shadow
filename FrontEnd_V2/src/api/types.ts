@@ -625,3 +625,18 @@ export interface SimpleHabitData extends HabitBaseData {
   /** 7 entries — index 0 = Sunday, index 6 = Saturday of the current week */
   history: boolean[];
 }
+
+// ── Reports ───────────────────────────────────────────────────────────────────
+
+export interface DayReport {
+  date: string;        // "YYYY-MM-DD"
+  score: number;       // 0-100
+  habits_total: number;
+  habits_done: number;
+  tasks_total: number;
+  tasks_done: number;
+}
+
+export interface MonthlyReportResponse {
+  days: DayReport[];
+}

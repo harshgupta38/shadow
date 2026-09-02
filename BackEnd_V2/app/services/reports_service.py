@@ -1,0 +1,75 @@
+import calendar as cal_module
+from datetime import date
+
+from sqlalchemy import and_, case, func, select
+from sqlalchemy.orm import Session
+
+from app.models.plan_record import DailyPlanRecordDBM
+from app.models.user import UserDBM
+from app.schemas.reports import DayReport, MonthlyReportResponse
+
+
+def get_monthly_report(
+    db: Session,
+    user: UserDBM,
+    year: int,
+    month: int,
+) -> MonthlyReportResponse:
+    start = date(year, month, 1)
+    end = date(year, month, cal_module.monthrange(year, month)[1])
+
+    rows = db.execute(
+        select(
+            DailyPlanRecordDBM.scheduled_date,
+            func.count(DailyPlanRecordDBM.id).label("total"),
+            func.sum(
+                case((DailyPlanRecordDBM.status == "done", 1), else_=0)
+            ).label("done"),
+            func.sum(
+                case((DailyPlanRecordDBM.source_type == "habit", 1), else_=0)
+            ).label("habits_total"),
+            func.sum(
+                case(
+                    (and_(DailyPlanRecordDBM.source_type == "habit", DailyPlanRecordDBM.status == "done"), 1),
+                    else_=0,
+                )
+            ).label("habits_done"),
+            func.sum(
+                case((DailyPlanRecordDBM.source_type.in_(["task", "schedule"]), 1), else_=0)
+            ).label("tasks_total"),
+            func.sum(
+                case(
+                    (and_(DailyPlanRecordDBM.source_type.in_(["task", "schedule"]), DailyPlanRecordDBM.status == "done"), 1),
+                    else_=0,
+                )
+            ).label("tasks_done"),
+        )
+        .where(
+            and_(
+                DailyPlanRecordDBM.user_id == user.id,
+                DailyPlanRecordDBM.scheduled_date >= start,
+                DailyPlanRecordDBM.scheduled_date <= end,
+                DailyPlanRecordDBM.source_type.in_(["habit", "task", "schedule"]),
+            )
+        )
+        .group_by(DailyPlanRecordDBM.scheduled_date)
+        .order_by(DailyPlanRecordDBM.scheduled_date)
+    ).all()
+
+    days: list[DayReport] = []
+    for row in rows:
+        total = row.total or 0
+        if total == 0:
+            continue
+        days.append(
+            DayReport(
+                date=row.scheduled_date,
+                score=round((row.done or 0) / total * 100),
+                habits_total=int(row.habits_total or 0),
+                habits_done=int(row.habits_done or 0),
+                tasks_total=int(row.tasks_total or 0),
+                tasks_done=int(row.tasks_done or 0),
+            )
+        )
+
+    return MonthlyReportResponse(days=days)

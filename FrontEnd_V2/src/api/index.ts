@@ -9,6 +9,7 @@ export { tokenStore, ApiError } from "@/api/client";
 
 import { authApi } from "@/api/auth";
 import { appearanceApi } from "@/api/appearance";
+import { reportsApi } from "@/api/reports";
 import { chatApi } from "@/api/chat";
 import { goalsApi } from "@/api/goals";
 import { milestonesApi } from "@/api/milestones";
@@ -27,6 +28,7 @@ export const api = {
   habits: habitsApi,
   planItems: planItemsApi,
   schedule: scheduleApi,
+  reports: reportsApi,
 };
 
 export type Api = typeof api;

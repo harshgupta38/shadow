@@ -5,6 +5,10 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes rp-spin {
+  to { transform: rotate(360deg); }
+}
+
 
 .rp-page {
   display: flex;
@@ -344,6 +348,84 @@
     font-size: 0.74rem;
     color: var(--jv-muted);
     white-space: nowrap;
+  }
+
+  // ─── Loading / Ghost Shell ──────────────────────────────────────────────────
+
+  .rp-ghost-wrap {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .rp-ghost-shell {
+    pointer-events: none;
+    user-select: none;
+    mask-image: linear-gradient(to bottom, black 0%, black 40%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, black 0%, black 40%, transparent 100%);
+  }
+
+  .rp-ghost-core {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.85rem;
+    padding-top: 8rem;
+  }
+
+  .rp-ghost-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--jv-brand-1) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--jv-brand-1) 28%, transparent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .rp-ghost-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--jv-text);
+    margin: 0;
+  }
+
+  .rp-ghost-sub {
+    font-size: 0.82rem;
+    color: var(--jv-faint);
+    margin: 0;
+    text-align: center;
+  }
+
+  .rp-loading-spinner {
+    display: block;
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--jv-border);
+    border-top-color: var(--jv-brand-1);
+    border-radius: 50%;
+    animation: rp-spin 700ms linear infinite;
+  }
+
+  // Skeleton pills — reuse grid placement from real classes
+  .rp-ghost-pill {
+    display: block;
+    height: 10px;
+    border-radius: 5px;
+    background: var(--jv-surface-3);
+  }
+
+  .rp-stat-val.rp-ghost-pill  { height: 26px; border-radius: 6px; width: 44px; }
+  .rp-stat-name.rp-ghost-pill { height: 10px; }
+  .rp-stat-hint.rp-ghost-pill { height: 8px;  }
+
+  .rp-ghost-cell {
+    background: var(--jv-surface-3);
+    border-radius: 8px;
   }
 
   // ─── AI Insight ─────────────────────────────────────────────────────────────

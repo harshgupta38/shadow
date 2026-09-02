@@ -76,35 +76,27 @@ export function ReportsPage() {
       <div className="rp-stats">
         <div className="rp-stat rp-stat--success">
           <span className="rp-stat-val">{stats.goodDays}</span>
-          <div className="rp-stat-text">
-            <span className="rp-stat-name">Good Days</span>
-            <span className="rp-stat-hint">score ≥ 60%</span>
-          </div>
+          <span className="rp-stat-name">Good Days</span>
+          <span className="rp-stat-hint">score ≥ 60%</span>
         </div>
         <div className="rp-stat rp-stat--brand">
           <span className="rp-stat-val">{stats.avgScore}%</span>
-          <div className="rp-stat-text">
-            <span className="rp-stat-name">Avg Score</span>
-            <span className="rp-stat-hint">this month's average</span>
-          </div>
+          <span className="rp-stat-name">Avg Score</span>
+          <span className="rp-stat-hint">this month's average</span>
         </div>
         <div className="rp-stat rp-stat--warn">
           <span className="rp-stat-val">{stats.bestStreak}</span>
-          <div className="rp-stat-text">
-            <span className="rp-stat-name">Best Streak</span>
-            <span className="rp-stat-hint">consecutive good days</span>
-          </div>
+          <span className="rp-stat-name">Best Streak</span>
+          <span className="rp-stat-hint">consecutive good days</span>
         </div>
         <div className="rp-stat rp-stat--info">
           <span className="rp-stat-val">{stats.topScore > 0 ? `${stats.topScore}%` : "—"}</span>
-          <div className="rp-stat-text">
-            <span className="rp-stat-name">Top Score</span>
-            <span className="rp-stat-hint">
-              {stats.topDate
-                ? stats.topDate.toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" })
-                : "no data yet"}
-            </span>
-          </div>
+          <span className="rp-stat-name">Top Score</span>
+          <span className="rp-stat-hint">
+            {stats.topDate
+              ? stats.topDate.toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" })
+              : "no data yet"}
+          </span>
         </div>
       </div>
 

@@ -6,9 +6,14 @@
   &.page-fill-height {
     display: flex;
     flex-direction: column;
-    height: calc(100vh - var(--jv-topbar-h));
-    min-height: calc(100vh - var(--jv-topbar-h));
+    height: calc(100vh - var(--jv-topbar-h) - 4.5rem);
+    min-height: calc(100vh - var(--jv-topbar-h) - 4.5rem);
     overflow: hidden;
+    
+    @media (max-width: 1024px) {
+      height: calc(100vh - var(--jv-topbar-h));
+      min-height: calc(100vh - var(--jv-topbar-h));
+    }
   }
 
   .page-loader {

@@ -361,10 +361,43 @@ export interface SaveTaskFromProposalRequest {
   task: TaskCreateRequest;
 }
 
+export interface ScheduledTaskProposalLLMSchema {
+  title: string;
+  scheduled_date: string;
+  priority: ScheduledTaskPriority;
+  planner_type: ScheduledTaskType;
+  planner_target: number | null;
+  value_unit: string | null;
+  preferred_time: ScheduledTaskPreferredTime;
+  specific_time: string | null;
+  allow_snoozing: boolean;
+  snooze_limit: number | null;
+  duration_minutes: number | null;
+  note: string | null;
+  category: string | null;
+  goal_id: number | null;
+  assistant_context: string;
+}
+
+export interface ScheduledTaskProposal {
+  proposal_id: string;
+  content_index: number;
+  status: ProposalStatus;
+  scheduled_task_id: number | null;
+  scheduled_task: ScheduledTaskProposalLLMSchema;
+  scheduled_task_action: ProposalAction;
+}
+
+export interface SaveScheduledTaskFromProposalRequest {
+  proposal_id: string;
+  task: ScheduledTaskCreateRequest;
+}
+
 export interface MessageLinkedItems {
   goal_proposals?: GoalProposal[];
   milestone_proposals?: MilestoneProposal[];
   task_proposals?: TaskProposal[];
+  scheduled_task_proposals?: ScheduledTaskProposal[];
 }
 
 export interface MessageDataResponse {

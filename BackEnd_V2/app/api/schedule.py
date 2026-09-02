@@ -8,10 +8,24 @@ from app.schemas.schedule import (
     ScheduledTaskCreateRequest,
     ScheduledTaskDataResponse,
     ScheduledTaskUpdateRequest,
+    SaveScheduledTaskFromProposalRequest,
 )
 from app.services import schedule_service
 
 router = APIRouter(prefix=ENDPOINTS.SCHEDULE.PREFIX, tags=["Schedule"])
+
+
+@router.post(
+    ENDPOINTS.SCHEDULE.FROM_PROPOSAL,
+    response_model=ScheduledTaskDataResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def save_schedule_task_from_proposal(
+    data: SaveScheduledTaskFromProposalRequest,
+    db=Depends(get_db),
+    current_user: UserDBM = Depends(get_current_user),
+) -> ScheduledTaskDataResponse:
+    return schedule_service.save_task_from_proposal(db, current_user, data)
 
 
 @router.get(ENDPOINTS.SCHEDULE.GET_LIST, response_model=list[ScheduledTaskDataResponse])

@@ -7,7 +7,7 @@ import ReactMarkdown from "react-markdown";
 import boySitting from "@/assets/boy_sitting.png";
 import { api } from "@/api";
 import { ApiError } from "@/api/client";
-import type { ConvoDataShortResponse, GoalProposal, MessageDataResponse, MilestoneProposal, TaskProposal } from "@/api/types";
+import type { ConvoDataShortResponse, GoalProposal, MessageDataResponse, MilestoneProposal, ScheduledTaskProposal, TaskProposal } from "@/api/types";
 import { ROUTES } from "@/routes/RoutePaths";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
@@ -94,7 +94,7 @@ export function AssistantPage() {
         agentType?: string;
         autoMessage?: string;
         conversationId?: number;
-        prefillMessage?: string
+        prefillMessage?: string;
         goal_id?: number;
         milestone_id?: number;
       } | null;
@@ -393,6 +393,10 @@ export function AssistantPage() {
     return msg.linked_items.task_proposals?.filter(p => p.content_index === contentIndex) ?? [];
   }
 
+  function getActiveScheduledTaskProposals(msg: MessageDataResponse, contentIndex: number): ScheduledTaskProposal[] {
+    return msg.linked_items.scheduled_task_proposals?.filter(p => p.content_index === contentIndex) ?? [];
+  }
+
   async function retryMessage(message: MessageDataResponse) {
     if (isLoadingMessages || !activeItem) return;
 
@@ -684,6 +688,7 @@ export function AssistantPage() {
                         const activeProposal = getActiveGoalProposal(msg, activeContentIndex);
                         const activeMilestoneProposals = getActiveMilestoneProposals(msg, activeContentIndex);
                         const activeTaskProposals = getActiveTaskProposals(msg, activeContentIndex);
+                        const activeScheduledTaskProposals = getActiveScheduledTaskProposals(msg, activeContentIndex);
                         return (
                           <div
                             key={msgKey}
@@ -776,6 +781,27 @@ export function AssistantPage() {
                                           >
                                             Open &rarr;
                                           </button>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                                {activeScheduledTaskProposals.length > 0 && (
+                                  <div className="task-proposals-list">
+                                    <span className="task-proposals-label">Scheduled task</span>
+                                    {activeScheduledTaskProposals.map((stp) => (
+                                      <div key={stp.proposal_id} className="task-proposal-row">
+                                        <span className="task-proposal-title">{stp.scheduled_task.title}</span>
+                                        {stp.scheduled_task_action === "create" ? (
+                                          <button
+                                            type="button"
+                                            className="btn btn-link p-0 fw-medium text-decoration-none task-proposal-cta"
+                                            onClick={() => navigate(ROUTES.SCHEDULE_CREATE, { state: { proposalDraft: stp.scheduled_task, proposalId: stp.proposal_id, returnPath: location.pathname, conversationId: activeConversation?.id } })}
+                                          >
+                                            Save &rarr;
+                                          </button>
+                                        ) : (
+                                          <span className="text-muted small">Saved</span>
                                         )}
                                       </div>
                                     ))}

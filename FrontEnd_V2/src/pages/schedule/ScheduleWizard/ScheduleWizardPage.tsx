@@ -13,6 +13,7 @@ import { ROUTES } from "@/routes/RoutePaths";
 import { todayIso } from "@/services/date.service";
 
 import {
+    answersFromProposalDraft,
     answersFromTask,
     buildTime,
     getStepBannerError,
@@ -53,9 +54,13 @@ export function ScheduleWizardPage() {
     const numericTaskId = Number(taskId);
     const isYearlyFromUrl = new URLSearchParams(location.search).get("yearly") === "1";
 
-    const stateTask  = (location.state as { task?:  ScheduledTaskDataResponse } | null)?.task  ?? null;
-    const stateDraft = (location.state as { draft?: ScheduledTaskDataResponse } | null)?.draft ?? null;
-    const stateDate  = (location.state as { date?:  string } | null)?.date ?? null;
+    const stateTask         = (location.state as { task?:  ScheduledTaskDataResponse } | null)?.task  ?? null;
+    const stateDraft        = (location.state as { draft?: ScheduledTaskDataResponse } | null)?.draft ?? null;
+    const stateDate         = (location.state as { date?:  string } | null)?.date ?? null;
+    const stateProposalDraft = (location.state as { proposalDraft?: Record<string, unknown> } | null)?.proposalDraft ?? null;
+    const stateProposalId   = (location.state as { proposalId?: string } | null)?.proposalId ?? null;
+    const stateReturnPath      = (location.state as { returnPath?: string } | null)?.returnPath ?? null;
+    const stateConversationId  = (location.state as { conversationId?: number } | null)?.conversationId ?? null;
 
     const [loadingContext, setLoadingContext] = useState(isEditMode && !stateTask);
     const [loaderIndex, setLoaderIndex] = useState(0);
@@ -64,6 +69,10 @@ export function ScheduleWizardPage() {
     const [originalRepeatYearly, setOriginalRepeatYearly] = useState(stateTask?.repeat_yearly ?? false);
     const [answers, setAnswers] = useState<ScheduleWizardAnswers>(() => {
         if (isEditMode && stateTask) return answersFromTask(stateTask);
+        if (!isEditMode && stateProposalDraft) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            return answersFromProposalDraft(stateProposalDraft as any);
+        }
         if (!isEditMode && stateDraft) {
             // Duplicate: pre-fill all fields but reset the date so user picks a new one
             return { ...answersFromTask(stateDraft), scheduledDate: "" };
@@ -204,12 +213,18 @@ export function ScheduleWizardPage() {
             if (isEditMode) {
                 await api.schedule.updateScheduleTask(numericTaskId, payload, originalRepeatYearly);
                 toast.success("Task updated successfully.");
+                navigate(ROUTES.SCHEDULE);
+            } else if (stateProposalId) {
+                await api.schedule.saveFromProposal({ proposal_id: stateProposalId, task: payload });
+                toast.success("Task scheduled successfully.");
+                navigate(stateReturnPath ?? ROUTES.SCHEDULE, {
+                    state: { conversationId: stateConversationId },
+                });
             } else {
                 await api.schedule.save(payload);
                 toast.success("Task scheduled successfully.");
+                navigate(ROUTES.SCHEDULE);
             }
-
-            navigate(ROUTES.SCHEDULE);
         } catch (submitError) {
             if (submitError instanceof ApiError) {
                 const mapped = mapApiFieldErrors(submitError.fieldErrors ?? {});
@@ -296,7 +311,7 @@ export function ScheduleWizardPage() {
                             <button
                                 type="button"
                                 className="btn btn-ghost btn-icon goal-wizard-close"
-                                onClick={() => navigate(ROUTES.SCHEDULE)}
+                                onClick={() => navigate(stateReturnPath ?? ROUTES.SCHEDULE)}
                                 aria-label="Close schedule task setup"
                                 disabled={submitting}
                             >
@@ -615,7 +630,7 @@ export function ScheduleWizardPage() {
 
                                                         {/* Duration + Repeat yearly */}
                                                         <div className="row g-3 mb-3">
-                                                            <div className="col-md-6">
+                                                            <div className={stateProposalId ? "col-12" : "col-md-6"}>
                                                                 <label className="form-label">
                                                                     Estimated duration <span className="text-muted fw-normal">(minutes, optional)</span>
                                                                 </label>
@@ -630,6 +645,7 @@ export function ScheduleWizardPage() {
                                                                     disabled={!isActive || submitting}
                                                                 />
                                                             </div>
+                                                            {!stateProposalId && (
                                                             <div className="col-md-6">
                                                                 <label className="form-label">Repeat <span className="text-muted fw-normal">(optional)</span></label>
                                                                 <div className="goal-task-type-toggle goal-task-type-toggle--compact mt-0">
@@ -651,6 +667,7 @@ export function ScheduleWizardPage() {
                                                                     </button>
                                                                 </div>
                                                             </div>
+                                                            )}
                                                         </div>
 
                                                         {/* Note */}

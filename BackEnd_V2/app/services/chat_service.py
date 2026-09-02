@@ -23,6 +23,7 @@ from app.models.goal_proposal import GoalProposalDBM
 from app.models.milestone import MilestoneDBM
 from app.models.milestone_proposal import MilestoneProposalDBM
 from app.models.task_proposal import TaskProposalDBM
+from app.models.scheduled_task_proposal import ScheduledTaskProposalDBM
 from app.schemas.chat import (
     ConvoDataResponse,
     ConvoDataShortResponse,
@@ -138,6 +139,101 @@ def _resolve_task_proposal_actions(
     return {**linked_items, "task_proposals": resolved_proposals}
 
 
+def _resolve_scheduled_task_proposal_actions(
+    db: Session, current_user: UserDBM, linked_items: dict
+) -> dict:
+    """Derive each scheduled task proposal's CTA from whether its task still exists."""
+    proposals = linked_items.get("scheduled_task_proposals")
+    if not proposals:
+        return linked_items
+
+    from app.models.schedule_task import ScheduledTaskDBM
+    from app.models.scheduled_task_proposal import ScheduledTaskProposalDBM
+
+    # The snapshot in linked_items has scheduled_task_id=None at write time.
+    # Query the live proposal rows by proposal_id to get the real scheduled_task_id.
+    proposal_ids = [p["proposal_id"] for p in proposals if p.get("proposal_id")]
+    live_rows = db.scalars(
+        select(ScheduledTaskProposalDBM).where(
+            ScheduledTaskProposalDBM.proposal_id.in_(proposal_ids),
+            ScheduledTaskProposalDBM.user_id == current_user.id,
+        )
+    ).all()
+    task_id_by_proposal: dict[str, int | None] = {
+        row.proposal_id: row.scheduled_task_id for row in live_rows
+    }
+
+    task_ids = {tid for tid in task_id_by_proposal.values() if tid is not None}
+    existing_task_ids: set[int] = set()
+    if task_ids:
+        existing_task_ids = set(
+            db.scalars(
+                select(ScheduledTaskDBM.id).where(
+                    ScheduledTaskDBM.id.in_(task_ids),
+                    ScheduledTaskDBM.user_id == current_user.id,
+                )
+            ).all()
+        )
+
+    resolved_proposals = [
+        {
+            **proposal,
+            "scheduled_task_action": (
+                "view"
+                if task_id_by_proposal.get(proposal.get("proposal_id")) in existing_task_ids
+                else "create"
+            ),
+        }
+        for proposal in proposals
+    ]
+
+    return {**linked_items, "scheduled_task_proposals": resolved_proposals}
+
+
+def _attach_scheduled_task_proposal(
+    db: Session,
+    current_user: UserDBM,
+    conversation: ConversationDBM,
+    assistant_message: MessageDBM,
+    action_data: dict | None,
+    content_index: int,
+) -> None:
+    """Persist a scheduled task proposal and attach it to the message linked_items."""
+    if not action_data or "scheduled_task_proposal" not in action_data:
+        return
+
+    proposal_data = action_data["scheduled_task_proposal"]
+
+    proposal_id = str(uuid.uuid4())
+    db.add(
+        ScheduledTaskProposalDBM(
+            proposal_id=proposal_id,
+            user_id=current_user.id,
+            conversation_id=conversation.id,
+            message_id=assistant_message.id,
+            content_index=content_index,
+            status="pending",
+            scheduled_task_id=None,
+        )
+    )
+
+    existing_linked_items = assistant_message.linked_items or {}
+    existing_proposals = list(existing_linked_items.get("scheduled_task_proposals") or [])
+    existing_proposals.append(
+        {
+            "proposal_id": proposal_id,
+            "content_index": content_index,
+            "status": "pending",
+            "scheduled_task_id": None,
+            "scheduled_task": proposal_data,
+        }
+    )
+    assistant_message.linked_items = {
+        **existing_linked_items,
+        "scheduled_task_proposals": existing_proposals,
+    }
+
+
 def _serialize_message(
     db: Session, current_user: UserDBM, message: MessageDBM
 ) -> MessageDataResponse:
@@ -145,6 +241,7 @@ def _serialize_message(
     data.linked_items = _resolve_goal_proposal_actions(db, current_user, data.linked_items)
     data.linked_items = _resolve_milestone_proposal_actions(db, current_user, data.linked_items)
     data.linked_items = _resolve_task_proposal_actions(db, current_user, data.linked_items)
+    data.linked_items = _resolve_scheduled_task_proposal_actions(db, current_user, data.linked_items)
     return data
 
 
@@ -380,6 +477,7 @@ async def create_conversation(
     )
     _attach_milestone_proposals(db, current_user, conversation, assistant_message, tool_context.action_data, 0)
     _attach_task_proposals(db, current_user, conversation, assistant_message, tool_context.action_data, 0)
+    _attach_scheduled_task_proposal(db, current_user, conversation, assistant_message, tool_context.action_data, 0)
 
     db.commit()
     db.refresh(conversation)
@@ -392,6 +490,9 @@ async def create_conversation(
         db, current_user, resolved_linked_items
     )
     resolved_linked_items = _resolve_task_proposal_actions(
+        db, current_user, resolved_linked_items
+    )
+    resolved_linked_items = _resolve_scheduled_task_proposal_actions(
         db, current_user, resolved_linked_items
     )
 
@@ -561,6 +662,9 @@ async def _call_llm_and_save(
         db, current_user, conversation, assistant_message, tool_context.action_data, 0
     )
     _attach_task_proposals(
+        db, current_user, conversation, assistant_message, tool_context.action_data, 0
+    )
+    _attach_scheduled_task_proposal(
         db, current_user, conversation, assistant_message, tool_context.action_data, 0
     )
 
@@ -816,6 +920,7 @@ async def regenerate_response(
     )
     _attach_milestone_proposals(db, current_user, conversation, assistant_message, tool_context.action_data, new_content_index)
     _attach_task_proposals(db, current_user, conversation, assistant_message, tool_context.action_data, new_content_index)
+    _attach_scheduled_task_proposal(db, current_user, conversation, assistant_message, tool_context.action_data, new_content_index)
 
     conversation.updated_at = datetime.now(timezone.utc)
     db.commit()

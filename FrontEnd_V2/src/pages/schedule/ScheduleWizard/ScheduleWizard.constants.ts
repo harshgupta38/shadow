@@ -3,6 +3,7 @@ import type {
     ScheduledTaskDataResponse,
     ScheduledTaskPreferredTime,
     ScheduledTaskPriority,
+    ScheduledTaskProposalLLMSchema,
     ScheduledTaskType,
 } from "@/api";
 import { todayIso } from "@/services/date.service";
@@ -78,6 +79,26 @@ export function makeEmptyAnswers(): ScheduleWizardAnswers {
         note: "",
         category: "",
         goalId: "",
+    };
+}
+
+export function answersFromProposalDraft(p: ScheduledTaskProposalLLMSchema): ScheduleWizardAnswers {
+    return {
+        title: p.title,
+        plannerType: p.planner_type,
+        plannerTarget: p.planner_target != null ? String(p.planner_target) : "",
+        valueUnit: p.value_unit ?? "",
+        priority: p.priority,
+        scheduledDate: p.scheduled_date,
+        preferredTime: p.preferred_time ?? "flexible",
+        specificTime: p.specific_time ?? "",
+        allowSnoozing: p.allow_snoozing ?? false,
+        snoozeLimit: p.snooze_limit != null ? String(p.snooze_limit) : "",
+        repeatYearly: false,
+        durationMinutes: p.duration_minutes != null ? String(p.duration_minutes) : "",
+        note: p.note ?? "",
+        category: (p.category as GoalCategory | "") ?? "",
+        goalId: p.goal_id != null ? String(p.goal_id) : "",
     };
 }
 

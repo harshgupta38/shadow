@@ -1,10 +1,14 @@
 import { ENDPOINTS } from "@/constant/shadow-endpoints";
 import { http } from "@/api/client";
-import type { ScheduledTaskCreateRequest, ScheduledTaskDataResponse, ScheduledTaskUpdateRequest } from "@/api/types";
+import type { SaveScheduledTaskFromProposalRequest, ScheduledTaskCreateRequest, ScheduledTaskDataResponse, ScheduledTaskUpdateRequest } from "@/api/types";
 
 export const scheduleApi = {
     async save(data: ScheduledTaskCreateRequest): Promise<ScheduledTaskDataResponse> {
         return http.post<ScheduledTaskDataResponse>(`${ENDPOINTS.SCHEDULE.PREFIX}${ENDPOINTS.SCHEDULE.SAVE}`, data);
+    },
+
+    async saveFromProposal(data: SaveScheduledTaskFromProposalRequest): Promise<ScheduledTaskDataResponse> {
+        return http.post<ScheduledTaskDataResponse>(`${ENDPOINTS.SCHEDULE.PREFIX}${ENDPOINTS.SCHEDULE.FROM_PROPOSAL}`, data);
     },
 
     async updateScheduleTask(id: number, data: ScheduledTaskUpdateRequest, isYearly = false): Promise<ScheduledTaskDataResponse> {

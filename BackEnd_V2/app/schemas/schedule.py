@@ -113,6 +113,29 @@ class ScheduledTaskUpdateRequest(BaseModel):
         return self
 
 
+class ScheduledTaskProposalLLMSchema(BaseModel):
+    title: str
+    scheduled_date: str
+    priority: ScheduledTaskPriority
+    planner_type: ScheduledTaskType
+    planner_target: int | None
+    value_unit: str | None
+    preferred_time: ScheduledTaskPreferredTime
+    specific_time: str | None
+    allow_snoozing: bool
+    snooze_limit: int | None
+    duration_minutes: int | None
+    note: str | None
+    category: str | None = None
+    goal_id: int | None = None
+    assistant_context: str
+
+
+class SaveScheduledTaskFromProposalRequest(BaseModel):
+    proposal_id: str
+    task: ScheduledTaskCreateRequest
+
+
 class ScheduledTaskDataResponse(BaseModel):
     model_config = ORMModel.model_config
 

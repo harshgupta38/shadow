@@ -7,10 +7,12 @@ from sqlalchemy.orm import Session, joinedload
 from app.core.exceptions import NotFoundError, ValidationError
 from app.models.goal import GoalDBM
 from app.models.schedule_task import ScheduledTaskDBM
+from app.models.scheduled_task_proposal import ScheduledTaskProposalDBM
 from app.models.user import UserDBM
 from app.models.yearly_task import YearlyTaskDBM
 from app.schemas.schedule import (
     GoalSummary,
+    SaveScheduledTaskFromProposalRequest,
     ScheduledTaskCreateRequest,
     ScheduledTaskDataResponse,
     ScheduledTaskUpdateRequest,
@@ -468,6 +470,39 @@ def update_task(
     db.refresh(task)
     sync_plan_from_scheduled_task(db, task)
     return _serialize(task)
+
+
+def save_task_from_proposal(
+    db: Session,
+    current_user: UserDBM,
+    data: SaveScheduledTaskFromProposalRequest,
+) -> ScheduledTaskDataResponse:
+    proposal = db.scalar(
+        select(ScheduledTaskProposalDBM)
+        .where(ScheduledTaskProposalDBM.proposal_id == data.proposal_id)
+    )
+
+    if proposal is None or proposal.user_id != current_user.id:
+        raise NotFoundError("Scheduled task proposal not found.")
+
+    if proposal.scheduled_task_id is not None:
+        existing = db.scalar(
+            select(ScheduledTaskDBM).where(
+                ScheduledTaskDBM.id == proposal.scheduled_task_id,
+                ScheduledTaskDBM.user_id == current_user.id,
+            )
+        )
+        if existing is not None:
+            return _serialize(existing)
+
+    task_data = data.task.model_copy(update={"repeat_yearly": False})
+    result = save_task(db, current_user, task_data)
+
+    proposal.status = "saved"
+    proposal.scheduled_task_id = result.id
+    db.commit()
+
+    return result
 
 
 def delete_task(db: Session, current_user: UserDBM, task_id: int, is_yearly: bool = False) -> None:

@@ -33,6 +33,7 @@ from app.models.plan import PlanDBM
 from app.models.plan_record import DailyPlanRecordDBM
 from app.models.yearly_task import YearlyTaskDBM
 from app.models.schedule_task import ScheduledTaskDBM
+from app.models.scheduled_task_proposal import ScheduledTaskProposalDBM
 from app.services import planner_service, backup_service
 
 

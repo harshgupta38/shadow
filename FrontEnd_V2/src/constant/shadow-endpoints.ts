@@ -43,6 +43,7 @@ export const ENDPOINTS = {
     SCHEDULE: {
         PREFIX: "/schedule",
         SAVE: "/save-schedule-task",
+        FROM_PROPOSAL: "/save-schedule-task-from-proposal",
         GET_LIST: "/get-schedule-task-list",
         DETAIL: (id: number) => `/${id}`,
     },

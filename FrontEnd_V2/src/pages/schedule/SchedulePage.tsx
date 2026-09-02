@@ -15,7 +15,6 @@ import {
 } from "@/pages/schedule/SchedulePage.constants";
 import type { ScheduleFilterState } from "@/pages/schedule/SchedulePage.constants";
 import { FilterDropdown } from "@/components/ui/FilterDropdown/FilterDropdown";
-import { ScheduleTaskDetail } from "@/pages/schedule/ScheduleTaskDetail/ScheduleTaskDetail";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { useToast } from "@/context/ToastContext";
@@ -23,6 +22,7 @@ import { ROUTES } from "@/routes/RoutePaths";
 import { todayIso } from "@/services/date.service";
 import { ScheduleCard } from "@/pages/schedule/ScheduleCard/ScheduleCard";
 import { PRIORITY_COLOR } from "@/pages/schedule/ScheduleCard/ScheduleCard.constants";
+import { ScheduleTaskDetailPanel } from "@/pages/schedule/ScheduleTaskDetailPanel/ScheduleTaskDetailPanel";
 
 import "@/pages/schedule/SchedulePage.scss";
 
@@ -54,10 +54,10 @@ export function SchedulePage() {
 
     const [loading, setLoading] = useState(true);
     const [tasks, setTasks] = useState<ScheduledTaskDataResponse[]>([]);
+    const [selectedTask, setSelectedTask] = useState<ScheduledTaskDataResponse | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<ScheduledTaskDataResponse | null>(null);
     const [deleting, setDeleting] = useState(false);
     const [filters, setFilters] = useState<ScheduleFilterState>(DEFAULT_FILTERS);
-    const [selectedTask, setSelectedTask] = useState<ScheduledTaskDataResponse | null>(null);
     const [calYear, setCalYear] = useState(() => {
         const [y] = todayIso().split("-").map(Number);
         return y;
@@ -219,25 +219,7 @@ export function SchedulePage() {
 
                 {/* ── Right: calendar or task detail ───────────────────── */}
                 <div className="surface schedule-cal-panel">
-                    {selectedTask && (
-                        <ScheduleTaskDetail
-                            task={selectedTask}
-                            onClose={() => setSelectedTask(null)}
-                            onEdit={() => {
-                                setSelectedTask(null);
-                                navigate(
-                                    ROUTES.SCHEDULE_EDIT.replace(":taskId", String(selectedTask.id)) + (selectedTask.repeat_yearly ? "?yearly=1" : ""),
-                                    { state: { task: selectedTask } },
-                                );
-                            }}
-                            onDuplicate={() => {
-                                setSelectedTask(null);
-                                handleDuplicate(selectedTask);
-                            }}
-                            onDelete={() => setDeleteTarget(selectedTask)}
-                        />
-                    )}
-                    <div className={`schedule-cal-view${selectedTask ? " schedule-cal-view--compact" : ""}`}>
+                    <div className="schedule-cal-view">
                         <div className="schedule-cal-header">
                             <button type="button" className="btn btn-ghost btn-icon border-0" onClick={prevYear} aria-label="Previous year">
                                 <ChevronDoubleLeft size={16} />
@@ -266,7 +248,7 @@ export function SchedulePage() {
                             {calCells.map((cell, i) => {
                                 const cellTasks = tasksByDate[cell.iso] ?? [];
                                 const isToday = cell.iso === currentTodayIso;
-                                const cellTaskLimit = selectedTask ? 1 : 2;
+                                const cellTaskLimit = 2;
                                 return (
                                     <div
                                         key={i}
@@ -308,6 +290,28 @@ export function SchedulePage() {
                     </div>
                 </div>
             </div>
+
+            {selectedTask && (
+                <ScheduleTaskDetailPanel
+                    task={selectedTask}
+                    onClose={() => setSelectedTask(null)}
+                    onEdit={() => {
+                        setSelectedTask(null);
+                        navigate(
+                            ROUTES.SCHEDULE_EDIT.replace(":taskId", String(selectedTask.id)) + (selectedTask.repeat_yearly ? "?yearly=1" : ""),
+                            { state: { task: selectedTask } },
+                        );
+                    }}
+                    onDuplicate={() => {
+                        setSelectedTask(null);
+                        handleDuplicate(selectedTask);
+                    }}
+                    onDelete={() => {
+                        setSelectedTask(null);
+                        setDeleteTarget(selectedTask);
+                    }}
+                />
+            )}
 
             <ConfirmDialog
                 show={deleteTarget !== null}

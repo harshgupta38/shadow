@@ -119,8 +119,10 @@ def get_habits_with_history(
                 history.append(0)
                 continue
             rec = day_map.get(day)
-            if rec and rec.status == "done":
-                history.append(int(rec.actual_value) if is_metric else 1)
+            if rec and is_metric:
+                history.append(int(rec.actual_value))
+            elif rec and rec.status == "done":
+                history.append(1)
             else:
                 history.append(0)
 

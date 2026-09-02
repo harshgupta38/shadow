@@ -51,6 +51,10 @@ class Endpoints:
         FOR_DATE = "/for-date"
         RECORD = "/records/{record_id}"
 
+    class REPORTS:
+        PREFIX = "/reports"
+        MONTHLY = "/monthly"
+
     class CHAT:
         PREFIX = "/chat"
         CONVERSATIONS = "/conversations" # to get list of sessions

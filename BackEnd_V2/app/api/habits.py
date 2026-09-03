@@ -37,7 +37,7 @@ def save_habit(
 def get_habit_history(
     habit_id: int,
     skip: int = Query(default=0, ge=0),
-    limit: int = Query(default=30, ge=1, le=100),
+    limit: int = Query(default=30, ge=1, le=400),
     db=Depends(get_db),
     current_user: UserDBM = Depends(get_current_user),
 ) -> HabitHistoryResponse:

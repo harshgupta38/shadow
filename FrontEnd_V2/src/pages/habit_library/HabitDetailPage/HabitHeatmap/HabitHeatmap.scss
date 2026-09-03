@@ -1,0 +1,77 @@
+.hh-card {
+  box-shadow: none;
+  border-radius: var(--jv-radius);
+  border: 1px solid color-mix(in srgb, var(--jv-border) 82%, var(--jv-brand-1) 18%);
+
+  .hh-body {
+    padding-top: 0 !important;
+  }
+
+  // ── Month grid layout ───────────────────────────────────────────────────────
+  .hh-months-container {
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+  }
+
+  .hh-months {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 1.5rem 2.25rem;
+    min-width: max-content;
+  }
+
+  .hh-month {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .hh-month-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--jv-text);
+    margin-bottom: 2px;
+  }
+
+  // ── Day-of-week header ──────────────────────────────────────────────────────
+  .hh-dow-row {
+    display: grid;
+    grid-template-columns: repeat(7, 13px);
+    gap: 3px;
+  }
+
+  .hh-dow {
+    font-size: 0.6rem;
+    font-weight: 700;
+    color: var(--jv-muted);
+    text-align: center;
+    line-height: 13px;
+  }
+
+  // ── Cell grid ───────────────────────────────────────────────────────────────
+  .hh-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 13px);
+    gap: 3px;
+  }
+
+  .hh-cell {
+    width: 13px;
+    height: 13px;
+    border-radius: 3px;
+    transition: opacity 120ms ease, transform 120ms ease;
+
+    &:not(.hh-cell--empty):not(.hh-cell--future):hover {
+      opacity: 0.8;
+      transform: scale(1.2);
+      cursor: default;
+    }
+
+    &--done    { background: var(--jv-success); }
+    &--missed  { background: color-mix(in srgb, var(--jv-danger) 55%, var(--jv-surface) 45%); }
+    &--due     { background: color-mix(in srgb, var(--jv-warn) 60%, var(--jv-surface) 40%); }
+    &--none    { background: color-mix(in srgb, var(--jv-border) 75%, var(--jv-surface) 25%); }
+    &--future  { background: color-mix(in srgb, var(--jv-border) 35%, var(--jv-surface) 65%); }
+    &--empty   { background: transparent; pointer-events: none; }
+  }
+}

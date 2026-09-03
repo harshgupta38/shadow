@@ -125,7 +125,7 @@
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    padding: 1.25rem 1.4rem 1rem;
+    padding: 1.12rem 1.4rem 0.5rem;
     flex-wrap: wrap;
   }
 
@@ -180,7 +180,7 @@
 
   // ── Card body ───────────────────────────────────────────────────────
   .hl-card-body {
-    padding: 0.25rem 1.4rem 1.5rem;
+    padding: 0.25rem 1.4rem 1rem;
 
     &.less-padding-below {
       padding-bottom: 1rem;

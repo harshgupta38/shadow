@@ -110,32 +110,3 @@
   &--clock     svg { margin-top: 2px; color: var(--jv-violet); }
 }
 
-// ── History card ──────────────────────────────────────────────────────────────
-.hd-history-body {
-  padding-top: 0 !important;
-}
-
-.hd-record-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.hd-sentinel {
-  height: 1px;
-}
-
-.hd-load-more-spinner {
-  display: flex;
-  justify-content: center;
-  padding: 1rem 0;
-  color: var(--jv-muted);
-}
-
-.hd-end-label {
-  text-align: center;
-  font-size: 0.78rem;
-  color: var(--jv-faint);
-  padding: 0.75rem 0 0.25rem;
-  margin: 0;
-}

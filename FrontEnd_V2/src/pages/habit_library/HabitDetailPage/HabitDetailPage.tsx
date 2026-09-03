@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -14,7 +14,7 @@ import {
 } from "react-bootstrap-icons";
 
 import { api, ApiError } from "@/api";
-import type { HabitDataResponse, HabitHistoryRecord, HabitHistoryStats } from "@/api";
+import type { HabitDataResponse, HabitHistoryStats } from "@/api";
 import { ProgressRing } from "@/components/ui/ProgressRing/ProgressRing";
 import { ROUTES } from "@/routes/RoutePaths";
 import { PRIORITY_LABEL } from "@/pages/plan/PlanPage.constants";
@@ -24,12 +24,10 @@ import {
   getSimpleFrequencyLabel,
   PriorityIcon,
 } from "@/pages/habit_library/HabitCard/HabitCard.constants";
-import { HabitHistoryCard } from "@/pages/habit_library/HabitHistoryCard/HabitHistoryCard";
+import { HabitHeatmap } from "./HabitHeatmap/HabitHeatmap";
 
 import "@/pages/my_goals/GoalDetailPage/GoalDetailPage.scss";
 import "./HabitDetailPage.scss";
-
-const PAGE_SIZE = 30;
 
 function formatLongDate(value: string): string {
   const d = new Date(`${value}T00:00:00`);
@@ -276,29 +274,21 @@ export function HabitDetailPage() {
 
   const [habit, setHabit] = useState<HabitDataResponse | null>(null);
   const [stats, setStats] = useState<HabitHistoryStats | null>(null);
-  const [records, setRecords] = useState<HabitHistoryRecord[]>([]);
-  const [total, setTotal] = useState(0);
-  const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const navigate = useNavigate();
-  const sentinelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!habitId) return;
     let cancelled = false;
     (async () => {
       try {
-        const data = await api.habits.getHistory(Number(habitId), { skip: 0, limit: PAGE_SIZE });
+        const data = await api.habits.getHistory(Number(habitId), { skip: 0, limit: 1 });
         if (cancelled) return;
         setHabit(data.habit);
         setStats(data.stats);
-        setRecords(data.records);
-        setTotal(data.total);
-        setHasMore(data.has_more);
       } catch (err) {
         if (!cancelled)
           setError(err instanceof ApiError ? err.message : "Failed to load habit details.");
@@ -320,34 +310,6 @@ export function HabitDetailPage() {
       setDeleting(false);
     }
   }
-
-  const loadMore = useCallback(async () => {
-    if (!habitId || loadingMore || !hasMore) return;
-    setLoadingMore(true);
-    try {
-      const data = await api.habits.getHistory(Number(habitId), {
-        skip: records.length,
-        limit: PAGE_SIZE,
-      });
-      setRecords((prev) => [...prev, ...data.records]);
-      setHasMore(data.has_more);
-    } catch {
-      // user can scroll to retry
-    } finally {
-      setLoadingMore(false);
-    }
-  }, [habitId, records.length, hasMore, loadingMore]);
-
-  useEffect(() => {
-    const el = sentinelRef.current;
-    if (!el || !hasMore || loadingMore) return;
-    const observer = new IntersectionObserver(
-      (entries) => { if (entries[0].isIntersecting) loadMore(); },
-      { threshold: 0.1 },
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [hasMore, loadingMore, loadMore]);
 
   if (loading) {
     return (
@@ -384,55 +346,8 @@ export function HabitDetailPage() {
 
       <HabitHero habit={habit} stats={stats} onDelete={handleDelete} deleting={deleting} />
 
-      <div className="hl-card">
-        <div className="hl-card-header">
-          <div>
-            <h2 className="hl-title">History</h2>
-            <p className="hl-subtitle">
-              {total === 0
-                ? "No entries yet"
-                : `${total} entr${total === 1 ? "y" : "ies"} · showing ${records.length}`}
-            </p>
-          </div>
-        </div>
+      <HabitHeatmap habitId={habit.id} />
 
-        <div className="hl-card-body hd-history-body">
-          {records.length === 0 ? (
-            <div className="hl-empty-state">
-              <div className="hl-empty-icon">
-                <span style={{ fontSize: "1.3rem" }}>📋</span>
-              </div>
-              <p className="hl-empty-title">No history yet</p>
-              <p className="hl-empty-subtitle">
-                Complete this habit in the Planner to start building your history.
-              </p>
-            </div>
-          ) : (
-            <div className="hd-record-list">
-              {records.map((rec) => (
-                <HabitHistoryCard
-                  key={rec.item.saved_data?.record_id ?? rec.date}
-                  date={rec.date}
-                  completed_at={rec.completed_at}
-                  item={rec.item}
-                />
-              ))}
-
-              <div ref={sentinelRef} className="hd-sentinel" aria-hidden />
-
-              {loadingMore && (
-                <div className="hd-load-more-spinner">
-                  <div className="spinner-border spinner-border-sm text-secondary" role="status" />
-                </div>
-              )}
-
-              {!hasMore && records.length > 0 && (
-                <p className="hd-end-label">All {total} entries loaded</p>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
     </div>
   );
 }

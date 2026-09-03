@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BarChartFill, ChevronLeft, ChevronRight, LightbulbFill } from "react-bootstrap-icons";
 
 import { api } from "@/api";
@@ -146,7 +146,7 @@ export function ReportsPage() {
   const month = activeMonth.getMonth();
   const canNext = activeMonth < new Date(TODAY.getFullYear(), TODAY.getMonth(), 1);
 
-  useEffect(() => {
+  const loadReport = useCallback(() => {
     const id = ++reqId.current;
     setLoading(true);
     setFetchError(null);
@@ -156,6 +156,10 @@ export function ReportsPage() {
       .catch(() => { if (id === reqId.current) setFetchError("Couldn't load report data."); })
       .finally(() => { if (id === reqId.current) setLoading(false); });
   }, [year, month]);
+
+  useEffect(() => {
+    loadReport();
+  }, [loadReport]);
 
   const stats = useMemo(() => computeStats(monthData, year, month), [monthData, year, month]);
 
@@ -262,11 +266,6 @@ export function ReportsPage() {
           ))}
         </div>
 
-        {/* Error state */}
-        {fetchError && (
-          <div className="rp-cal-error">{fetchError}</div>
-        )}
-
         {/* Grid */}
         <div className={`rp-cal-grid${loading ? " rp-cal-grid--loading" : ""}`} onMouseLeave={() => setHoveredKey(null)}>
           {cells.map((cell, i) => {
@@ -326,7 +325,15 @@ export function ReportsPage() {
 
         {/* Preview strip */}
         <div className="rp-preview">
-          {!hoveredCell ? (
+          {fetchError ? (
+            <span className="rp-preview-error">
+              {fetchError} Please{" "}
+              <button type="button" className="btn-link-inline" onClick={loadReport}>
+                try again
+              </button>
+              .
+            </span>
+          ) : !hoveredCell ? (
             <span className="rp-preview-idle">Hover over a day to preview</span>
           ) : (
             <>

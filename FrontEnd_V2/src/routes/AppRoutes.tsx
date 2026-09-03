@@ -22,7 +22,7 @@ import { GoalDetailPage } from "@/pages/my_goals/GoalDetailPage/GoalDetailPage";
 import { GoalMilestoneWizardPage } from "@/pages/my_goals/GoalMilestoneWizard/GoalMilestoneWizardPage";
 import { GoalTaskWizardPage } from "@/pages/my_goals/GoalTaskWizard/GoalTaskWizardPage.tsx";
 import { HabitLibraryPage } from "@/pages/habit_library/HabitLibraryPage";
-import { HabitDetailPage } from "@/pages/habit_library/HabitDetailPage";
+import { HabitDetailPage } from "@/pages/habit_library/HabitDetailPage/HabitDetailPage";
 import { HabitWizardPage } from "@/pages/habit_library/HabitWizard/HabitWizardPage";
 import { TrackProgressPage } from "@/pages/track_progress/TrackProgressPage";
 import { ReportsPage } from "@/pages/reports/ReportsPage";

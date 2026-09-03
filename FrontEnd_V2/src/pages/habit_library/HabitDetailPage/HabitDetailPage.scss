@@ -1,0 +1,141 @@
+// ── Page shell ────────────────────────────────────────────────────────────────
+.hd-page {
+  display: flex;
+  flex-direction: column;
+}
+
+// ── Loading / error states ────────────────────────────────────────────────────
+.hd-status-state {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 4rem 1rem;
+  color: var(--jv-muted);
+  font-size: 0.9rem;
+
+  &--error {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+// ── Delete button danger colour ───────────────────────────────────────────────
+.hd-delete-btn {
+  &:hover,
+  &:focus-visible {
+    color: var(--jv-danger) !important;
+    background: color-mix(in srgb, var(--jv-danger) 9%, transparent) !important;
+  }
+}
+
+// ── plan-card-pill / plan-card-streak sized to match the other hero pills ─────
+.hd-page .plan-card-pill,
+.hd-page .plan-card-streak {
+  padding: 0.22rem 0.6rem;
+  font-size: 0.76rem;
+  line-height: normal;
+  gap: 0.28rem;
+}
+
+// ── Expandable detail shell (grid-template-rows animation) ────────────────────
+.hd-details-shell {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  margin-top: 0;
+  transition:
+    grid-template-rows 260ms var(--jv-ease, ease),
+    opacity 220ms var(--jv-ease, ease),
+    margin-top 260ms var(--jv-ease, ease);
+
+  &.is-expanded {
+    grid-template-rows: 1fr;
+    opacity: 1;
+    margin-top: 0.85rem;
+  }
+}
+
+.hd-details-inner {
+  min-height: 0;
+  overflow: hidden;
+}
+
+// ── Detail rows — mirrors ScheduleTaskDetailPanel stdp-row pattern ────────────
+.hd-detail-rows {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--jv-border);
+  padding-top: 0.5rem;
+}
+
+.hd-detail-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.45rem 0;
+}
+
+.hd-detail-label {
+  width: 76px;
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--jv-muted);
+}
+
+.hd-detail-value {
+  font-size: 0.875rem;
+  color: var(--jv-text);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+// ── Inline time label — mirrors stdp-time ─────────────────────────────────────
+.hd-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--jv-text);
+  white-space: nowrap;
+
+  &--morning   svg { margin-bottom: 1px; color: #f0a830; }
+  &--afternoon svg { margin-top: 3px; color: #e09020; }
+  &--evening   svg { margin-bottom: 2px; color: var(--jv-violet); }
+  &--night     svg { margin-bottom: 3px; color: var(--jv-violet); }
+  &--clock     svg { margin-top: 2px; color: var(--jv-violet); }
+}
+
+// ── History card ──────────────────────────────────────────────────────────────
+.hd-history-body {
+  padding-top: 0 !important;
+}
+
+.hd-record-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.hd-sentinel {
+  height: 1px;
+}
+
+.hd-load-more-spinner {
+  display: flex;
+  justify-content: center;
+  padding: 1rem 0;
+  color: var(--jv-muted);
+}
+
+.hd-end-label {
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--jv-faint);
+  padding: 0.75rem 0 0.25rem;
+  margin: 0;
+}

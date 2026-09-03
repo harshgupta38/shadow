@@ -46,13 +46,26 @@ export function HabitCard({
   onToggleArchive,
   onDeleteRequest,
 }: HabitCardProps) {
-  const navigate = useNavigate();  
+  const navigate = useNavigate();
   const frequencyLabel = h.planner_type === "metric"
     ? getMetricFrequencyLabel(h)
     : getSimpleFrequencyLabel(h);
+  const timeLabel = getPreferredTimeLabel(h);
+  const dateLabel = getHabitDateLabel(h);
+
+  function goToDetail(e: React.MouseEvent | React.KeyboardEvent) {
+    if ((e.target as HTMLElement).closest(".hl-habit-edit-btn, .hl-habit-chip--goal, .hl-habit-menu-popover")) return;
+    navigate(ROUTES.HABIT_LIBRARY_DETAIL.replace(":habitId", String(h.id)));
+  }
 
   return (
-    <article className="hl-habit-card">
+    <article
+      className="hl-habit-card"
+      onClick={goToDetail}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") goToDetail(e); }}
+    >
       <div className="hl-habit-card-head">
         <div className="hl-habit-card-head-content">
           <div className="hl-habit-title-row">
@@ -150,20 +163,16 @@ export function HabitCard({
               </span>
             )
           )}
-          {getPreferredTimeLabel(h) && (
-            <span className="hl-habit-chip hl-habit-chip--detail">
-              {getPreferredTimeLabel(h)}
-            </span>
+          {timeLabel && (
+            <span className="hl-habit-chip hl-habit-chip--detail">{timeLabel}</span>
           )}
           {h.duration_minutes != null && h.duration_minutes > 0 && (
             <span className="hl-habit-chip hl-habit-chip--detail">
               {h.duration_minutes} min
             </span>
           )}
-          {getHabitDateLabel(h) && (
-            <span className="hl-habit-chip hl-habit-chip--detail">
-              {getHabitDateLabel(h)}
-            </span>
+          {dateLabel && (
+            <span className="hl-habit-chip hl-habit-chip--detail">{dateLabel}</span>
           )}
           {h.category && (
             <span className="hl-habit-chip hl-habit-chip--category">

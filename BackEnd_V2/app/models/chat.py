@@ -62,6 +62,14 @@ class ConversationDBM(Base):
         default=0,
         server_default=text("0"),
     )
+    # Absolute user-message count at the last successful memory extraction.
+    # Independent from summary_user_message_count — allows memory to be
+    # evaluated more frequently than the context-summary threshold.
+    memory_user_message_count: Mapped[int] = mapped_column(
+        nullable=False,
+        default=0,
+        server_default=text("0"),
+    )
     # Linked items field for storing related items in JSON format
     linked_items: Mapped[dict] = mapped_column(
         JSON,

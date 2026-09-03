@@ -14,6 +14,7 @@ from app.schemas.chat import (
     NewConvoRequest,
     NewConvoFromLLMSchema,
 )
+from app.schemas.memory import MemoryExtractionFromLLMSchema
 
 
 @dataclass(frozen=True)
@@ -88,6 +89,7 @@ class TaskProposalsFromLLM(MetadataFromLLM):
 # --- CHAT - Start Conversation ---
 class NewConvoToLLM(MetadataToLLM):
     request_data: NewConvoRequest
+    user_memory: str = ""
 
 
 class NewConvoFromLLM(MetadataFromLLM):
@@ -117,6 +119,9 @@ class MessageToLLM(MetadataToLLM):
     stable_context: str
     context_summary: str
     recent_messages: list[dict[str, str]]
+    # Formatted user memory block injected from previous conversations.
+    # Empty string means no memory is available.
+    user_memory: str = ""
 
 
 class MessageFromLLM(MetadataFromLLM):
@@ -125,3 +130,16 @@ class MessageFromLLM(MetadataFromLLM):
 
 class MessageResponse(MetadataFromLLM):
     message_data: MessageDataResponse
+
+
+# --- USER MEMORY EXTRACTION ---
+class ExtractUserMemoryToLLM(MetadataToLLM):
+    agent_type: str
+    stable_context: str
+    context_summary: str
+    messages: list[dict[str, str]]
+    existing_memories: list[dict]
+
+
+class ExtractUserMemoryFromLLM(MetadataFromLLM):
+    llm_data: MemoryExtractionFromLLMSchema

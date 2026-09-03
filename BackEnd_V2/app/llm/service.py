@@ -14,6 +14,8 @@ from app.llm.models import (
     MessageFromLLM,
     ConversationContextToLLM,
     ConversationContextFromLLM,
+    ExtractUserMemoryToLLM,
+    ExtractUserMemoryFromLLM,
 )
 from app.llm.base import BaseLLMProvider
 from app.llm.config import LLMSettings, llm_settings
@@ -110,6 +112,7 @@ class LLMService:
         goal_id: int | None = None,
         milestone_id: int | None = None,
         tool_executor: Callable[[str, dict], dict] | None = None,
+        user_memory: str = "",
     ) -> NewConvoFromLLM:
         request = NewConvoToLLM(
             request_data=data,
@@ -117,6 +120,7 @@ class LLMService:
             goal_id=goal_id,
             milestone_id=milestone_id,
             tool_executor=tool_executor,
+            user_memory=user_memory,
         )
         response = await self._provider.create_conversation(request)
 
@@ -136,6 +140,7 @@ class LLMService:
         goal_id: int | None = None,
         milestone_id: int | None = None,
         tool_executor: Callable[[str, dict], dict] | None = None,
+        user_memory: str = "",
     ) -> MessageFromLLM:
         request = MessageToLLM(
             request_data=data.content,
@@ -147,11 +152,36 @@ class LLMService:
             context_summary=context_summary,
             recent_messages=recent_messages,
             tool_executor=tool_executor,
+            user_memory=user_memory,
         )
         response = await self._provider.respond_to_message(request)
-        
+
         if response is None or response.llm_data is None:
             raise LLMConfigurationError("LLM provider returned no message data.")
+
+        return response
+
+    async def extract_user_memory(
+        self,
+        user_id: int,
+        agent_type: str,
+        stable_context: str,
+        context_summary: str,
+        messages: list[dict[str, str]],
+        existing_memories: list[dict],
+    ) -> ExtractUserMemoryFromLLM:
+        request = ExtractUserMemoryToLLM(
+            user_id=user_id,
+            agent_type=agent_type,
+            stable_context=stable_context,
+            context_summary=context_summary,
+            messages=messages,
+            existing_memories=existing_memories,
+        )
+        response = await self._provider.extract_user_memory(request)
+
+        if response is None or response.llm_data is None:
+            raise LLMConfigurationError("LLM provider returned no memory extraction data.")
 
         return response
 

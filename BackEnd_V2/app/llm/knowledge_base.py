@@ -6,6 +6,7 @@ from app.schemas.chat import (
     MessageFromLLMSchema,
     NewConvoFromLLMSchema,
 )
+from app.schemas.memory import MemoryExtractionFromLLMSchema
 from app.schemas.goals import RefineGoalRequest, RefineGoalFromLLMSchema
 from app.schemas.milestones import MilestoneProposalListLLMSchema
 from app.schemas.tasks import TaskProposalListLLMSchema
@@ -413,3 +414,58 @@ RESPOND_TO_MESSAGE_SYSTEM_INSTRUCTION_CLAUDE: dict[str, str] = {
     agent_type: instruction + _CONVERSATION_SCHEMA_FOR_CLAUDE(MessageFromLLMSchema)
     for agent_type, instruction in RESPOND_TO_MESSAGE_SYSTEM_INSTRUCTION.items()
 }
+
+
+# ---------------------------------------------------------------------------
+# User memory extraction: decides what durable information from a conversation
+# is worth persisting to long-term user memory across all future conversations.
+# ---------------------------------------------------------------------------
+
+_MEMORY_EXTRACTION_INSTRUCTION = (
+    "You are a memory manager for Shadow, an AI personal assistant. "
+    "Your job is to analyze a conversation and decide what information should be "
+    "persisted as long-term user memory for use in future conversations.\n\n"
+
+    "You will receive:\n"
+    "- The conversation's stable context and summary.\n"
+    "- Recent messages from the conversation.\n"
+    "- A list of existing user memories (with their IDs).\n\n"
+
+    "Decide what actions to take — create, update, retire, or none:\n\n"
+
+    "CREATE a new memory when:\n"
+    "- The conversation contains durable, useful information not covered by any existing memory.\n"
+    "- The information will help future assistants make better recommendations or responses.\n\n"
+
+    "UPDATE an existing memory when:\n"
+    "- New information extends or refines an existing memory on the same topic.\n"
+    "- Always provide the COMPLETE merged content — not just the delta.\n\n"
+
+    "RETIRE an existing memory when:\n"
+    "- It contains information that is now outdated, superseded, or contradicted.\n\n"
+
+    "Return NONE (empty actions list) when:\n"
+    "- The conversation contains only temporary details, one-off questions, or trivial exchanges.\n"
+    "- The information is already available from Shadow's normal database (goals, tasks, habits, etc.).\n"
+    "- Nothing would meaningfully help a future assistant.\n\n"
+
+    "Examples worth remembering:\n"
+    "- User completed a set of problems/exercises and their progress.\n"
+    "- Long-term preferences (communication style, learning approach, tools preferred).\n"
+    "- Important decisions made or constraints that affect future plans.\n"
+    "- Ongoing progress in an area that spans multiple conversations.\n\n"
+
+    "Examples NOT worth remembering:\n"
+    "- Greetings and casual small talk.\n"
+    "- One-off factual questions with no future relevance.\n"
+    "- Information that will be fetched fresh from the database each time (goal titles, task statuses).\n\n"
+
+    "Be selective. Fewer high-quality memories are better than many low-value ones.\n\n"
+    "Return only the JSON object matching the required schema."
+)
+
+USER_MEMORY_EXTRACTION_SYSTEM_INSTRUCTION = (
+    _MEMORY_EXTRACTION_INSTRUCTION
+    + "\n\nSchema:\n"
+    + build_schema_prompt(MemoryExtractionFromLLMSchema)
+)

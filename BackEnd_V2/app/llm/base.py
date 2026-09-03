@@ -13,6 +13,8 @@ from app.llm.models import (
     MessageFromLLM,
     ConversationContextToLLM,
     ConversationContextFromLLM,
+    ExtractUserMemoryToLLM,
+    ExtractUserMemoryFromLLM,
 )
 
 
@@ -39,6 +41,10 @@ class BaseLLMProvider(ABC):
 
     @abstractmethod
     async def update_conversation_context(self, request: ConversationContextToLLM) -> ConversationContextFromLLM:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def extract_user_memory(self, request: ExtractUserMemoryToLLM) -> ExtractUserMemoryFromLLM:
         raise NotImplementedError
 
     @abstractmethod

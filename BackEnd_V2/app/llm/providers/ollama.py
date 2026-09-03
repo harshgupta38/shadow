@@ -16,6 +16,7 @@ from app.llm.knowledge_base import (
     MILESTONE_PROPOSAL_SYSTEM_INSTRUCTION,
     TASK_PROPOSAL_SYSTEM_INSTRUCTION,
     RESPOND_TO_MESSAGE_SYSTEM_INSTRUCTION,
+    USER_MEMORY_EXTRACTION_SYSTEM_INSTRUCTION,
     build_goal_refinement_user_prompt,
     build_milestone_proposal_user_prompt,
     build_task_proposal_user_prompt,
@@ -24,6 +25,7 @@ from app.llm.knowledge_base import (
 from app.schemas.goals import RefineGoalFromLLMSchema
 from app.schemas.milestones import MilestoneProposalListLLMSchema
 from app.schemas.tasks import TaskProposalListLLMSchema
+from app.schemas.memory import MemoryExtractionFromLLMSchema
 from app.llm.models import (
     MessageToLLM,
     MessageFromLLM,
@@ -38,6 +40,8 @@ from app.llm.models import (
     NewConvoFromLLM,
     ConversationContextToLLM,
     ConversationContextFromLLM,
+    ExtractUserMemoryToLLM,
+    ExtractUserMemoryFromLLM,
 )
 from app.llm.base import BaseLLMProvider
 from app.llm.config import LLMSettings, llm_settings
@@ -336,12 +340,13 @@ class OllamaProvider(BaseLLMProvider):
         model = self._resolve_model(request)
 
         request_data = request.request_data
+        system_content = CREATE_CONVERSATION_SYSTEM_INSTRUCTION[request_data.agent_type]
+        if request.user_memory:
+            system_content += f"\n\n{request.user_memory}"
         messages = [
             {
                 "role": Role.SYSTEM,
-                "content": CREATE_CONVERSATION_SYSTEM_INSTRUCTION[
-                    request_data.agent_type
-                ],
+                "content": system_content,
             },
         ]
         _ctx_parts = []
@@ -559,6 +564,8 @@ class OllamaProvider(BaseLLMProvider):
             f"Stable context:\n{request.stable_context}\n\n"
             f"Conversation summary:\n{request.context_summary}"
         )
+        if request.user_memory:
+            conversation_context += f"\n\n{request.user_memory}"
         messages = [
             {
                 "role": Role.SYSTEM,
@@ -765,6 +772,87 @@ class OllamaProvider(BaseLLMProvider):
             provider=LLMProvider.OLLAMA,
             model=model,
             model_str=completion.model or model,
+            finish_reason=first_choice.finish_reason,
+            usage=usage,
+            response_id=completion.id,
+            response_time_ms=response_time_ms,
+        )
+
+    async def extract_user_memory(
+        self, request: ExtractUserMemoryToLLM
+    ) -> ExtractUserMemoryFromLLM:
+        model = self._resolve_model(request)
+
+        existing_block = (
+            json.dumps(request.existing_memories, ensure_ascii=False, indent=2)
+            if request.existing_memories
+            else "[]"
+        )
+        conversation_block = (
+            f"Stable context:\n{request.stable_context}\n\n"
+            f"Conversation summary:\n{request.context_summary}\n\n"
+            "Recent messages:\n"
+            + "\n".join(f"[{m['role']}]: {m['content']}" for m in request.messages)
+        )
+        user_prompt = (
+            f"Existing user memories:\n{existing_block}\n\n"
+            f"Conversation to analyze:\n{conversation_block}"
+        )
+
+        messages = [
+            {"role": Role.SYSTEM, "content": USER_MEMORY_EXTRACTION_SYSTEM_INSTRUCTION},
+            {"role": Role.USER, "content": user_prompt},
+        ]
+
+        started_at = perf_counter()
+        try:
+            completion = await self._client.beta.chat.completions.parse(
+                model=model,
+                messages=messages,
+                response_format=MemoryExtractionFromLLMSchema,
+                temperature=request.temperature,
+                max_tokens=request.max_tokens,
+            )
+        except (APIConnectionError, APIStatusError, OpenAIError) as exc:
+            raise LLMProviderError(f"Ollama extract_user_memory failed: {exc}") from exc
+        response_time_ms = int((perf_counter() - started_at) * 1000)
+
+        await log_ollama_completion_usage_async(
+            settings=self._settings,
+            model=model,
+            completion=completion,
+            latency_ms=response_time_ms,
+            user_id=request.user_id,
+            operation="extract_user_memory",
+        )
+
+        if not completion.choices:
+            raise LLMRequestError("Ollama returned no choices for extract_user_memory.")
+
+        first_choice = completion.choices[0]
+        message = first_choice.message
+        parsed = message.parsed
+
+        if parsed is None:
+            if message.refusal:
+                raise LLMRequestError(
+                    f"Ollama refused extract_user_memory response: {message.refusal}"
+                )
+            raise LLMRequestError("Ollama returned an unparsable extract_user_memory response.")
+
+        usage = None
+        if completion.usage is not None:
+            usage = TokenUsage(
+                input_tokens=completion.usage.prompt_tokens,
+                output_tokens=completion.usage.completion_tokens,
+                total_tokens=completion.usage.total_tokens,
+            )
+
+        return ExtractUserMemoryFromLLM(
+            provider=LLMProvider.OLLAMA,
+            model=model,
+            model_str=completion.model or model,
+            llm_data=parsed,
             finish_reason=first_choice.finish_reason,
             usage=usage,
             response_id=completion.id,

@@ -1,4 +1,5 @@
 import asyncio
+import json
 from time import perf_counter
 
 from google import genai
@@ -20,6 +21,7 @@ from app.llm.knowledge_base import (
     MILESTONE_PROPOSAL_SYSTEM_INSTRUCTION,
     RESPOND_TO_MESSAGE_SYSTEM_INSTRUCTION,
     CREATE_CONVERSATION_SYSTEM_INSTRUCTION,
+    USER_MEMORY_EXTRACTION_SYSTEM_INSTRUCTION,
     build_goal_refinement_user_prompt,
     build_milestone_proposal_user_prompt,
 )
@@ -38,7 +40,10 @@ from app.llm.models import (
     NewConvoToLLM,
     NewConvoFromLLM,
     TokenUsage,
+    ExtractUserMemoryToLLM,
+    ExtractUserMemoryFromLLM,
 )
+from app.schemas.memory import MemoryExtractionFromLLMSchema
 from app.schemas.goals import RefineGoalFromLLMSchema
 from app.schemas.milestones import MilestoneProposalListLLMSchema
 from app.schemas.chat import (
@@ -298,6 +303,8 @@ class GeminiProvider(BaseLLMProvider):
 
         request_data = request.request_data
         system_instruction = CREATE_CONVERSATION_SYSTEM_INSTRUCTION[request_data.agent_type]
+        if request.user_memory:
+            system_instruction += f"\n\n{request.user_memory}"
 
         contents = [
             types.Content(role="user", parts=[types.Part(text=request_data.content)])
@@ -457,6 +464,8 @@ class GeminiProvider(BaseLLMProvider):
             + f"\n\nStable context:\n{request.stable_context}\n\n"
             + f"Conversation summary:\n{request.context_summary}"
         )
+        if request.user_memory:
+            system_instruction += f"\n\n{request.user_memory}"
         contents = [
             types.Content(
                 role="model" if msg["role"] == "assistant" else msg["role"],
@@ -704,6 +713,90 @@ class GeminiProvider(BaseLLMProvider):
                 output_tokens=(
                     usage.output_tokens if usage and usage.output_tokens else 0
                 ),
+            ),
+        )
+
+    async def extract_user_memory(
+        self, request: ExtractUserMemoryToLLM
+    ) -> ExtractUserMemoryFromLLM:
+        model = self._resolve_model(request)
+
+        existing_block = (
+            json.dumps(request.existing_memories, ensure_ascii=False, indent=2)
+            if request.existing_memories
+            else "[]"
+        )
+        conversation_block = (
+            f"Stable context:\n{request.stable_context}\n\n"
+            f"Conversation summary:\n{request.context_summary}\n\n"
+            "Recent messages:\n"
+            + "\n".join(f"[{m['role']}]: {m['content']}" for m in request.messages)
+        )
+        user_prompt = (
+            f"Existing user memories:\n{existing_block}\n\n"
+            f"Conversation to analyze:\n{conversation_block}"
+        )
+
+        started_at = perf_counter()
+        try:
+            response = await self._client.aio.models.generate_content(
+                model=model,
+                contents=user_prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=USER_MEMORY_EXTRACTION_SYSTEM_INSTRUCTION,
+                    response_mime_type="application/json",
+                    response_schema=MemoryExtractionFromLLMSchema,
+                    temperature=request.temperature,
+                    max_output_tokens=request.max_tokens,
+                    http_options=types.HttpOptions(
+                        timeout=self._settings.llm_request_timeout_seconds * 1000,
+                    ),
+                ),
+            )
+        except errors.APIError as exc:
+            raise LLMProviderError(f"Gemini extract_user_memory failed: {exc}") from exc
+        response_time_ms = int((perf_counter() - started_at) * 1000)
+
+        await log_gemini_completion_usage_async(
+            settings=self._settings,
+            model=model,
+            response=response,
+            latency_ms=response_time_ms,
+            user_id=request.user_id,
+            operation="extract_user_memory",
+        )
+
+        if not response.candidates:
+            raise LLMRequestError("Gemini returned no choices for extract_user_memory.")
+
+        first_choice = response.candidates[0]
+        parsed = response.parsed
+
+        if parsed is None:
+            raise LLMRequestError("Gemini returned an unparsable extract_user_memory response.")
+
+        usage = None
+        if response.usage_metadata is not None:
+            usage = TokenUsage(
+                input_tokens=response.usage_metadata.prompt_token_count,
+                output_tokens=(response.usage_metadata.candidates_token_count or 0)
+                + (response.usage_metadata.thoughts_token_count or 0),
+                total_tokens=response.usage_metadata.total_token_count,
+            )
+
+        return ExtractUserMemoryFromLLM(
+            provider=LLMProvider.GEMINI,
+            model=model,
+            model_str=response.model_version or model,
+            llm_data=parsed,
+            finish_reason=first_choice.finish_reason,
+            usage=usage,
+            response_id=response.response_id,
+            response_time_ms=response_time_ms,
+            cost=calculate_token_cost(
+                model_key=model,
+                input_tokens=usage.input_tokens if usage and usage.input_tokens else 0,
+                output_tokens=usage.output_tokens if usage and usage.output_tokens else 0,
             ),
         )
 

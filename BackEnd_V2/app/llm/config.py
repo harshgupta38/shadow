@@ -71,6 +71,24 @@ Rules:
         le=100,
     )
 
+    # How many new user messages trigger a user-memory extraction pass.
+    # Independent of chat_summary_update_user_messages so short conversations
+    # can still have durable information captured.
+    chat_memory_extraction_user_messages: int = Field(
+        default=3,
+        alias="CHAT_MEMORY_EXTRACTION_USER_MESSAGES",
+        ge=1,
+        le=100,
+    )
+
+    # Master switch for the persistent user-memory feature.
+    # Set SAVE_USER_MEMORY=False in .env to disable memory injection and
+    # extraction entirely (no extra LLM calls, no DB reads/writes for memory).
+    save_user_memory: bool = Field(
+        default=False,
+        alias="SAVE_USER_MEMORY",
+    )
+
     model_config = SettingsConfigDict(
         env_file=".env",
         extra="ignore",

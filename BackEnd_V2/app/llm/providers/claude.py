@@ -21,12 +21,15 @@ from app.llm.knowledge_base import (
     MILESTONE_PROPOSAL_SYSTEM_INSTRUCTION_CLAUDE,
     RESPOND_TO_MESSAGE_SYSTEM_INSTRUCTION_CLAUDE,
     CREATE_CONVERSATION_SYSTEM_INSTRUCTION_CLAUDE,
+    USER_MEMORY_EXTRACTION_SYSTEM_INSTRUCTION,
     build_goal_refinement_user_prompt,
     build_milestone_proposal_user_prompt,
 )
 from app.llm.models import (
     ConversationContextToLLM,
     ConversationContextFromLLM,
+    ExtractUserMemoryToLLM,
+    ExtractUserMemoryFromLLM,
     TaskProposalsToLLM,
     TaskProposalsFromLLM,
     MessageToLLM,
@@ -47,6 +50,7 @@ from app.schemas.chat import (
     MessageFromLLMSchema,
     NewConvoFromLLMSchema,
 )
+from app.schemas.memory import MemoryExtractionFromLLMSchema
 from app.llm.tools import MAX_TOOL_ITERATIONS, AGENT_TOOL_DEFINITIONS, TERMINAL_TOOL_NAMES
 
 
@@ -334,6 +338,8 @@ class ClaudeProvider(BaseLLMProvider):
 
         request_data = request.request_data
         system = CREATE_CONVERSATION_SYSTEM_INSTRUCTION_CLAUDE[request_data.agent_type]
+        if request.user_memory:
+            system += f"\n\n{request.user_memory}"
         messages = [{"role": Role.USER, "content": request_data.content}]
 
         started_at = perf_counter()
@@ -478,6 +484,92 @@ class ClaudeProvider(BaseLLMProvider):
             ),
         )
 
+    def _parse_MemoryExtractionFromLLMSchema(self, response) -> MemoryExtractionFromLLMSchema:
+        try:
+            raw = self._strip_code_fence(self._extract_text_content(response))
+            return MemoryExtractionFromLLMSchema.model_validate_json(raw)
+        except ValidationError as exc:
+            raise LLMRequestError(
+                "Claude returned a response that does not match MemoryExtractionFromLLMSchema."
+            ) from exc
+
+    async def extract_user_memory(
+        self, request: ExtractUserMemoryToLLM
+    ) -> ExtractUserMemoryFromLLM:
+        model = self._resolve_model(request)
+
+        existing_block = (
+            json.dumps(request.existing_memories, ensure_ascii=False, indent=2)
+            if request.existing_memories
+            else "[]"
+        )
+        conversation_block = (
+            f"Stable context:\n{request.stable_context}\n\n"
+            f"Conversation summary:\n{request.context_summary}\n\n"
+            f"Recent messages:\n"
+            + "\n".join(
+                f"[{m['role']}]: {m['content']}"
+                for m in request.messages
+            )
+        )
+        user_prompt = (
+            f"Existing user memories:\n{existing_block}\n\n"
+            f"Conversation to analyze:\n{conversation_block}"
+        )
+
+        started_at = perf_counter()
+        try:
+            kwargs: dict = {
+                "model": model,
+                "system": USER_MEMORY_EXTRACTION_SYSTEM_INSTRUCTION,
+                "messages": [{"role": "user", "content": user_prompt}],
+                "max_tokens": request.max_tokens or 2048,
+            }
+            if request.temperature is not None:
+                kwargs["temperature"] = request.temperature
+            completion = await self._client.messages.create(**kwargs)
+        except (APIConnectionError, APIStatusError, APIError) as exc:
+            raise LLMProviderError(f"Claude extract_user_memory failed: {exc}") from exc
+
+        response_time_ms = int((perf_counter() - started_at) * 1000)
+
+        await log_claude_completion_usage_async(
+            settings=self._settings,
+            model=model,
+            completion=completion,
+            latency_ms=response_time_ms,
+            user_id=request.user_id,
+            operation="extract_user_memory",
+        )
+
+        parsed = self._parse_MemoryExtractionFromLLMSchema(completion)
+
+        usage = None
+        if completion.usage is not None:
+            input_tokens = completion.usage.input_tokens
+            output_tokens = completion.usage.output_tokens
+            usage = TokenUsage(
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                total_tokens=input_tokens + output_tokens,
+            )
+
+        return ExtractUserMemoryFromLLM(
+            provider=LLMProvider.CLAUDE,
+            model=model,
+            model_str=completion.model or model,
+            llm_data=parsed,
+            finish_reason=completion.stop_reason or "unknown",
+            usage=usage,
+            response_id=completion.id,
+            response_time_ms=response_time_ms,
+            cost=calculate_token_cost(
+                model_key=model,
+                input_tokens=usage.input_tokens if usage and usage.input_tokens else 0,
+                output_tokens=usage.output_tokens if usage and usage.output_tokens else 0,
+            ),
+        )
+
     async def respond_to_message(self, request: MessageToLLM) -> MessageFromLLM:
         model = self._resolve_model(request)
 
@@ -489,6 +581,8 @@ class ClaudeProvider(BaseLLMProvider):
             RESPOND_TO_MESSAGE_SYSTEM_INSTRUCTION_CLAUDE[request.agent_type]
             + f"\n\nConversation context:\n{conversation_context}"
         )
+        if request.user_memory:
+            system += f"\n\n{request.user_memory}"
         messages = [
             *request.recent_messages,
             {"role": Role.USER, "content": request.request_data},

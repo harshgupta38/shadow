@@ -16,6 +16,7 @@ from app.llm.config import llm_settings
 from app.llm.tools import ToolContext, execute_tool
 from app.core.exceptions import NotFoundError, ValidationError
 from app.llm import get_llm_service, NewConvoResponse, LLMError, LLMRequestError
+from app.services import memory_service
 from app.models.user import UserDBM
 from app.models.chat import ConversationDBM, MessageDBM
 from app.models.goal import GoalDBM
@@ -425,17 +426,22 @@ async def create_conversation(
 ) -> NewConvoResponse:
     llm_service = get_llm_service()
 
+    user_memory_str = ""
+    if llm_settings.save_user_memory:
+        user_memories = memory_service.get_user_memories(db, current_user.id)
+        user_memory_str = memory_service.format_memories_for_prompt(user_memories)
+
     tool_context = ToolContext(db=db, current_user=current_user)
     tool_executor = partial(execute_tool, context=tool_context)
 
     try:
         response = await llm_service.create_conversation(
-            data, 
+            data,
             user_id=current_user.id,
             goal_id=data.goal_id,
             milestone_id=data.milestone_id,
-            
             tool_executor=tool_executor,
+            user_memory=user_memory_str,
         )
     except LLMError as exc:
         raise LLMRequestError(f"Failed to create conversation: {exc}") from exc
@@ -613,6 +619,7 @@ async def _call_llm_and_save(
     user_message: MessageDBM,
     data: MessageRequest,
     recent_message_data: list[dict],
+    user_memory: str = "",
 ) -> MessageResponse:
     user_message.request_status = "pending"
     db.commit()
@@ -633,6 +640,7 @@ async def _call_llm_and_save(
             context_summary=conversation.context_summary,
             recent_messages=recent_message_data,
             tool_executor=tool_executor,
+            user_memory=user_memory,
         )
     except LLMError as exc:
         user_message.request_status = "failed"
@@ -731,13 +739,18 @@ async def respond_to_message(
         {"role": MessageRoleEnum.USER, "content": data.content},
     ]
 
+    user_memory_str = ""
+    user_memories = []
+    if llm_settings.save_user_memory:
+        user_memories = memory_service.get_user_memories(db, current_user.id)
+        user_memory_str = memory_service.format_memories_for_prompt(user_memories)
+
     llm_service = get_llm_service()
     context_task = None
+    memory_task = None
+
+    # Context summary: fires every chat_summary_update_user_messages (default 10).
     if summary_update_due:
-        # Fire the context summary update concurrently with the main LLM call
-        # instead of awaiting it first. Both run in parallel, so the extra
-        # latency is max(context_time, message_time) rather than their sum.
-        # The update is non-critical — if it fails, the next threshold retries.
         context_task = asyncio.create_task(
             llm_service.update_conversation_context(
                 user_id=current_user.id,
@@ -748,6 +761,27 @@ async def respond_to_message(
             )
         )
 
+    # Memory extraction: fires every chat_memory_extraction_user_messages (default 3),
+    # independent of the summary threshold so short conversations can persist durable info.
+    if llm_settings.save_user_memory:
+        new_memory_message_count = (
+            total_user_message_count - conversation.memory_user_message_count
+        )
+        memory_update_due = (
+            new_memory_message_count >= llm_settings.chat_memory_extraction_user_messages
+        )
+        if memory_update_due:
+            memory_task = asyncio.create_task(
+                llm_service.extract_user_memory(
+                    user_id=current_user.id,
+                    agent_type=conversation.agent_type,
+                    stable_context=conversation.stable_context,
+                    context_summary=conversation.context_summary,
+                    messages=context_messages,
+                    existing_memories=memory_service.serialize_memories_for_llm(user_memories),
+                )
+            )
+
     user_message = MessageDBM(
         conversation_id=conversation.id,
         role=MessageRoleEnum.USER,
@@ -757,24 +791,23 @@ async def respond_to_message(
     db.add(user_message)
 
     try:
-        message_response = await _call_llm_and_save(db, current_user, conversation, user_message, data, recent_message_data)
+        message_response = await _call_llm_and_save(
+            db, current_user, conversation, user_message, data,
+            recent_message_data, user_memory=user_memory_str,
+        )
     except Exception:
-        # If message generation fails, cancel and drain the context task so it
-        # doesn't run orphaned in the background. An unattended task exception
-        # produces "Task exception was never retrieved" warnings and wastes an
-        # LLM request that no one will read.
-        if context_task is not None:
-            context_task.cancel()
-            try:
-                await context_task
-            except (asyncio.CancelledError, Exception):
-                pass
+        # Cancel background tasks on main-call failure to avoid orphaned warnings.
+        for task in (context_task, memory_task):
+            if task is not None:
+                task.cancel()
+                try:
+                    await task
+                except (asyncio.CancelledError, Exception):
+                    pass
         raise
 
     if context_task is not None:
         try:
-            # context_task ran concurrently with _call_llm_and_save.
-            # Total wait = max(context_time, message_time), not their sum.
             context_response = await context_task
             context_data = context_response.llm_data
             if context_data.context_summary.strip():
@@ -785,6 +818,21 @@ async def respond_to_message(
                 db.commit()
         except Exception:
             logger.exception("Context summary update failed; will retry at next threshold.")
+
+    if memory_task is not None:
+        try:
+            memory_response = await memory_task
+            actions = memory_response.llm_data.actions
+            if actions:
+                memory_service.apply_memory_actions(db, current_user.id, actions)
+            # Advance the watermark regardless of whether any actions were applied.
+            # This prevents the same message window from being re-evaluated on the
+            # next request. Only skip the update on exception so failed extractions
+            # retry at the next threshold.
+            conversation.memory_user_message_count = total_user_message_count
+            db.commit()
+        except Exception:
+            logger.exception("User memory extraction failed; will retry at next threshold.")
 
     return message_response
 
@@ -887,6 +935,11 @@ async def regenerate_response(
     ]
     data = MessageRequest(content=paired_user_message.content[-1])
 
+    user_memory_str = ""
+    if llm_settings.save_user_memory:
+        user_memories = memory_service.get_user_memories(db, current_user.id)
+        user_memory_str = memory_service.format_memories_for_prompt(user_memories)
+
     tool_context = ToolContext(db=db, current_user=current_user)
     tool_executor = partial(execute_tool, context=tool_context)
 
@@ -900,6 +953,7 @@ async def regenerate_response(
             context_summary=conversation.context_summary,
             recent_messages=recent_message_data,
             tool_executor=tool_executor,
+            user_memory=user_memory_str,
         )
     except LLMError as exc:
         raise LLMRequestError(f"Failed to regenerate response: {exc}") from exc

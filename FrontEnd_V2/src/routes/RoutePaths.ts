@@ -19,6 +19,7 @@ export const ROUTES = {
     
     HABIT_LIBRARY: "/habit-library",
     HABIT_LIBRARY_CREATE: "/habit-library/new",
+    HABIT_LIBRARY_DETAIL: "/habit-library/:habitId/detail",
     HABIT_LIBRARY_EDIT: "/habit-library/:habitId/edit",
     
     TRACK_PROGRESS: "/track-progress",

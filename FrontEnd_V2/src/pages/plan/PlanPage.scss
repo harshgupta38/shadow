@@ -202,6 +202,18 @@
   .empty-state p {
     font-size: 0.88rem;
     line-height: 1.5;
+
+    .btn-link-inline {
+      background: none;
+      border: none;
+      padding: 0;
+      font: inherit;
+      color: var(--jv-brand-1);
+      text-decoration: underline;
+      cursor: pointer;
+
+      &:hover { opacity: 0.8; }
+    }
   }
 
   .plan-task-list {

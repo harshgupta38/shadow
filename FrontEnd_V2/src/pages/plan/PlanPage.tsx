@@ -252,7 +252,7 @@ export function PlanPage() {
               type="date"
               value={toDateInputValue(selectedDate)}
               max={toDateInputValue(TODAY)}
-              onChange={(event) => setSelectedDate(new Date(`${event.target.value}T00:00:00`))}
+              onChange={(event) => { if (event.target.value) setSelectedDate(new Date(`${event.target.value}T00:00:00`)); }}
               onClick={(e) => e.currentTarget.showPicker?.()}
               aria-label="Plan date"
             />
@@ -308,7 +308,13 @@ export function PlanPage() {
               <div className="empty-state">
                 <span className="empty-state-icon"><CalendarCheckFill size={20} /></span>
                 <h3 className="text-normal">Couldn't load your plan</h3>
-                <p>{planError}</p>
+                <p>
+                  {planError} Please{" "}
+                  <button type="button" className="btn-link-inline" onClick={() => void loadPlan()}>
+                    try again
+                  </button>
+                  .
+                </p>
               </div>
             ) : totalCount === 0 ? (
               <div className="empty-state">

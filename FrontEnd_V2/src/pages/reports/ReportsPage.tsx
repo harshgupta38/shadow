@@ -87,15 +87,6 @@ function tierOf(score: number | null): ScoreTier {
   return "great";
 }
 
-const TIER_LABEL: Record<ScoreTier, string> = {
-  empty: "No data",
-  poor:  "Tough day",
-  low:   "Below average",
-  mid:   "Average",
-  good:  "Good day",
-  great: "Great day",
-};
-
 function computeStats(data: Map<string, DayMock>, year: number, month: number): Stats {
   const days = new Date(year, month + 1, 0).getDate();
   let goodDays = 0, tracked = 0, totalScore = 0;

@@ -30,6 +30,8 @@ interface DayMock {
   habitsDone: number;
   tasksTotal: number;
   tasksDone: number;
+  scheduleTotal: number;
+  scheduleDone: number;
 }
 
 interface CalDay {
@@ -69,8 +71,16 @@ function buildMonthData(year: number, month: number, apiDays: DayReport[]): Map<
     const key = fmtKey(year, month, d);
     const src = lookup.get(key);
     out.set(key, src
-      ? { score: src.score, habitsTotal: src.habits_total, habitsDone: src.habits_done, tasksTotal: src.tasks_total, tasksDone: src.tasks_done }
-      : { score: null, habitsTotal: 0, habitsDone: 0, tasksTotal: 0, tasksDone: 0 },
+      ? {
+          score: src.score,
+          habitsTotal: src.habits_total,
+          habitsDone: src.habits_done,
+          tasksTotal: src.tasks_total,
+          tasksDone: src.tasks_done,
+          scheduleTotal: src.schedule_total,
+          scheduleDone: src.schedule_done,
+        }
+      : { score: null, habitsTotal: 0, habitsDone: 0, tasksTotal: 0, tasksDone: 0, scheduleTotal: 0, scheduleDone: 0 },
     );
   }
   return out;
@@ -161,7 +171,7 @@ export function ReportsPage() {
       const key      = fmtKey(year, month, d);
       const isFuture = date > TODAY;
       const isToday  = date.toDateString() === TODAY.toDateString();
-      out.push({ type: "day", date, key, data: monthData.get(key) ?? { score: null, habitsTotal: 0, habitsDone: 0, tasksTotal: 0, tasksDone: 0 }, isToday, isFuture });
+      out.push({ type: "day", date, key, data: monthData.get(key) ?? { score: null, habitsTotal: 0, habitsDone: 0, tasksTotal: 0, tasksDone: 0, scheduleTotal: 0, scheduleDone: 0 }, isToday, isFuture });
     }
     return out;
   }, [year, month, monthData]);
@@ -331,6 +341,8 @@ export function ReportsPage() {
               <span className="rp-preview-detail">{hoveredCell.data.habitsDone}/{hoveredCell.data.habitsTotal} habits</span>
               <span className="rp-preview-sep" />
               <span className="rp-preview-detail">{hoveredCell.data.tasksDone}/{hoveredCell.data.tasksTotal} tasks</span>
+              <span className="rp-preview-sep" />
+              <span className="rp-preview-detail">{hoveredCell.data.scheduleDone}/{hoveredCell.data.scheduleTotal} scheduled</span>
             </>
           )}
         </div>

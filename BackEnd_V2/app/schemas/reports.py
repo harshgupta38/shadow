@@ -10,6 +10,8 @@ class DayReport(BaseModel):
     habits_done: int
     tasks_total: int
     tasks_done: int
+    schedule_total: int
+    schedule_done: int
 
 
 class MonthlyReportResponse(BaseModel):

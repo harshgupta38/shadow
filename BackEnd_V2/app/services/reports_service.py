@@ -18,13 +18,23 @@ def get_monthly_report(
     start = date(year, month, 1)
     end = date(year, month, cal_module.monthrange(year, month)[1])
 
+    score_contribution = case(
+        (
+            and_(
+                DailyPlanRecordDBM.planner_type == "metric",
+                DailyPlanRecordDBM.planner_target.isnot(None),
+                DailyPlanRecordDBM.planner_target > 0,
+            ),
+            func.min(1.0, DailyPlanRecordDBM.actual_value * 1.0 / DailyPlanRecordDBM.planner_target),
+        ),
+        else_=case((DailyPlanRecordDBM.status == "done", 1.0), else_=0.0),
+    )
+
     rows = db.execute(
         select(
             DailyPlanRecordDBM.scheduled_date,
             func.count(DailyPlanRecordDBM.id).label("total"),
-            func.sum(
-                case((DailyPlanRecordDBM.status == "done", 1), else_=0)
-            ).label("done"),
+            func.sum(score_contribution).label("score_sum"),
             func.sum(
                 case((DailyPlanRecordDBM.source_type == "habit", 1), else_=0)
             ).label("habits_total"),
@@ -35,14 +45,23 @@ def get_monthly_report(
                 )
             ).label("habits_done"),
             func.sum(
-                case((DailyPlanRecordDBM.source_type.in_(["task", "schedule"]), 1), else_=0)
+                case((DailyPlanRecordDBM.source_type == "task", 1), else_=0)
             ).label("tasks_total"),
             func.sum(
                 case(
-                    (and_(DailyPlanRecordDBM.source_type.in_(["task", "schedule"]), DailyPlanRecordDBM.status == "done"), 1),
+                    (and_(DailyPlanRecordDBM.source_type == "task", DailyPlanRecordDBM.status == "done"), 1),
                     else_=0,
                 )
             ).label("tasks_done"),
+            func.sum(
+                case((DailyPlanRecordDBM.source_type == "schedule", 1), else_=0)
+            ).label("schedule_total"),
+            func.sum(
+                case(
+                    (and_(DailyPlanRecordDBM.source_type == "schedule", DailyPlanRecordDBM.status == "done"), 1),
+                    else_=0,
+                )
+            ).label("schedule_done"),
         )
         .where(
             and_(
@@ -64,11 +83,13 @@ def get_monthly_report(
         days.append(
             DayReport(
                 date=row.scheduled_date,
-                score=round((row.done or 0) / total * 100),
+                score=round((row.score_sum or 0) / total * 100),
                 habits_total=int(row.habits_total or 0),
                 habits_done=int(row.habits_done or 0),
                 tasks_total=int(row.tasks_total or 0),
                 tasks_done=int(row.tasks_done or 0),
+                schedule_total=int(row.schedule_total or 0),
+                schedule_done=int(row.schedule_done or 0),
             )
         )
 

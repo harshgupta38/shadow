@@ -2,7 +2,6 @@ from contextlib import asynccontextmanager
 
 import asyncio
 import json
-import logging
 import subprocess
 
 from fastapi import FastAPI, Header, HTTPException, Request # header and http exception is extra
@@ -14,13 +13,9 @@ from pydantic import BaseModel # extra
 from app.api.router import api_router
 from app.core.config import settings
 
-from sqlalchemy import inspect, text
-
 from app.db.session import SessionLocal, engine
 from app.models.base import Base
 from app.core.exceptions import AppError
-
-logger = logging.getLogger(__name__)
 
 from pathlib import Path
 from fastapi import HTTPException
@@ -43,26 +38,9 @@ from app.models.memory import UserMemoryDBM
 from app.services import planner_service, backup_service
 
 
-# TEMPORARY — remove once all production instances have been migrated.
-# create_all() only creates new tables; it will not add columns to existing ones.
-def _run_migrations() -> None: # extra
-    inspector = inspect(engine)
-    existing_columns = {col["name"] for col in inspector.get_columns("conversations")}
-
-    with engine.connect() as conn:
-        if "memory_user_message_count" not in existing_columns:
-            logger.info("Migration: adding memory_user_message_count to conversations table")
-            conn.execute(text(
-                "ALTER TABLE conversations ADD COLUMN memory_user_message_count INTEGER NOT NULL DEFAULT 0"
-            ))
-            conn.commit()
-            logger.info("Migration: memory_user_message_count added successfully")
-
-
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     Base.metadata.create_all(bind=engine)
-    _run_migrations() # extra
     with SessionLocal() as db:
         planner_service.sync_all_plans(db)
 

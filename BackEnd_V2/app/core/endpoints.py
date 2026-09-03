@@ -33,6 +33,7 @@ class Endpoints:
         SAVE = "/save-habit"
         GET_LIST = "/get-habit-list"
         DETAIL = "/{habit_id}"
+        HISTORY = "/{habit_id}/history"
 
     class SCHEDULE:
         PREFIX = "/schedule"

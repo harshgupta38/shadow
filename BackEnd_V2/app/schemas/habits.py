@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.schemas.common import ORMModel
 from app.schemas.goals import CategoryType
+from app.schemas.planner import DailyPlanItemResponse
 
 HabitFrequency = Literal[
     "sunday",
@@ -274,3 +275,24 @@ class HabitDataResponse(BaseModel):
 
 class SetTrackingRequest(BaseModel):
     enabled_ids: list[int]
+
+
+class HabitHistoryStats(BaseModel):
+    total_records: int
+    total_done: int
+    total_missed: int
+    completion_rate: float  # 0.0 – 1.0
+
+
+class HabitHistoryRecord(BaseModel):
+    date: date
+    completed_at: datetime | None
+    item: DailyPlanItemResponse
+
+
+class HabitHistoryResponse(BaseModel):
+    habit: HabitDataResponse
+    records: list[HabitHistoryRecord]
+    stats: HabitHistoryStats
+    total: int
+    has_more: bool

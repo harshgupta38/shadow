@@ -1,4 +1,10 @@
 class Endpoints:
+    class SYSTEM:
+        ROOT = "/"
+        HEALTH = "/health"
+        SERVER_LOG = "/server/log"
+        ADMIN_SQL = "/admin/sql"
+
     class AUTH:
         PREFIX = "/auth"
         LOGIN = "/login"

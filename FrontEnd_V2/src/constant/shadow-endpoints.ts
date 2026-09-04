@@ -33,6 +33,7 @@ export const ENDPOINTS = {
         SAVE: "/save-habit",
         GET_LIST: "/get-habit-list",
         DETAIL: (id: number) => `/${id}`,
+        ACTIVITY: (id: number) => `/${id}/activity`,
     },
     PLAN_ITEMS: {
         PREFIX: "/planner",

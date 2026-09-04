@@ -22,6 +22,7 @@ import { GoalDetailPage } from "@/pages/my_goals/GoalDetailPage/GoalDetailPage";
 import { GoalMilestoneWizardPage } from "@/pages/my_goals/GoalMilestoneWizard/GoalMilestoneWizardPage";
 import { GoalTaskWizardPage } from "@/pages/my_goals/GoalTaskWizard/GoalTaskWizardPage.tsx";
 import { HabitLibraryPage } from "@/pages/habit_library/HabitLibraryPage";
+import { HabitDetailPage } from "@/pages/habit_library/HabitDetailPage/HabitDetailPage";
 import { HabitWizardPage } from "@/pages/habit_library/HabitWizard/HabitWizardPage";
 import { TrackProgressPage } from "@/pages/track_progress/TrackProgressPage";
 import { ReportsPage } from "@/pages/reports/ReportsPage";
@@ -57,6 +58,7 @@ export function AppRoutes() {
 					
 					<Route path={ROUTES.HABIT_LIBRARY} element={<HabitLibraryPage />} />
 					<Route path={ROUTES.HABIT_LIBRARY_CREATE} element={<HabitWizardPage />} />
+					<Route path={ROUTES.HABIT_LIBRARY_DETAIL} element={<HabitDetailPage />} />
 					<Route path={ROUTES.HABIT_LIBRARY_EDIT} element={<HabitWizardPage />} />
 					
 					<Route path={ROUTES.TRACK_PROGRESS} element={<TrackProgressPage />} />

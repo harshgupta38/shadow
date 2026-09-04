@@ -493,12 +493,32 @@ export interface HabitUpdateRequest extends Partial<HabitCreateRequest> {
   status?: HabitStatus;
 }
 
+export interface HabitHistoryStats {
+  total_records: number;
+  total_done: number;
+  total_missed: number;
+  completion_rate: number; // 0.0 – 1.0
+}
+
 // ── Planner ─────────────────────────────────────────────────────────────────
 export type PlanPriority = "highest" | "high" | "medium" | "low" | "lowest";
 export type PlanSourceType = "habit" | "task" | "schedule";
 export type PlannerType = "simple" | "metric";
 export type PlanPreferredTime = "flexible" | "morning" | "afternoon" | "evening" | "night" | "custom";
 export type PlanStatus = "due" | "done" | "missed";
+
+export interface HabitActivityRecord {
+  date: string; // YYYY-MM-DD
+  status: PlanStatus;
+  value: number | null;
+  note: string | null;
+  streak: number;
+}
+
+export interface HabitActivityResponse {
+  habit: HabitDataResponse;
+  records: HabitActivityRecord[];
+}
 
 export interface PlanDataResponse {
   plan_id: number;

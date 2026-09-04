@@ -1,6 +1,6 @@
 import { ENDPOINTS } from "@/constant/shadow-endpoints";
 import { http } from "@/api/client";
-import type { HabitDataResponse, HabitCreateRequest, HabitUpdateRequest } from "@/api/types";
+import type { HabitDataResponse, HabitCreateRequest, HabitActivityResponse, HabitUpdateRequest } from "@/api/types";
 
 export const habitsApi = {
     async getList(params?: { goal_id?: number }): Promise<HabitDataResponse[]> {
@@ -17,5 +17,11 @@ export const habitsApi = {
 
     async removeHabit(id: number): Promise<void> {
         return http.delete<void>(`${ENDPOINTS.HABITS.PREFIX}${ENDPOINTS.HABITS.DETAIL(id)}`);
+    },
+
+    async getActivity(id: number): Promise<HabitActivityResponse> {
+        return http.get<HabitActivityResponse>(
+            `${ENDPOINTS.HABITS.PREFIX}${ENDPOINTS.HABITS.ACTIVITY(id)}`,
+        );
     },
 };

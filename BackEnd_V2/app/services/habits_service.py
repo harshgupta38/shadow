@@ -13,6 +13,8 @@ from app.schemas.habits import (
     GoalSummary,
     HabitCreateRequest,
     HabitDataResponse,
+    HabitActivityRecord,
+    HabitActivityResponse,
     HabitStatus,
     HabitUpdateRequest,
     SetTrackingRequest,
@@ -323,6 +325,78 @@ def update_habit(
     db.refresh(habit)
     planner_service.sync_plan_from_habit(db, habit)
     return _serialize(habit, _compute_habit_streak(db, habit))
+
+
+def get_activity(
+    db: Session,
+    current_user: UserDBM,
+    habit_id: int,
+) -> HabitActivityResponse:
+    habit = db.scalar(
+        select(HabitDBM)
+        .options(joinedload(HabitDBM.goal))
+        .where(HabitDBM.id == habit_id, HabitDBM.user_id == current_user.id)
+    )
+    if habit is None:
+        raise NotFoundError("Habit not found.")
+
+    habit_response = _serialize(habit, _compute_habit_streak(db, habit))
+
+    plan = db.scalar(
+        select(PlanDBM).where(
+            PlanDBM.source_type == "habit",
+            PlanDBM.source_id == habit_id,
+            PlanDBM.user_id == current_user.id,
+        )
+    )
+    if plan is None:
+        return HabitActivityResponse(habit=habit_response, records=[])
+
+    today = date.today()
+    m = today.month - 11
+    y = today.year
+    if m <= 0:
+        m += 12
+        y -= 1
+    window_start = date(y, m, 1)
+
+    rows = db.execute(
+        select(
+            DailyPlanRecordDBM.scheduled_date,
+            DailyPlanRecordDBM.status,
+            DailyPlanRecordDBM.actual_value,
+            DailyPlanRecordDBM.note,
+        ).where(
+            DailyPlanRecordDBM.plan_id == plan.id,
+            DailyPlanRecordDBM.user_id == current_user.id,
+            DailyPlanRecordDBM.scheduled_date >= window_start,
+        )
+    ).all()
+
+    # Single O(n) pass: compute running consecutive-done streak per date
+    rows_asc = sorted(rows, key=lambda r: r.scheduled_date)
+    running = 0
+    streak_map: dict = {}
+    for r in rows_asc:
+        if r.status == "done":
+            running += 1
+        elif r.status == "missed":
+            running = 0
+        streak_map[r.scheduled_date] = running
+
+    return HabitActivityResponse(
+        habit=habit_response,
+        records=[
+            HabitActivityRecord(
+                date=r.scheduled_date,
+                status=r.status,
+                value=r.actual_value,
+                note=r.note or None,
+                streak=streak_map[r.scheduled_date],
+            )
+            for r in rows
+        ],
+    )
 
 
 def set_tracking(db: Session, current_user: UserDBM, data: SetTrackingRequest) -> None:

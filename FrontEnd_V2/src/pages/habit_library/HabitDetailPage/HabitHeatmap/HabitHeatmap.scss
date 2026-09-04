@@ -1,0 +1,63 @@
+.hh-card {
+  box-shadow: none;
+  border-radius: var(--jv-radius);
+  border: 1px solid color-mix(in srgb, var(--jv-border) 82%, var(--jv-brand-1) 18%);
+
+  .hh-body {
+    padding-top: 0 !important;
+  }
+
+  // ── Scroll container ────────────────────────────────────────────────────────
+  .hh-months-container {
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+  }
+
+  .hh-months {
+    display: flex;
+    flex-wrap: nowrap;
+    column-gap: 17px;
+    min-width: max-content;
+  }
+
+  // ── Month block ─────────────────────────────────────────────────────────────
+  .hh-month {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .hh-month-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--jv-text);
+    text-align: center;
+  }
+
+  // ── Cell grid — 7 rows (days), columns = weeks ──────────────────────────────
+  .hh-grid {
+    display: grid;
+    grid-template-rows: repeat(7, 13px);
+    grid-auto-flow: column;
+    grid-auto-columns: 13px;
+    gap: 3px;
+  }
+
+  .hh-cell {
+    width: 13px;
+    height: 13px;
+    border-radius: 3px;
+    transition: opacity 120ms ease, transform 120ms ease;
+
+    &:not(.hh-cell--empty):not(.hh-cell--future):hover {
+      opacity: 0.8;
+      transform: scale(1.2);
+      cursor: default;
+    }
+
+    &--done    { background: var(--jv-success); }
+    &--blank   { background: color-mix(in srgb, var(--jv-border) 60%, var(--jv-surface) 40%); }
+    &--future  { background: color-mix(in srgb, var(--jv-border) 25%, var(--jv-surface) 75%); }
+    &--empty   { background: transparent; pointer-events: none; }
+  }
+}

@@ -4,7 +4,13 @@ from app.api.deps import get_current_user
 from app.core.endpoints import ENDPOINTS
 from app.db.session import get_db
 from app.models.user import UserDBM
-from app.schemas.habits import HabitCreateRequest, HabitDataResponse, HabitStatus, HabitUpdateRequest
+from app.schemas.habits import (
+    HabitActivityResponse,
+    HabitCreateRequest,
+    HabitDataResponse,
+    HabitStatus,
+    HabitUpdateRequest,
+)
 from app.services import habits_service
 
 router = APIRouter(prefix=ENDPOINTS.HABITS.PREFIX, tags=["Habits"])
@@ -31,6 +37,15 @@ def save_habit(
     current_user: UserDBM = Depends(get_current_user),
 ) -> HabitDataResponse:
     return habits_service.save_habit(db, current_user, data)
+
+
+@router.get(ENDPOINTS.HABITS.ACTIVITY, response_model=HabitActivityResponse)
+def get_habit_activity(
+    habit_id: int,
+    db=Depends(get_db),
+    current_user: UserDBM = Depends(get_current_user),
+) -> HabitActivityResponse:
+    return habits_service.get_activity(db, current_user, habit_id)
 
 
 @router.patch(ENDPOINTS.HABITS.DETAIL, response_model=HabitDataResponse)

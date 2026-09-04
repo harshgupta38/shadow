@@ -871,6 +871,7 @@ def update_daily_record(
     status: str | None,
     actual_value: int | None,
     note: str | None,
+    add_value: int | None = None,
 ) -> DailyPlanSavedData:
     record = db.scalar(
         select(DailyPlanRecordDBM).where(
@@ -883,6 +884,9 @@ def update_daily_record(
 
     if record.scheduled_date != date.today():
         raise AppError("Past date records cannot be modified.")
+
+    if add_value is not None:
+        actual_value = record.actual_value + add_value
 
     # For metric plans: actual_value drives status automatically.
     if actual_value is not None and record.planner_type == "metric":

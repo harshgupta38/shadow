@@ -9,6 +9,7 @@ from fastapi.exceptions import RequestValidationError
 
 from app.api.router import api_router
 from app.api.system import router as system_router
+from app.api.shortcuts import router as shortcuts_router
 from app.core.config import settings
 
 from app.db.session import SessionLocal, engine
@@ -101,4 +102,5 @@ async def handle_validation_error(
 
 
 app.include_router(system_router)
+app.include_router(shortcuts_router)
 app.include_router(api_router, prefix=settings.api_prefix)

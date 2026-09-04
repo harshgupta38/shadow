@@ -5,6 +5,10 @@ class Endpoints:
         SERVER_LOG = "/server/log"
         ADMIN_SQL = "/admin/sql"
 
+    class SHORTCUTS:
+        PREFIX = "/shortcuts"
+        UPDATE = "/update"
+
     class AUTH:
         PREFIX = "/auth"
         LOGIN = "/login"

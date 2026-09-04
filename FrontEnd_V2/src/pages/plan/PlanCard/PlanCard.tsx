@@ -344,6 +344,7 @@ export function PlanCard({ item, onToggle, onSaveProgress, onSaveNote, onSaveNot
                       if (isNaN(val)) { setInputDelta(""); return; }
                       setInputDelta(String(Math.min(Math.max(target * -2, val), target * 2)));
                     }}
+                    onKeyDown={(e) => { if (e.key === "Enter") void handleSaveProgressDelta(); }}
                     disabled={busy || savingProgress}
                     aria-label="Progress amount to add"
                   />

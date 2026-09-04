@@ -35,7 +35,8 @@ export interface MonthGrid {
 
 export function getCellClass(cell: DayCell, plannerType: "simple" | "metric"): string {
   if (!cell.day) return "hh-cell hh-cell--empty";
-  if (plannerType === "metric" && cell.status === "done" && cell.ratio != null && cell.ratio > 0) {
+  const hasValue = plannerType === "metric" && (cell.ratio ?? 0) > 0;
+  if (hasValue && (cell.status === "done" || cell.status === "due")) {
     return "hh-cell"; // color applied via inline style
   }
   if (cell.status === "done") return "hh-cell hh-cell--done";
@@ -44,7 +45,8 @@ export function getCellClass(cell: DayCell, plannerType: "simple" | "metric"): s
 }
 
 export function getCellStyle(cell: DayCell, plannerType: "simple" | "metric"): React.CSSProperties | undefined {
-  if (plannerType !== "metric" || cell.status !== "done" || !cell.ratio) return undefined;
+  if (plannerType !== "metric" || !cell.ratio) return undefined;
+  if (cell.status !== "done" && cell.status !== "due") return undefined;
   const pct = Math.max(15, Math.round(cell.ratio * 100));
   return {
     background: `color-mix(in srgb, var(--jv-success) ${pct}%, var(--jv-surface) ${100 - pct}%)`,
@@ -95,6 +97,6 @@ export function cellTitle(dateStr: string, status: CellStatus, ratio?: number): 
   const label = d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
   if (status === "none" || status === "missed") return `${label} — no record`;
   if (status === "future") return label;
-  if (status === "done" && ratio != null) return `${label} — ${Math.round(ratio * 100)}%`;
+  if ((status === "done" || status === "due") && ratio != null && ratio > 0) return `${label} — ${Math.round(ratio * 100)}%`;
   return `${label} — ${status}`;
 }

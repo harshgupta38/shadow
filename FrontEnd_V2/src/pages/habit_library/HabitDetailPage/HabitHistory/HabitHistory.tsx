@@ -124,7 +124,7 @@ export function HabitHistory({ habit, records }: HabitHistoryProps) {
   const monthGroups = useMemo<MonthGroup[]>(() => {
     const map = new Map<string, MonthGroup>();
     for (const r of records) {
-      if (r.status === "due") continue;
+      if (r.status === "due" && (habit.planner_type !== "metric" || (r.value ?? 0) === 0)) continue;
       const d = new Date(`${r.date}T00:00:00`);
       const year = d.getFullYear();
       const month = d.getMonth();

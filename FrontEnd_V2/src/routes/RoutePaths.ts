@@ -24,6 +24,7 @@ export const ROUTES = {
     
     TRACK_PROGRESS: "/track-progress",
     REPORTS: "/reports",
+    REPORTS_DAY: "/reports/day/:historyDate",
     ASSISTANT: "/assistant",
     PROFILE: "/profile",
     SETTINGS: "/settings",

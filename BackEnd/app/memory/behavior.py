@@ -15,6 +15,7 @@ from app.memory.context import compile_user_context, summarize_recent_activity
 from app.models.enums import MemoryCategory, MemorySource
 from app.models.memory import MemoryEntry
 from app.models.user import User
+from app.services import settings_service
 
 _NONE_SENTINEL = "NONE"
 
@@ -31,10 +32,13 @@ def distill_and_store_behavior(
     if not activity_summary.strip():
         return None
 
+    preferred_model = settings_service.get_effective_ai_model(db, user)
+
     signal = distill_behavior_signal(
         provider,
         activity_summary=activity_summary,
         user_context=compile_user_context(db, user),
+        model=preferred_model,
     )
     if not signal or signal.strip().upper().startswith(_NONE_SENTINEL):
         return None

@@ -5,6 +5,7 @@ import {
   BellFill,
   Bullseye,
   CalendarCheckFill,
+  CheckLg,
   Fire,
   GraphUpArrow,
   PlusLg,
@@ -18,11 +19,26 @@ import { Pill } from "@/components/ui/Pill";
 import { ProgressRing } from "@/components/ui/ProgressRing";
 import { SectionCard } from "@/components/ui/SectionCard";
 import { StatCard } from "@/components/ui/StatCard";
-import { TaskItem } from "@/components/tasks/TaskItem";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { useAsync } from "@/hooks/useAsync";
 import { clampPercent, formatMetricValue, greeting, relativeTime, toISODate } from "@/lib/format";
+
+type PillVariant = "success" | "warn" | "danger" | "info" | "brand" | "muted";
+
+const TASK_PRIORITY_LABEL: Record<PlannedTask["priority"], string> = {
+  critical: "Critical",
+  high: "High",
+  medium: "Medium",
+  low: "Low",
+};
+
+const TASK_PRIORITY_PILL: Record<PlannedTask["priority"], PillVariant> = {
+  critical: "danger",
+  high: "warn",
+  medium: "info",
+  low: "muted",
+};
 
 function MetricMiniCard({ metric }: { metric: MetricSummary }) {
   const targetPct = metric.target ? clampPercent((metric.today_total / metric.target) * 100) : null;
@@ -70,6 +86,11 @@ export function DashboardPage() {
   const bestStreak = useMemo(
     () => (data ? data.metrics.reduce((max, m) => Math.max(max, m.streak_days), 0) : 0),
     [data],
+  );
+
+  const goalTitleById = useMemo(
+    () => new Map((data?.active_goals ?? []).map((goal) => [goal.id, goal.title])),
+    [data?.active_goals],
   );
 
   const completionRate = data && data.tasks_today_total > 0
@@ -140,7 +161,7 @@ export function DashboardPage() {
         actions={
           <>
             <Link to="/plan" className="btn btn-outline-secondary">
-              <PlusLg size={16} className="me-1" /> Plan today
+              <PlusLg size={16} className="me-1" /> Today's Plan
             </Link>
             <Link to="/reports" className="btn btn-brand">
               View reports
@@ -304,9 +325,65 @@ export function DashboardPage() {
               />
             ) : (
               <div className="d-flex flex-column">
-                {data.upcoming_tasks.slice(0, 6).map((task) => (
-                  <TaskItem key={task.id} task={task} onToggle={toggleTask} />
-                ))}
+                {data.upcoming_tasks.slice(0, 6).map((task) => {
+                  const done = task.status === "done";
+                  const linkedGoal =
+                    (task.related_goal_id ? goalTitleById.get(task.related_goal_id) : null)
+                    ?? task.goal_title
+                    ?? "Not linked to a goal";
+                  const category =
+                    typeof task.category === "string" && task.category.trim().length > 0
+                      ? task.category
+                      : "Uncategorized";
+                  const currentStreak = Math.max(0, task.current_habit_streak ?? 0);
+
+                  return (
+                    <div key={task.id} className="surface-2 p-3 p-sm-4 mb-2">
+                      <div className="d-flex align-items-start gap-3">
+                        <button
+                          type="button"
+                          className="btn p-0 flex-shrink-0"
+                          onClick={() => void toggleTask(task)}
+                          aria-label={done ? "Mark as not done" : "Mark as done"}
+                          title={done ? "Mark as not done" : "Mark as done"}
+                          style={{
+                            width: 24,
+                            height: 24,
+                            borderRadius: "50%",
+                            display: "grid",
+                            placeItems: "center",
+                            background: done ? "var(--jv-brand-gradient)" : "transparent",
+                            border: done ? "none" : "2px solid var(--jv-brand-1)",
+                            color: "#fff",
+                            transition: "all 160ms ease",
+                          }}
+                        >
+                          {done && <CheckLg size={14} />}
+                        </button>
+
+                        <div className="flex-grow-1 min-w-0">
+                          <div className={`fw-semibold text-truncate ${done ? "text-muted-2" : ""}`}>
+                            {task.title}
+                          </div>
+
+                          <div className="d-flex align-items-center gap-2 mt-2 flex-wrap">
+                            <Pill variant="brand">{category}</Pill>
+                            <Pill variant={TASK_PRIORITY_PILL[task.priority]}>
+                              {TASK_PRIORITY_LABEL[task.priority]}
+                            </Pill>
+                          </div>
+
+                          <div className="small text-muted-2 mt-2">
+                            <span className="fw-semibold">Streak:</span> {currentStreak}d
+                          </div>
+                          <div className="small text-muted-2 mt-1">
+                            <span className="fw-semibold">Goal:</span> {linkedGoal}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </SectionCard>

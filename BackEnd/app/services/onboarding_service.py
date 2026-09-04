@@ -11,6 +11,7 @@ from app.models.enums import MemoryCategory, MemorySource
 from app.models.memory import MemoryEntry
 from app.models.user import User
 from app.schemas.onboarding import OnboardingAnswerRequest, OnboardingQuestion
+from app.services import settings_service
 
 # Ordered interview questions covering daily → life goals + working style.
 DEFAULT_QUESTIONS: list[dict] = [
@@ -43,11 +44,13 @@ def record_answer(
 ) -> MemoryEntry:
     """Interpret an answer into a saved 'understanding' MemoryEntry."""
     context = compile_user_context(db, user)
+    preferred_model = settings_service.get_effective_ai_model(db, user)
     understanding = generate_onboarding_understanding(
         provider,
         question=data.question,
         answer=data.answer,
         user_context=context,
+        model=preferred_model,
     )
     entry = MemoryEntry(
         user_id=user.id,

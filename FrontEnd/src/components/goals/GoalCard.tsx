@@ -33,7 +33,7 @@ export function GoalCard({ goal }: { goal: Goal }) {
             <span className="small fw-semibold text-muted-2">Progress</span>
             <span className="small fw-bold">{goal.progress}%</span>
           </div>
-          <div className="progress mb-3" style={{ height: 7 }}>
+          <div className="progress goal-progress-track mb-3" style={{ height: 7 }}>
             <div className="progress-bar" style={{ width: `${goal.progress}%` }} />
           </div>
 

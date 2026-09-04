@@ -1,6 +1,9 @@
 import { http } from "./client";
 import type {
+  GoalDraft,
+  GoalDraftRequest,
   Goal,
+  GoalLinkedRepetitiveTask,
   GoalCreate,
   GoalStatus,
   GoalUpdate,
@@ -16,8 +19,14 @@ export const goalsApi = {
   async get(id: number): Promise<Goal> {
     return http.get<Goal>(`/goals/${id}`);
   },
+  async linkedRepetitiveTasks(goalId: number): Promise<GoalLinkedRepetitiveTask[]> {
+    return http.get<GoalLinkedRepetitiveTask[]>(`/goals/${goalId}/repetitive-tasks`);
+  },
   async create(data: GoalCreate): Promise<Goal> {
     return http.post<Goal>("/goals", data);
+  },
+  async draft(data: GoalDraftRequest): Promise<GoalDraft> {
+    return http.post<GoalDraft>("/goals/draft", data);
   },
   async update(id: number, data: GoalUpdate): Promise<Goal> {
     return http.put<Goal>(`/goals/${id}`, data);

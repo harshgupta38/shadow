@@ -17,19 +17,3 @@ export function LoadingState({ label = "Loading…", full = true }: LoadingState
     </div>
   );
 }
-
-interface SkeletonProps {
-  height?: number | string;
-  width?: number | string;
-  className?: string;
-  radius?: number | string;
-}
-
-export function Skeleton({ height = 16, width = "100%", className = "", radius }: SkeletonProps) {
-  return (
-    <span
-      className={`skeleton d-block ${className}`.trim()}
-      style={{ height, width, borderRadius: radius }}
-    />
-  );
-}

@@ -1,0 +1,122 @@
+.goal-wizard {
+    &-title-input {
+        border-color: var(--jv-border-strong);
+        background: var(--jv-surface);
+        color: var(--jv-text);
+
+        &:focus {
+            border-color: var(--jv-brand-1);
+            box-shadow: var(--jv-ring);
+        }
+    }
+
+    &-days-input {
+        width: 100%;
+        border-color: var(--jv-border-strong);
+        background: var(--jv-surface);
+        color: var(--jv-text);
+
+        &:focus {
+            border-color: var(--jv-brand-1);
+            box-shadow: var(--jv-ring);
+        }
+    }
+
+    &-rich-editor {
+
+        .ql-toolbar {
+            border-color: var(--jv-border-strong);
+            border-radius: var(--jv-radius) var(--jv-radius) 0 0;
+        }
+
+        .ql-container {
+            border-color: var(--jv-border-strong);
+            border-radius: 0 0 var(--jv-radius) var(--jv-radius);
+            background: var(--jv-surface);
+            color: var(--jv-text);
+            min-height: 120px;
+            font-size: 0.9rem;
+        }
+
+        .ql-editor.ql-blank::before {
+            color: var(--jv-faint);
+            font-style: normal;
+        }
+    }
+
+    &-reason {
+        min-height: 138px;
+        resize: none;
+        overflow-y: hidden;
+        border-color: var(--jv-border-strong);
+        background: var(--jv-surface);
+        color: var(--jv-text);
+
+        &::placeholder {
+            color: var(--jv-faint);
+        }
+
+        &:focus {
+            border-color: var(--jv-brand-1);
+            box-shadow: var(--jv-ring);
+        }
+    }
+}
+
+// Quill toolbar dark-mode overrides
+[data-bs-theme="dark"] .goal-wizard-rich-editor .ql-snow .ql-picker {
+    color: var(--jv-muted);
+}
+
+[data-bs-theme="dark"] .goal-wizard-rich-editor .ql-toolbar {
+    background: var(--jv-surface);
+}
+
+[data-bs-theme="dark"] .goal-wizard-rich-editor .ql-snow .ql-stroke {
+    stroke: var(--jv-muted);
+}
+
+[data-bs-theme="dark"] .goal-wizard-rich-editor .ql-snow .ql-thin,
+[data-bs-theme="dark"] .goal-wizard-rich-editor .ql-snow .ql-stroke.ql-thin {
+    stroke: var(--jv-muted);
+}
+
+[data-bs-theme="dark"] .goal-wizard-rich-editor .ql-snow .ql-fill,
+[data-bs-theme="dark"] .goal-wizard-rich-editor .ql-snow .ql-stroke.ql-fill {
+    fill: var(--jv-muted);
+}
+
+[data-bs-theme="dark"] .goal-wizard-rich-editor .ql-snow .ql-picker-options {
+    background: var(--jv-surface-2);
+    border-color: var(--jv-border-strong);
+}
+
+[data-bs-theme="dark"] .goal-wizard-rich-editor .ql-snow button:hover,
+[data-bs-theme="dark"] .goal-wizard-rich-editor .ql-snow button:focus,
+[data-bs-theme="dark"] .goal-wizard-rich-editor .ql-snow button.ql-active,
+[data-bs-theme="dark"] .goal-wizard-rich-editor .ql-snow .ql-picker-label:hover,
+[data-bs-theme="dark"] .goal-wizard-rich-editor .ql-snow .ql-picker-label.ql-active,
+[data-bs-theme="dark"] .goal-wizard-rich-editor .ql-snow .ql-picker-item:hover,
+[data-bs-theme="dark"] .goal-wizard-rich-editor .ql-snow .ql-picker-item.ql-selected {
+    color: var(--jv-text);
+}
+
+[data-bs-theme="dark"] .goal-wizard-rich-editor .ql-snow button:hover .ql-stroke,
+[data-bs-theme="dark"] .goal-wizard-rich-editor .ql-snow button:focus .ql-stroke,
+[data-bs-theme="dark"] .goal-wizard-rich-editor .ql-snow button.ql-active .ql-stroke,
+[data-bs-theme="dark"] .goal-wizard-rich-editor .ql-snow .ql-picker-label:hover .ql-stroke,
+[data-bs-theme="dark"] .goal-wizard-rich-editor .ql-snow .ql-picker-label.ql-active .ql-stroke,
+[data-bs-theme="dark"] .goal-wizard-rich-editor .ql-snow .ql-picker-item:hover .ql-stroke,
+[data-bs-theme="dark"] .goal-wizard-rich-editor .ql-snow .ql-picker-item.ql-selected .ql-stroke {
+    stroke: var(--jv-text);
+}
+
+[data-bs-theme="dark"] .goal-wizard-rich-editor .ql-snow button:hover .ql-fill,
+[data-bs-theme="dark"] .goal-wizard-rich-editor .ql-snow button:focus .ql-fill,
+[data-bs-theme="dark"] .goal-wizard-rich-editor .ql-snow button.ql-active .ql-fill,
+[data-bs-theme="dark"] .goal-wizard-rich-editor .ql-snow .ql-picker-label:hover .ql-fill,
+[data-bs-theme="dark"] .goal-wizard-rich-editor .ql-snow .ql-picker-label.ql-active .ql-fill,
+[data-bs-theme="dark"] .goal-wizard-rich-editor .ql-snow .ql-picker-item:hover .ql-fill,
+[data-bs-theme="dark"] .goal-wizard-rich-editor .ql-snow .ql-picker-item.ql-selected .ql-fill {
+    fill: var(--jv-text);
+}

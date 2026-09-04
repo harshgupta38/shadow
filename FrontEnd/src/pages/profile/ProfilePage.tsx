@@ -1,0 +1,657 @@
+import { useEffect, useState, type FormEvent } from "react";
+import {
+  BriefcaseFill,
+  ExclamationTriangleFill,
+  PersonBadgeFill,
+  ShieldCheck,
+  Stars,
+} from "react-bootstrap-icons";
+import { useNavigate } from "react-router-dom";
+
+import { api, ApiError, type AIProfileUpdate, type BasicProfileUpdate } from "@/api";
+import { Avatar } from "@/components/ui/Avatar";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { LoadingState } from "@/components/ui/LoadingState";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { Pill } from "@/components/ui/Pill";
+import { SectionCard } from "@/components/ui/SectionCard";
+import { TextField } from "@/components/ui/TextField";
+import { useAuth } from "@/context/AuthContext";
+import { useLogoutConfirm } from "@/context/LogoutConfirmContext";
+import { useToast } from "@/context/ToastContext";
+import { useAsync } from "@/hooks/useAsync";
+import { formatDate, relativeTime } from "@/lib/format";
+
+const INDIA_TIMEZONE = "Asia/Kolkata";
+
+export function ProfilePage() {
+  const { patchUser, logout } = useAuth();
+  const toast = useToast();
+  const { requestLogout } = useLogoutConfirm();
+  const navigate = useNavigate();
+
+  const basicQuery = useAsync(() => api.profile.basic(), []);
+  const aiQuery = useAsync(() => api.profile.ai(), []);
+  const accountQuery = useAsync(() => api.profile.account(), []);
+
+  const [basicDraft, setBasicDraft] = useState<BasicProfileUpdate>({});
+  const [aiDraft, setAiDraft] = useState<AIProfileUpdate>({});
+
+  const [savingBasic, setSavingBasic] = useState(false);
+  const [savingAi, setSavingAi] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [sendingVerificationEmail, setSendingVerificationEmail] = useState(false);
+  const [verificationEmailResent, setVerificationEmailResent] = useState(false);
+  const [verificationRetryAfterSeconds, setVerificationRetryAfterSeconds] = useState(0);
+  const [exportingData, setExportingData] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [confirmDeleteAccount, setConfirmDeleteAccount] = useState(false);
+  const [showChangePasswordForm, setShowChangePasswordForm] = useState(false);
+  const [passwordDraft, setPasswordDraft] = useState({
+    current_password: "",
+    new_password: "",
+    confirm_password: "",
+  });
+
+  useEffect(() => {
+    if (!basicQuery.data) return;
+    setBasicDraft({
+      name: basicQuery.data.name,
+      timezone: INDIA_TIMEZONE,
+      display_name: basicQuery.data.display_name,
+      profile_picture_url: basicQuery.data.profile_picture_url,
+      current_role: basicQuery.data.current_role,
+      current_goal: basicQuery.data.current_goal,
+      short_bio: basicQuery.data.short_bio,
+    });
+  }, [basicQuery.data]);
+
+  useEffect(() => {
+    if (!aiQuery.data) return;
+    setAiDraft({
+      profession: aiQuery.data.profession,
+      industry: aiQuery.data.industry,
+      experience_summary: aiQuery.data.experience_summary,
+      primary_tech_stack: aiQuery.data.primary_tech_stack,
+      current_company: aiQuery.data.current_company,
+      dream_company: aiQuery.data.dream_company,
+      interview_preparation_status: aiQuery.data.interview_preparation_status,
+      long_term_vision: aiQuery.data.long_term_vision,
+      current_goals_overview: aiQuery.data.current_goals_overview,
+      daily_routine: aiQuery.data.daily_routine,
+      working_style: aiQuery.data.working_style,
+      learning_profile: aiQuery.data.learning_profile,
+      productivity_preferences: aiQuery.data.productivity_preferences,
+      motivation: aiQuery.data.motivation,
+      always_remember: aiQuery.data.always_remember,
+    });
+  }, [aiQuery.data]);
+
+  useEffect(() => {
+    if (!accountQuery.data) return;
+    setVerificationRetryAfterSeconds(
+      Math.max(0, accountQuery.data.verification_email_retry_after_seconds),
+    );
+  }, [accountQuery.data]);
+
+  useEffect(() => {
+    if (verificationRetryAfterSeconds <= 0) return;
+    const timer = window.setTimeout(() => {
+      setVerificationRetryAfterSeconds((prev) => Math.max(0, prev - 1));
+    }, 1000);
+    return () => window.clearTimeout(timer);
+  }, [verificationRetryAfterSeconds]);
+
+  async function saveBasic(event: FormEvent) {
+    event.preventDefault();
+    setSavingBasic(true);
+    try {
+      const updated = await api.profile.updateBasic({
+        ...basicDraft,
+        timezone: INDIA_TIMEZONE,
+      });
+      basicQuery.setData(updated);
+      patchUser({ name: updated.name, timezone: INDIA_TIMEZONE });
+      toast.success("Basic profile updated.");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Couldn't save profile details.");
+    } finally {
+      setSavingBasic(false);
+    }
+  }
+
+  async function saveAIProfile(event: FormEvent) {
+    event.preventDefault();
+    setSavingAi(true);
+    try {
+      const updated = await api.profile.updateAi(aiDraft);
+      aiQuery.setData(updated);
+      toast.success("AI profile updated.");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Couldn't save AI profile.");
+    } finally {
+      setSavingAi(false);
+    }
+  }
+
+  async function changePassword(event: FormEvent) {
+    event.preventDefault();
+    if (!passwordDraft.current_password || !passwordDraft.new_password) {
+      toast.error("Please fill current and new password.");
+      return;
+    }
+    if (passwordDraft.new_password !== passwordDraft.confirm_password) {
+      toast.error("New password and confirm password must match.");
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      await api.profile.changePassword({
+        current_password: passwordDraft.current_password,
+        new_password: passwordDraft.new_password,
+      });
+      accountQuery.reload();
+      setPasswordDraft({ current_password: "", new_password: "", confirm_password: "" });
+      setShowChangePasswordForm(false);
+      toast.success("Password updated successfully.");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Couldn't update password.");
+    } finally {
+      setChangingPassword(false);
+    }
+  }
+
+  async function requestEmailVerification() {
+    setVerificationEmailResent(false);
+    setSendingVerificationEmail(true);
+    try {
+      const result = await api.profile.requestEmailVerification();
+      setVerificationRetryAfterSeconds(Math.max(0, result.retry_after_seconds));
+      if (result.email_sent) {
+        setVerificationEmailResent(true);
+        toast.success(result.detail);
+      } else {
+        setVerificationEmailResent(false);
+        toast.info(result.detail);
+      }
+    } catch (err) {
+      toast.error(
+        err instanceof ApiError ? err.message : "Couldn't start email verification.",
+      );
+    } finally {
+      setSendingVerificationEmail(false);
+    }
+  }
+
+  async function exportData() {
+    setExportingData(true);
+    try {
+      const payload = await api.profile.exportAccountData();
+      const fileName = `shadow-export-${new Date(payload.exported_at).toISOString().slice(0, 10)}.json`;
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast.success("Account export downloaded.");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Couldn't export account data.");
+    } finally {
+      setExportingData(false);
+    }
+  }
+
+  async function deleteAccount() {
+    setDeletingAccount(true);
+    try {
+      await api.profile.deleteAccount({ confirmation_text: "DELETE" });
+      logout();
+      toast.success("Account deleted successfully.");
+      navigate("/login", { replace: true });
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Couldn't delete account.");
+    } finally {
+      setDeletingAccount(false);
+      setConfirmDeleteAccount(false);
+    }
+  }
+
+  const loading = basicQuery.loading || aiQuery.loading || accountQuery.loading;
+  const pageError = basicQuery.error || aiQuery.error || accountQuery.error;
+
+  if (loading) return <LoadingState label="Loading profile..." />;
+
+  if (pageError || !basicQuery.data || !aiQuery.data || !accountQuery.data) {
+    return (
+      <EmptyState
+        title="Couldn't load your profile"
+        message={pageError ?? "Please try again."}
+        action={
+          <button
+            className="btn btn-brand"
+            onClick={() => {
+              basicQuery.reload();
+              aiQuery.reload();
+              accountQuery.reload();
+            }}
+          >
+            Retry
+          </button>
+        }
+      />
+    );
+  }
+
+  const profile = basicQuery.data;
+  const ai = aiQuery.data;
+  const account = accountQuery.data;
+
+  return (
+    <div className="profile-page">
+      <PageHeader
+        title="Profile"
+        subtitle="Who you are and what Shadow understands about you."
+        icon={<PersonBadgeFill size={20} />}
+      />
+
+      <div className="row g-4 mb-4">
+        <div className="col-12">
+          <section className="surface profile-hero py-3 py-sm-4 px-4 px-sm-5">
+            <div className="d-flex flex-column flex-lg-row align-items-lg-center gap-4">
+              <Avatar name={profile.display_name ?? profile.name} size="lg" gradient={["#7c6cff", "#4f8bff"]} />
+              <div className="flex-grow-1 min-w-0">
+                <div className="d-flex align-items-center gap-2 flex-wrap mb-2">
+                  <h2 className="h3 fw-bold mb-0 text-truncate">{profile.display_name || profile.name}</h2>
+                  <Pill variant="brand">Member</Pill>
+                </div>
+                <p className="text-muted-2 mb-1">{profile.current_role || "Role not set"}</p>
+                <p className="mb-0 text-faint">
+                  {profile.current_goal || "Set a current goal to personalise planning"}
+                </p>
+              </div>
+              <div className="text-lg-end">
+                <div className="small text-faint mb-1">Member Since</div>
+                <div className="fw-semibold">{formatDate(profile.member_since)}</div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <div className="row g-4">
+        <div className="col-xl-7 d-flex flex-column gap-4">
+          <SectionCard title="Basic Profile" subtitle="Identity details used across Shadow.">
+            <form onSubmit={saveBasic}>
+              <div className="row g-2">
+                <div className="col-sm-6">
+                  <TextField
+                    label="Full Name"
+                    value={basicDraft.name ?? ""}
+                    onChange={(e) => setBasicDraft((p) => ({ ...p, name: e.target.value }))}
+                    required
+                  />
+                </div>
+                <div className="col-sm-6">
+                  <TextField
+                    label="Display Name"
+                    value={basicDraft.display_name ?? ""}
+                    onChange={(e) =>
+                      setBasicDraft((p) => ({
+                        ...p,
+                        display_name: e.target.value || null,
+                      }))
+                    }
+                  />
+                </div>
+                <div className="col-sm-6">
+                  <TextField
+                    label="Current Role"
+                    value={basicDraft.current_role ?? ""}
+                    onChange={(e) =>
+                      setBasicDraft((p) => ({
+                        ...p,
+                        current_role: e.target.value || null,
+                      }))
+                    }
+                  />
+                </div>
+                <div className="col-sm-6">
+                  <TextField
+                    label="Current Goal"
+                    value={basicDraft.current_goal ?? ""}
+                    onChange={(e) =>
+                      setBasicDraft((p) => ({
+                        ...p,
+                        current_goal: e.target.value || null,
+                      }))
+                    }
+                  />
+                </div>
+                <div className="col-12">
+                  <label className="form-label">Short Bio</label>
+                  <textarea
+                    className="form-control"
+                    rows={3}
+                    maxLength={500}
+                    value={basicDraft.short_bio ?? ""}
+                    onChange={(e) =>
+                      setBasicDraft((p) => ({
+                        ...p,
+                        short_bio: e.target.value || null,
+                      }))
+                    }
+                  />
+                </div>
+              </div>
+              <div className="mt-3">
+                <button className="btn btn-brand" disabled={savingBasic}>
+                  {savingBasic ? "Saving..." : "Save Basic Profile"}
+                </button>
+              </div>
+            </form>
+          </SectionCard>
+
+          <SectionCard
+            title={
+              <span className="d-inline-flex align-items-center gap-2">
+                <Stars size={16} style={{ color: "var(--jv-brand-1)" }} /> AI Profile
+              </span>
+            }
+            subtitle={`Version ${ai.profile_version} · updated ${relativeTime(ai.updated_at)}`}
+          >
+            <form onSubmit={saveAIProfile} className="d-flex flex-column gap-3">
+              <div className="row g-3">
+                <div className="col-md-6">
+                  <TextField
+                    label="Profession"
+                    value={aiDraft.profession ?? ""}
+                    onChange={(e) =>
+                      setAiDraft((p) => ({ ...p, profession: e.target.value || null }))
+                    }
+                  />
+                </div>
+                <div className="col-md-6">
+                  <TextField
+                    label="Industry"
+                    value={aiDraft.industry ?? ""}
+                    onChange={(e) => setAiDraft((p) => ({ ...p, industry: e.target.value || null }))}
+                  />
+                </div>
+                <div className="col-md-6">
+                  <TextField
+                    label="Current Company"
+                    value={aiDraft.current_company ?? ""}
+                    onChange={(e) =>
+                      setAiDraft((p) => ({ ...p, current_company: e.target.value || null }))
+                    }
+                  />
+                </div>
+                <div className="col-md-6">
+                  <TextField
+                    label="Dream Company"
+                    value={aiDraft.dream_company ?? ""}
+                    onChange={(e) =>
+                      setAiDraft((p) => ({ ...p, dream_company: e.target.value || null }))
+                    }
+                  />
+                </div>
+                <div className="col-12">
+                  <TextField
+                    label="Primary Tech Stack"
+                    value={aiDraft.primary_tech_stack ?? ""}
+                    onChange={(e) =>
+                      setAiDraft((p) => ({ ...p, primary_tech_stack: e.target.value || null }))
+                    }
+                  />
+                </div>
+                <div className="col-12">
+                  <label className="form-label">Long-Term Vision</label>
+                  <textarea
+                    className="form-control"
+                    rows={2}
+                    value={aiDraft.long_term_vision ?? ""}
+                    onChange={(e) =>
+                      setAiDraft((p) => ({
+                        ...p,
+                        long_term_vision: e.target.value || null,
+                      }))
+                    }
+                  />
+                </div>
+                <div className="col-12">
+                  <label className="form-label">Working Style</label>
+                  <textarea
+                    className="form-control"
+                    rows={2}
+                    value={aiDraft.working_style ?? ""}
+                    onChange={(e) =>
+                      setAiDraft((p) => ({ ...p, working_style: e.target.value || null }))
+                    }
+                  />
+                </div>
+                <div className="col-12">
+                  <label className="form-label">Productivity Preferences</label>
+                  <textarea
+                    className="form-control"
+                    rows={2}
+                    value={aiDraft.productivity_preferences ?? ""}
+                    onChange={(e) =>
+                      setAiDraft((p) => ({
+                        ...p,
+                        productivity_preferences: e.target.value || null,
+                      }))
+                    }
+                  />
+                </div>
+                <div className="col-12">
+                  <label className="form-label">Motivation</label>
+                  <textarea
+                    className="form-control"
+                    rows={2}
+                    value={aiDraft.motivation ?? ""}
+                    onChange={(e) => setAiDraft((p) => ({ ...p, motivation: e.target.value || null }))}
+                  />
+                </div>
+                <div className="col-12">
+                  <label className="form-label">Always Remember</label>
+                  <textarea
+                    className="form-control"
+                    rows={2}
+                    value={aiDraft.always_remember ?? ""}
+                    onChange={(e) =>
+                      setAiDraft((p) => ({ ...p, always_remember: e.target.value || null }))
+                    }
+                  />
+                </div>
+              </div>
+
+              <div>
+                <button className="btn btn-brand" disabled={savingAi}>
+                  {savingAi ? "Saving..." : "Save AI Profile"}
+                </button>
+              </div>
+            </form>
+          </SectionCard>
+        </div>
+
+        <div className="col-xl-5 d-flex flex-column gap-4">
+          <SectionCard
+            title={
+              <span className="d-inline-flex align-items-center gap-2">
+                <Stars size={16} style={{ color: "var(--jv-brand-1)" }} /> Your Information
+              </span>
+            }
+            subtitle="What Shadow knows about you. This information is used to personalize responses."
+          >
+            <div className="surface-2 p-3 d-flex flex-column gap-2">
+              <div className="text-muted-2 small">
+                Manage memory entries in one focused place while keeping this profile page clean.
+              </div>
+              <div>
+                <button className="btn btn-soft" onClick={() => navigate("/memory-center")}>
+                  See Your Information
+                </button>
+              </div>
+            </div>
+          </SectionCard>
+
+          <SectionCard title="Account Security" subtitle="Authentication and account access status.">
+            <div className="d-flex flex-column gap-3">
+              <div className="surface-2 p-3 d-flex align-items-start gap-3">
+                <ShieldCheck size={18} style={{ color: "var(--jv-success)", marginTop: 2 }} />
+                <div>
+                  <div className="fw-semibold text-capitalize">{account.auth_provider} authentication</div>
+                  <div className="small text-muted-2">Subscription plan: {account.subscription_plan}</div>
+                </div>
+              </div>
+              <div className="surface-2 p-3 d-flex flex-column gap-1">
+                <div className="small text-faint">Email</div>
+                <div className="fw-semibold">{account.email}</div>
+                <div className="small text-muted-2">
+                  Verification: {account.email_verified ? "Verified" : "Not verified"}
+                </div>
+                {!account.email_verified && (
+                  <div className="d-flex align-items-center gap-2 flex-wrap mt-1">
+                    <button
+                      type="button"
+                      className="btn btn-soft btn-sm verification-resend-btn"
+                      disabled={sendingVerificationEmail || verificationRetryAfterSeconds > 0}
+                      onClick={requestEmailVerification}
+                    >
+                      {sendingVerificationEmail
+                        ? "Sending..."
+                        : verificationEmailResent
+                          ? "Resent verification link"
+                          : "Resend verification link"}
+                    </button>
+                    {verificationRetryAfterSeconds > 0 && (
+                      <span className="small text-muted-2">
+                        Please wait {verificationRetryAfterSeconds}s before requesting another verification email.
+                      </span>
+                    )}
+                  </div>
+                )}
+                <div className="small text-muted-2">
+                  Last password change: {formatDate(account.last_password_changed_at)}
+                </div>
+              </div>
+              <div className="surface-2 p-3">
+                <div className="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+                  <div className="fw-semibold">Login Security</div>
+                  {!showChangePasswordForm && (
+                    <button
+                      type="button"
+                      className="btn btn-soft btn-sm"
+                      onClick={() => setShowChangePasswordForm(true)}
+                    >
+                      Change Password
+                    </button>
+                  )}
+                </div>
+
+                {showChangePasswordForm && (
+                  <form className="mt-2" onSubmit={changePassword}>
+                    <TextField
+                      type="password"
+                      label="Current Password"
+                      value={passwordDraft.current_password}
+                      onChange={(e) =>
+                        setPasswordDraft((prev) => ({ ...prev, current_password: e.target.value }))
+                      }
+                      required
+                    />
+                    <TextField
+                      type="password"
+                      label="New Password"
+                      value={passwordDraft.new_password}
+                      onChange={(e) =>
+                        setPasswordDraft((prev) => ({ ...prev, new_password: e.target.value }))
+                      }
+                      required
+                      minLength={8}
+                    />
+                    <TextField
+                      type="password"
+                      label="Confirm New Password"
+                      value={passwordDraft.confirm_password}
+                      onChange={(e) =>
+                        setPasswordDraft((prev) => ({ ...prev, confirm_password: e.target.value }))
+                      }
+                      required
+                      minLength={8}
+                    />
+                    <div className="d-flex gap-2 flex-wrap">
+                      <button type="submit" className="btn btn-brand" disabled={changingPassword}>
+                        {changingPassword ? "Updating..." : "Update Password"}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-outline-secondary"
+                        disabled={changingPassword}
+                        onClick={() => {
+                          setPasswordDraft({ current_password: "", new_password: "", confirm_password: "" });
+                          setShowChangePasswordForm(false);
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
+              <div className="surface-2 p-3">
+                <div className="small text-faint mb-1">Member since</div>
+                <div className="fw-semibold">{formatDate(account.member_since)}</div>
+              </div>
+            </div>
+          </SectionCard>
+
+          <SectionCard title="Danger Zone" subtitle="Destructive account actions.">
+            <div className="surface-2 p-3 border border-danger-subtle">
+              <div className="d-flex align-items-start gap-2 mb-2 text-danger">
+                <ExclamationTriangleFill size={16} style={{ marginTop: 2 }} />
+                <div className="fw-semibold">Delete Account</div>
+              </div>
+              <p className="small text-muted-2 mb-3">
+                Account deletion is permanent. Export your data before deleting.
+              </p>
+              <div className="d-flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className="btn btn-outline-secondary"
+                  onClick={exportData}
+                  disabled={exportingData}
+                >
+                  {exportingData ? "Exporting..." : "Export Account Data"}
+                </button>
+                <button type="button" className="btn btn-danger" onClick={() => setConfirmDeleteAccount(true)}>
+                  Delete Account
+                </button>
+                <button className="btn btn-outline-secondary" onClick={requestLogout}>
+                  <BriefcaseFill size={14} className="me-1" /> Sign out instead
+                </button>
+              </div>
+            </div>
+          </SectionCard>
+        </div>
+      </div>
+
+      <ConfirmDialog
+        show={confirmDeleteAccount}
+        title="Delete your account permanently?"
+        message="This action deletes your profile, goals, tasks, reports, and chat history. This cannot be undone."
+        confirmLabel="Delete account"
+        destructive
+        busy={deletingAccount}
+        onConfirm={deleteAccount}
+        onCancel={() => setConfirmDeleteAccount(false)}
+      />
+    </div>
+  );
+}

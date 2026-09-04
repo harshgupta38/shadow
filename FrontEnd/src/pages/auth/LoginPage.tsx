@@ -98,7 +98,7 @@ export function LoginPage() {
           trailing={
             <button
               type="button"
-              className="btn btn-ghost btn-icon"
+              className={`btn btn-ghost btn-icon ${fieldErrors.password ? "me-4" : ""}`}
               style={{ width: 34, height: 34 }}
               onClick={() => setShowPassword((v) => !v)}
               aria-label={showPassword ? "Hide password" : "Show password"}

@@ -1,16 +1,21 @@
 import type { ComponentType } from "react";
 import {
+  ArrowRepeat,
   Bullseye,
+  Calendar3,
   CalendarCheckFill,
   ChatDotsFill,
   FileEarmarkBarGraphFill,
+  GearFill,
   Grid1x2Fill,
   GraphUpArrow,
+  PersonBadgeFill,
+  Stars,
   type IconProps,
   JournalText,
 } from "react-bootstrap-icons";
 
-export interface NavItem {
+interface NavItem {
   to: string;
   label: string;
   icon: ComponentType<IconProps>;
@@ -18,7 +23,7 @@ export interface NavItem {
   end?: boolean;
 }
 
-export interface NavSection {
+interface NavSection {
   label?: string;
   items: NavItem[];
 }
@@ -32,7 +37,9 @@ export const NAV_SECTIONS: NavSection[] = [
     label: "Core loop",
     items: [
       { to: "/plan", label: "Today", icon: CalendarCheckFill },
+      { to: "/schedule", label: "Schedule", icon: Calendar3 },
       { to: "/goals", label: "Goals", icon: Bullseye },
+      { to: "/repetitive-tasks", label: "Habit Library", icon: ArrowRepeat },
       { to: "/track", label: "Track", icon: GraphUpArrow },
       { to: "/reports", label: "Reports", icon: FileEarmarkBarGraphFill },
     ],
@@ -42,6 +49,14 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { to: "/assistant", label: "Assistant", icon: ChatDotsFill },
       { to: "/journal", label: "Journal", icon: JournalText },
+    ],
+  },
+  {
+    label: "You",
+    items: [
+      { to: "/profile", label: "Profile", icon: PersonBadgeFill },
+      { to: "/memory-center", label: "Your Information", icon: Stars },
+      { to: "/settings", label: "Settings", icon: GearFill },
     ],
   },
 ];

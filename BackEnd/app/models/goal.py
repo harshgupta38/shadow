@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy import Enum as SAEnum
@@ -10,6 +11,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin
 from app.models.enums import GoalStatus
+
+if TYPE_CHECKING:
+    from app.models.milestone import Milestone
 
 
 class Goal(Base, TimestampMixin):
@@ -28,7 +32,7 @@ class Goal(Base, TimestampMixin):
     progress: Mapped[int] = mapped_column(Integer, default=0, nullable=False)  # 0–100
     target_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    milestones: Mapped[list["Milestone"]] = relationship(
+    milestones: Mapped[list[Milestone]] = relationship(
         "Milestone",
         back_populates="goal",
         cascade="all, delete-orphan",

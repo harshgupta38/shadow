@@ -19,7 +19,9 @@ from app.api import (
     onboarding,
     plan,
     profile,
+    repetitive_tasks,
     reports,
+    settings,
 )
 
 api_router = APIRouter()
@@ -28,6 +30,7 @@ for _module in (
     auth,
     onboarding,
     profile,
+    settings,
     goals,
     milestones,
     chat,
@@ -35,6 +38,7 @@ for _module in (
     notifications,
     metrics,
     plan,
+    repetitive_tasks,
     reports,
     dashboard,
 ):

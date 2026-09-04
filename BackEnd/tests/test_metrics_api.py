@@ -3,8 +3,66 @@
 from __future__ import annotations
 
 from datetime import date
+from datetime import datetime, timezone
+import json
 
 from fastapi.testclient import TestClient
+
+from app.api.deps import get_provider
+from app.database import SessionLocal
+from app.llm.base import LLMMessage, LLMProvider
+from app.main import app
+from app.models.enums import NotificationType
+from app.models.notification import Notification
+
+
+class ProgressMetricRecommendationProvider(LLMProvider):
+    def generate(
+        self,
+        messages: list[LLMMessage],
+        *,
+        system: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+        model: str | None = None,
+    ) -> str:
+        prompt = messages[-1].content if messages else ""
+        if "User metric idea" in prompt:
+            return (
+                '{"label":"Problems solved","unit_text":"problems","time_span":"day",'
+                '"time_span_custom_text":null,"target":10,"rationale":"Daily count is measurable."}'
+            )
+        if "Habit name" in prompt and "LeetCode" in prompt:
+            return (
+                '{"measurable":true,"metric_name":"LeetCode solved","unit":"count",'
+                '"daily_target":10,"rationale":"Problems solved is directly measurable."}'
+            )
+        return (
+            '{"measurable":false,"metric_name":null,"unit":null,'
+            '"daily_target":null,"rationale":"No measurable recommendation."}'
+        )
+
+
+class WeeklyProgressMetricRecommendationProvider(LLMProvider):
+    def generate(
+        self,
+        messages: list[LLMMessage],
+        *,
+        system: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+        model: str | None = None,
+    ) -> str:
+        prompt = messages[-1].content if messages else ""
+        if "Habit name" in prompt and "Weekly Run" in prompt:
+            return (
+                '{"measurable":true,"metric_name":"Run minutes","unit":"minutes",'
+                '"daily_target":180,"rationale":"Running volume is measurable each week."}'
+            )
+        return (
+            '{"measurable":false,"metric_name":null,"unit":null,'
+            '"daily_target":null,"rationale":"No measurable recommendation."}'
+        )
 
 
 def test_default_metrics_seeded_on_register(client: TestClient, auth_headers: dict) -> None:
@@ -17,8 +75,18 @@ def test_create_metric_and_log_activity(client: TestClient, auth_headers: dict) 
     metric = client.post(
         "/api/metrics",
         headers=auth_headers,
-        json={"key": "leetcode_solved", "label": "LeetCode solved", "unit": "count"},
+        json={
+            "key": "leetcode_solved",
+            "label": "LeetCode solved",
+            "unit_text": "problems",
+            "time_span": "day",
+            "target": 10,
+        },
     ).json()
+    assert metric["unit"] == "count"
+    assert metric["unit_text"] == "problems"
+    assert metric["time_span"] == "day"
+    assert metric["target"] == 10
 
     log = client.post(
         f"/api/metrics/{metric['id']}/logs",
@@ -31,7 +99,12 @@ def test_create_metric_and_log_activity(client: TestClient, auth_headers: dict) 
 
 
 def test_duplicate_metric_key_conflicts(client: TestClient, auth_headers: dict) -> None:
-    payload = {"key": "gym", "label": "Gym sessions", "unit": "count"}
+    payload = {
+        "key": "gym",
+        "label": "Gym sessions",
+        "unit_text": "sessions",
+        "time_span": "week",
+    }
     client.post("/api/metrics", headers=auth_headers, json=payload)
     response = client.post("/api/metrics", headers=auth_headers, json=payload)
     assert response.status_code == 409
@@ -48,6 +121,29 @@ def test_plan_task_completion(client: TestClient, auth_headers: dict) -> None:
     assert updated["completed_at"] is not None
 
 
+def test_plan_task_uses_planner_defaults(client: TestClient, auth_headers: dict) -> None:
+    planner = client.put(
+        "/api/settings/planner",
+        headers=auth_headers,
+        json={"default_reminder_time": "09:45", "default_task_duration_minutes": 60},
+    )
+    assert planner.status_code == 200
+
+    task = client.post(
+        "/api/plan",
+        headers=auth_headers,
+        json={"title": "Deep work block"},
+    )
+    assert task.status_code == 201
+    task_json = task.json()
+    assert task_json["reminder_time"] == "09:45"
+    assert task_json["estimated_duration_minutes"] == 60
+
+    notifications = client.get("/api/notifications", headers=auth_headers)
+    assert notifications.status_code == 200
+    assert any(n["title"].startswith("Task reminder:") for n in notifications.json())
+
+
 def test_dashboard_summary(client: TestClient, auth_headers: dict) -> None:
     client.post("/api/goals", headers=auth_headers, json={"title": "Ship MVP"})
     client.post("/api/plan", headers=auth_headers, json={"title": "Task A"})
@@ -56,3 +152,310 @@ def test_dashboard_summary(client: TestClient, auth_headers: dict) -> None:
     assert summary["goals_total"] >= 1
     assert summary["tasks_today_total"] >= 1
     assert isinstance(summary["metrics"], list)
+
+
+def test_progress_coach_recommendation_accept_creates_metric_and_links_habit(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    provider = ProgressMetricRecommendationProvider()
+    app.dependency_overrides[get_provider] = lambda: provider
+
+    try:
+        habit = client.post(
+            "/api/repetitive-tasks",
+            headers=auth_headers,
+            json={
+                "name": "LeetCode practice",
+                "description": "Solve 10 problems daily",
+                "frequencies": ["daily"],
+                "priority": "critical",
+            },
+        )
+        assert habit.status_code == 201
+        habit_id = habit.json()["id"]
+
+        recommendations = client.get(
+            "/api/metrics/progress-coach-recommendations",
+            headers=auth_headers,
+        )
+        assert recommendations.status_code == 200
+        rows = recommendations.json()
+        assert len(rows) == 1
+        recommendation_id = rows[0]["id"]
+
+        accepted = client.post(
+            f"/api/metrics/progress-coach-recommendations/{recommendation_id}/accept",
+            headers=auth_headers,
+        )
+        assert accepted.status_code == 200
+        body = accepted.json()
+        assert body["habit_id"] == habit_id
+        assert body["metric"]["key"].startswith(f"habit_{habit_id}_")
+        assert body["metric"]["target"] == 10
+        assert body["metric"]["time_span"] == "day"
+
+        # Recommendation is consumed.
+        after = client.get("/api/metrics/progress-coach-recommendations", headers=auth_headers)
+        assert after.status_code == 200
+        assert after.json() == []
+
+        # Habit now shows linked metric id.
+        tasks = client.get("/api/repetitive-tasks", headers=auth_headers)
+        assert tasks.status_code == 200
+        linked = next(item for item in tasks.json() if item["id"] == habit_id)
+        assert body["metric"]["id"] in linked["linked_metric_ids"]
+    finally:
+        app.dependency_overrides.pop(get_provider, None)
+
+
+def test_progress_coach_accept_sets_week_time_span_for_weekly_habit(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    provider = WeeklyProgressMetricRecommendationProvider()
+    app.dependency_overrides[get_provider] = lambda: provider
+
+    try:
+        habit = client.post(
+            "/api/repetitive-tasks",
+            headers=auth_headers,
+            json={
+                "name": "Weekly Run",
+                "description": "Run 180 minutes weekly",
+                "frequencies": ["weekly"],
+                "priority": "high",
+            },
+        )
+        assert habit.status_code == 201
+
+        recommendations = client.get(
+            "/api/metrics/progress-coach-recommendations",
+            headers=auth_headers,
+        )
+        assert recommendations.status_code == 200
+        rows = recommendations.json()
+        assert len(rows) == 1
+        assert rows[0]["time_span"] == "week"
+
+        accepted = client.post(
+            f"/api/metrics/progress-coach-recommendations/{rows[0]['id']}/accept",
+            headers=auth_headers,
+        )
+        assert accepted.status_code == 200
+        body = accepted.json()
+        assert body["metric"]["time_span"] == "week"
+    finally:
+        app.dependency_overrides.pop(get_provider, None)
+
+
+def test_progress_coach_accept_reuses_existing_metric_key(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    provider = ProgressMetricRecommendationProvider()
+    app.dependency_overrides[get_provider] = lambda: provider
+
+    try:
+        habit = client.post(
+            "/api/repetitive-tasks",
+            headers=auth_headers,
+            json={
+                "name": "LeetCode practice",
+                "description": "Solve 10 problems daily",
+                "frequencies": ["daily"],
+                "priority": "critical",
+            },
+        )
+        assert habit.status_code == 201
+        habit_id = habit.json()["id"]
+
+        recommendations = client.get(
+            "/api/metrics/progress-coach-recommendations",
+            headers=auth_headers,
+        )
+        recommendation = recommendations.json()[0]
+
+        # Pre-create metric with same key and different values.
+        created = client.post(
+            "/api/metrics",
+            headers=auth_headers,
+            json={
+                "key": recommendation["metric_key"],
+                "label": "Old label",
+                "unit_text": "problems",
+                "time_span": "day",
+                "target": 1,
+            },
+        )
+        assert created.status_code == 201
+        existing_metric_id = created.json()["id"]
+
+        accepted = client.post(
+            f"/api/metrics/progress-coach-recommendations/{recommendation['id']}/accept",
+            headers=auth_headers,
+        )
+        assert accepted.status_code == 200
+        body = accepted.json()
+        assert body["metric"]["id"] == existing_metric_id
+        assert body["metric"]["label"] == "LeetCode solved"
+        assert body["metric"]["target"] == 10
+
+        tasks = client.get("/api/repetitive-tasks", headers=auth_headers).json()
+        linked = next(item for item in tasks if item["id"] == habit_id)
+        assert existing_metric_id in linked["linked_metric_ids"]
+    finally:
+        app.dependency_overrides.pop(get_provider, None)
+
+
+def test_progress_coach_list_hides_stale_non_quantifiable_recommendation(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    habit = client.post(
+        "/api/repetitive-tasks",
+        headers=auth_headers,
+        json={
+            "name": "Work from office",
+            "description": "Travel and attend office weekdays",
+            "frequencies": ["weekdays"],
+            "priority": "medium",
+        },
+    )
+    assert habit.status_code == 201
+    habit_id = habit.json()["id"]
+
+    title = f"__internal_progress_coach_metric_recommendation__:habit:{habit_id}"
+    body = json.dumps(
+        {
+            "schema": "PROGRESS_COACH_RECOMMENDATION_V1",
+            "habit_id": habit_id,
+            "habit_name": "Work from office",
+            "metric_name": "Office attendance",
+            "metric_key": f"habit_{habit_id}_office_attendance",
+            "unit": "count",
+            "target": 1,
+            "unit_hint": None,
+            "rationale": "Daily completion count",
+        }
+    )
+
+    with SessionLocal() as db:
+        db.add(
+            Notification(
+                user_id=1,
+                title=title,
+                body=body,
+                type=NotificationType.system,
+                sent=True,
+                read=True,
+                created_at=datetime.now(timezone.utc),
+            )
+        )
+        db.commit()
+
+    listed = client.get("/api/metrics/progress-coach-recommendations", headers=auth_headers)
+    assert listed.status_code == 200
+    assert listed.json() == []
+
+
+def test_metric_draft_from_shadow_prompt(client: TestClient, auth_headers: dict[str, str]) -> None:
+    provider = ProgressMetricRecommendationProvider()
+    app.dependency_overrides[get_provider] = lambda: provider
+
+    try:
+        drafted = client.post(
+            "/api/metrics/draft",
+            headers=auth_headers,
+            json={"prompt": "Track 10 LeetCode problems each day"},
+        )
+        assert drafted.status_code == 200
+        body = drafted.json()
+        assert body["label"]
+        assert body["unit_text"]
+        assert body["time_span"] in {"day", "week", "month", "year", "custom"}
+    finally:
+        app.dependency_overrides.pop(get_provider, None)
+
+
+def test_metric_create_with_linked_habits(client: TestClient, auth_headers: dict[str, str]) -> None:
+    habit = client.post(
+        "/api/repetitive-tasks",
+        headers=auth_headers,
+        json={
+            "name": "Solve LeetCode Problems",
+            "description": "Solve 10 problems daily",
+            "frequencies": ["daily"],
+            "priority": "high",
+        },
+    )
+    assert habit.status_code == 201
+    habit_id = habit.json()["id"]
+
+    created = client.post(
+        "/api/metrics",
+        headers=auth_headers,
+        json={
+            "key": "leetcode_problems",
+            "label": "Problems solved",
+            "unit_text": "problems",
+            "time_span": "day",
+            "target": 10,
+            "linked_habit_ids": [habit_id],
+        },
+    )
+    assert created.status_code == 201
+    metric = created.json()
+    assert metric["linked_habit_ids"] == [habit_id]
+
+
+def test_metric_create_with_linked_habit_clears_pending_recommendation(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    provider = ProgressMetricRecommendationProvider()
+    app.dependency_overrides[get_provider] = lambda: provider
+
+    try:
+        habit = client.post(
+            "/api/repetitive-tasks",
+            headers=auth_headers,
+            json={
+                "name": "LeetCode practice",
+                "description": "Solve 10 problems daily",
+                "frequencies": ["daily"],
+                "priority": "critical",
+            },
+        )
+        assert habit.status_code == 201
+        habit_id = habit.json()["id"]
+
+        recommendations_before = client.get(
+            "/api/metrics/progress-coach-recommendations",
+            headers=auth_headers,
+        )
+        assert recommendations_before.status_code == 200
+        assert len(recommendations_before.json()) == 1
+
+        created = client.post(
+            "/api/metrics",
+            headers=auth_headers,
+            json={
+                "key": "habit_qa_linked_metric",
+                "label": "Problems solved",
+                "unit_text": "problems",
+                "time_span": "day",
+                "target": 10,
+                "linked_habit_ids": [habit_id],
+            },
+        )
+        assert created.status_code == 201
+
+        recommendations_after = client.get(
+            "/api/metrics/progress-coach-recommendations",
+            headers=auth_headers,
+        )
+        assert recommendations_after.status_code == 200
+        assert recommendations_after.json() == []
+    finally:
+        app.dependency_overrides.pop(get_provider, None)

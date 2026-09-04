@@ -6,7 +6,7 @@ retrieval step (§7.2 of the root README); it is nullable and unused today.
 
 from __future__ import annotations
 
-from sqlalchemy import ForeignKey, Integer, Text
+from sqlalchemy import ForeignKey, Text
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column
 

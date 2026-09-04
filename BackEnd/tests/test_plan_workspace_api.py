@@ -1,0 +1,1526 @@
+"""Plan workspace and generation API tests."""
+
+from __future__ import annotations
+
+from datetime import date, timedelta
+from collections.abc import Iterator
+
+from fastapi.testclient import TestClient
+
+from app.api.deps import get_provider
+from app.llm.base import LLMMessage, LLMProvider
+from app.main import app
+
+
+class ValidPlanProvider(LLMProvider):
+    """Returns one valid structured daily-plan payload."""
+
+    def generate(
+        self,
+        messages: list[LLMMessage],
+        *,
+        system: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+        model: str | None = None,
+    ) -> str:
+        return (
+            '{"tasks":[{"title":"AI Focus Block","priority":"high",'
+            '"estimated_duration_minutes":50,"suggested_start_time":"09:00",'
+            '"suggested_finish_by_time":"09:50","ai_rationale":"High-impact work first.",'
+            '"ai_impact_if_skipped":"Missing this can reduce momentum for the day.",'
+            '"ai_confidence_score":91}]}'
+        )
+
+    def generate_stream(
+        self,
+        messages: list[LLMMessage],
+        *,
+        system: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+        model: str | None = None,
+    ) -> Iterator[str]:
+        yield self.generate(
+            messages,
+            system=system,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            model=model,
+        )
+
+
+class PromptCapturePlanProvider(LLMProvider):
+    """Captures prompts and returns one repetitive-task-aligned task."""
+
+    def __init__(self) -> None:
+        self.prompts: list[str] = []
+
+    def generate(
+        self,
+        messages: list[LLMMessage],
+        *,
+        system: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+        model: str | None = None,
+    ) -> str:
+        if messages:
+            self.prompts.append(messages[-1].content)
+        return (
+            '{"tasks":[{"title":"Aaryav Computer class","priority":"medium",'
+            '"estimated_duration_minutes":45,"suggested_start_time":null,'
+            '"suggested_finish_by_time":null,"ai_rationale":"Recurring class.",'
+            '"ai_impact_if_skipped":"Skipping this can break routine continuity.",'
+            '"ai_confidence_score":87}]}'
+        )
+
+    def generate_stream(
+        self,
+        messages: list[LLMMessage],
+        *,
+        system: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+        model: str | None = None,
+    ) -> Iterator[str]:
+        yield self.generate(
+            messages,
+            system=system,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            model=model,
+        )
+
+
+class DuplicateImpactPlanProvider(LLMProvider):
+    """Returns multiple tasks with the same generic impact sentence."""
+
+    def __init__(self, goal_id: int) -> None:
+        self.goal_id = goal_id
+
+    def generate(
+        self,
+        messages: list[LLMMessage],
+        *,
+        system: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+        model: str | None = None,
+    ) -> str:
+        return (
+            '{"tasks":[{'
+            '"title":"LeetCode Problem of the day",'
+            f'"related_goal_id":{self.goal_id},'
+            '"priority":"critical",'
+            '"estimated_duration_minutes":45,'
+            '"suggested_start_time":"08:00",'
+            '"suggested_finish_by_time":"08:45",'
+            '"ai_rationale":"Protect your interview prep consistency.",'
+            '"ai_impact_if_skipped":"Skipping this weakens your routine consistency and lowers momentum for today.",'
+            '"ai_confidence_score":84'
+            '},{'
+            '"title":"10 LeetCode Problems",'
+            f'"related_goal_id":{self.goal_id},'
+            '"priority":"high",'
+            '"estimated_duration_minutes":45,'
+            '"suggested_start_time":"08:45",'
+            '"suggested_finish_by_time":"09:30",'
+            '"ai_rationale":"Reinforce problem-solving speed for interviews.",'
+            '"ai_impact_if_skipped":"Skipping this weakens your routine consistency and lowers momentum for today.",'
+            '"ai_confidence_score":84'
+            '}]}'
+        )
+
+    def generate_stream(
+        self,
+        messages: list[LLMMessage],
+        *,
+        system: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+        model: str | None = None,
+    ) -> Iterator[str]:
+        yield self.generate(
+            messages,
+            system=system,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            model=model,
+        )
+
+
+class EmptyPlanProvider(LLMProvider):
+    """Returns an empty plan payload so deterministic candidates are used."""
+
+    def generate(
+        self,
+        messages: list[LLMMessage],
+        *,
+        system: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+        model: str | None = None,
+    ) -> str:
+        return '{"tasks":[]}'
+
+    def generate_stream(
+        self,
+        messages: list[LLMMessage],
+        *,
+        system: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+        model: str | None = None,
+    ) -> Iterator[str]:
+        yield self.generate(
+            messages,
+            system=system,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            model=model,
+        )
+
+
+class EmptyPlanWithDurationEstimateProvider(LLMProvider):
+    """Returns empty tasks first, then duration estimates for missing items."""
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def generate(
+        self,
+        messages: list[LLMMessage],
+        *,
+        system: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+        model: str | None = None,
+    ) -> str:
+        self.calls += 1
+        if self.calls == 1:
+            return '{"tasks":[]}'
+        if self.calls == 2:
+            return '{"durations":[{"title":"Daily Workout","estimated_duration_minutes":70}]}'
+        return '{"durations":[]}'
+
+    def generate_stream(
+        self,
+        messages: list[LLMMessage],
+        *,
+        system: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+        model: str | None = None,
+    ) -> Iterator[str]:
+        yield self.generate(
+            messages,
+            system=system,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            model=model,
+        )
+
+
+class ScheduleDraftProvider(LLMProvider):
+    """Returns a deterministic schedule draft payload."""
+
+    def __init__(self, draft_date: str) -> None:
+        self.draft_date = draft_date
+
+    def generate(
+        self,
+        messages: list[LLMMessage],
+        *,
+        system: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+        model: str | None = None,
+    ) -> str:
+        return (
+            "{"
+            '"title":"Meet Animesh",'
+            '"description":"Discuss sprint priorities and action items.",'
+            f'"date":"{self.draft_date}",'
+            '"priority":"high",'
+            '"linked_habit_id":null,'
+            '"related_goal_id":null'
+            "}"
+        )
+
+    def generate_stream(
+        self,
+        messages: list[LLMMessage],
+        *,
+        system: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+        model: str | None = None,
+    ) -> Iterator[str]:
+        yield self.generate(
+            messages,
+            system=system,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            model=model,
+        )
+
+
+def test_generate_today_blocks_when_smart_planning_disabled(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    disabled = client.put(
+        "/api/settings/ai-behavior",
+        headers=auth_headers,
+        json={"smart_planning_enabled": False},
+    )
+    assert disabled.status_code == 200
+
+    response = client.post("/api/plan/generate-today", headers=auth_headers, json={})
+    assert response.status_code == 400
+    assert "Smart planning is disabled" in response.json()["detail"]
+
+
+def test_generate_today_replaces_ai_tasks_but_keeps_manual_tasks(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    today = date.today().isoformat()
+
+    goal = client.post(
+        "/api/goals",
+        headers=auth_headers,
+        json={"title": "Ship MVP"},
+    )
+    assert goal.status_code == 201
+
+    manual = client.post(
+        "/api/plan",
+        headers=auth_headers,
+        json={"title": "Manual deep work", "date": today},
+    )
+    assert manual.status_code == 201
+
+    old_ai = client.post(
+        "/api/plan",
+        headers=auth_headers,
+        json={"title": "Old generated", "date": today, "source": "ai_generated"},
+    )
+    assert old_ai.status_code == 201
+
+    generated = client.post("/api/plan/generate-today", headers=auth_headers, json={})
+    assert generated.status_code == 200
+
+    tasks = client.get(f"/api/plan?on_date={today}", headers=auth_headers)
+    assert tasks.status_code == 200
+
+    titles = [task["title"] for task in tasks.json()]
+    sources = [task["source"] for task in tasks.json()]
+
+    assert "Manual deep work" in titles
+    assert "Old generated" not in titles
+    assert "ai_generated" in sources
+
+
+def test_workspace_includes_insights_and_execution_order(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    today = date.today()
+    yesterday = (today - timedelta(days=1)).isoformat()
+
+    yesterday_task = client.post(
+        "/api/plan",
+        headers=auth_headers,
+        json={
+            "title": "Finish architecture review",
+            "date": yesterday,
+            "priority": "high",
+            "estimated_duration_minutes": 60,
+        },
+    )
+    assert yesterday_task.status_code == 201
+
+    generate = client.post("/api/plan/generate-today", headers=auth_headers, json={})
+    assert generate.status_code == 200
+
+    workspace = client.get(
+        f"/api/plan/workspace?on_date={today.isoformat()}",
+        headers=auth_headers,
+    )
+    assert workspace.status_code == 200
+
+    body = workspace.json()
+    assert body["date"] == today.isoformat()
+    assert body["insights"]["missed_yesterday_count"] >= 1
+    assert body["insights"]["carry_forward_count"] >= 1
+    assert isinstance(body["execution_order"], list)
+    assert len(body["execution_order"]) >= 1
+    first_execution_item = body["execution_order"][0]
+    assert "suggested_start_time" in first_execution_item
+    assert "suggested_finish_by_time" in first_execution_item
+
+
+def test_generate_today_excludes_repetitive_from_carry_forward(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    today = date.today().isoformat()
+    yesterday = (date.today() - timedelta(days=1)).isoformat()
+
+    repetitive = client.post(
+        "/api/repetitive-tasks",
+        headers=auth_headers,
+        json={
+            "name": "Daily Workout",
+            "description": "Morning workout",
+            "frequencies": ["daily"],
+            "priority": "high",
+        },
+    )
+    assert repetitive.status_code == 201
+
+    manual_yesterday = client.post(
+        "/api/plan",
+        headers=auth_headers,
+        json={"title": "Follow up recruiter", "date": yesterday, "source": "manual"},
+    )
+    assert manual_yesterday.status_code == 201
+
+    repetitive_yesterday = client.post(
+        "/api/plan",
+        headers=auth_headers,
+        json={"title": "Daily Workout", "date": yesterday, "source": "ai_generated"},
+    )
+    assert repetitive_yesterday.status_code == 201
+
+    generated = client.post(
+        "/api/plan/generate-today",
+        headers=auth_headers,
+        json={"on_date": today},
+    )
+    assert generated.status_code == 200
+
+    body = generated.json()
+    assert "Follow up recruiter" in body["insights"]["carry_forward_titles"]
+    assert "Daily Workout" not in body["insights"]["carry_forward_titles"]
+    assert not any(
+        task["title"] == "Daily Workout" and task["carried_from_date"] == yesterday
+        for task in body["tasks"]
+    )
+
+
+def test_workspace_returns_enriched_task_metadata_and_habit_summary(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    today = date.today()
+    yesterday = today - timedelta(days=1)
+    two_days_ago = today - timedelta(days=2)
+
+    goal = client.post(
+        "/api/goals",
+        headers=auth_headers,
+        json={"title": "Interview Prep", "category": "Career"},
+    )
+    assert goal.status_code == 201
+    goal_id = int(goal.json()["id"])
+
+    repetitive = client.post(
+        "/api/repetitive-tasks",
+        headers=auth_headers,
+        json={
+            "name": "Daily Revision",
+            "description": "Revise DSA concepts",
+            "frequencies": ["daily"],
+            "priority": "high",
+            "linked_goal_ids": [goal_id],
+        },
+    )
+    assert repetitive.status_code == 201
+
+    for day in [two_days_ago, yesterday]:
+        created = client.post(
+            "/api/plan",
+            headers=auth_headers,
+            json={
+                "title": "Daily Revision",
+                "date": day.isoformat(),
+                "source": "ai_generated",
+                "related_goal_id": goal_id,
+                "suggested_finish_by_time": "00:01",
+                "ai_impact_if_skipped": "Progress decays when this is skipped.",
+                "ai_confidence_score": 92,
+            },
+        )
+        assert created.status_code == 201
+        mark_done = client.put(
+            f"/api/plan/{created.json()['id']}",
+            headers=auth_headers,
+            json={"status": "done"},
+        )
+        assert mark_done.status_code == 200
+
+    generate = client.post(
+        "/api/plan/generate-today",
+        headers=auth_headers,
+        json={"on_date": today.isoformat()},
+    )
+    assert generate.status_code == 200
+
+    workspace = client.get(
+        f"/api/plan/workspace?on_date={today.isoformat()}",
+        headers=auth_headers,
+    )
+    assert workspace.status_code == 200
+
+    body = workspace.json()
+    task = next(row for row in body["tasks"] if row["title"] == "Daily Revision")
+    assert task["category"] in {"Habit", "Career", "Goal"}
+    assert task["goal_title"] in {"Interview Prep", None}
+    assert isinstance(task["missed_yesterday"], bool)
+    assert isinstance(task["overdue"], bool)
+    assert isinstance(task["completed_late"], bool)
+    assert task["current_habit_streak"] is None or task["current_habit_streak"] >= 0
+    assert task["previous_completion_history"] is None or isinstance(
+        task["previous_completion_history"],
+        str,
+    )
+    assert task["ai_confidence_score"] is None or 0 <= task["ai_confidence_score"] <= 100
+
+    habit_summary = body["insights"]["habit_streak_summary"]
+    assert isinstance(habit_summary, list)
+    daily_revision = next(item for item in habit_summary if item["task_title"] == "Daily Revision")
+    assert daily_revision["highest_streak_days"] >= daily_revision["current_streak_days"]
+
+
+def test_generate_today_uses_valid_ai_payload_when_available(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    app.dependency_overrides[get_provider] = lambda: ValidPlanProvider()
+
+    try:
+        response = client.post("/api/plan/generate-today", headers=auth_headers, json={})
+        assert response.status_code == 200
+
+        tasks = response.json()["tasks"]
+        assert any(task["title"] == "AI Focus Block" for task in tasks)
+        ai_task = next(task for task in tasks if task["title"] == "AI Focus Block")
+        assert ai_task["source"] == "ai_generated"
+        assert ai_task["suggested_start_time"] == "09:00"
+        assert ai_task["priority"] == "high"
+        assert ai_task["ai_impact_if_skipped"]
+        assert ai_task["ai_confidence_score"] == 91
+    finally:
+        app.dependency_overrides.pop(get_provider, None)
+
+
+def test_generate_today_personalizes_duplicate_impact_copy(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    goal = client.post(
+        "/api/goals",
+        headers=auth_headers,
+        json={"title": "Secure SDE 1 role at MAANG"},
+    )
+    assert goal.status_code == 201
+    goal_id = int(goal.json()["id"])
+
+    app.dependency_overrides[get_provider] = lambda: DuplicateImpactPlanProvider(goal_id)
+
+    try:
+        response = client.post("/api/plan/generate-today", headers=auth_headers, json={})
+        assert response.status_code == 200
+
+        tasks = response.json()["tasks"]
+        impacts_by_title = {
+            task["title"]: task["ai_impact_if_skipped"]
+            for task in tasks
+            if task["title"] in {"LeetCode Problem of the day", "10 LeetCode Problems"}
+        }
+        assert len(impacts_by_title) == 2
+
+        first_impact = impacts_by_title["LeetCode Problem of the day"]
+        second_impact = impacts_by_title["10 LeetCode Problems"]
+
+        assert first_impact != second_impact
+        assert "weakens your routine consistency and lowers momentum for today" not in first_impact.lower()
+        assert "weakens your routine consistency and lowers momentum for today" not in second_impact.lower()
+        assert "LeetCode Problem of the day" in first_impact
+        assert "10 LeetCode Problems" in second_impact
+        assert "Secure SDE 1 role at MAANG" in first_impact
+        assert "Secure SDE 1 role at MAANG" in second_impact
+    finally:
+        app.dependency_overrides.pop(get_provider, None)
+
+
+def test_generate_today_uses_repetitive_description_for_prompt_and_timing(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    provider = PromptCapturePlanProvider()
+    app.dependency_overrides[get_provider] = lambda: provider
+
+    try:
+        goal = client.post(
+            "/api/goals",
+            headers=auth_headers,
+            json={"title": "Secure SDE 1 role at MAANG"},
+        )
+        assert goal.status_code == 201
+        goal_id = int(goal.json()["id"])
+
+        repetitive = client.post(
+            "/api/repetitive-tasks",
+            headers=auth_headers,
+            json={
+                "name": "Aaryav Computer class",
+                "description": "Class from 10am to 11:30am.",
+                "frequencies": ["daily"],
+                "priority": "medium",
+                "linked_goal_ids": [goal_id],
+            },
+        )
+        assert repetitive.status_code == 201
+
+        response = client.post("/api/plan/generate-today", headers=auth_headers, json={})
+        assert response.status_code == 200
+
+        full_prompt = "\n".join(provider.prompts)
+        assert "Aaryav Computer class" in full_prompt
+        assert "Class from 10am to 11:30am." in full_prompt
+
+        tasks = response.json()["tasks"]
+        row = next(task for task in tasks if task["title"] == "Aaryav Computer class")
+        assert row["estimated_duration_minutes"] == 90
+        assert row["suggested_start_time"] == "10:00"
+        assert row["suggested_finish_by_time"] == "11:30"
+        assert row["related_goal_id"] == goal_id
+    finally:
+        app.dependency_overrides.pop(get_provider, None)
+
+
+def test_generate_today_applies_repetitive_duration_hints_without_time_window(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    app.dependency_overrides[get_provider] = lambda: EmptyPlanProvider()
+
+    try:
+        first = client.post(
+            "/api/repetitive-tasks",
+            headers=auth_headers,
+            json={
+                "name": "LeetCode Problem of the day",
+                "description": "Solve one question. It will take 45mins.",
+                "frequencies": ["daily"],
+                "priority": "high",
+            },
+        )
+        assert first.status_code == 201
+
+        second = client.post(
+            "/api/repetitive-tasks",
+            headers=auth_headers,
+            json={
+                "name": "DSA Revision Block",
+                "description": "Daily revision; it can be any 2hr slot.",
+                "frequencies": ["daily"],
+                "priority": "medium",
+            },
+        )
+        assert second.status_code == 201
+
+        response = client.post("/api/plan/generate-today", headers=auth_headers, json={})
+        assert response.status_code == 200
+
+        tasks = response.json()["tasks"]
+
+        leetcode = next(task for task in tasks if task["title"] == "LeetCode Problem of the day")
+        assert leetcode["estimated_duration_minutes"] == 45
+        assert leetcode["suggested_start_time"] is None
+        assert leetcode["suggested_finish_by_time"] is None
+
+        revision = next(task for task in tasks if task["title"] == "DSA Revision Block")
+        assert revision["estimated_duration_minutes"] == 120
+        assert revision["suggested_start_time"] is None
+        assert revision["suggested_finish_by_time"] is None
+    finally:
+        app.dependency_overrides.pop(get_provider, None)
+
+
+def test_generate_today_does_not_set_fallback_timing_when_llm_returns_no_tasks(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    app.dependency_overrides[get_provider] = lambda: EmptyPlanProvider()
+
+    try:
+        repetitive = client.post(
+            "/api/repetitive-tasks",
+            headers=auth_headers,
+            json={
+                "name": "Daily Workout",
+                "description": "Morning workout",
+                "frequencies": ["daily"],
+                "priority": "high",
+            },
+        )
+        assert repetitive.status_code == 201
+
+        response = client.post("/api/plan/generate-today", headers=auth_headers, json={})
+        assert response.status_code == 200
+
+        tasks = response.json()["tasks"]
+        row = next(task for task in tasks if task["title"] == "Daily Workout")
+        assert row["estimated_duration_minutes"] is None
+        assert row["suggested_start_time"] is None
+        assert row["suggested_finish_by_time"] is None
+    finally:
+        app.dependency_overrides.pop(get_provider, None)
+
+
+def test_generate_today_estimates_missing_duration_with_llm_when_no_user_time_window(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    app.dependency_overrides[get_provider] = lambda: EmptyPlanWithDurationEstimateProvider()
+
+    try:
+        repetitive = client.post(
+            "/api/repetitive-tasks",
+            headers=auth_headers,
+            json={
+                "name": "Daily Workout",
+                "description": "Morning workout",
+                "frequencies": ["daily"],
+                "priority": "high",
+            },
+        )
+        assert repetitive.status_code == 201
+
+        response = client.post("/api/plan/generate-today", headers=auth_headers, json={})
+        assert response.status_code == 200
+
+        tasks = response.json()["tasks"]
+        row = next(task for task in tasks if task["title"] == "Daily Workout")
+        assert row["estimated_duration_minutes"] == 70
+        assert row["suggested_start_time"] is None
+        assert row["suggested_finish_by_time"] is None
+    finally:
+        app.dependency_overrides.pop(get_provider, None)
+
+
+def test_generate_today_deterministic_fallback_uses_milestone_titles(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    app.dependency_overrides[get_provider] = lambda: EmptyPlanProvider()
+
+    try:
+        goal = client.post(
+            "/api/goals",
+            headers=auth_headers,
+            json={"title": "Secure SDE 1 role at MAANG", "category": "Career"},
+        )
+        assert goal.status_code == 201
+        goal_id = int(goal.json()["id"])
+
+        milestone = client.post(
+            f"/api/goals/{goal_id}/milestones",
+            headers=auth_headers,
+            json={"title": "Solve 5 graph problems"},
+        )
+        assert milestone.status_code == 201
+
+        response = client.post("/api/plan/generate-today", headers=auth_headers, json={})
+        assert response.status_code == 200
+
+        tasks = response.json()["tasks"]
+        titles = [task["title"] for task in tasks]
+
+        assert "Solve 5 graph problems" in titles
+        assert all(not title.startswith("Move '") for title in titles)
+        assert all("forward" not in title.lower() for title in titles)
+    finally:
+        app.dependency_overrides.pop(get_provider, None)
+
+
+def test_task_status_toggle_syncs_daily_streak_metric_logs(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    app.dependency_overrides[get_provider] = lambda: EmptyPlanProvider()
+
+    try:
+        metric = client.post(
+            "/api/metrics",
+            headers=auth_headers,
+            json={
+                "key": "workout_done_today",
+                "label": "Workout",
+                "unit_text": "count",
+                "time_span": "day",
+                "target": 1,
+            },
+        )
+        assert metric.status_code == 201
+        metric_id = int(metric.json()["id"])
+
+        repetitive = client.post(
+            "/api/repetitive-tasks",
+            headers=auth_headers,
+            json={
+                "name": "Workout",
+                "description": "Daily training session.",
+                "frequencies": ["daily"],
+                "priority": "high",
+                "linked_metric_ids": [metric_id],
+            },
+        )
+        assert repetitive.status_code == 201
+
+        generated = client.post("/api/plan/generate-today", headers=auth_headers, json={})
+        assert generated.status_code == 200
+        task = next(row for row in generated.json()["tasks"] if row["title"] == "Workout")
+
+        mark_done = client.put(
+            f"/api/plan/{task['id']}",
+            headers=auth_headers,
+            json={"status": "done"},
+        )
+        assert mark_done.status_code == 200
+        assert mark_done.json()["status"] == "done"
+
+        workspace_after_done = client.get("/api/plan/workspace", headers=auth_headers)
+        assert workspace_after_done.status_code == 200
+        done_task = next(
+            row for row in workspace_after_done.json()["tasks"] if row["id"] == task["id"]
+        )
+        assert done_task["linked_metrics"]
+        assert float(done_task["linked_metrics"][0]["logged_total"]) == 1.0
+
+        logs_after_done = client.get(f"/api/metrics/{metric_id}/logs", headers=auth_headers)
+        assert logs_after_done.status_code == 200
+        today_total_after_done = sum(float(row["value"]) for row in logs_after_done.json())
+        assert today_total_after_done == 1.0
+
+        mark_planned = client.put(
+            f"/api/plan/{task['id']}",
+            headers=auth_headers,
+            json={"status": "planned"},
+        )
+        assert mark_planned.status_code == 200
+        assert mark_planned.json()["status"] == "planned"
+
+        workspace_after_revert = client.get("/api/plan/workspace", headers=auth_headers)
+        assert workspace_after_revert.status_code == 200
+        reverted_task = next(
+            row for row in workspace_after_revert.json()["tasks"] if row["id"] == task["id"]
+        )
+        assert float(reverted_task["linked_metrics"][0]["logged_total"]) == 0.0
+
+        logs_after_revert = client.get(f"/api/metrics/{metric_id}/logs", headers=auth_headers)
+        assert logs_after_revert.status_code == 200
+        today_total_after_revert = sum(float(row["value"]) for row in logs_after_revert.json())
+        assert today_total_after_revert == 0.0
+    finally:
+        app.dependency_overrides.pop(get_provider, None)
+
+
+def test_task_status_toggle_clears_stale_daily_streak_sync_logs(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    app.dependency_overrides[get_provider] = lambda: EmptyPlanProvider()
+
+    try:
+        metric = client.post(
+            "/api/metrics",
+            headers=auth_headers,
+            json={
+                "key": "habit_done_today_regression",
+                "label": "Habit done",
+                "unit_text": "count",
+                "time_span": "day",
+                "target": 1,
+            },
+        )
+        assert metric.status_code == 201
+        metric_id = int(metric.json()["id"])
+
+        repetitive = client.post(
+            "/api/repetitive-tasks",
+            headers=auth_headers,
+            json={
+                "name": "Habit done",
+                "description": "Daily habit.",
+                "frequencies": ["daily"],
+                "priority": "high",
+                "linked_metric_ids": [metric_id],
+            },
+        )
+        assert repetitive.status_code == 201
+
+        generated_first = client.post("/api/plan/generate-today", headers=auth_headers, json={})
+        assert generated_first.status_code == 200
+        task_first = next(
+            row for row in generated_first.json()["tasks"] if row["title"] == "Habit done"
+        )
+
+        first_done = client.put(
+            f"/api/plan/{task_first['id']}",
+            headers=auth_headers,
+            json={"status": "done"},
+        )
+        assert first_done.status_code == 200
+
+        delete_first = client.delete(f"/api/plan/{task_first['id']}", headers=auth_headers)
+        assert delete_first.status_code == 204
+
+        filler = client.post(
+            "/api/plan",
+            headers=auth_headers,
+            json={
+                "title": "Filler task",
+                "date": task_first["date"],
+            },
+        )
+        assert filler.status_code == 201
+
+        generated_second = client.post("/api/plan/generate-today", headers=auth_headers, json={})
+        assert generated_second.status_code == 200
+        task_second = next(
+            row for row in generated_second.json()["tasks"] if row["title"] == "Habit done"
+        )
+        assert task_second["id"] != task_first["id"]
+
+        second_done = client.put(
+            f"/api/plan/{task_second['id']}",
+            headers=auth_headers,
+            json={"status": "done"},
+        )
+        assert second_done.status_code == 200
+
+        second_undo = client.put(
+            f"/api/plan/{task_second['id']}",
+            headers=auth_headers,
+            json={"status": "planned"},
+        )
+        assert second_undo.status_code == 200
+
+        logs_after_undo = client.get(f"/api/metrics/{metric_id}/logs", headers=auth_headers)
+        assert logs_after_undo.status_code == 200
+        today_total_after_undo = sum(float(row["value"]) for row in logs_after_undo.json())
+        assert today_total_after_undo == 0.0
+    finally:
+        app.dependency_overrides.pop(get_provider, None)
+
+
+def test_task_status_toggle_syncs_no_target_daily_count_metric_logs(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    app.dependency_overrides[get_provider] = lambda: EmptyPlanProvider()
+
+    try:
+        metric = client.post(
+            "/api/metrics",
+            headers=auth_headers,
+            json={
+                "key": "practice_done_today",
+                "label": "Practice done",
+                "unit_text": "count",
+                "time_span": "day",
+                "target": None,
+            },
+        )
+        assert metric.status_code == 201
+        metric_id = int(metric.json()["id"])
+
+        repetitive = client.post(
+            "/api/repetitive-tasks",
+            headers=auth_headers,
+            json={
+                "name": "Practice",
+                "description": "Daily deliberate practice.",
+                "frequencies": ["daily"],
+                "priority": "high",
+                "linked_metric_ids": [metric_id],
+            },
+        )
+        assert repetitive.status_code == 201
+
+        generated = client.post("/api/plan/generate-today", headers=auth_headers, json={})
+        assert generated.status_code == 200
+        task = next(row for row in generated.json()["tasks"] if row["title"] == "Practice")
+
+        mark_done = client.put(
+            f"/api/plan/{task['id']}",
+            headers=auth_headers,
+            json={"status": "done"},
+        )
+        assert mark_done.status_code == 200
+        assert mark_done.json()["status"] == "done"
+
+        workspace_after_done = client.get("/api/plan/workspace", headers=auth_headers)
+        assert workspace_after_done.status_code == 200
+        done_task = next(
+            row for row in workspace_after_done.json()["tasks"] if row["id"] == task["id"]
+        )
+        assert done_task["linked_metrics"]
+        assert done_task["linked_metrics"][0]["is_streak_style"] is True
+        assert float(done_task["linked_metrics"][0]["logged_total"]) == 1.0
+
+        logs_after_done = client.get(f"/api/metrics/{metric_id}/logs", headers=auth_headers)
+        assert logs_after_done.status_code == 200
+        today_total_after_done = sum(float(row["value"]) for row in logs_after_done.json())
+        assert today_total_after_done == 1.0
+
+        mark_planned = client.put(
+            f"/api/plan/{task['id']}",
+            headers=auth_headers,
+            json={"status": "planned"},
+        )
+        assert mark_planned.status_code == 200
+        assert mark_planned.json()["status"] == "planned"
+
+        workspace_after_revert = client.get("/api/plan/workspace", headers=auth_headers)
+        assert workspace_after_revert.status_code == 200
+        reverted_task = next(
+            row for row in workspace_after_revert.json()["tasks"] if row["id"] == task["id"]
+        )
+        assert float(reverted_task["linked_metrics"][0]["logged_total"]) == 0.0
+
+        logs_after_revert = client.get(f"/api/metrics/{metric_id}/logs", headers=auth_headers)
+        assert logs_after_revert.status_code == 200
+        today_total_after_revert = sum(float(row["value"]) for row in logs_after_revert.json())
+        assert today_total_after_revert == 0.0
+    finally:
+        app.dependency_overrides.pop(get_provider, None)
+
+
+def test_task_status_toggle_syncs_weekly_streak_metric_logs(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    app.dependency_overrides[get_provider] = lambda: EmptyPlanProvider()
+
+    try:
+        today = date.today()
+        tomorrow = today + timedelta(days=1)
+
+        metric = client.post(
+            "/api/metrics",
+            headers=auth_headers,
+            json={
+                "key": "workout_sessions_weekly",
+                "label": "Workout sessions",
+                "unit_text": "count",
+                "time_span": "week",
+                "target": 3,
+            },
+        )
+        assert metric.status_code == 201
+        metric_id = int(metric.json()["id"])
+
+        repetitive = client.post(
+            "/api/repetitive-tasks",
+            headers=auth_headers,
+            json={
+                "name": "Workout",
+                "description": "Daily training session.",
+                "frequencies": ["daily"],
+                "priority": "high",
+                "linked_metric_ids": [metric_id],
+            },
+        )
+        assert repetitive.status_code == 201
+
+        generated_today = client.post(
+            "/api/plan/generate-today",
+            headers=auth_headers,
+            json={"on_date": today.isoformat()},
+        )
+        assert generated_today.status_code == 200
+        today_task = next(row for row in generated_today.json()["tasks"] if row["title"] == "Workout")
+
+        mark_today_done = client.put(
+            f"/api/plan/{today_task['id']}",
+            headers=auth_headers,
+            json={"status": "done"},
+        )
+        assert mark_today_done.status_code == 200
+
+        generated_tomorrow = client.post(
+            "/api/plan/generate-today",
+            headers=auth_headers,
+            json={"on_date": tomorrow.isoformat()},
+        )
+        assert generated_tomorrow.status_code == 200
+        tomorrow_task = next(
+            row for row in generated_tomorrow.json()["tasks"] if row["title"] == "Workout"
+        )
+
+        mark_tomorrow_done = client.put(
+            f"/api/plan/{tomorrow_task['id']}",
+            headers=auth_headers,
+            json={"status": "done"},
+        )
+        assert mark_tomorrow_done.status_code == 200
+
+        workspace_after_second_done = client.get(
+            f"/api/plan/workspace?on_date={tomorrow.isoformat()}",
+            headers=auth_headers,
+        )
+        assert workspace_after_second_done.status_code == 200
+        done_task = next(
+            row
+            for row in workspace_after_second_done.json()["tasks"]
+            if row["id"] == tomorrow_task["id"]
+        )
+        assert done_task["linked_metrics"]
+        assert done_task["linked_metrics"][0]["is_streak_style"] is True
+        assert float(done_task["linked_metrics"][0]["logged_total"]) == 2.0
+
+        mark_tomorrow_planned = client.put(
+            f"/api/plan/{tomorrow_task['id']}",
+            headers=auth_headers,
+            json={"status": "planned"},
+        )
+        assert mark_tomorrow_planned.status_code == 200
+
+        workspace_after_revert = client.get(
+            f"/api/plan/workspace?on_date={tomorrow.isoformat()}",
+            headers=auth_headers,
+        )
+        assert workspace_after_revert.status_code == 200
+        reverted_task = next(
+            row
+            for row in workspace_after_revert.json()["tasks"]
+            if row["id"] == tomorrow_task["id"]
+        )
+        assert float(reverted_task["linked_metrics"][0]["logged_total"]) == 1.0
+    finally:
+        app.dependency_overrides.pop(get_provider, None)
+
+
+def test_task_progress_updates_linked_metric_and_completes_when_target_reached(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    app.dependency_overrides[get_provider] = lambda: EmptyPlanProvider()
+
+    try:
+        metric = client.post(
+            "/api/metrics",
+            headers=auth_headers,
+            json={
+                "key": "leetcode_solved_today",
+                "label": "LeetCode solved",
+                "unit_text": "problems",
+                "time_span": "day",
+                "target": 10,
+            },
+        )
+        assert metric.status_code == 201
+        metric_id = int(metric.json()["id"])
+
+        repetitive = client.post(
+            "/api/repetitive-tasks",
+            headers=auth_headers,
+            json={
+                "name": "LeetCode Practice",
+                "description": "Solve coding problems daily.",
+                "frequencies": ["daily"],
+                "priority": "high",
+                "linked_metric_ids": [metric_id],
+            },
+        )
+        assert repetitive.status_code == 201
+
+        generated = client.post("/api/plan/generate-today", headers=auth_headers, json={})
+        assert generated.status_code == 200
+
+        task = next(row for row in generated.json()["tasks"] if row["title"] == "LeetCode Practice")
+        assert task["status"] == "planned"
+        assert task["linked_metrics"]
+        assert task["linked_metrics"][0]["metric_id"] == metric_id
+        assert float(task["linked_metrics"][0]["logged_total"]) == 0.0
+
+        first_progress = client.post(
+            f"/api/plan/{task['id']}/progress",
+            headers=auth_headers,
+            json={"value": 7},
+        )
+        assert first_progress.status_code == 200
+        first_task = next(row for row in first_progress.json()["tasks"] if row["id"] == task["id"])
+        assert first_task["status"] == "planned"
+        assert float(first_task["linked_metrics"][0]["logged_total"]) == 7.0
+
+        second_progress = client.post(
+            f"/api/plan/{task['id']}/progress",
+            headers=auth_headers,
+            json={"value": 3},
+        )
+        assert second_progress.status_code == 200
+        second_task = next(row for row in second_progress.json()["tasks"] if row["id"] == task["id"])
+        assert second_task["status"] == "done"
+        assert float(second_task["linked_metrics"][0]["logged_total"]) == 10.0
+
+        corrected_progress = client.post(
+            f"/api/plan/{task['id']}/progress",
+            headers=auth_headers,
+            json={"value": 8, "mode": "set"},
+        )
+        assert corrected_progress.status_code == 200
+        corrected_task = next(row for row in corrected_progress.json()["tasks"] if row["id"] == task["id"])
+        assert corrected_task["status"] == "planned"
+        assert float(corrected_task["linked_metrics"][0]["logged_total"]) == 8.0
+    finally:
+        app.dependency_overrides.pop(get_provider, None)
+
+
+def test_create_scheduled_task_rejects_past_date(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    yesterday = (date.today() - timedelta(days=1)).isoformat()
+
+    response = client.post(
+        "/api/plan/schedule",
+        headers=auth_headers,
+        json={
+            "title": "Past planning attempt",
+            "date": yesterday,
+            "priority": "medium",
+        },
+    )
+
+    assert response.status_code == 400
+    assert "future date" in response.json()["detail"].lower() or "today" in response.json()["detail"].lower()
+
+
+def test_schedule_list_returns_future_planned_tasks_only(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    today = date.today()
+    tomorrow = today + timedelta(days=1)
+    day_after = today + timedelta(days=2)
+
+    first = client.post(
+        "/api/plan/schedule",
+        headers=auth_headers,
+        json={"title": "Future task A", "date": tomorrow.isoformat(), "priority": "high"},
+    )
+    assert first.status_code == 201
+
+    second = client.post(
+        "/api/plan/schedule",
+        headers=auth_headers,
+        json={"title": "Future task B", "date": day_after.isoformat(), "priority": "medium"},
+    )
+    assert second.status_code == 201
+
+    done_future = client.post(
+        "/api/plan/schedule",
+        headers=auth_headers,
+        json={"title": "Future done task", "date": day_after.isoformat(), "priority": "low"},
+    )
+    assert done_future.status_code == 201
+    done_update = client.put(
+        f"/api/plan/{done_future.json()['id']}",
+        headers=auth_headers,
+        json={"status": "done"},
+    )
+    assert done_update.status_code == 200
+
+    today_row = client.post(
+        "/api/plan",
+        headers=auth_headers,
+        json={"title": "Today task", "date": today.isoformat(), "priority": "medium"},
+    )
+    assert today_row.status_code == 201
+
+    listed = client.get("/api/plan/schedule", headers=auth_headers)
+    assert listed.status_code == 200
+
+    titles = [row["title"] for row in listed.json()]
+    assert "Future task A" in titles
+    assert "Future task B" in titles
+    assert "Future done task" not in titles
+    assert "Today task" not in titles
+
+
+def test_schedule_draft_returns_structured_fields(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    draft_date = (date.today() + timedelta(days=2)).isoformat()
+    app.dependency_overrides[get_provider] = lambda: ScheduleDraftProvider(draft_date)
+
+    try:
+        response = client.post(
+            "/api/plan/schedule/draft",
+            headers=auth_headers,
+            json={"prompt": "i want to meet animesh on friday"},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["title"] == "Meet Animesh"
+        assert body["description"]
+        assert body["date"] == draft_date
+        assert body["priority"] == "high"
+    finally:
+        app.dependency_overrides.pop(get_provider, None)
+
+
+def test_create_scheduled_task_propagates_goal_from_linked_habit(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    tomorrow = (date.today() + timedelta(days=1)).isoformat()
+
+    goal = client.post(
+        "/api/goals",
+        headers=auth_headers,
+        json={"title": "Networking goal"},
+    )
+    assert goal.status_code == 201
+    goal_id = int(goal.json()["id"])
+
+    habit = client.post(
+        "/api/repetitive-tasks",
+        headers=auth_headers,
+        json={
+            "name": "Weekly networking",
+            "description": "Reach out to peers every week",
+            "frequencies": ["weekly"],
+            "priority": "medium",
+            "linked_goal_ids": [goal_id],
+        },
+    )
+    assert habit.status_code == 201
+    habit_id = int(habit.json()["id"])
+
+    scheduled = client.post(
+        "/api/plan/schedule",
+        headers=auth_headers,
+        json={
+            "title": "Meet senior engineer",
+            "description": "Prepare discussion points.",
+            "date": tomorrow,
+            "linked_habit_id": habit_id,
+            "priority": "high",
+        },
+    )
+    assert scheduled.status_code == 201
+    body = scheduled.json()
+    assert body["linked_habit_id"] == habit_id
+    assert body["related_goal_id"] == goal_id
+    assert body["description"] == "Prepare discussion points."
+
+
+def test_manual_scheduled_task_uses_description_as_quantifiable_source_of_truth(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    target_date = date.today() + timedelta(days=3)
+
+    metric = client.post(
+        "/api/metrics",
+        headers=auth_headers,
+        json={
+            "key": "coding_ninja_minutes",
+            "label": "Coding Ninja minutes",
+            "unit_text": "minutes",
+            "time_span": "day",
+            "target": 60,
+        },
+    )
+    assert metric.status_code == 201
+    metric_id = int(metric.json()["id"])
+
+    habit = client.post(
+        "/api/repetitive-tasks",
+        headers=auth_headers,
+        json={
+            "name": "Progress Coding Ninja Course",
+            "description": "Advance one lesson daily.",
+            "frequencies": ["daily"],
+            "priority": "high",
+            "linked_metric_ids": [metric_id],
+        },
+    )
+    assert habit.status_code == 201
+    habit_id = int(habit.json()["id"])
+
+    no_quantity_task = client.post(
+        "/api/plan/schedule",
+        headers=auth_headers,
+        json={
+            "title": "Take Coding Ninja Mock Interview",
+            "description": "Evening",
+            "date": target_date.isoformat(),
+            "linked_habit_id": habit_id,
+            "priority": "high",
+        },
+    )
+    assert no_quantity_task.status_code == 201
+    no_quantity_task_id = int(no_quantity_task.json()["id"])
+
+    quantified_task = client.post(
+        "/api/plan/schedule",
+        headers=auth_headers,
+        json={
+            "title": "Take Coding Ninja Timed Practice",
+            "description": "Practice for 120 minutes in the evening.",
+            "date": target_date.isoformat(),
+            "linked_habit_id": habit_id,
+            "priority": "high",
+        },
+    )
+    assert quantified_task.status_code == 201
+    quantified_task_id = int(quantified_task.json()["id"])
+
+    workspace = client.get(
+        f"/api/plan/workspace?on_date={target_date.isoformat()}",
+        headers=auth_headers,
+    )
+    assert workspace.status_code == 200
+
+    rows = workspace.json()["tasks"]
+    no_quantity_row = next(row for row in rows if row["id"] == no_quantity_task_id)
+    quantified_row = next(row for row in rows if row["id"] == quantified_task_id)
+
+    assert no_quantity_row["linked_metrics"] == []
+    assert quantified_row["linked_metrics"]
+    assert quantified_row["linked_metrics"][0]["metric_id"] != metric_id
+    assert quantified_row["linked_metrics"][0]["target"] == 120
+    assert quantified_row["linked_metrics"][0]["unit_text"] == "minutes"
+
+
+def test_generated_habit_without_linked_metric_becomes_quantifiable_from_description(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    app.dependency_overrides[get_provider] = lambda: EmptyPlanProvider()
+
+    try:
+        repetitive = client.post(
+            "/api/repetitive-tasks",
+            headers=auth_headers,
+            json={
+                "name": "DSA Practice",
+                "description": "Solve 8 problems today.",
+                "frequencies": ["daily"],
+                "priority": "high",
+            },
+        )
+        assert repetitive.status_code == 201
+
+        generated = client.post("/api/plan/generate-today", headers=auth_headers, json={})
+        assert generated.status_code == 200
+
+        task = next(row for row in generated.json()["tasks"] if row["title"] == "DSA Practice")
+        assert task["linked_metrics"]
+        linked_metric = task["linked_metrics"][0]
+        assert linked_metric["unit_text"] == "problems"
+        assert linked_metric["target"] == 8
+        assert linked_metric["is_streak_style"] is False
+
+        first_progress = client.post(
+            f"/api/plan/{task['id']}/progress",
+            headers=auth_headers,
+            json={"value": 5, "mode": "set"},
+        )
+        assert first_progress.status_code == 200
+        first_row = next(row for row in first_progress.json()["tasks"] if row["id"] == task["id"])
+        assert first_row["status"] == "planned"
+        assert float(first_row["linked_metrics"][0]["logged_total"]) == 5.0
+
+        second_progress = client.post(
+            f"/api/plan/{task['id']}/progress",
+            headers=auth_headers,
+            json={"value": 8, "mode": "set"},
+        )
+        assert second_progress.status_code == 200
+        second_row = next(row for row in second_progress.json()["tasks"] if row["id"] == task["id"])
+        assert second_row["status"] == "done"
+        assert float(second_row["linked_metrics"][0]["logged_total"]) == 8.0
+
+    finally:
+        app.dependency_overrides.pop(get_provider, None)
+
+
+def test_manual_measurable_task_logs_progress_and_tracks_description_target(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    target_date = date.today() + timedelta(days=2)
+
+    created = client.post(
+        "/api/plan/schedule",
+        headers=auth_headers,
+        json={
+            "title": "Deep work block",
+            "description": "Focus for 90 minutes in the evening.",
+            "date": target_date.isoformat(),
+            "priority": "high",
+        },
+    )
+    assert created.status_code == 201
+    task_id = int(created.json()["id"])
+
+    workspace = client.get(
+        f"/api/plan/workspace?on_date={target_date.isoformat()}",
+        headers=auth_headers,
+    )
+    assert workspace.status_code == 200
+
+    row = next(item for item in workspace.json()["tasks"] if item["id"] == task_id)
+    assert row["linked_metrics"]
+    assert row["linked_metrics"][0]["unit_text"] == "minutes"
+    assert row["linked_metrics"][0]["target"] == 90
+    assert row["linked_metrics"][0]["is_streak_style"] is False
+
+    first_progress = client.post(
+        f"/api/plan/{task_id}/progress",
+        headers=auth_headers,
+        json={"value": 45, "mode": "set"},
+    )
+    assert first_progress.status_code == 200
+    first_row = next(item for item in first_progress.json()["tasks"] if item["id"] == task_id)
+    assert first_row["status"] == "planned"
+    assert float(first_row["linked_metrics"][0]["logged_total"]) == 45.0
+
+    second_progress = client.post(
+        f"/api/plan/{task_id}/progress",
+        headers=auth_headers,
+        json={"value": 90, "mode": "set"},
+    )
+    assert second_progress.status_code == 200
+    second_row = next(item for item in second_progress.json()["tasks"] if item["id"] == task_id)
+    assert second_row["status"] == "done"
+    assert float(second_row["linked_metrics"][0]["logged_total"]) == 90.0
+
+    non_measurable_update = client.put(
+        f"/api/plan/{task_id}",
+        headers=auth_headers,
+        json={"description": "Evening"},
+    )
+    assert non_measurable_update.status_code == 200
+
+    refreshed_workspace = client.get(
+        f"/api/plan/workspace?on_date={target_date.isoformat()}",
+        headers=auth_headers,
+    )
+    assert refreshed_workspace.status_code == 200
+    refreshed_row = next(
+        item for item in refreshed_workspace.json()["tasks"] if item["id"] == task_id
+    )
+    assert refreshed_row["linked_metrics"] == []

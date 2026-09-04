@@ -8,6 +8,8 @@ references resolve.
 from app.models.activity import ActivityLog
 from app.models.base import Base, TimestampMixin, utcnow
 from app.models.chat import ChatMessage, ChatSession
+from app.models.email_notification_preference import EmailNotificationPreference
+from app.models.email_verification_token import EmailVerificationToken
 from app.models.goal import Goal
 from app.models.journal import JournalEntry
 from app.models.memory import MemoryEntry
@@ -15,16 +17,28 @@ from app.models.metric import TrackedMetric
 from app.models.milestone import Milestone
 from app.models.notification import Notification
 from app.models.planned_task import PlannedTask
+from app.models.push_subscription import PushSubscription
+from app.models.repetitive_task import (
+    RepetitiveTask,
+    RepetitiveTaskGoalLink,
+    RepetitiveTaskMetricLink,
+)
 from app.models.report import Report
 from app.models.user import User
+from app.models.user_profile import UserProfile
+from app.models.user_setting import UserSetting
 
 __all__ = [
     "Base",
     "TimestampMixin",
     "utcnow",
     "User",
+    "UserProfile",
+    "UserSetting",
     "MemoryEntry",
     "Goal",
+    "EmailNotificationPreference",
+    "EmailVerificationToken",
     "Milestone",
     "ChatSession",
     "ChatMessage",
@@ -33,5 +47,9 @@ __all__ = [
     "TrackedMetric",
     "ActivityLog",
     "PlannedTask",
+    "PushSubscription",
+    "RepetitiveTask",
+    "RepetitiveTaskGoalLink",
+    "RepetitiveTaskMetricLink",
     "Report",
 ]

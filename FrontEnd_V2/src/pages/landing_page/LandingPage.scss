@@ -1,0 +1,773 @@
+// ── Variables ────────────────────────────────────────────────────────────────
+
+$handle-size:      8px;
+$handle-offset:   -5px;
+$node-max-width:   258px;
+
+// Node accent colors — icon tints and handle rings
+$color-goal:       #6d5efc;
+$color-milestone:  #4f8bff;
+$color-habit:      #139f72;
+$color-coach:      #c05d12;
+
+// ── Mixins ───────────────────────────────────────────────────────────────────
+
+// Positions a node handle dot on the specified side
+@mixin node-handle($side, $color: var(--jv-brand-1)) {
+  border: 2px solid #{$color};
+
+  @if $side == right {
+    right: $handle-offset;
+    top: 50%;
+    transform: translateY(-50%);
+  } @else if $side == left {
+    left: $handle-offset;
+    top: 50%;
+    transform: translateY(-50%);
+  } @else if $side == bottom {
+    bottom: $handle-offset;
+    left: 50%;
+    transform: translateX(-50%);
+  } @else if $side == top {
+    top: $handle-offset;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+}
+
+// Sets icon container color + tinted background
+@mixin node-icon($color, $alpha: 0.15) {
+  color: $color;
+  background: rgba($color, $alpha);
+}
+
+// ── Shell & navigation ───────────────────────────────────────────────────────
+
+.landing-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 1.15rem 1.25rem 2.5rem;
+
+  // Full-page dot grid in dark mode — mirrors RF's canvas-as-page treatment
+  [data-bs-theme="dark"] & {
+    background-image: radial-gradient(circle, rgba(245, 237, 237, 0.2) 1.2px, transparent 1.2px);
+    background-size: 22px 22px;
+  }
+  [data-bs-theme="light"] & {
+    background-image: radial-gradient(circle, rgba(92, 135, 255, 0.5) 1.2px, transparent 1.2px);
+    background-size: 22px 22px;
+  }
+}
+
+.landing-topbar {
+  width: min(1180px, 100%);
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.landing-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+// ── Main layout ──────────────────────────────────────────────────────────────
+
+.landing-main {
+  width: min(1180px, 100%);
+  margin: 1.5rem auto 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.landing-hero {
+  display: grid;
+  grid-template-columns: 5fr 6fr;
+  gap: 1rem;
+  align-items: stretch;
+}
+
+// Shared card surface for all four panel types
+.landing-copy,
+.landing-flow-wrap,
+.landing-step-card,
+.landing-cta {
+  background: color-mix(in srgb, var(--jv-surface) 90%, white 10%);
+  border: 1px solid var(--jv-border);
+  border-radius: 26px;
+  box-shadow: var(--jv-shadow);
+}
+
+// ── Hero copy panel ──────────────────────────────────────────────────────────
+
+.landing-copy {
+  padding: clamp(1.4rem, 2vw, 2rem);
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+
+  // In dark mode: strip the card — let copy float on the page canvas
+  [data-bs-theme="dark"] & {
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+  }
+}
+
+.landing-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--jv-brand-soft) 80%, transparent);
+  color: var(--jv-brand-1);
+  border: 1px solid color-mix(in srgb, var(--jv-brand-1) 26%, transparent);
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.28rem 0.62rem;
+  margin-bottom: 1rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+
+  &::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--jv-brand-1);
+    flex-shrink: 0;
+    animation: kickerPulse 2.2s ease-in-out infinite;
+  }
+}
+
+.landing-title {
+  font-family: var(--jv-font-display);
+  font-size: clamp(2.1rem, 4.6vw, 3.9rem);
+  font-weight: 800;
+  line-height: 1;
+  margin: 0;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+
+.landing-title-accent {
+  background: linear-gradient(135deg, var(--jv-brand-1) 0%, var(--jv-brand-2) 100%);
+  // stylelint-disable-next-line property-no-vendor-prefix
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.landing-subtitle {
+  margin-top: 1.05rem;
+  margin-bottom: 0;
+  color: var(--jv-muted);
+  font-size: 1.02rem;
+  line-height: 1.68;
+  max-width: 58ch;
+}
+
+.landing-hero-actions {
+  margin-top: 1.3rem;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.65rem;
+  align-items: stretch;
+
+  // Outline button almost invisible on dark transparent bg — boost the border
+  [data-bs-theme="dark"] & {
+    .btn-outline-secondary {
+      border-color: rgba(255, 255, 255, 0.25);
+      color: rgba(255, 255, 255, 0.72);
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.06);
+        border-color: rgba(255, 255, 255, 0.42);
+        color: rgba(255, 255, 255, 0.92);
+      }
+    }
+  }
+
+  .btn-brand {
+    background: linear-gradient(135deg, #6f63ff 0%, #4f8bff 100%);
+    border: 1px solid rgba(79, 139, 255, 0.18);
+    box-shadow: 0 8px 18px rgba(79, 139, 255, 0.28);
+
+    &:hover {
+      box-shadow: 0 10px 22px rgba(79, 139, 255, 0.34);
+      transform: translateY(-1px);
+    }
+  }
+
+  .btn-outline-secondary {
+    background: color-mix(in srgb, var(--jv-surface) 94%, white 6%);
+    border: 1px solid color-mix(in srgb, var(--jv-border-strong) 78%, #b6c1dc 22%);
+    color: #5f6b84;
+
+    &:hover {
+      background: color-mix(in srgb, var(--jv-surface) 86%, #eef3ff 14%);
+      border-color: color-mix(in srgb, var(--jv-brand-2) 35%, var(--jv-border-strong) 65%);
+      color: #42516f;
+      transform: translateY(-1px);
+    }
+  }
+}
+
+.landing-hero-btn {
+  flex: 0 0 auto;
+  min-height: 52px;
+  padding: 0.75rem 1.5rem;
+  border-radius: 999px;
+  font-size: 1.02rem;
+  font-weight: 700;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  letter-spacing: -0.01em;
+
+  &:active {
+    transform: translateY(0);
+  }
+}
+
+.landing-proof {
+  margin-top: 1.2rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  color: var(--jv-muted);
+  font-size: 0.92rem;
+
+  > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.38rem;
+  }
+
+  svg { color: var(--jv-success); }
+}
+
+// ── Hero flow canvas panel ────────────────────────────────────────────────────
+
+.landing-flow-wrap {
+  padding: clamp(0.85rem, 2vw, 1.15rem);
+  position: relative;
+  overflow: hidden;
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+
+  // Strip the card and add atmospheric glow — the flow area merges into the page canvas in dark mode
+  [data-bs-theme="dark"] & {
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+
+    // Radial glow behind the canvas — mirrors RF's purple/blue atmospheric effect
+    &::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 55% at 65% 38%, rgba(109, 94, 252, 0.22), transparent 68%),
+        radial-gradient(ellipse 55% 40% at 88% 12%, rgba(79, 139, 255, 0.16), transparent 68%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .landing-flow-canvas { z-index: 1; }
+  }
+}
+
+
+.landing-flow-canvas {
+  position: relative;
+  height: 420px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--jv-bg) 60%, var(--jv-surface-2) 40%);
+  border: 1px solid var(--jv-border);
+  padding: 0;
+  overflow: hidden;
+
+  // Remove the inner box — nodes float on the page canvas in dark mode
+  [data-bs-theme="dark"] & {
+    background: transparent;
+    border-color: transparent;
+  }
+}
+
+.landing-reactflow {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+}
+
+.landing-reactflow .react-flow__pane {
+  cursor: default;
+}
+
+.landing-reactflow .react-flow__node {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  box-shadow: none;
+  width: auto;
+}
+
+.landing-reactflow .react-flow__edge-path {
+  stroke: color-mix(in srgb, var(--jv-brand-1) 70%, var(--jv-brand-2) 30%);
+  stroke-width: 2;
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--jv-brand-1) 38%, transparent));
+}
+
+.landing-reactflow .react-flow__controls {
+  border: 1px solid var(--jv-border);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: var(--jv-shadow);
+}
+
+.landing-reactflow .react-flow__controls-button {
+  width: 28px;
+  height: 28px;
+  border-color: var(--jv-border);
+  background: var(--jv-surface);
+  color: var(--jv-muted);
+}
+
+.landing-reactflow .react-flow__controls-button:hover {
+  background: var(--jv-surface-2);
+  color: var(--jv-text);
+}
+
+// ── Flow nodes ────────────────────────────────────────────────────────────────
+
+.landing-flow-node {
+  position: relative;
+  width: $node-max-width;
+  min-width: $node-max-width;
+  border-radius: 10px;
+  border: 1px solid var(--jv-border);
+  background: var(--jv-surface);
+  box-shadow: 0 2px 8px rgba(20, 22, 40, 0.07);
+  padding: 0.7rem 0.82rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  line-height: 1.2;
+
+  [data-bs-theme="dark"] & {
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.55);
+  }
+}
+
+.landing-node-handle {
+  width: $handle-size;
+  height: $handle-size;
+  border-radius: 50%;
+  border: 2px solid var(--jv-brand-1);
+  background: var(--jv-surface);
+}
+
+.landing-flow-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.landing-flow-title {
+  margin: 0;
+  color: var(--jv-text);
+  font-size: 1.04rem;
+  font-weight: 700;
+}
+
+.landing-flow-text {
+  margin: 0.22rem 0 0;
+  color: var(--jv-muted);
+  font-size: 0.88rem;
+  line-height: 1.35;
+}
+
+// Goal — "selected" state (2px ring), single output on right
+.landing-node-goal {
+  border-color: var(--jv-brand-1);
+  box-shadow: 0 0 0 2px var(--jv-brand-1), 0 6px 20px color-mix(in srgb, var(--jv-brand-1) 22%, transparent);
+
+  // Restore the selection ring overridden by the general dark mode node rule
+  [data-bs-theme="dark"] & {
+    border-color: var(--jv-brand-1);
+    box-shadow: 0 0 0 2px var(--jv-brand-1), 0 8px 28px rgba(0, 0, 0, 0.6);
+  }
+
+  .landing-flow-icon { @include node-icon($color-goal); }
+
+  .landing-node-handle {
+    border-color: var(--jv-brand-1);
+  }
+}
+
+// Milestone — input left, output bottom
+.landing-node-milestone {
+  .landing-flow-icon { @include node-icon($color-milestone, 0.16); }
+
+  .landing-node-handle {
+    border-color: var(--jv-brand-2);
+  }
+}
+
+// Habit — input top, output right
+.landing-node-habit {
+  .landing-flow-icon { @include node-icon($color-habit, 0.16); }
+
+  .landing-node-handle {
+    border-color: var(--jv-brand-2);
+  }
+}
+
+// Coach — input left only
+.landing-node-coach {
+  .landing-flow-icon { @include node-icon($color-coach, 0.22); }
+}
+
+// ── Step cards ────────────────────────────────────────────────────────────────
+
+.landing-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.landing-step-card {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  padding: 1.3rem 1.2rem 1.25rem;
+  background: var(--jv-surface);
+  border: 1px solid var(--jv-border);
+  box-shadow: var(--jv-shadow);
+  transition: transform var(--jv-transition), box-shadow var(--jv-transition), border-color var(--jv-transition);
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    height: 3px;
+    background: linear-gradient(90deg, #6f63ff 0%, #4f8bff 100%);
+    opacity: 0.66;
+  }
+
+  &:hover {
+    transform: translateY(-3px);
+    border-color: var(--jv-border-strong);
+    box-shadow: var(--jv-shadow-lg);
+  }
+
+  // Keep content above the ghost number
+  .landing-step-icon,
+  h2,
+  p {
+    position: relative;
+    z-index: 1;
+  }
+
+  h2 {
+    margin: 0.82rem 0 0.5rem;
+    font-size: 1.05rem;
+    line-height: 1.25;
+  }
+
+  p {
+    margin: 0;
+    color: var(--jv-muted);
+    line-height: 1.58;
+    font-size: 1.01rem;
+  }
+}
+
+// Large decorative step number — ghost outline text anchored to bottom-right
+.landing-step-num {
+  position: absolute;
+  top: 3px;
+  right: 0.55rem;
+  font-size: 7rem;
+  font-weight: 900;
+  font-family: var(--jv-font-display, inherit);
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: transparent;
+  // stylelint-disable-next-line property-no-vendor-prefix
+  -webkit-text-stroke: 1.5px color-mix(in srgb, var(--jv-brand-1) 11%, transparent);
+  pointer-events: none;
+  user-select: none;
+  z-index: 0;
+
+  [data-bs-theme="dark"] & {
+    // stylelint-disable-next-line property-no-vendor-prefix
+    -webkit-text-stroke-color: rgba(111, 99, 255, 0.4);
+  }
+  [data-bs-theme="light"] & {
+    // stylelint-disable-next-line property-no-vendor-prefix
+    -webkit-text-stroke-color: rgba(88, 139, 255, 0.4);
+  }
+}
+
+.landing-step-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, rgba(111, 99, 255, 0.14) 0%, rgba(79, 139, 255, 0.18) 100%);
+  color: var(--jv-brand-1);
+}
+
+// ── CTA section ───────────────────────────────────────────────────────────────
+
+.landing-cta {
+  padding: 2.15rem 1.5rem;
+  text-align: center;
+  background:
+    radial-gradient(500px 210px at 0 100%, color-mix(in srgb, var(--jv-brand-1) 12%, transparent), transparent 72%),
+    radial-gradient(430px 190px at 100% 0, color-mix(in srgb, var(--jv-brand-2) 10%, transparent), transparent 70%),
+    var(--jv-surface);
+  border: 1px solid var(--jv-border);
+  box-shadow: var(--jv-shadow);
+
+  h2 {
+    font-size: clamp(1.52rem, 2.3vw, 2rem);
+    margin: 0;
+    letter-spacing: -0.02em;
+  }
+
+  p {
+    margin: 0.75rem auto 1.12rem;
+    color: var(--jv-muted);
+    max-width: 56ch;
+    font-size: 1.01rem;
+  }
+}
+
+.landing-cta-accent {
+  background: linear-gradient(135deg, var(--jv-brand-1) 0%, var(--jv-brand-2) 100%);
+  // stylelint-disable-next-line property-no-vendor-prefix
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.landing-cta-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.68rem;
+  flex-wrap: wrap;
+}
+
+.landing-cta-btn-primary,
+.landing-cta-btn-secondary {
+  min-height: 46px;
+  border-radius: 999px;
+  padding: 0.58rem 1.2rem;
+  font-size: 0.98rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  letter-spacing: -0.01em;
+}
+
+.landing-cta-btn-primary {
+  background: var(--jv-brand-gradient);
+  border: 1px solid color-mix(in srgb, var(--jv-brand-2) 40%, transparent);
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--jv-brand-1) 28%, transparent);
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 24px color-mix(in srgb, var(--jv-brand-1) 36%, transparent);
+  }
+}
+
+.landing-cta-btn-secondary {
+  border: 1px solid var(--jv-border-strong);
+  color: var(--jv-brand-1);
+  background: var(--jv-surface);
+
+  &:hover {
+    background: var(--jv-surface-2);
+    color: var(--jv-brand-1);
+    transform: translateY(-1px);
+  }
+}
+
+.landing-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.9rem;
+  margin-top: 0.15rem;
+}
+
+.landing-metric-item {
+  padding: 1.1rem 1rem 1rem;
+  text-align: left;
+  border: 1px solid color-mix(in srgb, var(--jv-border) 78%, transparent);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--jv-surface) 94%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  transition: border-color var(--jv-transition), box-shadow var(--jv-transition);
+
+  &:hover {
+    border-color: color-mix(in srgb, var(--jv-brand-1) 28%, var(--jv-border) 72%);
+    box-shadow: 0 6px 18px rgba(109, 94, 252, 0.08);
+  }
+
+  h3 {
+    margin: 0.6rem 0 0;
+    font-size: clamp(1.08rem, 1.8vw, 1.32rem);
+    font-weight: 800;
+    color: var(--jv-brand-1);
+    letter-spacing: -0.02em;
+  }
+
+  p {
+    margin: 0.3rem 0 0;
+    color: var(--jv-muted);
+    font-size: 0.91rem;
+    line-height: 1.52;
+    max-width: 32ch;
+  }
+}
+
+.landing-metric-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--jv-brand-soft) 82%, transparent);
+  color: var(--jv-brand-1);
+  flex-shrink: 0;
+}
+
+// ── Reveal animations ─────────────────────────────────────────────────────────
+
+.reveal-up {
+  opacity: 0;
+  transform: translateY(14px);
+  animation: revealUp 540ms var(--jv-ease) forwards;
+}
+
+.reveal-up-delay {
+  opacity: 0;
+  transform: translateY(14px);
+  animation: revealUp 620ms var(--jv-ease) 120ms forwards;
+}
+
+// ── Keyframes ─────────────────────────────────────────────────────────────────
+
+@keyframes revealUp {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes kickerPulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.42; }
+}
+
+// ── Responsive ────────────────────────────────────────────────────────────────
+
+@media (max-width: 1023.98px) {
+  .landing-hero        { grid-template-columns: 1fr; }
+  .landing-flow-canvas { height: 420px; }
+  .landing-steps       { grid-template-columns: 1fr; }
+  .landing-metrics     { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 767.98px) {
+  .landing-shell {
+    padding: 0.9rem 0.8rem 1.8rem;
+  }
+
+  .landing-topbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .landing-topbar-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .landing-main {
+    margin-top: 0.9rem;
+  }
+
+  .landing-copy,
+  .landing-flow-wrap,
+  .landing-step-card,
+  .landing-cta {
+    border-radius: 20px;
+  }
+
+  .landing-flow-canvas {
+    min-height: 480px;
+  }
+
+  .landing-flow-node {
+    width: min(86vw, $node-max-width);
+    min-width: 170px;
+
+    .landing-flow-title {
+      font-size: 0.98rem;
+    }
+
+    .landing-flow-text {
+      font-size: 0.84rem;
+    }
+  }
+
+  .landing-hero-btn {
+    min-height: 46px;
+    font-size: 0.92rem;
+    padding: 0.62rem 1rem;
+  }
+
+  .landing-cta {
+    padding: 1.35rem 0.85rem;
+  }
+
+  .landing-cta-actions {
+    gap: 0.5rem;
+  }
+
+  .landing-cta-btn-primary,
+  .landing-cta-btn-secondary {
+    min-height: 42px;
+    font-size: 0.88rem;
+    padding: 0.56rem 0.9rem;
+  }
+
+  .landing-metric-item {
+    padding: 0.9rem 0.85rem 0.85rem;
+  }
+}

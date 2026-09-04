@@ -2,17 +2,29 @@ import { useState } from "react";
 import { Dropdown } from "react-bootstrap";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
+  Archive,
   ArrowLeft,
   CalendarEvent,
   CheckLg,
+  PauseFill,
   PencilSquare,
+  PlayFill,
   PlusLg,
   Stars,
   ThreeDotsVertical,
   Trash3,
 } from "react-bootstrap-icons";
 
-import { api, ApiError, type Goal, type Milestone, type MilestoneStatus } from "@/api";
+import {
+  api,
+  ApiError,
+  type Goal,
+  type GoalLinkedRepetitiveTask,
+  type Milestone,
+  type MilestoneDetail,
+  type MilestoneStatus,
+} from "@/api";
+import { MilestoneEditModal } from "@/components/goals/MilestoneEditModal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { GoalFormModal } from "@/components/goals/GoalFormModal";
@@ -38,6 +50,103 @@ function milestoneProgress(milestones: Milestone[]): number | null {
 
 const STATUS_CYCLE: MilestoneStatus[] = ["todo", "in_progress", "done"];
 
+type PillVariant = "success" | "warn" | "danger" | "info" | "brand" | "muted";
+
+const REPETITIVE_PRIORITY_LABEL: Record<GoalLinkedRepetitiveTask["priority"], string> = {
+  critical: "Critical",
+  high: "High",
+  medium: "Medium",
+  low: "Low",
+};
+
+const REPETITIVE_PRIORITY_PILL: Record<GoalLinkedRepetitiveTask["priority"], PillVariant> = {
+  critical: "danger",
+  high: "warn",
+  medium: "info",
+  low: "muted",
+};
+
+const REPETITIVE_STATUS_LABEL: Record<GoalLinkedRepetitiveTask["status"], string> = {
+  active: "Active",
+  paused: "Paused",
+  archived: "Archived",
+};
+
+const REPETITIVE_STATUS_PILL: Record<GoalLinkedRepetitiveTask["status"], PillVariant> = {
+  active: "success",
+  paused: "warn",
+  archived: "muted",
+};
+
+const REPETITIVE_FREQUENCY_LABEL: Record<
+  GoalLinkedRepetitiveTask["frequencies"][number],
+  string
+> = {
+  daily: "Daily",
+  weekly: "Weekly",
+  monthly: "Monthly",
+  weekdays: "Weekdays",
+  weekends: "Weekends",
+  sunday: "Sun",
+  monday: "Mon",
+  tuesday: "Tue",
+  wednesday: "Wed",
+  thursday: "Thu",
+  friday: "Fri",
+  saturday: "Sat",
+  first_of_month: "First of month",
+  end_of_month: "End of month",
+};
+
+const REPETITIVE_PRIORITY_SORT: Record<GoalLinkedRepetitiveTask["priority"], number> = {
+  critical: 0,
+  high: 1,
+  medium: 2,
+  low: 3,
+};
+
+interface MilestoneDetailRow {
+  label: string | null;
+  value: string;
+}
+
+function structuredMilestoneDetails(details: MilestoneDetail[] | null): MilestoneDetailRow[] {
+  if (!details || details.length === 0) return [];
+  return details
+    .map((item) => ({
+      label: item.label?.trim() || null,
+      value: item.value?.trim() || "",
+    }))
+    .filter((item) => item.value)
+    .slice(0, 8);
+}
+
+function parseMilestoneDescription(description: string | null): MilestoneDetailRow[] {
+  if (!description) return [];
+
+  const lines = description
+    .split(/\r?\n/g)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => line.replace(/^(?:[-*•●◦▪▫◉○◌‣⁃∙·]|[oO])\s+/i, "").replace(/\*\*/g, "").trim())
+    .filter(Boolean)
+    .slice(0, 6);
+
+  return lines.map((line) => {
+    const separatorIndex = line.indexOf(":");
+    if (separatorIndex > 0 && separatorIndex <= 32) {
+      const label = line.slice(0, separatorIndex).trim();
+      const value = line.slice(separatorIndex + 1).trim();
+      if (label && value) return { label, value };
+    }
+    return { label: null, value: line };
+  });
+}
+
+function hasRichMilestoneDescription(description: string | null): boolean {
+  return !!description && /<\/?[a-z][\s\S]*>/i.test(description);
+}
+
 export function GoalDetailPage() {
   const { goalId } = useParams();
   const id = Number(goalId);
@@ -48,13 +157,25 @@ export function GoalDetailPage() {
     () => api.goals.get(id),
     [id],
   );
+  const {
+    data: linkedRepetitive,
+    loading: linkedRepetitiveLoading,
+    error: linkedRepetitiveError,
+    reload: reloadLinkedRepetitive,
+    setData: setLinkedRepetitive,
+  } = useAsync(() => api.goals.linkedRepetitiveTasks(id), [id]);
 
   const [showEdit, setShowEdit] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [newMilestone, setNewMilestone] = useState("");
   const [addingMilestone, setAddingMilestone] = useState(false);
   const [busyMilestoneId, setBusyMilestoneId] = useState<number | null>(null);
+  const [showMilestoneModal, setShowMilestoneModal] = useState(false);
+  const [editingMilestone, setEditingMilestone] = useState<Milestone | null>(null);
+  const [savingMilestoneEdit, setSavingMilestoneEdit] = useState(false);
+  const [updatingRepetitiveStatusId, setUpdatingRepetitiveStatusId] = useState<number | null>(
+    null,
+  );
 
   function applyMilestones(milestones: Milestone[]) {
     setData((prev) =>
@@ -62,20 +183,54 @@ export function GoalDetailPage() {
     );
   }
 
-  async function addMilestone() {
-    if (!goal || !newMilestone.trim()) return;
-    setAddingMilestone(true);
+  async function saveMilestone(payload: {
+    title: string;
+    description: string | null;
+    dueDate: string | null;
+  }) {
+    if (!goal) return;
+
+    if (!editingMilestone) {
+      setAddingMilestone(true);
+      try {
+        const nextOrder =
+          goal.milestones.length > 0
+            ? Math.max(...goal.milestones.map((milestone) => milestone.order)) + 1
+            : 0;
+        const created = await api.goals.addMilestone(goal.id, {
+          title: payload.title,
+          description: payload.description,
+          due_date: payload.dueDate,
+          details: null,
+          order: nextOrder,
+        });
+        applyMilestones([...goal.milestones, created]);
+        setShowMilestoneModal(false);
+      } catch (err) {
+        toast.error(err instanceof ApiError ? err.message : "Couldn't add milestone.");
+      } finally {
+        setAddingMilestone(false);
+      }
+      return;
+    }
+
+    setSavingMilestoneEdit(true);
+    setBusyMilestoneId(editingMilestone.id);
     try {
-      const created = await api.goals.addMilestone(goal.id, {
-        title: newMilestone.trim(),
-        order: goal.milestones.length,
+      const updated = await api.goals.updateMilestone(editingMilestone.id, {
+        title: payload.title,
+        description: payload.description,
+        due_date: payload.dueDate,
+        details: null,
       });
-      applyMilestones([...goal.milestones, created]);
-      setNewMilestone("");
+      applyMilestones(goal.milestones.map((m) => (m.id === editingMilestone.id ? updated : m)));
+      setEditingMilestone(null);
+      setShowMilestoneModal(false);
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Couldn't add milestone.");
+      toast.error(err instanceof ApiError ? err.message : "Couldn't update milestone.");
     } finally {
-      setAddingMilestone(false);
+      setSavingMilestoneEdit(false);
+      setBusyMilestoneId(null);
     }
   }
 
@@ -118,6 +273,44 @@ export function GoalDetailPage() {
     }
   }
 
+  async function updateLinkedRepetitiveStatus(
+    task: GoalLinkedRepetitiveTask,
+    status: GoalLinkedRepetitiveTask["status"],
+  ) {
+    if (task.status === status) return;
+
+    setUpdatingRepetitiveStatusId(task.id);
+    setLinkedRepetitive((prev) =>
+      (prev ?? []).map((entry) =>
+        entry.id === task.id
+          ? {
+              ...entry,
+              status,
+            }
+          : entry,
+      ),
+    );
+
+    try {
+      const updated = await api.repetitiveTasks.update(task.id, { status });
+      setLinkedRepetitive((prev) =>
+        (prev ?? []).map((entry) =>
+          entry.id === task.id
+            ? {
+                ...entry,
+                status: updated.status,
+              }
+            : entry,
+        ),
+      );
+    } catch (err) {
+      reloadLinkedRepetitive();
+      toast.error(err instanceof ApiError ? err.message : "Couldn't update this repetitive task.");
+    } finally {
+      setUpdatingRepetitiveStatusId(null);
+    }
+  }
+
   if (loading) return <LoadingState label="Loading goal…" />;
 
   if (error || !goal) {
@@ -136,9 +329,17 @@ export function GoalDetailPage() {
   }
 
   const doneCount = goal.milestones.filter((m) => m.status === "done").length;
+  const hasMilestones = goal.milestones.length > 0;
   const sortedMilestones = [...goal.milestones].sort(
     (a, b) => a.order - b.order || a.id - b.id,
   );
+  const sortedLinkedTasks = [...(linkedRepetitive ?? [])].sort((left, right) => {
+    const priorityDiff =
+      REPETITIVE_PRIORITY_SORT[left.priority] - REPETITIVE_PRIORITY_SORT[right.priority];
+    if (priorityDiff !== 0) return priorityDiff;
+    return left.name.localeCompare(right.name);
+  });
+  const milestoneModalBusy = addingMilestone || savingMilestoneEdit;
 
   return (
     <div>
@@ -180,39 +381,31 @@ export function GoalDetailPage() {
       <SectionCard
         title="Milestones"
         subtitle={
-          goal.milestones.length > 0
+          hasMilestones
             ? `${doneCount} of ${goal.milestones.length} complete`
             : "Break this goal into concrete steps"
         }
         actions={
-          <Link to="/assistant?agent=goal_coach" className="btn btn-soft btn-sm">
-            <Stars size={14} className="me-1" /> Ask Goal Coach
-          </Link>
+          <div className="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+            <Link
+              to={`/assistant?agent=goal_coach&goalId=${goal.id}`}
+              className="btn btn-soft btn-sm"
+            >
+              <Stars size={14} className="me-1" /> Ask Goal Coach
+            </Link>
+            <button
+              className="btn btn-brand btn-sm d-flex align-items-center"
+              onClick={() => {
+                setEditingMilestone(null);
+                setShowMilestoneModal(true);
+              }}
+              disabled={milestoneModalBusy}
+            >
+              <PlusLg size={15} className="me-1" /> Add milestone
+            </button>
+          </div>
         }
       >
-        {/* Add milestone */}
-        <div className="d-flex gap-2 mb-3">
-          <input
-            className="form-control"
-            placeholder="Add a milestone…"
-            value={newMilestone}
-            onChange={(e) => setNewMilestone(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                void addMilestone();
-              }
-            }}
-          />
-          <button
-            className="btn btn-brand flex-shrink-0"
-            onClick={addMilestone}
-            disabled={addingMilestone || !newMilestone.trim()}
-          >
-            <PlusLg size={16} />
-          </button>
-        </div>
-
         {sortedMilestones.length === 0 ? (
           <EmptyState
             compact
@@ -225,72 +418,120 @@ export function GoalDetailPage() {
             {sortedMilestones.map((milestone, index) => {
               const done = milestone.status === "done";
               const busy = busyMilestoneId === milestone.id;
+              const richDescription = hasRichMilestoneDescription(milestone.description);
+              const structuredRows = structuredMilestoneDetails(milestone.details);
+              const detailRows =
+                !richDescription && structuredRows.length > 0
+                  ? structuredRows
+                  : parseMilestoneDescription(milestone.description);
               return (
                 <div
                   key={milestone.id}
-                  className={`d-flex align-items-center gap-3 py-2 ${
+                  className={`d-flex align-items-start gap-3 py-2 ${
                     index > 0 ? "border-top" : ""
                   }`}
                   style={{ borderColor: "var(--jv-border)" }}
                 >
                   <button
                     type="button"
-                    className="btn p-0 border-0 flex-shrink-0"
+                    className={`milestone-check flex-shrink-0 ${done ? "is-done" : ""}`}
                     disabled={busy}
                     onClick={() => setMilestoneStatus(milestone, done ? "todo" : "done")}
                     aria-label={done ? "Mark as not done" : "Mark as done"}
-                    style={{
-                      width: 24,
-                      height: 24,
-                      borderRadius: "50%",
-                      display: "grid",
-                      placeItems: "center",
-                      background: done ? "var(--jv-brand-gradient)" : "transparent",
-                      border: done ? "none" : "2px solid var(--jv-border-strong)",
-                      color: "#fff",
-                    }}
                   >
                     {done && <CheckLg size={14} />}
                   </button>
 
                   <div className="flex-grow-1 min-w-0">
-                    <div className={`fw-medium ${done ? "text-decoration-line-through text-muted-2" : ""}`}>
-                      {milestone.title}
+                    <div className="d-flex align-items-center gap-2">
+                      <div className={`fw-medium flex-grow-1 min-w-0 ${done ? "text-muted-2" : ""}`}>
+                        {milestone.title}
+                      </div>
+
+                      <div className="d-flex align-items-center gap-1 flex-shrink-0">
+                        <Dropdown align="end" className="flex-shrink-0">
+                          <Dropdown.Toggle
+                            as="button"
+                            className="btn p-0 border-0 bg-transparent shadow-none milestone-status-toggle"
+                            disabled={busy}
+                          >
+                            <Pill
+                              variant={MILESTONE_STATUS_PILL[milestone.status]}
+                              className="milestone-status-pill"
+                            >
+                              {MILESTONE_STATUS_LABEL[milestone.status]}
+                            </Pill>
+                          </Dropdown.Toggle>
+                          <Dropdown.Menu>
+                            {STATUS_CYCLE.map((s) => (
+                              <Dropdown.Item
+                                key={s}
+                                active={milestone.status === s}
+                                onClick={() => setMilestoneStatus(milestone, s)}
+                              >
+                                {MILESTONE_STATUS_LABEL[s]}
+                              </Dropdown.Item>
+                            ))}
+                          </Dropdown.Menu>
+                        </Dropdown>
+
+                        <Dropdown align="end" className="flex-shrink-0">
+                          <Dropdown.Toggle
+                            as="button"
+                            className="btn btn-ghost btn-icon border-0"
+                            style={{ width: 34, height: 34 }}
+                            disabled={busy}
+                          >
+                            <ThreeDotsVertical size={16} />
+                          </Dropdown.Toggle>
+                          <Dropdown.Menu>
+                            <Dropdown.Item
+                              onClick={() => {
+                                setEditingMilestone(milestone);
+                                setShowMilestoneModal(true);
+                              }}
+                            >
+                              <PencilSquare size={14} className="me-2" /> Edit
+                            </Dropdown.Item>
+                            <Dropdown.Divider />
+                            <Dropdown.Item
+                              className="text-danger"
+                              onClick={() => removeMilestone(milestone)}
+                            >
+                              <Trash3 size={14} className="me-2" /> Delete
+                            </Dropdown.Item>
+                          </Dropdown.Menu>
+                        </Dropdown>
+                      </div>
                     </div>
+                    {richDescription && (
+                      <div
+                        className="milestone-richtext text-muted-2"
+                        dangerouslySetInnerHTML={{ __html: milestone.description ?? "" }}
+                      />
+                    )}
+                    {!richDescription && detailRows.length > 0 && (
+                      <div className="small text-muted-2 mt-1 d-flex flex-column gap-1">
+                        {detailRows.map((row, rowIndex) => (
+                          <div key={`${milestone.id}-detail-${rowIndex}`} className="d-flex gap-2">
+                            <span className="text-faint">•</span>
+                            <span>
+                              {row.label ? (
+                                <>
+                                  <span className="fw-semibold text-body">{row.label}:</span> {row.value}
+                                </>
+                              ) : (
+                                row.value
+                              )}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     {milestone.due_date && (
                       <div className="text-faint small">{formatDate(milestone.due_date)}</div>
                     )}
                   </div>
-
-                  <Pill variant={MILESTONE_STATUS_PILL[milestone.status]} className="d-none d-sm-inline-flex">
-                    {MILESTONE_STATUS_LABEL[milestone.status]}
-                  </Pill>
-
-                  <Dropdown align="end">
-                    <Dropdown.Toggle
-                      as="button"
-                      className="btn btn-ghost btn-icon border-0"
-                      style={{ width: 34, height: 34 }}
-                      disabled={busy}
-                    >
-                      <ThreeDotsVertical size={16} />
-                    </Dropdown.Toggle>
-                    <Dropdown.Menu>
-                      {STATUS_CYCLE.map((s) => (
-                        <Dropdown.Item
-                          key={s}
-                          active={milestone.status === s}
-                          onClick={() => setMilestoneStatus(milestone, s)}
-                        >
-                          {MILESTONE_STATUS_LABEL[s]}
-                        </Dropdown.Item>
-                      ))}
-                      <Dropdown.Divider />
-                      <Dropdown.Item className="text-danger" onClick={() => removeMilestone(milestone)}>
-                        <Trash3 size={14} className="me-2" /> Delete
-                      </Dropdown.Item>
-                    </Dropdown.Menu>
-                  </Dropdown>
                 </div>
               );
             })}
@@ -298,11 +539,191 @@ export function GoalDetailPage() {
         )}
       </SectionCard>
 
+      <div className="mt-4">
+        <SectionCard
+          title="Habit library"
+          subtitle="Habits connected to this goal and their current momentum."
+          actions={
+            hasMilestones ? (
+              <Link
+                to={`/assistant?agent=goal_coach&goalId=${goal.id}&goalRepetitive=1`}
+                className="btn btn-soft btn-sm"
+              >
+                <Stars size={14} className="me-1" /> Ask Goal Coach
+              </Link>
+            ) : undefined
+          }
+        >
+          {linkedRepetitiveLoading ? (
+            <LoadingState full={false} label="Loading linked repetitive items..." />
+          ) : linkedRepetitiveError ? (
+            <EmptyState
+              compact
+              icon={<Stars size={20} />}
+              title="Couldn't load linked repetitive items"
+              message={linkedRepetitiveError}
+            />
+          ) : sortedLinkedTasks.length === 0 ? (
+            <EmptyState
+              compact
+              icon={<CheckLg size={20} />}
+              title="No linked repetitive items"
+              message="Link repetitive habits to this goal to track streak momentum here."
+            />
+          ) : (
+            <div className="d-flex flex-column gap-2">
+              {sortedLinkedTasks.map((task) => {
+                const statusBusy = updatingRepetitiveStatusId === task.id;
+                const frequencyLabels = task.frequencies.map(
+                  (frequency) => REPETITIVE_FREQUENCY_LABEL[frequency],
+                );
+                return (
+                  <article key={task.id} className="surface-2 p-3">
+                    <div className="d-flex align-items-start justify-content-between gap-2">
+                      <div className="min-w-0">
+                        <div className="fw-semibold text-truncate">{task.name}</div>
+                        {task.description && <div className="small text-muted-2">{task.description}</div>}
+                      </div>
+                      <div className="d-none d-md-flex align-items-center gap-2 flex-shrink-0">
+                        <Dropdown align="end" className="flex-shrink-0">
+                          <Dropdown.Toggle
+                            as="button"
+                            type="button"
+                            className="btn p-0 border-0 bg-transparent shadow-none"
+                            aria-label={`Update status for ${task.name}`}
+                            disabled={statusBusy}
+                          >
+                            <Pill variant={REPETITIVE_STATUS_PILL[task.status]} dot>
+                              {REPETITIVE_STATUS_LABEL[task.status]}
+                            </Pill>
+                          </Dropdown.Toggle>
+                          <Dropdown.Menu>
+                            {task.status === "active" && (
+                              <Dropdown.Item
+                                onClick={() => void updateLinkedRepetitiveStatus(task, "paused")}
+                              >
+                                <PauseFill size={14} className="me-2" /> Pause
+                              </Dropdown.Item>
+                            )}
+                            {task.status === "paused" && (
+                              <Dropdown.Item
+                                onClick={() => void updateLinkedRepetitiveStatus(task, "active")}
+                              >
+                                <PlayFill size={14} className="me-2" /> Resume
+                              </Dropdown.Item>
+                            )}
+                            {task.status !== "archived" && (
+                              <Dropdown.Item
+                                onClick={() => void updateLinkedRepetitiveStatus(task, "archived")}
+                              >
+                                <Archive size={14} className="me-2" /> Archive
+                              </Dropdown.Item>
+                            )}
+                            {task.status === "archived" && (
+                              <Dropdown.Item
+                                onClick={() => void updateLinkedRepetitiveStatus(task, "active")}
+                              >
+                                <PlayFill size={14} className="me-2" /> Restore
+                              </Dropdown.Item>
+                            )}
+                          </Dropdown.Menu>
+                        </Dropdown>
+                        <Pill variant={REPETITIVE_PRIORITY_PILL[task.priority]}>
+                          {REPETITIVE_PRIORITY_LABEL[task.priority]}
+                        </Pill>
+                      </div>
+                    </div>
+                    <div className="d-flex flex-wrap align-items-start gap-2 mt-2">
+                      <div className="d-flex flex-wrap align-items-center gap-2">
+                        <Dropdown align="end" className="d-md-none">
+                          <Dropdown.Toggle
+                            as="button"
+                            type="button"
+                            className="btn p-0 border-0 bg-transparent shadow-none"
+                            aria-label={`Update status for ${task.name}`}
+                            disabled={statusBusy}
+                          >
+                            <Pill variant={REPETITIVE_STATUS_PILL[task.status]} dot>
+                              {REPETITIVE_STATUS_LABEL[task.status]}
+                            </Pill>
+                          </Dropdown.Toggle>
+                          <Dropdown.Menu>
+                            {task.status === "active" && (
+                              <Dropdown.Item
+                                onClick={() => void updateLinkedRepetitiveStatus(task, "paused")}
+                              >
+                                <PauseFill size={14} className="me-2" /> Pause
+                              </Dropdown.Item>
+                            )}
+                            {task.status === "paused" && (
+                              <Dropdown.Item
+                                onClick={() => void updateLinkedRepetitiveStatus(task, "active")}
+                              >
+                                <PlayFill size={14} className="me-2" /> Resume
+                              </Dropdown.Item>
+                            )}
+                            {task.status !== "archived" && (
+                              <Dropdown.Item
+                                onClick={() => void updateLinkedRepetitiveStatus(task, "archived")}
+                              >
+                                <Archive size={14} className="me-2" /> Archive
+                              </Dropdown.Item>
+                            )}
+                            {task.status === "archived" && (
+                              <Dropdown.Item
+                                onClick={() => void updateLinkedRepetitiveStatus(task, "active")}
+                              >
+                                <PlayFill size={14} className="me-2" /> Restore
+                              </Dropdown.Item>
+                            )}
+                          </Dropdown.Menu>
+                        </Dropdown>
+                        <Pill className="d-md-none" variant={REPETITIVE_PRIORITY_PILL[task.priority]}>
+                          {REPETITIVE_PRIORITY_LABEL[task.priority]}
+                        </Pill>
+                        <Pill variant="brand">{task.category || "Uncategorized"}</Pill>
+                        <Pill>
+                          <span className="d-none d-md-inline">Current streak:</span>
+                          <span className="d-md-none">Streak:</span>{" "}
+                          <span className="fw-semibold">{task.current_streak_days}d</span>
+                        </Pill>
+                        <Pill>
+                          <span className="d-none d-md-inline">Max streak:</span>
+                          <span className="d-md-none">Max:</span>{" "}
+                          <span className="fw-semibold">{task.max_streak_days}d</span>
+                        </Pill>
+                      </div>
+                      <div className="d-flex flex-wrap gap-2 ms-md-auto justify-content-start justify-content-md-end">
+                        {frequencyLabels.map((label) => (
+                          <Pill key={`${task.id}-${label}`}>{label}</Pill>
+                        ))}
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </SectionCard>
+      </div>
+
       <GoalFormModal
         show={showEdit}
         goal={goal}
         onClose={() => setShowEdit(false)}
         onSaved={(updated) => setData(updated)}
+      />
+
+      <MilestoneEditModal
+        show={showMilestoneModal}
+        milestone={editingMilestone}
+        busy={milestoneModalBusy}
+        onClose={() => {
+          if (milestoneModalBusy) return;
+          setShowMilestoneModal(false);
+          setEditingMilestone(null);
+        }}
+        onSave={saveMilestone}
       />
 
       <ConfirmDialog

@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "@/api";
 import { ThemeProvider } from "@/context/ThemeContext";
+import { ToastProvider } from "@/context/ToastContext";
 import { LoginPage } from "./LoginPage";
 
 const loginMock = vi.fn();
@@ -15,11 +16,13 @@ vi.mock("@/context/AuthContext", () => ({
 
 function renderPage() {
   return render(
-    <ThemeProvider>
-      <MemoryRouter initialEntries={["/login"]}>
-        <LoginPage />
-      </MemoryRouter>
-    </ThemeProvider>,
+    <ToastProvider>
+      <ThemeProvider>
+        <MemoryRouter initialEntries={["/login"]}>
+          <LoginPage />
+        </MemoryRouter>
+      </ThemeProvider>
+    </ToastProvider>,
   );
 }
 

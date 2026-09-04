@@ -1,0 +1,10 @@
+.text-field-prompt-dialog {
+  .form-label {
+    margin-bottom: 0.35rem;
+    color: var(--jv-text);
+  }
+
+  .form-control {
+    border-radius: var(--jv-radius-sm, 10px);
+  }
+}

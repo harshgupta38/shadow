@@ -1,0 +1,47 @@
+.ast-thinking {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.48rem;
+  padding: 0.5rem 0.9rem;
+  border-radius: 1.25rem;
+  background: var(--jv-surface-2);
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--jv-muted);
+  user-select: none;
+  border: 1px solid var(--jv-border);
+}
+
+.ast-thinking-icon {
+  font-size: 0.78rem;
+  color: var(--jv-brand-1);
+  animation: ast-icon-pulse 2s ease-in-out infinite;
+  flex-shrink: 0;
+  margin-bottom: 1px;
+}
+
+.ast-thinking-text-wrap {
+  display: inline-flex;
+}
+
+.ast-thinking-text {
+  opacity: 0;
+  transform: translateY(3px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+
+  &.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes ast-icon-pulse {
+  0%, 100% {
+    opacity: 0.55;
+    transform: scale(1) rotate(0deg);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.25) rotate(22deg);
+  }
+}

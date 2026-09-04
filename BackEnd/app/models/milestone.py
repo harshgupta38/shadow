@@ -3,13 +3,17 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, utcnow
 from app.models.enums import MilestoneStatus
+
+if TYPE_CHECKING:
+    from app.models.goal import Goal
 
 
 class Milestone(Base):
@@ -21,6 +25,7 @@ class Milestone(Base):
     )
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    details: Mapped[list[dict[str, str]] | None] = mapped_column(JSON, nullable=True)
     status: Mapped[MilestoneStatus] = mapped_column(
         SAEnum(MilestoneStatus), default=MilestoneStatus.todo, nullable=False
     )
@@ -32,4 +37,4 @@ class Milestone(Base):
         DateTime(timezone=True), default=utcnow, nullable=False
     )
 
-    goal: Mapped["Goal"] = relationship("Goal", back_populates="milestones")
+    goal: Mapped[Goal] = relationship("Goal", back_populates="milestones")

@@ -1,0 +1,281 @@
+.milestone-tasks-subsection {
+    margin-top: 0.55rem;
+    // margin-left: 0.32rem;
+    padding-left: 0.8rem;
+    // border-left: 2px dashed color-mix(in srgb, var(--jv-brand-1) 45%, var(--jv-border) 55%);
+    // background: linear-gradient(90deg,
+    //     color-mix(in srgb, var(--jv-brand-1) 8%, var(--jv-surface) 92%) 0%,
+    //     transparent 100%);
+    background: color-mix(in srgb, var(--jv-brand-1) 8%, var(--jv-surface) 92%);
+    border-radius: 0.6rem;
+}
+
+.milestone-tasks-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.milestone-task-subitem {
+    padding: 0.5rem 0 0.55rem;
+
+    &.has-separator {
+        border-top: 1px solid var(--jv-border-strong);
+    }
+}
+
+.milestone-task-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.45rem;
+
+    .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.22rem;
+        flex-shrink: 0;
+    }
+}
+
+.milestone-task-controls {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    flex-shrink: 0;
+}
+
+.milestone-task-title {
+    margin: 0;
+    font-size: 0.84rem;
+    line-height: 1.42;
+    font-weight: 500;
+}
+
+.milestone-task-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.32rem;
+}
+
+.milestone-task-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.24rem;
+    border-radius: 999px;
+    padding: 0.12rem 0.44rem;
+    font-size: 0.72rem;
+    color: var(--jv-muted);
+    background: color-mix(in srgb, var(--jv-border) 54%, var(--jv-surface) 46%);
+
+    &.info {
+        background: var(--jv-info-soft); 
+        color: var(--jv-info);
+    }
+}
+
+.milestone-task-chip-font {
+    font-size: 0.72rem !important;
+    font-weight: 500 !important;
+}
+
+.milestone-task-chip-type {
+    color: var(--jv-brand-1);
+    font-weight: 600;
+    background: color-mix(in srgb, var(--jv-brand-soft) 70%, transparent);
+}
+
+.milestone-task-progress {
+    margin-top: 0.42rem;
+    display: flex;
+    align-items: center;
+    gap: 0.56rem;
+    flex-wrap: wrap;
+
+    &.need-margin-end {
+        margin-right: 0.6rem;
+    }
+}
+
+.milestone-task-progress-track {
+    position: relative;
+    flex: 1;
+    min-width: 64px;
+    height: 7px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: var(--jv-border);
+}
+
+.milestone-task-progress-bar {
+    height: 100%;
+    border-radius: inherit;
+    background: var(--jv-brand-gradient);
+}
+
+.milestone-task-progress-left,
+.milestone-task-progress-right {
+    flex-shrink: 0;
+    white-space: nowrap;
+    font-size: 0.72rem;
+    color: var(--jv-muted);
+}
+
+.milestone-task-progress-actions {
+    button {
+        height: 18px;
+        width: 32px;
+    }
+
+    display: inline-flex;
+    align-items: center;
+    gap: 0.22rem;
+    flex-shrink: 0;
+    margin-left: auto;
+}
+
+.milestone-task-progress-action {
+    color: var(--jv-muted);
+}
+
+.milestone-task-progress-action-save {
+    color: var(--jv-brand-1);
+}
+
+@media (max-width: 767.98px) {
+    .milestone-task-progress-right {
+        font-size: 0.7rem;
+    }
+
+    .milestone-task-progress-actions {
+        flex-basis: 100%;
+        justify-content: flex-end;
+    }
+}
+
+.milestone-task-note {
+    margin: 0;
+    font-size: 0.76rem;
+    line-height: 1.5;
+    color: var(--jv-muted);
+}
+
+.milestone-tasks-feedback {
+    margin: 0.5rem 0 0;
+    padding: 0.5rem 0.55rem;
+    border-radius: 0.6rem;
+    font-size: 0.78rem;
+    color: var(--jv-muted);
+    background: color-mix(in srgb, var(--jv-border) 45%, transparent);
+}
+
+.milestone-tasks-feedback-error {
+    color: var(--jv-danger, #c0392b);
+    background: color-mix(in srgb, var(--jv-danger, #c0392b) 12%, transparent);
+}
+
+.milestone-tasks-feedback-action {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--jv-brand-1);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+
+    &:hover {
+        opacity: 0.85;
+    }
+
+    &:focus-visible {
+        outline: 2px solid color-mix(in srgb, var(--jv-danger, #c0392b) 45%, #fff 55%);
+        outline-offset: 2px;
+        border-radius: 0.2rem;
+    }
+}
+
+.milestone-tasks-skeleton {
+    margin-top: 0.65rem;
+}
+
+.milestone-task-inline-skeleton {
+    margin-top: 0.06rem;
+}
+
+.milestone-task-inline-line {
+    position: relative;
+    display: block;
+    overflow: hidden;
+    height: 0.68rem;
+    border-radius: 0.35rem;
+    background: color-mix(in srgb, var(--jv-border) 78%, var(--jv-surface) 22%);
+    margin-top: 0.33rem;
+
+    &::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        transform: translateX(-100%);
+        background: linear-gradient(90deg,
+                transparent 0%,
+                color-mix(in srgb, #fff 56%, transparent) 50%,
+                transparent 100%);
+        animation: milestone-task-skeleton-shimmer 1.4s ease-in-out infinite;
+    }
+
+    &.is-title {
+        width: 48%;
+        margin-top: 0;
+    }
+
+    &.is-meta {
+        width: 72%;
+    }
+
+    &.is-short {
+        width: 62%;
+    }
+}
+
+.milestone-tasks-skeleton-line {
+    position: relative;
+    display: block;
+    overflow: hidden;
+    height: 0.68rem;
+    border-radius: 0.35rem;
+    background: color-mix(in srgb, var(--jv-border) 78%, var(--jv-surface) 22%);
+    margin-top: 0.33rem;
+
+    &::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        transform: translateX(-100%);
+        background: linear-gradient(90deg,
+                transparent 0%,
+                color-mix(in srgb, #fff 56%, transparent) 50%,
+                transparent 100%);
+        animation: milestone-task-skeleton-shimmer 1.4s ease-in-out infinite;
+    }
+
+    &.is-title {
+        width: 42%;
+        margin-top: 0;
+    }
+
+    &.is-short {
+        width: 64%;
+    }
+}
+
+@keyframes milestone-task-skeleton-shimmer {
+    0% {
+        transform: translateX(-100%);
+    }
+
+    100% {
+        transform: translateX(100%);
+    }
+}

@@ -17,3 +17,5 @@ class JournalEntry(Base, TimestampMixin):
     )
     content: Mapped[str] = mapped_column(Text, nullable=False)
     mood: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    goal_alignment: Mapped[str | None] = mapped_column(Text, nullable=True)
+    shadow_response: Mapped[str | None] = mapped_column(Text, nullable=True)

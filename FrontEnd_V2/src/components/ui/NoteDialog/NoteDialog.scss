@@ -1,0 +1,14 @@
+.note-dialog {
+  textarea.form-control {
+    resize: none;
+    border-radius: var(--jv-radius-sm, 10px);
+    line-height: 1.5;
+  }
+
+  .text-limit{
+    color: var(--jv-muted);
+    font-size: 14px;
+    margin-left: 4px;
+    margin-top: 4px;
+  }
+}

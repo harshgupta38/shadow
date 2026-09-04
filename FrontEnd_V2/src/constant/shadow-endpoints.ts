@@ -1,0 +1,63 @@
+export const ENDPOINTS = {
+    AUTH: {
+        PREFIX: "/auth",
+        LOGIN: "/login",
+        REGISTER: "/register",
+        USER_DATA: "/my-data",
+    },
+    GOALS: {
+        PREFIX: "/goal",
+        REFINE: "/refine",
+        SAVE: "/save-goal",
+        FROM_PROPOSAL: "/save-goal-from-proposal",
+        GET_LIST: "/get-goal-list",
+        DETAIL: (id: number) => `/${id}`,
+    },
+    MILESTONES: {
+        PREFIX: "/milestone",
+        SAVE: "/save-milestone",
+        FROM_PROPOSAL: "/save-milestone-from-proposal",
+        GET_LIST: "/get-milestone-list",
+        DETAIL: (id: number) => `/${id}`,
+    },
+    TASKS: {
+        PREFIX: "/task",
+        SAVE: "/save-task",
+        FROM_PROPOSAL: "/save-task-from-proposal",
+        GET_LIST: "/get-task-list",
+        DETAIL: (id: number) => `/${id}`,
+    },
+    HABITS: {
+        PREFIX: "/habit",
+        SAVE: "/save-habit",
+        GET_LIST: "/get-habit-list",
+        DETAIL: (id: number) => `/${id}`,
+    },
+    PLAN_ITEMS: {
+        PREFIX: "/planner",
+        FOR_DATE: "/for-date",
+        RECORD: (record_id: number) => `/records/${record_id}`,
+        DETAIL: (id: number) => `/${id}`,
+    },
+    SCHEDULE: {
+        PREFIX: "/schedule",
+        SAVE: "/save-schedule-task",
+        GET_LIST: "/get-schedule-task-list",
+        DETAIL: (id: number) => `/${id}`,
+    },
+    TRACK_PROGRESS: {
+        PREFIX: "/track",
+        HABITS: "/habit-record",
+        SET_TRACKING: "/set-habit-tracking",
+        ELIGIBLE_HABITS: "/eligible-habits",
+    },
+    CHAT: {
+        PREFIX: "/chat",
+        CONVERSATIONS: "/conversations",
+        CONVERSATION_DETAIL: (id: number) => `/conversations/${id}`,
+        MESSAGES: (id: number) => `/conversations/${id}/messages`,
+        REGENERATE_RESPONSE: (conversation_id: number, message_id: number) => `/conversations/${conversation_id}/regenerate_response/${message_id}`,
+        RETRY_FAILED_MESSAGE: (conversation_id: number, message_id: number) => `/conversations/${conversation_id}/retry_message/${message_id}`,
+        NEW_MESSAGE: "/conversations/messages",
+    },
+}

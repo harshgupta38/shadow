@@ -1,0 +1,35 @@
+﻿BackEnd_V2
+|-- app
+|   |-- api
+|   |   |-- auth.py
+|   |   |-- deps.py
+|   |   |-- router.py
+|   |-- core
+|   |   |-- config.py
+|   |   |-- endpoints.py
+|   |   |-- exceptions.py
+|   |   |-- security.py
+|   |-- db
+|   |   |-- session.py
+|   |-- models
+|   |   |-- base.py
+|   |   |-- user.py
+|   |-- schemas
+|   |   |-- auth.py
+|   |   |-- common.py
+|   |   |-- user.py
+|   |-- services
+|   |   |-- auth_service.py
+|   |-- validators
+|   |   |-- email.py
+|   |   |-- name.py
+|   |   |-- password.py
+|   |-- main.py
+|-- .env
+|-- .env.example
+|-- .gitignore
+|-- requirements.txt
+|-- requirements-termux.txt
+|-- shadow.db
+|-- tree.ps1
+|-- webhook_listener.py

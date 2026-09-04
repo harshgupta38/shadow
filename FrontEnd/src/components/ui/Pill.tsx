@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { HTMLAttributes, ReactNode } from "react";
 
 type PillVariant = "success" | "warn" | "danger" | "info" | "brand" | "muted";
 
@@ -11,17 +11,22 @@ const VARIANT_CLASS: Record<PillVariant, string> = {
   muted: "",
 };
 
-interface PillProps {
+interface PillProps extends HTMLAttributes<HTMLSpanElement> {
   children: ReactNode;
   variant?: PillVariant;
   /** Show a leading status dot. */
   dot?: boolean;
-  className?: string;
 }
 
-export function Pill({ children, variant = "muted", dot = false, className = "" }: PillProps) {
+export function Pill({
+  children,
+  variant = "muted",
+  dot = false,
+  className = "",
+  ...props
+}: PillProps) {
   return (
-    <span className={`pill ${VARIANT_CLASS[variant]} ${className}`.trim()}>
+    <span {...props} className={`pill ${VARIANT_CLASS[variant]} ${className}`.trim()}>
       {dot && <span className="dot" style={{ background: "currentColor" }} />}
       {children}
     </span>

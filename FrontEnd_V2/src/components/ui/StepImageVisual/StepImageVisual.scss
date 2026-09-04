@@ -1,0 +1,39 @@
+.step-image-visual {
+	position: relative;
+	min-width: 0;
+	height: 100%;
+	overflow: hidden;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+
+	&-stage {
+		position: relative;
+		height: min(94%, 860px);
+		aspect-ratio: 520 / 860;
+		width: auto;
+	}
+
+	&-layer {
+		position: absolute;
+		inset: 0;
+		opacity: 0;
+		pointer-events: none;
+		transition: opacity 260ms ease-in-out;
+		will-change: opacity;
+
+		&.is-active {
+			opacity: 1;
+		}
+
+		&.is-exiting {
+			opacity: 0;
+		}
+	}
+
+	&-poster-image {
+		width: 100%;
+		height: 100%;
+		object-fit: contain;
+	}
+}

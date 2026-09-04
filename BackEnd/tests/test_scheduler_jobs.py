@@ -1,0 +1,381 @@
+"""Scheduler notification behavior tests."""
+
+from __future__ import annotations
+
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
+
+from fastapi.testclient import TestClient
+from sqlalchemy import select
+
+import app.scheduler.jobs as scheduler_jobs
+from app.database import SessionLocal
+from app.models.email_verification_token import EmailVerificationToken
+from app.models.user import User
+
+
+def test_enqueue_daily_briefs_catches_up_after_target_time(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    created = scheduler_jobs.enqueue_daily_briefs(
+        now_utc=datetime(2026, 7, 5, 5, 45, tzinfo=timezone.utc),
+    )
+    assert created == 1
+
+    rows = client.get("/api/notifications", headers=auth_headers).json()
+    assert any(row["title"] == "Daily Brief" for row in rows)
+
+    created_again = scheduler_jobs.enqueue_daily_briefs(
+        now_utc=datetime(2026, 7, 5, 6, 0, tzinfo=timezone.utc),
+    )
+    assert created_again == 0
+
+
+def test_enqueue_daily_briefs_does_not_queue_before_target_time(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    created = scheduler_jobs.enqueue_daily_briefs(
+        now_utc=datetime(2026, 7, 5, 0, 15, tzinfo=timezone.utc),
+    )
+    assert created == 0
+
+    rows = client.get("/api/notifications", headers=auth_headers).json()
+    assert rows == []
+
+
+def test_enqueue_weekly_summaries_catches_up_after_target_time(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    created = scheduler_jobs.enqueue_weekly_summaries(
+        now_utc=datetime(2026, 7, 5, 5, 45, tzinfo=timezone.utc),
+    )
+    assert created == 1
+
+    rows = client.get("/api/notifications", headers=auth_headers).json()
+    assert any(row["title"] == "Weekly Summary" for row in rows)
+
+
+def test_enqueue_daily_motivational_quotes_sends_once_per_day(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    monkeypatch,
+) -> None:
+    enabled = client.put(
+        "/api/settings/notifications",
+        headers=auth_headers,
+        json={"email_notifications_enabled": True},
+    )
+    assert enabled.status_code == 200
+
+    controls = client.put(
+        "/api/settings/email-notifications",
+        headers=auth_headers,
+        json={
+            "daily_motivational_quote": True,
+            "daily_motivational_quote_time": "07:00",
+        },
+    )
+    assert controls.status_code == 200
+
+    calls: list[dict[str, object]] = []
+
+    def _fake_send_notification_email(db, user, *, template_key, context=None, force=False):
+        calls.append(
+            {
+                "user_id": user.id,
+                "template_key": template_key,
+                "force": force,
+            }
+        )
+        return True
+
+    monkeypatch.setattr(
+        scheduler_jobs.email_notification_service,
+        "send_notification_email",
+        _fake_send_notification_email,
+    )
+
+    created = scheduler_jobs.enqueue_daily_motivational_quotes(
+        now_utc=datetime(2026, 7, 5, 1, 31, tzinfo=timezone.utc),
+    )
+    assert created == 1
+    assert any(call["template_key"] == "daily_motivational_quote" for call in calls)
+
+    created_again = scheduler_jobs.enqueue_daily_motivational_quotes(
+        now_utc=datetime(2026, 7, 5, 1, 45, tzinfo=timezone.utc),
+    )
+    assert created_again == 0
+
+
+def test_enqueue_daily_reports_generates_once_per_day(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    monkeypatch,
+) -> None:
+    push_calls: list[dict[str, object]] = []
+
+    def fake_send_push(db, user, *, title: str, body: str, url: str = "/notifications") -> int:
+        push_calls.append({
+            "user_id": user.id,
+            "title": title,
+            "body": body,
+            "url": url,
+        })
+        return 1
+
+    monkeypatch.setattr(scheduler_jobs.push_service, "send_push_to_user", fake_send_push)
+
+    created = scheduler_jobs.enqueue_daily_reports(
+        now_utc=datetime(2026, 7, 5, 18, 25, tzinfo=timezone.utc),
+    )
+    assert created == 1
+
+    history = client.get("/api/reports/history", headers=auth_headers).json()
+    assert len(history) == 1
+    history_date = history[0]["history_date"]
+
+    versions = client.get(
+        f"/api/reports/history/{history_date}",
+        headers=auth_headers,
+    ).json()
+    assert len(versions) == 1
+    assert versions[0]["source"] == "automatic"
+    assert versions[0]["period"] == "daily"
+
+    notifications = client.get("/api/notifications", headers=auth_headers).json()
+    daily_ready = [row for row in notifications if row["title"] == "Daily Report Ready"]
+    assert len(daily_ready) == 1
+    assert len(push_calls) == 1
+    assert push_calls[0]["title"] == "Daily Report Ready"
+    assert push_calls[0]["url"] == "/reports"
+
+    created_again = scheduler_jobs.enqueue_daily_reports(
+        now_utc=datetime(2026, 7, 5, 18, 40, tzinfo=timezone.utc),
+    )
+    assert created_again == 0
+
+    notifications_after = client.get("/api/notifications", headers=auth_headers).json()
+    daily_ready_after = [row for row in notifications_after if row["title"] == "Daily Report Ready"]
+    assert len(daily_ready_after) == 1
+
+
+def test_enqueue_weekly_reports_generates_once_per_week_window(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    monkeypatch,
+) -> None:
+    push_calls: list[dict[str, object]] = []
+
+    def fake_send_push(db, user, *, title: str, body: str, url: str = "/notifications") -> int:
+        push_calls.append({
+            "user_id": user.id,
+            "title": title,
+            "body": body,
+            "url": url,
+        })
+        return 1
+
+    monkeypatch.setattr(scheduler_jobs.push_service, "send_push_to_user", fake_send_push)
+
+    created = scheduler_jobs.enqueue_weekly_reports(
+        now_utc=datetime(2026, 7, 11, 18, 25, tzinfo=timezone.utc),
+    )
+    assert created == 1
+
+    history = client.get("/api/reports/history", headers=auth_headers).json()
+    assert len(history) == 1
+    history_date = history[0]["history_date"]
+
+    versions = client.get(
+        f"/api/reports/history/{history_date}",
+        headers=auth_headers,
+    ).json()
+    assert len(versions) == 1
+    assert versions[0]["source"] == "automatic"
+    assert versions[0]["period"] == "weekly"
+
+    notifications = client.get("/api/notifications", headers=auth_headers).json()
+    weekly_ready = [row for row in notifications if row["title"] == "Weekly Report Ready"]
+    assert len(weekly_ready) == 1
+    assert len(push_calls) == 1
+    assert push_calls[0]["title"] == "Weekly Report Ready"
+    assert push_calls[0]["url"] == "/reports"
+
+    created_again = scheduler_jobs.enqueue_weekly_reports(
+        now_utc=datetime(2026, 7, 11, 19, 0, tzinfo=timezone.utc),
+    )
+    assert created_again == 0
+
+    notifications_after = client.get("/api/notifications", headers=auth_headers).json()
+    weekly_ready_after = [row for row in notifications_after if row["title"] == "Weekly Report Ready"]
+    assert len(weekly_ready_after) == 1
+
+
+def test_enqueue_daily_reports_respects_automation_enablement(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    updated = client.put(
+        "/api/reports/automation",
+        headers=auth_headers,
+        json={
+            "enabled": False,
+        },
+    )
+    assert updated.status_code == 200
+
+    created = scheduler_jobs.enqueue_daily_reports(
+        now_utc=datetime(2026, 7, 5, 18, 30, tzinfo=timezone.utc),
+    )
+    assert created == 0
+
+    history = client.get("/api/reports/history", headers=auth_headers).json()
+    assert history == []
+
+
+def test_enqueue_weekly_reports_respects_configured_day_and_time(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    updated = client.put(
+        "/api/reports/automation",
+        headers=auth_headers,
+        json={
+            "enabled": True,
+            "weekly_enabled": True,
+            "weekly_day": "monday",
+            "weekly_time": "23:59",
+        },
+    )
+    assert updated.status_code == 200
+
+    me = client.get("/api/auth/me", headers=auth_headers)
+    assert me.status_code == 200
+    user_tz = ZoneInfo(me.json()["timezone"])
+
+    not_due_local = datetime(2026, 7, 12, 23, 59, tzinfo=user_tz)  # Sunday
+    still_early_local = datetime(2026, 7, 13, 23, 58, tzinfo=user_tz)  # Monday
+    due_local = datetime(2026, 7, 13, 23, 59, tzinfo=user_tz)  # Monday
+
+    not_due = scheduler_jobs.enqueue_weekly_reports(
+        now_utc=not_due_local.astimezone(timezone.utc),
+    )
+    assert not_due == 0
+
+    still_early = scheduler_jobs.enqueue_weekly_reports(
+        now_utc=still_early_local.astimezone(timezone.utc),
+    )
+    assert still_early == 0
+
+    created = scheduler_jobs.enqueue_weekly_reports(
+        now_utc=due_local.astimezone(timezone.utc),
+    )
+    assert created == 1
+
+    history = client.get("/api/reports/history", headers=auth_headers).json()
+    assert len(history) == 1
+    history_date = history[0]["history_date"]
+    versions = client.get(
+        f"/api/reports/history/{history_date}",
+        headers=auth_headers,
+    ).json()
+    assert len(versions) == 1
+    assert versions[0]["period"] == "weekly"
+    assert versions[0]["source"] == "automatic"
+
+
+def test_enqueue_weekly_verification_reminders_sends_for_unverified_users(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    monkeypatch,
+) -> None:
+    enabled = client.put(
+        "/api/settings/notifications",
+        headers=auth_headers,
+        json={"notifications_enabled": True, "email_notifications_enabled": True},
+    )
+    assert enabled.status_code == 200
+
+    controls = client.put(
+        "/api/settings/email-notifications",
+        headers=auth_headers,
+        json={"verification_reminders": True},
+    )
+    assert controls.status_code == 200
+
+    sent_for: list[int] = []
+
+    class _Dispatch:
+        email_sent = True
+
+    def _fake_request_email_verification(db, user):
+        sent_for.append(user.id)
+        return _Dispatch()
+
+    monkeypatch.setattr(
+        scheduler_jobs.auth_service,
+        "request_email_verification",
+        _fake_request_email_verification,
+    )
+
+    created = scheduler_jobs.enqueue_weekly_verification_reminders(
+        now_utc=datetime(2026, 7, 9, 10, 0, tzinfo=timezone.utc),
+    )
+    assert created == 1
+    assert len(sent_for) == 1
+
+
+def test_enqueue_weekly_verification_reminders_respects_seven_day_window(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    monkeypatch,
+) -> None:
+    enabled = client.put(
+        "/api/settings/notifications",
+        headers=auth_headers,
+        json={"notifications_enabled": True, "email_notifications_enabled": True},
+    )
+    assert enabled.status_code == 200
+
+    controls = client.put(
+        "/api/settings/email-notifications",
+        headers=auth_headers,
+        json={"verification_reminders": True},
+    )
+    assert controls.status_code == 200
+
+    with SessionLocal() as db:
+        user = db.scalar(select(User).where(User.email == "user@example.com"))
+        assert user is not None
+        db.add(
+            EmailVerificationToken(
+                user_id=user.id,
+                token_hash="test-hash",
+                expires_at=datetime(2026, 7, 20, tzinfo=timezone.utc),
+            )
+        )
+        db.commit()
+
+    class _Dispatch:
+        email_sent = True
+
+    called = {"value": False}
+
+    def _fake_request_email_verification(db, user):
+        called["value"] = True
+        return _Dispatch()
+
+    monkeypatch.setattr(
+        scheduler_jobs.auth_service,
+        "request_email_verification",
+        _fake_request_email_verification,
+    )
+
+    created = scheduler_jobs.enqueue_weekly_verification_reminders(
+        now_utc=datetime(2026, 7, 9, 10, 0, tzinfo=timezone.utc),
+    )
+    assert created == 0
+    assert called["value"] is False

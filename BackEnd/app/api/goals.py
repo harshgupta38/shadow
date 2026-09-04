@@ -4,9 +4,16 @@ from __future__ import annotations
 
 from fastapi import APIRouter, status
 
-from app.api.deps import CurrentUser, DbSession
+from app.api.deps import CurrentUser, DbSession, Provider
 from app.models.enums import GoalStatus
-from app.schemas.goal import GoalCreate, GoalRead, GoalUpdate
+from app.schemas.goal import (
+    GoalCreate,
+    GoalDraftRead,
+    GoalDraftRequest,
+    GoalLinkedRepetitiveTaskRead,
+    GoalRead,
+    GoalUpdate,
+)
 from app.schemas.milestone import MilestoneCreate, MilestoneRead
 from app.services import goal_service
 
@@ -25,9 +32,33 @@ def create_goal(data: GoalCreate, db: DbSession, current_user: CurrentUser) -> G
     return goal_service.create_goal(db, current_user, data)
 
 
+@router.post("/draft", response_model=GoalDraftRead)
+def draft_goal(
+    data: GoalDraftRequest,
+    db: DbSession,
+    current_user: CurrentUser,
+    provider: Provider,
+) -> GoalDraftRead:
+    return goal_service.draft_goal_from_prompt(
+        db,
+        current_user,
+        provider,
+        prompt=data.prompt,
+    )
+
+
 @router.get("/{goal_id}", response_model=GoalRead)
 def get_goal(goal_id: int, db: DbSession, current_user: CurrentUser) -> GoalRead:
     return goal_service.get_goal(db, current_user, goal_id)
+
+
+@router.get("/{goal_id}/repetitive-tasks", response_model=list[GoalLinkedRepetitiveTaskRead])
+def list_linked_repetitive_tasks(
+    goal_id: int,
+    db: DbSession,
+    current_user: CurrentUser,
+) -> list[GoalLinkedRepetitiveTaskRead]:
+    return goal_service.list_linked_repetitive_tasks(db, current_user, goal_id)
 
 
 @router.put("/{goal_id}", response_model=GoalRead)

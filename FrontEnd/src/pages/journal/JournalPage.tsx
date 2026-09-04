@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Modal } from "react-bootstrap";
 import { JournalText, PencilSquare, Trash3 } from "react-bootstrap-icons";
 
-import { api, ApiError, type JournalEntry } from "@/api";
+import { api, ApiError, type JournalEntry, type JournalMood } from "@/api";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadingState } from "@/components/ui/LoadingState";
@@ -13,7 +13,7 @@ import { useAsync } from "@/hooks/useAsync";
 import { formatDateTime, relativeTime } from "@/lib/format";
 import { MOOD_OPTIONS } from "@/lib/labels";
 
-function moodEmoji(mood?: string | null): string | null {
+function moodEmoji(mood?: JournalMood | null): string | null {
   if (!mood) return null;
   return MOOD_OPTIONS.find((m) => m.label === mood)?.emoji ?? "📝";
 }
@@ -22,8 +22,8 @@ function MoodPicker({
   value,
   onChange,
 }: {
-  value: string | null;
-  onChange: (mood: string | null) => void;
+  value: JournalMood | null;
+  onChange: (mood: JournalMood | null) => void;
 }) {
   return (
     <div className="d-flex gap-1 flex-wrap">
@@ -47,12 +47,13 @@ export function JournalPage() {
   const { data, loading, error, reload, setData } = useAsync(() => api.journal.list(), []);
 
   const [content, setContent] = useState("");
-  const [mood, setMood] = useState<string | null>(null);
+  const [mood, setMood] = useState<JournalMood | null>(null);
+  const [moodError, setMoodError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const [editing, setEditing] = useState<JournalEntry | null>(null);
   const [editContent, setEditContent] = useState("");
-  const [editMood, setEditMood] = useState<string | null>(null);
+  const [editMood, setEditMood] = useState<JournalMood | null>(null);
   const [updating, setUpdating] = useState(false);
 
   const [deleteTarget, setDeleteTarget] = useState<JournalEntry | null>(null);
@@ -63,12 +64,21 @@ export function JournalPage() {
   async function createEntry(event: FormEvent) {
     event.preventDefault();
     if (!content.trim()) return;
+    if (!mood) {
+      const message = "Please select a mood before saving your entry.";
+      setMoodError(message);
+      toast.error(message);
+      return;
+    }
+
+    setMoodError(null);
     setSaving(true);
     try {
       const entry = await api.journal.create({ content: content.trim(), mood });
       setData((prev) => [entry, ...(prev ?? [])]);
       setContent("");
       setMood(null);
+      setMoodError(null);
       toast.success("Journal entry saved.");
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Couldn't save your entry.");
@@ -126,27 +136,37 @@ export function JournalPage() {
       />
 
       <div className="row g-4">
-        <div className="col-lg-5">
+        <div className="col-12">
           <SectionCard title="New entry">
             <form onSubmit={createEntry}>
               <textarea
                 className="form-control mb-3"
                 rows={6}
+                style={{ minHeight: 80, maxHeight: 140, height: 80, resize: "vertical" }}
                 placeholder="What's on your mind? What went well today?"
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
               />
               <div className="d-flex align-items-center justify-content-between gap-2 flex-wrap">
-                <MoodPicker value={mood} onChange={setMood} />
+                <MoodPicker
+                  value={mood}
+                  onChange={(nextMood) => {
+                    setMood(nextMood);
+                    if (nextMood) {
+                      setMoodError(null);
+                    }
+                  }}
+                />
                 <button className="btn btn-brand" disabled={saving || !content.trim()}>
                   {saving ? "Saving…" : "Save entry"}
                 </button>
               </div>
+              {moodError && <div className="text-danger small mt-2">{moodError}</div>}
             </form>
           </SectionCard>
         </div>
 
-        <div className="col-lg-7">
+        <div className="col-12">
           {loading && <LoadingState label="Loading your journal…" />}
 
           {error && !loading && (
@@ -203,12 +223,15 @@ export function JournalPage() {
                         onClick={() => setDeleteTarget(entry)}
                         aria-label="Delete entry"
                       >
-                        <Trash3 size={15} />
+                        <Trash3 size={15} className="text-danger" />
                       </button>
                     </div>
                   </div>
-                  <p className="mb-0" style={{ whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
+                  <h6 className="mb-2 fw-semibold" style={{ whiteSpace: "pre-wrap", lineHeight: 1.4 }}>
                     {entry.content}
+                  </h6>
+                  <p className="mb-0 text-faint" style={{ whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
+                    {entry.shadow_response || "No shadow reflection yet."}
                   </p>
                 </div>
               ))}
@@ -218,9 +241,9 @@ export function JournalPage() {
       </div>
 
       {/* Edit modal */}
-      <Modal show={!!editing} onHide={() => setEditing(null)} centered>
+      <Modal show={!!editing} onHide={() => setEditing(null)} centered backdrop="static">
         <Modal.Header closeButton>
-          <Modal.Title className="h5 fw-bold">Edit entry</Modal.Title>
+          <Modal.Title className="h5 fw-bold">Edit Journal</Modal.Title>
         </Modal.Header>
         <form onSubmit={saveEdit}>
           <Modal.Body>

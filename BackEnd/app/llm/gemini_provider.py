@@ -9,9 +9,12 @@ The Gemini SDK is imported lazily inside methods so that:
 from __future__ import annotations
 
 from collections.abc import Iterator
+import logging
 from typing import Any
 
 from app.llm.base import LLMMessage, LLMProvider
+
+logger = logging.getLogger(__name__)
 
 
 def _to_gemini_contents(messages: list[LLMMessage]) -> list[dict[str, Any]]:
@@ -43,6 +46,10 @@ class GeminiProvider(LLMProvider):
 
             self._client = genai.Client(api_key=self._api_key)
         return self._client
+
+    def _resolve_model_name(self, model: str | None) -> str:
+        candidate = (model or "").strip()
+        return candidate or self._model_name
 
     @staticmethod
     def _gen_config(system: str | None, temperature: float, max_tokens: int | None) -> dict[str, Any]:
@@ -77,13 +84,30 @@ class GeminiProvider(LLMProvider):
         system: str | None = None,
         temperature: float = 0.7,
         max_tokens: int | None = None,
+        model: str | None = None,
     ) -> str:
         client = self._sdk()
-        response = client.models.generate_content(
-            model=self._model_name,
-            contents=_to_gemini_contents(messages),
-            config=self._gen_config(system, temperature, max_tokens),
-        )
+        chosen_model = self._resolve_model_name(model)
+        try:
+            response = client.models.generate_content(
+                model=chosen_model,
+                contents=_to_gemini_contents(messages),
+                config=self._gen_config(system, temperature, max_tokens),
+            )
+        except Exception:
+            if model and chosen_model != self._model_name:
+                logger.warning(
+                    "Gemini model override '%s' failed; falling back to default model '%s'.",
+                    chosen_model,
+                    self._model_name,
+                )
+                response = client.models.generate_content(
+                    model=self._model_name,
+                    contents=_to_gemini_contents(messages),
+                    config=self._gen_config(system, temperature, max_tokens),
+                )
+            else:
+                raise
         return self._response_text(response)
 
     def generate_stream(
@@ -93,13 +117,30 @@ class GeminiProvider(LLMProvider):
         system: str | None = None,
         temperature: float = 0.7,
         max_tokens: int | None = None,
+        model: str | None = None,
     ) -> Iterator[str]:
         client = self._sdk()
-        stream = client.models.generate_content_stream(
-            model=self._model_name,
-            contents=_to_gemini_contents(messages),
-            config=self._gen_config(system, temperature, max_tokens),
-        )
+        chosen_model = self._resolve_model_name(model)
+        try:
+            stream = client.models.generate_content_stream(
+                model=chosen_model,
+                contents=_to_gemini_contents(messages),
+                config=self._gen_config(system, temperature, max_tokens),
+            )
+        except Exception:
+            if model and chosen_model != self._model_name:
+                logger.warning(
+                    "Gemini stream model override '%s' failed; falling back to default model '%s'.",
+                    chosen_model,
+                    self._model_name,
+                )
+                stream = client.models.generate_content_stream(
+                    model=self._model_name,
+                    contents=_to_gemini_contents(messages),
+                    config=self._gen_config(system, temperature, max_tokens),
+                )
+            else:
+                raise
         for chunk in stream:
             text = getattr(chunk, "text", None) or self._response_text(chunk)
             if text:

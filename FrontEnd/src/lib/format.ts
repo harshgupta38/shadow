@@ -1,5 +1,72 @@
 /** Small, pure formatting helpers shared across the app. */
 
+type RuntimeDateFormat =
+  | "dd/mm/yyyy"
+  | "mm/dd/yyyy"
+  | "dd-mm-yyyy"
+  | "mm-dd-yyyy"
+  | "mmm d, yyyy"
+  | "yyyy-mm-dd";
+type RuntimeTimeFormat = "12h" | "24h";
+type RuntimeWeekStartsOn = "monday" | "sunday";
+
+interface RuntimeFormatPreferences {
+  dateFormat: RuntimeDateFormat;
+  timeFormat: RuntimeTimeFormat;
+  weekStartsOn: RuntimeWeekStartsOn;
+}
+
+const DEFAULT_RUNTIME_FORMAT_PREFERENCES: RuntimeFormatPreferences = {
+  dateFormat: "dd/mm/yyyy",
+  timeFormat: "12h",
+  weekStartsOn: "monday",
+};
+
+let runtimeFormatPreferences: RuntimeFormatPreferences = {
+  ...DEFAULT_RUNTIME_FORMAT_PREFERENCES,
+};
+
+export function setRuntimeFormatPreferences(
+  preferences: Partial<RuntimeFormatPreferences> | null,
+): void {
+  if (!preferences) {
+    runtimeFormatPreferences = { ...DEFAULT_RUNTIME_FORMAT_PREFERENCES };
+    return;
+  }
+
+  runtimeFormatPreferences = {
+    ...runtimeFormatPreferences,
+    ...preferences,
+  };
+}
+
+export function getRuntimeFormatPreferences(): RuntimeFormatPreferences {
+  return runtimeFormatPreferences;
+}
+
+function pad2(value: number): string {
+  return String(value).padStart(2, "0");
+}
+
+function formatDateByPreference(date: Date, preference: RuntimeDateFormat): string {
+  const year = date.getFullYear();
+  const month = pad2(date.getMonth() + 1);
+  const day = pad2(date.getDate());
+
+  if (preference === "mm/dd/yyyy") return `${month}/${day}/${year}`;
+  if (preference === "dd-mm-yyyy") return `${day}-${month}-${year}`;
+  if (preference === "mm-dd-yyyy") return `${month}-${day}-${year}`;
+  if (preference === "mmm d, yyyy") {
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  }
+  if (preference === "yyyy-mm-dd") return `${year}-${month}-${day}`;
+  return `${day}/${month}/${year}`;
+}
+
 /** Local YYYY-MM-DD (avoids UTC off-by-one from `toISOString`). */
 export function toISODate(date: Date = new Date()): string {
   const y = date.getFullYear();
@@ -22,34 +89,52 @@ export function relativeTime(input: string | Date): string {
   if (hours < 24) return `${hours}h ago`;
   const days = Math.floor(hours / 24);
   if (days < 7) return `${days}d ago`;
-  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  return formatDate(date);
 }
 
-/** "Jul 1, 2026" */
+/** Date rendered with the user's preferred planner date format. */
 export function formatDate(input?: string | Date | null): string {
   if (!input) return "";
   const date = typeof input === "string" ? new Date(input) : input;
   if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
+  return formatDateByPreference(date, runtimeFormatPreferences.dateFormat);
+}
+
+/** Legacy long date style used by reports: "Jul 9, 2026". */
+export function formatDateLong(input?: string | Date | null): string {
+  if (!input) return "";
+  const date = typeof input === "string" ? new Date(input) : input;
+  if (Number.isNaN(date.getTime())) return "";
+  return formatDateByPreference(date, runtimeFormatPreferences.dateFormat);
+}
+
+/** Time rendered with the user's preferred planner time format. */
+export function formatTime(input?: string | Date | null): string {
+  if (!input) return "";
+  const date = typeof input === "string" ? new Date(input) : input;
+  if (Number.isNaN(date.getTime())) return "";
+
+  if (runtimeFormatPreferences.timeFormat === "24h") {
+    return `${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
+  }
+
+  return date.toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
   });
 }
 
-/** "Jul 1, 2026 · 3:20 PM" */
+/** Date+time rendered with runtime date/time preferences. */
 export function formatDateTime(input?: string | Date | null): string {
   if (!input) return "";
   const date = typeof input === "string" ? new Date(input) : input;
   if (Number.isNaN(date.getTime())) return "";
-  return `${formatDate(date)} · ${date.toLocaleTimeString(undefined, {
-    hour: "numeric",
-    minute: "2-digit",
-  })}`;
+  return `${formatDate(date)} · ${formatTime(date)}`;
 }
 
 /** Days from now until a target date (negative = overdue). */
-export function daysUntil(input?: string | Date | null): number | null {
+function daysUntil(input?: string | Date | null): number | null {
   if (!input) return null;
   const date = typeof input === "string" ? new Date(input) : input;
   if (Number.isNaN(date.getTime())) return null;
@@ -93,9 +178,19 @@ export function formatMinutes(mins: number): string {
 }
 
 /** Value + unit, unit-aware (minutes render as "2h 40m"). */
-export function formatMetricValue(value: number, unit: string): string {
+export function formatMetricValue(value: number, unit: string, unitText?: string | null): string {
   if (unit === "minutes") return formatMinutes(value);
   if (unit === "hours") return `${compactNumber(value)}h`;
+  const normalizedUnitText = (unitText ?? "").trim();
+  if (
+    normalizedUnitText &&
+    unit !== "minutes" &&
+    unit !== "hours" &&
+    normalizedUnitText.toLowerCase() !== "count" &&
+    normalizedUnitText.toLowerCase() !== "custom"
+  ) {
+    return `${compactNumber(value)} ${normalizedUnitText}`;
+  }
   return compactNumber(value);
 }
 

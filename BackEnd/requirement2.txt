@@ -1,0 +1,37 @@
+# Termux/Android runtime requirements for Shadow BackEnd
+# Use this file for mobile deployment on Termux.
+#
+# Notes:
+# - SQLite-first deployment (no PostgreSQL drivers).
+# - Use plain uvicorn (avoid uvicorn[standard] extras that may fail on Termux).
+# - Test-only dependencies are intentionally excluded.
+
+# Web framework
+fastapi>=0.110,<1.0
+uvicorn>=0.29,<1.0
+
+# Database / ORM / migrations (SQLite)
+SQLAlchemy>=2.0,<2.1
+alembic>=1.13
+
+# Validation / settings
+pydantic>=2.6,<3.0
+pydantic-settings>=2.2
+email-validator>=2.1
+python-dotenv>=1.0
+tzdata>=2024.1
+
+# Auth
+python-jose[cryptography]>=3.3
+passlib[bcrypt]>=1.7.4
+bcrypt>=4.0,<4.1
+python-multipart>=0.0.9
+
+# Scheduling
+APScheduler>=3.10,<4.0
+pywebpush>=2.0
+
+# LLM (Google Gemini)
+google-genai>=0.4
+
+

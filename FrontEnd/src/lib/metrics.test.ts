@@ -44,4 +44,26 @@ describe("computeMetricStats", () => {
     const stats = computeMetricStats([log(1, 1), log(2, 1), log(4, 1)]);
     expect(stats.streak).toBe(2);
   });
+
+  it("counts consecutive successful weeks in weekly streak mode", () => {
+    const today = new Date();
+    const daysSinceWeekStart = (today.getDay() + 6) % 7;
+
+    const stats = computeMetricStats(
+      [
+        // Previous week: 3 completions (meets 3/week).
+        log(daysSinceWeekStart + 1, 1),
+        log(daysSinceWeekStart + 2, 1),
+        log(daysSinceWeekStart + 3, 1),
+        // Two weeks ago: 3 completions (meets 3/week).
+        log(daysSinceWeekStart + 8, 1),
+        log(daysSinceWeekStart + 9, 1),
+        log(daysSinceWeekStart + 10, 1),
+      ],
+      { streakMode: "weekly", weeklyTarget: 3 },
+    );
+
+    // Current week is incomplete and should be forgiven, so streak counts previous successful weeks.
+    expect(stats.streak).toBe(2);
+  });
 });

@@ -1,7 +1,7 @@
 import type { ActivityLog } from "@/api";
 import { toISODate } from "./format";
 
-export interface MetricStats {
+interface MetricStats {
   todayTotal: number;
   weekTotal: number;
   streak: number;
@@ -9,10 +9,66 @@ export interface MetricStats {
   spark: number[];
 }
 
+interface MetricStatsOptions {
+  streakMode?: "daily" | "weekly";
+  weeklyTarget?: number | null;
+}
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+function startOfWeek(date: Date): Date {
+  const normalized = new Date(date);
+  normalized.setHours(0, 0, 0, 0);
+  const weekday = (normalized.getDay() + 6) % 7; // Monday=0
+  normalized.setDate(normalized.getDate() - weekday);
+  return normalized;
+}
+
+function computeDailyStreak(byDay: Map<string, number>): number {
+  let streak = 0;
+  const cursor = new Date();
+  if ((byDay.get(toISODate(cursor)) ?? 0) === 0) {
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  while ((byDay.get(toISODate(cursor)) ?? 0) > 0) {
+    streak += 1;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return streak;
+}
+
+function computeWeeklyTargetStreak(
+  byDay: Map<string, number>,
+  weeklyTarget: number,
+): number {
+  const byWeek = new Map<string, number>();
+  for (const [dayKey, value] of byDay.entries()) {
+    const weekKey = toISODate(startOfWeek(new Date(`${dayKey}T00:00:00`)));
+    byWeek.set(weekKey, (byWeek.get(weekKey) ?? 0) + value);
+  }
+
+  const target = Math.max(1, Math.round(weeklyTarget));
+  let streak = 0;
+  const cursor = startOfWeek(new Date());
+
+  // Forgive an incomplete current week, same spirit as daily streak forgiving zero today.
+  if ((byWeek.get(toISODate(cursor)) ?? 0) < target) {
+    cursor.setDate(cursor.getDate() - 7);
+  }
+
+  while ((byWeek.get(toISODate(cursor)) ?? 0) >= target) {
+    streak += 1;
+    cursor.setDate(cursor.getDate() - 7);
+  }
+
+  return streak;
+}
+
 /** Roll activity logs up into today/week totals, a streak and a 7-day sparkline. */
-export function computeMetricStats(logs: ActivityLog[]): MetricStats {
+export function computeMetricStats(
+  logs: ActivityLog[],
+  options: MetricStatsOptions = {},
+): MetricStats {
   const byDay = new Map<string, number>();
   for (const log of logs) {
     byDay.set(log.date, (byDay.get(log.date) ?? 0) + log.value);
@@ -29,17 +85,10 @@ export function computeMetricStats(logs: ActivityLog[]): MetricStats {
 
   const todayTotal = byDay.get(toISODate()) ?? 0;
 
-  // Consecutive days with activity, counting back from today. A zero today is
-  // forgiven (streak counts up to yesterday) so it doesn't feel broken mid-day.
-  let streak = 0;
-  const cursor = new Date();
-  if ((byDay.get(toISODate(cursor)) ?? 0) === 0) {
-    cursor.setDate(cursor.getDate() - 1);
-  }
-  while ((byDay.get(toISODate(cursor)) ?? 0) > 0) {
-    streak += 1;
-    cursor.setDate(cursor.getDate() - 1);
-  }
+  const streak =
+    options.streakMode === "weekly"
+      ? computeWeeklyTargetStreak(byDay, options.weeklyTarget ?? 1)
+      : computeDailyStreak(byDay);
 
   return { todayTotal, weekTotal, streak, spark };
 }

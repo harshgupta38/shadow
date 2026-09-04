@@ -1,0 +1,29 @@
+export const ROUTES = {
+    LANDING: "/",
+    LOGIN: "/login",
+    REGISTER: "/register",
+    DASHBOARD: "/dashboard",
+
+    PLAN: "/plan",
+
+    SCHEDULE: "/schedule",
+    SCHEDULE_CREATE: "/schedule/new",
+    SCHEDULE_EDIT: "/schedule/:taskId/edit",
+    
+    MY_GOALS: "/my-goals",
+    MY_GOAL_DETAIL: "/my-goals/:goalId",
+    MY_GOAL_MILESTONE_CREATE: "/my-goals/:goalId/milestones/new",
+    MY_GOAL_MILESTONE_UPDATE: "/my-goals/:goalId/milestones/:milestoneId/update",
+    MY_GOAL_MILESTONE_TASK_CREATE: "/my-goals/:goalId/milestones/:milestoneId/tasks/new",
+    MY_GOAL_MILESTONE_TASK_EDIT: "/my-goals/:goalId/milestones/:milestoneId/tasks/:taskId/edit",
+    
+    HABIT_LIBRARY: "/habit-library",
+    HABIT_LIBRARY_CREATE: "/habit-library/new",
+    HABIT_LIBRARY_EDIT: "/habit-library/:habitId/edit",
+    
+    TRACK_PROGRESS: "/track-progress",
+    REPORTS: "/reports",
+    ASSISTANT: "/assistant",
+    PROFILE: "/profile",
+    SETTINGS: "/settings",
+}

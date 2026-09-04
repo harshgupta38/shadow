@@ -1,0 +1,369 @@
+.plan-page {
+  --plan-radius: 14px;
+  --plan-gap: 1.35rem;
+  color: var(--jv-text);
+
+  .plan-actions,
+  .date-controls,
+  .plan-action-buttons {
+    display: flex;
+    align-items: center;
+  }
+
+  .progress-panel p,
+  .empty-state p {
+    margin: 0;
+    color: var(--jv-muted);
+  }
+
+  .plan-actions {
+    width: 100%;
+    justify-content: space-between;
+    gap: 0.55rem;
+    margin: 1.75rem 0 1.35rem;
+  }
+
+  .date-controls,
+  .plan-action-buttons {
+    gap: 0.45rem;
+  }
+
+  .plan-icon-button,
+  .plan-secondary-button,
+  .plan-primary-button {
+    height: 35px;
+    border: 1px solid var(--jv-border-strong);
+    border-radius: 9px;
+    background: var(--jv-surface);
+    color: var(--jv-muted);
+    font: inherit;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .plan-icon-button {
+    width: 35px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+
+  .plan-icon-button:hover,
+  .plan-secondary-button:hover {
+    background: var(--jv-surface-2);
+    color: var(--jv-text);
+  }
+
+  .date-field {
+    position: relative;
+    display: flex;
+    height: 39px;
+    align-items: center;
+  }
+
+  .date-display {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    align-items: center;
+    padding: 0 3rem 0 0.8rem;
+    border: 1px solid var(--jv-border-strong);
+    border-radius: 9px;
+    background: var(--jv-surface);
+    color: var(--jv-text);
+    font-size: 0.88rem;
+  }
+
+  .date-calendar-icon {
+    position: absolute;
+    right: 0.8rem;
+    color: var(--jv-text);
+    pointer-events: none;
+  }
+
+  .date-field input {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    cursor: pointer;
+    opacity: 0;
+  }
+
+  .plan-secondary-button,
+  .plan-primary-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0 0.75rem 0 0.30rem;
+  }
+  
+  .plan-secondary-button{
+    padding: 0 0.75rem 0 0.75rem;
+  }
+
+  .plan-primary-button {
+    border-color: transparent;
+    color: #fff;
+    background: var(--jv-brand-gradient);
+    box-shadow: 0 6px 16px color-mix(in srgb, var(--jv-brand-1) 28%, transparent);
+  }
+
+  .plan-primary-button:hover {
+    color: #fff;
+    filter: brightness(1.05);
+  }
+
+  .plan-columns {
+    display: grid;
+    grid-template-columns: minmax(0, 2.06fr) minmax(280px, 1fr);
+    gap: var(--plan-gap);
+  }
+
+  .plan-column {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: var(--plan-gap);
+  }
+
+  .plan-panel {
+    min-width: 0;
+    border: 1px solid var(--jv-border);
+    border-radius: var(--plan-radius);
+    background: var(--jv-surface);
+    box-shadow: var(--jv-shadow);
+  }
+
+  .progress-panel {
+    display: flex;
+    min-height: 222px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .progress-panel .progress-ring-v2 {
+    margin-bottom: 1.05rem;
+  }
+
+  .progress-panel h2 {
+    margin: 0 0 0.25rem;
+    font-size: 0.96rem;
+  }
+
+  .progress-panel p {
+    font-size: 0.8rem;
+  }
+
+  .today-panel {
+    padding: 1.1rem;
+  }
+
+  .today-panel>h2 {
+    margin: 0;
+    font-size: 0.97rem;
+    font-weight: 750;
+  }
+
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 210px;
+    text-align: center;
+  }
+
+  .empty-state-icon {
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: 57px;
+    height: 57px;
+    margin-bottom: 0.9rem;
+    border-radius: 16px;
+    font-size: 1.6rem;
+    color: var(--jv-brand-1);
+    background: var(--jv-brand-soft);
+  }
+
+  .empty-state h3 {
+    margin: 0 0 0.3rem;
+    font-size: 0.96rem;
+  }
+
+  .empty-state p {
+    font-size: 0.88rem;
+    line-height: 1.5;
+  }
+
+  .plan-task-list {
+    margin-top: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+  }
+
+  .plan-task-section-label {
+    margin: 0.35rem 0 0.1rem;
+    color: var(--jv-faint);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  // ── Completed panel ──────────────────────────────────────────────────────────
+
+  .completed-panel {
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .completed-panel-header {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.85rem 1.1rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--jv-text);
+    font: inherit;
+    text-align: left;
+  }
+
+  .completed-panel-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+  }
+
+  .completed-panel-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 0.4rem;
+    border-radius: 999px;
+    background: var(--jv-brand-soft);
+    color: var(--jv-brand-1);
+    font-size: 0.72rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .completed-panel-chevron {
+    margin-left: auto;
+    color: var(--jv-muted);
+    transition: transform var(--jv-transition);
+    flex-shrink: 0;
+
+    &.is-open {
+      transform: rotate(180deg);
+    }
+  }
+
+  .completed-panel .plan-task-list {
+    padding: 0 1.1rem 1rem;
+  }
+
+  // ── Plan card skeleton ───────────────────────────────────────────────────────
+
+  .pcs {
+    display: block;
+    position: relative;
+    overflow: hidden;
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--jv-border) 78%, var(--jv-surface) 22%);
+
+    &::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      transform: translateX(-100%);
+      background: linear-gradient(
+        90deg,
+        transparent 0%,
+        color-mix(in srgb, #fff 52%, transparent) 50%,
+        transparent 100%
+      );
+      animation: pcs-shimmer 1.4s ease-in-out infinite;
+    }
+
+    &-title { flex: 1; height: 0.9rem; }
+    &-check { flex-shrink: 0; width: 20px; height: 20px; border-radius: 50%; }
+    &-chip  { height: 1.3rem; width: 3.5rem; border-radius: 999px; &--wide { width: 5rem; } }
+  }
+
+  .plan-card-skeleton {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.75rem 0.875rem;
+    border: 1px solid var(--jv-border);
+    border-radius: 12px;
+    background: var(--jv-surface);
+  }
+
+  .pcs-row {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+
+    &--chips { gap: 0.35rem; }
+  }
+
+  @keyframes pcs-shimmer {
+    0%   { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+
+  @media (max-width: 800px) {
+    .plan-columns {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 520px) {
+    .plan-actions {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    .date-controls,
+    .plan-action-buttons {
+      width: 100%;
+    }
+
+    .date-field {
+      flex: 1;
+    }
+
+    .plan-secondary-button,
+    .plan-primary-button {
+      flex: 1;
+      justify-content: center;
+    }
+
+    .desktop-break {
+      display: none;
+    }
+
+    .plan-task-list {
+      margin-top: 0.75rem;
+    }
+    
+    .today-panel {
+      padding: 1.35rem 1rem 1rem 1rem;
+    }
+  }
+}

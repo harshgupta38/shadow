@@ -21,7 +21,6 @@ from __future__ import annotations
 
 from functools import lru_cache
 
-from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # ─────────────────────────────────────────────────────────────
@@ -66,11 +65,24 @@ class Settings(BaseSettings):
     jwt_secret: str = "change-me-to-a-long-random-string"
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 1440  # 24h
+    email_verification_token_ttl_minutes: int = 1440
 
     # ── LLM / Gemini ──────────────────────────────────────────
     llm_provider: str = PROVIDER_GEMINI
     gemini_api_key: str = ""
-    gemini_model: str = "gemini-1.5-flash"
+    gemini_model: str = "gemini-2.5-flash"
+
+    # ── Public URLs / Email delivery ──────────────────────────
+    # Verification links open on the frontend app, which then calls backend verification API.
+    public_frontend_base_url: str = "https://shadow-pa.web.app"
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_use_tls: bool = True
+    smtp_use_ssl: bool = False
+    smtp_from_email: str = ""
+    smtp_from_name: str = "Shadow"
 
     # ── CORS / FrontEnd URL ───────────────────────────────────
     # Comma-separated list of allowed origins (the FrontEnd URL(s)).
@@ -79,6 +91,19 @@ class Settings(BaseSettings):
     # ── Scheduler ─────────────────────────────────────────────
     # Disable in tests to avoid spinning up background threads.
     enable_scheduler: bool = True
+
+    # ── External APIs ──────────────────────────────────────────
+    open_meteo_base_url: str = "https://api.open-meteo.com/v1/forecast"
+    open_meteo_timeout_seconds: float = 6.0
+    ip_geolocation_enabled: bool = False
+    ip_geolocation_base_url: str = "http://ip-api.com/json/{ip}?fields=status,country,regionName,city"
+    ip_geolocation_timeout_seconds: float = 2.5
+
+    # ── Web Push (PWA notifications) ─────────────────────────
+    web_push_vapid_public_key: str = ""
+    web_push_vapid_private_key: str = ""
+    web_push_vapid_subject: str = "mailto:admin@example.com"
+    web_push_ttl_seconds: int = 120
 
     @property
     def cors_origins_list(self) -> list[str]:

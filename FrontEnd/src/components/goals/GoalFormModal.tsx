@@ -1,5 +1,6 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Modal } from "react-bootstrap";
+import { Stars } from "react-bootstrap-icons";
 
 import { api, ApiError, type Goal, type GoalStatus } from "@/api";
 import { TextField } from "@/components/ui/TextField";
@@ -20,11 +21,17 @@ function toDateInput(value?: string | null): string {
 }
 
 const STATUS_OPTIONS: GoalStatus[] = ["active", "paused", "completed", "archived"];
+type GoalCreationMode = "shadow" | "manual";
+const SHADOW_PROMPT_MAX_LINES = 5;
 
 export function GoalFormModal({ show, goal, onClose, onSaved }: GoalFormModalProps) {
   const toast = useToast();
   const isEdit = !!goal;
 
+  const [creationMode, setCreationMode] = useState<GoalCreationMode>("shadow");
+  const [shadowPrompt, setShadowPrompt] = useState("");
+  const [shadowReady, setShadowReady] = useState(false);
+  const [shadowBusy, setShadowBusy] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
@@ -33,6 +40,7 @@ export function GoalFormModal({ show, goal, onClose, onSaved }: GoalFormModalPro
   const [progress, setProgress] = useState(0);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
+  const shadowPromptRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (show) {
@@ -42,12 +50,97 @@ export function GoalFormModal({ show, goal, onClose, onSaved }: GoalFormModalPro
       setTargetDate(toDateInput(goal?.target_date));
       setStatus(goal?.status ?? "active");
       setProgress(goal?.progress ?? 0);
+      setCreationMode(goal ? "manual" : "shadow");
+      setShadowPrompt("");
+      setShadowReady(!!goal);
+      setShadowBusy(false);
       setFieldErrors({});
     }
   }, [show, goal]);
 
+  const fieldsLocked = !isEdit && creationMode === "shadow" && !shadowReady;
+  const hasShadowPrompt = shadowPrompt.trim().length > 0;
+  const submitLocked = busy || fieldsLocked;
+
+  function autoResizeShadowPrompt() {
+    const textarea = shadowPromptRef.current;
+    if (!textarea) return;
+
+    textarea.style.height = "auto";
+
+    const styles = window.getComputedStyle(textarea);
+    const lineHeight = Number.parseFloat(styles.lineHeight || "") || 20;
+    const paddingTop = Number.parseFloat(styles.paddingTop || "") || 0;
+    const paddingBottom = Number.parseFloat(styles.paddingBottom || "") || 0;
+    const borderTop = Number.parseFloat(styles.borderTopWidth || "") || 0;
+    const borderBottom = Number.parseFloat(styles.borderBottomWidth || "") || 0;
+
+    const maxHeight =
+      lineHeight * SHADOW_PROMPT_MAX_LINES +
+      paddingTop +
+      paddingBottom +
+      borderTop +
+      borderBottom;
+
+    const nextHeight = Math.min(textarea.scrollHeight, maxHeight);
+    textarea.style.height = `${Math.ceil(nextHeight)}px`;
+    textarea.style.overflowY = textarea.scrollHeight > maxHeight ? "auto" : "hidden";
+  }
+
+  useEffect(() => {
+    autoResizeShadowPrompt();
+  }, [shadowPrompt, creationMode, show]);
+
+  async function handleShadowSetup() {
+    const prompt = shadowPrompt.trim();
+    if (!prompt) {
+      setFieldErrors((prev) => ({ ...prev, shadow_prompt: "Tell Shadow what you want to achieve." }));
+      return;
+    }
+
+    setShadowBusy(true);
+    setFieldErrors((prev) => {
+      const next = { ...prev };
+      delete next.shadow_prompt;
+      return next;
+    });
+
+    try {
+      const draft = await api.goals.draft({ prompt });
+      setTitle(draft.title?.trim() ?? "");
+      setDescription(draft.description?.trim() ?? "");
+      setCategory(draft.category?.trim() ?? "");
+      setTargetDate(toDateInput(draft.target_date));
+      setShadowReady(true);
+      toast.success("Shadow prepared your goal draft. You can edit anything before saving.");
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setFieldErrors((prev) => ({
+          ...prev,
+          shadow_prompt: err.message,
+        }));
+        toast.error(err.message);
+      } else {
+        setFieldErrors((prev) => ({
+          ...prev,
+          shadow_prompt: "Shadow couldn't structure this yet. Try rephrasing your goal.",
+        }));
+        toast.error("Shadow couldn't structure this yet. Try rephrasing your goal.");
+      }
+    } finally {
+      setShadowBusy(false);
+    }
+  }
+
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
+    if (!isEdit && creationMode === "shadow" && !shadowReady) {
+      setFieldErrors((prev) => ({
+        ...prev,
+        shadow_prompt: "Ask Shadow to set this up first, or switch to Create manually.",
+      }));
+      return;
+    }
     if (!title.trim()) {
       setFieldErrors({ title: "Give your goal a title." });
       return;
@@ -87,69 +180,120 @@ export function GoalFormModal({ show, goal, onClose, onSaved }: GoalFormModalPro
   }
 
   return (
-    <Modal show={show} onHide={onClose} centered size="lg">
+    <Modal show={show} onHide={onClose} centered size="lg" backdrop="static">
       <Modal.Header closeButton>
         <Modal.Title className="h5 fw-bold">{isEdit ? "Edit goal" : "New goal"}</Modal.Title>
       </Modal.Header>
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} autoComplete="off">
         <Modal.Body>
-          <TextField
-            label="Title"
-            name="title"
-            placeholder="e.g. Become a senior engineer"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            error={fieldErrors.title}
-            autoFocus
-            required
-          />
-
-          <div className="mb-3">
-            <label htmlFor="goal-desc" className="form-label">
-              Description
-            </label>
-            <textarea
-              id="goal-desc"
-              className="form-control"
-              rows={3}
-              placeholder="What does success look like? Why does it matter?"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
-          </div>
-
-          <div className="row g-3">
-            <div className="col-sm-6">
-              <label htmlFor="goal-category" className="form-label">
-                Category
+          {!isEdit && creationMode === "shadow" && (
+            <div className="mb-3">
+              <label htmlFor="goal-shadow-prompt" className="form-label">
+                Tell Shadow your goal idea
               </label>
-              <input
-                id="goal-category"
-                className="form-control"
-                list="goal-categories"
-                placeholder="Career, Health…"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-              />
-              <datalist id="goal-categories">
-                {GOAL_CATEGORY_SUGGESTIONS.map((c) => (
-                  <option value={c} key={c} />
-                ))}
-              </datalist>
+              <div className="goal-shadow-prompt-row d-flex gap-2">
+                <textarea
+                  ref={shadowPromptRef}
+                  id="goal-shadow-prompt"
+                  className={`form-control goal-shadow-prompt-input ${fieldErrors.shadow_prompt ? "is-invalid" : ""}`}
+                  placeholder="e.g. I want to get an SDE job at Google"
+                  value={shadowPrompt}
+                  rows={1}
+                  onChange={(e) => setShadowPrompt(e.target.value)}
+                  disabled={busy || shadowBusy}
+                  autoComplete="off"
+                  autoFocus
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+                      event.preventDefault();
+                      void handleShadowSetup();
+                    }
+                  }}
+                />
+                {(hasShadowPrompt || shadowBusy) && (
+                  <button
+                    type="button"
+                    className="btn btn-soft text-nowrap goal-shadow-refine-btn"
+                    style={{ height: "stretch" }}
+                    onClick={() => void handleShadowSetup()}
+                    disabled={busy || shadowBusy}
+                  >
+                    <Stars size={14} className="me-1" />
+                    {shadowBusy ? "Refining…" : "Refine"}
+                  </button>
+                )}
+              </div>
+              {fieldErrors.shadow_prompt && (
+                <div className="text-danger small mt-1">{fieldErrors.shadow_prompt}</div>
+              )}
             </div>
-            <div className="col-sm-6">
-              <label htmlFor="goal-target" className="form-label">
-                Target date
-              </label>
-              <input
-                id="goal-target"
-                type="date"
-                className="form-control"
-                value={targetDate}
-                onChange={(e) => setTargetDate(e.target.value)}
+          )}
+
+          {!fieldsLocked && (
+            <>
+              <TextField
+                label="Title"
+                name="title"
+                placeholder="e.g. Become a senior engineer"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                error={fieldErrors.title}
+                autoFocus={!isEdit && creationMode === "manual"}
+                required
+                disabled={busy || shadowBusy}
               />
-            </div>
-          </div>
+
+              <div className="mb-3">
+                <label htmlFor="goal-desc" className="form-label">
+                  Description
+                </label>
+                <textarea
+                  id="goal-desc"
+                  className="form-control"
+                  rows={3}
+                  placeholder="What does success look like? Why does it matter?"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  disabled={busy || shadowBusy}
+                />
+              </div>
+
+              <div className="row g-3">
+                <div className="col-sm-6">
+                  <label htmlFor="goal-category" className="form-label">
+                    Category
+                  </label>
+                  <input
+                    id="goal-category"
+                    className="form-control"
+                    list="goal-categories"
+                    placeholder="Career, Health…"
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    disabled={busy || shadowBusy}
+                  />
+                  <datalist id="goal-categories">
+                    {GOAL_CATEGORY_SUGGESTIONS.map((c) => (
+                      <option value={c} key={c} />
+                    ))}
+                  </datalist>
+                </div>
+                <div className="col-sm-6">
+                  <label htmlFor="goal-target" className="form-label">
+                    Target date
+                  </label>
+                  <input
+                    id="goal-target"
+                    type="date"
+                    className="form-control"
+                    value={targetDate}
+                    onChange={(e) => setTargetDate(e.target.value)}
+                    disabled={busy || shadowBusy}
+                  />
+                </div>
+              </div>
+            </>
+          )}
 
           {isEdit && (
             <div className="row g-3 mt-1">
@@ -189,12 +333,54 @@ export function GoalFormModal({ show, goal, onClose, onSaved }: GoalFormModalPro
           )}
         </Modal.Body>
         <Modal.Footer>
-          <button type="button" className="btn btn-outline-secondary" onClick={onClose} disabled={busy}>
-            Cancel
-          </button>
-          <button type="submit" className="btn btn-brand px-4" disabled={busy}>
-            {busy ? "Saving…" : isEdit ? "Save changes" : "Create goal"}
-          </button>
+          <div className="goal-form-footer">
+            {!isEdit && (
+              <div className="nav-tabs-jv goal-form-mode-toggle">
+                <button
+                  type="button"
+                  className={`nav-tab-jv ${creationMode === "shadow" ? "active" : ""}`}
+                  onClick={() => {
+                    setCreationMode("shadow");
+                    setShadowReady(
+                      !!(title.trim() || description.trim() || category.trim() || targetDate.trim()),
+                    );
+                  }}
+                  disabled={busy || shadowBusy}
+                >
+                  Let Shadow Setup
+                </button>
+                <button
+                  type="button"
+                  className={`nav-tab-jv ${creationMode === "manual" ? "active" : ""}`}
+                  onClick={() => {
+                    setCreationMode("manual");
+                    setShadowReady(true);
+                  }}
+                  disabled={busy || shadowBusy}
+                >
+                  Create manually
+                </button>
+              </div>
+            )}
+
+            <div className="goal-form-footer-actions">
+              <button
+                type="button"
+                className="btn btn-outline-secondary goal-form-action-btn"
+                onClick={onClose}
+                disabled={busy}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="btn btn-brand goal-form-action-btn"
+                disabled={submitLocked || shadowBusy}
+              >
+                {busy ? "Saving…" : isEdit ? "Save changes" : "Create goal"}
+              </button>
+            </div>
+          </div>
         </Modal.Footer>
       </form>
     </Modal>

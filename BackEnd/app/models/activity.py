@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
+import datetime
 
 from sqlalchemy import Date, DateTime, Float, ForeignKey, Text
 from sqlalchemy import Enum as SAEnum
@@ -22,12 +22,12 @@ class ActivityLog(Base):
     metric_id: Mapped[int] = mapped_column(
         ForeignKey("tracked_metrics.id", ondelete="CASCADE"), index=True, nullable=False
     )
-    date: Mapped[date] = mapped_column(Date, index=True, nullable=False)
+    date: Mapped[datetime.date] = mapped_column(Date, index=True, nullable=False)
     value: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
     source: Mapped[ActivitySource] = mapped_column(
         SAEnum(ActivitySource), default=ActivitySource.manual, nullable=False
     )
-    created_at: Mapped[datetime] = mapped_column(
+    created_at: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, nullable=False
     )

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -29,3 +30,42 @@ class MemoryEntryCreate(BaseModel):
     question: str | None = None
     answer: str | None = None
     source: MemorySource = MemorySource.manual
+
+
+class MemoryEntryUpdate(BaseModel):
+    """Update an existing memory entry."""
+
+    category: MemoryCategory | None = None
+    ai_understanding: str | None = Field(default=None, min_length=1)
+    question: str | None = None
+    answer: str | None = None
+
+
+class MemoryRefineRequest(BaseModel):
+    """Request body for refining user-entered memory text with AI."""
+
+    text: str = Field(min_length=1)
+    category: MemoryCategory = MemoryCategory.other
+
+
+class MemoryRefineResponse(BaseModel):
+    """AI-refined memory text for user review and final save."""
+
+    refined_text: str
+    status: Literal["refined", "fallback"] = "refined"
+    reason: str | None = None
+
+
+class MemoryCenterEntryRead(ORMModel):
+    """UI-friendly memory card shape for Profile > AI Memory Center."""
+
+    id: int
+    category: MemoryCategory
+    value: str
+    source: MemorySource
+    confidence: str
+    editable: bool
+    why_known: str
+    used_by: list[str]
+    created_at: datetime
+    updated_at: datetime

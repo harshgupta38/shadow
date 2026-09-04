@@ -1,0 +1,310 @@
+You are acting as a Senior Staff Software Engineer performing a full engineering audit of this codebase.
+
+Your goal is NOT to add features.
+
+Your goal is to improve the overall engineering quality of the project while preserving 100% of existing behaviour.
+
+This project has been built incrementally over multiple days using AI assistance. As a result, there may be:
+
+• dead code
+• duplicate logic
+• legacy implementations
+• abandoned features
+• unnecessary abstractions
+• over-engineered solutions
+• duplicated utilities
+• redundant helper functions
+• repeated constants
+• unused components
+• unused hooks
+• unused CSS
+• duplicate API wrappers
+• unnecessary re-renders
+• large functions
+• deeply nested logic
+• duplicated business logic
+• obsolete comments
+• unnecessary files
+• unnecessary dependencies
+• unnecessary state variables
+• unnecessary useEffects
+• unnecessary memoization
+• unnecessary callbacks
+• unnecessary interfaces
+• unnecessary enums
+• unnecessary models
+• unnecessary DTOs
+• unnecessary normalization functions
+• unused imports
+• unused exports
+• unreachable code
+• poor naming
+• inconsistent coding style
+
+Your task is to inspect the ENTIRE repository before making any changes.
+
+----------------------------------------
+
+PHASE 1 — Repository Audit
+
+Read every directory.
+
+Understand:
+
+- project architecture
+- feature structure
+- shared utilities
+- services
+- hooks
+- pages
+- components
+- models
+- schemas
+- API layer
+
+Do NOT modify anything yet.
+
+Produce an internal understanding of the project.
+
+----------------------------------------
+
+PHASE 2 — Detect Issues
+
+Identify every instance of:
+
+1. Dead Code
+
+- unused files
+- unused components
+- unused functions
+- unused variables
+- unused exports
+- unused CSS
+- unused routes
+
+2. Duplicate Code
+
+- duplicated helper functions
+- duplicated formatting logic
+- duplicated API calls
+- duplicated validation
+- duplicated constants
+- duplicated components
+
+3. Over Engineering
+
+Examples:
+
+- wrappers around wrappers
+- functions only called once
+- unnecessary abstractions
+- unnecessary inheritance
+- helper files containing one trivial function
+- generic utilities that provide no benefit
+
+4. Simplification Opportunities
+
+Examples:
+
+Replace
+
+100 lines
+
+with
+
+15 lines
+
+using modern TypeScript or JavaScript.
+
+Use:
+
+Object.groupBy
+
+Map
+
+Set
+
+Array methods
+
+URLSearchParams
+
+Intl APIs
+
+optional chaining
+
+nullish coalescing
+
+etc.
+
+5. React Improvements
+
+Find:
+
+- unnecessary useMemo
+- unnecessary useCallback
+- unnecessary useEffect
+- unnecessary state
+- derived state
+- repeated renders
+- expensive computations
+
+6. TypeScript Improvements
+
+- duplicate interfaces
+- unnecessary generics
+- repeated types
+- any types
+- casts
+- unnecessary enums
+- repeated DTOs
+
+7. CSS Improvements
+
+- duplicated classes
+- repeated spacing
+- dead styles
+- impossible selectors
+- unnecessary nesting
+- repeated variables
+
+8. Performance Issues
+
+- unnecessary loops
+- repeated filtering
+- repeated sorting
+- unnecessary object creation
+- unnecessary re-rendering
+
+9. Architecture Problems
+
+Find:
+
+- files in wrong folders
+- business logic inside UI
+- API logic inside components
+- duplicated services
+- incorrect separation of concerns
+
+10. Code Smells
+
+Find:
+
+- functions over 100 lines
+- components over 300 lines
+- nested if statements
+- magic strings
+- magic numbers
+- duplicate switch statements
+- duplicated conditions
+
+----------------------------------------
+
+PHASE 3 — Remove
+
+Delete:
+
+- dead files
+- unused utilities
+- unused imports
+- obsolete code
+- duplicate code
+- legacy implementations
+
+Only if you are 100% certain they are not used anywhere.
+
+----------------------------------------
+
+PHASE 4 — Refactor
+
+Refactor the remaining codebase.
+
+Goals:
+
+• simpler
+• smaller
+• more readable
+• more maintainable
+• easier to test
+
+Prefer readability over cleverness.
+
+----------------------------------------
+
+PHASE 5 — Verify
+
+Before finishing:
+
+✔ project builds successfully
+
+✔ TypeScript has zero errors
+
+✔ ESLint passes (if configured)
+
+✔ all imports resolve
+
+✔ no broken routes
+
+✔ no broken components
+
+✔ no broken API calls
+
+✔ no behaviour changes
+
+----------------------------------------
+
+Rules
+
+DO NOT change the UI.
+
+DO NOT change functionality.
+
+DO NOT add features.
+
+DO NOT change APIs.
+
+DO NOT rename public interfaces unless required.
+
+DO NOT change database schema.
+
+Only improve implementation quality.
+
+----------------------------------------
+
+Output
+
+For every change provide:
+
+## Issue
+
+Explain what was wrong.
+
+## Why it was a problem
+
+Explain the engineering issue.
+
+## Fix
+
+Explain what was changed.
+
+## Benefit
+
+Explain the improvement.
+
+At the end provide a summary:
+
+- Files scanned
+- Files modified
+- Files deleted
+- Duplicate code removed
+- Dead code removed
+- Functions simplified
+- Components simplified
+- Performance improvements
+- Approximate lines removed
+- Any remaining technical debt that should be addressed later
+
+Work systematically.
+
+Never guess.
+
+Only delete code after verifying it is unused across the entire repository.

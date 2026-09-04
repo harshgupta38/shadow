@@ -11,7 +11,7 @@ import {
 
 import type { AgentType } from "@/api";
 
-export interface AgentMeta {
+interface AgentMeta {
   type: AgentType;
   label: string;
   tagline: string;

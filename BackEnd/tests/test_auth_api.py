@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from urllib.parse import parse_qs, urlparse
+
 from fastapi.testclient import TestClient
 
 from tests.conftest import register_and_login
@@ -41,6 +43,18 @@ def test_login_and_me(client: TestClient) -> None:
     assert response.json()["email"] == "me@example.com"
 
 
+def test_new_accounts_default_to_browser_theme(client: TestClient) -> None:
+    headers = register_and_login(client, email="browser-default@example.com")
+
+    me_response = client.get("/api/auth/me", headers=headers)
+    assert me_response.status_code == 200
+    assert me_response.json()["theme_preference"] == "browser"
+
+    settings_response = client.get("/api/settings", headers=headers)
+    assert settings_response.status_code == 200
+    assert settings_response.json()["appearance"]["theme_preference"] == "browser"
+
+
 def test_login_wrong_password(client: TestClient) -> None:
     client.post(
         "/api/auth/register",
@@ -50,6 +64,61 @@ def test_login_wrong_password(client: TestClient) -> None:
         "/api/auth/login", json={"email": "c@example.com", "password": "nope"}
     )
     assert response.status_code == 401
+
+
+def test_request_email_verification_and_verify_token(client: TestClient) -> None:
+    headers = register_and_login(client, email="verify@example.com")
+
+    request_response = client.post("/api/auth/request-email-verification", headers=headers)
+    assert request_response.status_code == 200
+    payload = request_response.json()
+    assert "detail" in payload
+    assert payload["email_sent"] in {True, False}
+    assert payload["retry_after_seconds"] == 60
+    assert payload["verification_url_preview"]
+    assert payload["verification_url_preview"].startswith("https://shadow-pa.web.app/")
+
+    cooldown_response = client.post("/api/auth/request-email-verification", headers=headers)
+    assert cooldown_response.status_code == 200
+    cooldown_payload = cooldown_response.json()
+    assert cooldown_payload["email_sent"] is False
+    assert cooldown_payload["verification_url_preview"] is None
+    assert 1 <= cooldown_payload["retry_after_seconds"] <= 60
+
+    parsed = urlparse(payload["verification_url_preview"])
+    token = parse_qs(parsed.query)["token"][0]
+
+    verify_response = client.get(f"/api/auth/verify-email?token={token}")
+    assert verify_response.status_code == 200
+    assert verify_response.json()["detail"] == "Email verified successfully"
+
+    me_response = client.get("/api/auth/me", headers=headers)
+    assert me_response.status_code == 200
+    assert me_response.json()["email_verified"] is True
+
+
+def test_verify_email_rejects_invalid_token(client: TestClient) -> None:
+    register_and_login(client, email="invalid-verify@example.com")
+
+    response = client.get("/api/auth/verify-email?token=not-a-real-token")
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Verification link is invalid or expired"
+
+
+def test_account_overview_includes_verification_cooldown(client: TestClient) -> None:
+    headers = register_and_login(client, email="cooldown-overview@example.com")
+
+    before = client.get("/api/profile/account", headers=headers)
+    assert before.status_code == 200
+    assert before.json()["verification_email_retry_after_seconds"] == 0
+
+    request_response = client.post("/api/auth/request-email-verification", headers=headers)
+    assert request_response.status_code == 200
+
+    after = client.get("/api/profile/account", headers=headers)
+    assert after.status_code == 200
+    remaining = after.json()["verification_email_retry_after_seconds"]
+    assert 1 <= remaining <= 60
 
 
 def test_me_requires_auth(client: TestClient) -> None:

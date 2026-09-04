@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import json
 import logging
+import re
+import subprocess
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy import text
 
 from app.api.router import api_router
 from app.constant import APP_DESCRIPTION, APP_NAME, VERSION, settings
@@ -16,8 +20,54 @@ from app.models import Base  # noqa: F401 — ensures all models are registered
 from app.scheduler import shutdown_scheduler, start_scheduler
 from app.services.exceptions import AppError
 
+from pathlib import Path
+from fastapi import HTTPException
+from fastapi.responses import PlainTextResponse
+
 logging.basicConfig(level=logging.INFO)
+# Keep scheduler internals quiet in dev/prod logs while preserving warnings/errors.
+logging.getLogger("apscheduler").setLevel(logging.WARNING)
+logging.getLogger("apscheduler.scheduler").setLevel(logging.WARNING)
+logging.getLogger("apscheduler.executors").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
+
+
+_LEGACY_DATE_FORMAT_MAP = {
+    "dd_mm_yyyy": "dd/mm/yyyy",
+    "mm_dd_yyyy": "mm/dd/yyyy",
+    "dd_mm_yyyy_dash": "dd-mm-yyyy",
+    "mm_dd_yyyy_dash": "mm-dd-yyyy",
+    "mmm_d_yyyy": "mmm d, yyyy",
+    "yyyy_mm_dd": "yyyy-mm-dd",
+}
+
+
+def _normalize_date_format_values() -> None:
+    """Rewrite any legacy underscore-form date_format values to their canonical form.
+
+    Rows written before the enum values were changed (e.g. 'dd_mm_yyyy' instead
+    of 'dd/mm/yyyy') cause a LookupError at query time.  This idempotent fixup
+    runs at startup so the server stays healthy even when Alembic hasn't been run.
+    """
+    is_pg = engine.dialect.name == "postgresql"
+    with engine.begin() as conn:
+        for legacy, canonical in _LEGACY_DATE_FORMAT_MAP.items():
+            if is_pg:
+                conn.execute(
+                    text(
+                        "UPDATE user_settings SET date_format = :canonical"
+                        " WHERE date_format::text = :legacy"
+                    ),
+                    {"canonical": canonical, "legacy": legacy},
+                )
+            else:
+                conn.execute(
+                    text(
+                        "UPDATE user_settings SET date_format = :canonical"
+                        " WHERE date_format = :legacy"
+                    ),
+                    {"canonical": canonical, "legacy": legacy},
+                )
 
 
 @asynccontextmanager
@@ -25,6 +75,7 @@ async def lifespan(_app: FastAPI):
     # For the SQLite MVP we create tables on startup; production migrations
     # are managed with Alembic (`alembic upgrade head`).
     Base.metadata.create_all(bind=engine)
+    _normalize_date_format_values()
     if settings.enable_scheduler:
         start_scheduler()
     try:
@@ -62,9 +113,85 @@ def root() -> dict:
     return {"name": APP_NAME, "version": VERSION, "status": "ok"}
 
 
+def get_battery():
+    try:
+        data = subprocess.check_output(["termux-battery-status"])
+        battery = json.loads(data)
+
+        health = battery.get("health", "Unknown").replace("_", " ").title()
+        battery_percent = battery.get("percentage", "Unknown")
+        charging_status = battery.get("status", "Unknown").replace("_", " ").title()
+        if battery.get("plugged") == "UNPLUGGED":
+            charging_status = "Not Charging"
+        temperature = battery.get("temperature", "Unknown")
+        power = battery.get("current", "Unknown")
+
+        if temperature != "Unknown":
+            if temperature < 35:
+                temperature_status = "Excellent"
+            elif 35 <= temperature <= 40:
+                temperature_status = "Normal"
+            elif 40 < temperature <= 43:
+                temperature_status = "Warm"
+            elif 43 < temperature <= 45:
+                temperature_status = "Hot"
+            else:
+                temperature_status = "Too Hot"
+            temperature = f"{temperature_status} ({temperature}°C)"
+
+        if power != "Unknown":
+            power = power // 1000
+            if power <= 400:
+                power_status = "Idle power"
+            elif 400 < power <= 800:
+                power_status = "Light server workload"
+            elif 800 < power <= 1200:
+                power_status = "Heavy server workload"
+            else:
+                power_status = "Critical server workload"
+            power_status = f"{power_status} ({power} mA)"
+        else:
+            power_status = "Unknown"
+
+        return (
+            f"We are currently {charging_status.lower()} with {battery_percent}% battery, "
+            f"and temperature is {temperature} with {health} battery health on {power_status}."
+        )
+
+    except Exception as e:
+        return "Unknown"
+
+
 @app.get("/health", tags=["health"])
-def health() -> dict:
-    return {"status": "ok"}
+async def health() -> dict:
+
+    message = "Shadow is up and running."
+
+    battery = get_battery()
+    if battery != "Unknown":
+        message = message + " " + battery
+
+    return {
+        "status": "ok",
+        "message": message,
+    }
+
+
+@app.get(
+    "/server/log",
+    tags=["admin"],
+    response_class=PlainTextResponse,
+)
+async def get_server_log():
+    log_file = Path("server.log")
+
+    if not log_file.exists():
+        raise HTTPException(
+            status_code=404,
+            detail="server.log not found.",
+        )
+
+    return log_file.read_text(encoding="utf-8")
 
 
 app.include_router(api_router, prefix=settings.api_prefix)

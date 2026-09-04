@@ -1,6 +1,6 @@
 import { Dropdown } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
-import { BoxArrowRight, GearFill, List, PersonCircle } from "react-bootstrap-icons";
+import { BoxArrowRight, GearFill, List, PersonCircle, Stars } from "react-bootstrap-icons";
 
 import { Avatar } from "@/components/ui/Avatar";
 import { Brand } from "@/components/ui/Brand";
@@ -57,8 +57,11 @@ export function Topbar({ onOpenMenu }: TopbarProps) {
               </div>
             </div>
             <Dropdown.Divider />
-            <Dropdown.Item onClick={() => navigate("/settings")}>
-              <PersonCircle className="me-2" size={16} /> Profile &amp; memory
+            <Dropdown.Item onClick={() => navigate("/profile")}>
+              <PersonCircle className="me-2" size={16} /> Profile
+            </Dropdown.Item>
+            <Dropdown.Item onClick={() => navigate("/memory-center")}>
+              <Stars className="me-2" size={16} /> Your Information
             </Dropdown.Item>
             <Dropdown.Item onClick={() => navigate("/settings")}>
               <GearFill className="me-2" size={16} /> Settings

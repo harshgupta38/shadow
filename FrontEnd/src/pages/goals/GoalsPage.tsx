@@ -19,16 +19,39 @@ const FILTERS: { value: Filter; label: string }[] = [
   { value: "completed", label: "Completed" },
 ];
 
+function dueDateTimestamp(goal: Goal): number | null {
+  if (!goal.target_date) return null;
+  const parsed = Date.parse(goal.target_date);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+function compareGoalsByDueDate(a: Goal, b: Goal): number {
+  const aDue = dueDateTimestamp(a);
+  const bDue = dueDateTimestamp(b);
+
+  if (aDue === null && bDue !== null) return 1;
+  if (aDue !== null && bDue === null) return -1;
+  if (aDue !== null && bDue !== null && aDue !== bDue) return aDue - bDue;
+
+  const aCreatedAt = Date.parse(a.created_at);
+  const bCreatedAt = Date.parse(b.created_at);
+  if (!Number.isNaN(aCreatedAt) && !Number.isNaN(bCreatedAt) && aCreatedAt !== bCreatedAt) {
+    return bCreatedAt - aCreatedAt;
+  }
+
+  return a.id - b.id;
+}
+
 export function GoalsPage() {
   const { data, loading, error, reload, setData } = useAsync(() => api.goals.list(), []);
   const [filter, setFilter] = useState<Filter>("all");
   const [showModal, setShowModal] = useState(false);
 
   const goals = data ?? [];
-  const filtered = useMemo(
-    () => (filter === "all" ? goals : goals.filter((g) => g.status === filter)),
-    [goals, filter],
-  );
+  const filtered = useMemo(() => {
+    const visible = filter === "all" ? goals : goals.filter((g) => g.status === filter);
+    return [...visible].sort(compareGoalsByDueDate);
+  }, [goals, filter]);
 
   function handleCreated(goal: Goal) {
     setData((prev) => [goal, ...(prev ?? [])]);
@@ -65,8 +88,8 @@ export function GoalsPage() {
             </button>
           ))}
         </div>
-        <Link to="/assistant?agent=goal_coach" className="btn btn-soft btn-sm">
-          <Stars size={14} className="me-1" /> Ask the Goal Coach
+        <Link to="/assistant?agent=general&goalDiscovery=1" className="btn btn-soft btn-sm">
+          <Stars size={14} className="me-1" /> Ask Shadow
         </Link>
       </div>
 

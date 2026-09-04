@@ -1,0 +1,573 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ArrowLeft, ArrowRepeat, CalendarCheck, ChevronDown, ChevronUp, Grid3x3Gap, List, PencilSquare, PlusLg, Trash3, Link45deg } from "react-bootstrap-icons";
+import { Link, useNavigate, useParams } from "react-router-dom";
+
+import { api, type GoalDataResponse, type FilterState, type HabitDataResponse, type HabitCreateRequest } from "@/api";
+import { ApiError } from "@/api/client";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
+import { FilterDropdown } from "@/components/ui/FilterDropdown/FilterDropdown";
+import { IllustratedErrorState } from "@/components/ui/IllustratedErrorState/IllustratedErrorState";
+import { ProgressRing } from "@/components/ui/ProgressRing/ProgressRing";
+import { ROUTES } from "@/routes/RoutePaths";
+import { useToast } from "@/context/ToastContext";
+import { GoalEditWizard } from "@/pages/my_goals/GoalEditWizard/GoalEditWizard";
+import { GoalDetailLoadingSkeleton } from "@/pages/my_goals/GoalDetailLoadingSkeleton/GoalDetailLoadingSkeleton";
+import { GoalMilestonesSection } from "@/pages/my_goals/GoalMilestonesSection/GoalMilestonesSection";
+import { HabitCard } from "@/pages/habit_library/HabitCard/HabitCard";
+import { FREQUENCY_OPTIONS, PRIORITY_OPTIONS } from "@/pages/habit_library/HabitWizard/HabitWizard.constants";
+import { DEFAULT_FILTERS, EMPTY_FILTERS, FILTER_STATUS_OPTIONS } from "@/pages/habit_library/HabitLibraryPage.constants";
+
+import "@/pages/my_goals/GoalDetailPage/GoalDetailPage.scss";
+import "@/pages/habit_library/HabitLibraryPage.scss";
+
+type GoalDetailListSection = {
+  title: string;
+  items: string[];
+};
+
+function formatGoalDate(value: string): string {
+  const parsed = Date.parse(value);
+  if (Number.isNaN(parsed)) {
+    return value;
+  }
+
+  return new Date(parsed).toLocaleDateString();
+}
+
+function formatDueLabel(value: string): string {
+  const parsed = Date.parse(value);
+  if (Number.isNaN(parsed)) {
+    return formatGoalDate(value);
+  }
+
+  const today = new Date();
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const targetDate = new Date(parsed);
+  const targetStart = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
+  const diffDays = Math.round((targetStart.getTime() - todayStart.getTime()) / 86400000);
+
+  if (diffDays < 0) {
+    return `Overdue by ${Math.abs(diffDays)}d`;
+  }
+
+  if (diffDays === 0) {
+    return "Due today";
+  }
+
+  return `Due in ${diffDays}d`;
+}
+
+function getMilestoneProgressPercent(milestonesCompleted: number, milestonesTotal: number): number {
+  if (milestonesTotal <= 0) {
+    return 0;
+  }
+
+  return Math.max(0, Math.min(100, Math.round((milestonesCompleted / milestonesTotal) * 100)));
+}
+
+export function GoalDetailPage() {
+  const { goalId } = useParams();
+  const navigate = useNavigate();
+  const [goal, setGoal] = useState<GoalDataResponse | null>(null);
+  const [loadingGoal, setLoadingGoal] = useState(false);
+  const [goalError, setGoalError] = useState<string | null>(null);
+  const [isDetailsExpanded, setIsDetailsExpanded] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [showEditConfirm, setShowEditConfirm] = useState(false);
+  const [showEditWizard, setShowEditWizard] = useState(false);
+
+  const [habits, setHabits] = useState<HabitDataResponse[]>([]);
+  const [loadingHabits, setLoadingHabits] = useState(false);
+  const [habitsError, setHabitsError] = useState<string | null>(null);
+  const [habitFilters, setHabitFilters] = useState<FilterState>(DEFAULT_FILTERS);
+  const [openHabitMenuId, setOpenHabitMenuId] = useState<number | null>(null);
+  const [menuActionHabitId, setMenuActionHabitId] = useState<number | null>(null);
+  const [deleteTargetHabit, setDeleteTargetHabit] = useState<HabitDataResponse | null>(null);
+  const [habitViewMode, setHabitViewMode] = useState<"list" | "grid">(() => {
+    try {
+      const saved = localStorage.getItem("habit-library-view-mode");
+      return saved === "list" || saved === "grid" ? saved : "grid";
+    } catch {
+      return "grid";
+    }
+  });
+
+  const toast = useToast();
+
+  const numericGoalId = Number(goalId);
+
+  const setAndPersistHabitViewMode = (mode: "list" | "grid") => {
+    try { localStorage.setItem("habit-library-view-mode", mode); } catch { /* ignore */ }
+    setHabitViewMode(mode);
+  };
+
+  const handleDeleteConfirm = async () => {
+    setDeleteBusy(true);
+    try {
+      await api.goals.deleteGoal(numericGoalId);
+      navigate(ROUTES.MY_GOALS);
+    } catch {
+      setDeleteBusy(false);
+      setShowDeleteConfirm(false);
+      toast.error("Failed to delete goal. Please try again.");
+    }
+  };
+
+  const loadGoal = useCallback(async () => {
+    if (!Number.isInteger(numericGoalId) || numericGoalId <= 0) {
+      setGoal(null);
+      setGoalError("Goal not found.");
+      return;
+    }
+
+    setLoadingGoal(true);
+    setGoalError(null);
+
+    try {
+      const response = await api.goals.getDetail(numericGoalId);
+      setGoal(response);
+    } catch (error) {
+      setGoal(null);
+      if (error instanceof ApiError) {
+        setGoalError(error.message);
+      } else {
+        setGoalError("Could not load this goal right now.");
+      }
+    } finally {
+      setLoadingGoal(false);
+    }
+  }, [numericGoalId]);
+
+  useEffect(() => {
+    void loadGoal();
+  }, [loadGoal]);
+
+  const loadHabits = useCallback(async () => {
+    setLoadingHabits(true);
+    setHabitsError(null);
+    try {
+      const response = await api.habits.getList({ goal_id: numericGoalId });
+      setHabits(response);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setHabitsError(err.message);
+      } else {
+        setHabitsError("Could not load habits right now.");
+      }
+      setHabits([]);
+    } finally {
+      setLoadingHabits(false);
+    }
+  }, [numericGoalId]);
+
+  useEffect(() => {
+    void loadHabits();
+  }, [loadHabits]);
+
+  useEffect(() => {
+    function enforceListView() {
+      if (window.innerWidth < 1024) setAndPersistHabitViewMode("list");
+    }
+    enforceListView();
+    window.addEventListener("resize", enforceListView);
+    return () => window.removeEventListener("resize", enforceListView);
+  }, []);
+
+  const filteredHabits = useMemo(() => {
+    return habits.filter((h) => {
+      if (habitFilters.status.length && !habitFilters.status.some((s) => s === h.status)) return false;
+      if (habitFilters.priority.length && !habitFilters.priority.some((p) => p === h.priority)) return false;
+      if (habitFilters.frequency.length && !habitFilters.frequency.some((f) => h.frequencies.includes(f))) return false;
+      return true;
+    });
+  }, [habits, habitFilters]);
+
+  function toggleHabitFilter(category: keyof FilterState, value: string) {
+    setHabitFilters((prev) => {
+      const list = prev[category];
+      return { ...prev, [category]: list.includes(value) ? list.filter((v) => v !== value) : [...list, value] };
+    });
+  }
+
+  async function handleSetHabitStatus(habit: HabitDataResponse, status: "active" | "paused" | "archived") {
+    setMenuActionHabitId(habit.id);
+    try {
+      const updated = await api.habits.updateHabit(habit.id, { status });
+      setHabits((prev) => prev.map((item) => (item.id === habit.id ? updated : item)));
+      setOpenHabitMenuId(null);
+    } catch {
+      toast.error("Could not update this habit right now. Please try again.");
+    } finally {
+      setMenuActionHabitId(null);
+    }
+  }
+
+  async function handleDeleteHabit(habitId: number) {
+    setMenuActionHabitId(habitId);
+    try {
+      await api.habits.removeHabit(habitId);
+      setHabits((prev) => prev.filter((item) => item.id !== habitId));
+      setOpenHabitMenuId(null);
+      setDeleteTargetHabit(null);
+    } catch {
+      toast.error("Could not delete this habit right now. Please try again.");
+    } finally {
+      setMenuActionHabitId(null);
+    }
+  }
+
+  function openEditHabit(habit: HabitDataResponse) {
+    setOpenHabitMenuId(null);
+    navigate(ROUTES.HABIT_LIBRARY_EDIT.replace(":habitId", String(habit.id)), { state: { habit } });
+  }
+
+  function handleDuplicateHabit(habit: HabitDataResponse) {
+    setOpenHabitMenuId(null);
+    const draft: Partial<HabitCreateRequest> = {
+      title: `${habit.title} (Copy)`,
+      note: habit.note,
+      frequencies: [...habit.frequencies],
+      preferred_time: habit.preferred_time,
+      specific_time: habit.specific_time,
+      duration_minutes: habit.duration_minutes,
+      start_date: habit.start_date,
+      end_date: habit.end_date,
+      priority: habit.priority,
+      weekly_count: habit.weekly_count,
+      monthly_count: habit.monthly_count,
+      specific_days: habit.specific_days ? [...habit.specific_days] : null,
+      day_fallback: habit.day_fallback,
+      planner_type: habit.planner_type,
+      planner_target: habit.planner_target,
+      value_unit: habit.value_unit,
+      goal_id: habit.goal ? habit.goal.id : null,
+      category: habit.category,
+    };
+    navigate(ROUTES.HABIT_LIBRARY_CREATE, { state: { draft } });
+  }
+
+  const detailSections: GoalDetailListSection[] = goal
+    ? [
+      { title: "Challenges", items: goal.challenges },
+      { title: "Strengths", items: goal.strengths },
+      { title: "Success Metrics", items: goal.success_metrics },
+      { title: "Insights", items: goal.insights },
+    ]
+    : [];
+
+  function openInChat() {
+    if (goal?.source_conversation_id) {
+      navigate(ROUTES.ASSISTANT, { state: { conversationId: goal.source_conversation_id } });
+    }
+  }
+
+  return (
+    <section className="goal-detail-page">
+      <Link to={ROUTES.MY_GOALS} className="goal-detail-back-link">
+        <ArrowLeft size={16} /> Back to My Goals
+      </Link>
+
+      {loadingGoal ? <GoalDetailLoadingSkeleton /> : null}
+
+      {!loadingGoal && goalError ? <IllustratedErrorState onRetry={() => void loadGoal()} /> : null}
+
+      {!loadingGoal && !goalError && goal ? (
+        <>
+          {(() => {
+            const milestoneProgressPercent = getMilestoneProgressPercent(
+              goal.milestones_completed,
+              goal.milestones_total,
+            );
+
+            return (
+              <>
+                <div className="surface goal-detail-hero">
+                  <div className="d-flex flex-column flex-md-row gap-4 align-items-md-center">
+                    <div className="goal-detail-hero-progress" aria-hidden="true">
+                      <ProgressRing percentage={milestoneProgressPercent} />
+                    </div>
+
+                    <div className="flex-grow-1 min-w-0">
+                      <div className="d-flex align-items-center gap-2 flex-wrap mb-2 goal-detail-hero-head">
+                        <span className="goal-detail-category">{goal.category}</span>
+                        <span className={`goal-detail-status goal-detail-status-${goal.status.toLowerCase()}`}>{goal.status}</span>
+                        <span className="goal-detail-due-pill">
+                          <CalendarCheck size={12} /> {formatDueLabel(goal.target_date)}
+                        </span>
+                        {goal.source_conversation_id !== null && (
+                          <span className="goal-detail-link-pill" onClick={openInChat}>
+                            <Link45deg size={12} /> Open in chat
+                          </span>
+                        )}
+
+                        <div className="goal-detail-hero-actions ms-auto" aria-label="Goal actions">
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-icon goal-detail-action-btn"
+                            aria-label={isDetailsExpanded ? "Collapse goal details" : "Expand goal details"}
+                            aria-expanded={isDetailsExpanded}
+                            aria-controls="goal-detail-sections"
+                            onClick={() => setIsDetailsExpanded((prev) => !prev)}
+                          >
+                            {isDetailsExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                          </button>
+                          <button type="button" className="btn btn-ghost btn-icon goal-detail-action-btn goal-detail-action-btn-desktop" aria-label="Edit goal" onClick={() => setShowEditConfirm(true)}>
+                            <PencilSquare size={16} />
+                          </button>
+                          <button type="button" className="btn btn-ghost btn-icon text-danger goal-detail-action-btn-delete goal-detail-action-btn-desktop" aria-label="Delete goal" onClick={() => setShowDeleteConfirm(true)}>
+                            <Trash3 size={16} />
+                          </button>
+                        </div>
+                      </div>
+
+                      <h1 className="goal-detail-title h3 fw-bold mb-2">{goal.title}</h1>
+                      <p className="goal-detail-summary text-muted-2 mb-0">{goal.summary}</p>
+
+                      <div className="goal-detail-progress-bar-wrap" aria-label={`${milestoneProgressPercent}% complete`}>
+                        <div className="goal-detail-progress-bar-track">
+                          <div className="goal-detail-progress-bar-fill" style={{ width: `${milestoneProgressPercent}%` }} />
+                        </div>
+                        <span className="goal-detail-progress-bar-label">{milestoneProgressPercent}%</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <section
+                  id="goal-detail-sections"
+                  className={`surface goal-detail-details-shell ${isDetailsExpanded ? "is-expanded mb-3" : "is-collapsed"}`}
+                  aria-hidden={!isDetailsExpanded}
+                >
+                  <div className="goal-detail-details-shell-inner">
+                    <div className="goal-detail-mobile-edit-actions" aria-label="Goal actions">
+                      <button type="button" className="btn btn-ghost btn-icon goal-detail-action-btn" aria-label="Edit goal" onClick={() => setShowEditConfirm(true)}>
+                        <PencilSquare size={16} />
+                      </button>
+                      <button type="button" className="btn btn-ghost btn-icon text-danger goal-detail-action-btn-delete" aria-label="Delete goal" onClick={() => setShowDeleteConfirm(true)}>
+                        <Trash3 size={16} />
+                      </button>
+                    </div>
+                    <div className="goal-detail-outline">
+                      <section className="goal-detail-outline-item">
+                        <h2 className="goal-detail-section-title">Why this goal matters</h2>
+                        <p className="goal-detail-copy">{goal.motivation}</p>
+                      </section>
+
+                      <section className="goal-detail-outline-item">
+                        <h2 className="goal-detail-section-title">Success definition</h2>
+                        <p className="goal-detail-copy">{goal.success_definition}</p>
+                      </section>
+
+                      <section className="goal-detail-outline-item">
+                        <h2 className="goal-detail-section-title">Current state</h2>
+                        <p className="goal-detail-copy">{goal.current_state}</p>
+                      </section>
+
+                      {detailSections.map((section) => (
+                        <section className="goal-detail-outline-item" key={section.title}>
+                          <h2 className="goal-detail-section-title">{section.title}</h2>
+                          <ul className="goal-detail-list">
+                            {section.items.map((item, index) => (
+                              <li key={`${section.title}-${index}`}>{item}</li>
+                            ))}
+                          </ul>
+                        </section>
+                      ))}
+                    </div>
+                  </div>
+                </section>
+
+                <GoalMilestonesSection goal={goal} />
+
+                <div className="habit-library-page mt-4">
+                  <div className="hl-card">
+                    <div className="hl-card-header">
+                      <div>
+                        <h2 className="hl-title">Linked habits</h2>
+                        <p className="hl-subtitle">Habits contributing to this goal.</p>
+                      </div>
+                      <div className="hl-card-header-actions">
+                        {!loadingHabits && (
+                          <div className="hl-view-toggle" role="group" aria-label="Habit view">
+                            {habitViewMode === "list" && (
+                              <button
+                                type="button"
+                                className="hl-view-toggle-btn"
+                                aria-label="Switch to grid view"
+                                title="Switch to grid view"
+                                onClick={() => setAndPersistHabitViewMode("grid")}
+                              >
+                                <List size={15} />
+                              </button>
+                            )}
+                            {habitViewMode === "grid" && (
+                              <button
+                                type="button"
+                                className="hl-view-toggle-btn"
+                                aria-label="Switch to list view"
+                                title="Switch to list view"
+                                onClick={() => setAndPersistHabitViewMode("list")}
+                              >
+                                <Grid3x3Gap size={14} />
+                              </button>
+                            )}
+                          </div>
+                        )}
+                        <FilterDropdown
+                          width={360}
+                          sections={[
+                            {
+                              key: "status",
+                              label: "Status",
+                              options: FILTER_STATUS_OPTIONS,
+                              selected: habitFilters.status,
+                              onToggle: (v) => toggleHabitFilter("status", v),
+                            },
+                            {
+                              key: "priority",
+                              label: "Priority",
+                              options: PRIORITY_OPTIONS.map((o) => ({ value: o.value, label: o.label.split(":")[0] })),
+                              selected: habitFilters.priority,
+                              onToggle: (v) => toggleHabitFilter("priority", v),
+                            },
+                            {
+                              key: "frequency",
+                              label: "Frequency",
+                              options: FREQUENCY_OPTIONS,
+                              selected: habitFilters.frequency,
+                              onToggle: (v) => toggleHabitFilter("frequency", v),
+                            },
+                          ]}
+                          onReset={() => setHabitFilters(EMPTY_FILTERS)}
+                        />
+                        <button
+                          type="button"
+                          className="btn btn-soft btn-sm"
+                          style={{ borderRadius: "999px" }}
+                          onClick={() => navigate(ROUTES.HABIT_LIBRARY_CREATE, { state: { draft: { goal_id: numericGoalId } } })}
+                        >
+                          <PlusLg size={13} className="me-1" />
+                          Add habit
+                        </button>
+                      </div>
+                    </div>
+                    <div className="hl-card-body">
+                      {loadingHabits ? (
+                        <GoalHabitsSkeleton />
+                      ) : habitsError ? (
+                        <div className="hl-empty-state">
+                          <p className="hl-empty-title">Failed to load habits</p>
+                          <p className="hl-empty-subtitle">{habitsError}</p>
+                          <button type="button" className="btn btn-soft btn-sm mt-2" onClick={() => void loadHabits()}>
+                            Try again
+                          </button>
+                        </div>
+                      ) : filteredHabits.length === 0 && habits.length === 0 ? (
+                        <div className="hl-empty-state">
+                          <div className="hl-empty-icon"><ArrowRepeat size={22} /></div>
+                          <p className="hl-empty-title">No habits linked to this goal</p>
+                          <p className="hl-empty-subtitle">Link a habit to this goal from the Habit Library to see it here.</p>
+                        </div>
+                      ) : filteredHabits.length === 0 ? (
+                        <div className="hl-empty-state">
+                          <p className="hl-empty-title">No habits match your filters</p>
+                          <p className="hl-empty-subtitle">Try adjusting or clearing the active filters.</p>
+                          <button type="button" className="btn btn-soft btn-sm mt-2" onClick={() => setHabitFilters(EMPTY_FILTERS)}>
+                            Clear filters
+                          </button>
+                        </div>
+                      ) : (
+                        <div className={`hl-habit-grid${habitViewMode === "grid" ? " hl-habit-grid--grid" : ""}`}>
+                          {filteredHabits.map((h) => (
+                            <HabitCard
+                              key={h.id}
+                              habit={h}
+                              isMenuOpen={openHabitMenuId === h.id}
+                              isBusy={menuActionHabitId === h.id}
+                              viewMode={habitViewMode}
+                              onMenuToggle={(nextShow) => setOpenHabitMenuId(nextShow ? h.id : null)}
+                              onEdit={() => openEditHabit(h)}
+                              onDuplicate={() => handleDuplicateHabit(h)}
+                              onTogglePause={() => void handleSetHabitStatus(h, h.status === "paused" ? "active" : "paused")}
+                              onToggleArchive={() => void handleSetHabitStatus(h, h.status === "archived" ? "active" : "archived")}
+                              onDeleteRequest={() => { setOpenHabitMenuId(null); setDeleteTargetHabit(h); }}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </>
+            );
+          })()}
+        </>
+      ) : null}
+
+      <ConfirmDialog
+        show={showEditConfirm}
+        title="Edit goal details?"
+        message="Changing these details affects how your AI coach understands this goal. Existing milestones and habits won't be updated automatically — any mismatch between the old and new details can cause the agent to generate inconsistent responses. Only edit if it's genuinely necessary."
+        confirmLabel="Edit anyway"
+        cancelLabel="Keep as is"
+        onConfirm={() => { setShowEditConfirm(false); setShowEditWizard(true); }}
+        onCancel={() => setShowEditConfirm(false)}
+      />
+
+      {goal && showEditWizard ? (
+        <GoalEditWizard
+          open={showEditWizard}
+          goal={goal}
+          onClose={() => setShowEditWizard(false)}
+          onUpdated={(updated) => { setGoal(updated); setShowEditWizard(false); }}
+        />
+      ) : null}
+
+      <ConfirmDialog
+        show={showDeleteConfirm}
+        title="Delete this goal?"
+        message={`This will permanently remove the goal and all its data. This cannot be undone. ${(goal?.milestones_total ?? 0) > 0 ? "All milestones and tasks under this goal will also be deleted." : ""} Are you sure?`}
+        confirmLabel="Delete"
+        destructive
+        busy={deleteBusy}
+        onConfirm={() => void handleDeleteConfirm()}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
+
+      <ConfirmDialog
+        show={deleteTargetHabit != null}
+        title="Delete this habit?"
+        message={`This will permanently remove "${deleteTargetHabit?.title ?? "this habit"}". This cannot be undone.`}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        destructive
+        busy={deleteTargetHabit != null && menuActionHabitId === deleteTargetHabit.id}
+        onConfirm={() => { if (deleteTargetHabit) void handleDeleteHabit(deleteTargetHabit.id); }}
+        onCancel={() => setDeleteTargetHabit(null)}
+      />
+    </section>
+  );
+}
+
+function GoalHabitsSkeleton() {
+  return (
+    <div className="hl-habit-skeleton-grid" aria-busy="true" aria-label="Loading habits">
+      {Array.from({ length: 3 }, (_, index) => (
+        <article className={`hl-habit-skeleton-card hl-habit-skeleton-card--${index % 3}`} key={index}>
+          <div className="hl-habit-skeleton-head">
+            <span className="hl-skeleton hl-habit-skeleton-title" />
+            <span className="hl-skeleton hl-habit-skeleton-menu" />
+          </div>
+          <span className="hl-skeleton hl-habit-skeleton-description" />
+          <span className="hl-skeleton hl-habit-skeleton-description hl-habit-skeleton-description--short" />
+          <div className="hl-habit-skeleton-pills">
+            <span className="hl-skeleton hl-habit-skeleton-pill hl-habit-skeleton-pill--status" />
+            <span className="hl-skeleton hl-habit-skeleton-pill" />
+            <span className="hl-skeleton hl-habit-skeleton-pill hl-habit-skeleton-pill--wide" />
+          </div>
+        </article>
+      ))}
+    </div>
+  );
+}

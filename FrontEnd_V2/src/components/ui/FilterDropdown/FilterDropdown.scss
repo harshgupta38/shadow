@@ -1,0 +1,109 @@
+.jv-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.9rem;
+  border-radius: 999px;
+  border: 1.5px solid var(--jv-border, #dee2e6);
+  background: transparent;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--jv-text);
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+
+  &:hover:not(.jv-filter-btn--open) {
+    background: var(--jv-brand-soft);
+    border-color: var(--jv-brand-1);
+    color: var(--jv-brand-1);
+  }
+
+  &--open {
+    background: var(--jv-brand-gradient);
+    color: #fff;
+    border-color: transparent;
+  }
+}
+
+.jv-filter-chevron {
+  transition: transform 0.2s;
+
+  &--up {
+    transform: rotate(180deg);
+  }
+}
+
+.jv-filter-dropdown {
+  position: fixed;
+  background: var(--jv-surface);
+  border: 1px solid var(--jv-border);
+  border-radius: 10px;
+  box-shadow: var(--jv-shadow-lg);
+  z-index: 1050;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.jv-filter-section {
+  padding: 0.75rem 1rem;
+
+  & + .jv-filter-section {
+    border-top: 1px solid var(--jv-border);
+  }
+}
+
+.jv-filter-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--jv-muted);
+  margin: 0 0 0.5rem;
+}
+
+.jv-filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.jv-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.22rem 0.7rem;
+  border-radius: 999px;
+  border: 1.5px solid var(--jv-border, #dee2e6);
+  background: transparent;
+  font-size: 0.78rem;
+  cursor: pointer;
+  color: var(--jv-text);
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+
+  &--active {
+    background: var(--jv-brand-soft);
+    border-color: var(--jv-brand-1);
+    color: var(--jv-brand-1);
+  }
+
+  &:hover:not(.jv-chip--active) {
+    background: var(--jv-surface-3, color-mix(in srgb, var(--jv-surface-2) 80%, #888 20%));
+  }
+}
+
+.jv-filter-reset {
+  border-top: 1px solid var(--jv-border, #e9ecef);
+  padding: 0.65rem 1rem;
+  text-align: center;
+}
+
+.jv-filter-reset-btn {
+  background: none;
+  border: none;
+  font-size: 0.8125rem;
+  color: var(--jv-text);
+  cursor: pointer;
+  padding: 0;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}

@@ -14,10 +14,12 @@ node_modules
 # Build output
 dist
 dist-ssr
+*.tsbuildinfo
 *.local
 
 # Test / coverage
 coverage
+.pytest_cache
 
 # Editor / OS
 .vscode/*

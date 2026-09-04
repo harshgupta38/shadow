@@ -1,0 +1,35 @@
+# ── Secrets / config ──────────────────────────────────────────
+.env
+
+# ── Python ────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# ── Virtual environments ──────────────────────────────────────
+.venv/
+venv/
+env/
+logs/
+
+# ── Databases ─────────────────────────────────────────────────
+*.db
+*.sqlite
+*.sqlite3
+
+# ── Test / coverage ───────────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# ── Editor / OS ───────────────────────────────────────────────
+.idea/
+.vscode/
+.DS_Store
+
+# ── Credentials ───────────────────────────────────────────────
+credentials/

@@ -2,7 +2,11 @@ import { http } from "./client";
 import type {
   ActivityLog,
   ActivityLogCreate,
+  MetricDraft,
+  MetricDraftRequest,
   MetricCreate,
+  ProgressCoachRecommendation,
+  ProgressCoachRecommendationAcceptResponse,
   MetricUpdate,
   TrackedMetric,
 } from "./types";
@@ -17,6 +21,9 @@ export const metricsApi = {
   async create(data: MetricCreate): Promise<TrackedMetric> {
     return http.post<TrackedMetric>("/metrics", data);
   },
+  async draft(data: MetricDraftRequest): Promise<MetricDraft> {
+    return http.post<MetricDraft>("/metrics/draft", data);
+  },
   async update(id: number, data: MetricUpdate): Promise<TrackedMetric> {
     return http.put<TrackedMetric>(`/metrics/${id}`, data);
   },
@@ -28,5 +35,15 @@ export const metricsApi = {
   },
   async addLog(metricId: number, data: ActivityLogCreate): Promise<ActivityLog> {
     return http.post<ActivityLog>(`/metrics/${metricId}/logs`, data);
+  },
+  async progressCoachRecommendations(): Promise<ProgressCoachRecommendation[]> {
+    return http.get<ProgressCoachRecommendation[]>("/metrics/progress-coach-recommendations");
+  },
+  async acceptProgressCoachRecommendation(
+    recommendationId: number,
+  ): Promise<ProgressCoachRecommendationAcceptResponse> {
+    return http.post<ProgressCoachRecommendationAcceptResponse>(
+      `/metrics/progress-coach-recommendations/${recommendationId}/accept`,
+    );
   },
 };

@@ -1,11 +1,11 @@
 import type {
   GoalStatus,
+  JournalMood,
   MemoryCategory,
   MemorySource,
+  MetricTimeSpan,
   MetricUnit,
   MilestoneStatus,
-  NotificationType,
-  PlannedTaskStatus,
 } from "@/api";
 
 type PillVariant = "success" | "warn" | "danger" | "info" | "brand" | "muted";
@@ -36,18 +36,6 @@ export const MILESTONE_STATUS_PILL: Record<MilestoneStatus, PillVariant> = {
   done: "success",
 };
 
-export const TASK_STATUS_LABEL: Record<PlannedTaskStatus, string> = {
-  planned: "Planned",
-  done: "Done",
-  missed: "Missed",
-};
-
-export const TASK_STATUS_PILL: Record<PlannedTaskStatus, PillVariant> = {
-  planned: "info",
-  done: "success",
-  missed: "danger",
-};
-
 export const MEMORY_CATEGORY_LABEL: Record<MemoryCategory, string> = {
   daily: "Daily",
   weekly: "Weekly",
@@ -72,10 +60,12 @@ export const METRIC_UNIT_LABEL: Record<MetricUnit, string> = {
   custom: "Custom",
 };
 
-export const NOTIFICATION_TYPE_LABEL: Record<NotificationType, string> = {
-  reminder: "Reminder",
-  system: "System",
-  agent: "From Shadow",
+export const METRIC_TIME_SPAN_LABEL: Record<MetricTimeSpan, string> = {
+  day: "Day",
+  week: "Week",
+  month: "Month",
+  year: "Year",
+  custom: "Custom",
 };
 
 export const GOAL_CATEGORY_SUGGESTIONS = [
@@ -87,7 +77,7 @@ export const GOAL_CATEGORY_SUGGESTIONS = [
   "Relationships",
 ];
 
-export const MOOD_OPTIONS = [
+export const MOOD_OPTIONS: ReadonlyArray<{ emoji: string; label: JournalMood }> = [
   { emoji: "😄", label: "Great" },
   { emoji: "🙂", label: "Good" },
   { emoji: "😐", label: "Okay" },

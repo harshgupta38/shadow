@@ -1,0 +1,30 @@
+﻿FrontEnd_V2
+|-- public
+|   |-- favicon.svg
+|   |-- icons.svg
+|-- src
+|   |-- assets
+|   |   |-- hero.png
+|   |   |-- react.svg
+|   |   |-- vite.svg
+|   |-- App.css
+|   |-- App.tsx
+|   |-- index.css
+|   |-- main.tsx
+|   |-- vite-env.d.ts
+|-- .env.development
+|-- .env.example
+|-- .env.production
+|-- .env.staging
+|-- .firebaserc
+|-- .gitignore
+|-- firebase.json
+|-- index.html
+|-- package.json
+|-- README.md
+|-- tree.ps1
+|-- tsconfig.app.json
+|-- tsconfig.json
+|-- tsconfig.node.json
+|-- tsconfig.vitest.json
+|-- vite.config.ts

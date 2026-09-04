@@ -6,7 +6,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
-from app.models.enums import GoalStatus
+from app.models.enums import GoalStatus, RepetitiveTaskPriority, RepetitiveTaskStatus
+from app.schemas.repetitive_task import RepetitiveTaskFrequency
 from app.schemas.common import ORMModel
 from app.schemas.milestone import MilestoneRead
 
@@ -40,7 +41,34 @@ class GoalRead(ORMModel):
     milestones: list[MilestoneRead] = []
 
 
+class GoalLinkedRepetitiveTaskRead(BaseModel):
+    id: int
+    name: str
+    description: str | None
+    frequencies: list[RepetitiveTaskFrequency] = Field(default_factory=list)
+    category: str | None = Field(default=None, max_length=64)
+    priority: RepetitiveTaskPriority
+    status: RepetitiveTaskStatus
+    current_streak_days: int = Field(default=0, ge=0)
+    max_streak_days: int = Field(default=0, ge=0)
+
+
 class GoalSuggestion(BaseModel):
     """AI-suggested goal title (often phrased as a guiding question)."""
 
     title: str
+
+
+class GoalDraftRequest(BaseModel):
+    """Natural-language goal prompt used for Shadow-assisted setup."""
+
+    prompt: str = Field(min_length=3, max_length=1200)
+
+
+class GoalDraftRead(BaseModel):
+    """Structured goal fields extracted by AI from a free-text prompt."""
+
+    title: str = Field(min_length=1, max_length=255)
+    description: str | None = None
+    category: str | None = Field(default=None, max_length=64)
+    target_date: datetime | None = None

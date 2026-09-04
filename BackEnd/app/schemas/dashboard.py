@@ -6,7 +6,7 @@ from pydantic import BaseModel
 
 from app.schemas.goal import GoalRead
 from app.schemas.notification import NotificationRead
-from app.schemas.plan import PlannedTaskRead
+from app.schemas.plan import PlanWorkspaceTaskRead
 
 
 class MetricSummary(BaseModel):
@@ -29,5 +29,5 @@ class DashboardSummary(BaseModel):
     tasks_today_done: int
     active_goals: list[GoalRead]
     metrics: list[MetricSummary]
-    upcoming_tasks: list[PlannedTaskRead]
+    upcoming_tasks: list[PlanWorkspaceTaskRead]
     unread_notifications: list[NotificationRead]

@@ -17,18 +17,22 @@ import { notificationsApi } from "./notifications";
 import { onboardingApi } from "./onboarding";
 import { planApi } from "./plan";
 import { profileApi } from "./profile";
+import { repetitiveTasksApi } from "./repetitiveTasks";
 import { reportsApi } from "./reports";
+import { settingsApi } from "./settings";
 
 export const api = {
   auth: authApi,
   onboarding: onboardingApi,
   profile: profileApi,
+  settings: settingsApi,
   goals: goalsApi,
   chat: chatApi,
   journal: journalApi,
   notifications: notificationsApi,
   metrics: metricsApi,
   plan: planApi,
+  repetitiveTasks: repetitiveTasksApi,
   reports: reportsApi,
   dashboard: dashboardApi,
 };

@@ -25,13 +25,13 @@ export function ConfirmDialog({
   onCancel,
 }: ConfirmDialogProps) {
   return (
-    <Modal show={show} onHide={onCancel} centered>
+    <Modal show={show} onHide={onCancel} centered backdrop="static">
       <Modal.Body className="p-4 text-center">
         <div
           className="empty-icon mx-auto mb-3"
           style={
             destructive
-              ? { background: "var(--jv-danger-soft)", color: "var(--jv-danger)" }
+              ? { color: "var(--jv-danger)" }
               : undefined
           }
         >

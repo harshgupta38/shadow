@@ -1,0 +1,29 @@
+# Web framework
+fastapi>=0.110,<1.0
+uvicorn[standard]>=0.29
+
+# Database
+SQLAlchemy>=2.0,<2.1
+alembic>=1.13
+
+# Validation / Settings
+pydantic>=2.6,<3.0
+pydantic-settings>=2.2
+email-validator>=2.1
+python-dotenv>=1.0
+tzdata>=2024.1
+
+# Authentication
+python-jose[cryptography]>=3.3
+passlib[bcrypt]>=1.7.4
+bcrypt>=4.0,<4.1
+python-multipart>=0.0.9
+
+# Google Sheets
+gspread>=6.2.1
+google-auth>=2.53.0
+
+# LLM
+openai>=1.45.0
+google-genai>=2.17.0,<3.0.0
+anthropic>=0.59.0,<1.0.0

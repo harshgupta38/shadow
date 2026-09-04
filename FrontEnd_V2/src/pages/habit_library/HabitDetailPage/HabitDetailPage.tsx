@@ -346,7 +346,7 @@ export function HabitDetailPage() {
 
       <HabitHero habit={habit} stats={stats} onDelete={handleDelete} deleting={deleting} />
 
-      <HabitHeatmap habitId={habit.id} />
+      <HabitHeatmap habit={habit} />
 
     </div>
   );

@@ -1,27 +1,31 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { api } from "@/api";
-import type { PlanStatus } from "@/api";
+import type { HabitDataResponse, PlanStatus } from "@/api";
 import { todayIso } from "@/services/date.service";
 
 import {
   buildGrid,
   cellTitle,
-  DAY_INITIALS,
+  getCellClass,
+  getCellStyle,
   MONTH_NAMES,
 } from "./HabitHeatmap.constants";
-import type { MonthGrid } from "./HabitHeatmap.constants";
+import type { MonthGrid, RecordEntry } from "./HabitHeatmap.constants";
 
 import "./HabitHeatmap.scss";
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
 interface HabitHeatmapProps {
-  habitId: number;
+  habit: HabitDataResponse;
 }
 
-export function HabitHeatmap({ habitId }: HabitHeatmapProps) {
-  const [recordMap, setRecordMap] = useState<Map<string, PlanStatus> | null>(null);
+export function HabitHeatmap({ habit }: HabitHeatmapProps) {
+  const habitId = habit.id;
+  const plannerType = habit.planner_type as "simple" | "metric";
+  const plannerTarget = habit.planner_target ?? null;
+  const [recordMap, setRecordMap] = useState<Map<string, RecordEntry> | null>(null);
   const [fetchError, setFetchError] = useState(false);
 
   const today = useMemo(() => todayIso(), []);
@@ -31,14 +35,15 @@ export function HabitHeatmap({ habitId }: HabitHeatmapProps) {
     setRecordMap(null);
     setFetchError(false);
     api.habits
-      .getHistory(habitId, { skip: 0, limit: 248 })
+      .getHistory(habitId, { skip: 0, limit: 366 })
       .then((data) => {
         if (cancelled) return;
-        const map = new Map<string, PlanStatus>();
+        const map = new Map<string, RecordEntry>();
         for (const rec of data.records) {
           const dateKey = rec.date.slice(0, 10);
           const status = (rec.item.saved_data?.status ?? "due") as PlanStatus;
-          map.set(dateKey, status);
+          const value = rec.item.saved_data?.current_value as number | undefined;
+          map.set(dateKey, { status, value });
         }
         setRecordMap(map);
       })
@@ -55,20 +60,19 @@ export function HabitHeatmap({ habitId }: HabitHeatmapProps) {
     const endYear = todayDate.getFullYear();
     const endMonth = todayDate.getMonth();
 
-    // Always show last 8 months ending at current month
     const anchor = new Date(todayDate);
-    anchor.setMonth(anchor.getMonth() - 7);
+    anchor.setMonth(anchor.getMonth() - 11);
     let y = anchor.getFullYear();
     let m = anchor.getMonth();
 
     const grids: MonthGrid[] = [];
     while (y < endYear || (y === endYear && m <= endMonth)) {
-      grids.push(buildGrid(y, m, recordMap, today));
+      grids.push(buildGrid(y, m, recordMap, today, plannerTarget));
       m++;
       if (m > 11) { m = 0; y++; }
     }
     return grids;
-  }, [recordMap, today]);
+  }, [recordMap, today, plannerTarget]);
 
   if (fetchError || !recordMap) return null;
   if (months.length === 0) return null;
@@ -87,21 +91,17 @@ export function HabitHeatmap({ habitId }: HabitHeatmapProps) {
             {months.map((mg) => (
               <div key={`${mg.year}-${mg.month}`} className="hh-month">
                 <div className="hh-month-label">
-                  {MONTH_NAMES[mg.month]} {mg.year}
-                </div>
-                <div className="hh-dow-row" aria-hidden="true">
-                  {DAY_INITIALS.map((l, i) => (
-                    <span key={i} className="hh-dow">{l}</span>
-                  ))}
+                  {MONTH_NAMES[mg.month]}
                 </div>
                 <div className="hh-grid" role="grid" aria-label={`${MONTH_NAMES[mg.month]} ${mg.year}`}>
                   {mg.cells.map((cell, i) => (
                     <div
                       key={i}
                       role={cell.day ? "gridcell" : "presentation"}
-                      className={`hh-cell hh-cell--${cell.status}`}
-                      title={cell.day ? cellTitle(cell.dateStr, cell.status) : undefined}
-                      aria-label={cell.day ? cellTitle(cell.dateStr, cell.status) : undefined}
+                      className={getCellClass(cell, plannerType)}
+                      style={getCellStyle(cell, plannerType)}
+                      title={cell.day ? cellTitle(cell.dateStr, cell.status, cell.ratio) : undefined}
+                      aria-label={cell.day ? cellTitle(cell.dateStr, cell.status, cell.ratio) : undefined}
                     />
                   ))}
                 </div>

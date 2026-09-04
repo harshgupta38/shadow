@@ -1,10 +1,16 @@
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, status
 
 from app.api.deps import get_current_user
 from app.core.endpoints import ENDPOINTS
 from app.db.session import get_db
 from app.models.user import UserDBM
-from app.schemas.habits import HabitCreateRequest, HabitDataResponse, HabitHistoryResponse, HabitStatus, HabitUpdateRequest
+from app.schemas.habits import (
+    HabitActivityResponse,
+    HabitCreateRequest,
+    HabitDataResponse,
+    HabitStatus,
+    HabitUpdateRequest,
+)
 from app.services import habits_service
 
 router = APIRouter(prefix=ENDPOINTS.HABITS.PREFIX, tags=["Habits"])
@@ -33,15 +39,13 @@ def save_habit(
     return habits_service.save_habit(db, current_user, data)
 
 
-@router.get(ENDPOINTS.HABITS.HISTORY, response_model=HabitHistoryResponse)
-def get_habit_history(
+@router.get(ENDPOINTS.HABITS.ACTIVITY, response_model=HabitActivityResponse)
+def get_habit_activity(
     habit_id: int,
-    skip: int = Query(default=0, ge=0),
-    limit: int = Query(default=30, ge=1, le=400),
     db=Depends(get_db),
     current_user: UserDBM = Depends(get_current_user),
-) -> HabitHistoryResponse:
-    return habits_service.get_history(db, current_user, habit_id, skip=skip, limit=limit)
+) -> HabitActivityResponse:
+    return habits_service.get_activity(db, current_user, habit_id)
 
 
 @router.patch(ENDPOINTS.HABITS.DETAIL, response_model=HabitDataResponse)

@@ -500,26 +500,25 @@ export interface HabitHistoryStats {
   completion_rate: number; // 0.0 – 1.0
 }
 
-export interface HabitHistoryRecord {
-  date: string; // YYYY-MM-DD
-  completed_at: string | null;
-  item: PlanDataResponse;
-}
-
-export interface HabitHistoryResponse {
-  habit: HabitDataResponse;
-  records: HabitHistoryRecord[];
-  stats: HabitHistoryStats;
-  total: number;
-  has_more: boolean;
-}
-
 // ── Planner ─────────────────────────────────────────────────────────────────
 export type PlanPriority = "highest" | "high" | "medium" | "low" | "lowest";
 export type PlanSourceType = "habit" | "task" | "schedule";
 export type PlannerType = "simple" | "metric";
 export type PlanPreferredTime = "flexible" | "morning" | "afternoon" | "evening" | "night" | "custom";
 export type PlanStatus = "due" | "done" | "missed";
+
+export interface HabitActivityRecord {
+  date: string; // YYYY-MM-DD
+  status: PlanStatus;
+  value: number | null;
+  note: string | null;
+  streak: number;
+}
+
+export interface HabitActivityResponse {
+  habit: HabitDataResponse;
+  records: HabitActivityRecord[];
+}
 
 export interface PlanDataResponse {
   plan_id: number;

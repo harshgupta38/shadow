@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 
-import { api } from "@/api";
-import type { HabitDataResponse, PlanStatus } from "@/api";
+import type { HabitActivityRecord, HabitDataResponse, PlanStatus } from "@/api";
 import { todayIso } from "@/services/date.service";
 
 import {
@@ -15,47 +14,26 @@ import type { MonthGrid, RecordEntry } from "./HabitHeatmap.constants";
 
 import "./HabitHeatmap.scss";
 
-// ── Component ─────────────────────────────────────────────────────────────────
-
 interface HabitHeatmapProps {
   habit: HabitDataResponse;
+  records: HabitActivityRecord[];
 }
 
-export function HabitHeatmap({ habit }: HabitHeatmapProps) {
-  const habitId = habit.id;
+export function HabitHeatmap({ habit, records }: HabitHeatmapProps) {
   const plannerType = habit.planner_type as "simple" | "metric";
   const plannerTarget = habit.planner_target ?? null;
-  const [recordMap, setRecordMap] = useState<Map<string, RecordEntry> | null>(null);
-  const [fetchError, setFetchError] = useState(false);
 
   const today = useMemo(() => todayIso(), []);
 
-  useEffect(() => {
-    let cancelled = false;
-    setRecordMap(null);
-    setFetchError(false);
-    api.habits
-      .getHistory(habitId, { skip: 0, limit: 366 })
-      .then((data) => {
-        if (cancelled) return;
-        const map = new Map<string, RecordEntry>();
-        for (const rec of data.records) {
-          const dateKey = rec.date.slice(0, 10);
-          const status = (rec.item.saved_data?.status ?? "due") as PlanStatus;
-          const value = rec.item.saved_data?.current_value as number | undefined;
-          map.set(dateKey, { status, value });
-        }
-        setRecordMap(map);
-      })
-      .catch(() => {
-        if (!cancelled) setFetchError(true);
-      });
-    return () => { cancelled = true; };
-  }, [habitId]);
+  const recordMap = useMemo(() => {
+    const map = new Map<string, RecordEntry>();
+    for (const rec of records) {
+      map.set(rec.date, { status: rec.status as PlanStatus, value: rec.value ?? undefined });
+    }
+    return map;
+  }, [records]);
 
   const months = useMemo<MonthGrid[]>(() => {
-    if (!recordMap) return [];
-
     const todayDate = new Date(today);
     const endYear = todayDate.getFullYear();
     const endMonth = todayDate.getMonth();
@@ -74,7 +52,6 @@ export function HabitHeatmap({ habit }: HabitHeatmapProps) {
     return grids;
   }, [recordMap, today, plannerTarget]);
 
-  if (fetchError || !recordMap) return null;
   if (months.length === 0) return null;
 
   return (

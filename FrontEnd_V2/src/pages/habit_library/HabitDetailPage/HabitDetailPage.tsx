@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -14,17 +14,17 @@ import {
 } from "react-bootstrap-icons";
 
 import { api, ApiError } from "@/api";
-import type { HabitDataResponse, HabitHistoryStats } from "@/api";
+import type { HabitActivityRecord, HabitDataResponse } from "@/api";
 import { ProgressRing } from "@/components/ui/ProgressRing/ProgressRing";
 import { ROUTES } from "@/routes/RoutePaths";
 import { PRIORITY_LABEL } from "@/pages/plan/PlanPage.constants";
 import {
   formatStatusLabel,
-  getMetricFrequencyLabel,
   getSimpleFrequencyLabel,
   PriorityIcon,
 } from "@/pages/habit_library/HabitCard/HabitCard.constants";
 import { HabitHeatmap } from "./HabitHeatmap/HabitHeatmap";
+import { HabitHistory } from "./HabitHistory/HabitHistory";
 
 import "@/pages/my_goals/GoalDetailPage/GoalDetailPage.scss";
 import "./HabitDetailPage.scss";
@@ -68,25 +68,19 @@ function TimeLabel({ habit }: { habit: HabitDataResponse }) {
 
 function HabitHero({
   habit,
-  stats,
+  completionPct,
   onDelete,
   deleting,
 }: {
   habit: HabitDataResponse;
-  stats: HabitHistoryStats;
+  completionPct: number;
   onDelete: () => void;
   deleting: boolean;
 }) {
   const navigate = useNavigate();
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const completionPct =
-    stats.total_records > 0 ? Math.round(stats.completion_rate * 100) : 0;
-
-  const freqLabel =
-    habit.planner_type === "metric"
-      ? getMetricFrequencyLabel(habit)
-      : getSimpleFrequencyLabel(habit);
+  const freqLabel = getSimpleFrequencyLabel(habit);
 
   const dateRangeLabel = (() => {
     if (!habit.start_date && !habit.end_date) return null;
@@ -273,7 +267,7 @@ export function HabitDetailPage() {
   const { habitId } = useParams<{ habitId: string }>();
 
   const [habit, setHabit] = useState<HabitDataResponse | null>(null);
-  const [stats, setStats] = useState<HabitHistoryStats | null>(null);
+  const [records, setRecords] = useState<HabitActivityRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -285,10 +279,10 @@ export function HabitDetailPage() {
     let cancelled = false;
     (async () => {
       try {
-        const data = await api.habits.getHistory(Number(habitId), { skip: 0, limit: 1 });
+        const data = await api.habits.getActivity(Number(habitId));
         if (cancelled) return;
         setHabit(data.habit);
-        setStats(data.stats);
+        setRecords(data.records);
       } catch (err) {
         if (!cancelled)
           setError(err instanceof ApiError ? err.message : "Failed to load habit details.");
@@ -298,6 +292,19 @@ export function HabitDetailPage() {
     })();
     return () => { cancelled = true; };
   }, [habitId]);
+
+  const currentMonthPct = useMemo(() => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = now.getMonth();
+    const monthRecs = records.filter((r) => {
+      if (r.status === "due") return false;
+      const d = new Date(`${r.date}T00:00:00`);
+      return d.getFullYear() === y && d.getMonth() === m;
+    });
+    const done = monthRecs.filter((r) => r.status === "done").length;
+    return monthRecs.length > 0 ? Math.round((done / monthRecs.length) * 100) : 0;
+  }, [records]);
 
   async function handleDelete() {
     if (!habit || deleting) return;
@@ -322,7 +329,7 @@ export function HabitDetailPage() {
     );
   }
 
-  if (error || !habit || !stats) {
+  if (error || !habit) {
     return (
       <div className="hd-page goal-detail-page">
         <Link to={ROUTES.HABIT_LIBRARY} className="goal-detail-back-link">
@@ -344,9 +351,11 @@ export function HabitDetailPage() {
         <ArrowLeft size={15} /> Back to Habit Library
       </Link>
 
-      <HabitHero habit={habit} stats={stats} onDelete={handleDelete} deleting={deleting} />
+      <HabitHero habit={habit} completionPct={currentMonthPct} onDelete={handleDelete} deleting={deleting} />
 
-      <HabitHeatmap habit={habit} />
+      <HabitHeatmap habit={habit} records={records} />
+
+      <HabitHistory habit={habit} records={records} />
 
     </div>
   );

@@ -1,0 +1,205 @@
+.hhs-card {
+  box-shadow: none;
+  border-radius: var(--jv-radius);
+
+  .hhs-body {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  // ── Month group ─────────────────────────────────────────────────────────────
+  .hhs-month-group {
+    display: flex;
+    flex-direction: column;
+    padding: 1.5rem;
+  }
+
+  // ── Month header row ────────────────────────────────────────────────────────
+  .hhs-month-header {
+    appearance: none;
+    border: none;
+    background: transparent;
+    padding: 0;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    cursor: pointer;
+  }
+
+  .hhs-month-label {
+    margin: 0;
+    font-size: 1.35rem;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    color: var(--jv-text);
+    text-align: left;
+  }
+
+  .hhs-chevron {
+    color: var(--jv-muted);
+    flex-shrink: 0;
+    display: flex;
+  }
+
+  // ── Collapse ─────────────────────────────────────────────────────────────────
+  .hhs-collapse {
+    display: grid;
+    grid-template-rows: 0fr;
+    overflow: hidden;
+    transition: grid-template-rows 280ms ease, margin-top 560ms ease;
+
+    &.is-expanded {
+      grid-template-rows: 1fr;
+      margin-top: 0.75rem;
+    }
+  }
+
+  .hhs-collapse-inner {
+    min-height: 0;
+    padding-top: 0.75rem;
+
+    &.is-collapsed {
+      padding-top: 0;
+    }
+  }
+
+  // ── Loading / empty states ───────────────────────────────────────────────────
+  .hhs-loading {
+    display: flex;
+    justify-content: center;
+    padding: 0.5rem 0;
+  }
+
+  .hhs-empty {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--jv-muted);
+    padding: 0.25rem 0;
+  }
+
+  // ── Timeline ────────────────────────────────────────────────────────────────
+  .hhs-timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+  }
+
+  // ── Item ────────────────────────────────────────────────────────────────────
+  .hhs-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.78rem;
+
+    // connector line from bottom of ball to top of next ball
+    &:not(:last-child)::after {
+      content: "";
+      position: absolute;
+      left: 15px;
+      top: 30px;
+      bottom: -4rem;
+      width: 1px;
+      background: var(--jv-border-strong);
+      pointer-events: none;
+    }
+  }
+
+  // ── Ball ────────────────────────────────────────────────────────────────────
+  .hhs-ball {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--jv-brand-1);
+    color: #fff;
+    font-size: 0.78rem;
+    font-weight: 700;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    z-index: 1;
+  }
+
+  // ── Content (shared) ─────────────────────────────────────────────────────────
+  .hhs-content {
+    flex: 1;
+    min-width: 0;
+    padding-top: 0.3rem;
+  }
+
+  .hhs-note {
+    margin: 0 0 0.35rem;
+    font-size: 0.875rem;
+    color: var(--jv-text);
+    line-height: 1.45;
+  }
+
+  .hhs-streak {
+    flex-shrink: 0;
+  }
+
+  // ── Simple layout: note left, streak right ────────────────────────────────
+  .hhs-content--simple {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  // ── Metric layout: note (row 1) / [progress | streak] (row 2) ───────────
+  .hhs-content--metric {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+
+    .hhs-note { margin: 0; }
+  }
+
+  .hhs-metric-main {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 0;
+  }
+
+  .hhs-progress-row {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .hhs-progress-val {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--jv-text);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .hhs-progress-track {
+    flex: 1;
+    height: 6px;
+    border-radius: 999px;
+    background: var(--jv-border);
+    overflow: hidden;
+  }
+
+  .hhs-progress-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: var(--jv-brand-1);
+    transition: width 400ms ease;
+  }
+
+  .hhs-progress-pct {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--jv-text);
+    min-width: 2.5rem;
+    text-align: right;
+  }
+}

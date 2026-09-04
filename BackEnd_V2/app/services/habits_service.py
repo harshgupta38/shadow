@@ -1,6 +1,6 @@
 from datetime import date
 
-from sqlalchemy import case, func, select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.exceptions import NotFoundError, ValidationError
@@ -13,14 +13,12 @@ from app.schemas.habits import (
     GoalSummary,
     HabitCreateRequest,
     HabitDataResponse,
-    HabitHistoryRecord,
-    HabitHistoryResponse,
-    HabitHistoryStats,
+    HabitActivityRecord,
+    HabitActivityResponse,
     HabitStatus,
     HabitUpdateRequest,
     SetTrackingRequest,
 )
-from app.schemas.planner import DailyPlanItemResponse, DailyPlanSavedData, GoalDataInPlan
 from app.services import planner_service
 
 
@@ -329,14 +327,11 @@ def update_habit(
     return _serialize(habit, _compute_habit_streak(db, habit))
 
 
-def get_history(
+def get_activity(
     db: Session,
     current_user: UserDBM,
     habit_id: int,
-    *,
-    skip: int = 0,
-    limit: int = 30,
-) -> HabitHistoryResponse:
+) -> HabitActivityResponse:
     habit = db.scalar(
         select(HabitDBM)
         .options(joinedload(HabitDBM.goal))
@@ -345,6 +340,8 @@ def get_history(
     if habit is None:
         raise NotFoundError("Habit not found.")
 
+    habit_response = _serialize(habit, _compute_habit_streak(db, habit))
+
     plan = db.scalar(
         select(PlanDBM).where(
             PlanDBM.source_type == "habit",
@@ -352,85 +349,53 @@ def get_history(
             PlanDBM.user_id == current_user.id,
         )
     )
-
-    goal_in_plan: GoalDataInPlan | None = None
-    if habit.goal_id is not None and habit.goal is not None:
-        goal_in_plan = GoalDataInPlan(
-            id=habit.goal.id,
-            title=habit.goal.title,
-            category=habit.goal.category,
-        )
-
-    habit_response = _serialize(habit, _compute_habit_streak(db, habit))
-    empty_stats = HabitHistoryStats(total_records=0, total_done=0, total_missed=0, completion_rate=0.0)
-
     if plan is None:
-        return HabitHistoryResponse(habit=habit_response, records=[], stats=empty_stats, total=0, has_more=False)
+        return HabitActivityResponse(habit=habit_response, records=[])
 
-    # Aggregate counts in one query — no full table load needed
-    stats_row = db.execute(
+    today = date.today()
+    m = today.month - 11
+    y = today.year
+    if m <= 0:
+        m += 12
+        y -= 1
+    window_start = date(y, m, 1)
+
+    rows = db.execute(
         select(
-            func.count().label("total"),
-            func.sum(case((DailyPlanRecordDBM.status == "done", 1), else_=0)).label("total_done"),
-            func.sum(case((DailyPlanRecordDBM.status == "missed", 1), else_=0)).label("total_missed"),
+            DailyPlanRecordDBM.scheduled_date,
+            DailyPlanRecordDBM.status,
+            DailyPlanRecordDBM.actual_value,
+            DailyPlanRecordDBM.note,
         ).where(
             DailyPlanRecordDBM.plan_id == plan.id,
             DailyPlanRecordDBM.user_id == current_user.id,
+            DailyPlanRecordDBM.scheduled_date >= window_start,
         )
-    ).one()
-    total = int(stats_row.total or 0)
-    total_done = int(stats_row.total_done or 0)
-    total_missed = int(stats_row.total_missed or 0)
-    stats = HabitHistoryStats(
-        total_records=total,
-        total_done=total_done,
-        total_missed=total_missed,
-        completion_rate=round(total_done / total, 4) if total > 0 else 0.0,
-    )
-
-    raw_records = db.scalars(
-        select(DailyPlanRecordDBM)
-        .where(
-            DailyPlanRecordDBM.plan_id == plan.id,
-            DailyPlanRecordDBM.user_id == current_user.id,
-        )
-        .order_by(DailyPlanRecordDBM.scheduled_date.desc())
-        .offset(skip)
-        .limit(limit)
     ).all()
 
-    history: list[HabitHistoryRecord] = []
-    for r in raw_records:
-        item = DailyPlanItemResponse(
-            plan_id=plan.id,
-            source_type="habit",
-            source_id=habit_id,
-            title=r.title,
-            planner_type=r.planner_type,
-            planner_target=r.planner_target,
-            value_unit=r.value_unit,
-            priority=r.priority,
-            preferred_time=r.preferred_time,
-            specific_time=r.specific_time,
-            duration_minutes=r.duration_minutes,
-            goal=goal_in_plan,
-            saved_data=DailyPlanSavedData(
-                record_id=r.id,
-                status=r.status,
-                current_value=r.actual_value,
-                current_streak=0,
-                max_streak=0,
-                note=r.note or "",
-            ),
-        )
-        history.append(HabitHistoryRecord(date=r.scheduled_date, completed_at=r.completed_at, item=item))
+    # Single O(n) pass: compute running consecutive-done streak per date
+    rows_asc = sorted(rows, key=lambda r: r.scheduled_date)
+    running = 0
+    streak_map: dict = {}
+    for r in rows_asc:
+        if r.status == "done":
+            running += 1
+        elif r.status == "missed":
+            running = 0
+        streak_map[r.scheduled_date] = running
 
-    return HabitHistoryResponse(
+    return HabitActivityResponse(
         habit=habit_response,
-        records=history,
-        stats=stats,
-        total=total,
-        has_more=(skip + limit) < total,
+        records=[
+            HabitActivityRecord(
+                date=r.scheduled_date,
+                status=r.status,
+                value=r.actual_value,
+                note=r.note or None,
+                streak=streak_map[r.scheduled_date],
+            )
+            for r in rows
+        ],
     )
 
 

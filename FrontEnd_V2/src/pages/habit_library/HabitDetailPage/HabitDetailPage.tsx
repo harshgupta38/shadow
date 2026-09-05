@@ -25,6 +25,7 @@ import {
 } from "@/pages/habit_library/HabitCard/HabitCard.constants";
 import { HabitHeatmap } from "./HabitHeatmap/HabitHeatmap";
 import { HabitHistory } from "./HabitHistory/HabitHistory";
+import { DetailPageSkeleton } from "./DetailPageSkeleton/DetailPageSkeleton";
 
 import "@/pages/my_goals/GoalDetailPage/GoalDetailPage.scss";
 import "./HabitDetailPage.scss";
@@ -321,10 +322,7 @@ export function HabitDetailPage() {
   if (loading) {
     return (
       <div className="hd-page goal-detail-page">
-        <div className="hd-status-state">
-          <div className="spinner-border spinner-border-sm text-secondary" role="status" />
-          <span>Loading…</span>
-        </div>
+        <DetailPageSkeleton />
       </div>
     );
   }

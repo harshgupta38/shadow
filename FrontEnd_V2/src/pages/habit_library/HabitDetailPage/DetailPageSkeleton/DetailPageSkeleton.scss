@@ -1,0 +1,217 @@
+@keyframes dps-shimmer {
+  0%   { opacity: 0.55; }
+  50%  { opacity: 0.85; }
+  100% { opacity: 0.55; }
+}
+
+@keyframes dps-spin {
+  to { transform: rotate(360deg); }
+}
+
+// ── Outer wrap ────────────────────────────────────────────────────────────────
+
+.dps-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+// ── Ghost shell (real layout, faded + masked) ─────────────────────────────────
+
+.dps-ghost-shell {
+  width: 100%;
+  max-height: 320px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  pointer-events: none;
+  user-select: none;
+  mask-image: linear-gradient(to bottom, black 0%, black 45%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black 0%, black 45%, transparent 100%);
+}
+
+// ── Shared ghost atoms ────────────────────────────────────────────────────────
+
+.dps-ghost-line,
+.dps-ghost-pill,
+.dps-ghost-section-title,
+.dps-ghost-month-hdr,
+.dps-ghost-hm-label,
+.dps-ghost-hm-cell,
+.dps-ghost-avatar {
+  display: inline-block;
+  border-radius: 5px;
+  background: var(--jv-surface-3);
+  animation: dps-shimmer 1.6s ease-in-out infinite;
+}
+
+// ── Hero ghost ────────────────────────────────────────────────────────────────
+
+.dps-ghost-hero {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1.25rem !important;
+}
+
+.dps-ghost-ring {
+  flex-shrink: 0;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  border: 8px solid var(--jv-surface-3);
+  animation: dps-shimmer 1.6s ease-in-out infinite;
+}
+
+.dps-ghost-hero-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.dps-ghost-chips {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.dps-ghost-pill {
+  height: 22px;
+  border-radius: 20px;
+}
+
+.dps-ghost-line {
+  display: block;
+  height: 10px;
+  width: 70%;
+  border-radius: 5px;
+
+  &--title {
+    height: 18px;
+    width: 45%;
+  }
+}
+
+// ── Card ghost (heatmap + history) ───────────────────────────────────────────
+
+.dps-ghost-card {
+  padding: 1rem 1.25rem !important;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.dps-ghost-section-title {
+  height: 13px;
+  width: 80px;
+}
+
+// ── Heatmap ghost ─────────────────────────────────────────────────────────────
+
+.dps-ghost-heatmap {
+  display: flex;
+  gap: 17px;
+  overflow: hidden;
+}
+
+.dps-ghost-hm-month {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.dps-ghost-hm-label {
+  height: 10px;
+  width: 26px;
+  align-self: center;
+}
+
+.dps-ghost-hm-grid {
+  display: grid;
+  grid-template-rows: repeat(7, 13px);
+  grid-auto-flow: column;
+  grid-auto-columns: 13px;
+  gap: 3px;
+}
+
+.dps-ghost-hm-cell {
+  width: 13px;
+  height: 13px;
+  border-radius: 3px;
+}
+
+// ── History ghost ─────────────────────────────────────────────────────────────
+
+.dps-ghost-month-hdr {
+  height: 14px;
+  width: 120px;
+}
+
+.dps-ghost-history {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.dps-ghost-history-row {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.dps-ghost-avatar {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+}
+
+// ── Spinner + text core ───────────────────────────────────────────────────────
+
+.dps-core {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  max-width: 300px;
+  margin-top: -5rem;
+}
+
+.dps-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 14px;
+  background: var(--jv-brand-soft);
+  border: 1px solid color-mix(in srgb, var(--jv-brand-1) 28%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.1rem;
+}
+
+.dps-spinner {
+  display: block;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--jv-border);
+  border-top-color: var(--jv-brand-1);
+  border-radius: 50%;
+  animation: dps-spin 700ms linear infinite;
+}
+
+.dps-title {
+  margin: 0 0 0.45rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--jv-text);
+}
+
+.dps-sub {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--jv-muted);
+  line-height: 1.58;
+}

@@ -16,6 +16,7 @@ import { PriorityIcon } from "@/pages/habit_library/HabitCard/HabitCard.constant
 import { HabitHeatmap } from "@/pages/habit_library/HabitDetailPage/HabitHeatmap/HabitHeatmap";
 import { HabitHistory } from "@/pages/habit_library/HabitDetailPage/HabitHistory/HabitHistory";
 import { getSimpleFrequencyLabel } from "@/pages/habit_library/HabitCard/HabitCard.constants";
+import { DetailPageSkeleton } from "@/pages/habit_library/HabitDetailPage/DetailPageSkeleton/DetailPageSkeleton";
 
 import "@/pages/my_goals/GoalDetailPage/GoalDetailPage.scss";
 import "@/pages/habit_library/HabitDetailPage/HabitDetailPage.scss";
@@ -217,10 +218,7 @@ export function TaskDetailPage() {
   if (loading) {
     return (
       <div className="hd-page goal-detail-page">
-        <div className="hd-status-state">
-          <div className="spinner-border spinner-border-sm text-secondary" role="status" />
-          <span>Loading…</span>
-        </div>
+        <DetailPageSkeleton />
       </div>
     );
   }

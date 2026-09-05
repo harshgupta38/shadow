@@ -137,16 +137,8 @@ def _apply_fields(plan: PlanDBM, fields: dict) -> None:
 # ── Streak calculation ────────────────────────────────────────────────────────
 
 def _applicable_occurrence_dates(plan: PlanDBM, as_of_date: date) -> list[date]:
-    """Return all dates plan applies to from start_date through as_of_date.
-
-    Returns an empty list for weekly/monthly (count-based) recurrences because
-    those don't map to discrete per-day occurrences suitable for streak tracking.
-    """
+    """Return all dates plan applies to from start_date through as_of_date."""
     freqs = set(plan.frequencies)
-
-    # Count-based: no per-day discrete occurrences — skip streak calculation.
-    if "weekly" in freqs or "monthly" in freqs:
-        return []
 
     start = plan.start_date or as_of_date
     if start > as_of_date:

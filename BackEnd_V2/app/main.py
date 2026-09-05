@@ -33,9 +33,23 @@ from app.models.memory import UserMemoryDBM
 from app.services import planner_service, backup_service
 
 
+def _run_migrations(conn) -> None:
+    migrations = [
+        "ALTER TABLE tasks ADD COLUMN tracking_enabled INTEGER NOT NULL DEFAULT 0",
+    ]
+    for sql in migrations:
+        try:
+            conn.execute(sql)
+        except Exception:
+            pass  # column already exists
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    with engine.connect() as conn:
+        _run_migrations(conn)
+        conn.commit()
     with SessionLocal() as db:
         planner_service.sync_all_plans(db)
 

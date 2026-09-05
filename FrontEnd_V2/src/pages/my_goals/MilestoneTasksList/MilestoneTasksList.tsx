@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Dropdown } from "react-bootstrap";
-import { PencilSquare, ThreeDotsVertical, Check2Circle, Trash3, DashLg, PlusLg, Floppy } from "react-bootstrap-icons";
+import { PencilSquare, ThreeDotsVertical, Check2Circle, Trash3, DashLg, PlusLg, Floppy, BarChartLine } from "react-bootstrap-icons";
 import { useNavigate } from "react-router-dom";
 
 import { api, type MilestoneStatus, type TaskDataResponse, type TaskStatus } from "@/api";
@@ -301,6 +301,13 @@ export function MilestoneTasksList({ goalId, milestoneId, milestoneStatus, onNee
 												<ThreeDotsVertical size={16} />
 											</Dropdown.Toggle>
 											<Dropdown.Menu>
+												{task.planning_enabled && (
+													<Dropdown.Item onClick={() => navigate(
+														ROUTES.TASK_DETAIL.replace(":taskId", String(task.id))
+													)}>
+														<BarChartLine size={14} className="me-2" /> Overview
+													</Dropdown.Item>
+												)}
 												<Dropdown.Item onClick={() => navigate(
 													ROUTES.MY_GOAL_MILESTONE_TASK_EDIT
 														.replace(":goalId", String(goalId))

@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { ChevronDown, ChevronUp } from "react-bootstrap-icons";
 
-import type { HabitActivityRecord, HabitDataResponse } from "@/api";
+import type { HabitActivityRecord } from "@/api";
 
 import "./HabitHistory.scss";
 
@@ -9,6 +9,12 @@ const MONTH_FULL = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
 ];
+
+interface PlannerConfig {
+  planner_type: "simple" | "metric";
+  planner_target: number | null;
+  value_unit: string | null;
+}
 
 interface MonthGroup {
   year: number;
@@ -32,7 +38,7 @@ function SimpleContent({ record }: { record: HabitActivityRecord }) {
   );
 }
 
-function MetricContent({ record, habit }: { record: HabitActivityRecord; habit: HabitDataResponse }) {
+function MetricContent({ record, habit }: { record: HabitActivityRecord; habit: PlannerConfig }) {
   const value = record.value ?? 0;
   const target = habit.planner_target ?? 1;
   const pct = Math.round(Math.min(100, (value / target) * 100));
@@ -65,7 +71,7 @@ function MonthSection({
   onToggle,
 }: {
   group: MonthGroup;
-  habit: HabitDataResponse;
+  habit: PlannerConfig;
   expanded: boolean;
   onToggle: () => void;
 }) {
@@ -114,7 +120,7 @@ function MonthSection({
 // ── Main component ────────────────────────────────────────────────────────────
 
 interface HabitHistoryProps {
-  habit: HabitDataResponse;
+  habit: PlannerConfig;
   records: HabitActivityRecord[];
 }
 

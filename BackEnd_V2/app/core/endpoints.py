@@ -37,6 +37,7 @@ class Endpoints:
         FROM_PROPOSAL = "/save-task-from-proposal"
         GET_LIST = "/get-task-list"
         DETAIL = "/{task_id}"
+        ACTIVITY = "/{task_id}/activity"
 
     class HABITS:
         PREFIX = "/habit"

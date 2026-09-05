@@ -243,10 +243,12 @@ export function PlanCard({ item, onToggle, onSaveProgress, onSaveNote, onSaveNot
       <div className="plan-card-pills">
         <div className="plan-card-pills-left">
           <span
-            className={`plan-card-pill plan-card-pill--type-${item.source_type}${item.source_type === "habit" ? " plan-card-pill--clickable" : ""}`}
+            className={`plan-card-pill plan-card-pill--type-${item.source_type}${item.source_type === "habit" || item.source_type === "task" ? " plan-card-pill--clickable" : ""}`}
             onClick={item.source_type === "habit"
               ? () => navigate(ROUTES.HABIT_LIBRARY_DETAIL.replace(":habitId", String(item.source_id)))
-              : undefined}
+              : item.source_type === "task"
+                ? () => navigate(ROUTES.TASK_DETAIL.replace(":taskId", String(item.source_id)))
+                : undefined}
           >
             {item.source_type === "habit"
               ? <Bullseye size={11} />

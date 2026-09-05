@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
 
-import type { HabitActivityRecord, HabitDataResponse, PlanStatus } from "@/api";
+import type { HabitActivityRecord, PlanStatus } from "@/api";
 import { todayIso } from "@/services/date.service";
 
 import {
@@ -14,8 +14,13 @@ import type { MonthGrid, RecordEntry } from "./HabitHeatmap.constants";
 
 import "./HabitHeatmap.scss";
 
+interface PlannerConfig {
+  planner_type: "simple" | "metric";
+  planner_target: number | null;
+}
+
 interface HabitHeatmapProps {
-  habit: HabitDataResponse;
+  habit: PlannerConfig;
   records: HabitActivityRecord[];
 }
 

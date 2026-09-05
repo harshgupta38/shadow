@@ -371,6 +371,7 @@ def get_activity(
             DailyPlanRecordDBM.user_id == current_user.id,
             DailyPlanRecordDBM.scheduled_date >= window_start,
         )
+        .order_by(DailyPlanRecordDBM.scheduled_date.desc())
     ).all()
 
     # Single O(n) pass: compute running consecutive-done streak per date

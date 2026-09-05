@@ -78,7 +78,14 @@ function joinWithAmpersand(items: string[]): string {
   return `${items.slice(0, -1).join(", ")} & ${items[items.length - 1]}`;
 }
 
-export function getSimpleFrequencyLabel(habit: HabitDataResponse): {
+interface FrequencySource {
+  frequencies: string[];
+  weekly_count: number | null;
+  monthly_count: number | null;
+  specific_days: number[] | null;
+}
+
+export function getSimpleFrequencyLabel(habit: FrequencySource): {
   suffix: string;
   tooltip: string[] | null;
 } {
@@ -95,8 +102,8 @@ export function getSimpleFrequencyLabel(habit: HabitDataResponse): {
 
   if (freqs.includes("weekdays")) return { suffix: "on weekdays", tooltip: null };
   if (freqs.includes("weekends")) return { suffix: "on weekends", tooltip: null };
-  if (freqs.includes("weekly"))   return { suffix: `${habit.weekly_count ?? ""}×/week`,   tooltip: null };
-  if (freqs.includes("monthly"))  return { suffix: `${habit.monthly_count ?? ""}×/month`, tooltip: null };
+  if (freqs.includes("weekly"))   return { suffix: habit.weekly_count  ? `${habit.weekly_count}×/week`   : "weekly",  tooltip: null };
+  if (freqs.includes("monthly"))  return { suffix: habit.monthly_count ? `${habit.monthly_count}×/month` : "monthly", tooltip: null };
 
   if (freqs.includes("specific_day") && habit.specific_days?.length) {
     const days = [...habit.specific_days].sort((a, b) => a - b);
@@ -117,7 +124,7 @@ export function getSimpleFrequencyLabel(habit: HabitDataResponse): {
   return { suffix: "daily", tooltip: null };
 }
 
-export function getMetricFrequencyLabel(habit: HabitDataResponse): {
+export function getMetricFrequencyLabel(habit: FrequencySource): {
   suffix: string;
   tooltip: string[] | null;
 } {
@@ -135,8 +142,8 @@ export function getMetricFrequencyLabel(habit: HabitDataResponse): {
 
   if (freqs.includes("weekdays")) return { suffix: "on weekdays", tooltip: null };
   if (freqs.includes("weekends")) return { suffix: "on weekends", tooltip: null };
-  if (freqs.includes("weekly"))   return { suffix: `${habit.weekly_count ?? ""}×/week`,   tooltip: null };
-  if (freqs.includes("monthly"))  return { suffix: `${habit.monthly_count ?? ""}×/month`, tooltip: null };
+  if (freqs.includes("weekly"))   return { suffix: habit.weekly_count  ? `${habit.weekly_count}×/week`   : "weekly",  tooltip: null };
+  if (freqs.includes("monthly"))  return { suffix: habit.monthly_count ? `${habit.monthly_count}×/month` : "monthly", tooltip: null };
 
   if (freqs.includes("specific_day") && habit.specific_days?.length) {
     const days = [...habit.specific_days].sort((a, b) => a - b);

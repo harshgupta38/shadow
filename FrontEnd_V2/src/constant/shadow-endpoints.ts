@@ -27,6 +27,7 @@ export const ENDPOINTS = {
         FROM_PROPOSAL: "/save-task-from-proposal",
         GET_LIST: "/get-task-list",
         DETAIL: (id: number) => `/${id}`,
+        ACTIVITY: (id: number) => `/${id}/activity`,
     },
     HABITS: {
         PREFIX: "/habit",

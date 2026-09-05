@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ArrowRepeat, CalendarCheck, ChevronDown, ChevronUp, Grid3x3Gap, List, PencilSquare, PlusLg, Trash3, Link45deg } from "react-bootstrap-icons";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 
 import { api, type GoalDataResponse, type FilterState, type HabitDataResponse, type HabitCreateRequest } from "@/api";
 import { ApiError } from "@/api/client";
@@ -264,9 +264,9 @@ export function GoalDetailPage() {
 
   return (
     <section className="goal-detail-page">
-      <Link to={ROUTES.MY_GOALS} className="goal-detail-back-link">
-        <ArrowLeft size={16} /> Back to My Goals
-      </Link>
+      <button onClick={() => navigate(-1)} className="goal-detail-back-link">
+        <ArrowLeft size={16} /> Back
+      </button>
 
       {loadingGoal ? <GoalDetailLoadingSkeleton /> : null}
 

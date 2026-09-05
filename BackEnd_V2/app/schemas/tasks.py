@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date as date_type, datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -361,3 +361,17 @@ class TaskProposalListLLMSchema(BaseModel):
 class SaveTaskFromProposalRequest(BaseModel):
     proposal_id: str
     task: TaskCreateRequest
+
+
+class TaskActivityRecord(BaseModel):
+    date: date_type
+    status: str
+    value: float | None = None
+    note: str | None = None
+    streak: int = 0
+
+
+class TaskActivityResponse(BaseModel):
+    task: TaskDataResponse
+    goal_title: str | None = None
+    records: list[TaskActivityRecord]

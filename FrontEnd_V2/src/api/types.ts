@@ -520,6 +520,14 @@ export interface HabitActivityResponse {
   records: HabitActivityRecord[];
 }
 
+export type TaskActivityRecord = HabitActivityRecord;
+
+export interface TaskActivityResponse {
+  task: TaskDataResponse;
+  goal_title: string | null;
+  records: TaskActivityRecord[];
+}
+
 export interface PlanDataResponse {
   plan_id: number;
   source_type: PlanSourceType;

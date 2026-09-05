@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.api import (
+    appearance,
     auth,
     chat,
     goals,
@@ -16,6 +17,7 @@ from app.api import (
 api_router = APIRouter()
 
 for _module in (
+    appearance,
     auth,
     chat,
     goals,

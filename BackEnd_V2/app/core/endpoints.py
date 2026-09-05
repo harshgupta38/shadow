@@ -1,4 +1,8 @@
 class Endpoints:
+    class APPEARANCE:
+        PREFIX = "/settings/appearance"
+        DYNAMIC_RESOLVE = "/dynamic-resolve"
+
     class SYSTEM:
         ROOT = "/"
         HEALTH = "/health"

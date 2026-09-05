@@ -1,23 +1,15 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
-import { api, ChildProps, DynamicThemeResponse, EffectiveTheme, ThemePreference } from "@/api";
-import { getUserLocation } from "@/services/location.service";
+import { api, type ChildProps, type EffectiveTheme, type ThemePreference } from "@/api";
 import { DEFAULTS } from "@/constant/data";
+import { getUserLocation } from "@/services/location.service";
 
-interface ThemeContextValue {
-	effectiveTheme: EffectiveTheme;
-	toggleTheme: () => void;
-
-	themePreference: ThemePreference;
-	setThemePreference: (preference: ThemePreference) => void;
-}
-
-const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function applyTheme(effectiveTheme: EffectiveTheme): void {
 	const root = document.documentElement;
 	root.classList.add("theme-transitioning");
-	void root.offsetHeight; // force style flush so the browser captures the "from" state before colors change
+	void root.offsetHeight; // force repaint so the browser captures the "before" state
 	root.setAttribute("data-bs-theme", effectiveTheme);
 	root.style.colorScheme = effectiveTheme;
 	window.setTimeout(() => root.classList.remove("theme-transitioning"), 350);
@@ -29,103 +21,114 @@ function getBrowserTheme(): EffectiveTheme {
 	return "light";
 }
 
-async function fetchDynamicTheme(): Promise<DynamicThemeResponse> {
-	const location = (await getUserLocation()) ?? DEFAULTS.DEFAULT_INDIAN_LOCATION;
-	return api.theme.resolveDynamicTheme(location);
+// ── Context ───────────────────────────────────────────────────────────────────
+
+interface ThemeContextValue {
+	effectiveTheme: EffectiveTheme;
+	toggleTheme: () => void;
+	themePreference: ThemePreference;
+	setThemePreference: (preference: ThemePreference) => void;
 }
 
-export function ThemeProvider({ children }: ChildProps) {
-	const [themePreference, setThemePreference] = useState<ThemePreference>("browser");
-	const [effectiveTheme, setEffectiveTheme] = useState<EffectiveTheme>("light");
-	const [dynamicThemeInfo, setDynamicThemeInfo] = useState<DynamicThemeResponse | null>(null);
+const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
-	const toggleTheme = useCallback(() => {
-		setEffectiveTheme((current) =>
-			current === "light" ? "dark" : "light"
-		);
+export function ThemeProvider({ children }: ChildProps) {
+	const [themePreference, setThemePreference] = useState<ThemePreference>("dynamic");
+	const [effectiveTheme, setEffectiveTheme] = useState<EffectiveTheme>("light");
+
+	// Ref so the async loadDynamicTheme can check if preference changed mid-flight
+	const isDynamic = useRef(true);
+	const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+	const clearTimer = useCallback(() => {
+		if (timerRef.current !== null) {
+			clearTimeout(timerRef.current);
+			timerRef.current = null;
+		}
 	}, []);
 
 	const loadDynamicTheme = useCallback(async () => {
 		try {
-			const dynamicThemeInfo = await fetchDynamicTheme();
-			setEffectiveTheme(dynamicThemeInfo.effective_theme);
-			setDynamicThemeInfo(dynamicThemeInfo);
-		} catch (error) {
-			console.error("Failed to load dynamic theme.", error);
-			setEffectiveTheme(getBrowserTheme());
+			const location = (await getUserLocation()) ?? DEFAULTS.DEFAULT_INDIAN_LOCATION;
+			if (!isDynamic.current) return; // preference changed while we were fetching location
+
+			const data = await api.theme.resolveDynamicTheme(location);
+			if (!isDynamic.current) return; // preference changed while awaiting API
+
+			setEffectiveTheme(data.effective_theme);
+
+			const delay = new Date(data.next_transition_at).getTime() - Date.now();
+			if (delay > 0) {
+				timerRef.current = setTimeout(loadDynamicTheme, delay);
+			}
+		} catch {
+			if (isDynamic.current) {
+				// API unavailable — fall back to OS theme
+				setEffectiveTheme(getBrowserTheme());
+			}
 		}
 	}, []);
 
-	useEffect(() => {
-		setEffectiveTheme("light");
-		// switch (themePreference) {
-		// 	case "light":
-		// 		setEffectiveTheme("light");
-		// 		break;
-
-		// 	case "dark":
-		// 		setEffectiveTheme("dark");
-		// 		break;
-
-		// 	case "browser":
-		// 		setEffectiveTheme(getBrowserTheme());
-		// 		break;
-
-		// 	case "dynamic":
-		// 		loadDynamicTheme();
-		// 		break;
-		// }
-	}, [themePreference, loadDynamicTheme]);
-
+	// Apply theme to DOM whenever effectiveTheme changes
 	useEffect(() => {
 		applyTheme(effectiveTheme);
 	}, [effectiveTheme]);
 
+	// React to preference changes
+	useEffect(() => {
+		isDynamic.current = themePreference === "dynamic";
+		clearTimer();
+
+		switch (themePreference) {
+			case "light":
+				setEffectiveTheme("light");
+				break;
+
+			case "dark":
+				setEffectiveTheme("dark");
+				break;
+
+			case "browser":
+				setEffectiveTheme(getBrowserTheme());
+				break;
+
+			case "dynamic":
+				loadDynamicTheme();
+				break;
+		}
+
+		return clearTimer; // cancel pending timer if preference changes again
+	}, [themePreference, loadDynamicTheme, clearTimer]);
+
+	// Track OS theme changes when preference is "browser"
 	useEffect(() => {
 		if (typeof window === "undefined" || !window.matchMedia) return;
-
-		const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-		const handleThemeChange = () => {
+		const mq = window.matchMedia("(prefers-color-scheme: dark)");
+		const handler = () => {
 			if (themePreference !== "browser") return;
 			setEffectiveTheme(getBrowserTheme());
 		};
-
-		if (typeof mediaQuery.addEventListener === "function") {
-			mediaQuery.addEventListener("change", handleThemeChange);
-			return () => mediaQuery.removeEventListener("change", handleThemeChange);
+		if (typeof mq.addEventListener === "function") {
+			mq.addEventListener("change", handler);
+			return () => mq.removeEventListener("change", handler);
 		}
-
-		mediaQuery.addListener(handleThemeChange); // For older browsers
-		return () => mediaQuery.removeListener(handleThemeChange);
+		mq.addListener(handler); // legacy browsers
+		return () => mq.removeListener(handler);
 	}, [themePreference]);
 
-	useEffect(() => {
-		if (!dynamicThemeInfo)
-			return;
-
-		const nextTransition = new Date(dynamicThemeInfo.next_transition_at);
-		const delay = nextTransition.getTime() - Date.now();
-
-		if (delay <= 0) return;
-
-		let timeoutId: ReturnType<typeof setTimeout>;
-		timeoutId = setTimeout(() => {
-			loadDynamicTheme();
-		}, delay);
-		return () => {
-			clearTimeout(timeoutId);
-		};
-
-	}, [dynamicThemeInfo, loadDynamicTheme]);
+	// Toggling pins the user to a fixed light/dark preference so dynamic
+	// auto-transitions no longer override their choice.
+	const toggleTheme = useCallback(() => {
+		setEffectiveTheme((current) => {
+			const next: EffectiveTheme = current === "light" ? "dark" : "light";
+			setThemePreference(next);
+			return next;
+		});
+	}, []);
 
 	const value = useMemo(
-		() => ({
-			effectiveTheme,
-			themePreference,
-			setThemePreference,
-			toggleTheme,
-		}),
-		[effectiveTheme, themePreference, toggleTheme]
+		() => ({ effectiveTheme, themePreference, setThemePreference, toggleTheme }),
+		[effectiveTheme, themePreference, toggleTheme],
 	);
 
 	return (

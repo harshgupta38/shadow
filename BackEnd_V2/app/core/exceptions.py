@@ -30,3 +30,7 @@ class ValidationError(AppError):
 class NotFoundError(AppError):
     status_code = 404
     detail = "Resource not found."
+
+class ServiceUnavailableError(AppError):
+    status_code = 503
+    detail = "An external service is temporarily unavailable. Please try again later."

@@ -242,7 +242,12 @@ export function PlanCard({ item, onToggle, onSaveProgress, onSaveNote, onSaveNot
       {/* Row 3 — pills */}
       <div className="plan-card-pills">
         <div className="plan-card-pills-left">
-          <span className={`plan-card-pill plan-card-pill--type-${item.source_type}`}>
+          <span
+            className={`plan-card-pill plan-card-pill--type-${item.source_type}${item.source_type === "habit" ? " plan-card-pill--clickable" : ""}`}
+            onClick={item.source_type === "habit"
+              ? () => navigate(ROUTES.HABIT_LIBRARY_DETAIL.replace(":habitId", String(item.source_id)))
+              : undefined}
+          >
             {item.source_type === "habit"
               ? <Bullseye size={11} />
               : item.source_type === "schedule"

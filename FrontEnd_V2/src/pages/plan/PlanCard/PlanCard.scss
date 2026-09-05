@@ -196,6 +196,8 @@
   line-height: 1;
   white-space: nowrap;
 
+  &--clickable { cursor: pointer; }
+
   // source type
   &--type-habit     { background: var(--jv-brand-soft);                                  color: var(--jv-brand-1); }
   &--type-task      { background: var(--jv-info-soft);                                   color: var(--jv-info);    }

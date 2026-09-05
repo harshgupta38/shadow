@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 import type { HabitActivityRecord, HabitDataResponse, PlanStatus } from "@/api";
 import { todayIso } from "@/services/date.service";
@@ -24,6 +24,7 @@ export function HabitHeatmap({ habit, records }: HabitHeatmapProps) {
   const plannerTarget = habit.planner_target ?? null;
 
   const today = useMemo(() => todayIso(), []);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const recordMap = useMemo(() => {
     const map = new Map<string, RecordEntry>();
@@ -53,6 +54,12 @@ export function HabitHeatmap({ habit, records }: HabitHeatmapProps) {
     return grids;
   }, [recordMap, today, plannerTarget]);
 
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollLeft = scrollRef.current.scrollWidth;
+    }
+  }, [months]);
+
   if (months.length === 0) return null;
 
   return (
@@ -64,7 +71,7 @@ export function HabitHeatmap({ habit, records }: HabitHeatmapProps) {
       </div>
 
       <div className="hl-card-body hh-body">
-        <div className="hh-months-container">
+        <div className="hh-months-container" ref={scrollRef}>
           <div className="hh-months">
             {months.map((mg) => (
               <div key={`${mg.year}-${mg.month}`} className="hh-month">

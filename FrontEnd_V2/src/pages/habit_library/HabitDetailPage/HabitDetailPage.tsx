@@ -332,14 +332,14 @@ export function HabitDetailPage() {
   if (error || !habit) {
     return (
       <div className="hd-page goal-detail-page">
-        <Link to={ROUTES.HABIT_LIBRARY} className="goal-detail-back-link">
+        <button onClick={() => navigate(-1)} className="goal-detail-back-link">
           <ArrowLeft size={15} /> Library
-        </Link>
+        </button>
         <div className="hd-status-state hd-status-state--error">
           <p>{error ?? "Habit not found."}</p>
-          <Link to={ROUTES.HABIT_LIBRARY} className="btn btn-sm btn-outline-secondary">
-            Back to Library
-          </Link>
+          <button onClick={() => navigate(-1)} className="btn btn-sm btn-outline-secondary">
+            Back
+          </button>
         </div>
       </div>
     );
@@ -347,9 +347,9 @@ export function HabitDetailPage() {
 
   return (
     <div className="hd-page goal-detail-page habit-library-page">
-      <Link to={ROUTES.HABIT_LIBRARY} className="goal-detail-back-link">
-        <ArrowLeft size={15} /> Back to Habit Library
-      </Link>
+      <button onClick={() => navigate(-1)} className="goal-detail-back-link">
+        <ArrowLeft size={15} /> Back
+      </button>
 
       <HabitHero habit={habit} completionPct={currentMonthPct} onDelete={handleDelete} deleting={deleting} />
 

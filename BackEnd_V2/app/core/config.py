@@ -5,7 +5,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     app_name: str = "Shadow API"
     app_version: str = "2.0.0"
-    api_prefix: str = "/api"
+    api_prefix: str = "/v2"
 
     database_url: str = "sqlite:///shadow.db"
     jwt_secret: str = "change-this-in-production"

@@ -245,6 +245,8 @@ export function TaskDetailPage() {
     planner_type: task.planner_type,
     planner_target: task.planner_target,
     value_unit: task.value_unit,
+    frequencies: task.frequencies,
+    specific_days: task.specific_days ?? null,
   } as const;
 
   return (

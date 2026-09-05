@@ -17,6 +17,8 @@ import "./HabitHeatmap.scss";
 interface PlannerConfig {
   planner_type: "simple" | "metric";
   planner_target: number | null;
+  frequencies: string[];
+  specific_days: number[] | null;
 }
 
 interface HabitHeatmapProps {
@@ -27,6 +29,8 @@ interface HabitHeatmapProps {
 export function HabitHeatmap({ habit, records }: HabitHeatmapProps) {
   const plannerType = habit.planner_type as "simple" | "metric";
   const plannerTarget = habit.planner_target ?? null;
+  const frequencies = habit.frequencies;
+  const specificDays = habit.specific_days;
 
   const today = useMemo(() => todayIso(), []);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -52,12 +56,12 @@ export function HabitHeatmap({ habit, records }: HabitHeatmapProps) {
 
     const grids: MonthGrid[] = [];
     while (y < endYear || (y === endYear && m <= endMonth)) {
-      grids.push(buildGrid(y, m, recordMap, today, plannerTarget));
+      grids.push(buildGrid(y, m, recordMap, today, plannerTarget, frequencies, specificDays));
       m++;
       if (m > 11) { m = 0; y++; }
     }
     return grids;
-  }, [recordMap, today, plannerTarget]);
+  }, [recordMap, today, plannerTarget, frequencies, specificDays]);
 
   useEffect(() => {
     if (scrollRef.current) {

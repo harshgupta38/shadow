@@ -11,7 +11,7 @@ export const MONTH_NAMES = [
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type CellStatus = PlanStatus | "none" | "future" | "empty";
+export type CellStatus = PlanStatus | "none" | "future" | "empty" | "off";
 
 export interface RecordEntry {
   status: PlanStatus;
@@ -33,6 +33,36 @@ export interface MonthGrid {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+const DOW_MAP: Record<string, number> = {
+  sunday: 0, monday: 1, tuesday: 2, wednesday: 3,
+  thursday: 4, friday: 5, saturday: 6,
+};
+
+export function isScheduledDay(
+  date: Date,
+  frequencies: string[],
+  specificDays: number[] | null,
+): boolean {
+  if (!frequencies.length || frequencies.includes("daily")) return true;
+
+  const dow = date.getDay();
+  const dom = date.getDate();
+
+  for (const freq of frequencies) {
+    if (freq === "weekdays" && dow >= 1 && dow <= 5) return true;
+    if (freq === "weekends" && (dow === 0 || dow === 6)) return true;
+    if (DOW_MAP[freq] === dow) return true;
+    if (freq === "weekly" || freq === "monthly") return true;
+    if (freq === "first_of_month" && dom === 1) return true;
+    if (freq === "end_of_month") {
+      const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+      if (dom === lastDay) return true;
+    }
+    if (freq === "specific_day" && specificDays?.includes(dom)) return true;
+  }
+  return false;
+}
+
 export function getCellClass(cell: DayCell, plannerType: "simple" | "metric"): string {
   if (!cell.day) return "hh-cell hh-cell--empty";
   const hasValue = plannerType === "metric" && (cell.ratio ?? 0) > 0;
@@ -40,7 +70,7 @@ export function getCellClass(cell: DayCell, plannerType: "simple" | "metric"): s
     return "hh-cell"; // color applied via inline style
   }
   if (cell.status === "done") return "hh-cell hh-cell--done";
-  if (cell.status === "future") return "hh-cell hh-cell--future";
+  if (cell.status === "future" || cell.status === "off") return "hh-cell hh-cell--future";
   return "hh-cell hh-cell--blank";
 }
 
@@ -60,6 +90,8 @@ export function buildGrid(
   recordMap: Map<string, RecordEntry>,
   today: string,
   plannerTarget: number | null,
+  frequencies: string[],
+  specificDays: number[] | null,
 ): MonthGrid {
   const firstDow = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -83,7 +115,8 @@ export function buildGrid(
     } else if (dateStr > today) {
       status = "future";
     } else {
-      status = "none";
+      const scheduled = isScheduledDay(new Date(year, month, d), frequencies, specificDays);
+      status = scheduled ? "none" : "off";
     }
 
     cells.push({ day: d, status, dateStr, ratio });
@@ -97,6 +130,7 @@ export function cellTitle(dateStr: string, status: CellStatus, ratio?: number): 
   const label = d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
   if (status === "none" || status === "missed") return `${label} — no record`;
   if (status === "future") return label;
+  if (status === "off") return `${label} — not scheduled`;
   if ((status === "done" || status === "due") && ratio != null && ratio > 0) return `${label} — ${Math.round(ratio * 100)}%`;
   return `${label} — ${status}`;
 }

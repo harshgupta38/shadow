@@ -8,6 +8,7 @@ class Endpoints:
         HEALTH = "/health"
         SERVER_LOG = "/server/log"
         ADMIN_SQL = "/admin/sql"
+        ADMIN_DATABASE = "/admin/database" # extra
 
     class SHORTCUTS:
         PREFIX = "/shortcuts"

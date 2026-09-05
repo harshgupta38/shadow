@@ -5,7 +5,7 @@ import subprocess
 from pathlib import Path
 
 from fastapi import APIRouter, Header, HTTPException
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import FileResponse, PlainTextResponse
 from pydantic import BaseModel
 
 from app.core.config import settings
@@ -93,6 +93,26 @@ async def get_server_log():
         raise HTTPException(status_code=404, detail="server.log not found.")
 
     return log_file.read_text(encoding="utf-8")
+
+
+@router.get(ENDPOINTS.SYSTEM.ADMIN_DATABASE, tags=["admin"]) # extra
+def download_database(x_admin_secret: str = Header(...)):
+    if x_admin_secret != _ADMIN_SECRET:
+        raise HTTPException(status_code=403, detail="Forbidden.")
+
+    database_url = settings.database_url
+    if not database_url.startswith("sqlite:///"):
+        raise HTTPException(status_code=400, detail="Database is not SQLite.")
+
+    database_path = Path(database_url[len("sqlite:///"):])
+    if not database_path.exists():
+        raise HTTPException(status_code=404, detail="Database file not found.")
+
+    return FileResponse(
+        path=database_path,
+        media_type="application/x-sqlite3",
+        filename="shadow.db",
+    )
 
 
 @router.post(ENDPOINTS.SYSTEM.ADMIN_SQL, tags=["admin"])

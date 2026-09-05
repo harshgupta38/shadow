@@ -325,6 +325,9 @@ def update_task(
             else None
         )
 
+    if "tracking_enabled" in data.model_fields_set and data.tracking_enabled is not None:
+        task.tracking_enabled = data.tracking_enabled
+
     if "planning_enabled" in data.model_fields_set and data.planning_enabled is not None:
         if data.planning_enabled and task.task_type == "Binary":
             raise ValidationError(

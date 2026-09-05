@@ -6,8 +6,9 @@ from sqlalchemy.orm import Session
 from app.models.habit import HabitDBM
 from app.models.plan import PlanDBM
 from app.models.plan_record import DailyPlanRecordDBM
+from app.models.task import TaskDBM
 from app.models.user import UserDBM
-from app.schemas.track_progress import EligibleHabitItem, HabitTrackItem
+from app.schemas.track_progress import EligibleHabitItem, EligibleTaskItem, HabitTrackItem, SetTaskTrackingRequest, TaskTrackItem
 from app.services import planner_service
 
 _COLOR_KEYS = ["success", "info", "brand", "warn", "violet"]
@@ -146,3 +147,153 @@ def get_habits_with_history(
         ))
 
     return result
+
+
+# ── Task tracking ──────────────────────────────────────────────────────────────
+
+def get_eligible_tasks(
+    db: Session,
+    current_user: UserDBM,
+) -> list[EligibleTaskItem]:
+    tasks = db.scalars(
+        select(TaskDBM)
+        .where(
+            TaskDBM.user_id == current_user.id,
+            TaskDBM.status == "In Progress",
+            TaskDBM.planning_enabled == True,  # noqa: E712
+        )
+        .order_by(TaskDBM.id.desc())
+    ).all()
+    return [
+        EligibleTaskItem(
+            id=t.id,
+            title=t.title,
+            priority=t.priority,
+            planner_type=t.planner_type,
+            tracking_enabled=t.tracking_enabled,
+        )
+        for t in tasks
+    ]
+
+
+def get_tasks_with_history(
+    db: Session,
+    current_user: UserDBM,
+    *,
+    today: date | None = None,
+) -> list[TaskTrackItem]:
+    if today is None:
+        today = date.today()
+    days_since_sunday = (today.weekday() + 1) % 7
+    week_start = today - timedelta(days=days_since_sunday)
+
+    tasks = db.scalars(
+        select(TaskDBM)
+        .where(
+            TaskDBM.user_id == current_user.id,
+            TaskDBM.tracking_enabled == True,  # noqa: E712
+            TaskDBM.status == "In Progress",
+            TaskDBM.planning_enabled == True,  # noqa: E712
+        )
+        .order_by(TaskDBM.id.desc())
+    ).all()
+
+    if not tasks:
+        return []
+
+    task_ids = [t.id for t in tasks]
+
+    plans = db.scalars(
+        select(PlanDBM).where(
+            PlanDBM.source_type == "task",
+            PlanDBM.source_id.in_(task_ids),
+            PlanDBM.user_id == current_user.id,
+        )
+    ).all()
+    plan_by_task_id: dict[int, PlanDBM] = {p.source_id: p for p in plans}
+    plan_ids = [p.id for p in plans]
+
+    records_for_streak: dict[int, list[DailyPlanRecordDBM]] = {}
+    records_for_history: dict[int, dict[date, DailyPlanRecordDBM]] = {t.id: {} for t in tasks}
+
+    if plan_ids:
+        for r in db.scalars(
+            select(DailyPlanRecordDBM).where(
+                DailyPlanRecordDBM.plan_id.in_(plan_ids),
+                DailyPlanRecordDBM.user_id == current_user.id,
+                DailyPlanRecordDBM.scheduled_date <= today,
+            )
+        ).all():
+            records_for_streak.setdefault(r.plan_id, []).append(r)
+            if r.scheduled_date >= week_start and r.source_id in records_for_history:
+                records_for_history[r.source_id][r.scheduled_date] = r
+
+    result: list[TaskTrackItem] = []
+    for task in tasks:
+        plan = plan_by_task_id.get(task.id)
+        plan_records = records_for_streak.get(plan.id, []) if plan else []
+        current_streak, max_streak = (
+            planner_service.compute_streaks(plan, plan_records, today)
+            if plan else (0, 0)
+        )
+
+        day_map = records_for_history[task.id]
+        is_metric = task.planner_type == "metric"
+
+        history: list[int] = []
+        for i in range(7):
+            day = week_start + timedelta(days=i)
+            if day > today:
+                history.append(0)
+                continue
+            rec = day_map.get(day)
+            if rec and is_metric:
+                history.append(int(rec.actual_value or 0))
+            elif rec and rec.status == "done":
+                history.append(1)
+            else:
+                history.append(0)
+
+        today_rec = day_map.get(today)
+        done_today = bool(today_rec and today_rec.status == "done")
+        current_value = int(today_rec.actual_value or 0) if today_rec else 0
+
+        result.append(TaskTrackItem(
+            id=task.id,
+            title=task.title,
+            planner_type=task.planner_type,
+            planner_target=task.planner_target,
+            value_unit=task.value_unit,
+            current_streak=current_streak,
+            max_streak=max_streak,
+            history=history,
+            done_today=done_today,
+            current_value=current_value,
+            color=_color(task.id),
+        ))
+
+    return result
+
+
+def set_task_tracking(
+    db: Session,
+    current_user: UserDBM,
+    data: SetTaskTrackingRequest,
+) -> None:
+    enabled_set = set(data.enabled_ids)
+
+    # Fetch all In Progress planning-enabled tasks for this user.
+    tasks = db.scalars(
+        select(TaskDBM).where(
+            TaskDBM.user_id == current_user.id,
+            TaskDBM.status == "In Progress",
+            TaskDBM.planning_enabled == True,  # noqa: E712
+        )
+    ).all()
+
+    for task in tasks:
+        new_val = task.id in enabled_set
+        if task.tracking_enabled != new_val:
+            task.tracking_enabled = new_val
+
+    db.commit()

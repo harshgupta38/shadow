@@ -6,8 +6,16 @@ import { MetricHabitCard } from "./MetricHabitCard/MetricHabitCard";
 import { SimpleHabitCard } from "./SimpleHabitCard/SimpleHabitCard";
 import { TrackHabitPanel } from "./TrackHabitPanel/TrackHabitPanel";
 import { trackProgressApi } from "@/api/track_progress";
-import type { EligibleHabitItem, HabitTrackItem } from "@/api/types";
-import { TODAY_COL, WEEK_DAY_LABELS, WEEK_RANGE, toMetricData, toSimpleData } from "./TrackProgressPage.constants";
+import type { EligibleHabitItem, EligibleTaskItem, HabitTrackItem, TaskTrackItem } from "@/api/types";
+import {
+  TODAY_COL,
+  WEEK_DAY_LABELS,
+  WEEK_RANGE,
+  toMetricData,
+  toMetricDataFromTask,
+  toSimpleData,
+  toSimpleDataFromTask,
+} from "./TrackProgressPage.constants";
 import "@/pages/track_progress/TrackProgressPage.scss";
 
 
@@ -124,37 +132,60 @@ type LoadState = "loading" | "error" | "loaded";
 
 export function TrackProgressPage() {
   const toast = useToast();
+
   const [habits, setHabits] = useState<HabitTrackItem[]>([]);
+  const [tasks, setTasks] = useState<TaskTrackItem[]>([]);
   const [allHabits, setAllHabits] = useState<EligibleHabitItem[]>([]);
+  const [allTasks, setAllTasks] = useState<EligibleTaskItem[]>([]);
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [panelOpen, setPanelOpen] = useState(false);
 
   function fetchTrackData() {
     setLoadState("loading");
-    trackProgressApi.getHabits()
-      .then(trackData => { setHabits(trackData); setLoadState("loaded"); })
+    Promise.all([trackProgressApi.getHabits(), trackProgressApi.getTasks()])
+      .then(([habitData, taskData]) => {
+        setHabits(habitData);
+        setTasks(taskData);
+        setLoadState("loaded");
+      })
       .catch(() => setLoadState("error"));
   }
 
   useEffect(() => { fetchTrackData(); }, []);
 
   function openPanel() {
-    trackProgressApi.getEligibleHabits()
-      .then(allData => { setAllHabits(allData); setPanelOpen(true); })
-      .catch(() => { toast.error("Could not load habits. Please try again."); });
+    Promise.all([trackProgressApi.getEligibleHabits(), trackProgressApi.getEligibleTasks()])
+      .then(([habitData, taskData]) => {
+        setAllHabits(habitData);
+        setAllTasks(taskData);
+        setPanelOpen(true);
+      })
+      .catch(() => toast.error("Could not load items. Please try again."));
   }
 
-
-  function handlePanelSave(enabledIds: Set<number>) {
-    trackProgressApi.setTracking(Array.from(enabledIds))
+  function handlePanelSave(enabledHabitIds: Set<number>, enabledTaskIds: Set<number>) {
+    Promise.all([
+      trackProgressApi.setTracking(Array.from(enabledHabitIds)),
+      trackProgressApi.setTaskTracking(Array.from(enabledTaskIds)),
+    ])
       .then(() => {
         setPanelOpen(false);
-        Promise.all([trackProgressApi.getHabits(), trackProgressApi.getEligibleHabits()] as [Promise<HabitTrackItem[]>, Promise<EligibleHabitItem[]>])
-          .then(([trackData, allData]) => { setHabits(trackData); setAllHabits(allData); })
-          .catch(() => { toast.error("Tracking saved, but we could not refresh habits. Please reload."); });
+        Promise.all([
+          trackProgressApi.getHabits(),
+          trackProgressApi.getTasks(),
+          trackProgressApi.getEligibleHabits(),
+          trackProgressApi.getEligibleTasks(),
+        ]).then(([habitData, taskData, allHabitData, allTaskData]) => {
+          setHabits(habitData);
+          setTasks(taskData);
+          setAllHabits(allHabitData);
+          setAllTasks(allTaskData);
+        }).catch(() => toast.error("Tracking saved, but we could not refresh. Please reload."));
       })
-      .catch(() => { toast.error("Could not save tracking changes. Please try again."); });
+      .catch(() => toast.error("Could not save tracking changes. Please try again."));
   }
+
+  // ── Derived data ──────────────────────────────────────────────────────────
 
   const metricHabits = useMemo(
     () => habits.filter(h => h.planner_type === "metric").map(toMetricData),
@@ -164,36 +195,66 @@ export function TrackProgressPage() {
     () => habits.filter(h => h.planner_type === "simple").map(toSimpleData),
     [habits],
   );
+  const metricTasks = useMemo(
+    () => tasks.filter(t => t.planner_type === "metric").map(toMetricDataFromTask),
+    [tasks],
+  );
+  const simpleTasks = useMemo(
+    () => tasks.filter(t => t.planner_type === "simple").map(toSimpleDataFromTask),
+    [tasks],
+  );
   const matrixRows = useMemo(
-    () => habits.map(h => ({
-      id: h.id,
-      title: h.title,
-      week: h.history.map(val =>
-        h.planner_type === "metric" ? val >= (h.planner_target ?? 1) : val > 0
-      ),
-    })),
-    [habits],
+    () => [
+      ...habits.map(h => ({
+        id: h.id,
+        title: h.title,
+        week: h.history.map(val =>
+          h.planner_type === "metric" ? val >= (h.planner_target ?? 1) : val > 0
+        ),
+      })),
+      ...tasks.map(t => ({
+        id: -t.id, // negative to avoid collision with habit ids in the matrix key
+        title: t.title,
+        week: t.history.map(val =>
+          t.planner_type === "metric" ? val >= (t.planner_target ?? 1) : val > 0
+        ),
+      })),
+    ],
+    [habits, tasks],
   );
 
-  const panelHabits = useMemo(
-    () => {
-      const trackedIds = new Set(habits.map(h => h.id));
-      const priorityRank: Record<string, number> = { highest: 0, high: 1, medium: 2, low: 3, lowest: 4 };
-      return allHabits
-        .map(h => ({
-          id: h.id,
-          title: h.title,
-          type: h.planner_type === "metric" ? ("Metric" as const) : ("Simple" as const),
-          priority: h.priority,
-          category: h.category ?? null,
-          active: trackedIds.has(h.id),
-        }))
-        .sort((a, b) => (priorityRank[a.priority] ?? 99) - (priorityRank[b.priority] ?? 99));
-    },
-    [allHabits, habits],
+  const priorityRank: Record<string, number> = { highest: 0, high: 1, medium: 2, low: 3, lowest: 4 };
+  const trackedHabitIds = useMemo(() => new Set(habits.map(h => h.id)), [habits]);
+  const trackedTaskIds = useMemo(() => new Set(tasks.map(t => t.id)), [tasks]);
+
+  const panelHabits = useMemo(() =>
+    allHabits
+      .map(h => ({
+        id: h.id,
+        title: h.title,
+        type: h.planner_type === "metric" ? ("Metric" as const) : ("Simple" as const),
+        priority: h.priority,
+        category: h.category ?? null,
+        active: trackedHabitIds.has(h.id),
+      }))
+      .sort((a, b) => (priorityRank[a.priority] ?? 99) - (priorityRank[b.priority] ?? 99)),
+    [allHabits, trackedHabitIds],
   );
 
-  const isEmpty = loadState === "loaded" && habits.length === 0;
+  const panelTasks = useMemo(() =>
+    allTasks
+      .map(t => ({
+        id: t.id,
+        title: t.title,
+        type: t.planner_type === "metric" ? ("Metric" as const) : ("Simple" as const),
+        priority: t.priority,
+        active: trackedTaskIds.has(t.id),
+      }))
+      .sort((a, b) => (priorityRank[a.priority] ?? 99) - (priorityRank[b.priority] ?? 99)),
+    [allTasks, trackedTaskIds],
+  );
+
+  const isEmpty = loadState === "loaded" && habits.length === 0 && tasks.length === 0;
 
   const pageHeader = (
     <PageHeader
@@ -242,6 +303,7 @@ export function TrackProgressPage() {
       {panelOpen && (
         <TrackHabitPanel
           habits={panelHabits}
+          tasks={panelTasks}
           onClose={() => setPanelOpen(false)}
           onSave={handlePanelSave}
         />
@@ -268,30 +330,28 @@ export function TrackProgressPage() {
             </div>
           </section>
 
-          {metricHabits.length > 0 && (
+          {(metricHabits.length > 0 || metricTasks.length > 0) && (
             <section className="tp-section mt-4">
               <div className="tp-section-head">
-                <h2 className="tp-section-title">Metric Habits</h2>
-                <span className="tp-section-chip">{metricHabits.length}</span>
+                <h2 className="tp-section-title">Metric Tracking</h2>
+                <span className="tp-section-chip">{metricHabits.length + metricTasks.length}</span>
               </div>
               <div className="tp-cards-grid">
-                {metricHabits.map(h => (
-                  <MetricHabitCard key={h.id} habit={h} />
-                ))}
+                {metricHabits.map(h => <MetricHabitCard key={`h-${h.id}`} habit={h} />)}
+                {metricTasks.map(t => <MetricHabitCard key={`t-${t.id}`} habit={t} />)}
               </div>
             </section>
           )}
 
-          {simpleHabits.length > 0 && (
+          {(simpleHabits.length > 0 || simpleTasks.length > 0) && (
             <section className="tp-section mt-4">
               <div className="tp-section-head">
-                <h2 className="tp-section-title">Habit Streaks</h2>
-                <span className="tp-section-chip">{simpleHabits.length}</span>
+                <h2 className="tp-section-title">Streaks</h2>
+                <span className="tp-section-chip">{simpleHabits.length + simpleTasks.length}</span>
               </div>
               <div className="tp-cards-grid">
-                {simpleHabits.map(h => (
-                  <SimpleHabitCard key={h.id} habit={h} />
-                ))}
+                {simpleHabits.map(h => <SimpleHabitCard key={`h-${h.id}`} habit={h} />)}
+                {simpleTasks.map(t => <SimpleHabitCard key={`t-${t.id}`} habit={t} />)}
               </div>
             </section>
           )}

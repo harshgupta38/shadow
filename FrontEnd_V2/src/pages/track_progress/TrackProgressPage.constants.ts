@@ -1,5 +1,5 @@
 import { todayDate } from "@/services/date.service";
-import type { HabitTrackItem, MetricHabitData, SimpleHabitData } from "@/api/types";
+import type { HabitTrackItem, MetricHabitData, SimpleHabitData, TaskTrackItem } from "@/api/types";
 
 export const TODAY = todayDate();
 
@@ -46,5 +46,34 @@ export function toSimpleData(h: HabitTrackItem): SimpleHabitData {
         history: h.history.map(v => v > 0),
         done_today: h.done_today,
         color: h.color,
+    };
+}
+
+export function toMetricDataFromTask(t: TaskTrackItem): MetricHabitData {
+    return {
+        id: t.id,
+        title: t.title,
+        value_unit: t.value_unit ?? "",
+        planner_target: t.planner_target ?? 1,
+        current_streak: t.current_streak,
+        max_streak: t.max_streak,
+        category: null,
+        history: t.history,
+        color: t.color,
+        done_today: t.done_today,
+        current_value: t.current_value,
+    };
+}
+
+export function toSimpleDataFromTask(t: TaskTrackItem): SimpleHabitData {
+    return {
+        id: t.id,
+        title: t.title,
+        current_streak: t.current_streak,
+        max_streak: t.max_streak,
+        category: null,
+        history: t.history.map(v => v > 0),
+        done_today: t.done_today,
+        color: t.color,
     };
 }

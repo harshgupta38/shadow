@@ -4,6 +4,7 @@ from pydantic import BaseModel
 
 from app.schemas.goals import CategoryType
 from app.schemas.habits import HabitPriority, HabitType
+from app.schemas.tasks import TaskPriority, TaskPlannerType
 
 ColorKey = Literal["success", "info", "brand", "warn", "violet"]
 
@@ -23,7 +24,7 @@ class HabitTrackItem(BaseModel):
     planner_type: HabitType
     planner_target: int | None
     value_unit: str | None
-    
+
     current_streak: int
     max_streak: int
     # 7 entries — index 0 = Sunday, index 6 = Saturday of the current week.
@@ -33,5 +34,32 @@ class HabitTrackItem(BaseModel):
     done_today: bool
     current_value: int  # today's actual_value (0 if not logged yet)
     color: ColorKey
+
+
+class EligibleTaskItem(BaseModel):
+    id: int
+    title: str
+    priority: TaskPriority
+    planner_type: TaskPlannerType
+    tracking_enabled: bool
+
+
+class TaskTrackItem(BaseModel):
+    id: int
+    title: str
+    planner_type: TaskPlannerType
+    planner_target: int | None
+    value_unit: str | None
+
+    current_streak: int
+    max_streak: int
+    history: list[int]
+    done_today: bool
+    current_value: int
+    color: ColorKey
+
+
+class SetTaskTrackingRequest(BaseModel):
+    enabled_ids: list[int]
 
 

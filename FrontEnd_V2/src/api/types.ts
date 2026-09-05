@@ -641,6 +641,28 @@ export interface EligibleHabitItem {
   planner_type: HabitType;
 }
 
+export interface EligibleTaskItem {
+  id: number;
+  title: string;
+  priority: TaskPriority;
+  planner_type: TaskPlannerType;
+  tracking_enabled: boolean;
+}
+
+export interface TaskTrackItem {
+  id: number;
+  title: string;
+  planner_type: TaskPlannerType;
+  planner_target: number | null;
+  value_unit: string | null;
+  current_streak: number;
+  max_streak: number;
+  history: number[];
+  done_today: boolean;
+  current_value: number;
+  color: ColorKey;
+}
+
 export interface MetricHabitData extends HabitBaseData {
   value_unit: string;
   planner_target: number;

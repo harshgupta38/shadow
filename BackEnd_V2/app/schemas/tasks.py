@@ -170,6 +170,7 @@ class TaskUpdateRequest(BaseModel):
     value_unit: str | None = Field(default=None, max_length=64)
 
     planning_enabled: bool | None = None
+    tracking_enabled: bool | None = None
     planner_type: TaskPlannerType | None = None
     planner_target: int | None = None
 

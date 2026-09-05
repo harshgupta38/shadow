@@ -54,6 +54,9 @@ export const ENDPOINTS = {
         HABITS: "/habit-record",
         SET_TRACKING: "/set-habit-tracking",
         ELIGIBLE_HABITS: "/eligible-habits",
+        TASKS: "/task-record",
+        SET_TASK_TRACKING: "/set-task-tracking",
+        ELIGIBLE_TASKS: "/eligible-tasks",
     },
     CHAT: {
         PREFIX: "/chat",

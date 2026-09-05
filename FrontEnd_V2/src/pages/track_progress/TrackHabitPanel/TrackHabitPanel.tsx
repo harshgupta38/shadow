@@ -24,17 +24,31 @@ export interface HabitListItem {
   active: boolean;
 }
 
+export interface TaskListItem {
+  id: number;
+  title: string;
+  type: "Metric" | "Simple";
+  priority: HabitPriority;
+  active: boolean;
+}
+
 interface TrackHabitPanelProps {
   habits: HabitListItem[];
+  tasks: TaskListItem[];
   onClose: () => void;
-  onSave: (enabledIds: Set<number>) => void;
+  onSave: (habitIds: Set<number>, taskIds: Set<number>) => void;
 }
 
 const SLIDE_OUT_DURATION_MS = 220;
 
-export function TrackHabitPanel({ habits, onClose, onSave }: TrackHabitPanelProps) {
+export function TrackHabitPanel({ habits, tasks, onClose, onSave }: TrackHabitPanelProps) {
   const [isClosing, setIsClosing] = useState(false);
-  const [enabled, setEnabled] = useState<Set<number>>(() => new Set(habits.filter(h => h.active).map(h => h.id)));
+  const [enabledHabits, setEnabledHabits] = useState<Set<number>>(
+    () => new Set(habits.filter(h => h.active).map(h => h.id))
+  );
+  const [enabledTasks, setEnabledTasks] = useState<Set<number>>(
+    () => new Set(tasks.filter(t => t.active).map(t => t.id))
+  );
 
   function requestClose() {
     if (isClosing) return;
@@ -52,10 +66,17 @@ export function TrackHabitPanel({ habits, onClose, onSave }: TrackHabitPanelProp
   }, [isClosing]);
 
   function toggleHabit(id: number) {
-    setEnabled(prev => {
+    setEnabledHabits(prev => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleTask(id: number) {
+    setEnabledTasks(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
   }
@@ -74,7 +95,7 @@ export function TrackHabitPanel({ habits, onClose, onSave }: TrackHabitPanelProp
                 id="track-habit-panel-title"
                 className="d-flex align-items-center justify-content-between"
               >
-                Track Habits
+                Track Progress
                 <button
                   type="button"
                   className="btn btn-ghost btn-icon goal-wizard-close"
@@ -84,23 +105,31 @@ export function TrackHabitPanel({ habits, onClose, onSave }: TrackHabitPanelProp
                   <ChevronRight size={25} />
                 </button>
               </h3>
-              <p>Toggle habits on or off to enable or disable tracking.</p>
+              <p>Toggle habits and tasks to enable or disable tracking.</p>
             </div>
           </div>
         </header>
 
         <div className="thp-list">
+
+          {/* ── Habits ── */}
+          {habits.length > 0 && (
+            <div className="thp-divider">
+              <span className="thp-section-label">Habits</span>
+              <span className="thp-section-chip">{habits.length}</span>
+            </div>
+          )}
           {habits.map(h => (
             <div key={h.id} className="thp-row" onClick={() => toggleHabit(h.id)}>
               <button
                 type="button"
-                className={`thp-checkbox${enabled.has(h.id) ? " thp-checkbox--on" : ""}`}
-                aria-checked={enabled.has(h.id)}
+                className={`thp-checkbox${enabledHabits.has(h.id) ? " thp-checkbox--on" : ""}`}
+                aria-checked={enabledHabits.has(h.id)}
                 aria-label={`Toggle ${h.title}`}
                 role="checkbox"
                 tabIndex={-1}
               >
-                {enabled.has(h.id) && <CheckLg size={10} />}
+                {enabledHabits.has(h.id) && <CheckLg size={10} />}
               </button>
               <div className="thp-row-body">
                 <span className="thp-name">{h.title}</span>
@@ -120,10 +149,52 @@ export function TrackHabitPanel({ habits, onClose, onSave }: TrackHabitPanelProp
               </div>
             </div>
           ))}
+
+          {/* ── Tasks ── */}
+          {tasks.length > 0 && (
+            <div className="thp-divider">
+              <span className="thp-section-label">Tasks</span>
+              <span className="thp-section-chip">{tasks.length}</span>
+            </div>
+          )}
+          {tasks.map(t => (
+            <div key={t.id} className="thp-row" onClick={() => toggleTask(t.id)}>
+              <button
+                type="button"
+                className={`thp-checkbox${enabledTasks.has(t.id) ? " thp-checkbox--on" : ""}`}
+                aria-checked={enabledTasks.has(t.id)}
+                aria-label={`Toggle ${t.title}`}
+                role="checkbox"
+                tabIndex={-1}
+              >
+                {enabledTasks.has(t.id) && <CheckLg size={10} />}
+              </button>
+              <div className="thp-row-body">
+                <span className="thp-name">{t.title}</span>
+                <div className="thp-pills">
+                  <span className={`thp-pill thp-pill--priority-${t.priority}`}>
+                    <PriorityIcon priority={t.priority} />
+                    {PRIORITY_LABEL[t.priority]}
+                  </span>
+                  <span className={`thp-pill thp-pill--${t.type.toLowerCase()}`}>{t.type}</span>
+                  <span className="thp-pill thp-pill--task-badge">Task</span>
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {habits.length === 0 && tasks.length === 0 && (
+            <div className="thp-empty">No trackable items found.</div>
+          )}
+
         </div>
 
         <footer className="thp-footer">
-          <button type="button" className="btn btn-primary" onClick={() => { onSave(enabled); requestClose(); }}>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => { onSave(enabledHabits, enabledTasks); requestClose(); }}
+          >
             Save
           </button>
           <button type="button" className="btn btn-soft" onClick={requestClose}>

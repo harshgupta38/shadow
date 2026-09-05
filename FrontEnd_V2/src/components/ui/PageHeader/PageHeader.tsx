@@ -11,6 +11,8 @@ export interface PageHeaderAction {
     label: string;
     icon?: ReactNode;
     onClick?: () => void;
+    disabled?: boolean;
+    iconOnly?: boolean;
     desktopTone?: PageHeaderActionTone;
     mobileTone?: PageHeaderActionTone;
     tone?: PageHeaderActionTone;
@@ -85,9 +87,11 @@ export function PageHeader({ title, subtitle, icon, actions }: PageHeaderProps) 
                                 type="button"
                                 className={`btn text-nowrap flex-shrink-0 ${DESKTOP_TONE_CLASS[desktopTone]} ${action.className ?? ""}`.trim()}
                                 onClick={action.onClick}
+                                disabled={action.disabled}
+                                aria-label={action.iconOnly ? action.label : undefined}
                             >
-                                {action.icon && <span className="me-1 mt-1 d-inline-flex">{action.icon}</span>}
-                                {action.label}
+                                {action.icon && <span className={action.iconOnly ? "" : "me-1 mt-1 d-inline-flex"}>{action.icon}</span>}
+                                {!action.iconOnly && action.label}
                             </button>
                         );
                     })}

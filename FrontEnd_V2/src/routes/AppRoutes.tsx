@@ -27,6 +27,7 @@ import { HabitDetailPage } from "@/pages/habit_library/HabitDetailPage/HabitDeta
 import { HabitWizardPage } from "@/pages/habit_library/HabitWizard/HabitWizardPage";
 import { TrackProgressPage } from "@/pages/track_progress/TrackProgressPage";
 import { ReportsPage } from "@/pages/reports/ReportsPage";
+import { ReportDetailPage } from "@/pages/reports/ReportDetailPage/ReportDetailPage";
 import { AssistantPage } from "@/pages/assistant/AssistantPage";
 import { ProfilePage } from "@/pages/profile/ProfilePage";
 import { SettingsPage } from "@/pages/settings/SettingsPage";
@@ -65,6 +66,7 @@ export function AppRoutes() {
 					
 					<Route path={ROUTES.TRACK_PROGRESS} element={<TrackProgressPage />} />
 					<Route path={ROUTES.REPORTS} element={<ReportsPage />} />
+					<Route path={ROUTES.REPORTS_DETAIL} element={<ReportDetailPage />} />
 					<Route path={ROUTES.ASSISTANT} element={<AssistantPage />} />
 					<Route path={ROUTES.PROFILE} element={<ProfilePage />} />
 					<Route path={ROUTES.SETTINGS} element={<SettingsPage />} />

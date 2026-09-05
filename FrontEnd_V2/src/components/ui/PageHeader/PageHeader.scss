@@ -51,6 +51,11 @@
   transition: background var(--jv-transition), color var(--jv-transition);
 }
 
+.page-header-jv .btn:disabled {
+  cursor: not-allowed;
+  pointer-events: auto;
+}
+
 .page-header-mobile-action-item:hover,
 .page-header-mobile-action-item:focus-visible {
   background: var(--jv-surface-2);

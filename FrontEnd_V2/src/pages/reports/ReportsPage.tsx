@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BarChartFill, ChevronLeft, ChevronRight, LightbulbFill } from "react-bootstrap-icons";
+import { useNavigate } from "react-router-dom";
 
 import { api } from "@/api";
 import type { DayReport } from "@/api/types";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { todayDate } from "@/services/date.service";
+import { ROUTES } from "@/routes/RoutePaths";
 import "@/pages/reports/ReportsPage.scss";
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
@@ -179,6 +181,7 @@ function ReportGhostShell() {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function ReportsPage() {
+  const navigate = useNavigate();
   const [activeMonth, setActiveMonth] = useState(
     () => new Date(TODAY.getFullYear(), TODAY.getMonth(), 1),
   );
@@ -329,8 +332,8 @@ export function ReportsPage() {
                 key={key}
                 className={cls}
                 onMouseEnter={() => !isFuture && setHoveredKey(key)}
-                onClick={() => !isFuture && console.log("TODO: open day report", key)}
-                onKeyDown={!isFuture ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); console.log("TODO: open day report", key); } } : undefined}
+                onClick={() => !isFuture && navigate(ROUTES.REPORTS_DETAIL.replace(":historyDate", key))}
+                onKeyDown={!isFuture ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); navigate(ROUTES.REPORTS_DETAIL.replace(":historyDate", key)); } } : undefined}
                 role={!isFuture ? "button" : undefined}
                 tabIndex={!isFuture ? 0 : undefined}
                 aria-label={data.score !== null ? `${date.toLocaleDateString("en-US", { month: "long", day: "numeric" })}, ${data.score}% completion` : undefined}

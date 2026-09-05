@@ -692,3 +692,31 @@ export interface DayReport {
 export interface MonthlyReportResponse {
   days: DayReport[];
 }
+
+export interface GoalAlignment {
+  id: number;
+  title: string;
+  alignment_pct: number;
+  milestone_title: string;
+  note: string;
+  tasks_done: number;
+  tasks_total: number;
+}
+
+export interface DailyReportDetail {
+  date: string;
+  generated_at: string;
+  alignment_score: number;
+  headline: string;
+  summary: string;
+  stats: {
+    tasks_done: number;
+    tasks_total: number;
+    habits_done: number;
+    habits_total: number;
+    best_streak: number;
+  };
+  goals: GoalAlignment[];
+  highlights: { good: string[]; attention: string[] };
+  closing: { tone: "motivate" | "guide" | "celebrate"; message: string };
+}

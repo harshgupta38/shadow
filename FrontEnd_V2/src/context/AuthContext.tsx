@@ -42,6 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const user = await api.auth.me();
         setUser(user);
         setStatus("authenticated");
+        window.dispatchEvent(new Event("auth:login"));
         return user;
     }, []); // Empty dependency array ensures this function is never recreated, which is important for consumers that use it in useEffect.
 
@@ -56,6 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const user = await api.auth.me();
         setUser(user);
         setStatus("authenticated");
+        window.dispatchEvent(new Event("auth:login"));
         return user;
     }, []);
 

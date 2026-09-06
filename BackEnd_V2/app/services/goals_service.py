@@ -17,6 +17,7 @@ from app.schemas.goals import (
     GoalDataResponse,
     GoalDataShortResponse,
     GoalListStatusFilter,
+    GoalReorderRequest,
     RefineGoalRequest,
     SaveGoalFromProposalRequest,
 )
@@ -203,6 +204,25 @@ def save_goal_from_proposal(
     return _serialize_goal_detail(goal)
 
 
+def reorder_goals(
+    db,
+    current_user: UserDBM,
+    data: GoalReorderRequest,
+) -> None:
+    goal_ids = [item.id for item in data.goals]
+    goals = db.query(GoalDBM).filter(
+        GoalDBM.id.in_(goal_ids),
+        GoalDBM.user_id == current_user.id,
+    ).all()
+
+    goal_map = {goal.id: goal for goal in goals}
+    for item in data.goals:
+        if item.id in goal_map:
+            goal_map[item.id].position = item.position
+
+    db.commit()
+
+
 def get_goal_list(
     db,
     current_user: UserDBM,
@@ -216,23 +236,9 @@ def get_goal_list(
     if status != "All":
         query = query.filter(GoalDBM.status == status)
 
-    goals = query.order_by(GoalDBM.updated_at.desc()).all()
+    goals = query.order_by(GoalDBM.position).all()
 
-    return [
-        GoalDataShortResponse(
-            id=goal.id,
-            title=goal.title,
-            summary=goal.summary,
-            category=goal.category,
-            status=goal.status,
-            target_date=goal.target_date.isoformat(),
-            milestones_total=goal.milestones_total,
-            milestones_completed=goal.milestones_completed,
-            habits_total=goal.habits_total,
-            habits_active=goal.habits_active,
-        )
-        for goal in goals
-    ]
+    return [GoalDataShortResponse.model_validate(goal) for goal in goals]
 
 
 def get_goal_detail(

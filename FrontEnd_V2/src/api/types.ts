@@ -118,6 +118,7 @@ export type GoalItemStatus = Exclude<GoalListStatusFilter, "All">;
 
 export interface GoalDataShortResponse {
   id: number;
+  position: number;
   title: string;
   summary: string;
   category: GoalCategory;
@@ -127,6 +128,15 @@ export interface GoalDataShortResponse {
   milestones_completed: number;
   habits_total: number;
   habits_active: number;
+}
+
+export interface GoalReorderItem {
+  id: number;
+  position: number;
+}
+
+export interface GoalReorderRequest {
+  goals: GoalReorderItem[];
 }
 
 export interface GoalDataResponse {

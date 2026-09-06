@@ -13,6 +13,7 @@ export const ENDPOINTS = {
         FROM_PROPOSAL: "/save-goal-from-proposal",
         GET_LIST: "/get-goal-list",
         DETAIL: (id: number) => `/${id}`,
+        REORDER: "/reorder",
     },
     MILESTONES: {
         PREFIX: "/milestone",

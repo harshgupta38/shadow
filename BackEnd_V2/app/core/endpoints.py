@@ -28,6 +28,7 @@ class Endpoints:
         FROM_PROPOSAL = "/save-goal-from-proposal"
         GET_LIST = "/get-goal-list"
         DETAIL = "/{goal_id}"
+        REORDER = "/reorder"
 
     class MILESTONES:
         PREFIX = "/milestone"

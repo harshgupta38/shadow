@@ -9,6 +9,7 @@ from app.schemas.goals import (
     GoalDataResponse,
     GoalDataShortResponse,
     GoalListStatusFilter,
+    GoalReorderRequest,
     SaveGoalRequest,
     SaveGoalFromProposalRequest,
     RefineGoalRequest,
@@ -72,6 +73,15 @@ def delete_goal(
     current_user: UserDBM = Depends(get_current_user),
 ) -> None:
     goals_service.delete_goal(db, current_user, goal_id)
+
+
+@router.post(ENDPOINTS.GOALS.REORDER, status_code=http_status.HTTP_204_NO_CONTENT)
+def reorder_goals(
+    data: GoalReorderRequest,
+    db=Depends(get_db),
+    current_user: UserDBM = Depends(get_current_user),
+) -> None:
+    goals_service.reorder_goals(db, current_user, data)
 
 
 @router.patch(ENDPOINTS.GOALS.DETAIL, response_model=GoalDataResponse)

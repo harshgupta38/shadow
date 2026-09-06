@@ -225,6 +225,15 @@ class SaveGoalFromProposalRequest(BaseModel):
     goal: RefineGoalFromLLMSchema
 
 
+class GoalReorderItem(BaseModel):
+    id: int
+    position: int = Field(ge=0)
+
+
+class GoalReorderRequest(BaseModel):
+    goals: List[GoalReorderItem] = Field(min_length=1)
+
+
 class GoalDataShortDBS(ORMModel):
     id: int
     position: int

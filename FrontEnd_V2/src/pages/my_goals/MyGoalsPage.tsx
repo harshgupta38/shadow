@@ -1,17 +1,18 @@
 import {
   Bullseye,
-  CalendarCheck,
   Check2Circle,
-  Compass,
-  Diagram3,
   Grid1x2,
   PauseCircle,
   PlayCircle,
   PlusLg,
   Stars,
+  CalendarCheck,
+  Compass,
 } from "react-bootstrap-icons";
-import { useCallback, useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { SortableContext, arrayMove, rectSortingStrategy } from "@dnd-kit/sortable";
 
 import { api, type GoalDataShortResponse } from "@/api";
 import { ApiError } from "@/api/client";
@@ -22,6 +23,7 @@ import type { PageHeaderAction } from "@/components/ui/PageHeader/PageHeader";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { ROUTES } from "@/routes/RoutePaths";
 
+import { GoalCard } from "@/pages/my_goals/GoalCard/GoalCard";
 import { GoalCreationWizard } from "@/pages/my_goals/GoalCreationWizard/GoalCreationWizard";
 import { GoalLoadingSkeleton } from "@/pages/my_goals/GoalLoadingSkeleton/GoalLoadingSkeleton";
 import { useToast } from "@/context/ToastContext";
@@ -91,6 +93,13 @@ export function MyGoalsPage() {
   const [goalsError, setGoalsError] = useState<string | null>(null);
   const currentContent = FILTER_CONTENT[activeFilter];
 
+  // Keep a snapshot to revert to if the reorder API call fails
+  const goalsSnapshot = useRef<GoalDataShortResponse[]>([]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
+  );
+
   const loadGoals = useCallback(async (status: GoalFilterLabel) => {
     setLoadingGoals(true);
     setGoalsError(null);
@@ -114,21 +123,25 @@ export function MyGoalsPage() {
     void loadGoals(activeFilter);
   }, [activeFilter, loadGoals]);
 
-  function formatGoalDate(value: string): string {
-    const parsed = Date.parse(value);
-    if (Number.isNaN(parsed)) {
-      return value;
+  async function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = goals.findIndex((g) => g.id === active.id);
+    const newIndex = goals.findIndex((g) => g.id === over.id);
+    const reordered = arrayMove(goals, oldIndex, newIndex);
+
+    goalsSnapshot.current = goals;
+    setGoals(reordered);
+
+    try {
+      await api.goals.reorderGoals({
+        goals: reordered.map((g, i) => ({ id: g.id, position: i })),
+      });
+    } catch {
+      setGoals(goalsSnapshot.current);
+      toast.error("Could not save the new order. Please try again.");
     }
-
-    return new Date(parsed).toLocaleDateString();
-  }
-
-  function getMilestoneProgressPercent(milestonesCompleted: number, milestonesTotal: number): number {
-    if (milestonesTotal <= 0) {
-      return 0;
-    }
-
-    return Math.max(0, Math.min(100, Math.round((milestonesCompleted / milestonesTotal) * 100)));
   }
 
   const showGoalCards = goals.length > 0;
@@ -215,56 +228,15 @@ export function MyGoalsPage() {
       ) : null}
 
       {!loadingGoals && !goalsError && showGoalCards ? (
-        <div className="row g-3 my-goals-grid">
-          {goals.map((goal, index) => (
-            <div className="col-md-6 col-xl-4" key={`${goal.title}-${goal.target_date}-${index}`}>
-              <Link to={ROUTES.MY_GOAL_DETAIL.replace(":goalId", String(goal.id))} className="goal-summary-card-link">
-                <article className="surface goal-summary-card h-100">
-                  {(() => {
-                    const milestoneProgressPercent = getMilestoneProgressPercent(
-                      goal.milestones_completed,
-                      goal.milestones_total,
-                    );
-
-                    return (
-                      <>
-                        <div className="goal-summary-card-head">
-                          <span className="goal-summary-category">{goal.category}</span>
-                          <span className={`goal-summary-status goal-summary-status-${goal.status.toLowerCase()}`}>{goal.status}</span>
-                        </div>
-
-                        <h3 className="goal-summary-title">{goal.title}</h3>
-                        <p className="goal-summary-text">{goal.summary}</p>
-
-                        <div className="goal-summary-progress-row">
-                          <span>Progress</span>
-                          <strong>{milestoneProgressPercent}%</strong>
-                        </div>
-                        <div className="progress goal-progress-track mb-3" style={{ height: 7 }}>
-                          <div className="progress-bar" style={{ width: `${milestoneProgressPercent}%` }} />
-                        </div>
-
-                        <div className="goal-summary-meta">
-                          <div className="goal-summary-meta-left">
-                            <span>
-                              <Diagram3 size={13} /> {goal.milestones_completed}/{goal.milestones_total}
-                            </span>
-                            <span>
-                              <Compass size={13} /> {goal.habits_active}/{goal.habits_total}
-                            </span>
-                          </div>
-                          <span className="goal-summary-meta-date">
-                            <CalendarCheck size={13} /> {formatGoalDate(goal.target_date)}
-                          </span>
-                        </div>
-                      </>
-                    );
-                  })()}
-                </article>
-              </Link>
+        <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+          <SortableContext items={goals.map((g) => g.id)} strategy={rectSortingStrategy}>
+            <div className="row g-3 my-goals-grid">
+              {goals.map((goal) => (
+                <GoalCard key={goal.id} goal={goal} dragDisabled={activeFilter !== "All"} />
+              ))}
             </div>
-          ))}
-        </div>
+          </SortableContext>
+        </DndContext>
       ) : null}
 
       {!loadingGoals && !goalsError && !showGoalCards ? (

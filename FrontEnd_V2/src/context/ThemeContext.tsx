@@ -6,13 +6,17 @@ import { getUserLocation } from "@/services/location.service";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function applyTheme(effectiveTheme: EffectiveTheme): void {
+function applyTheme(effectiveTheme: EffectiveTheme, skipTransition = false): void {
 	const root = document.documentElement;
-	root.classList.add("theme-transitioning");
-	void root.offsetHeight; // force repaint so the browser captures the "before" state
+	if (!skipTransition) {
+		root.classList.add("theme-transitioning");
+		void root.offsetHeight; // force repaint so the browser captures the "before" state
+	}
 	root.setAttribute("data-bs-theme", effectiveTheme);
 	root.style.colorScheme = effectiveTheme;
-	window.setTimeout(() => root.classList.remove("theme-transitioning"), 350);
+	if (!skipTransition) {
+		window.setTimeout(() => root.classList.remove("theme-transitioning"), 350);
+	}
 }
 
 function getBrowserTheme(): EffectiveTheme {
@@ -78,6 +82,7 @@ export function ThemeProvider({ children }: ChildProps) {
 	// Ref so the async loadDynamicTheme can check if preference changed mid-flight
 	const isDynamic = useRef(true);
 	const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const isInitialMount = useRef(true);
 
 	const clearTimer = useCallback(() => {
 		if (timerRef.current !== null) {
@@ -140,7 +145,8 @@ export function ThemeProvider({ children }: ChildProps) {
 
 	// Apply theme to DOM whenever effectiveTheme changes
 	useEffect(() => {
-		applyTheme(effectiveTheme);
+		applyTheme(effectiveTheme, isInitialMount.current);
+		isInitialMount.current = false;
 	}, [effectiveTheme]);
 
 	// React to preference changes

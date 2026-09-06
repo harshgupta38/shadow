@@ -19,6 +19,21 @@
       rel="stylesheet"
     />
     <title>Shadow — Your Personal Assistant</title>
+    <script>
+      (function () {
+        try {
+          var raw = localStorage.getItem("dynamic_theme_cache");
+          if (raw) {
+            var cache = JSON.parse(raw);
+            if (cache && cache.effectiveTheme) {
+              var root = document.documentElement;
+              root.setAttribute("data-bs-theme", cache.effectiveTheme);
+              root.style.colorScheme = cache.effectiveTheme;
+            }
+          }
+        } catch (_) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

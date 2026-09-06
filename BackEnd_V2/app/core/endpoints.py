@@ -75,6 +75,7 @@ class Endpoints:
     class REPORTS:
         PREFIX = "/reports"
         MONTHLY = "/monthly"
+        GENERATE_REPORT_REQUEST = "/{report_date}/request"
 
     class CHAT:
         PREFIX = "/chat"

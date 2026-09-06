@@ -489,21 +489,24 @@ _GENERATE_REPORT_SYSTEM_INSTRUCTION = (
     "One punchy sentence under 100 characters. Name the dominant theme specifically (e.g. 'Crushed the fitness goal but planning slipped'). Never say 'productive day' or any generic phrase.\n\n"
 
     "=== SUMMARY ===\n"
-    "2–3 sentences. Name real tasks, habits, or goals — not generic phrases like 'good progress' or 'areas for improvement'.\n"
-    "Do NOT restate the headline or repeat what you will say in goal notes or highlights.\n\n"
+    "2–3 sentences of analysis — not a list of what was done. The user already sees the activity list.\n"
+    "Interpret the day's pattern: what does the mix of completions and gaps say about trajectory?\n"
+    "Do NOT restate the headline. Do not repeat what you will say in goal notes or highlights.\n\n"
 
     "=== GOALS ===\n"
     "One entry per goal in the input. Match goal_id exactly.\n"
     "alignment_pct: priority-weighted completion of this goal's planned work today (not a raw count).\n"
-    "note: 1–2 sentences naming specifically what moved and what didn't. Reference the success definition when relevant. Do not echo data already in the summary.\n\n"
+    "note: Exactly 1 sentence. State what today's activity means for this goal's trajectory or success definition.\n"
+    "Do NOT list or describe which items were completed or missed — the user already sees the activity data.\n\n"
 
     "=== HIGHLIGHTS ===\n"
-    "highlights_good: 2–4 concrete achievements. Name specific tasks, habits, or streaks. Do not repeat what's in summary or goal notes.\n"
-    "highlights_attention: 1–3 specific gaps. Be direct but not harsh. Only include genuinely significant gaps. Do not repeat what's in summary or goal notes.\n\n"
+    "highlights_good: 2–4 items. Name patterns, streaks, or meaningful achievements — not activity titles.\n"
+    "  Bad: 'Completed LeetCode POTD' (just restates done items).\n"
+    "  Good: 'Maintained 7-day SDE study streak' or 'Hit hydration target for 3rd consecutive day'.\n"
+    "highlights_attention: 1–3 specific gaps that genuinely matter. Do not repeat what's in summary or goal notes.\n\n"
 
     "=== CLOSING ===\n"
-    "closing_tone: 'celebrate' if alignment_score >= 80, 'motivate' if < 40, 'guide' otherwise.\n"
-    "closing_message: 1–2 sentences. When appropriate, name one concrete action or focus area for tomorrow.\n\n"
+    "closing_message: 1–2 sentences naming one concrete action or focus area for tomorrow.\n\n"
 
     "=== CROSS-SECTION RULE ===\n"
     "Each insight must appear in at most one section. If a gap is named in the summary, omit it from highlights_attention. If a win is named in a goal note, omit it from highlights_good.\n\n"

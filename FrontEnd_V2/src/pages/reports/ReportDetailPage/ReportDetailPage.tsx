@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useParams, useSearchParams } from "react-router-dom";
 import {
   BarChartFill,
   CheckCircleFill,
@@ -7,150 +8,11 @@ import {
   ExclamationTriangleFill,
 } from "react-bootstrap-icons";
 
+import { api } from "@/api";
 import type { DailyReportDetail, GoalAlignment } from "@/api/types";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { CLOSING_EMOJI, fmtTime, ringColor } from "./ReportDetailPage.constants";
 import "./ReportDetailPage.scss";
-
-// ── Mock data ─────────────────────────────────────────────────────────────────
-
-const MOCK_REPORTS: DailyReportDetail[] = [
-  {
-    date: "2026-09-05",
-    generated_at: "2026-09-05T18:25:00+05:30",
-    alignment_score: 58,
-    headline: "Slow Start — Still Time to Turn It Around",
-    summary: "Slow start to the day — only half your tasks were completed by evening. Fitness took a hit and the backend task stayed untouched. There's still time to recover if you push in the final hours.",
-    stats: { tasks_done: 5, tasks_total: 10, habits_done: 2, habits_total: 4, best_streak: 6 },
-    goals: [
-      {
-        id: 1,
-        title: "Master Data Structures & Algorithms",
-        alignment_pct: 75,
-        milestone_title: "Arrays & Hashing",
-        note: "3 problems solved but fell short of today's target of 5. Good pace — just needs more evening focus.",
-        tasks_done: 3,
-        tasks_total: 4,
-      },
-      {
-        id: 2,
-        title: "Build a Fitness Routine",
-        alignment_pct: 20,
-        milestone_title: "Week 3: Consistency",
-        note: "Gym skipped again. Nutrition was okay but movement was missing. This is a pattern to watch closely.",
-        tasks_done: 0,
-        tasks_total: 3,
-      },
-      {
-        id: 3,
-        title: "Read 12 Books This Year",
-        alignment_pct: 80,
-        milestone_title: "Book 7: Atomic Habits",
-        note: "30 minutes of reading done. You're on pace for the week — keep this up.",
-        tasks_done: 1,
-        tasks_total: 1,
-      },
-    ],
-    highlights: {
-      good: ["Reading habit done for the 5th consecutive day", "3 LeetCode problems solved"],
-      attention: ["Gym session missed — second time this week", "Backend task not started", "Only 50% of daily tasks completed"],
-    },
-    closing: {
-      tone: "guide",
-      message: "You're at 58% today — below your usual pace. Prioritise the gym and the backend task tomorrow morning. One focused start can turn this week around completely.",
-    },
-  },
-  {
-    date: "2026-09-05",
-    generated_at: "2026-09-05T23:55:00+05:30",
-    alignment_score: 72,
-    headline: "Strong Recovery — One Miss, Nine Wins",
-    summary: "Strong recovery in the second half of the day. Coding tasks are done, the reading streak holds, and you made real progress on DSA. The gym was the only miss — one slip doesn't define the day.",
-    stats: { tasks_done: 8, tasks_total: 10, habits_done: 3, habits_total: 4, best_streak: 7 },
-    goals: [
-      {
-        id: 1,
-        title: "Master Data Structures & Algorithms",
-        alignment_pct: 88,
-        milestone_title: "Arrays & Hashing",
-        note: "All 4 problems solved and a mock interview completed. You're ahead of this week's pace — excellent focus.",
-        tasks_done: 4,
-        tasks_total: 4,
-      },
-      {
-        id: 2,
-        title: "Build a Fitness Routine",
-        alignment_pct: 40,
-        milestone_title: "Week 3: Consistency",
-        note: "Gym missed today but nutrition was on point. One off day won't derail you — get back tomorrow.",
-        tasks_done: 1,
-        tasks_total: 3,
-      },
-      {
-        id: 3,
-        title: "Read 12 Books This Year",
-        alignment_pct: 80,
-        milestone_title: "Book 7: Atomic Habits",
-        note: "30 minutes of reading done. You're on pace to finish Atomic Habits by end of the week.",
-        tasks_done: 1,
-        tasks_total: 1,
-      },
-    ],
-    highlights: {
-      good: ["All 4 DSA tasks done — strongest session in 2 weeks", "7-day coding streak maintained 🔥", "Reading habit done for 5th consecutive day"],
-      attention: ["Gym session missed", "Backend task only half complete"],
-    },
-    closing: {
-      tone: "motivate",
-      message: "72% alignment is genuinely good. Your DSA progress is impressive and the streak is alive. One focused gym session tomorrow and you'll be firing on all cylinders — keep the momentum.",
-    },
-  },
-  {
-    date: "2026-09-05",
-    generated_at: "2026-09-06T00:15:00+05:30",
-    alignment_score: 81,
-    headline: "Outstanding Finish — Every Target Hit",
-    summary: "Outstanding finish. You completed the backend task late at night, hit your reading target, and your DSA momentum is at its peak. The gym is the one area to address this week — everything else is excellent.",
-    stats: { tasks_done: 10, tasks_total: 10, habits_done: 4, habits_total: 4, best_streak: 7 },
-    goals: [
-      {
-        id: 1,
-        title: "Master Data Structures & Algorithms",
-        alignment_pct: 92,
-        milestone_title: "Arrays & Hashing",
-        note: "All targets met plus a bonus problem. You're in the best form you've been in this month.",
-        tasks_done: 4,
-        tasks_total: 4,
-      },
-      {
-        id: 2,
-        title: "Build a Fitness Routine",
-        alignment_pct: 50,
-        milestone_title: "Week 3: Consistency",
-        note: "Still no gym today. The consistency streak is at risk — tomorrow must be a non-negotiable day.",
-        tasks_done: 1,
-        tasks_total: 2,
-      },
-      {
-        id: 3,
-        title: "Read 12 Books This Year",
-        alignment_pct: 100,
-        milestone_title: "Book 7: Atomic Habits",
-        note: "Full 45 minutes of focused reading — you exceeded today's target. You'll finish this book 2 days early.",
-        tasks_done: 1,
-        tasks_total: 1,
-      },
-    ],
-    highlights: {
-      good: ["All 10 tasks completed", "All 4 habits checked", "Backend feature shipped 🚀", "7-day coding streak alive"],
-      attention: ["Gym missed — 3rd consecutive day this week"],
-    },
-    closing: {
-      tone: "celebrate",
-      message: "81% alignment — an excellent day by any standard. Every task done, every habit checked. Add the gym tomorrow and you're looking at a perfect week. Genuinely proud of this effort.",
-    },
-  },
-];
 
 // ── Progress Ring ─────────────────────────────────────────────────────────────
 
@@ -238,12 +100,51 @@ function GoalCard({ goal }: { goal: GoalAlignment }) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export function ReportDetailPage() {
-  const [idx, setIdx] = useState(1);
-  const report = MOCK_REPORTS[idx];
-  const total = MOCK_REPORTS.length;
+  const { historyDate } = useParams<{ historyDate: string }>();
+  const [searchParams] = useSearchParams();
+  const reportType = (searchParams.get("report_type") ?? "daily") as "daily" | "weekly";
+
+  const [reports, setReports] = useState<DailyReportDetail[]>([]);
+  const [idx, setIdx] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!historyDate) return;
+    setLoading(true);
+    setError(null);
+    api.reports.getReports(historyDate, reportType)
+      .then(data => { setReports(data); setIdx(0); })
+      .catch(() => setError("Report not found. It may still be generating — check back in a moment."))
+      .finally(() => setLoading(false));
+  }, [historyDate, reportType]);
+
+  if (loading) {
+    return (
+      <div className="rdp-page">
+        <PageHeader icon={<BarChartFill size={20} />} title="Daily Report" subtitle="Loading…" actions={[]} />
+        <div className="rdp-empty">Loading report…</div>
+      </div>
+    );
+  }
+
+  if (error || reports.length === 0) {
+    return (
+      <div className="rdp-page">
+        <PageHeader icon={<BarChartFill size={20} />} title="Daily Report" subtitle={historyDate ?? ""} actions={[]} />
+        <div className="rdp-empty rdp-empty--error">{error ?? "No reports found for this date."}</div>
+      </div>
+    );
+  }
+
+  const report = reports[idx];
+  const total = reports.length;
   const hasPrev = idx > 0;
   const hasNext = idx < total - 1;
   const goalsOnTrack = report.goals.filter(g => g.alignment_pct >= 75).length;
+  const dateLabel = new Date(`${report.date}T00:00:00`).toLocaleDateString("en-GB", {
+    weekday: "long", day: "numeric", month: "long", year: "numeric",
+  });
 
   const paginationActions = total > 1 ? [
     {
@@ -275,7 +176,7 @@ export function ReportDetailPage() {
       <PageHeader
         icon={<BarChartFill size={20} />}
         title="Daily Report"
-        subtitle={`${new Date(`${report.date}T00:00:00`).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })} · ${fmtTime(report.generated_at)}`}
+        subtitle={`${dateLabel} · ${fmtTime(report.generated_at)}${total > 1 ? ` · ${idx + 1} of ${total}` : ""}`}
         actions={paginationActions}
       />
 

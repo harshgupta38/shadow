@@ -61,6 +61,7 @@ export const ENDPOINTS = {
     REPORTS: {
         PREFIX: "/reports",
         MONTHLY: "/monthly",
+        REPORT_DETAIL: (reportDate: string) => `/${reportDate}`,
         GENERATE_REPORT_REQUEST: (reportDate: string) => `/${reportDate}/request`,
     },
     CHAT: {

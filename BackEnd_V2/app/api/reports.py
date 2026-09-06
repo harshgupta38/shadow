@@ -7,9 +7,10 @@ from app.api.deps import get_current_user
 from app.core.endpoints import ENDPOINTS
 from app.db.session import get_db
 from app.models.user import UserDBM
+from app.schemas.daily_report import ReportResponse
 from app.schemas.reports import MonthlyReportResponse
 from app.services import reports_service
-from app.services.report_service import generate_report_background
+from app.services.report_service import generate_report_background, get_reports
 
 _IST = timezone(timedelta(hours=5, minutes=30))
 
@@ -24,6 +25,34 @@ def get_monthly_report(
     current_user: UserDBM = Depends(get_current_user),
 ) -> MonthlyReportResponse:
     return reports_service.get_monthly_report(db, current_user, year, month)
+
+
+def _to_response(report) -> ReportResponse:
+    return ReportResponse.model_validate({
+        "date": report.report_date,
+        "report_type": report.report_type,
+        "generated_at": report.generated_at,
+        "alignment_score": report.alignment_score,
+        "headline": report.headline,
+        "summary": report.summary,
+        "stats": report.stats,
+        "goals": report.goals,
+        "highlights": report.highlights,
+        "closing": report.closing,
+    })
+
+
+@router.get(ENDPOINTS.REPORTS.REPORT_DETAIL, response_model=list[ReportResponse])
+def get_report_detail(
+    report_date: date,
+    report_type: str = Query(default="daily", pattern="^(daily|weekly)$"),
+    db=Depends(get_db),
+    current_user: UserDBM = Depends(get_current_user),
+) -> list[ReportResponse]:
+    reports = get_reports(db, current_user.id, report_date, report_type)
+    if not reports:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No reports found for this date.")
+    return [_to_response(r) for r in reports]
 
 
 @router.post(ENDPOINTS.REPORTS.GENERATE_REPORT_REQUEST, status_code=status.HTTP_204_NO_CONTENT)

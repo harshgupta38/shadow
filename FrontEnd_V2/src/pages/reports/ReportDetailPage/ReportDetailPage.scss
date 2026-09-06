@@ -1,5 +1,14 @@
 // rdp = Report Detail Page
 
+.rdp-empty {
+  padding: 3rem 1.5rem;
+  text-align: center;
+  color: var(--jv-text-2);
+  font-size: 0.9rem;
+
+  &--error { color: var(--jv-warn); }
+}
+
 .rdp-page {
   display: flex;
   flex-direction: column;

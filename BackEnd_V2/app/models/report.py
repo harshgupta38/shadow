@@ -8,7 +8,6 @@ from sqlalchemy import (
     Integer,
     JSON,
     String,
-    UniqueConstraint,
     func,
 )
 from sqlalchemy.orm import Mapped, mapped_column
@@ -19,7 +18,6 @@ from app.models.base import Base
 class ReportDBM(Base):
     __tablename__ = "reports"
     __table_args__ = (
-        UniqueConstraint("user_id", "report_date", "report_type", name="uq_report_user_date_type"),
         CheckConstraint("report_type IN ('daily', 'weekly')", name="ck_report_type"),
     )
 

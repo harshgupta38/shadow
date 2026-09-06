@@ -2,7 +2,7 @@ import logging
 from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
 
-from sqlalchemy import select
+from sqlalchemy import select, desc
 from sqlalchemy.orm import Session
 
 from app.db.session import SessionLocal
@@ -199,6 +199,18 @@ def build_day_data(db: Session, user_id: int, report_date: date) -> dict:
     }
 
 
+def get_reports(db: Session, user_id: int, report_date: date, report_type: str) -> list[ReportDBM]:
+    return list(db.scalars(
+        select(ReportDBM)
+        .where(
+            ReportDBM.user_id == user_id,
+            ReportDBM.report_date == report_date,
+            ReportDBM.report_type == report_type,
+        )
+        .order_by(desc(ReportDBM.generated_at))
+    ).all())
+
+
 def save_report(
     db: Session,
     user_id: int,
@@ -233,23 +245,14 @@ def save_report(
         "stats": {k: stats[k] for k in ("tasks_done", "tasks_total", "habits_done", "habits_total", "best_streak")},
         "goals": goals_payload,
         "highlights": {"good": parsed.highlights_good, "attention": parsed.highlights_attention},
-        "closing": {"tone": parsed.closing_tone, "message": parsed.closing_message},
+        "closing": {
+            "tone": "celebrate" if parsed.alignment_score >= 80 else ("motivate" if parsed.alignment_score < 40 else "guide"),
+            "message": parsed.closing_message,
+        },
         "model_used": llm_result.model_str or str(llm_result.model),
     }
 
-    existing = db.scalar(
-        select(ReportDBM).where(
-            ReportDBM.user_id == user_id,
-            ReportDBM.report_date == report_date,
-            ReportDBM.report_type == report_type,
-        )
-    )
-    if existing:
-        for k, v in fields.items():
-            setattr(existing, k, v)
-    else:
-        db.add(ReportDBM(user_id=user_id, report_date=report_date, report_type=report_type, **fields))
-
+    db.add(ReportDBM(user_id=user_id, report_date=report_date, report_type=report_type, **fields))
     db.commit()
 
 

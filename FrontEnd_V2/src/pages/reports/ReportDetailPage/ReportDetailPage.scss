@@ -342,6 +342,7 @@
 
   .rdp-goal-milestone {
     display: inline-flex;
+    align-self: flex-start;
     font-size: 0.65rem;
     font-weight: 500;
     color: var(--jv-muted);

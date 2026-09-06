@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BarChartFill, ChevronLeft, ChevronRight, LightbulbFill } from "react-bootstrap-icons";
+import { BarChartFill, ChevronLeft, ChevronRight, LightbulbFill, Stars } from "react-bootstrap-icons";
 import { useNavigate } from "react-router-dom";
 
 import { api } from "@/api";
@@ -7,6 +7,7 @@ import type { DayReport } from "@/api/types";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { todayDate } from "@/services/date.service";
 import { ROUTES } from "@/routes/RoutePaths";
+import { GenerateReportDialog } from "@/pages/reports/GenerateReportDialog";
 import "@/pages/reports/ReportsPage.scss";
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
@@ -182,6 +183,7 @@ function ReportGhostShell() {
 
 export function ReportsPage() {
   const navigate = useNavigate();
+  const [showGenerateDialog, setShowGenerateDialog] = useState(false);
   const [activeMonth, setActiveMonth] = useState(
     () => new Date(TODAY.getFullYear(), TODAY.getMonth(), 1),
   );
@@ -234,11 +236,23 @@ export function ReportsPage() {
   function goPrev() { setActiveMonth(m => new Date(m.getFullYear(), m.getMonth() - 1, 1)); setHoveredKey(null); }
   function goNext() { if (!canNext) return; setActiveMonth(m => new Date(m.getFullYear(), m.getMonth() + 1, 1)); setHoveredKey(null); }
 
+  const todayStr = fmtKey(TODAY.getFullYear(), TODAY.getMonth(), TODAY.getDate());
+
   const pageHeader = (
     <PageHeader
       icon={<BarChartFill size={20} />}
       title="Reports"
       subtitle="Your month at a glance — see where you thrived and where you can grow."
+      actions={[
+        {
+          key: "generate-report",
+          label: "Generate Report",
+          icon: <Stars size={15} />,
+          tone: "brand",
+          disabled: loading,
+          onClick: () => setShowGenerateDialog(true),
+        },
+      ]}
     />
   );
 
@@ -388,6 +402,12 @@ export function ReportsPage() {
         <span className="rp-insight-icon"><LightbulbFill size={14} /></span>
         <p className="rp-insight-body">{insightMsg(stats, month, year)}</p>
       </div>
+
+      <GenerateReportDialog
+        show={showGenerateDialog}
+        onHide={() => setShowGenerateDialog(false)}
+        todayStr={todayStr}
+      />
 
     </section>
   );

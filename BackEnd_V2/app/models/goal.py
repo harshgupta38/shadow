@@ -13,6 +13,10 @@ class GoalDBM(Base):
             "status IN ('Active', 'Paused', 'Completed')",
             name="ck_goals_status",
         ),
+        CheckConstraint(
+            '"position" >= 0',
+            name="ck_goals_position",
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -21,6 +25,13 @@ class GoalDBM(Base):
         ForeignKey("users.id", ondelete="CASCADE"),
         index=True,
         nullable=False,
+    )
+
+    position: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default=text("0"),
     )
 
     title: Mapped[str] = mapped_column(String(255), nullable=False)

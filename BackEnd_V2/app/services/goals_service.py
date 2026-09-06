@@ -1,6 +1,6 @@
 from datetime import date
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, func, select, update
 
 from app.core.exceptions import NotFoundError, ConflictError
 from app.services import planner_service
@@ -49,8 +49,15 @@ def save_goal(
 ) -> None:
     # time.sleep(5)
 
+    next_position = db.scalar(
+        select(func.coalesce(func.max(GoalDBM.position), -1) + 1).where(
+            GoalDBM.user_id == current_user.id,
+        )
+    )
+
     goal = GoalDBM(
         user_id=current_user.id,
+        position=int(next_position or 0),
         title=data.title.strip(),
         summary=data.summary.strip(),
         category=data.category,
@@ -133,8 +140,15 @@ def save_goal_from_proposal(
     stale_goal_id = proposal.goal_id
 
     goal_data = data.goal
+    next_position = db.scalar(
+        select(func.coalesce(func.max(GoalDBM.position), -1) + 1).where(
+            GoalDBM.user_id == current_user.id,
+        )
+    )
+
     goal = GoalDBM(
         user_id=current_user.id,
+        position=int(next_position or 0),
         title=goal_data.title.strip(),
         summary=goal_data.summary.strip(),
         category=goal_data.category,

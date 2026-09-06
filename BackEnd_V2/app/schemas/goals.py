@@ -227,6 +227,7 @@ class SaveGoalFromProposalRequest(BaseModel):
 
 class GoalDataShortDBS(ORMModel):
     id: int
+    position: int
     title: str
     summary: str
     category: str

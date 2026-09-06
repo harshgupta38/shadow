@@ -16,6 +16,8 @@ from app.llm.models import (
     ConversationContextFromLLM,
     ExtractUserMemoryToLLM,
     ExtractUserMemoryFromLLM,
+    GenerateReportToLLM,
+    GenerateReportFromLLM,
 )
 from app.llm.base import BaseLLMProvider
 from app.llm.config import LLMSettings, llm_settings
@@ -207,6 +209,27 @@ class LLMService:
                 "LLM provider returned no conversation context data."
             )
 
+        return response
+
+    async def generate_report(
+        self,
+        user_id: int,
+        report_date: str,
+        report_type: str,
+        day_data: dict,
+    ) -> GenerateReportFromLLM:
+        request = GenerateReportToLLM(
+            user_id=user_id,
+            report_date=report_date,
+            report_type=report_type,
+            day_data=day_data,
+        )
+        try:
+            response = await self._provider.generate_report(request)
+        except NotImplementedError:
+            raise LLMConfigurationError("AI report generation is not supported by the configured LLM provider.")
+        if response is None or response.report_data is None:
+            raise LLMConfigurationError("LLM provider returned no report data.")
         return response
 
     async def health_check(self) -> bool:

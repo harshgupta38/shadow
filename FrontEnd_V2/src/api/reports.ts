@@ -11,7 +11,7 @@ export const reportsApi = {
     });
   },
 
-  async requestAiReport(reportDate: string, reportType: "daily" | "weekly"): Promise<void> {
+  async generateReportRequest(reportDate: string, reportType: "daily" | "weekly"): Promise<void> {
     await http.post<void>(
       `${BASE}${ENDPOINTS.REPORTS.GENERATE_REPORT_REQUEST(reportDate)}?report_type=${reportType}`,
     );

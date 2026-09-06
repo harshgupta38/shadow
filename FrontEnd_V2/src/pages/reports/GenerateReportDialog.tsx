@@ -95,7 +95,7 @@ export function GenerateReportDialog({ show, onHide, todayStr }: Props) {
   async function handleSubmit() {
     setDialogState("loading");
     try {
-      await api.reports.requestAiReport(dateStr, reportType);
+      await api.reports.generateReportRequest(dateStr, reportType);
       setDialogState("success");
     } catch {
       setErrorMsg("Something went wrong. Please try again.");

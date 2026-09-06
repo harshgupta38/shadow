@@ -469,3 +469,158 @@ USER_MEMORY_EXTRACTION_SYSTEM_INSTRUCTION = (
     + "\n\nSchema:\n"
     + build_schema_prompt(MemoryExtractionFromLLMSchema)
 )
+
+
+# ── Generate Report ───────────────────────────────────────────────────────────
+
+_GENERATE_REPORT_SYSTEM_INSTRUCTION = (
+    "You are Shadow — a personal productivity and goal-alignment coach.\n"
+    "Generate a structured progress report from the user's activity data. Be specific, honest, and coach-like — not just a summary of numbers.\n\n"
+
+    "=== SCORING ===\n"
+    "alignment_score (0–100): reflects meaningful execution quality, not raw completion rate.\n"
+    "  - Weight goal-linked tasks 2× more than standalone scheduled items.\n"
+    "  - Weight highest/high-priority items 1.5× more than medium/low-priority items.\n"
+    "  - For metric-tracked items (e.g. '8/10 km'), score proportionally to actual/target, not binary done/missed.\n"
+    "  - If all goal-linked and high-priority work is done, completing only 50% of low-priority filler should still yield a score of 70+.\n"
+    "  - Do not let a single missed item or a single exceptional item move the score by more than ~10 points.\n\n"
+
+    "=== HEADLINE ===\n"
+    "One punchy sentence under 100 characters. Name the dominant theme specifically (e.g. 'Crushed the fitness goal but planning slipped'). Never say 'productive day' or any generic phrase.\n\n"
+
+    "=== SUMMARY ===\n"
+    "2–3 sentences. Name real tasks, habits, or goals — not generic phrases like 'good progress' or 'areas for improvement'.\n"
+    "Do NOT restate the headline or repeat what you will say in goal notes or highlights.\n\n"
+
+    "=== GOALS ===\n"
+    "One entry per goal in the input. Match goal_id exactly.\n"
+    "alignment_pct: priority-weighted completion of this goal's planned work today (not a raw count).\n"
+    "note: 1–2 sentences naming specifically what moved and what didn't. Reference the success definition when relevant. Do not echo data already in the summary.\n\n"
+
+    "=== HIGHLIGHTS ===\n"
+    "highlights_good: 2–4 concrete achievements. Name specific tasks, habits, or streaks. Do not repeat what's in summary or goal notes.\n"
+    "highlights_attention: 1–3 specific gaps. Be direct but not harsh. Only include genuinely significant gaps. Do not repeat what's in summary or goal notes.\n\n"
+
+    "=== CLOSING ===\n"
+    "closing_tone: 'celebrate' if alignment_score >= 80, 'motivate' if < 40, 'guide' otherwise.\n"
+    "closing_message: 1–2 sentences. When appropriate, name one concrete action or focus area for tomorrow.\n\n"
+
+    "=== CROSS-SECTION RULE ===\n"
+    "Each insight must appear in at most one section. If a gap is named in the summary, omit it from highlights_attention. If a win is named in a goal note, omit it from highlights_good.\n\n"
+
+    "=== PATTERN RULE ===\n"
+    "Never claim a recurring pattern (e.g. 'you always struggle with X') unless the provided 7-day history data explicitly shows it across multiple days.\n\n"
+
+    "Return only the structured JSON required by the schema. No commentary outside the schema."
+)
+
+# OpenAI uses structured output (response_format) so no schema block needed.
+GENERATE_REPORT_SYSTEM_INSTRUCTION = _GENERATE_REPORT_SYSTEM_INSTRUCTION
+
+
+def _format_record_line(r: dict, indent: str = "  ") -> str:
+    """Format a single plan record into a compact, information-dense text line."""
+    status = r.get("status", "?").upper()
+    title = r.get("title", "Untitled")
+    source_type = r.get("source_type")
+    priority = r.get("priority", "medium")
+    planner_type = r.get("planner_type", "simple")
+    actual_value = r.get("actual_value", 0)
+    planner_target = r.get("planner_target")
+    value_unit = r.get("value_unit")
+    duration = r.get("duration_minutes")
+    note = r.get("note")
+
+    prefix = f"[{source_type}] " if source_type else ""
+    line = f"{indent}{prefix}[{status}] {title}"
+
+    if planner_type == "metric" and planner_target:
+        unit_str = f" {value_unit}" if value_unit else ""
+        line += f" | {actual_value}/{planner_target}{unit_str}"
+
+    if priority in ("highest", "high"):
+        line += f" | priority:{priority}"
+
+    if duration:
+        line += f" | {duration}min"
+
+    if note:
+        line += f" | Note: {note}"
+
+    return line
+
+
+def build_report_prompt(report_date: str, report_type: str, day_data: dict) -> str:
+    stats = day_data.get("stats", {})
+    goals = day_data.get("goals", [])
+    all_records = day_data.get("all_records", [])
+    history = day_data.get("history", [])
+    goal_history = day_data.get("goal_history", [])
+
+    lines = [
+        f"Report Date: {report_date}",
+        f"Report Type: {report_type}",
+        "",
+        "=== TODAY'S STATS ===",
+        f"Tasks completed: {stats.get('tasks_done', 0)} / {stats.get('tasks_total', 0)}",
+        f"Habits completed: {stats.get('habits_done', 0)} / {stats.get('habits_total', 0)}",
+        f"Current streak: {stats.get('best_streak', 0)} days",
+    ]
+
+    if history:
+        lines += ["", "=== RECENT PERFORMANCE (last 7 days, oldest first) ==="]
+        for h in history:
+            lines.append(
+                f"  {h['date']}: tasks {h.get('tasks_done', 0)}/{h.get('tasks_total', 0)}"
+                f", habits {h.get('habits_done', 0)}/{h.get('habits_total', 0)}"
+            )
+
+    lines += ["", "=== ACTIVE GOALS ==="]
+
+    goal_history_map: dict[int, list] = {
+        gh["goal_id"]: gh.get("days", []) for gh in goal_history
+    }
+
+    for goal in goals:
+        goal_id = goal["goal_id"]
+        lines += [
+            "",
+            f"Goal ID: {goal_id}",
+            f"Title: {goal['title']}",
+            f"Category: {goal.get('category', 'N/A')}",
+            f"Target date: {goal.get('target_date', 'N/A')}",
+        ]
+
+        if goal.get("success_definition"):
+            lines.append(f"Success definition: {goal['success_definition']}")
+
+        ms_title = goal.get("active_milestone", "No active milestone")
+        ms_desc = goal.get("milestone_description")
+        ms_progress = goal.get("milestone_progress")
+        if ms_desc:
+            lines.append(f"Active milestone: {ms_title} — {ms_desc}")
+        else:
+            lines.append(f"Active milestone: {ms_title}")
+        if ms_progress:
+            lines.append(f"Milestone overall progress: {ms_progress}")
+
+        lines.append(f"Tasks today: {goal.get('tasks_done', 0)} done / {goal.get('tasks_total', 0)} total")
+
+        task_records = goal.get("task_records", [])
+        if task_records:
+            lines.append("Activity today:")
+            for r in task_records:
+                lines.append(_format_record_line(r, indent="  - "))
+
+        g_days = goal_history_map.get(goal_id, [])
+        if g_days:
+            lines.append("Recent 7-day goal activity (oldest first):")
+            for d in g_days:
+                lines.append(f"  {d['date']}: {d.get('tasks_done', 0)}/{d.get('tasks_total', 0)} tasks")
+
+    if all_records:
+        lines += ["", "=== ALL ACTIVITY (habits + scheduled + tasks) ==="]
+        for r in all_records:
+            lines.append(_format_record_line(r, indent="  "))
+
+    return "\n".join(lines)

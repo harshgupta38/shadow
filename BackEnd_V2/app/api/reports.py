@@ -1,6 +1,6 @@
 from datetime import date, datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from fastapi.responses import Response
 
 from app.api.deps import get_current_user
@@ -9,6 +9,7 @@ from app.db.session import get_db
 from app.models.user import UserDBM
 from app.schemas.reports import MonthlyReportResponse
 from app.services import reports_service
+from app.services.report_service import generate_report_background
 
 _IST = timezone(timedelta(hours=5, minutes=30))
 
@@ -26,11 +27,16 @@ def get_monthly_report(
 
 
 @router.post(ENDPOINTS.REPORTS.GENERATE_REPORT_REQUEST, status_code=status.HTTP_204_NO_CONTENT)
-async def request_ai_report(
+async def request_report(
     report_date: date,
+    background_tasks: BackgroundTasks,
     report_type: str = Query(default="daily", pattern="^(daily|weekly)$"),
     current_user: UserDBM = Depends(get_current_user),
 ) -> Response:
     if report_date > datetime.now(_IST).date():
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot generate a report for a future date.")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot generate a report for a future date.",
+        )
+    background_tasks.add_task(generate_report_background, current_user.id, report_date, report_type)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

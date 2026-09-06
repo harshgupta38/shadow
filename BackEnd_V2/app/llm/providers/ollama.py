@@ -859,6 +859,9 @@ class OllamaProvider(BaseLLMProvider):
             response_time_ms=response_time_ms,
         )
 
+    async def generate_report(self, request):  # type: ignore[override]
+        raise NotImplementedError
+
     async def health_check(self) -> bool:
         # Ollama OpenAI compatibility includes the /models endpoint used by SDK model listing.
         try:

@@ -282,17 +282,20 @@ export function ReportsPage() {
                 aria-label={data.score !== null ? `${date.toLocaleDateString("en-US", { month: "long", day: "numeric" })}, ${data.score}% completion` : undefined}
               >
                 <span className="rp-day-num">{date.getDate()}</span>
-                {data.score !== null && (
-                  <div className="rp-day-ring" aria-hidden="true">
-                    <svg viewBox="0 0 40 40" className="rp-day-ring-svg">
-                      <g transform="rotate(-90 20 20)">
-                        <circle className="rp-day-ring-track" cx="20" cy="20" r="16" />
-                        <circle className="rp-day-ring-fill" cx="20" cy="20" r="16" strokeDasharray={RING_CIRC} strokeDashoffset={RING_CIRC * (1 - data.score / 100)} />
-                      </g>
-                      <text className="rp-day-ring-label" x="20" y="20">{data.score}%</text>
-                    </svg>
-                  </div>
-                )}
+                {(data.score !== null || data.alignmentScore !== null) && (() => {
+                  const displayed = data.alignmentScore ?? data.score!;
+                  return (
+                    <div className="rp-day-ring" aria-hidden="true">
+                      <svg viewBox="0 0 40 40" className="rp-day-ring-svg">
+                        <g transform="rotate(-90 20 20)">
+                          <circle className="rp-day-ring-track" cx="20" cy="20" r="16" />
+                          <circle className="rp-day-ring-fill" cx="20" cy="20" r="16" strokeDasharray={RING_CIRC} strokeDashoffset={RING_CIRC * (1 - displayed / 100)} />
+                        </g>
+                        <text className="rp-day-ring-label" x="20" y="20">{displayed}%</text>
+                      </svg>
+                    </div>
+                  );
+                })()}
               </div>
             );
           })}

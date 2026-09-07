@@ -2,6 +2,7 @@ export type ScoreTier = "empty" | "poor" | "low" | "mid" | "good" | "great";
 
 export interface DayData {
   score: number | null;
+  alignmentScore: number | null;
   habitsTotal: number;
   habitsDone: number;
   tasksTotal: number;

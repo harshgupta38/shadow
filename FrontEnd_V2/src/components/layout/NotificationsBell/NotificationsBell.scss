@@ -1,0 +1,18 @@
+.notifications-bell-menu {
+  width: 320px;
+  max-width: calc(100vw - 1.5rem);
+  padding: 0;
+}
+
+.notifications-bell-list {
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.notifications-bell-item {
+  transition: background 0.12s ease;
+
+  &:hover {
+    background: var(--jv-surface-2);
+  }
+}

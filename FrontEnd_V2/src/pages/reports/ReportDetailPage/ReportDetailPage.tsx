@@ -219,6 +219,7 @@ export function ReportDetailPage() {
   const dateLabel = new Date(`${report.date}T12:00:00Z`).toLocaleDateString("en-GB", {
     weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Kolkata",
   });
+  const isToday = report.date === new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
 
   const paginationActions = total > 1 ? [
     {
@@ -280,7 +281,7 @@ export function ReportDetailPage() {
           <span className="rdp-stat-val">{report.stats.habits_done}/{report.stats.habits_total}</span>
           <div className="rdp-stat-text">
             <span className="rdp-stat-name">Habits Done</span>
-            <span className="rdp-stat-hint">{report.report_type === "weekly" ? "tracked this week" : "tracked today"}</span>
+            <span className="rdp-stat-hint">{report.report_type === "weekly" ? "tracked this week" : isToday ? "tracked today" : "tracked that day"}</span>
           </div>
         </div>
         <div className="rdp-stat rdp-stat--brand">

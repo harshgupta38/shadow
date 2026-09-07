@@ -27,6 +27,7 @@ export const ROUTES = {
     REPORTS: "/reports",
     REPORTS_DETAIL: "/reports/:historyDate",
     ASSISTANT: "/assistant",
+    NOTIFICATIONS: "/notifications",
     PROFILE: "/profile",
     SETTINGS: "/settings",
 }

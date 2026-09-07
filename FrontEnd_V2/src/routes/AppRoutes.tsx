@@ -31,6 +31,7 @@ import { ReportDetailPage } from "@/pages/reports/ReportDetailPage/ReportDetailP
 import { AssistantPage } from "@/pages/assistant/AssistantPage";
 import { ProfilePage } from "@/pages/profile/ProfilePage";
 import { SettingsPage } from "@/pages/settings/SettingsPage";
+import { NotificationsPage } from "@/pages/notifications/NotificationsPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 
 export function AppRoutes() {
@@ -68,6 +69,7 @@ export function AppRoutes() {
 					<Route path={ROUTES.REPORTS} element={<ReportsPage />} />
 					<Route path={ROUTES.REPORTS_DETAIL} element={<ReportDetailPage />} />
 					<Route path={ROUTES.ASSISTANT} element={<AssistantPage />} />
+					<Route path={ROUTES.NOTIFICATIONS} element={<NotificationsPage />} />
 					<Route path={ROUTES.PROFILE} element={<ProfilePage />} />
 					<Route path={ROUTES.SETTINGS} element={<SettingsPage />} />
 				</Route>

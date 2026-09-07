@@ -688,6 +688,20 @@ export interface SimpleHabitData extends HabitBaseData {
   history: boolean[];
 }
 
+// ── Notifications ────────────────────────────────────────────────────────────
+
+export type NotificationType = "reminder" | "system" | "agent";
+
+export interface Notification {
+  id: number;
+  title: string;
+  body: string | null;
+  type: NotificationType;
+  read: boolean;
+  created_at: string;
+  url?: string;
+}
+
 // ── Reports ───────────────────────────────────────────────────────────────────
 
 export interface DayReport {

@@ -34,6 +34,7 @@ const ReportDetailPage = lazy(() => import("@/pages/reports/ReportDetailPage/Rep
 const AssistantPage = lazy(() => import("@/pages/assistant/AssistantPage").then(m => ({ default: m.AssistantPage })));
 const ProfilePage = lazy(() => import("@/pages/profile/ProfilePage").then(m => ({ default: m.ProfilePage })));
 const SettingsPage = lazy(() => import("@/pages/settings/SettingsPage").then(m => ({ default: m.SettingsPage })));
+const NotificationsPage = lazy(() => import("@/pages/notifications/NotificationsPage").then(m => ({ default: m.NotificationsPage })));
 const NotFoundPage = lazy(() => import("@/pages/NotFoundPage").then(m => ({ default: m.NotFoundPage })));
 
 function RouteFallback() {
@@ -80,6 +81,7 @@ export function AppRoutes() {
 						<Route path={ROUTES.REPORTS} element={<ReportsPage />} />
 						<Route path={ROUTES.REPORTS_DETAIL} element={<ReportDetailPage />} />
 						<Route path={ROUTES.ASSISTANT} element={<AssistantPage />} />
+						<Route path={ROUTES.NOTIFICATIONS} element={<NotificationsPage />} />
 						<Route path={ROUTES.PROFILE} element={<ProfilePage />} />
 						<Route path={ROUTES.SETTINGS} element={<SettingsPage />} />
 					</Route>

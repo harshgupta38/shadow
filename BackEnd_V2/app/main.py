@@ -7,8 +7,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 
-from sqlalchemy import text
-
 from app.api.router import api_router
 from app.api.system import router as system_router
 from app.api.shortcuts import router as shortcuts_router
@@ -40,13 +38,6 @@ from app.services import planner_service, backup_service, notification_scheduler
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     Base.metadata.create_all(bind=engine)
-    # Idempotent column migration — adds event_key to existing notifications tables.
-    with engine.connect() as _conn:
-        try:
-            _conn.execute(text("ALTER TABLE notifications ADD COLUMN event_key VARCHAR(255)"))
-            _conn.commit()
-        except Exception:
-            pass  # column already exists
     with SessionLocal() as db:
         planner_service.sync_all_plans(db)
 

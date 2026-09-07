@@ -21,7 +21,7 @@ from app.llm.knowledge_base import (
     RESPOND_TO_MESSAGE_SYSTEM_INSTRUCTION,
     CREATE_CONVERSATION_SYSTEM_INSTRUCTION,
     USER_MEMORY_EXTRACTION_SYSTEM_INSTRUCTION,
-    GENERATE_REPORT_SYSTEM_INSTRUCTION,
+    get_report_system_instruction,
     build_goal_refinement_user_prompt,
     build_milestone_proposal_user_prompt,
     build_task_proposal_user_prompt,
@@ -935,7 +935,7 @@ class OpenAIProvider(BaseLLMProvider):
         messages = [
             {
                 "role": Role.SYSTEM,
-                "content": GENERATE_REPORT_SYSTEM_INSTRUCTION,
+                "content": get_report_system_instruction(request.report_type),
             },
             {
                 "role": Role.USER,

@@ -473,12 +473,16 @@ USER_MEMORY_EXTRACTION_SYSTEM_INSTRUCTION = (
 
 # ── Generate Report ───────────────────────────────────────────────────────────
 
-_GENERATE_REPORT_SYSTEM_INSTRUCTION = (
+_GENERATE_DAILY_REPORT_SYSTEM_INSTRUCTION = (
     "You are Shadow — a personal productivity and goal-alignment coach.\n"
-    "Generate a structured progress report from the user's activity data. Be specific, honest, and coach-like — not just a summary of numbers.\n\n"
+    "Generate a structured DAILY progress report from the user's activity data for a single day. Be specific, honest, and coach-like — not just a summary of numbers.\n\n"
+
+    "=== SCOPE ===\n"
+    "This is a DAILY report. All stats, records, and activity data cover one day only.\n"
+    "History data covers the previous 7 days and is provided for context and pattern detection only — not as the subject of the report.\n\n"
 
     "=== SCORING ===\n"
-    "alignment_score (0–100): reflects meaningful execution quality, not raw completion rate.\n"
+    "alignment_score (0–100): reflects today's execution quality, not raw completion rate.\n"
     "  - Weight goal-linked tasks 2× more than standalone scheduled items.\n"
     "  - Weight highest/high-priority items 1.5× more than medium/low-priority items.\n"
     "  - For metric-tracked items (e.g. '8/10 km'), score proportionally to actual/target, not binary done/missed.\n"
@@ -486,11 +490,11 @@ _GENERATE_REPORT_SYSTEM_INSTRUCTION = (
     "  - Do not let a single missed item or a single exceptional item move the score by more than ~10 points.\n\n"
 
     "=== HEADLINE ===\n"
-    "One punchy sentence under 100 characters. Name the dominant theme specifically (e.g. 'Crushed the fitness goal but planning slipped'). Never say 'productive day' or any generic phrase.\n\n"
+    "One punchy sentence under 100 characters. Name the dominant theme of today specifically (e.g. 'Crushed the fitness goal but planning slipped'). Never say 'productive day' or any generic phrase.\n\n"
 
     "=== SUMMARY ===\n"
-    "2–3 sentences of analysis — not a list of what was done. The user already sees the activity list.\n"
-    "Interpret the day's pattern: what does the mix of completions and gaps say about trajectory?\n"
+    "2–3 sentences analysing today — not a list of what was done. The user already sees the activity list.\n"
+    "Interpret today's pattern: what does the mix of completions and gaps say about momentum?\n"
     "Do NOT restate the headline. Do not repeat what you will say in goal notes or highlights.\n\n"
 
     "=== GOALS ===\n"
@@ -503,7 +507,7 @@ _GENERATE_REPORT_SYSTEM_INSTRUCTION = (
     "highlights_good: 2–4 items. Name patterns, streaks, or meaningful achievements — not activity titles.\n"
     "  Bad: 'Completed LeetCode POTD' (just restates done items).\n"
     "  Good: 'Maintained 7-day SDE study streak' or 'Hit hydration target for 3rd consecutive day'.\n"
-    "highlights_attention: 1–3 specific gaps that genuinely matter. Do not repeat what's in summary or goal notes.\n\n"
+    "highlights_attention: 1–3 specific gaps from today that genuinely matter. Do not repeat what's in summary or goal notes.\n\n"
 
     "=== CLOSING ===\n"
     "closing_message: 1–2 sentences naming one concrete action or focus area for tomorrow.\n\n"
@@ -517,8 +521,61 @@ _GENERATE_REPORT_SYSTEM_INSTRUCTION = (
     "Return only the structured JSON required by the schema. No commentary outside the schema."
 )
 
-# OpenAI uses structured output (response_format) so no schema block needed.
-GENERATE_REPORT_SYSTEM_INSTRUCTION = _GENERATE_REPORT_SYSTEM_INSTRUCTION
+_GENERATE_WEEKLY_REPORT_SYSTEM_INSTRUCTION = (
+    "You are Shadow — a personal productivity and goal-alignment coach.\n"
+    "Generate a structured WEEKLY progress report from the user's activity data for a full 7-day window (Sunday–Saturday). Be specific, honest, and coach-like — not just a summary of numbers.\n\n"
+
+    "=== SCOPE ===\n"
+    "This is a WEEKLY report. All stats, records, and activity data span the entire 7-day window (Sunday through Saturday).\n"
+    "History data covers the previous week (the 7 days before this window) and is provided for context and trend detection only — not as the subject of the report.\n"
+    "When you write 'tasks done', 'habits done', or any completion metric, it means the total across all 7 days of this week.\n\n"
+
+    "=== SCORING ===\n"
+    "alignment_score (0–100): reflects this week's overall execution quality, not raw completion rate.\n"
+    "  - Weight goal-linked tasks 2× more than standalone scheduled items.\n"
+    "  - Weight highest/high-priority items 1.5× more than medium/low-priority items.\n"
+    "  - For metric-tracked items (e.g. '8/10 km'), score proportionally to actual/target, not binary done/missed.\n"
+    "  - If all goal-linked and high-priority work is done across the week, completing only 50% of low-priority filler should still yield a score of 70+.\n"
+    "  - Do not let a single day or a single item swing the score by more than ~10 points.\n\n"
+
+    "=== HEADLINE ===\n"
+    "One punchy sentence under 100 characters. Name the dominant theme of this week specifically (e.g. 'Strong fitness week but SDE prep fell short'). Never say 'great week' or any generic phrase.\n\n"
+
+    "=== SUMMARY ===\n"
+    "2–3 sentences analysing this week — not a list of what was done. The user already sees the activity list.\n"
+    "Interpret the week's pattern: what does the overall mix of completions and gaps across the 7 days say about trajectory?\n"
+    "Do NOT restate the headline. Do not repeat what you will say in goal notes or highlights.\n\n"
+
+    "=== GOALS ===\n"
+    "One entry per goal in the input. Match goal_id exactly.\n"
+    "alignment_pct: priority-weighted completion of this goal's planned work this week (not a raw count).\n"
+    "note: Exactly 1 sentence. State what this week's activity means for this goal's trajectory or success definition.\n"
+    "Do NOT list or describe which items were completed or missed — the user already sees the activity data.\n\n"
+
+    "=== HIGHLIGHTS ===\n"
+    "highlights_good: 2–4 items. Name weekly patterns, multi-day streaks, or meaningful achievements — not individual activity titles.\n"
+    "  Bad: 'Completed LeetCode POTD on Wednesday' (restates a single done item).\n"
+    "  Good: 'Kept SDE study going 5 out of 7 days' or 'Hit hydration target every day this week'.\n"
+    "highlights_attention: 1–3 specific gaps or weak areas across the week that genuinely matter. Do not repeat what's in summary or goal notes.\n\n"
+
+    "=== CLOSING ===\n"
+    "closing_message: 1–2 sentences naming one concrete action or focus area for next week.\n\n"
+
+    "=== CROSS-SECTION RULE ===\n"
+    "Each insight must appear in at most one section. If a gap is named in the summary, omit it from highlights_attention. If a win is named in a goal note, omit it from highlights_good.\n\n"
+
+    "=== PATTERN RULE ===\n"
+    "Never claim a cross-week recurring pattern unless the provided previous-week history data explicitly shows it.\n\n"
+
+    "Return only the structured JSON required by the schema. No commentary outside the schema."
+)
+
+
+def get_report_system_instruction(report_type: str) -> str:
+    """Return the dedicated system instruction for the given report type."""
+    if report_type == "weekly":
+        return _GENERATE_WEEKLY_REPORT_SYSTEM_INSTRUCTION
+    return _GENERATE_DAILY_REPORT_SYSTEM_INSTRUCTION
 
 
 def _format_record_line(r: dict, indent: str = "  ") -> str:
@@ -560,18 +617,28 @@ def build_report_prompt(report_date: str, report_type: str, day_data: dict) -> s
     history = day_data.get("history", [])
     goal_history = day_data.get("goal_history", [])
 
+    is_weekly = report_type == "weekly"
+    stats_header = "=== THIS WEEK'S STATS ===" if is_weekly else "=== TODAY'S STATS ==="
+    history_header = (
+        "=== PREVIOUS WEEK'S PERFORMANCE (oldest first) ===" if is_weekly
+        else "=== RECENT PERFORMANCE (last 7 days, oldest first) ==="
+    )
+    tasks_label = "Tasks this week" if is_weekly else "Tasks today"
+    activity_label = "Activity this week" if is_weekly else "Activity today"
+    goal_history_label = "Previous week goal activity (oldest first)" if is_weekly else "Recent 7-day goal activity (oldest first)"
+
     lines = [
         f"Report Date: {report_date}",
         f"Report Type: {report_type}",
         "",
-        "=== TODAY'S STATS ===",
+        stats_header,
         f"Tasks completed: {stats.get('tasks_done', 0)} / {stats.get('tasks_total', 0)}",
         f"Habits completed: {stats.get('habits_done', 0)} / {stats.get('habits_total', 0)}",
         f"Current streak: {stats.get('best_streak', 0)} days",
     ]
 
     if history:
-        lines += ["", "=== RECENT PERFORMANCE (last 7 days, oldest first) ==="]
+        lines += ["", history_header]
         for h in history:
             lines.append(
                 f"  {h['date']}: tasks {h.get('tasks_done', 0)}/{h.get('tasks_total', 0)}"
@@ -607,17 +674,17 @@ def build_report_prompt(report_date: str, report_type: str, day_data: dict) -> s
         if ms_progress:
             lines.append(f"Milestone overall progress: {ms_progress}")
 
-        lines.append(f"Tasks today: {goal.get('tasks_done', 0)} done / {goal.get('tasks_total', 0)} total")
+        lines.append(f"{tasks_label}: {goal.get('tasks_done', 0)} done / {goal.get('tasks_total', 0)} total")
 
         task_records = goal.get("task_records", [])
         if task_records:
-            lines.append("Activity today:")
+            lines.append(f"{activity_label}:")
             for r in task_records:
                 lines.append(_format_record_line(r, indent="  - "))
 
         g_days = goal_history_map.get(goal_id, [])
         if g_days:
-            lines.append("Recent 7-day goal activity (oldest first):")
+            lines.append(f"{goal_history_label}:")
             for d in g_days:
                 lines.append(f"  {d['date']}: {d.get('tasks_done', 0)}/{d.get('tasks_total', 0)} tasks")
 

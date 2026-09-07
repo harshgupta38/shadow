@@ -71,26 +71,47 @@ def _compute_streak(db: Session, user_id: int, report_date: date) -> int:
 
 # ── Public service functions ──────────────────────────────────────────────────
 
-def build_day_data(db: Session, user_id: int, report_date: date) -> dict:
+def build_day_data(db: Session, user_id: int, report_date: date, report_type: str = "daily") -> dict:
     """Assemble the day_data dict passed to the LLM for report generation."""
 
-    # Today's plan records
-    today_records: list[DailyPlanRecordDBM] = db.scalars(
-        select(DailyPlanRecordDBM).where(
-            DailyPlanRecordDBM.user_id == user_id,
-            DailyPlanRecordDBM.scheduled_date == report_date,
-        )
-    ).all()
+    if report_type == "weekly":
+        # report_date is always Saturday; week spans Sunday–Saturday
+        week_start = report_date - timedelta(days=6)
+        primary_records: list[DailyPlanRecordDBM] = db.scalars(
+            select(DailyPlanRecordDBM).where(
+                DailyPlanRecordDBM.user_id == user_id,
+                DailyPlanRecordDBM.scheduled_date >= week_start,
+                DailyPlanRecordDBM.scheduled_date <= report_date,
+            )
+        ).all()
+        # Previous week for historical context
+        history_start = week_start - timedelta(days=7)
+        history_records: list[DailyPlanRecordDBM] = db.scalars(
+            select(DailyPlanRecordDBM).where(
+                DailyPlanRecordDBM.user_id == user_id,
+                DailyPlanRecordDBM.scheduled_date >= history_start,
+                DailyPlanRecordDBM.scheduled_date < week_start,
+            )
+        ).all()
+    else:
+        # Daily: single day
+        primary_records = db.scalars(
+            select(DailyPlanRecordDBM).where(
+                DailyPlanRecordDBM.user_id == user_id,
+                DailyPlanRecordDBM.scheduled_date == report_date,
+            )
+        ).all()
+        # Past 7 days (excluding today) for historical context
+        history_start = report_date - timedelta(days=7)
+        history_records = db.scalars(
+            select(DailyPlanRecordDBM).where(
+                DailyPlanRecordDBM.user_id == user_id,
+                DailyPlanRecordDBM.scheduled_date >= history_start,
+                DailyPlanRecordDBM.scheduled_date < report_date,
+            )
+        ).all()
 
-    # Past 7 days (excluding today) for historical context
-    history_start = report_date - timedelta(days=7)
-    history_records: list[DailyPlanRecordDBM] = db.scalars(
-        select(DailyPlanRecordDBM).where(
-            DailyPlanRecordDBM.user_id == user_id,
-            DailyPlanRecordDBM.scheduled_date >= history_start,
-            DailyPlanRecordDBM.scheduled_date < report_date,
-        )
-    ).all()
+    today_records = primary_records  # alias — rest of function uses today_records
 
     # Bulk-load source tasks and habits from both today + history to resolve goal links
     all_records = list(today_records) + list(history_records)
@@ -123,8 +144,8 @@ def build_day_data(db: Session, user_id: int, report_date: date) -> dict:
         ).all()
         milestone_by_goal = {m.goal_id: m for m in milestones}
 
-    # Today's stats
-    task_recs = [r for r in today_records if r.source_type == "task"]
+    # Today's stats — "task" and "schedule" both count as task-like items
+    task_recs = [r for r in today_records if r.source_type in ("task", "schedule")]
     habit_recs = [r for r in today_records if r.source_type == "habit"]
 
     # Group today's records by goal for per-goal breakdown
@@ -162,8 +183,8 @@ def build_day_data(db: Session, user_id: int, report_date: date) -> dict:
     history = [
         {
             "date": str(d),
-            "tasks_done": sum(1 for r in recs if r.source_type == "task" and r.status == "done"),
-            "tasks_total": sum(1 for r in recs if r.source_type == "task"),
+            "tasks_done": sum(1 for r in recs if r.source_type in ("task", "schedule") and r.status == "done"),
+            "tasks_total": sum(1 for r in recs if r.source_type in ("task", "schedule")),
             "habits_done": sum(1 for r in recs if r.source_type == "habit" and r.status == "done"),
             "habits_total": sum(1 for r in recs if r.source_type == "habit"),
         }
@@ -260,7 +281,7 @@ async def generate_report_background(user_id: int, report_date: date, report_typ
     """Background task: collect data, call LLM, and persist the result."""
     db = SessionLocal()
     try:
-        day_data = build_day_data(db, user_id, report_date)
+        day_data = build_day_data(db, user_id, report_date, report_type)
         llm_result = await get_llm_service().generate_report(
             user_id=user_id,
             report_date=str(report_date),

@@ -280,10 +280,35 @@ def save_report(
     db.commit()
 
 
-async def generate_report_background(user_id: int, report_date: date, report_type: str) -> None:
-    """Background task: collect data, call LLM, and persist the result."""
+async def generate_report_background(
+    user_id: int,
+    report_date: date,
+    report_type: str,
+    *,
+    force: bool = False,
+) -> None:
+    """Background task: collect data, call LLM, and persist the result.
+
+    force=True skips the duplicate check — use for manual user-triggered generation.
+    force=False (default) is used by the scheduler to guard against double-firing on restart.
+    """
     db = SessionLocal()
     try:
+        if not force:
+            existing = db.scalar(
+                select(ReportDBM).where(
+                    ReportDBM.user_id == user_id,
+                    ReportDBM.report_date == report_date,
+                    ReportDBM.report_type == report_type,
+                )
+            )
+            if existing:
+                logger.info(
+                    "Skipping report — already exists for user=%d date=%s type=%s",
+                    user_id, report_date, report_type,
+                )
+                return
+
         day_data = build_day_data(db, user_id, report_date, report_type)
         if not day_data.get("all_records"):
             logger.info(

@@ -67,5 +67,5 @@ async def request_report(
         raise ValidationError("Cannot generate a report for a future date.")
     if report_type == "weekly" and report_date.weekday() != 5:
         raise ValidationError("Weekly reports must be dated on a Saturday.")
-    background_tasks.add_task(generate_report_background, current_user.id, report_date, report_type)
+    background_tasks.add_task(generate_report_background, current_user.id, report_date, report_type, force=True)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

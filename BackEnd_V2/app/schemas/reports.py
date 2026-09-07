@@ -8,6 +8,7 @@ from pydantic import BaseModel
 class DayReport(BaseModel):
     date: date
     score: int | None
+    alignment_score: int | None
     habits_total: int
     habits_done: int
     tasks_total: int

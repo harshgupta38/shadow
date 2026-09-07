@@ -691,6 +691,7 @@ export interface SimpleHabitData extends HabitBaseData {
 export interface DayReport {
   date: string;             // "YYYY-MM-DD"
   score: number | null;     // null when no plan records exist for the date
+  alignment_score: number | null; // from latest report; null when no report exists
   habits_total: number;
   habits_done: number;
   tasks_total: number;

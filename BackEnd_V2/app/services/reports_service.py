@@ -76,17 +76,29 @@ def get_monthly_report(
         .order_by(DailyPlanRecordDBM.scheduled_date)
     ).all()
 
-    # Build a mapping of date → set of report_types present
+    # Build a mapping of date → set of report_types present, and date → alignment_score
+    # (daily score preferred over weekly; latest report wins per type)
     report_type_rows = db.execute(
-        select(ReportDBM.report_date, ReportDBM.report_type).where(
+        select(ReportDBM.report_date, ReportDBM.report_type, ReportDBM.alignment_score)
+        .where(
             ReportDBM.user_id == user.id,
             ReportDBM.report_date >= start,
             ReportDBM.report_date <= end,
         )
+        .order_by(ReportDBM.report_date, ReportDBM.id.desc())
     ).all()
     report_types_by_date: dict[date, set[str]] = {}
-    for rd, rt in report_type_rows:
+    daily_alignment: dict[date, int] = {}
+    weekly_alignment: dict[date, int] = {}
+    for rd, rt, ascore in report_type_rows:
         report_types_by_date.setdefault(rd, set()).add(rt)
+        if ascore is not None:
+            if rt == "daily" and rd not in daily_alignment:
+                daily_alignment[rd] = ascore
+            elif rt == "weekly" and rd not in weekly_alignment:
+                weekly_alignment[rd] = ascore
+    # daily wins over weekly when both exist
+    alignment_by_date: dict[date, int] = {**weekly_alignment, **daily_alignment}
 
     report_dates: set[date] = set(report_types_by_date.keys())
 
@@ -103,6 +115,7 @@ def get_monthly_report(
             DayReport(
                 date=row.scheduled_date,
                 score=round((row.score_sum or 0) / total * 100),
+                alignment_score=alignment_by_date.get(row.scheduled_date),
                 habits_total=int(row.habits_total or 0),
                 habits_done=int(row.habits_done or 0),
                 tasks_total=int(row.tasks_total or 0),
@@ -121,6 +134,7 @@ def get_monthly_report(
             DayReport(
                 date=rd,
                 score=None,
+                alignment_score=alignment_by_date.get(rd),
                 habits_total=0,
                 habits_done=0,
                 tasks_total=0,

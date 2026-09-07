@@ -5,6 +5,7 @@ from sqlalchemy import and_, case, func, select
 from sqlalchemy.orm import Session
 
 from app.models.plan_record import DailyPlanRecordDBM
+from app.models.report import ReportDBM
 from app.models.user import UserDBM
 from app.schemas.reports import DayReport, MonthlyReportResponse
 
@@ -75,11 +76,29 @@ def get_monthly_report(
         .order_by(DailyPlanRecordDBM.scheduled_date)
     ).all()
 
+    # Build a mapping of date → set of report_types present
+    report_type_rows = db.execute(
+        select(ReportDBM.report_date, ReportDBM.report_type).where(
+            ReportDBM.user_id == user.id,
+            ReportDBM.report_date >= start,
+            ReportDBM.report_date <= end,
+        )
+    ).all()
+    report_types_by_date: dict[date, set[str]] = {}
+    for rd, rt in report_type_rows:
+        report_types_by_date.setdefault(rd, set()).add(rt)
+
+    report_dates: set[date] = set(report_types_by_date.keys())
+
     days: list[DayReport] = []
+    seen_dates: set[date] = set()
+
     for row in rows:
         total = row.total or 0
         if total == 0:
             continue
+        seen_dates.add(row.scheduled_date)
+        types = report_types_by_date.get(row.scheduled_date, set())
         days.append(
             DayReport(
                 date=row.scheduled_date,
@@ -90,7 +109,28 @@ def get_monthly_report(
                 tasks_done=int(row.tasks_done or 0),
                 schedule_total=int(row.schedule_total or 0),
                 schedule_done=int(row.schedule_done or 0),
+                has_daily_report="daily" in types,
+                has_weekly_report="weekly" in types,
             )
         )
 
+    # Include any dates that have a report but no plan records (score shown as null)
+    for rd in sorted(report_dates - seen_dates):
+        types = report_types_by_date.get(rd, set())
+        days.append(
+            DayReport(
+                date=rd,
+                score=None,
+                habits_total=0,
+                habits_done=0,
+                tasks_total=0,
+                tasks_done=0,
+                schedule_total=0,
+                schedule_done=0,
+                has_daily_report="daily" in types,
+                has_weekly_report="weekly" in types,
+            )
+        )
+
+    days.sort(key=lambda d: d.date)
     return MonthlyReportResponse(days=days)

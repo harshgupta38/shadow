@@ -15,6 +15,8 @@ from app.llm.models import (
     ConversationContextFromLLM,
     ExtractUserMemoryToLLM,
     ExtractUserMemoryFromLLM,
+    GenerateReportToLLM,
+    GenerateReportFromLLM,
 )
 
 
@@ -49,6 +51,10 @@ class BaseLLMProvider(ABC):
 
     @abstractmethod
     async def health_check(self) -> bool:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def generate_report(self, request: GenerateReportToLLM) -> GenerateReportFromLLM:
         raise NotImplementedError
 
     @abstractmethod

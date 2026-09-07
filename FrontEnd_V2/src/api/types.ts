@@ -689,16 +689,47 @@ export interface SimpleHabitData extends HabitBaseData {
 // ── Reports ───────────────────────────────────────────────────────────────────
 
 export interface DayReport {
-  date: string;        // "YYYY-MM-DD"
-  score: number;       // 0-100
+  date: string;             // "YYYY-MM-DD"
+  score: number | null;     // null when no plan records exist for the date
   habits_total: number;
   habits_done: number;
   tasks_total: number;
   tasks_done: number;
   schedule_total: number;
   schedule_done: number;
+  has_daily_report: boolean;
+  has_weekly_report: boolean;
 }
 
 export interface MonthlyReportResponse {
   days: DayReport[];
+}
+
+export interface GoalAlignment {
+  id: number;
+  title: string;
+  alignment_pct: number;
+  milestone_title: string;
+  note: string;
+  tasks_done: number;
+  tasks_total: number;
+}
+
+export interface DailyReportDetail {
+  date: string;
+  report_type: "daily" | "weekly";
+  generated_at: string;
+  alignment_score: number;
+  headline: string;
+  summary: string;
+  stats: {
+    tasks_done: number;
+    tasks_total: number;
+    habits_done: number;
+    habits_total: number;
+    best_streak: number;
+  };
+  goals: GoalAlignment[];
+  highlights: { good: string[]; attention: string[] };
+  closing: { tone: "motivate" | "guide" | "celebrate"; message: string };
 }

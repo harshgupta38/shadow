@@ -59,6 +59,12 @@ export const ENDPOINTS = {
         SET_TASK_TRACKING: "/set-task-tracking",
         ELIGIBLE_TASKS: "/eligible-tasks",
     },
+    REPORTS: {
+        PREFIX: "/reports",
+        MONTHLY: "/monthly",
+        REPORT_DETAIL: (reportDate: string) => `/${reportDate}`,
+        GENERATE_REPORT_REQUEST: (reportDate: string) => `/${reportDate}/request`,
+    },
     CHAT: {
         PREFIX: "/chat",
         CONVERSATIONS: "/conversations",

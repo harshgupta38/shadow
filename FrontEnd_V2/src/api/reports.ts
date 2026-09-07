@@ -1,10 +1,25 @@
-import { MonthlyReportResponse } from "@/api/types";
+import { DailyReportDetail, MonthlyReportResponse } from "@/api/types";
 import { http } from "@/api/client";
+import { ENDPOINTS } from "@/constant/shadow-endpoints";
+
+const BASE = ENDPOINTS.REPORTS.PREFIX;
 
 export const reportsApi = {
   async getMonthly(year: number, month: number): Promise<MonthlyReportResponse> {
-    return http.get<MonthlyReportResponse>("/reports/monthly", {
+    return http.get<MonthlyReportResponse>(`${BASE}${ENDPOINTS.REPORTS.MONTHLY}`, {
       params: { year, month },
+    });
+  },
+
+  async getReports(reportDate: string, reportType: "daily" | "weekly" = "daily"): Promise<DailyReportDetail[]> {
+    return http.get<DailyReportDetail[]>(`${BASE}${ENDPOINTS.REPORTS.REPORT_DETAIL(reportDate)}`, {
+      params: { report_type: reportType },
+    });
+  },
+
+  async generateReportRequest(reportDate: string, reportType: "daily" | "weekly"): Promise<void> {
+    await http.post<void>(`${BASE}${ENDPOINTS.REPORTS.GENERATE_REPORT_REQUEST(reportDate)}`, {
+      params: { report_type: reportType },
     });
   },
 };

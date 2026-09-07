@@ -800,6 +800,9 @@ class GeminiProvider(BaseLLMProvider):
             ),
         )
 
+    async def generate_report(self, request):  # type: ignore[override]
+        raise NotImplementedError
+
     async def health_check(self) -> bool:
         # Gemini health check using the /models endpoint.
         try:

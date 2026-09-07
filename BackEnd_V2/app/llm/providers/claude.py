@@ -754,6 +754,9 @@ class ClaudeProvider(BaseLLMProvider):
             ),
         )
 
+    async def generate_report(self, request):  # type: ignore[override]
+        raise NotImplementedError
+
     async def health_check(self) -> bool:
         try:
             await self._client.messages.create(

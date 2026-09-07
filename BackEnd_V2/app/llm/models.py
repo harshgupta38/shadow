@@ -15,6 +15,7 @@ from app.schemas.chat import (
     NewConvoFromLLMSchema,
 )
 from app.schemas.memory import MemoryExtractionFromLLMSchema
+from app.schemas.daily_report import GenerateReportSchema
 
 
 @dataclass(frozen=True)
@@ -143,3 +144,14 @@ class ExtractUserMemoryToLLM(MetadataToLLM):
 
 class ExtractUserMemoryFromLLM(MetadataFromLLM):
     llm_data: MemoryExtractionFromLLMSchema
+
+
+# --- GENERATE REPORT ---
+class GenerateReportToLLM(MetadataToLLM):
+    report_date: str
+    report_type: str
+    day_data: dict
+
+
+class GenerateReportFromLLM(MetadataFromLLM):
+    report_data: GenerateReportSchema

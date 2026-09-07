@@ -2,6 +2,8 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+from app.schemas.daily_report import ReportClosingResponse
+
 PlanSourceType = Literal["habit", "task", "schedule"]
 PlannerType = Literal["simple", "metric"]
 PlanPriority = Literal["highest", "high", "medium", "low", "lowest"]
@@ -47,6 +49,10 @@ class DailyPlanItemResponse(BaseModel):
 
 class DailyPlanResponse(BaseModel):
     items: list[DailyPlanItemResponse]
+    # The prior day's daily-report closing message (relative to `date`), if one was
+    # generated — lets the frontend show it alongside today's plan without a second
+    # request. None when no report exists yet for that date.
+    previous_day_closing: ReportClosingResponse | None = None
 
 
 class UpdatePlanRequest(BaseModel):

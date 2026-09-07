@@ -37,7 +37,9 @@ from app.schemas.planner import (
     DailyPlanResponse,
     DailyPlanSavedData,
     GoalDataInPlan,
+    ReportClosingResponse,
 )
+from app.services.report_service import get_reports
 
 
 # Ordered Monday=0 … Sunday=6, matching date.weekday().
@@ -688,6 +690,16 @@ def sync_all_plans(db: Session) -> None:
 
 # ── Daily planner query ───────────────────────────────────────────────────────
 
+def _previous_day_closing(db: Session, user_id: int, target_date: date) -> ReportClosingResponse | None:
+    """The daily report closing message for the day before `target_date`, if one
+    exists — lets the plan page show yesterday's closing note without a second
+    request. `get_reports` orders by generated_at desc, so [0] is the latest version."""
+    reports = get_reports(db, user_id, target_date - timedelta(days=1), "daily")
+    if not reports:
+        return None
+    return ReportClosingResponse.model_validate(reports[0].closing)
+
+
 def get_plans_for_date(
     db: Session,
     current_user: UserDBM,
@@ -920,7 +932,10 @@ def get_plans_for_date(
                     ),
                 ))
 
-    return DailyPlanResponse(items=items)
+    return DailyPlanResponse(
+        items=items,
+        previous_day_closing=_previous_day_closing(db, current_user.id, target_date),
+    )
 
 
 def update_daily_record(

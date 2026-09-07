@@ -22,6 +22,7 @@ import {
 import { todayDate } from "@/services/date.service";
 import { PlanCard } from "@/pages/plan/PlanCard/PlanCard";
 import { DayOverviewPanel } from "@/pages/plan/DayOverviewPanel/DayOverviewPanel";
+import { YesterdayClosingPanel } from "@/pages/plan/YesterdayClosingPanel/YesterdayClosingPanel";
 import { useToast } from "@/context/ToastContext";
 import "@/pages/plan/PlanPage.scss";
 
@@ -416,6 +417,8 @@ export function PlanPage() {
             isToday={isToday}
             estimatedMinutes={estimatedMinutes}
           />
+
+          {isToday && <YesterdayClosingPanel closing={planData?.previous_day_closing ?? null} />}
         </div>
       </div>
     </section>

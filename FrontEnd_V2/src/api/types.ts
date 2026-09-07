@@ -582,6 +582,9 @@ export interface UpdatePlanRequest {
 
 export interface PlanResponse {
   items: PlanDataResponse[];
+  // The prior day's daily-report closing message (relative to the requested date),
+  // if one was generated — null when no report exists yet for that date.
+  previous_day_closing: DailyReportDetail["closing"] | null;
 }
 
 // ── Scheduled Tasks ──────────────────────────────────────────────────────────

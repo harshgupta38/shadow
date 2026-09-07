@@ -80,14 +80,15 @@ async def stream_notifications(
     request: Request,
     since_id: int = Query(default=0),
     current_user: UserDBM = Depends(get_current_user),
-    db: Session = Depends(get_db),
 ):
     """
     SSE endpoint — auth via the standard Authorization Bearer header (fetch-based client).
-    No token in the URL.
+    No token in the URL. The injected DB session is NOT used here — a short-lived session
+    resolves `effective_since` immediately so the pool connection is released before streaming.
     """
     user_id = current_user.id
-    effective_since = since_id if since_id > 0 else notifications_service.get_latest_id(db, user_id)
+    with SessionLocal() as seed_db:
+        effective_since = since_id if since_id > 0 else notifications_service.get_latest_id(seed_db, user_id)
 
     async def generator():
         last_id = effective_since

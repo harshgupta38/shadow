@@ -1,7 +1,5 @@
 from datetime import datetime
 
-from pydantic import BaseModel, Field
-
 from app.schemas.common import ORMModel
 
 
@@ -13,10 +11,3 @@ class NotificationResponse(ORMModel):
     read: bool
     url: str | None
     created_at: datetime
-
-
-class NotificationCreate(BaseModel):
-    title: str = Field(min_length=1, max_length=255)
-    body: str | None = None
-    type: str = "system"
-    url: str | None = None

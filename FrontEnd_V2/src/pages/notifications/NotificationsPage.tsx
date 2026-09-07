@@ -5,7 +5,7 @@ import { BellFill, Check2All, Trash3 } from "react-bootstrap-icons";
 import { api, ApiError, type Notification } from "@/api";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { useToast } from "@/context/ToastContext";
-import { notifDateLabel, notifTime } from "@/services/date.service";
+import { IST_TIMEZONE, notifDateLabel, notifTime } from "@/services/date.service";
 import { TYPE_COLOR, TYPE_ICON } from "@/pages/notifications/NotificationsPage.constants";
 import "@/pages/notifications/NotificationsPage.scss";
 
@@ -22,7 +22,7 @@ type Tab = "all" | "read" | "unread";
 function groupByDate(items: Notification[]): { label: string; items: Notification[] }[] {
   const map = new Map<string, Notification[]>();
   for (const n of items) {
-    const key = new Date(n.created_at).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+    const key = new Date(n.created_at).toLocaleDateString("en-CA", { timeZone: IST_TIMEZONE });
     if (!map.has(key)) map.set(key, []);
     map.get(key)!.push(n);
   }
@@ -46,21 +46,28 @@ export function NotificationsPage() {
   const [tab, setTab] = useState<Tab>("unread");
 
   const sentinelRef = useRef<HTMLDivElement>(null);
-  // Always holds the latest loadMore so the IntersectionObserver never captures a stale closure.
   const loadMoreRef = useRef<() => void>(() => {});
+
+  // ── Page loader — shared by initial load, retry, and error recovery ─────────
+
+  function loadPage(beforeId?: number) {
+    return api.notifications.list(false, PAGE_SIZE, beforeId).then(data => {
+      setHasMore(data.length === PAGE_SIZE);
+      return data;
+    });
+  }
 
   // ── Initial load ────────────────────────────────────────────────────────────
 
   useEffect(() => {
     setLoading(true);
     setError(null);
-    api.notifications.list(false, PAGE_SIZE).then(data => {
+    loadPage().then(data => {
       setNotifications(data);
-      setHasMore(data.length === PAGE_SIZE);
     }).catch(err => {
       setError(err instanceof ApiError ? err.message : "Couldn't load notifications.");
     }).finally(() => setLoading(false));
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Load more (called by sentinel) ──────────────────────────────────────────
 
@@ -68,18 +75,17 @@ export function NotificationsPage() {
     if (loadingMore || !hasMore) return;
     const oldestId = notifications.length > 0 ? Math.min(...notifications.map(n => n.id)) : undefined;
     setLoadingMore(true);
-    api.notifications.list(false, PAGE_SIZE, oldestId).then(batch => {
+    loadPage(oldestId).then(batch => {
       setNotifications(prev => {
         const seen = new Set(prev.map(n => n.id));
         return [...prev, ...batch.filter(n => !seen.has(n.id))];
       });
-      setHasMore(batch.length === PAGE_SIZE);
     }).catch(() => {
-      // silent — user can scroll up and the sentinel will retry on next intersection
+      // silent — sentinel will retry on next intersection
     }).finally(() => setLoadingMore(false));
   };
 
-  // ── IntersectionObserver — set up once, calls via ref ───────────────────────
+  // ── IntersectionObserver — sentinel is always in the DOM ────────────────────
 
   useEffect(() => {
     const el = sentinelRef.current;
@@ -119,7 +125,7 @@ export function NotificationsPage() {
       toast.success("All caught up.");
     }).catch(() => {
       toast.error("Couldn't update notifications.");
-      api.notifications.list(false, PAGE_SIZE).then(setNotifications);
+      loadPage().then(setNotifications).catch(() => {});
     });
   }
 
@@ -127,16 +133,15 @@ export function NotificationsPage() {
     setNotifications(prev => prev.filter(n => n.id !== id));
     api.notifications.delete(id).catch(() => {
       toast.error("Couldn't delete notification.");
-      api.notifications.list(false, PAGE_SIZE).then(setNotifications);
+      loadPage().then(setNotifications).catch(() => {});
     });
   }
 
   function retry() {
     setLoading(true);
     setError(null);
-    api.notifications.list(false, PAGE_SIZE).then(data => {
+    loadPage().then(data => {
       setNotifications(data);
-      setHasMore(data.length === PAGE_SIZE);
     }).catch(err => {
       setError(err instanceof ApiError ? err.message : "Couldn't load notifications.");
     }).finally(() => setLoading(false));
@@ -271,13 +276,13 @@ export function NotificationsPage() {
               </div>
             </div>
           ))}
-
-          {/* ── Scroll sentinel + load-more indicator ─────────────────── */}
-          <div ref={sentinelRef} className="notif-load-more">
-            {loadingMore && <span className="text-muted-2 small">Loading more…</span>}
-          </div>
         </div>
       )}
+
+      {/* ── Scroll sentinel — always in the DOM so IntersectionObserver attaches ── */}
+      <div ref={sentinelRef} className="notif-load-more">
+        {loadingMore && <span className="text-muted-2 small">Loading more…</span>}
+      </div>
     </section>
   );
 }

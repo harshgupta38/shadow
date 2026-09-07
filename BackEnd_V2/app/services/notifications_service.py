@@ -108,5 +108,5 @@ def mark_all_read(db: Session, user: UserDBM) -> None:
     db.query(NotificationDBM).filter(
         NotificationDBM.user_id == user.id,
         NotificationDBM.read == False,  # noqa: E712
-    ).update({"read": True})
+    ).update({"read": True}, synchronize_session=False)
     db.commit()

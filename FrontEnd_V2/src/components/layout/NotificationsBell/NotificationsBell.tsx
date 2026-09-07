@@ -23,13 +23,18 @@ export function NotificationsBell() {
     const MAX_RETRIES = 8;
 
     (async () => {
-      // Initial list — runs once; stream reconnects keep lastSeenId up to date
       let lastSeenId = 0;
       try {
-        const data = await api.notifications.list(true);
+        // Fetch unread for display and all-notifications (limit 1) to seed the SSE cursor.
+        // Using only the unread list for the cursor would miss read notifications with higher
+        // IDs, causing the SSE to re-deliver them on the first tick.
+        const [unread, latest] = await Promise.all([
+          api.notifications.list(true),
+          api.notifications.list(false, 1),
+        ]);
         if (signal.aborted) return;
-        setNotifications(data);
-        lastSeenId = data.length > 0 ? Math.max(...data.map(n => n.id)) : 0;
+        setNotifications(unread);
+        lastSeenId = latest.length > 0 ? latest[0].id : 0;
       } catch {
         if (signal.aborted) return;
         // continue — stream is still useful even when the initial fetch fails
@@ -42,7 +47,7 @@ export function NotificationsBell() {
             lastSeenId = Math.max(lastSeenId, notif.id);
             setNotifications(prev => prev.some(n => n.id === notif.id) ? prev : [notif, ...prev]);
           }, signal);
-          retries = 0; // clean close → reset counter before reconnecting
+          retries = 0; // clean server-side close — reset before reconnecting
         } catch (e) {
           if (e instanceof DOMException && e.name === "AbortError") return;
           retries++;
@@ -51,7 +56,7 @@ export function NotificationsBell() {
         if (signal.aborted || retries > MAX_RETRIES) break;
 
         // Exponential backoff capped at 30 s: 1 s, 2 s, 4 s, 8 s, 16 s, 30 s …
-        const delayMs = Math.min(1_000 * 2 ** (retries - 1), 30_000);
+        const delayMs = Math.min(1_000 * 2 ** retries, 30_000);
         await new Promise<void>(resolve => {
           const t = setTimeout(resolve, delayMs);
           signal.addEventListener("abort", () => { clearTimeout(t); resolve(); }, { once: true });
@@ -63,10 +68,12 @@ export function NotificationsBell() {
   }, []);
 
   // ── Auto-close when user navigates to the notifications page ────────────────
-  if (open && location.pathname === ROUTES.NOTIFICATIONS) {
-    setOpen(false);
-    setSnapshot([]);
-  }
+  useEffect(() => {
+    if (open && location.pathname === ROUTES.NOTIFICATIONS) {
+      setOpen(false);
+      setSnapshot([]);
+    }
+  }, [location.pathname, open]);
 
   const unread = notifications.filter(n => !n.read);
   const unreadCount = unread.length;

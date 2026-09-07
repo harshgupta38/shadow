@@ -18,7 +18,8 @@ async function readSSEStream(
     signal,
   });
 
-  if (!response.ok || !response.body) return;
+  if (!response.ok) throw new Error(`SSE error: ${response.status}`);
+  if (!response.body) return;
 
   const reader = response.body.getReader();
   const decoder = new TextDecoder();

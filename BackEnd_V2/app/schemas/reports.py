@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import date
 
 from pydantic import BaseModel
@@ -5,7 +7,7 @@ from pydantic import BaseModel
 
 class DayReport(BaseModel):
     date: date
-    score: int
+    score: int | None
     habits_total: int
     habits_done: int
     tasks_total: int

@@ -706,6 +706,7 @@ export interface GoalAlignment {
 
 export interface DailyReportDetail {
   date: string;
+  report_type: "daily" | "weekly";
   generated_at: string;
   alignment_score: number;
   headline: string;

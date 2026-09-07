@@ -87,10 +87,13 @@ def get_monthly_report(
     )
 
     days: list[DayReport] = []
+    seen_dates: set[date] = set()
+
     for row in rows:
         total = row.total or 0
         if total == 0:
             continue
+        seen_dates.add(row.scheduled_date)
         days.append(
             DayReport(
                 date=row.scheduled_date,
@@ -105,4 +108,21 @@ def get_monthly_report(
             )
         )
 
+    # Include any dates that have a report but no plan records (score shown as null)
+    for rd in sorted(report_dates - seen_dates):
+        days.append(
+            DayReport(
+                date=rd,
+                score=None,
+                habits_total=0,
+                habits_done=0,
+                tasks_total=0,
+                tasks_done=0,
+                schedule_total=0,
+                schedule_done=0,
+                has_report=True,
+            )
+        )
+
+    days.sort(key=lambda d: d.date)
     return MonthlyReportResponse(days=days)

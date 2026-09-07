@@ -47,10 +47,10 @@ export function buildMonthData(year: number, month: number, apiDays: DayReport[]
 
 export function tierOf(score: number | null): ScoreTier {
   if (score === null || score <= 0) return "empty";
-  if (score <= 20) return "poor";
-  if (score <= 40) return "low";
-  if (score <= 60) return "mid";
-  if (score <= 80) return "good";
+  if (score < 20) return "poor";
+  if (score < 40) return "low";
+  if (score < 60) return "mid";
+  if (score < 80) return "good";
   return "great";
 }
 

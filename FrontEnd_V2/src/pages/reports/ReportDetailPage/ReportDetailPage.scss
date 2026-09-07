@@ -1,17 +1,73 @@
 // rdp = Report Detail Page
 
-.rdp-empty {
-  padding: 3rem 1.5rem;
+.rdp-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   text-align: center;
-  color: var(--jv-text-2);
-  font-size: 0.9rem;
+  padding: 4rem 1.5rem 3rem;
+  max-width: 420px;
+  margin: 0 auto;
 
-  &--error { color: var(--jv-warn); }
+  .rdp-empty-icon {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.25rem;
+
+    &--muted {
+      background: color-mix(in srgb, var(--jv-border) 60%, transparent);
+      color: var(--jv-text-3);
+    }
+    &--warn {
+      background: color-mix(in srgb, var(--jv-warn) 12%, transparent);
+      color: var(--jv-warn);
+    }
+  }
+
+  .rdp-empty-title {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--jv-text-1);
+    margin-bottom: 0.5rem;
+  }
+
+  .rdp-empty-body {
+    font-size: 0.875rem;
+    color: var(--jv-text-2);
+    line-height: 1.6;
+    margin-bottom: 1.75rem;
+  }
+
+  .rdp-empty-actions {
+    display: flex;
+    gap: 0.625rem;
+  }
 }
 
 .rdp-page {
   display: flex;
   flex-direction: column;
+
+  .rdp-back-link {
+    width: fit-content;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin-bottom: 1rem;
+    color: var(--jv-brand-1);
+    font-size: 0.875rem;
+    font-weight: 700;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+
+    &:hover { opacity: 0.75; }
+  }
 
   // ── Stats ────────────────────────────────────────────────────────────────────
 
@@ -486,5 +542,296 @@
     color: var(--jv-muted);
     margin: 0;
     padding-top: 0.12rem;
+  }
+
+  // ── Ghost Shell ───────────────────────────────────────────────────────────────
+
+  @keyframes rdp-shimmer {
+    0%   { background-position: -400px 0; }
+    100% { background-position:  400px 0; }
+  }
+
+  @keyframes rdp-spin {
+    to { transform: rotate(360deg); }
+  }
+
+  @mixin ghost-shimmer {
+    background: linear-gradient(90deg,
+      var(--jv-border) 25%,
+      color-mix(in srgb, var(--jv-border) 48%, var(--jv-surface)) 50%,
+      var(--jv-border) 75%
+    );
+    background-size: 800px 100%;
+    animation: rdp-shimmer 1.6s linear infinite;
+  }
+
+  .rdp-ghost-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+  }
+
+  .rdp-ghost-shell {
+    width: 100%;
+    mask-image: linear-gradient(to bottom, black 0%, black 50%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, black 0%, black 50%, transparent 100%);
+    pointer-events: none;
+    user-select: none;
+  }
+
+  // Ghost hero
+  .rdp-ghost-hero {
+    display: flex;
+    align-items: center;
+    gap: 1.15rem;
+    padding: 1.1rem 1.15rem;
+    background: var(--jv-surface-2);
+    border: 1px solid var(--jv-border);
+    border-radius: var(--jv-radius-sm);
+  }
+
+  .rdp-ghost-ring {
+    @include ghost-shimmer;
+    width: 118px;
+    height: 118px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .rdp-ghost-hero-text {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .rdp-ghost-headline {
+    @include ghost-shimmer;
+    border-radius: 4px;
+    height: 18px;
+    width: 72%;
+
+    &--short { width: 48%; }
+  }
+
+  .rdp-ghost-summary {
+    @include ghost-shimmer;
+    border-radius: 4px;
+    height: 13px;
+    width: 90%;
+
+    &--med { width: 66%; }
+  }
+
+  // Ghost stats row
+  .rdp-ghost-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.6rem;
+  }
+
+  .rdp-ghost-stat {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.85rem 0.9rem;
+    background: var(--jv-surface-2);
+    border: 1px solid var(--jv-border);
+    border-radius: var(--jv-radius-sm);
+  }
+
+  .rdp-ghost-stat-val {
+    @include ghost-shimmer;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .rdp-ghost-stat-text {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .rdp-ghost-stat-name {
+    @include ghost-shimmer;
+    border-radius: 4px;
+    height: 12px;
+    width: 70%;
+  }
+
+  .rdp-ghost-stat-hint {
+    @include ghost-shimmer;
+    border-radius: 4px;
+    height: 10px;
+    width: 50%;
+  }
+
+  // Ghost section
+  .rdp-ghost-section {
+    background: var(--jv-surface-2);
+    border: 1px solid var(--jv-border);
+    border-radius: var(--jv-radius-sm);
+    padding: 0.9rem 1rem;
+  }
+
+  .rdp-ghost-sec-head {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 0.85rem;
+  }
+
+  .rdp-ghost-sec-title {
+    @include ghost-shimmer;
+    border-radius: 4px;
+    height: 14px;
+    width: 140px;
+  }
+
+  .rdp-ghost-sec-chip {
+    @include ghost-shimmer;
+    height: 20px;
+    width: 56px;
+    border-radius: 20px;
+  }
+
+  // Ghost goal cards
+  .rdp-ghost-goal-cards {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.65rem;
+  }
+
+  .rdp-ghost-goal-card {
+    background: var(--jv-surface);
+    border: 1px solid var(--jv-border);
+    border-radius: var(--jv-radius-sm);
+    padding: 0.85rem 0.95rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .rdp-ghost-goal-top {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+  }
+
+  .rdp-ghost-mini-ring {
+    @include ghost-shimmer;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .rdp-ghost-goal-meta {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .rdp-ghost-goal-title {
+    @include ghost-shimmer;
+    border-radius: 4px;
+    height: 13px;
+    width: 75%;
+  }
+
+  .rdp-ghost-goal-badge {
+    @include ghost-shimmer;
+    border-radius: 4px;
+    height: 10px;
+    width: 50%;
+  }
+
+  .rdp-ghost-goal-note {
+    @include ghost-shimmer;
+    border-radius: 4px;
+    height: 11px;
+    width: 92%;
+
+    &--short { width: 60%; }
+  }
+
+  // Ghost highlights
+  .rdp-ghost-highlights {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.65rem;
+  }
+
+  .rdp-ghost-hl-col {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+  }
+
+  .rdp-ghost-hl-label {
+    @include ghost-shimmer;
+    height: 12px;
+    width: 60px;
+    border-radius: 20px;
+  }
+
+  .rdp-ghost-hl-item {
+    @include ghost-shimmer;
+    height: 44px;
+    border-radius: var(--jv-radius-sm);
+    width: 100%;
+
+    &--short { height: 38px; width: 80%; }
+  }
+
+  // Ghost centered overlay — normal flow, sits below the faded shell
+  .rdp-ghost-core {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 0.45rem;
+    margin-top: -1.25rem;
+    pointer-events: none;
+  }
+
+  .rdp-ghost-icon-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: var(--jv-surface-2);
+    border: 1px solid var(--jv-border);
+    margin-bottom: 0.25rem;
+  }
+
+  .rdp-ghost-spinner {
+    display: block;
+    width: 22px;
+    height: 22px;
+    border: 2.5px solid var(--jv-border);
+    border-top-color: var(--jv-brand-1);
+    border-radius: 50%;
+    animation: rdp-spin 0.75s linear infinite;
+  }
+
+  .rdp-ghost-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--jv-text);
+    margin: 0;
+  }
+
+  .rdp-ghost-sub {
+    font-size: 0.8rem;
+    color: var(--jv-muted);
+    margin: 0;
   }
 }

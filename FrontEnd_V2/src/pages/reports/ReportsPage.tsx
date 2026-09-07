@@ -130,6 +130,8 @@ export function ReportsPage() {
       setConfirmDate(null);
       toast.info("Report requested, We'll notify you when it's ready.");
       loadReport();
+    } catch {
+      toast.error("Failed to request report. Please try again.");
     } finally {
       setGenerating(false);
     }
@@ -162,6 +164,22 @@ export function ReportsPage() {
       <section className="rp-page">
         {pageHeader}
         <ReportGhostShell />
+      </section>
+    );
+  }
+
+  // ── Fetch error ──────────────────────────────────────────────────────────────
+
+  if (fetchError) {
+    return (
+      <section className="rp-page">
+        {pageHeader}
+        <div className="rp-fetch-error">
+          <p className="rp-fetch-error-msg">{fetchError}</p>
+          <button type="button" className="btn btn-outline-secondary btn-sm" onClick={loadReport}>
+            Try again
+          </button>
+        </div>
       </section>
     );
   }
@@ -236,7 +254,7 @@ export function ReportsPage() {
               "rp-day", `rp-day--${t}`,
               isToday ? "rp-day--today" : "",
               isFuture ? "rp-day--future" : "",
-              !isFuture ? "rp-day--clickable" : "",
+              (!isFuture && (data.hasReport || data.score !== null)) ? "rp-day--clickable" : "",
               hoveredKey === key ? "rp-day--active" : "",
             ].filter(Boolean).join(" ");
 
@@ -247,14 +265,14 @@ export function ReportsPage() {
                 onMouseEnter={() => !isFuture && setHoveredKey(key)}
                 onClick={() => {
                   if (isFuture) return;
-                  if (data.hasReport) navigate(ROUTES.REPORTS_DETAIL.replace(":historyDate", key));
-                  else setConfirmDate(key);
+                  if (data.hasReport) navigate(`${ROUTES.REPORTS_DETAIL.replace(":historyDate", key)}?report_type=daily`);
+                  else if (data.score !== null) setConfirmDate(key);
                 }}
                 onKeyDown={!isFuture ? (e) => {
                   if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();
-                    if (data.hasReport) navigate(ROUTES.REPORTS_DETAIL.replace(":historyDate", key));
-                    else setConfirmDate(key);
+                    if (data.hasReport) navigate(`${ROUTES.REPORTS_DETAIL.replace(":historyDate", key)}?report_type=daily`);
+                    else if (data.score !== null) setConfirmDate(key);
                   }
                 } : undefined}
                 role={!isFuture ? "button" : undefined}

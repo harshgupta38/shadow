@@ -1,14 +1,17 @@
 import { useEffect, useState } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
+  ArrowLeft,
   BarChartFill,
   CheckCircleFill,
   ChevronLeft,
   ChevronRight,
   ExclamationTriangleFill,
+  FileEarmarkBarGraphFill,
 } from "react-bootstrap-icons";
 
 import { api } from "@/api";
+import { ROUTES } from "@/routes/RoutePaths";
 import type { DailyReportDetail, GoalAlignment } from "@/api/types";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { CLOSING_EMOJI, fmtTime, ringColor } from "./ReportDetailPage.constants";
@@ -97,9 +100,54 @@ function GoalCard({ goal }: { goal: GoalAlignment }) {
   );
 }
 
+// ── Ghost Shell ───────────────────────────────────────────────────────────────
+
+function RdpGhostShell() {
+  return (
+    <div className="rdp-ghost-wrap">
+      <div className="rdp-ghost-shell" aria-hidden="true">
+
+        {/* Ghost hero */}
+        <div className="rdp-ghost-hero">
+          <div className="rdp-ghost-ring" />
+          <div className="rdp-ghost-hero-text">
+            <div className="rdp-ghost-headline" />
+            <div className="rdp-ghost-headline rdp-ghost-headline--short" />
+            <div className="rdp-ghost-summary" />
+            <div className="rdp-ghost-summary rdp-ghost-summary--med" />
+          </div>
+        </div>
+
+        {/* Ghost stats */}
+        <div className="rdp-ghost-stats mt-3">
+          {Array.from({ length: 4 }, (_, i) => (
+            <div key={i} className="rdp-ghost-stat">
+              <div className="rdp-ghost-stat-val" />
+              <div className="rdp-ghost-stat-text">
+                <div className="rdp-ghost-stat-name" />
+                <div className="rdp-ghost-stat-hint" />
+              </div>
+            </div>
+          ))}
+        </div>
+
+      </div>
+
+      <div className="rdp-ghost-core">
+        <div className="rdp-ghost-icon-wrap">
+          <span className="rdp-ghost-spinner" />
+        </div>
+        <h3 className="rdp-ghost-title">Loading your report…</h3>
+        <p className="rdp-ghost-sub">Fetching your report data, just a moment.</p>
+      </div>
+    </div>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export function ReportDetailPage() {
+  const navigate = useNavigate();
   const { historyDate } = useParams<{ historyDate: string }>();
   const [searchParams] = useSearchParams();
   const reportType = (searchParams.get("report_type") ?? "daily") as "daily" | "weekly";
@@ -108,6 +156,8 @@ export function ReportDetailPage() {
   const [idx, setIdx] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const pageTitle = reportType === "weekly" ? "Weekly Report" : "Daily Report";
 
   useEffect(() => {
     if (!historyDate) return;
@@ -122,17 +172,41 @@ export function ReportDetailPage() {
   if (loading) {
     return (
       <div className="rdp-page">
-        <PageHeader icon={<BarChartFill size={20} />} title="Daily Report" subtitle="Loading…" actions={[]} />
-        <div className="rdp-empty">Loading report…</div>
+        <button type="button" className="rdp-back-link" onClick={() => navigate(ROUTES.REPORTS)}>
+          <ArrowLeft size={16} /> Back
+        </button>
+        <PageHeader icon={<BarChartFill size={20} />} title={pageTitle} subtitle={historyDate ?? "Loading…"} actions={[]} />
+        <RdpGhostShell />
       </div>
     );
   }
 
   if (error || reports.length === 0) {
+    const isError = !!error;
     return (
       <div className="rdp-page">
-        <PageHeader icon={<BarChartFill size={20} />} title="Daily Report" subtitle={historyDate ?? ""} actions={[]} />
-        <div className="rdp-empty rdp-empty--error">{error ?? "No reports found for this date."}</div>
+        <button type="button" className="rdp-back-link" onClick={() => navigate(ROUTES.REPORTS)}>
+          <ArrowLeft size={16} /> Back
+        </button>
+        <PageHeader icon={<BarChartFill size={20} />} title={pageTitle} subtitle={historyDate ?? ""} actions={[]} />
+        <div className="rdp-empty-state">
+          <div className={`rdp-empty-icon ${isError ? "rdp-empty-icon--warn" : "rdp-empty-icon--muted"}`}>
+            <FileEarmarkBarGraphFill size={36} />
+          </div>
+          <h3 className="rdp-empty-title">
+            {isError ? "Report not available" : "No report for this date"}
+          </h3>
+          <p className="rdp-empty-body">
+            {isError
+              ? "This report may still be generating. Check back in a moment, or generate a new one."
+              : "No report has been generated for this date yet. Generate one to see your performance breakdown."}
+          </p>
+          <div className="rdp-empty-actions">
+            <button type="button" className="btn btn-outline-secondary px-4" onClick={() => navigate(ROUTES.REPORTS)}>
+              Go Back
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -172,10 +246,14 @@ export function ReportDetailPage() {
   return (
     <div className="rdp-page">
 
+      <button type="button" className="rdp-back-link" onClick={() => navigate(ROUTES.REPORTS)}>
+        <ArrowLeft size={16} /> Back
+      </button>
+
       {/* ── Page Header ──────────────────────────────────────────────────── */}
       <PageHeader
         icon={<BarChartFill size={20} />}
-        title="Daily Report"
+        title={report.report_type === "weekly" ? "Weekly Report" : "Daily Report"}
         subtitle={`${dateLabel} · ${fmtTime(report.generated_at)}${total > 1 ? ` · ${idx + 1} of ${total}` : ""}`}
         actions={paginationActions}
       />

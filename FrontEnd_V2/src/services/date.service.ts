@@ -46,13 +46,17 @@ export function relativeTime(iso: string): string {
     if (days < 7) return `${days}d ago`;
     const wks = Math.floor(days / 7);
     if (wks < 5) return `${wks}w ago`;
-    return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+    return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: IST_TIMEZONE });
 }
 
 export function notifDateLabel(iso: string): string {
     const dateStr = new Date(iso).toLocaleDateString("en-CA", { timeZone: IST_TIMEZONE });
     const today = todayIso();
     if (dateStr === today) return "Today";
+    // Anchor at noon UTC (safely mid-day in IST either side of the date change) rather
+    // than going through a local Date + timezone-formatting round trip — the latter can
+    // shift by a day for a viewer far enough from IST (e.g. todayDate() is anchored to
+    // the viewer's own local midnight, not IST midnight).
     const [y, m, d] = today.split("-").map(Number);
     const yesterdayStr = new Date(Date.UTC(y, m - 1, d - 1, 12)).toLocaleDateString("en-CA", { timeZone: IST_TIMEZONE });
     if (dateStr === yesterdayStr) return "Yesterday";

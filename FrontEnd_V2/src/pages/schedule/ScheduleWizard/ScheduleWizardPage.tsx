@@ -10,7 +10,7 @@ import { ThemeToggle } from "@/components/ui/ThemeToggle/ThemeToggle";
 import { useToast } from "@/context/ToastContext";
 import { GoalWizardVisual } from "@/pages/my_goals/GoalCreationWizard/GoalWizardVisual";
 import { ROUTES } from "@/routes/RoutePaths";
-import { todayIso } from "@/services/date.service";
+import { todayIso, formatDisplayDate } from "@/services/date.service";
 
 import {
     answersFromProposalDraft,
@@ -466,7 +466,7 @@ export function ScheduleWizardPage() {
                                                                     aria-label="Open date picker"
                                                                 >
                                                                     {answers.scheduledDate
-                                                                        ? new Date(answers.scheduledDate + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" })
+                                                                        ? formatDisplayDate(answers.scheduledDate)
                                                                         : <span className="schedule-date-placeholder">Pick a date</span>
                                                                     }
                                                                     <input

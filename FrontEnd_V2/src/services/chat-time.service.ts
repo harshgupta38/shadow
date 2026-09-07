@@ -1,14 +1,29 @@
-function utcToIst(utcTime: string): string {
-    const date = new Date(utcTime);
-    if (Number.isNaN(date.getTime())) return utcTime;
-    const istOffset = 5.5 * 60; // IST is UTC+5:30
-    const localTime = new Date(date.getTime() + istOffset * 60_000);
-    return localTime.toISOString();
-} 
+const IST_TIMEZONE = "Asia/Kolkata";
+
+// Reads a UTC instant's wall-clock date/time as it appears in IST, regardless of
+// the viewer's own local timezone (Date.getHours()/getDate() etc. always use the
+// browser's local timezone, which is not necessarily IST).
+function istParts(date: Date) {
+    const parts = new Intl.DateTimeFormat("en-GB", {
+        timeZone: IST_TIMEZONE,
+        hourCycle: "h23",
+        year: "numeric",
+        month: "short",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+    }).formatToParts(date);
+    const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+    return {
+        year: get("year"),
+        month: get("month"),
+        day: get("day"),
+        hour24: Number(get("hour")),
+        minute: get("minute"),
+    };
+}
 
 export function formatChatTime(createdAt: string): string {
-    createdAt = utcToIst(createdAt);
-
     const date = new Date(createdAt);
     if (Number.isNaN(date.getTime())) return createdAt;
 
@@ -20,21 +35,15 @@ export function formatChatTime(createdAt: string): string {
     if (diffMin === 1) return "1 min ago";
     if (diffMin < 60) return `${diffMin}min ago`;
 
-    const hours = date.getHours();
-    const minutes = String(date.getMinutes()).padStart(2, "0");
-    const period = hours >= 12 ? "pm" : "am";
-    const hour12 = hours % 12 || 12;
-    const timePart = `${String(hour12).padStart(2, "0")}:${minutes} ${period}`;
+    const msgIst = istParts(date);
+    const nowIst = istParts(now);
 
-    const isSameDate =
-        now.getFullYear() === date.getFullYear() &&
-        now.getMonth() === date.getMonth() &&
-        now.getDate() === date.getDate();
+    const period = msgIst.hour24 >= 12 ? "pm" : "am";
+    const hour12 = msgIst.hour24 % 12 || 12;
+    const timePart = `${String(hour12).padStart(2, "0")}:${msgIst.minute} ${period}`;
 
+    const isSameDate = msgIst.year === nowIst.year && msgIst.month === nowIst.month && msgIst.day === nowIst.day;
     if (isSameDate) return timePart;
 
-    const month = date.toLocaleString(undefined, { month: "short" });
-    const day = String(date.getDate()).padStart(2, "0");
-    const year = date.getFullYear();
-    return `${day}-${month}-${year} ${timePart}`;
+    return `${msgIst.day}-${msgIst.month}-${msgIst.year} ${timePart}`;
 }

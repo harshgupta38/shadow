@@ -2,6 +2,7 @@ from datetime import date
 from pydantic import BaseModel, Field, field_validator
 from typing import Any, List, Literal
 
+from app.common import today_ist
 from app.schemas.common import ORMModel
 
 GoalStatus = Literal["Active", "Paused", "Completed"]
@@ -169,7 +170,7 @@ class RefineGoalFromLLMSchema(BaseModel):
         except ValueError as exc:
             raise ValueError("Target date must be in YYYY-MM-DD format.") from exc
 
-        if parsed_target_date <= date.today():
+        if parsed_target_date <= today_ist():
             raise ValueError("Target date must be a future date.")
 
         return parsed_target_date.isoformat()
@@ -216,6 +217,22 @@ class RefineGoalFromLLMSchema(BaseModel):
 
 class SaveGoalRequest(RefineGoalFromLLMSchema):
     pass
+
+
+class UpdateGoalRequest(RefineGoalFromLLMSchema):
+    """Same shape as SaveGoalRequest, but target_date isn't required to be in the
+    future — editing an already-overdue goal must stay possible without also being
+    forced to push its deadline forward. goals_service.update_goal separately rejects
+    a target_date that's being newly changed to a past date."""
+
+    @field_validator("target_date")
+    @classmethod
+    def validate_target_date_must_be_future(cls, value: str) -> str:
+        try:
+            parsed_target_date = date.fromisoformat(value.strip())
+        except ValueError as exc:
+            raise ValueError("Target date must be in YYYY-MM-DD format.") from exc
+        return parsed_target_date.isoformat()
 
 
 class SaveGoalFromProposalRequest(BaseModel):

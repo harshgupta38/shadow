@@ -10,6 +10,9 @@
  */
 import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from "axios";
 import { ApiErrorShape, FieldError, TokenResponse } from "@/api/types";
+import { ENDPOINTS } from "@/constant/shadow-endpoints";
+
+const REFRESH_URL = `${ENDPOINTS.AUTH.PREFIX}${ENDPOINTS.AUTH.REFRESH}`;
 
 const TOKEN_STORAGE_KEY = "shadow.token";
 const REFRESH_TOKEN_KEY = "shadow.refresh_token";
@@ -52,7 +55,7 @@ function createClient(): AxiosInstance {
             const original = error.config as AxiosRequestConfig & { _retry?: boolean };
 
             // Already retried once after a refresh — don't loop
-            if (!original || original._retry || original.url === "/auth/refresh") {
+            if (!original || original._retry || original.url === REFRESH_URL) {
                 tokenStore.clear();
                 tokenStore.clearRefreshToken();
                 window.dispatchEvent(new Event("unauthorized"));
@@ -67,6 +70,7 @@ function createClient(): AxiosInstance {
 
             // Another refresh is in flight — queue this request to retry once it resolves
             if (isRefreshing) {
+                original._retry = true;
                 return new Promise<string>((resolve, reject) => {
                     pendingQueue.push({ resolve, reject });
                 }).then((token) => {
@@ -80,7 +84,7 @@ function createClient(): AxiosInstance {
 
             return new Promise((resolve, reject) => {
                 instance
-                    .post<TokenResponse>("/auth/refresh", { refresh_token: refreshToken })
+                    .post<TokenResponse>(REFRESH_URL, { refresh_token: refreshToken })
                     .then(({ data }) => {
                         tokenStore.set(data.access_token);
                         tokenStore.setRefreshToken(data.refresh_token);
@@ -119,8 +123,8 @@ export const http = {
         const response = await httpClient.get<T>(url, config);
         return response.data;
     },
-    async post<T>(url: string, body?: unknown): Promise<T> {
-        const response = await httpClient.post<T>(url, body);
+    async post<T>(url: string, body?: unknown, config?: AxiosRequestConfig): Promise<T> {
+        const response = await httpClient.post<T>(url, body, config);
         return response.data;
     },
     async put<T>(url: string, data?: unknown): Promise<T> {
@@ -217,7 +221,7 @@ function normaliseError(error: unknown): ApiError {
         return new ApiError({ message: "Something went wrong. Please try again." });
 
     const status = axiosError.response?.status;
-    const data = axiosError.response?.data as FieldError | undefined;
+    const data = axiosError.response?.data as (FieldError & { detail?: string }) | undefined;
 
     if (typeof data?.message === "string") {
         return new ApiError({
@@ -225,6 +229,12 @@ function normaliseError(error: unknown): ApiError {
             status,
             fieldErrors: data.errors,
         });
+    }
+
+    // FastAPI's default HTTPException handler (used by a few endpoints that don't
+    // go through the app's own error handler) returns {detail} instead of {message}.
+    if (typeof data?.detail === "string") {
+        return new ApiError({ message: data.detail, status });
     }
 
     const fallback = status && status >= 500 ? "The server ran into a problem. Please try again shortly." : "Request failed. Please try again.";

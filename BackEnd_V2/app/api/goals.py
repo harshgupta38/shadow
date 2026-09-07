@@ -13,6 +13,7 @@ from app.schemas.goals import (
     SaveGoalRequest,
     SaveGoalFromProposalRequest,
     RefineGoalRequest,
+    UpdateGoalRequest,
 )
 from app.services import goals_service
 
@@ -87,7 +88,7 @@ def reorder_goals(
 @router.patch(ENDPOINTS.GOALS.DETAIL, response_model=GoalDataResponse)
 def update_goal(
     goal_id: int,
-    data: SaveGoalRequest,
+    data: UpdateGoalRequest,
     db=Depends(get_db),
     current_user: UserDBM = Depends(get_current_user),
 ) -> GoalDataResponse:

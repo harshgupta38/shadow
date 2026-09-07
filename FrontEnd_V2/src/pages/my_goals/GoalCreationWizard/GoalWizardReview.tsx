@@ -25,7 +25,35 @@ const MAX_TEXTAREA_LINES = 8;
 const MAX_LIST_TEXTAREA_LINES = 4;
 
 type ListFieldKey = "challenges" | "strengths" | "success_metrics" | "insights";
-type GoalReviewFieldKey = keyof RefineGoalFromLLMSchema;
+export type GoalReviewFieldKey = keyof RefineGoalFromLLMSchema;
+export type GoalReviewFieldErrors = Partial<Record<GoalReviewFieldKey, string>>;
+
+export const REVIEW_FIELD_KEYS: GoalReviewFieldKey[] = [
+    "title",
+    "summary",
+    "category",
+    "motivation",
+    "success_definition",
+    "current_state",
+    "target_date",
+    "challenges",
+    "strengths",
+    "success_metrics",
+    "insights",
+];
+
+export function mapFieldErrorsToReviewErrors(fieldErrors: Partial<Record<string, string>>): GoalReviewFieldErrors {
+    const reviewFieldErrors: GoalReviewFieldErrors = {};
+
+    for (const key of REVIEW_FIELD_KEYS) {
+        const message = fieldErrors[key];
+        if (typeof message === "string" && message.trim().length > 0) {
+            reviewFieldErrors[key] = message;
+        }
+    }
+
+    return reviewFieldErrors;
+}
 
 const LIST_FIELD_CONFIG: Array<{ key: ListFieldKey; label: string }> = [
     { key: "challenges", label: "Challenges" },

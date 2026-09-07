@@ -125,8 +125,10 @@ export function GoalMilestonesSection({ goal }: GoalMilestonesSectionProps) {
                     setBlockedNotStartedMilestoneId(milestone.id);
                     return;
                 }
-            } catch {
-                // If task fetch fails, allow the user to proceed
+            } catch (err) {
+                // Couldn't verify the guard — fail closed rather than risk an inconsistent state.
+                toast.error(err instanceof ApiError ? err.message : "Couldn't check this milestone's tasks. Please try again.");
+                return;
             } finally {
                 setBusyId(null);
             }
@@ -141,8 +143,10 @@ export function GoalMilestonesSection({ goal }: GoalMilestonesSectionProps) {
                     setBlockedCompletionMilestoneId(milestone.id);
                     return;
                 }
-            } catch {
-                // If task fetch fails, allow the user to proceed
+            } catch (err) {
+                // Couldn't verify the guard — fail closed rather than risk an inconsistent state.
+                toast.error(err instanceof ApiError ? err.message : "Couldn't check this milestone's tasks. Please try again.");
+                return;
             } finally {
                 setBusyId(null);
             }

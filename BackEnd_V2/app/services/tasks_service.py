@@ -143,9 +143,9 @@ def save_task_from_proposal(db: Session, current_user: UserDBM, data: SaveTaskFr
     milestone.total_tasks = (milestone.total_tasks or 0) + 1
     _mark_task_proposal_saved_in_message(db, proposal.message_id, data.proposal_id, task.id)
 
+    planner_service.sync_plan_from_task(db, task, commit=False)
     db.commit()
     db.refresh(task)
-    planner_service.sync_plan_from_task(db, task)
 
     return _serialize_task(task)
 
@@ -186,9 +186,9 @@ def save_task(db: Session, current_user: UserDBM, data: TaskCreateRequest) -> Ta
 
     milestone.total_tasks = (milestone.total_tasks or 0) + 1
 
+    planner_service.sync_plan_from_task(db, task, commit=False)
     db.commit()
     db.refresh(task)
-    planner_service.sync_plan_from_task(db, task)
 
     return _serialize_task(task)
 
@@ -296,7 +296,12 @@ def update_task(
 
     if data.status is not None:
         if data.status == "In Progress":
-            milestone = db.scalar(select(MilestoneDBM).where(MilestoneDBM.id == task.milestone_id))
+            milestone = db.scalar(
+                select(MilestoneDBM).where(
+                    MilestoneDBM.id == task.milestone_id,
+                    MilestoneDBM.user_id == current_user.id,
+                )
+            )
             if milestone is not None and milestone.status == "Not Started":
                 raise ValidationError(
                     "The parent milestone is Not Started. Set the milestone to In Progress before starting this task."
@@ -379,9 +384,9 @@ def update_task(
     if data.position is not None:
         task.position = data.position
 
+    planner_service.sync_plan_from_task(db, task, commit=False)
     db.commit()
     db.refresh(task)
-    planner_service.sync_plan_from_task(db, task)
 
     return _serialize_task(task)
 
@@ -398,7 +403,12 @@ def delete_task(db: Session, current_user: UserDBM, task_id: int) -> None:
         raise NotFoundError("Task not found. Please check and try again.")
 
     planner_service.deactivate_plan(db, "task", task_id)
-    milestone = db.scalar(select(MilestoneDBM).where(MilestoneDBM.id == task.milestone_id))
+    milestone = db.scalar(
+        select(MilestoneDBM).where(
+            MilestoneDBM.id == task.milestone_id,
+            MilestoneDBM.user_id == current_user.id,
+        )
+    )
 
     db.delete(task)
 
@@ -421,7 +431,9 @@ def get_task_activity(
     if task is None:
         raise NotFoundError("Task not found.")
 
-    goal = db.scalar(select(GoalDBM).where(GoalDBM.id == task.goal_id)) if task.goal_id else None
+    goal = db.scalar(
+        select(GoalDBM).where(GoalDBM.id == task.goal_id, GoalDBM.user_id == current_user.id)
+    ) if task.goal_id else None
     task_response = _serialize_task(task)
 
     plan = db.scalar(

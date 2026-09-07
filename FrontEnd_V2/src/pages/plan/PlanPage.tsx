@@ -19,19 +19,22 @@ import {
   formatDisplayDate,
   shiftDate,
 } from "@/pages/plan/PlanPage.constants";
+import { todayDate } from "@/services/date.service";
 import { PlanCard } from "@/pages/plan/PlanCard/PlanCard";
 import { DayOverviewPanel } from "@/pages/plan/DayOverviewPanel/DayOverviewPanel";
 import { useToast } from "@/context/ToastContext";
 import "@/pages/plan/PlanPage.scss";
 
-const TODAY = new Date();
 const COMPLETE_ANIM_MS = 520;
+const TODAY_REFRESH_MS = 60_000;
 
 export function PlanPage() {
   const navigate = useNavigate();
   const toast = useToast();
 
-  const [selectedDate, setSelectedDate] = useState(TODAY);
+  // IST-anchored "today", refreshed periodically so a tab left open past midnight doesn't get stuck.
+  const [today, setToday] = useState(() => todayDate());
+  const [selectedDate, setSelectedDate] = useState(() => todayDate());
   const [planData, setPlanData] = useState<PlanResponse | null>(null);
   const [loadingPlan, setLoadingPlan] = useState(false);
   const [planError, setPlanError] = useState<string | null>(null);
@@ -39,7 +42,20 @@ export function PlanPage() {
   const [busyIds, setBusyIds] = useState<Set<number>>(new Set());
   const [completedOpen, setCompletedOpen] = useState(false);
 
-  const isToday = selectedDate.toDateString() === TODAY.toDateString();
+  useEffect(() => {
+    function refreshToday() {
+      const now = todayDate();
+      setToday((prev) => (prev.toDateString() === now.toDateString() ? prev : now));
+    }
+    const intervalId = window.setInterval(refreshToday, TODAY_REFRESH_MS);
+    document.addEventListener("visibilitychange", refreshToday);
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", refreshToday);
+    };
+  }, []);
+
+  const isToday = selectedDate.toDateString() === today.toDateString();
 
   const loadPlan = useCallback(async () => {
     setLoadingPlan(true);
@@ -251,7 +267,7 @@ export function PlanPage() {
             <input
               type="date"
               value={toDateInputValue(selectedDate)}
-              max={toDateInputValue(TODAY)}
+              max={toDateInputValue(today)}
               onChange={(event) => { if (event.target.value) setSelectedDate(new Date(`${event.target.value}T00:00:00`)); }}
               onClick={(e) => e.currentTarget.showPicker?.()}
               aria-label="Plan date"
@@ -269,7 +285,7 @@ export function PlanPage() {
         </div>
         <div className="plan-action-buttons">
           {!isToday && (
-            <button type="button" className="plan-secondary-button" onClick={() => setSelectedDate(TODAY)}>
+            <button type="button" className="plan-secondary-button" onClick={() => setSelectedDate(today)}>
               <CalendarCheckFill size={15} /> {"Today"}
             </button>
           )}

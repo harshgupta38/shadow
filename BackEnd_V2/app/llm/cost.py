@@ -41,10 +41,15 @@ MODEL_COSTS: dict[ModelKey, ModelCost] = {
     GeminiModel.GEMINI_2_5_FLASH_LITE: ModelCost(0.009, 0.07),
     GeminiModel.GEMINI_FLASH_LATEST: ModelCost(0.026, 0.21),
     GeminiModel.GEMINI_PRO_LATEST: ModelCost(0.11, 0.88),
-    # Claude
-    ClaudeModel.CLAUDE_FABLE_5: ModelCost(None, None),
-    ClaudeModel.CLAUDE_OPUS_5: ModelCost(1.32, 6.60),
-    ClaudeModel.CLAUDE_SONNET_5: ModelCost(0.264, 1.32),
+    # Claude — rates below are per-model at ~88 INR/USD. Current-generation models
+    # (Fable 5, Opus 5, Sonnet 5, Haiku 4.5) have their own real published rates;
+    # every prior generation shares its generation's legacy USD rate ($15/$75 Opus,
+    # $3/$15 Sonnet, $0.80/$4 Haiku 3.5, $0.25/$1.25 Haiku 3) since Anthropic doesn't
+    # retroactively reprice already-published models.
+    ClaudeModel.CLAUDE_FABLE_5: ModelCost(0.88, 4.40),  # $10 / $50 per MTok
+    ClaudeModel.CLAUDE_OPUS_5: ModelCost(0.44, 2.20),  # $5 / $25 per MTok
+    ClaudeModel.CLAUDE_SONNET_5: ModelCost(0.176, 0.88),  # $2 / $10 per MTok
+    ClaudeModel.CLAUDE_HAIKU_4_5: ModelCost(0.088, 0.44),  # $1 / $5 per MTok
     ClaudeModel.CLAUDE_OPUS_4_8: ModelCost(1.32, 6.60),
     ClaudeModel.CLAUDE_OPUS_4_7: ModelCost(1.32, 6.60),
     ClaudeModel.CLAUDE_OPUS_4_6: ModelCost(1.32, 6.60),
@@ -55,7 +60,6 @@ MODEL_COSTS: dict[ModelKey, ModelCost] = {
     ClaudeModel.CLAUDE_SONNET_4_5: ModelCost(0.264, 1.32),
     ClaudeModel.CLAUDE_SONNET_4_1: ModelCost(0.264, 1.32),
     ClaudeModel.CLAUDE_SONNET_4: ModelCost(0.264, 1.32),
-    ClaudeModel.CLAUDE_HAIKU_4_5: ModelCost(0.07, 0.35),
     ClaudeModel.CLAUDE_SONNET_3_7: ModelCost(0.264, 1.32),
     ClaudeModel.CLAUDE_SONNET_3_5: ModelCost(0.264, 1.32),
     ClaudeModel.CLAUDE_HAIKU_3_5: ModelCost(0.07, 0.35),

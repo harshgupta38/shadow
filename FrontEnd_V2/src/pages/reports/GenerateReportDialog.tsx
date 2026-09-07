@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Modal } from "react-bootstrap";
 import { CalendarDate, Stars } from "react-bootstrap-icons";
 
-import { api } from "@/api";
+import { api, ApiError } from "@/api";
 import { useToast } from "@/context/ToastContext";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -100,8 +100,8 @@ export function GenerateReportDialog({ show, onHide, todayStr }: Props) {
       await api.reports.generateReportRequest(dateStr, reportType);
       onHide();
       toast.info("Report requested — we'll notify you when it's ready.");
-    } catch {
-      setErrorMsg("Something went wrong. Please try again.");
+    } catch (error) {
+      setErrorMsg(error instanceof ApiError ? error.message : "Something went wrong. Please try again.");
       setDialogState("error");
     }
   }

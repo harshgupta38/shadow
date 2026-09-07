@@ -159,7 +159,7 @@ export function GoalMilestoneWizardPage() {
 					navigateToMyGoalsWithError("Could not load this goal right now.");
 				}
 			});
-	}, [navigate, numericGoalId, toast]);
+	}, [navigate, numericGoalId, numericMilestoneId, isUpdateMode, toast]);
 
 	useEffect(() => {
 		if (!loadingGoal) {

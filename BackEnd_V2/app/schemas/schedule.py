@@ -1,8 +1,9 @@
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from app.common import today_ist
 from app.schemas.common import ORMModel
 from app.schemas.goals import CategoryType
 
@@ -10,12 +11,6 @@ ScheduledTaskType = Literal["simple", "metric"]
 ScheduledTaskPriority = Literal["highest", "high", "medium", "low", "lowest"]
 ScheduledTaskPreferredTime = Literal["flexible", "morning", "afternoon", "evening", "night", "custom"]
 ScheduledTaskStatus = Literal["upcoming", "completed", "snoozed", "missed"]
-
-_IST = timezone(timedelta(hours=5, minutes=30))
-
-
-def _today_ist() -> date:
-    return datetime.now(_IST).date()
 
 
 class GoalSummary(BaseModel):
@@ -56,7 +51,7 @@ class ScheduledTaskCreateRequest(BaseModel):
     @model_validator(mode="after")
     def validate_fields(self) -> "ScheduledTaskCreateRequest":
         # For yearly tasks, any date is valid — only month + day are stored.
-        if not self.repeat_yearly and self.scheduled_date < _today_ist():
+        if not self.repeat_yearly and self.scheduled_date < today_ist():
             raise ValueError("scheduled_date cannot be in the past.")
 
         if self.preferred_time == "custom":
@@ -108,7 +103,7 @@ class ScheduledTaskUpdateRequest(BaseModel):
     def validate_scheduled_date(self) -> "ScheduledTaskUpdateRequest":
         # Mirror the create rule: yearly tasks store only month+day, so past dates are valid.
         if self.scheduled_date is not None and self.repeat_yearly is not True:
-            if self.scheduled_date < _today_ist():
+            if self.scheduled_date < today_ist():
                 raise ValueError("scheduled_date cannot be in the past.")
         return self
 

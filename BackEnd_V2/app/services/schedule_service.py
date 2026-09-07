@@ -4,6 +4,7 @@ from datetime import date
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
+from app.common import today_ist
 from app.core.exceptions import NotFoundError, ValidationError
 from app.models.goal import GoalDBM
 from app.models.schedule_task import ScheduledTaskDBM
@@ -151,7 +152,7 @@ def get_task(db: Session, current_user: UserDBM, task_id: int, is_yearly: bool) 
         )
         if task is None:
             raise NotFoundError("Yearly task not found.")
-        return _serialize_yearly(task, _next_yearly_occurrence(task.recurrence_month, task.recurrence_day, date.today()))
+        return _serialize_yearly(task, _next_yearly_occurrence(task.recurrence_month, task.recurrence_day, today_ist()))
 
     task = db.scalar(
         select(ScheduledTaskDBM)
@@ -193,7 +194,7 @@ def save_task(
         db.add(yearly_task)
         db.commit()
         db.refresh(yearly_task)
-        return _serialize_yearly(yearly_task, _next_yearly_occurrence(yearly_task.recurrence_month, yearly_task.recurrence_day, date.today()))
+        return _serialize_yearly(yearly_task, _next_yearly_occurrence(yearly_task.recurrence_month, yearly_task.recurrence_day, today_ist()))
 
     task = ScheduledTaskDBM(
         user_id=current_user.id,
@@ -282,7 +283,7 @@ def update_task(
             recurrence_month=ref_date.month,
             recurrence_day=ref_date.day,
             preferred_time=data.preferred_time or task.preferred_time,
-            specific_time=data.specific_time if "specific_time" in fields else task.specific_time,
+            specific_time=(data.specific_time.strip() if data.specific_time else None) if "specific_time" in fields else task.specific_time,
             allow_snoozing=data.allow_snoozing if data.allow_snoozing is not None else task.allow_snoozing,
             snooze_limit=data.snooze_limit if "snooze_limit" in fields else task.snooze_limit,
             duration_minutes=data.duration_minutes if "duration_minutes" in fields else task.duration_minutes,
@@ -294,7 +295,7 @@ def update_task(
         db.delete(task)
         db.commit()
         db.refresh(yearly)
-        return _serialize_yearly(yearly, _next_yearly_occurrence(yearly.recurrence_month, yearly.recurrence_day, date.today()))
+        return _serialize_yearly(yearly, _next_yearly_occurrence(yearly.recurrence_month, yearly.recurrence_day, today_ist()))
 
     # ── Switch: yearly → non-yearly ──────────────────────────────────────────
     if is_yearly and wants_yearly is False:
@@ -310,7 +311,7 @@ def update_task(
         goal_id = data.goal_id if "goal_id" in fields else yearly.goal_id
         goal = _resolve_goal(db, current_user, goal_id)
         scheduled_date = data.scheduled_date if "scheduled_date" in fields and data.scheduled_date else \
-            _next_yearly_occurrence(yearly.recurrence_month, yearly.recurrence_day, date.today())
+            _next_yearly_occurrence(yearly.recurrence_month, yearly.recurrence_day, today_ist())
         planner_type = data.planner_type or yearly.planner_type
         is_metric = planner_type == "metric"
 
@@ -326,7 +327,7 @@ def update_task(
             priority=data.priority or yearly.priority,
             scheduled_date=scheduled_date,
             preferred_time=data.preferred_time or yearly.preferred_time,
-            specific_time=data.specific_time if "specific_time" in fields else yearly.specific_time,
+            specific_time=(data.specific_time.strip() if data.specific_time else None) if "specific_time" in fields else yearly.specific_time,
             allow_snoozing=data.allow_snoozing if data.allow_snoozing is not None else yearly.allow_snoozing,
             snooze_limit=data.snooze_limit if "snooze_limit" in fields else yearly.snooze_limit,
             duration_minutes=data.duration_minutes if "duration_minutes" in fields else yearly.duration_minutes,
@@ -399,7 +400,7 @@ def update_task(
         _validate_yearly_state(yearly)
         db.commit()
         db.refresh(yearly)
-        return _serialize_yearly(yearly, _next_yearly_occurrence(yearly.recurrence_month, yearly.recurrence_day, date.today()))
+        return _serialize_yearly(yearly, _next_yearly_occurrence(yearly.recurrence_month, yearly.recurrence_day, today_ist()))
 
     # ── In-place update: non-yearly task ─────────────────────────────────────
     task = db.scalar(

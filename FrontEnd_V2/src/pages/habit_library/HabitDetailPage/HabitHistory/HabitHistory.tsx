@@ -78,7 +78,7 @@ function MonthSection({
   const plannerType = habit.planner_type;
   const entries = plannerType === "metric"
     ? group.records.filter((r) => !!r.note || (r.value !== null && r.value > 0))
-    : group.records.filter((r) => !!r.note);
+    : group.records.filter((r) => !!r.note || r.status === "done");
 
   if (entries.length === 0) return null;
 

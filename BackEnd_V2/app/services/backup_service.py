@@ -6,6 +6,7 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import IO
 
+from app.common.timezone import _IST
 from app.core.config import settings
 
 log = logging.getLogger("uvicorn.error")
@@ -129,12 +130,12 @@ async def backup_scheduler_loop() -> None:
     log.info("DB backup scheduler started. Slots: %s", ", ".join(s for s, _ in runtimes))
 
     triggered_today: set[str] = set()
-    last_date: date = datetime.now().date()
+    last_date: date = datetime.now(_IST).date()
 
     while True:
         await asyncio.sleep(30)
 
-        now = datetime.now()
+        now = datetime.now(_IST)
         today = now.date()
 
         # Reset at midnight so each slot fires once per day.

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BarChartFill, ChevronLeft, ChevronRight, LightbulbFill, Stars } from "react-bootstrap-icons";
 import { useNavigate } from "react-router-dom";
-import { api } from "@/api";
+import { api, ApiError } from "@/api";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { ROUTES } from "@/routes/RoutePaths";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
@@ -130,8 +130,8 @@ export function ReportsPage() {
       setConfirmDate(null);
       toast.info("Report requested — we'll notify you when it's ready.");
       loadReport();
-    } catch {
-      toast.error("Failed to request report. Please try again.");
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : "Failed to request report. Please try again.");
     } finally {
       setGenerating(false);
     }

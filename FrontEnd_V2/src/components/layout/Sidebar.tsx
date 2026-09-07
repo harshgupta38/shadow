@@ -27,6 +27,7 @@ export function Sidebar({ onNavigate, collapsed, onToggleCollapse }: SidebarProp
                   end={item.end}
                   onClick={onNavigate}
                   title={collapsed ? item.label : undefined}
+                  aria-label={collapsed ? item.label : undefined}
                   className={({ isActive }) =>
                     `nav-link-jv${collapsed ? " nav-link-jv--icon" : ""} ${isActive ? "active" : ""}`.trim()
                   }

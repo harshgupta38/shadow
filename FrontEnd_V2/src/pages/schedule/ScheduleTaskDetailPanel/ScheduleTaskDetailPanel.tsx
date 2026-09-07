@@ -1,30 +1,17 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowDownRight, ArrowRepeat, ArrowUpRight, ChevronRight, Clock, DashLg, Files, MoonFill, MoonStarsFill, PencilFill, SunFill, Trash3Fill } from "react-bootstrap-icons";
+import { ArrowRepeat, ChevronRight, Clock, Files, MoonFill, MoonStarsFill, PencilFill, SunFill, Trash3Fill } from "react-bootstrap-icons";
 
-import type { ScheduledTaskDataResponse, ScheduledTaskPriority } from "@/api/types";
-import { todayIso } from "@/services/date.service";
+import type { ScheduledTaskDataResponse } from "@/api/types";
+import { todayIso, formatDuration } from "@/services/date.service";
 import { formatDateDisplay, formatDateDisplayYearly, PRIORITY_LABEL, STATUS_LABEL } from "@/pages/schedule/ScheduleCard/ScheduleCard.constants";
+import { PriorityIcon } from "@/constant/priority";
 
 import "@/pages/my_goals/GoalCreationWizard/GoalCreationWizard.scss";
 import "@/pages/assistant/RefinedGoalReviewPanel/RefinedGoalReviewPanel.scss";
 import "@/pages/schedule/ScheduleTaskDetailPanel/ScheduleTaskDetailPanel.scss";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-
-function formatDuration(minutes: number): string {
-    const h = Math.floor(minutes / 60);
-    const m = minutes % 60;
-    if (h === 0) return `${m} min`;
-    if (m === 0) return `${h} hr`;
-    return `${h} hr ${m} min`;
-}
-
-function PriorityIcon({ priority }: { priority: ScheduledTaskPriority }) {
-    if (priority === "highest" || priority === "high") return <ArrowUpRight size={13} />;
-    if (priority === "low" || priority === "lowest") return <ArrowDownRight size={13} />;
-    return <DashLg size={13} />;
-}
 
 function TimeChip({ preferredTime, specificTime }: { preferredTime: string; specificTime: string | null }) {
     const t = preferredTime.toLowerCase();
@@ -117,7 +104,7 @@ export function ScheduleTaskDetailPanel({ task, onClose, onEdit, onDuplicate, on
                             <span className="stdp-label">Priority</span>
                             <span className="stdp-value">
                                 <span className={`stdp-priority stdp-priority--${task.priority}`}>
-                                    <PriorityIcon priority={task.priority} />
+                                    <PriorityIcon priority={task.priority} size={13} />
                                     {PRIORITY_LABEL[task.priority]}
                                 </span>
                             </span>

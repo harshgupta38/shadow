@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowDownRight, ArrowUpRight, CheckLg, ChevronRight, DashLg, TagFill } from "react-bootstrap-icons";
+import { CheckLg, ChevronRight, TagFill } from "react-bootstrap-icons";
 
 import "@/pages/my_goals/GoalCreationWizard/GoalCreationWizard.scss";
 import "@/pages/assistant/RefinedGoalReviewPanel/RefinedGoalReviewPanel.scss";
@@ -8,12 +8,7 @@ import "./TrackHabitPanel.scss";
 
 import type { HabitPriority } from "@/api/types";
 import { PRIORITY_LABEL } from "@/pages/plan/PlanPage.constants";
-
-function PriorityIcon({ priority }: { priority: HabitPriority }) {
-  if (priority === "highest" || priority === "high") return <ArrowUpRight size={11} />;
-  if (priority === "low" || priority === "lowest") return <ArrowDownRight size={11} />;
-  return <DashLg size={11} />;
-}
+import { PriorityIcon } from "@/constant/priority";
 
 export interface HabitListItem {
   id: number;

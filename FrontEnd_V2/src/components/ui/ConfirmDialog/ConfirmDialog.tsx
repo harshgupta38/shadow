@@ -1,5 +1,6 @@
-import { Modal } from "react-bootstrap";
 import { ExclamationTriangleFill } from "react-bootstrap-icons";
+
+import { ChoiceDialog } from "@/components/ui/ChoiceDialog/ChoiceDialog";
 
 interface ConfirmDialogProps {
     show: boolean;
@@ -25,30 +26,22 @@ export function ConfirmDialog({
     onCancel,
 }: ConfirmDialogProps) {
     return (
-        <Modal show={show} onHide={onCancel} centered backdrop="static">
-            <Modal.Body className="p-4 text-center">
-                <div
-                    className="empty-icon mx-auto mb-3"
-                    style={destructive ? { color: "var(--jv-danger)" } : undefined}
-                >
-                    <ExclamationTriangleFill size={26} />
-                </div>
-                <h2 className="h5 fw-bold">{title}</h2>
-                {message && <p className="text-muted-2 mb-4">{message}</p>}
-                <div className="d-flex gap-2 justify-content-center">
-                    <button type="button" className="btn btn-outline-secondary px-4" onClick={onCancel} disabled={busy}>
-                        {cancelLabel}
-                    </button>
-                    <button
-                        type="button"
-                        className={`btn px-4 ${destructive ? "btn-danger" : "btn-brand"}`}
-                        onClick={onConfirm}
-                        disabled={busy}
-                    >
-                        {busy ? "Working…" : confirmLabel}
-                    </button>
-                </div>
-            </Modal.Body>
-        </Modal>
+        <ChoiceDialog
+            show={show}
+            title={title}
+            message={message}
+            icon={<ExclamationTriangleFill size={26} />}
+            iconColor={destructive ? "var(--jv-danger)" : undefined}
+            onHide={onCancel}
+            buttons={[
+                { label: cancelLabel, variant: "outline-secondary", onClick: onCancel, disabled: busy },
+                {
+                    label: busy ? "Working…" : confirmLabel,
+                    variant: destructive ? "danger" : "brand",
+                    onClick: onConfirm,
+                    disabled: busy,
+                },
+            ]}
+        />
     );
 }

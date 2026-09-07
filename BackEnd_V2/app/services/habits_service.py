@@ -3,6 +3,7 @@ from datetime import date
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session, joinedload
 
+from app.common import today_ist
 from app.core.exceptions import NotFoundError, ValidationError
 from app.models.goal import GoalDBM
 from app.models.habit import HabitDBM
@@ -50,7 +51,7 @@ def _serialize(habit: HabitDBM, streaks: tuple[int, int] = (0, 0)) -> HabitDataR
         start_date=habit.start_date,
         end_date=habit.end_date,
         preferred_time=habit.preferred_time,
-        specific_time=habit.specific_time or "",
+        specific_time=habit.specific_time,
         duration_minutes=habit.duration_minutes,
         status=habit.status,
         current_streak=current_streak,
@@ -70,7 +71,7 @@ def _compute_habit_streak(db: Session, habit: HabitDBM) -> tuple[int, int]:
     )
     if plan is None:
         return 0, 0
-    return planner_service.compute_streaks_for_plan(db, plan, date.today())
+    return planner_service.compute_streaks_for_plan(db, plan, today_ist())
 
 
 def _resolve_goal(db: Session, current_user: UserDBM, goal_id: int | None) -> GoalDBM | None:
@@ -100,7 +101,7 @@ def get_list(
     if not habits:
         return []
 
-    today = date.today()
+    today = today_ist()
     habit_ids = [h.id for h in habits]
 
     plans = db.scalars(
@@ -352,7 +353,7 @@ def get_activity(
     if plan is None:
         return HabitActivityResponse(habit=habit_response, records=[])
 
-    today = date.today()
+    today = today_ist()
     m = today.month - 11
     y = today.year
     if m <= 0:
@@ -374,16 +375,24 @@ def get_activity(
         .order_by(DailyPlanRecordDBM.scheduled_date.desc())
     ).all()
 
-    # Single O(n) pass: compute running consecutive-done streak per date
-    rows_asc = sorted(rows, key=lambda r: r.scheduled_date)
+    # Walk every applicable date (not just dates with a materialized record) so a
+    # date the habit was due but never logged correctly breaks the streak, matching
+    # planner_service.compute_streaks' semantics instead of silently skipping gaps.
+    record_status = {r.scheduled_date: r.status for r in rows}
     running = 0
     streak_map: dict = {}
-    for r in rows_asc:
-        if r.status == "done":
-            running += 1
-        elif r.status == "missed":
-            running = 0
-        streak_map[r.scheduled_date] = running
+    for d in planner_service.applicable_occurrence_dates(plan, today):
+        status = record_status.get(d)
+        if d == today:
+            if status == "done":
+                running += 1
+            elif status == "missed":
+                running = 0
+            # "due" or no record yet: leave running unchanged — day still in progress
+        else:
+            running = running + 1 if status == "done" else 0
+        if d >= window_start:
+            streak_map[d] = running
 
     return HabitActivityResponse(
         habit=habit_response,
@@ -393,7 +402,10 @@ def get_activity(
                 status=r.status,
                 value=r.actual_value,
                 note=r.note or None,
-                streak=streak_map[r.scheduled_date],
+                # Fall back for a record whose date the plan's current frequency no
+                # longer considers applicable (e.g. the habit's schedule changed) —
+                # such a date never enters the applicable-dates walk above.
+                streak=streak_map.get(r.scheduled_date, 1 if r.status == "done" else 0),
             )
             for r in rows
         ],

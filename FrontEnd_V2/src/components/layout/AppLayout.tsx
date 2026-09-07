@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Offcanvas } from "react-bootstrap";
 import { Outlet } from "react-router-dom";
 
@@ -6,9 +6,18 @@ import { Brand } from "@/components/ui/Brand/Brand";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Topbar } from "@/components/layout/Topbar";
 
+const COLLAPSE_BREAKPOINT = "(max-width: 1024px)";
+
 export function AppLayout() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => window.innerWidth <= 1024);
+
+  useEffect(() => {
+    const mql = window.matchMedia(COLLAPSE_BREAKPOINT);
+    const handleChange = (e: MediaQueryListEvent) => setSidebarCollapsed(e.matches);
+    mql.addEventListener("change", handleChange);
+    return () => mql.removeEventListener("change", handleChange);
+  }, []);
 
   return (
     <div className="app-shell">

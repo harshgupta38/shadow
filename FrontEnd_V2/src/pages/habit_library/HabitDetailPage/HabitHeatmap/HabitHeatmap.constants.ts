@@ -52,7 +52,9 @@ export function isScheduledDay(
     if (freq === "weekdays" && dow >= 1 && dow <= 5) return true;
     if (freq === "weekends" && (dow === 0 || dow === 6)) return true;
     if (DOW_MAP[freq] === dow) return true;
-    if (freq === "weekly" || freq === "monthly") return true;
+    // "weekly"/"monthly" (N-times-per-period, no fixed day) aren't due on any specific
+    // day, so don't blanket-mark every day as scheduled — that made every unlogged day
+    // render as "missed" instead of "not due". Fall through to the specific-day checks below.
     if (freq === "first_of_month" && dom === 1) return true;
     if (freq === "end_of_month") {
       const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();

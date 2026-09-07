@@ -44,9 +44,11 @@ export type EffectiveTheme = Exclude<ThemePreference, "browser" | "dynamic">;
 
 export interface DynamicThemeResponse {
   effective_theme: EffectiveTheme;
-  sunrise: string;
-  sunset: string;
-  next_transition_at: string;
+  // null when the sunrise-sunset.org lookup failed and the backend fell back to a
+  // simple clock heuristic instead of failing the whole request.
+  sunrise: string | null;
+  sunset: string | null;
+  next_transition_at: string | null;
 }
 
 export interface UserLocation {

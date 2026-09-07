@@ -343,11 +343,15 @@ def delete_milestone(
     if milestone is None:
         raise NotFoundError("Milestone not found. Please check and try again.")
 
-    goal = db.scalar(select(GoalDBM).where(GoalDBM.id == milestone.goal_id))
+    goal = db.scalar(
+        select(GoalDBM).where(
+            GoalDBM.id == milestone.goal_id,
+            GoalDBM.user_id == current_user.id,
+        )
+    )
 
     task_ids = db.scalars(select(TaskDBM.id).where(TaskDBM.milestone_id == milestone.id)).all()
-    for task_id in task_ids:
-        planner_service.deactivate_plan(db, "task", task_id)
+    planner_service.deactivate_plans(db, "task", list(task_ids))
 
     db.execute(delete(TaskDBM).where(TaskDBM.milestone_id == milestone.id))
 

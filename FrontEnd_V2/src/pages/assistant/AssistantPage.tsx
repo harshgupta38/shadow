@@ -439,7 +439,38 @@ export function AssistantPage() {
       return;
     }
 
-    if (!message.id) return;
+    // No server-assigned id — the original send never reached the server. Resend it
+    // as a fresh message instead of calling retryFailedMessage (which needs an id).
+    if (!message.id) {
+      const text = message.content[0];
+      if (!text) {
+        setProcessingConversationId(prev => prev === targetConvId ? null : prev);
+        return;
+      }
+      updateConversationMessages(targetConvId, prev =>
+        prev.map(m => m.created_at === message.created_at ? { ...m, request_status: "pending" } : m)
+      );
+      try {
+        const response = await api.chat.sendMessage({
+          conversation_id: targetConvId,
+          content: text,
+          goal_id: navigationState?.goal_id,
+          milestone_id: navigationState?.milestone_id,
+        });
+        updateConversationMessages(targetConvId, prev =>
+          prev.map(m => m.created_at === message.created_at ? { ...m, request_status: "completed" } : m)
+        );
+        updateConversationMessages(targetConvId, prev => [...prev, response.message_data]);
+      } catch (error) {
+        toast.error(error instanceof ApiError ? error.message : "Failed to retry. Please try again.");
+        updateConversationMessages(targetConvId, prev =>
+          prev.map(m => m.created_at === message.created_at ? { ...m, request_status: "failed" } : m)
+        );
+      } finally {
+        setProcessingConversationId(prev => prev === targetConvId ? null : prev);
+      }
+      return;
+    }
 
     try {
       const response = await api.chat.retryFailedMessage({

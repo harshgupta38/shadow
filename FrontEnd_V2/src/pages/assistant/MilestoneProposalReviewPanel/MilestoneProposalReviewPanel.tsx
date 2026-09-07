@@ -3,19 +3,21 @@ import { ChevronRight } from "react-bootstrap-icons";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 import { micromark } from "micromark";
+import DOMPurify from "dompurify";
 
 import { api } from "@/api";
 import { ApiError } from "@/api/client";
 import type { MilestoneDataResponse, MilestoneProposal, MilestoneProposalLLMSchema } from "@/api/types";
 import { resizeTextareaToMaxLines } from "@/services/textarea-resize.service";
 
-// LLM proposals arrive as Markdown; Quill needs HTML.
-// Already-saved descriptions are stored as Quill HTML and pass through unchanged.
+// LLM proposals arrive as Markdown; Quill needs HTML. This panel always shows fresh
+// LLM output (never a round-tripped Quill save), so sanitize either way before it's
+// used as the editor's initial HTML.
 function descriptionToHtml(description: string | null): string {
     if (!description) return "";
     const trimmed = description.trimStart();
-    if (trimmed.startsWith("<")) return description; // already HTML from a prior Quill save
-    return micromark(trimmed);
+    const html = trimmed.startsWith("<") ? description : micromark(trimmed);
+    return DOMPurify.sanitize(html);
 }
 
 import "@/pages/my_goals/GoalCreationWizard/GoalCreationWizard.scss";

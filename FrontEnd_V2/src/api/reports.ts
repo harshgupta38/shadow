@@ -18,7 +18,7 @@ export const reportsApi = {
   },
 
   async generateReportRequest(reportDate: string, reportType: "daily" | "weekly"): Promise<void> {
-    await http.post<void>(`${BASE}${ENDPOINTS.REPORTS.GENERATE_REPORT_REQUEST(reportDate)}`, {
+    await http.post<void>(`${BASE}${ENDPOINTS.REPORTS.GENERATE_REPORT_REQUEST(reportDate)}`, undefined, {
       params: { report_type: reportType },
     });
   },

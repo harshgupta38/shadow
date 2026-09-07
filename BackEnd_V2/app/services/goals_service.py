@@ -2,7 +2,8 @@ from datetime import date
 
 from sqlalchemy import delete, func, select, update
 
-from app.core.exceptions import NotFoundError, ConflictError
+from app.common import today_ist
+from app.core.exceptions import NotFoundError, ConflictError, ValidationError
 from app.services import planner_service
 from app.llm import RefineGoalFromLLM, get_llm_service, LLMError, LLMRequestError
 from app.models.chat import MessageDBM
@@ -20,6 +21,8 @@ from app.schemas.goals import (
     GoalReorderRequest,
     RefineGoalRequest,
     SaveGoalFromProposalRequest,
+    SaveGoalRequest,
+    UpdateGoalRequest,
 )
 
 
@@ -46,7 +49,7 @@ def _serialize_goal_detail(goal: GoalDBM) -> GoalDataResponse:
 def save_goal(
     db,
     current_user: UserDBM,
-    data: RefineGoalRequest,
+    data: SaveGoalRequest,
 ) -> None:
     # time.sleep(5)
 
@@ -279,8 +282,7 @@ def delete_goal(
         raise NotFoundError("Goal not found.")
 
     task_ids = db.scalars(select(TaskDBM.id).where(TaskDBM.goal_id == goal.id)).all()
-    for task_id in task_ids:
-        planner_service.deactivate_plan(db, "task", task_id)
+    planner_service.deactivate_plans(db, "task", list(task_ids))
 
     db.execute(delete(TaskDBM).where(TaskDBM.goal_id == goal.id))
     db.execute(delete(MilestoneDBM).where(MilestoneDBM.goal_id == goal.id))
@@ -292,7 +294,7 @@ def update_goal(
     db,
     current_user: UserDBM,
     goal_id: int,
-    data: RefineGoalRequest,
+    data: UpdateGoalRequest,
 ) -> GoalDataResponse:
     goal = (
         db.query(GoalDBM)
@@ -302,6 +304,10 @@ def update_goal(
 
     if goal is None:
         raise NotFoundError("Goal not found.")
+
+    new_target_date = date.fromisoformat(data.target_date)
+    if new_target_date != goal.target_date and new_target_date <= today_ist():
+        raise ValidationError("Target date must be a future date.")
 
     goal.title = data.title.strip()
     goal.summary = data.summary.strip()
@@ -313,7 +319,7 @@ def update_goal(
     goal.strengths = _clean_list(data.strengths)
     goal.success_metrics = _clean_list(data.success_metrics)
     goal.insights = _clean_list(data.insights)
-    goal.target_date = date.fromisoformat(data.target_date)
+    goal.target_date = new_target_date
 
     db.execute(
         update(HabitDBM)

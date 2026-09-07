@@ -18,6 +18,7 @@ import type { HabitActivityRecord, HabitDataResponse } from "@/api";
 import { ProgressRing } from "@/components/ui/ProgressRing/ProgressRing";
 import { ROUTES } from "@/routes/RoutePaths";
 import { PRIORITY_LABEL } from "@/pages/plan/PlanPage.constants";
+import { todayDate } from "@/services/date.service";
 import {
   formatStatusLabel,
   getSimpleFrequencyLabel,
@@ -295,7 +296,7 @@ export function HabitDetailPage() {
   }, [habitId]);
 
   const currentMonthPct = useMemo(() => {
-    const now = new Date();
+    const now = todayDate();
     const y = now.getFullYear();
     const m = now.getMonth();
     const monthRecs = records.filter((r) => {

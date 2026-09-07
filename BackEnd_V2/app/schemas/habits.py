@@ -262,7 +262,7 @@ class HabitDataResponse(BaseModel):
     start_date: date | None
     end_date: date | None
     preferred_time: HabitPreferredTime
-    specific_time: str
+    specific_time: str | None
     duration_minutes: int | None
 
     status: HabitStatus

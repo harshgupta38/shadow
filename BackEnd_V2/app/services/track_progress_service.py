@@ -3,6 +3,7 @@ from datetime import date, timedelta
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
+from app.common import today_ist
 from app.models.habit import HabitDBM
 from app.models.plan import PlanDBM
 from app.models.plan_record import DailyPlanRecordDBM
@@ -22,7 +23,7 @@ def get_eligible_habits(
     db: Session,
     current_user: UserDBM,
 ) -> list[EligibleHabitItem]:
-    today = date.today()
+    today = today_ist()
     habits = db.scalars(
         select(HabitDBM)
         .where(
@@ -52,7 +53,7 @@ def get_habits_with_history(
     today: date | None = None,
 ) -> list[HabitTrackItem]:
     if today is None:
-        today = date.today()
+        today = today_ist()
     # Week always starts on Sunday (Python weekday: Mon=0…Sun=6)
     days_since_sunday = (today.weekday() + 1) % 7
     week_start = today - timedelta(days=days_since_sunday)
@@ -183,7 +184,7 @@ def get_tasks_with_history(
     today: date | None = None,
 ) -> list[TaskTrackItem]:
     if today is None:
-        today = date.today()
+        today = today_ist()
     days_since_sunday = (today.weekday() + 1) % 7
     week_start = today - timedelta(days=days_since_sunday)
 

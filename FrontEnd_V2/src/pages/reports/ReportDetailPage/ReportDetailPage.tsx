@@ -10,7 +10,7 @@ import {
   FileEarmarkBarGraphFill,
 } from "react-bootstrap-icons";
 
-import { api } from "@/api";
+import { api, ApiError } from "@/api";
 import { ROUTES } from "@/routes/RoutePaths";
 import type { DailyReportDetail, GoalAlignment } from "@/api/types";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
@@ -165,7 +165,7 @@ export function ReportDetailPage() {
     setError(null);
     api.reports.getReports(historyDate, reportType)
       .then(data => { setReports(data); setIdx(0); })
-      .catch(() => setError("Report not found. It may still be generating — check back in a moment."))
+      .catch((error) => setError(error instanceof ApiError ? error.message : "Report not found. It may still be generating — check back in a moment."))
       .finally(() => setLoading(false));
   }, [historyDate, reportType]);
 

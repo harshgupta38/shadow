@@ -787,6 +787,9 @@ async def respond_to_message(
         role=MessageRoleEnum.USER,
         content=[data.content],
         request_status="pending",
+        # Persisted so retry/regenerate can recover the original goal/milestone
+        # context — they rebuild the request from this row, not from `data`.
+        linked_items={"goal_id": data.goal_id, "milestone_id": data.milestone_id},
     )
     db.add(user_message)
 
@@ -875,7 +878,11 @@ async def retry_failed_message(
         for msg in preceding_messages
     ]
 
-    data = MessageRequest(content=user_message.content[-1])
+    data = MessageRequest(
+        content=user_message.content[-1],
+        goal_id=user_message.linked_items.get("goal_id"),
+        milestone_id=user_message.linked_items.get("milestone_id"),
+    )
     return await _call_llm_and_save(db, current_user, conversation, user_message, data, recent_message_data)
 
 
@@ -933,7 +940,11 @@ async def regenerate_response(
         {"role": msg.role, "content": msg.content[-1]}
         for msg in prior_messages
     ]
-    data = MessageRequest(content=paired_user_message.content[-1])
+    data = MessageRequest(
+        content=paired_user_message.content[-1],
+        goal_id=paired_user_message.linked_items.get("goal_id"),
+        milestone_id=paired_user_message.linked_items.get("milestone_id"),
+    )
 
     user_memory_str = ""
     if llm_settings.save_user_memory:
@@ -948,6 +959,8 @@ async def regenerate_response(
         response = await llm_service.respond_to_message(
             data,
             user_id=current_user.id,
+            goal_id=data.goal_id,
+            milestone_id=data.milestone_id,
             agent_type=conversation.agent_type,
             stable_context=conversation.stable_context,
             context_summary=conversation.context_summary,

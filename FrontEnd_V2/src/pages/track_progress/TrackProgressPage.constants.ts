@@ -1,5 +1,5 @@
 import { todayDate } from "@/services/date.service";
-import type { HabitTrackItem, MetricHabitData, SimpleHabitData, TaskTrackItem } from "@/api/types";
+import type { ColorKey, GoalCategory, HabitTrackItem, MetricHabitData, SimpleHabitData, TaskTrackItem } from "@/api/types";
 
 export const TODAY = todayDate();
 
@@ -20,60 +20,51 @@ export const WEEK_RANGE = getWeekRange();
 
 // ── Data mapping ──────────────────────────────────────────────────────────────
 
+interface BaseTrackSource {
+    id: number;
+    title: string;
+    current_streak: number;
+    max_streak: number;
+    history: number[];
+    color: ColorKey;
+    done_today: boolean;
+}
+
+function toBaseData(source: BaseTrackSource, category: GoalCategory | null) {
+    return {
+        id: source.id,
+        title: source.title,
+        current_streak: source.current_streak,
+        max_streak: source.max_streak,
+        category,
+        history: source.history,
+        color: source.color,
+        done_today: source.done_today,
+    };
+}
+
 export function toMetricData(h: HabitTrackItem): MetricHabitData {
     return {
-        id: h.id,
-        title: h.title,
+        ...toBaseData(h, h.category),
         value_unit: h.value_unit ?? "",
         planner_target: h.planner_target ?? 1,
-        current_streak: h.current_streak,
-        max_streak: h.max_streak,
-        category: h.category,
-        history: h.history,
-        color: h.color,
-        done_today: h.done_today,
         current_value: h.current_value,
     };
 }
 
 export function toSimpleData(h: HabitTrackItem): SimpleHabitData {
-    return {
-        id: h.id,
-        title: h.title,
-        current_streak: h.current_streak,
-        max_streak: h.max_streak,
-        category: h.category,
-        history: h.history.map(v => v > 0),
-        done_today: h.done_today,
-        color: h.color,
-    };
+    return { ...toBaseData(h, h.category), history: h.history.map(v => v > 0) };
 }
 
 export function toMetricDataFromTask(t: TaskTrackItem): MetricHabitData {
     return {
-        id: t.id,
-        title: t.title,
+        ...toBaseData(t, null),
         value_unit: t.value_unit ?? "",
         planner_target: t.planner_target ?? 1,
-        current_streak: t.current_streak,
-        max_streak: t.max_streak,
-        category: null,
-        history: t.history,
-        color: t.color,
-        done_today: t.done_today,
         current_value: t.current_value,
     };
 }
 
 export function toSimpleDataFromTask(t: TaskTrackItem): SimpleHabitData {
-    return {
-        id: t.id,
-        title: t.title,
-        current_streak: t.current_streak,
-        max_streak: t.max_streak,
-        category: null,
-        history: t.history.map(v => v > 0),
-        done_today: t.done_today,
-        color: t.color,
-    };
+    return { ...toBaseData(t, null), history: t.history.map(v => v > 0) };
 }

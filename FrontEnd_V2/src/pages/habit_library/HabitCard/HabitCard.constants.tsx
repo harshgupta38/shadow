@@ -1,13 +1,7 @@
-import { ArrowDownRight, ArrowUpRight, DashLg } from "react-bootstrap-icons";
-
 import type { HabitDataResponse } from "@/api";
 import { FREQUENCY_OPTIONS, PREFERRED_TIME_OPTIONS } from "@/pages/habit_library/HabitWizard/HabitWizard.constants";
 
-export function PriorityIcon({ priority }: { priority: HabitDataResponse["priority"] }) {
-  if (priority === "highest" || priority === "high") return <ArrowUpRight size={11} />;
-  if (priority === "low" || priority === "lowest") return <ArrowDownRight size={11} />;
-  return <DashLg size={11} />;
-}
+export { PriorityIcon } from "@/constant/priority";
 
 // Static lookup maps — built once at module load from constants.
 export const frequencyLabelMap = new Map(FREQUENCY_OPTIONS.map((o) => [o.value, o.label]));

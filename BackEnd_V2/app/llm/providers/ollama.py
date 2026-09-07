@@ -45,12 +45,25 @@ from app.llm.models import (
 )
 from app.llm.base import BaseLLMProvider
 from app.llm.config import LLMSettings, llm_settings
+from app.llm.cost import calculate_token_cost
 from app.llm.exceptions import (
     LLMHealthCheckError,
     LLMProviderError,
     LLMRequestError,
 )
 from app.llm.tools import MAX_TOOL_ITERATIONS, AGENT_TOOL_DEFINITIONS, TERMINAL_TOOL_NAMES
+
+
+def _ollama_cost(model: str, input_tokens: int, output_tokens: int):
+    """calculate_token_cost, but tolerant of Ollama model names — those are whatever
+    the operator has pulled locally, not a fixed list the app controls, so an
+    unrecognized one should be treated as free (like every other local model)
+    instead of raising and breaking the response."""
+    try:
+        return calculate_token_cost(model_key=model, input_tokens=input_tokens, output_tokens=output_tokens)
+    except ValueError:
+        from app.llm.models import TokenCostBreakdown
+        return TokenCostBreakdown(input_token_cost=0.0, output_token_cost=0.0, total_cost=0.0)
 
 
 class OllamaProvider(BaseLLMProvider):
@@ -194,6 +207,7 @@ class OllamaProvider(BaseLLMProvider):
             usage=usage,
             response_id=completion.id,
             response_time_ms=response_time_ms,
+            cost=_ollama_cost(model, usage.input_tokens if usage else 0, usage.output_tokens if usage else 0),
         )
 
     async def generate_milestone_proposals(
@@ -265,6 +279,7 @@ class OllamaProvider(BaseLLMProvider):
             usage=usage,
             response_id=completion.id,
             response_time_ms=response_time_ms,
+            cost=_ollama_cost(model, usage.input_tokens if usage else 0, usage.output_tokens if usage else 0),
         )
 
     async def generate_task_proposals(self, request: TaskProposalsToLLM) -> TaskProposalsFromLLM:
@@ -334,6 +349,7 @@ class OllamaProvider(BaseLLMProvider):
             usage=usage,
             response_id=completion.id,
             response_time_ms=response_time_ms,
+            cost=_ollama_cost(model, usage.input_tokens if usage else 0, usage.output_tokens if usage else 0),
         )
 
     async def create_conversation(self, request: NewConvoToLLM) -> NewConvoFromLLM:
@@ -555,6 +571,7 @@ class OllamaProvider(BaseLLMProvider):
             usage=usage,
             response_id=final_completion.id,
             response_time_ms=response_time_ms,
+            cost=_ollama_cost(model, total_input_tokens, total_output_tokens),
         )
 
     async def respond_to_message(self, request: MessageToLLM) -> MessageFromLLM:
@@ -701,6 +718,7 @@ class OllamaProvider(BaseLLMProvider):
             usage=usage,
             response_id=completion.id,
             response_time_ms=response_time_ms,
+            cost=_ollama_cost(model, total_input_tokens, total_output_tokens),
         )
 
     async def update_conversation_context(
@@ -776,6 +794,7 @@ class OllamaProvider(BaseLLMProvider):
             usage=usage,
             response_id=completion.id,
             response_time_ms=response_time_ms,
+            cost=_ollama_cost(model, usage.input_tokens if usage else 0, usage.output_tokens if usage else 0),
         )
 
     async def extract_user_memory(
@@ -857,6 +876,7 @@ class OllamaProvider(BaseLLMProvider):
             usage=usage,
             response_id=completion.id,
             response_time_ms=response_time_ms,
+            cost=_ollama_cost(model, usage.input_tokens if usage else 0, usage.output_tokens if usage else 0),
         )
 
     async def generate_report(self, request):  # type: ignore[override]

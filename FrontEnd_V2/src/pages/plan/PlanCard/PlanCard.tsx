@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  ArrowDownRight,
-  ArrowUpRight,
   Bullseye,
   CalendarEvent,
   ChatSquareDots,
@@ -22,9 +20,10 @@ import {
 
 import { NoteDialog } from "@/components/ui/NoteDialog/NoteDialog";
 
-import type { PlanDataResponse, PlanPriority } from "@/api";
+import type { PlanDataResponse } from "@/api";
 import { ROUTES } from "@/routes/RoutePaths";
 import { PRIORITY_LABEL, formatDuration } from "@/pages/plan/PlanPage.constants";
+import { PriorityIcon } from "@/constant/priority";
 import "./PlanCard.scss";
 
 interface PlanCardProps {
@@ -71,12 +70,6 @@ function TimeChip({ preferredTime, label }: { preferredTime: string; label: stri
       {label}
     </span>
   );
-}
-
-function PriorityIcon({ priority }: { priority: PlanPriority }) {
-  if (priority === "highest" || priority === "high") return <ArrowUpRight size={11} />;
-  if (priority === "low" || priority === "lowest") return <ArrowDownRight size={11} />;
-  return <DashLg size={11} />;
 }
 
 export function PlanCard({ item, onToggle, onSaveProgress, onSaveNote, onSaveNoteAndDone, busy = false, readOnly = false, isCompleting = false }: PlanCardProps) {

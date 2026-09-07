@@ -1,11 +1,12 @@
 from datetime import date, datetime
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
 from fastapi.responses import Response
 
 from app.api.deps import get_current_user
 from app.common.timezone import _IST
 from app.core.endpoints import ENDPOINTS
+from app.core.exceptions import NotFoundError, ValidationError
 from app.db.session import get_db
 from app.models.report import ReportDBM
 from app.models.user import UserDBM
@@ -51,7 +52,7 @@ def get_report_detail(
 ) -> list[ReportResponse]:
     reports = get_reports(db, current_user.id, report_date, report_type)
     if not reports:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No reports found for this date.")
+        raise NotFoundError("No reports found for this date.")
     return [_to_response(r) for r in reports]
 
 
@@ -63,14 +64,8 @@ async def request_report(
     current_user: UserDBM = Depends(get_current_user),
 ) -> Response:
     if report_date > datetime.now(_IST).date():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot generate a report for a future date.",
-        )
+        raise ValidationError("Cannot generate a report for a future date.")
     if report_type == "weekly" and report_date.weekday() != 5:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Weekly reports must be dated on a Saturday.",
-        )
+        raise ValidationError("Weekly reports must be dated on a Saturday.")
     background_tasks.add_task(generate_report_background, current_user.id, report_date, report_type)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

@@ -16,8 +16,8 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "deploy": "npm run build:prod && npx firebase-tools deploy --only hosting",
-    "deploy-stg": "npm run build:prod && firebase hosting:channel:deploy stg1 --expires 30d",
-    "deploy-dev": "npm run build:prod && firebase hosting:channel:deploy dev1 --expires 7d"
+    "deploy-stg": "npm run build:stg && firebase hosting:channel:deploy stg1 --expires 30d",
+    "deploy-dev": "npm run build:dev && firebase hosting:channel:deploy dev1 --expires 7d"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -26,6 +26,7 @@
     "@xyflow/react": "^12.9.0",
     "axios": "^1.7.7",
     "bootstrap": "^5.3.3",
+    "dompurify": "^3.4.15",
     "react": "^18.3.1",
     "react-bootstrap": "^2.10.5",
     "react-bootstrap-icons": "^1.11.4",

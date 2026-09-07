@@ -93,7 +93,14 @@ export function DayOverviewPanel({ items, loading, isToday, estimatedMinutes }: 
   const nextUp =
     [...active]
       .filter((i) => i.preferred_time !== "flexible")
-      .sort((a, b) => TIME_ORDER[a.preferred_time] - TIME_ORDER[b.preferred_time])[0] ?? null;
+      .sort((a, b) => {
+        const order = TIME_ORDER[a.preferred_time] - TIME_ORDER[b.preferred_time];
+        if (order !== 0) return order;
+        if (a.preferred_time === "custom" && b.preferred_time === "custom") {
+          return (a.specific_time ?? "").localeCompare(b.specific_time ?? "");
+        }
+        return 0;
+      })[0] ?? null;
 
   const primaryFocus =
     [...active].sort((a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority])[0] ??

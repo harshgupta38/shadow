@@ -8,3 +8,29 @@ export function todayDate(): Date {
     const [y, m, d] = todayIso().split("-").map(Number);
     return new Date(y, m - 1, d);
 }
+
+const MONTH_NAMES = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+];
+
+/** "DD Month YYYY" from an ISO ("YYYY-MM-DD") date string. */
+export function formatDisplayDate(iso: string): string {
+    const [y, m, d] = iso.split("-").map(Number);
+    return `${String(d).padStart(2, "0")} ${MONTH_NAMES[m - 1]} ${y}`;
+}
+
+/** "DD Month" (no year) from an ISO date string — for yearly-repeating dates. */
+export function formatDisplayDateShort(iso: string): string {
+    const [, m, d] = iso.split("-").map(Number);
+    return `${String(d).padStart(2, "0")} ${MONTH_NAMES[m - 1]}`;
+}
+
+/** "1h 30m" / "45m" / "2h" style duration from a minute count. */
+export function formatDuration(minutes: number): string {
+    if (minutes === 0) return "0m";
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    if (h === 0) return `${m}m`;
+    return m > 0 ? `${h}h ${m}m` : `${h}h`;
+}

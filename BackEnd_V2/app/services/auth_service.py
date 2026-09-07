@@ -1,4 +1,5 @@
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import ConflictError, AuthError
@@ -47,7 +48,11 @@ def register_user(db: Session, data: RegisterRequest) -> UserDBM:
     )
 
     db.add(user)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise ConflictError("An account with this email already exists.")
     db.refresh(user)
 
     return user

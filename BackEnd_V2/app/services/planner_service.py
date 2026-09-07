@@ -18,9 +18,10 @@ import calendar
 from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
+from app.common import today_ist, to_ist
 from app.core.exceptions import AppError, NotFoundError
 from app.models.plan_record import DailyPlanRecordDBM
 from app.models.goal import GoalDBM
@@ -154,6 +155,12 @@ def _applicable_occurrence_dates(plan: PlanDBM, as_of_date: date) -> list[date]:
         cursor += timedelta(days=1)
 
     return results
+
+
+def applicable_occurrence_dates(plan: PlanDBM, as_of_date: date) -> list[date]:
+    """Public wrapper for _applicable_occurrence_dates, for callers outside this
+    module that need per-date occurrence data (not just compute_streaks' aggregate)."""
+    return _applicable_occurrence_dates(plan, as_of_date)
 
 
 def compute_streaks(
@@ -393,7 +400,7 @@ def _sync_today_record(db: Session, plan: PlanDBM) -> None:
                                         entry today and leaves none in history.
     Past records are never touched.
     """
-    today = date.today()
+    today = today_ist()
     today_matches = _matches_date(plan, today)
 
     record: DailyPlanRecordDBM | None = db.scalar(
@@ -448,7 +455,7 @@ def sync_plan_from_habit(db: Session, habit: HabitDBM) -> None:
         "priority": habit.priority,
         # If user set no start_date, use creation date so the plan never
         # appears on dates before the habit existed.
-        "start_date": habit.start_date or habit.created_at.replace(tzinfo=timezone.utc).astimezone().date(),
+        "start_date": habit.start_date or to_ist(habit.created_at).date(),
         "end_date": habit.end_date,
         "status": habit.status,  # active / paused / archived — direct mirror
     }
@@ -468,7 +475,10 @@ def sync_plan_from_habit(db: Session, habit: HabitDBM) -> None:
     db.commit()
 
 
-def sync_plan_from_task(db: Session, task: TaskDBM) -> None:
+def sync_plan_from_task(db: Session, task: TaskDBM, commit: bool = True) -> None:
+    """Sync task -> PlanDBM. Pass commit=False to fold this into the caller's own
+    transaction (e.g. when the caller already wrote other task fields this request
+    and wants one atomic commit instead of two)."""
     plan = _find_plan(db, "task", task.id)
 
     should_be_active = (
@@ -481,7 +491,8 @@ def sync_plan_from_task(db: Session, task: TaskDBM) -> None:
         if plan is not None and plan.status != "archived":
             plan.status = "archived"
         _purge_today_records(db, "task", task.id)
-        db.commit()
+        if commit:
+            db.commit()
         return
 
     target, unit = _normalize(task.planner_type, task.planner_target, task.value_unit)
@@ -504,7 +515,7 @@ def sync_plan_from_task(db: Session, task: TaskDBM) -> None:
         "duration_minutes": task.duration_minutes,
         "priority": task.priority,
         # Anchor to when the task was started, falling back to creation date.
-        "start_date": (task.started_at or task.created_at).date(),
+        "start_date": to_ist(task.started_at or task.created_at).date(),
         "end_date": None,
         "status": "active",
     }
@@ -517,7 +528,8 @@ def sync_plan_from_task(db: Session, task: TaskDBM) -> None:
         _apply_fields(plan, fields)
 
     _sync_today_record(db, plan)
-    db.commit()
+    if commit:
+        db.commit()
 
 
 def _purge_today_records(db: Session, source_type: str, source_id: int) -> None:
@@ -526,7 +538,7 @@ def _purge_today_records(db: Session, source_type: str, source_id: int) -> None:
         delete(DailyPlanRecordDBM).where(
             DailyPlanRecordDBM.source_type == source_type,
             DailyPlanRecordDBM.source_id == source_id,
-            DailyPlanRecordDBM.scheduled_date >= date.today(),
+            DailyPlanRecordDBM.scheduled_date >= today_ist(),
         )
     )
     if source_type == "task":
@@ -538,6 +550,28 @@ def deactivate_plan(db: Session, source_type: str, source_id: int) -> None:
     if plan is not None and plan.status != "archived":
         plan.status = "archived"
     _purge_today_records(db, source_type, source_id)
+
+
+def deactivate_plans(db: Session, source_type: str, source_ids: list[int]) -> None:
+    """Batch equivalent of deactivate_plan for source rows about to be hard-deleted.
+
+    Skips the per-item plan lookup and task-progress recompute that deactivate_plan
+    does — pointless work when the parent row is deleted a moment later anyway.
+    """
+    if not source_ids:
+        return
+    db.execute(
+        update(PlanDBM)
+        .where(PlanDBM.source_type == source_type, PlanDBM.source_id.in_(source_ids))
+        .values(status="archived")
+    )
+    db.execute(
+        delete(DailyPlanRecordDBM).where(
+            DailyPlanRecordDBM.source_type == source_type,
+            DailyPlanRecordDBM.source_id.in_(source_ids),
+            DailyPlanRecordDBM.scheduled_date >= today_ist(),
+        )
+    )
 
 
 # ── Scheduled-task sync ───────────────────────────────────────────────────────
@@ -553,7 +587,7 @@ def _sync_plan_for_scheduled_task(db: Session, task: ScheduledTaskDBM) -> None:
     target, unit = _normalize(task.planner_type, task.planner_target, task.value_unit)
 
     # Snoozed: extend the window to today; upcoming/completed/missed: keep original.
-    effective_end = date.today() if task.status == "snoozed" else task.scheduled_date
+    effective_end = today_ist() if task.status == "snoozed" else task.scheduled_date
 
     fields = {
         "user_id": task.user_id,
@@ -657,7 +691,7 @@ def get_plans_for_date(
     current_user: UserDBM,
     target_date: date,
 ) -> DailyPlanResponse:
-    today = date.today()
+    today = today_ist()
 
     if target_date > today:
         raise AppError("Future dates are not allowed.")
@@ -874,7 +908,7 @@ def update_daily_record(
     if record is None:
         raise NotFoundError("Daily plan record not found.")
 
-    if record.scheduled_date != date.today():
+    if record.scheduled_date != today_ist():
         raise AppError("Past date records cannot be modified.")
 
     if add_value is not None:
@@ -935,7 +969,7 @@ def update_daily_record(
                 # Restore to the correct in-progress status: snoozed if the
                 # task is past its original date, upcoming if it's still on it.
                 sched_task.status = (
-                    "snoozed" if date.today() > sched_task.scheduled_date else "upcoming"
+                    "snoozed" if today_ist() > sched_task.scheduled_date else "upcoming"
                 )
 
     db.commit()

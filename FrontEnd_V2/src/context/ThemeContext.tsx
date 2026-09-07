@@ -43,7 +43,8 @@ function readCache(): DynamicThemeCache | null {
 	}
 }
 
-function writeCache(effectiveTheme: EffectiveTheme, nextTransitionAt: string): void {
+function writeCache(effectiveTheme: EffectiveTheme, nextTransitionAt: string | null): void {
+	if (!nextTransitionAt) return; // nothing to schedule against — don't cache a stale-forever entry
 	try {
 		localStorage.setItem(CACHE_KEY, JSON.stringify({ effectiveTheme, nextTransitionAt }));
 	} catch {
@@ -106,7 +107,7 @@ export function ThemeProvider({ children }: ChildProps) {
 
 	const loadDynamicTheme = useCallback(async () => {
 		try {
-			let nextTransitionAt: string | undefined;
+			let nextTransitionAt: string | null | undefined;
 
 			const cached = readCache();
 			const now = Date.now();

@@ -107,10 +107,10 @@ export function GoalDetailPage() {
     try {
       await api.goals.deleteGoal(numericGoalId);
       navigate(ROUTES.MY_GOALS);
-    } catch {
+    } catch (err) {
       setDeleteBusy(false);
       setShowDeleteConfirm(false);
-      toast.error("Failed to delete goal. Please try again.");
+      toast.error(err instanceof ApiError ? err.message : "Failed to delete goal. Please try again.");
     }
   };
 
@@ -196,8 +196,8 @@ export function GoalDetailPage() {
       const updated = await api.habits.updateHabit(habit.id, { status });
       setHabits((prev) => prev.map((item) => (item.id === habit.id ? updated : item)));
       setOpenHabitMenuId(null);
-    } catch {
-      toast.error("Could not update this habit right now. Please try again.");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Could not update this habit right now. Please try again.");
     } finally {
       setMenuActionHabitId(null);
     }
@@ -210,8 +210,8 @@ export function GoalDetailPage() {
       setHabits((prev) => prev.filter((item) => item.id !== habitId));
       setOpenHabitMenuId(null);
       setDeleteTargetHabit(null);
-    } catch {
-      toast.error("Could not delete this habit right now. Please try again.");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Could not delete this habit right now. Please try again.");
     } finally {
       setMenuActionHabitId(null);
     }

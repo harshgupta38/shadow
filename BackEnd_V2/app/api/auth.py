@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from jose import JWTError
 from app.core.endpoints import ENDPOINTS
+from app.core.exceptions import AuthError
 
 from app.schemas.user import UserDataResponse
 from app.api.deps import get_current_user
@@ -40,12 +41,13 @@ def register(data: RegisterRequest, db=Depends(get_db)) -> TokenResponse:
 def refresh(data: RefreshRequest, db=Depends(get_db)) -> TokenResponse:
     try:
         payload = security.decode_refresh_token(data.refresh_token)
-    except JWTError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired refresh token")
+        user_id = int(payload["sub"])
+    except (JWTError, TypeError, ValueError, KeyError):
+        raise AuthError("Invalid or expired refresh token")
 
-    user = db.get(UserDBM, int(payload["sub"]))
+    user = db.get(UserDBM, user_id)
     if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+        raise AuthError("User not found")
 
     return _make_token_response(user.id)
 

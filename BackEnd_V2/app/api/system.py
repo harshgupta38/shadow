@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 from app.core.config import settings
 from app.core.endpoints import ENDPOINTS
+from app.services import backup_service
 
 router = APIRouter()
 
@@ -100,16 +101,15 @@ def download_database(x_admin_secret: str = Header(...)):
     if x_admin_secret != _ADMIN_SECRET:
         raise HTTPException(status_code=403, detail="Forbidden.")
 
-    database_url = settings.database_url
-    if not database_url.startswith("sqlite:///"):
-        raise HTTPException(status_code=400, detail="Database is not SQLite.")
-
-    database_path = Path(database_url[len("sqlite:///"):])
-    if not database_path.exists():
+    # Take a consistent snapshot via SQLite's online backup API instead of streaming
+    # the live file — the server may be writing to it (WAL mode keeps recent commits
+    # in a separate -wal file), so reading it directly can hand back a torn copy.
+    backup_path = backup_service.create_backup()
+    if backup_path is None:
         raise HTTPException(status_code=404, detail="Database file not found.")
 
     return FileResponse(
-        path=database_path,
+        path=backup_path,
         media_type="application/x-sqlite3",
         filename="shadow.db",
     )

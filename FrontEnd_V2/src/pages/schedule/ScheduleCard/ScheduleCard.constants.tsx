@@ -1,14 +1,9 @@
 import { Clock, MoonFill, MoonStarsFill, SunFill } from "react-bootstrap-icons";
 
-import type { ScheduledTaskPreferredTime, ScheduledTaskPriority, ScheduledTaskStatus } from "@/api/types";
+import type { ScheduledTaskPreferredTime, ScheduledTaskStatus } from "@/api/types";
+import { formatDisplayDate, formatDisplayDateShort } from "@/services/date.service";
 
-export const PRIORITY_COLOR: Record<ScheduledTaskPriority, string> = {
-    highest: "var(--bs-danger)",
-    high: "var(--bs-orange, #f97316)",
-    medium: "var(--jv-brand-1)",
-    low: "var(--bs-info)",
-    lowest: "var(--jv-muted)",
-};
+export { PRIORITY_COLOR, PRIORITY_LABEL } from "@/constant/priority";
 
 export const STATUS_LABEL: Record<ScheduledTaskStatus, string> = {
     upcoming:  "Upcoming",
@@ -17,28 +12,8 @@ export const STATUS_LABEL: Record<ScheduledTaskStatus, string> = {
     missed:    "Missed",
 };
 
-export const PRIORITY_LABEL: Record<ScheduledTaskPriority, string> = {
-    highest: "Highest",
-    high: "High",
-    medium: "Medium",
-    low: "Low",
-    lowest: "Lowest",
-};
-
-const MONTH_NAMES = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December",
-];
-
-export function formatDateDisplay(iso: string): string {
-    const [y, m, d] = iso.split("-").map(Number);
-    return `${String(d).padStart(2, "0")} ${MONTH_NAMES[m - 1]} ${y}`;
-}
-
-export function formatDateDisplayYearly(iso: string): string {
-    const [, m, d] = iso.split("-").map(Number);
-    return `${String(d).padStart(2, "0")} ${MONTH_NAMES[m - 1]}`;
-}
+export const formatDateDisplay = formatDisplayDate;
+export const formatDateDisplayYearly = formatDisplayDateShort;
 
 const PREFERRED_TIME_LABEL: Partial<Record<ScheduledTaskPreferredTime, string>> = {
     morning:   "Morning",

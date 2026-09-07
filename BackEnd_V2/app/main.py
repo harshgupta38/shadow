@@ -31,7 +31,7 @@ from app.models.schedule_task import ScheduledTaskDBM
 from app.models.scheduled_task_proposal import ScheduledTaskProposalDBM
 from app.models.memory import UserMemoryDBM
 from app.models.report import ReportDBM
-from app.services import planner_service, backup_service
+from app.services import planner_service, backup_service, report_scheduler_service
 
 
 @asynccontextmanager
@@ -40,13 +40,15 @@ async def lifespan(_app: FastAPI):
     with SessionLocal() as db:
         planner_service.sync_all_plans(db)
 
-    scheduler = asyncio.create_task(backup_service.backup_scheduler_loop())
+    backup_sched = asyncio.create_task(backup_service.backup_scheduler_loop())
+    report_sched = asyncio.create_task(report_scheduler_service.report_scheduler_loop())
     yield
-    scheduler.cancel()
-    try:
-        await scheduler
-    except asyncio.CancelledError:
-        pass
+    for task in (backup_sched, report_sched):
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
 
 
 app = FastAPI(

@@ -33,6 +33,13 @@ class Settings(BaseSettings):
     def db_backup_runtime_list(self) -> list[str]:
         return [t.strip() for t in self.db_backup_runtimes.split(",") if t.strip()]
 
+    # Report auto-generation scheduler.
+    # REPORT_AUTO_GENERATE=false disables the scheduler entirely.
+    # Times are HHMM in IST (24h), e.g. "2355" = 11:55 PM.
+    report_auto_generate: bool = True
+    report_daily_runtime: str = "2355"
+    report_weekly_runtime: str = "2355"
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

@@ -27,9 +27,11 @@ from app.models.plan_record import DailyPlanRecordDBM
 from app.models.goal import GoalDBM
 from app.models.habit import HabitDBM
 from app.models.plan import PlanDBM
+from app.models.report import ReportDBM
 from app.models.schedule_task import ScheduledTaskDBM
 from app.models.task import TaskDBM
 from app.models.user import UserDBM
+from app.services import notifications_service
 from app.schemas.planner import (
     DailyPlanItemResponse,
     DailyPlanResponse,
@@ -713,10 +715,41 @@ def get_plans_for_date(
         matched = [p for p in active_plans if _matches_date(p, target_date)]
         plan_by_id = {p.id: p for p in matched}
 
+        # Count existing records before materialization to detect first load of the day.
+        existing_today_count = db.scalar(
+            select(func.count()).where(
+                DailyPlanRecordDBM.user_id == current_user.id,
+                DailyPlanRecordDBM.scheduled_date == target_date,
+            )
+        ) or 0
+
         records: list[DailyPlanRecordDBM] = [
             _materialize_record(db, plan, target_date) for plan in matched
         ]
         db.commit()
+
+        # Notification #3 — plan ready, first load of the day.
+        if existing_today_count == 0 and records:
+            yesterday = target_date - timedelta(days=1)
+            prev_report = db.scalar(
+                select(ReportDBM).where(
+                    ReportDBM.user_id == current_user.id,
+                    ReportDBM.report_date == yesterday,
+                    ReportDBM.report_type == "daily",
+                ).order_by(ReportDBM.generated_at.desc())
+            )
+            body: str | None = None
+            if prev_report:
+                closing = prev_report.closing or {}
+                body = closing.get("message") or prev_report.headline
+            notifications_service.create_notification(
+                db, current_user,
+                title=f"Your plan for today is ready — {len(records)} item{'s' if len(records) != 1 else ''}",
+                body=body,
+                type="system",
+                url="/plan",
+                event_key=f"plan_ready:{current_user.id}:{target_date}",
+            )
 
         # Batch-load full history for streak computation (single query).
         today_plan_ids = [r.plan_id for r in records if r.plan_id is not None]
@@ -981,5 +1014,21 @@ def update_daily_record(
         plan = db.get(PlanDBM, record.plan_id)
         if plan:
             cs, ms = compute_streaks_for_plan(db, plan, record.scheduled_date)
+
+    # Notification #11 — habit streak milestone.
+    _STREAK_MILESTONES = {7, 30, 100}
+    if (
+        record.status == "done"
+        and record.source_type == "habit"
+        and cs in _STREAK_MILESTONES
+    ):
+        notifications_service.create_notification(
+            db, current_user,
+            title=f"{cs}-day streak on \"{record.title}\"! 🔥",
+            body=f"You've kept this habit going for {cs} days in a row.",
+            type="system",
+            url="/plan",
+            event_key=f"streak:{record.plan_id}:{cs}:{record.scheduled_date}",
+        )
 
     return _record_to_saved_data(record, cs, ms)

@@ -14,6 +14,8 @@ from app.models.milestone import MilestoneDBM
 from app.models.plan_record import DailyPlanRecordDBM
 from app.models.report import ReportDBM
 from app.models.task import TaskDBM
+from app.models.user import UserDBM
+from app.services import notifications_service
 
 logger = logging.getLogger(__name__)
 
@@ -296,6 +298,24 @@ async def generate_report_background(user_id: int, report_date: date, report_typ
             day_data=day_data,
         )
         save_report(db, user_id, report_date, report_type, llm_result, day_data)
+        user = db.get(UserDBM, user_id)
+        if user:
+            report = db.scalar(
+                select(ReportDBM).where(
+                    ReportDBM.user_id == user_id,
+                    ReportDBM.report_date == report_date,
+                    ReportDBM.report_type == report_type,
+                ).order_by(ReportDBM.generated_at.desc())
+            )
+            label = report_type.capitalize()
+            notifications_service.create_notification(
+                db, user,
+                title=f"Your {label} report for {report_date.strftime('%d %b')} is ready",
+                body=report.headline if report else None,
+                type="agent",
+                url=f"/reports/{report_date}",
+                event_key=f"report:{user_id}:{report_date}:{report_type}",
+            )
     except Exception:
         db.rollback()
         logger.exception(

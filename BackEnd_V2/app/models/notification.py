@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, String, func, text
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, String, UniqueConstraint, func, text
 from sqlalchemy.orm import Mapped, mapped_column  # pyright: ignore[reportMissingImports]
 
 from app.models.base import Base
@@ -13,6 +13,9 @@ class NotificationDBM(Base):
             "type IN ('reminder', 'system', 'agent')",
             name="ck_notifications_type",
         ),
+        # Prevents duplicate event-keyed notifications per user.
+        # NULL event_key rows are exempt (scheduler/manual notifications have no key).
+        UniqueConstraint("user_id", "event_key", name="uq_notifications_user_event_key"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -41,6 +44,10 @@ class NotificationDBM(Base):
     )
 
     url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
+    # Stable composite key for event-triggered notifications (e.g. "welcome:42",
+    # "streak:99:30:2026-09-07"). NULL for time-based scheduler notifications.
+    event_key: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

@@ -1,3 +1,4 @@
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.notification import NotificationDBM
@@ -13,17 +14,33 @@ def create_notification(
     body: str | None = None,
     type: str = "system",
     url: str | None = None,
-) -> NotificationDBM:
+    event_key: str | None = None,
+) -> NotificationDBM | None:
     """
-    One function to create and persist a notification for a user.
-    Commits immediately so SSE polling picks it up in the next tick.
+    Create and persist a notification for a user.
+
+    If event_key is supplied the row is skipped (returns None) when an identical
+    (user_id, event_key) pair already exists — this is the primary deduplication
+    mechanism for event-triggered notifications.  Commits immediately so SSE
+    polling picks up the new row in the next tick.
     """
+    if event_key is not None:
+        existing = db.scalar(
+            select(NotificationDBM).where(
+                NotificationDBM.user_id == user.id,
+                NotificationDBM.event_key == event_key,
+            )
+        )
+        if existing is not None:
+            return None
+
     notif = NotificationDBM(
         user_id=user.id,
         title=title,
         body=body,
         type=type,
         url=url,
+        event_key=event_key,
     )
     db.add(notif)
     db.commit()

@@ -687,6 +687,7 @@ export interface DayReport {
   tasks_done: number;
   schedule_total: number;
   schedule_done: number;
+  has_report: boolean;
 }
 
 export interface MonthlyReportResponse {

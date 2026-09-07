@@ -12,6 +12,7 @@ class DayReport(BaseModel):
     tasks_done: int
     schedule_total: int
     schedule_done: int
+    has_report: bool
 
 
 class MonthlyReportResponse(BaseModel):

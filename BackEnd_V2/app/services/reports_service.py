@@ -5,6 +5,7 @@ from sqlalchemy import and_, case, func, select
 from sqlalchemy.orm import Session
 
 from app.models.plan_record import DailyPlanRecordDBM
+from app.models.report import ReportDBM
 from app.models.user import UserDBM
 from app.schemas.reports import DayReport, MonthlyReportResponse
 
@@ -75,6 +76,16 @@ def get_monthly_report(
         .order_by(DailyPlanRecordDBM.scheduled_date)
     ).all()
 
+    report_dates: set[date] = set(
+        db.scalars(
+            select(ReportDBM.report_date).where(
+                ReportDBM.user_id == user.id,
+                ReportDBM.report_date >= start,
+                ReportDBM.report_date <= end,
+            )
+        ).all()
+    )
+
     days: list[DayReport] = []
     for row in rows:
         total = row.total or 0
@@ -90,6 +101,7 @@ def get_monthly_report(
                 tasks_done=int(row.tasks_done or 0),
                 schedule_total=int(row.schedule_total or 0),
                 schedule_done=int(row.schedule_done or 0),
+                has_report=row.scheduled_date in report_dates,
             )
         )
 

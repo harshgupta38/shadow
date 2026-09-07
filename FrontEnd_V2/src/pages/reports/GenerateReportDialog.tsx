@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { Modal } from "react-bootstrap";
-import { CalendarDate, CheckCircleFill, Stars } from "react-bootstrap-icons";
+import { CalendarDate, Stars } from "react-bootstrap-icons";
 
 import { api } from "@/api";
+import { useToast } from "@/context/ToastContext";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type ReportType = "daily" | "weekly";
-type DialogState = "form" | "loading" | "success" | "error";
+type DialogState = "form" | "loading" | "error";
 
 interface Props {
   show: boolean;
@@ -65,6 +66,7 @@ function snapToSaturday(dateStr: string, todayStr: string): string {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function GenerateReportDialog({ show, onHide, todayStr }: Props) {
+  const toast = useToast();
   const dateInputRef = useRef<HTMLInputElement>(null);
   const [reportType, setReportType] = useState<ReportType>("daily");
   const [dateStr, setDateStr] = useState(todayStr);
@@ -96,7 +98,8 @@ export function GenerateReportDialog({ show, onHide, todayStr }: Props) {
     setDialogState("loading");
     try {
       await api.reports.generateReportRequest(dateStr, reportType);
-      setDialogState("success");
+      onHide();
+      toast.info("Report requested, We'll notify you when it's ready.");
     } catch {
       setErrorMsg("Something went wrong. Please try again.");
       setDialogState("error");
@@ -107,26 +110,7 @@ export function GenerateReportDialog({ show, onHide, todayStr }: Props) {
     <Modal show={show} onHide={onHide} centered backdrop="static">
       <Modal.Body className="p-4">
 
-        {/* ── Success state ───────────────────────────────────────────── */}
-        {dialogState === "success" && (
-          <div className="text-center py-2">
-            <div className="empty-icon mx-auto mb-3 text-success">
-              <CheckCircleFill size={28} />
-            </div>
-            <h2 className="h5 fw-bold mb-2">{reportType === 'daily' ? 'Daily' : 'Weekly'} report is on its way ✨</h2>
-            <p className="text-muted-2 mb-4">
-              Your report for <strong>{fmtDisplay(dateStr)}</strong> is being prepared. We'll notify you when it's ready.
-            </p>
-            <button type="button" className="btn btn-soft px-4" onClick={onHide}>
-              Close
-            </button>
-          </div>
-        )}
-
-        {/* ── Form + loading + error states ──────────────────────────── */}
-        {dialogState !== "success" && (
-          <>
-            {/* Header */}
+        {/* Header */}
             <div className="note-dialog-header mb-4">
               <div className="empty-icon" aria-hidden="true">
                 <Stars size={24} />
@@ -212,8 +196,6 @@ export function GenerateReportDialog({ show, onHide, todayStr }: Props) {
                 {dialogState === "loading" ? "Requesting…" : "Generate"}
               </button>
             </div>
-          </>
-        )}
 
       </Modal.Body>
     </Modal>

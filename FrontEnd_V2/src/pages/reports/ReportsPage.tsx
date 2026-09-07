@@ -1,135 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BarChartFill, ChevronLeft, ChevronRight, LightbulbFill, Stars } from "react-bootstrap-icons";
 import { useNavigate } from "react-router-dom";
-
 import { api } from "@/api";
-import type { DayReport } from "@/api/types";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
-import { todayDate } from "@/services/date.service";
 import { ROUTES } from "@/routes/RoutePaths";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
+import { useToast } from "@/context/ToastContext";
+import type { ScoreTier, DayData, CalDay, CalCell } from "@/pages/reports/types";
+import {
+  TODAY, DAY_LABELS, RING_CIRC, MONTH_NAMES,
+  fmtKey, buildMonthData, tierOf, computeStats, insightMsg,
+} from "@/pages/reports/ReportsPage.constants";
 import { GenerateReportDialog } from "@/pages/reports/GenerateReportDialog";
 import "@/pages/reports/ReportsPage.scss";
-
-// ─── Constants ─────────────────────────────────────────────────────────────────
-
-const TODAY = todayDate();
-
-const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-const RING_CIRC = 2 * Math.PI * 16;
-
-const MONTH_NAMES = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
-];
-
-// ─── Types ─────────────────────────────────────────────────────────────────────
-
-type ScoreTier = "empty" | "poor" | "low" | "mid" | "good" | "great";
-
-interface DayMock {
-  score: number | null;
-  habitsTotal: number;
-  habitsDone: number;
-  tasksTotal: number;
-  tasksDone: number;
-  scheduleTotal: number;
-  scheduleDone: number;
-}
-
-interface CalDay {
-  type: "day";
-  date: Date;
-  key: string;
-  data: DayMock;
-  isToday: boolean;
-  isFuture: boolean;
-}
-
-interface CalFiller { type: "filler"; }
-
-type CalCell = CalDay | CalFiller;
-
-interface Stats {
-  goodDays: number;
-  tracked: number;
-  avgScore: number;
-  bestStreak: number;
-  topScore: number;
-  topDate: Date | null;
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function fmtKey(y: number, m: number, d: number): string {
-  return `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-}
-
-function buildMonthData(year: number, month: number, apiDays: DayReport[]): Map<string, DayMock> {
-  const out = new Map<string, DayMock>();
-  const lookup = new Map(apiDays.map(d => [d.date, d]));
-  const totalDays = new Date(year, month + 1, 0).getDate();
-
-  for (let d = 1; d <= totalDays; d++) {
-    const key = fmtKey(year, month, d);
-    const src = lookup.get(key);
-    out.set(key, src
-      ? {
-        score: src.score,
-        habitsTotal: src.habits_total,
-        habitsDone: src.habits_done,
-        tasksTotal: src.tasks_total,
-        tasksDone: src.tasks_done,
-        scheduleTotal: src.schedule_total,
-        scheduleDone: src.schedule_done,
-      }
-      : { score: null, habitsTotal: 0, habitsDone: 0, tasksTotal: 0, tasksDone: 0, scheduleTotal: 0, scheduleDone: 0 },
-    );
-  }
-  return out;
-}
-
-function tierOf(score: number | null): ScoreTier {
-  if (score === null || score <= 0) return "empty";
-  if (score <= 20) return "poor";
-  if (score <= 40) return "low";
-  if (score <= 60) return "mid";
-  if (score <= 80) return "good";
-  return "great";
-}
-
-function computeStats(data: Map<string, DayMock>, year: number, month: number): Stats {
-  const days = new Date(year, month + 1, 0).getDate();
-  let goodDays = 0, tracked = 0, totalScore = 0;
-  let streak = 0, best = 0, topScore = 0, topDay = 0;
-
-  for (let d = 1; d <= days; d++) {
-    const entry = data.get(fmtKey(year, month, d));
-    if (!entry || entry.score === null) { streak = 0; continue; }
-    tracked++;
-    totalScore += entry.score;
-    if (entry.score > topScore) { topScore = entry.score; topDay = d; }
-    if (entry.score >= 60) { best = Math.max(best, ++streak); goodDays++; }
-    else streak = 0;
-  }
-
-  return {
-    goodDays, tracked,
-    avgScore: tracked > 0 ? Math.round(totalScore / tracked) : 0,
-    bestStreak: best,
-    topScore,
-    topDate: topDay > 0 ? new Date(year, month, topDay) : null,
-  };
-}
-
-function insightMsg(stats: Stats, month: number, year: number): string {
-  const name = MONTH_NAMES[month];
-  if (stats.tracked === 0) return `No data yet for ${name} ${year}. Navigate to a past month to see your performance summary.`;
-  if (stats.bestStreak >= 7) return `A ${stats.bestStreak}-day streak in ${name} — that kind of sustained effort is where real change happens.`;
-  if (stats.goodDays >= stats.tracked * 0.75) return `${stats.goodDays} of ${stats.tracked} tracked days were strong. ${name} is one of your most consistent months.`;
-  if (stats.goodDays >= stats.tracked * 0.5) return `More than half of ${name} has been productive. A few more consistent days will make this a standout month.`;
-  return `Every tracked day adds up. Use ${name}'s patterns to spot where consistency slips — that's your growth edge.`;
-}
 
 // ─── Ghost Shell ──────────────────────────────────────────────────────────────
 
@@ -183,13 +66,16 @@ function ReportGhostShell() {
 
 export function ReportsPage() {
   const navigate = useNavigate();
+  const toast = useToast();
   const [showGenerateDialog, setShowGenerateDialog] = useState(false);
+  const [confirmDate, setConfirmDate] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
   const [activeMonth, setActiveMonth] = useState(
     () => new Date(TODAY.getFullYear(), TODAY.getMonth(), 1),
   );
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
-  const [monthData, setMonthData] = useState<Map<string, DayMock>>(() => new Map());
-  const [loading, setLoading] = useState(false);
+  const [monthData, setMonthData] = useState<Map<string, DayData>>(() => new Map());
+  const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const reqId = useRef(0);
 
@@ -224,7 +110,7 @@ export function ReportsPage() {
       const key = fmtKey(year, month, d);
       const isFuture = date > TODAY;
       const isToday = date.toDateString() === TODAY.toDateString();
-      out.push({ type: "day", date, key, data: monthData.get(key) ?? { score: null, habitsTotal: 0, habitsDone: 0, tasksTotal: 0, tasksDone: 0, scheduleTotal: 0, scheduleDone: 0 }, isToday, isFuture });
+      out.push({ type: "day", date, key, data: monthData.get(key)!, isToday, isFuture });
     }
     return out;
   }, [year, month, monthData]);
@@ -235,6 +121,19 @@ export function ReportsPage() {
 
   function goPrev() { setActiveMonth(m => new Date(m.getFullYear(), m.getMonth() - 1, 1)); setHoveredKey(null); }
   function goNext() { if (!canNext) return; setActiveMonth(m => new Date(m.getFullYear(), m.getMonth() + 1, 1)); setHoveredKey(null); }
+
+  async function handleGenerateForDate() {
+    if (!confirmDate) return;
+    setGenerating(true);
+    try {
+      await api.reports.generateReportRequest(confirmDate, "daily");
+      setConfirmDate(null);
+      toast.info("Report requested, We'll notify you when it's ready.");
+      loadReport();
+    } finally {
+      setGenerating(false);
+    }
+  }
 
   const todayStr = fmtKey(TODAY.getFullYear(), TODAY.getMonth(), TODAY.getDate());
 
@@ -332,7 +231,7 @@ export function ReportsPage() {
             if (cell.type === "filler") return <div key={`f${i}`} className="rp-filler" />;
 
             const { date, key, data, isToday, isFuture } = cell;
-            const t = isFuture ? ("empty" as ScoreTier) : tierOf(data.score);
+            const t: ScoreTier = isFuture ? "empty" : tierOf(data.score);
             const cls = [
               "rp-day", `rp-day--${t}`,
               isToday ? "rp-day--today" : "",
@@ -346,8 +245,18 @@ export function ReportsPage() {
                 key={key}
                 className={cls}
                 onMouseEnter={() => !isFuture && setHoveredKey(key)}
-                onClick={() => !isFuture && navigate(ROUTES.REPORTS_DETAIL.replace(":historyDate", key))}
-                onKeyDown={!isFuture ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); navigate(ROUTES.REPORTS_DETAIL.replace(":historyDate", key)); } } : undefined}
+                onClick={() => {
+                  if (isFuture) return;
+                  if (data.hasReport) navigate(ROUTES.REPORTS_DETAIL.replace(":historyDate", key));
+                  else setConfirmDate(key);
+                }}
+                onKeyDown={!isFuture ? (e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    if (data.hasReport) navigate(ROUTES.REPORTS_DETAIL.replace(":historyDate", key));
+                    else setConfirmDate(key);
+                  }
+                } : undefined}
                 role={!isFuture ? "button" : undefined}
                 tabIndex={!isFuture ? 0 : undefined}
                 aria-label={data.score !== null ? `${date.toLocaleDateString("en-US", { month: "long", day: "numeric" })}, ${data.score}% completion` : undefined}
@@ -407,6 +316,16 @@ export function ReportsPage() {
         show={showGenerateDialog}
         onHide={() => setShowGenerateDialog(false)}
         todayStr={todayStr}
+      />
+
+      <ConfirmDialog
+        show={confirmDate !== null}
+        title="No report for this date"
+        message="There is no report generated for this date. Would you like to generate one now?"
+        confirmLabel="Generate"
+        busy={generating}
+        onConfirm={handleGenerateForDate}
+        onCancel={() => setConfirmDate(null)}
       />
 
     </section>

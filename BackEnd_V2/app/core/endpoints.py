@@ -80,6 +80,14 @@ class Endpoints:
         REPORT_DETAIL = "/{report_date}"
         GENERATE_REPORT_REQUEST = "/{report_date}/request"
 
+    class NOTIFICATIONS:
+        PREFIX = "/notifications"
+        DETAIL = "/{notification_id}"
+        MARK_READ = "/{notification_id}/read"
+        MARK_READ_BATCH = "/mark-read-batch"
+        MARK_ALL_READ = "/read-all"
+        STREAM = "/stream"
+
     class CHAT:
         PREFIX = "/chat"
         CONVERSATIONS = "/conversations" # to get list of sessions

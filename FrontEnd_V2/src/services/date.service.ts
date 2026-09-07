@@ -23,6 +23,16 @@ export function relativeTime(iso: string): string {
     return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }
 
+export function notifDateLabel(iso: string): string {
+    const dateStr = new Date(iso).toLocaleDateString("en-CA", { timeZone: IST_TIMEZONE });
+    const today = todayIso();
+    if (dateStr === today) return "Today";
+    const [y, m, d] = today.split("-").map(Number);
+    const yesterdayStr = new Date(Date.UTC(y, m - 1, d - 1, 12)).toLocaleDateString("en-CA", { timeZone: IST_TIMEZONE });
+    if (dateStr === yesterdayStr) return "Yesterday";
+    return new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric", timeZone: IST_TIMEZONE });
+}
+
 export function notifTime(iso: string): string {
     const date = new Date(iso);
     const diffMs = Date.now() - date.getTime();

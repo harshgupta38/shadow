@@ -1,37 +1,88 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Dropdown } from "react-bootstrap";
 import { useLocation, useNavigate } from "react-router-dom";
 import { BellFill } from "react-bootstrap-icons";
 
-import { type Notification } from "@/api/types";
+import { api, type Notification } from "@/api";
 import { ROUTES } from "@/routes/RoutePaths";
 import { relativeTime } from "@/services/date.service";
-import { MOCK_NOTIFICATIONS, TYPE_COLOR, TYPE_ICON } from "@/pages/notifications/NotificationsPage.constants";
+import { TYPE_COLOR, TYPE_ICON } from "@/pages/notifications/NotificationsPage.constants";
 import "@/components/layout/NotificationsBell/NotificationsBell.scss";
 
 export function NotificationsBell() {
   const navigate = useNavigate();
   const location = useLocation();
   const [open, setOpen] = useState(false);
-  const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [snapshot, setSnapshot] = useState<Notification[]>([]);
 
-  const unread = notifications.filter(n => !n.read);
-  const unreadCount = unread.length;
+  // ── Initial fetch + SSE with exponential-backoff reconnect ─────────────────
+  useEffect(() => {
+    const controller = new AbortController();
+    const { signal } = controller;
+    const MAX_RETRIES = 8;
 
-  // Close the bell when the user navigates to the notifications page
+    (async () => {
+      // Initial list — runs once; stream reconnects keep lastSeenId up to date
+      let lastSeenId = 0;
+      try {
+        const data = await api.notifications.list(true);
+        if (signal.aborted) return;
+        setNotifications(data);
+        lastSeenId = data.length > 0 ? Math.max(...data.map(n => n.id)) : 0;
+      } catch {
+        if (signal.aborted) return;
+        // continue — stream is still useful even when the initial fetch fails
+      }
+
+      let retries = 0;
+      while (!signal.aborted && retries <= MAX_RETRIES) {
+        try {
+          await api.notifications.stream(lastSeenId, (notif) => {
+            lastSeenId = Math.max(lastSeenId, notif.id);
+            setNotifications(prev => prev.some(n => n.id === notif.id) ? prev : [notif, ...prev]);
+          }, signal);
+          retries = 0; // clean close → reset counter before reconnecting
+        } catch (e) {
+          if (e instanceof DOMException && e.name === "AbortError") return;
+          retries++;
+        }
+
+        if (signal.aborted || retries > MAX_RETRIES) break;
+
+        // Exponential backoff capped at 30 s: 1 s, 2 s, 4 s, 8 s, 16 s, 30 s …
+        const delayMs = Math.min(1_000 * 2 ** (retries - 1), 30_000);
+        await new Promise<void>(resolve => {
+          const t = setTimeout(resolve, delayMs);
+          signal.addEventListener("abort", () => { clearTimeout(t); resolve(); }, { once: true });
+        });
+      }
+    })().catch(() => {});
+
+    return () => controller.abort();
+  }, []);
+
+  // ── Auto-close when user navigates to the notifications page ────────────────
   if (open && location.pathname === ROUTES.NOTIFICATIONS) {
     setOpen(false);
     setSnapshot([]);
   }
 
+  const unread = notifications.filter(n => !n.read);
+  const unreadCount = unread.length;
+
   function onToggle(nextShow: boolean) {
     setOpen(nextShow);
     if (nextShow) {
+      // Snapshot the current unread items before marking them read
       const items = unread.slice(0, 10);
       setSnapshot(items);
       const ids = items.map(n => n.id);
       setNotifications(prev => prev.map(n => ids.includes(n.id) ? { ...n, read: true } : n));
+      api.notifications.markReadBatch(ids).catch(() => {
+        // All items came from `unread`, so their original state is read: false
+        setNotifications(prev => prev.map(n => ids.includes(n.id) ? { ...n, read: false } : n));
+      });
     } else {
       setSnapshot([]);
     }

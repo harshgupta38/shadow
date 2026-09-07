@@ -61,6 +61,14 @@
   display: block;
 }
 
+.notif-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+  align-self: center;
+}
+
 .notif-item-mark-read {
   background: none;
   border: none;
@@ -70,9 +78,47 @@
   color: var(--jv-brand-1);
   cursor: pointer;
   white-space: nowrap;
-  align-self: center;
 
   &:hover {
     text-decoration: underline;
   }
+}
+
+.notif-item-delete {
+  background: none;
+  border: none;
+  padding: 4px 6px;
+  border-radius: var(--jv-radius-sm);
+  color: var(--jv-muted);
+  cursor: pointer;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  transition: color 0.12s ease, background 0.12s ease;
+
+  &:hover {
+    color: var(--jv-danger, #e53935);
+    background: color-mix(in srgb, var(--jv-danger, #e53935) 10%, transparent);
+  }
+}
+
+// ── Infinite scroll sentinel ──────────────────────────────────────────────────
+
+.notif-load-more {
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 0;
+}
+
+// ── Date headers ──────────────────────────────────────────────────────────────
+
+.notif-date-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--jv-muted);
+  margin: 0 0 0.5rem 0.25rem;
 }

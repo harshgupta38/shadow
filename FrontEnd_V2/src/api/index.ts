@@ -8,6 +8,7 @@ export * from "@/api/types";
 export { tokenStore, ApiError } from "@/api/client";
 
 import { authApi } from "@/api/auth";
+import { notificationsApi } from "@/api/notifications";
 import { appearanceApi } from "@/api/appearance";
 import { reportsApi } from "@/api/reports";
 import { chatApi } from "@/api/chat";
@@ -20,6 +21,7 @@ import { scheduleApi } from "@/api/schedule";
 
 export const api = {
   auth: authApi,
+  notifications: notificationsApi,
   theme: appearanceApi,
   chat: chatApi,
   goals: goalsApi,

@@ -59,6 +59,14 @@ export const ENDPOINTS = {
         SET_TASK_TRACKING: "/set-task-tracking",
         ELIGIBLE_TASKS: "/eligible-tasks",
     },
+    NOTIFICATIONS: {
+        PREFIX: "/notifications",
+        DETAIL: (id: number) => `/${id}`,
+        MARK_READ: (id: number) => `/${id}/read`,
+        MARK_READ_BATCH: "/mark-read-batch",
+        MARK_ALL_READ: "/read-all",
+        STREAM: "/stream",
+    },
     REPORTS: {
         PREFIX: "/reports",
         MONTHLY: "/monthly",

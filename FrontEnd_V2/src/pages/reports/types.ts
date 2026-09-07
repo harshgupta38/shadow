@@ -8,7 +8,8 @@ export interface DayData {
   tasksDone: number;
   scheduleTotal: number;
   scheduleDone: number;
-  hasReport: boolean;
+  hasDailyReport: boolean;
+  hasWeeklyReport: boolean;
 }
 
 export interface CalDay {

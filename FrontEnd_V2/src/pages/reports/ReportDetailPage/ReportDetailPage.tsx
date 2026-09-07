@@ -216,8 +216,8 @@ export function ReportDetailPage() {
   const hasPrev = idx > 0;
   const hasNext = idx < total - 1;
   const goalsOnTrack = report.goals.filter(g => g.alignment_pct >= 75).length;
-  const dateLabel = new Date(`${report.date}T00:00:00`).toLocaleDateString("en-GB", {
-    weekday: "long", day: "numeric", month: "long", year: "numeric",
+  const dateLabel = new Date(`${report.date}T12:00:00Z`).toLocaleDateString("en-GB", {
+    weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Kolkata",
   });
 
   const paginationActions = total > 1 ? [
@@ -273,14 +273,14 @@ export function ReportDetailPage() {
           <span className="rdp-stat-val">{report.stats.tasks_done}/{report.stats.tasks_total}</span>
           <div className="rdp-stat-text">
             <span className="rdp-stat-name">Tasks Done</span>
-            <span className="rdp-stat-hint">daily targets</span>
+            <span className="rdp-stat-hint">{report.report_type === "weekly" ? "weekly targets" : "daily targets"}</span>
           </div>
         </div>
         <div className="rdp-stat rdp-stat--info">
           <span className="rdp-stat-val">{report.stats.habits_done}/{report.stats.habits_total}</span>
           <div className="rdp-stat-text">
             <span className="rdp-stat-name">Habits Done</span>
-            <span className="rdp-stat-hint">tracked today</span>
+            <span className="rdp-stat-hint">{report.report_type === "weekly" ? "tracked this week" : "tracked today"}</span>
           </div>
         </div>
         <div className="rdp-stat rdp-stat--brand">
@@ -315,7 +315,7 @@ export function ReportDetailPage() {
       {/* ── Highlights ───────────────────────────────────────────────────── */}
       <section className="rdp-section mt-3">
         <div className="rdp-section-head">
-          <h2 className="rdp-section-title">Today's Highlights</h2>
+          <h2 className="rdp-section-title">{report.report_type === "weekly" ? "This Week's Highlights" : "Today's Highlights"}</h2>
         </div>
         <div className="rdp-highlights">
           {report.highlights.good.length > 0 && (

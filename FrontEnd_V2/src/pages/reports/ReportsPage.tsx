@@ -254,7 +254,7 @@ export function ReportsPage() {
               "rp-day", `rp-day--${t}`,
               isToday ? "rp-day--today" : "",
               isFuture ? "rp-day--future" : "",
-              (!isFuture && (data.hasReport || data.score !== null)) ? "rp-day--clickable" : "",
+              (!isFuture && (data.hasDailyReport || data.hasWeeklyReport || data.score !== null)) ? "rp-day--clickable" : "",
               hoveredKey === key ? "rp-day--active" : "",
             ].filter(Boolean).join(" ");
 
@@ -265,13 +265,15 @@ export function ReportsPage() {
                 onMouseEnter={() => !isFuture && setHoveredKey(key)}
                 onClick={() => {
                   if (isFuture) return;
-                  if (data.hasReport) navigate(`${ROUTES.REPORTS_DETAIL.replace(":historyDate", key)}?report_type=daily`);
+                  const reportType = data.hasDailyReport ? "daily" : data.hasWeeklyReport ? "weekly" : null;
+                  if (reportType) navigate(`${ROUTES.REPORTS_DETAIL.replace(":historyDate", key)}?report_type=${reportType}`);
                   else if (data.score !== null) setConfirmDate(key);
                 }}
                 onKeyDown={!isFuture ? (e) => {
                   if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();
-                    if (data.hasReport) navigate(`${ROUTES.REPORTS_DETAIL.replace(":historyDate", key)}?report_type=daily`);
+                    const reportType = data.hasDailyReport ? "daily" : data.hasWeeklyReport ? "weekly" : null;
+                    if (reportType) navigate(`${ROUTES.REPORTS_DETAIL.replace(":historyDate", key)}?report_type=${reportType}`);
                     else if (data.score !== null) setConfirmDate(key);
                   }
                 } : undefined}

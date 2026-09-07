@@ -679,15 +679,16 @@ export interface SimpleHabitData extends HabitBaseData {
 // ── Reports ───────────────────────────────────────────────────────────────────
 
 export interface DayReport {
-  date: string;        // "YYYY-MM-DD"
-  score: number;       // 0-100
+  date: string;             // "YYYY-MM-DD"
+  score: number | null;     // null when no plan records exist for the date
   habits_total: number;
   habits_done: number;
   tasks_total: number;
   tasks_done: number;
   schedule_total: number;
   schedule_done: number;
-  has_report: boolean;
+  has_daily_report: boolean;
+  has_weekly_report: boolean;
 }
 
 export interface MonthlyReportResponse {

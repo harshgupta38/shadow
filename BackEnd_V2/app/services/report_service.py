@@ -240,7 +240,7 @@ def save_report(
     llm_result,
     day_data: dict,
 ) -> None:
-    """Upsert the generated report into the reports table."""
+    """Persist a generated report version into the reports table."""
     parsed = llm_result.report_data
     stats = day_data["stats"]
 

@@ -37,9 +37,10 @@ export function buildMonthData(year: number, month: number, apiDays: DayReport[]
         tasksDone: src.tasks_done,
         scheduleTotal: src.schedule_total,
         scheduleDone: src.schedule_done,
-        hasReport: src.has_report,
+        hasDailyReport: src.has_daily_report,
+        hasWeeklyReport: src.has_weekly_report,
       }
-      : { score: null, habitsTotal: 0, habitsDone: 0, tasksTotal: 0, tasksDone: 0, scheduleTotal: 0, scheduleDone: 0, hasReport: false },
+      : { score: null, habitsTotal: 0, habitsDone: 0, tasksTotal: 0, tasksDone: 0, scheduleTotal: 0, scheduleDone: 0, hasDailyReport: false, hasWeeklyReport: false },
     );
   }
   return out;

@@ -241,9 +241,7 @@ class GoalSummary(BaseModel):
     category: str | None
 
 
-class HabitDataResponse(BaseModel):
-    model_config = ORMModel.model_config
-
+class HabitDataResponse(ORMModel):
     id: int
     title: str
     note: str | None

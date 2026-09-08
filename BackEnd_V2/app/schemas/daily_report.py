@@ -3,6 +3,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from app.schemas.common import ORMModel
+
 
 # ── LLM output schema (structured output contract with the model) ─────────────
 
@@ -52,7 +54,7 @@ class ReportClosingResponse(BaseModel):
     message: str
 
 
-class ReportResponse(BaseModel):
+class ReportResponse(ORMModel):
     date: date
     report_type: str
     generated_at: datetime
@@ -63,5 +65,3 @@ class ReportResponse(BaseModel):
     goals: list[GoalAlignmentResponse]
     highlights: ReportHighlightsResponse
     closing: ReportClosingResponse
-
-    model_config = {"from_attributes": True}

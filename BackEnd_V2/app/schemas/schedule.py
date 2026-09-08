@@ -131,9 +131,7 @@ class SaveScheduledTaskFromProposalRequest(BaseModel):
     task: ScheduledTaskCreateRequest
 
 
-class ScheduledTaskDataResponse(BaseModel):
-    model_config = ORMModel.model_config
-
+class ScheduledTaskDataResponse(ORMModel):
     id: int
     title: str
     note: str | None

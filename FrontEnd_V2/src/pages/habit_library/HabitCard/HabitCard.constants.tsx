@@ -1,5 +1,6 @@
 import type { HabitDataResponse } from "@/api";
 import { FREQUENCY_OPTIONS, PREFERRED_TIME_OPTIONS } from "@/pages/habit_library/HabitWizard/HabitWizard.constants";
+import { todayDate } from "@/services/date.service";
 
 export { PriorityIcon } from "@/constant/priority";
 
@@ -30,8 +31,7 @@ export function formatHabitDate(value: string): string {
 }
 
 export function getHabitDateLabel(habit: HabitDataResponse): string | null {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = todayDate();
 
   if (habit.start_date) {
     const startDate = new Date(`${habit.start_date}T00:00:00`);

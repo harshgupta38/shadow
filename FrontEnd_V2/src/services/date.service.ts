@@ -4,6 +4,18 @@ export function todayIso(): string {
     return new Date().toLocaleDateString("en-CA", { timeZone: IST_TIMEZONE });
 }
 
+/**
+ * The backend stores timestamps in UTC and may serialize them without an explicit
+ * offset. A naive string like "2026-09-09T10:00:00" would otherwise be parsed by
+ * `new Date()` as browser-local time instead of UTC. Stamp a "Z" on before parsing
+ * so every full timestamp from the backend is read as UTC, then converted to IST
+ * wherever it's displayed or compared.
+ */
+export function parseServerDate(iso: string): Date {
+    const normalized = iso.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(iso) ? iso : `${iso}Z`;
+    return new Date(normalized);
+}
+
 export function todayDate(): Date {
     const [y, m, d] = todayIso().split("-").map(Number);
     return new Date(y, m - 1, d);
@@ -14,15 +26,19 @@ const MONTH_NAMES = [
     "July", "August", "September", "October", "November", "December",
 ];
 
-/** "DD Month YYYY" from an ISO ("YYYY-MM-DD") date string. */
+/** "DD Month YYYY" from an ISO ("YYYY-MM-DD") date string. Returns the original
+ * input unchanged if it isn't a valid date, instead of rendering "undefined"/"NaN". */
 export function formatDisplayDate(iso: string): string {
     const [y, m, d] = iso.split("-").map(Number);
+    if (!y || !m || !d || m < 1 || m > 12) return iso;
     return `${String(d).padStart(2, "0")} ${MONTH_NAMES[m - 1]} ${y}`;
 }
 
-/** "DD Month" (no year) from an ISO date string — for yearly-repeating dates. */
+/** "DD Month" (no year) from an ISO date string — for yearly-repeating dates. Returns
+ * the original input unchanged if it isn't a valid date. */
 export function formatDisplayDateShort(iso: string): string {
     const [, m, d] = iso.split("-").map(Number);
+    if (!m || !d || m < 1 || m > 12) return iso;
     return `${String(d).padStart(2, "0")} ${MONTH_NAMES[m - 1]}`;
 }
 
@@ -36,7 +52,7 @@ export function formatDuration(minutes: number): string {
 }
 
 export function relativeTime(iso: string): string {
-    const diffMs = Date.now() - new Date(iso).getTime();
+    const diffMs = Date.now() - parseServerDate(iso).getTime();
     const mins = Math.floor(diffMs / 60_000);
     if (mins < 1) return "just now";
     if (mins < 60) return `${mins}m ago`;
@@ -46,11 +62,11 @@ export function relativeTime(iso: string): string {
     if (days < 7) return `${days}d ago`;
     const wks = Math.floor(days / 7);
     if (wks < 5) return `${wks}w ago`;
-    return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: IST_TIMEZONE });
+    return parseServerDate(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: IST_TIMEZONE });
 }
 
 export function notifDateLabel(iso: string): string {
-    const dateStr = new Date(iso).toLocaleDateString("en-CA", { timeZone: IST_TIMEZONE });
+    const dateStr = parseServerDate(iso).toLocaleDateString("en-CA", { timeZone: IST_TIMEZONE });
     const today = todayIso();
     if (dateStr === today) return "Today";
     // Anchor at noon UTC (safely mid-day in IST either side of the date change) rather
@@ -60,11 +76,11 @@ export function notifDateLabel(iso: string): string {
     const [y, m, d] = today.split("-").map(Number);
     const yesterdayStr = new Date(Date.UTC(y, m - 1, d - 1, 12)).toLocaleDateString("en-CA", { timeZone: IST_TIMEZONE });
     if (dateStr === yesterdayStr) return "Yesterday";
-    return new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric", timeZone: IST_TIMEZONE });
+    return parseServerDate(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric", timeZone: IST_TIMEZONE });
 }
 
 export function notifTime(iso: string): string {
-    const date = new Date(iso);
+    const date = parseServerDate(iso);
     const diffMs = Date.now() - date.getTime();
     const mins = Math.floor(diffMs / 60_000);
     if (mins < 1) return "just now";

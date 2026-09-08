@@ -13,6 +13,7 @@ import { useToast } from "@/context/ToastContext";
 import { GoalEditWizard } from "@/pages/my_goals/GoalEditWizard/GoalEditWizard";
 import { GoalDetailLoadingSkeleton } from "@/pages/my_goals/GoalDetailLoadingSkeleton/GoalDetailLoadingSkeleton";
 import { GoalMilestonesSection } from "@/pages/my_goals/GoalMilestonesSection/GoalMilestonesSection";
+import { formatDisplayDate, todayDate } from "@/services/date.service";
 import { HabitCard } from "@/pages/habit_library/HabitCard/HabitCard";
 import { FREQUENCY_OPTIONS, PRIORITY_OPTIONS } from "@/pages/habit_library/HabitWizard/HabitWizard.constants";
 import { DEFAULT_FILTERS, EMPTY_FILTERS, FILTER_STATUS_OPTIONS } from "@/pages/habit_library/HabitLibraryPage.constants";
@@ -25,25 +26,17 @@ type GoalDetailListSection = {
   items: string[];
 };
 
-function formatGoalDate(value: string): string {
-  const parsed = Date.parse(value);
-  if (Number.isNaN(parsed)) {
-    return value;
-  }
-
-  return new Date(parsed).toLocaleDateString();
-}
-
 function formatDueLabel(value: string): string {
-  const parsed = Date.parse(value);
-  if (Number.isNaN(parsed)) {
-    return formatGoalDate(value);
+  const [y, m, d] = value.split("-").map(Number);
+  if (!y || !m || !d) {
+    return formatDisplayDate(value);
   }
 
-  const today = new Date();
-  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const targetDate = new Date(parsed);
-  const targetStart = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
+  // `value` is an IST civil date ("YYYY-MM-DD"); build it as a local-midnight Date
+  // (not via Date.parse, which treats bare date strings as UTC midnight) so it can
+  // be safely diffed against todayDate(), which is IST-derived but also local-midnight.
+  const targetStart = new Date(y, m - 1, d);
+  const todayStart = todayDate();
   const diffDays = Math.round((targetStart.getTime() - todayStart.getTime()) / 86400000);
 
   if (diffDays < 0) {

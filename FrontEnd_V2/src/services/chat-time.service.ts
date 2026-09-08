@@ -1,3 +1,5 @@
+import { parseServerDate } from "@/services/date.service";
+
 const IST_TIMEZONE = "Asia/Kolkata";
 
 // Reads a UTC instant's wall-clock date/time as it appears in IST, regardless of
@@ -24,7 +26,7 @@ function istParts(date: Date) {
 }
 
 export function formatChatTime(createdAt: string): string {
-    const date = new Date(createdAt);
+    const date = parseServerDate(createdAt);
     if (Number.isNaN(date.getTime())) return createdAt;
 
     const now = new Date();

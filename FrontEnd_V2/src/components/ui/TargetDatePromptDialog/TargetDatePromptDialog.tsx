@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Modal } from "react-bootstrap";
 import { CalendarEvent } from "react-bootstrap-icons";
 
+import { todayIso } from "@/services/date.service";
+
 import "@/components/ui/NoteDialog/NoteDialog.scss";
 import "@/components/ui/TargetDatePromptDialog/TargetDatePromptDialog.scss";
 
@@ -27,7 +29,7 @@ function toInputDate(value: string | null | undefined): string {
 }
 
 function getTodayInputDate(): string {
-    return new Date().toISOString().slice(0, 10);
+    return todayIso();
 }
 
 export function TargetDatePromptDialog({

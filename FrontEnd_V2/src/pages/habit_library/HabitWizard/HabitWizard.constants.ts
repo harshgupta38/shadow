@@ -172,7 +172,7 @@ export function answersFromHabit(habit: HabitDataResponse): HabitWizardAnswers {
         specificDays: habit.specific_days ?? [],
         dayFallback: habit.day_fallback,
         setStartDate: habit.start_date ? "yes" : "no",
-        startDate: habit.start_date ?? new Date().toISOString().slice(0, 10),
+        startDate: habit.start_date ?? todayIso(),
         setEndDate: habit.end_date !== null,
         endDate: habit.end_date ?? "",
         preferredTime: habit.preferred_time ?? "flexible",

@@ -6,6 +6,7 @@ import type {
     RefineGoalFromLLMSchema,
 } from "@/api/types";
 import { resizeTextareaToMaxLines } from "@/services/textarea-resize.service";
+import { todayDate } from "@/services/date.service";
 
 const CATEGORY_OPTIONS: GoalCategory[] = [
     "Career",
@@ -108,8 +109,7 @@ function validateGoalReviewData(goalData: RefineGoalFromLLMSchema): Partial<Reco
             if (!isValidDate) {
                 errors.target_date = "Target date must be in YYYY-MM-DD format.";
             } else {
-                const today = new Date();
-                const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                const todayStart = todayDate();
                 if (parsedTargetDate <= todayStart) {
                     errors.target_date = "Target date must be a future date.";
                 }

@@ -11,7 +11,7 @@ import {
   FileEarmarkBarGraphFill,
 } from "react-bootstrap-icons";
 
-import { formatDisplayDate } from "@/services/date.service";
+import { formatDisplayDate, parseServerDate, todayIso } from "@/services/date.service";
 
 import { api, ApiError } from "@/api";
 import { ROUTES } from "@/routes/RoutePaths";
@@ -108,7 +108,7 @@ function GoalCard({ goal }: { goal: GoalAlignment }) {
 
 function ReportDatePicker({ date, reportType }: { date: string; reportType: string }) {
   const navigate = useNavigate();
-  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+  const today = todayIso();
   const isToday = date >= today;
 
   function shift(days: number) {
@@ -340,9 +340,8 @@ export function ReportDetailPage() {
   const report = reports[idx];
   const total = reports.length;
   const goalsOnTrack = report.goals.filter(g => g.alignment_pct >= 75).length;
-  const isToday = report.date === new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
-  const _genNorm = report.generated_at.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(report.generated_at) ? report.generated_at : report.generated_at + "Z";
-  const dateLabel = new Date(_genNorm).toLocaleDateString("en-GB", {
+  const isToday = report.date === todayIso();
+  const dateLabel = parseServerDate(report.generated_at).toLocaleDateString("en-GB", {
     day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata",
   });
 

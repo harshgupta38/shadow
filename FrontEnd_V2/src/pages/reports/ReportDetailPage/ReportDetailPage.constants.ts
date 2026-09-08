@@ -1,4 +1,5 @@
 import type { DailyReportDetail } from "@/api/types";
+import { parseServerDate } from "@/services/date.service";
 
 export function ringColor(pct: number): string {
   if (pct >= 75) return "var(--jv-success)";
@@ -7,8 +8,7 @@ export function ringColor(pct: number): string {
 }
 
 export function fmtTime(iso: string): string {
-  const normalized = iso.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(iso) ? iso : iso + "Z";
-  return new Date(normalized).toLocaleTimeString("en-IN", {
+  return parseServerDate(iso).toLocaleTimeString("en-IN", {
     hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata",
   });
 }

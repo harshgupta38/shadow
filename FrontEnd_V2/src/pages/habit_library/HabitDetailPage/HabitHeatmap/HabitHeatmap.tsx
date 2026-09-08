@@ -44,15 +44,15 @@ export function HabitHeatmap({ habit, records }: HabitHeatmapProps) {
   }, [records]);
 
   const months = useMemo<MonthGrid[]>(() => {
-    const todayDate = new Date(today);
-    const endYear = todayDate.getFullYear();
-    const endMonth = todayDate.getMonth();
+    // Derive year/month straight from the IST "YYYY-MM-DD" string's own digits —
+    // `new Date(today)` would parse a bare date as UTC midnight, then reading it back
+    // with local getters shifts the month/year for any viewer behind UTC.
+    const [endYear, endMonthNum] = today.split("-").map(Number);
+    const endMonth = endMonthNum - 1;
 
-    const anchor = new Date(todayDate);
-    anchor.setDate(1);
-    anchor.setMonth(anchor.getMonth() - 11);
-    let y = anchor.getFullYear();
-    let m = anchor.getMonth();
+    let y = endYear;
+    let m = endMonth - 11;
+    if (m < 0) { m += 12; y -= 1; }
 
     const grids: MonthGrid[] = [];
     while (y < endYear || (y === endYear && m <= endMonth)) {

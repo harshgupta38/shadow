@@ -12,6 +12,7 @@ import { useToast } from "@/context/ToastContext";
 import { ROUTES } from "@/routes/RoutePaths";
 import { MilestoneLoadingSkeleton } from "@/pages/my_goals/MilestoneLoadingSkeleton/MilestoneLoadingSkeleton";
 import { MilestoneTasksList } from "@/pages/my_goals/MilestoneTasksList/MilestoneTasksList";
+import { parseServerDate } from "@/services/date.service";
 
 import "@/pages/my_goals/GoalMilestonesSection/GoalMilestonesSection.scss";
 
@@ -25,10 +26,21 @@ const STATUS_CSS: Record<MilestoneStatus, string> = {
     "Cancelled": "pill pill-danger",
 };
 
+/** `value` is a date-only "YYYY-MM-DD" civil date (e.g. milestone.target_date) — parse
+ * it as local, not via Date.parse (which treats bare date strings as UTC midnight and
+ * can render a day early for viewers west of UTC). */
 function formatTargetDate(value: string): string {
-    const parsed = Date.parse(value);
-    if (Number.isNaN(parsed)) return value;
-    return new Date(parsed).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+    const [y, m, d] = value.split("-").map(Number);
+    if (!y || !m || !d) return value;
+    return new Date(y, m - 1, d).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
+
+/** `value` is a full backend timestamp (e.g. milestone.created_at) — always render it
+ * pinned to IST, regardless of the viewer's own browser timezone. */
+function formatTimelineTimestamp(value: string): string {
+    return parseServerDate(value).toLocaleDateString("en-IN", {
+        month: "short", day: "numeric", year: "numeric", timeZone: "Asia/Kolkata",
+    });
 }
 
 interface GoalMilestonesSectionProps {
@@ -557,7 +569,7 @@ export function GoalMilestonesSection({ goal }: GoalMilestonesSectionProps) {
                                                                             >
                                                                                 {timelineStages.length > 1 && <span className="goal-milestone-timeline-node" aria-hidden="true" />}
                                                                                 <span className="goal-milestone-timeline-label">{item.label}</span>
-                                                                                <span className="goal-milestone-timeline-date">{formatTargetDate(item.value)}</span>
+                                                                                <span className="goal-milestone-timeline-date">{formatTimelineTimestamp(item.value)}</span>
                                                                             </div>
                                                                         ))}
                                                                     </div>

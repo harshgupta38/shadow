@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 
 import { type GoalDataShortResponse } from "@/api";
 import { ROUTES } from "@/routes/RoutePaths";
+import { formatDisplayDate } from "@/services/date.service";
 import "@/pages/my_goals/MyGoalsPage.scss";
 
 interface GoalCardProps {
@@ -17,12 +18,6 @@ interface GoalCardProps {
 function getMilestoneProgressPercent(completed: number, total: number): number {
   if (total <= 0) return 0;
   return Math.max(0, Math.min(100, Math.round((completed / total) * 100)));
-}
-
-function formatGoalDate(value: string): string {
-  const parsed = Date.parse(value);
-  if (Number.isNaN(parsed)) return value;
-  return new Date(parsed).toLocaleDateString();
 }
 
 export function GoalCard({ goal, dragDisabled = false }: GoalCardProps) {
@@ -100,7 +95,7 @@ export function GoalCard({ goal, dragDisabled = false }: GoalCardProps) {
             </span>
           </div>
           <span className="goal-summary-meta-date">
-            <CalendarCheck size={13} /> {formatGoalDate(goal.target_date)}
+            <CalendarCheck size={13} /> {formatDisplayDate(goal.target_date)}
           </span>
         </div>
       </article>

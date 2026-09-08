@@ -7,13 +7,12 @@
   padding: 6px 2px 8px;
   margin: -6px -2px -8px;
 
-  &::-webkit-scrollbar {
-    height: 3px;
-  }
+  // Scrollbar hidden — horizontal swipe/drag still works, just no visible track.
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 
-  &::-webkit-scrollbar-thumb {
-    background: var(--jv-border);
-    border-radius: 2px;
+  &::-webkit-scrollbar {
+    display: none;
   }
 }
 

@@ -67,7 +67,7 @@ export function TodaySnapshot({ items, currentStreak, latestAlignmentScore }: Pr
             <span className="dp-stat-hint">tracked today</span>
           </div>
         </div>
-        <div className="dp-stat dp-stat--warn ps-2">
+        <div className="dp-stat dp-stat--warn">
           <span className="dp-stat-val">🔥 {currentStreak}</span>
           <div className="dp-stat-text">
             <span className="dp-stat-name">Current Streak</span>

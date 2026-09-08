@@ -19,6 +19,8 @@ from app.services import notifications_service
 
 logger = logging.getLogger(__name__)
 
+_in_progress: set[tuple[int, date, str]] = set()
+
 
 # ── Private helpers ───────────────────────────────────────────────────────────
 
@@ -292,6 +294,11 @@ async def generate_report_background(
     force=True skips the duplicate check — use for manual user-triggered generation.
     force=False (default) is used by the scheduler to guard against double-firing on restart.
     """
+    key = (user_id, report_date, report_type)
+    if key in _in_progress:
+        logger.info("Report generation already in progress for user=%d date=%s type=%s — skipping", user_id, report_date, report_type)
+        return
+    _in_progress.add(key)
     db = SessionLocal()
     try:
         if not force:
@@ -348,4 +355,5 @@ async def generate_report_background(
             user_id, report_date, report_type,
         )
     finally:
+        _in_progress.discard(key)
         db.close()

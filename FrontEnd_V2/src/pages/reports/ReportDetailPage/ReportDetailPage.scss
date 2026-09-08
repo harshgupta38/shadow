@@ -137,11 +137,7 @@
     align-items: center;
     justify-content: center;
     margin-bottom: 1.25rem;
-
-    &--muted {
-      background: color-mix(in srgb, var(--jv-border) 60%, transparent);
-      color: var(--jv-text-3);
-    }
+    
     &--warn {
       background: color-mix(in srgb, var(--jv-warn) 12%, transparent);
       color: var(--jv-warn);

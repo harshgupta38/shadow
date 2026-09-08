@@ -17,6 +17,7 @@ import { api, ApiError } from "@/api";
 import { ROUTES } from "@/routes/RoutePaths";
 import type { DailyReportDetail, GoalAlignment } from "@/api/types";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
+import { useToast } from "@/context/ToastContext";
 import { CLOSING_EMOJI, fmtTime, ringColor } from "./ReportDetailPage.constants";
 import "./ReportDetailPage.scss";
 
@@ -248,18 +249,32 @@ export function ReportDetailPage() {
   const [idx, setIdx] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [requested, setRequested] = useState(false);
+  const toast = useToast();
 
   const pageTitle = reportType === "weekly" ? "Weekly Report" : "Daily Report";
 
-  useEffect(() => {
+  function fetchReports() {
     if (!historyDate) return;
     setLoading(true);
     setError(null);
     api.reports.getReports(historyDate, reportType)
       .then(data => { setReports(data); setIdx(0); })
-      .catch((error) => setError(error instanceof ApiError ? error.message : "Report not found. It may still be generating — check back in a moment."))
+      .catch((err) => setError(err instanceof ApiError ? err.message : "Report not found. It may still be generating — check back in a moment."))
       .finally(() => setLoading(false));
-  }, [historyDate, reportType]);
+  }
+
+  useEffect(() => { fetchReports(); }, [historyDate, reportType]);
+
+  function handleGenerate() {
+    if (!historyDate) return;
+    api.reports.generateReportRequest(historyDate, reportType)
+      .then(() => {
+        toast.info("Report requested, check back in a few minutes.");
+        setRequested(true);
+      })
+      .catch((err) => toast.error(err instanceof ApiError ? err.message : "Failed to request report."));
+  }
 
   const datePicker = historyDate
     ? <ReportDatePicker date={historyDate} reportType={reportType} />
@@ -284,9 +299,9 @@ export function ReportDetailPage() {
         <button type="button" className="rdp-back-link" onClick={() => navigate(ROUTES.REPORTS)}>
           <ArrowLeft size={16} /> Back
         </button>
-        <PageHeader icon={<BarChartFill size={20} />} title={pageTitle} subtitle={historyDate ?? ""} rightSlot={datePicker} />
+        <PageHeader icon={<BarChartFill size={20} />} title={pageTitle} rightSlot={datePicker} />
         <div className="rdp-empty-state">
-          <div className={`rdp-empty-icon ${isError ? "rdp-empty-icon--warn" : "rdp-empty-icon--muted"}`}>
+          <div className="rdp-empty-icon rdp-empty-icon--warn">
             <FileEarmarkBarGraphFill size={36} />
           </div>
           <h3 className="rdp-empty-title">
@@ -301,6 +316,16 @@ export function ReportDetailPage() {
             <button type="button" className="btn btn-outline-secondary px-4" onClick={() => navigate(ROUTES.REPORTS)}>
               Go Back
             </button>
+            {requested
+              ? (
+                <button type="button" className="btn btn-soft px-4" onClick={fetchReports}>
+                  Refresh
+                </button>
+              ) : (
+                <button type="button" className="btn btn-brand px-4" onClick={handleGenerate}>
+                  Generate Report
+                </button>
+              )}
           </div>
         </div>
       </div>

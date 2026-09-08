@@ -1,5 +1,5 @@
 import calendar
-from datetime import date
+from datetime import date, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
@@ -139,6 +139,40 @@ def get_list(db: Session, current_user: UserDBM, year: int, month: int) -> list[
         for t in yearly_tasks
         if (occ := _date_for_year_month(t.recurrence_month, t.recurrence_day, year)) >= t.created_at.date()
     ]
+    result.sort(key=lambda r: (r.scheduled_date, r.id))
+    return result
+
+
+def get_upcoming(db: Session, current_user: UserDBM, *, days: int = 7) -> list[ScheduledTaskDataResponse]:
+    """Scheduled items (one-off + expanded yearly occurrences) due in the next `days`
+    days, status='upcoming' only. Unlike `get_list`, this isn't calendar-month-scoped
+    so it can span a month or year boundary."""
+    today = today_ist()
+    end = today + timedelta(days=days)
+
+    tasks = db.scalars(
+        select(ScheduledTaskDBM)
+        .options(joinedload(ScheduledTaskDBM.goal))
+        .where(
+            ScheduledTaskDBM.user_id == current_user.id,
+            ScheduledTaskDBM.status == "upcoming",
+            ScheduledTaskDBM.scheduled_date >= today,
+            ScheduledTaskDBM.scheduled_date <= end,
+        )
+    ).all()
+
+    yearly_tasks = db.scalars(
+        select(YearlyTaskDBM)
+        .options(joinedload(YearlyTaskDBM.goal))
+        .where(YearlyTaskDBM.user_id == current_user.id)
+    ).all()
+
+    result: list[ScheduledTaskDataResponse] = [_serialize(t) for t in tasks]
+    for t in yearly_tasks:
+        occ = _next_yearly_occurrence(t.recurrence_month, t.recurrence_day, today)
+        if occ <= end and occ >= t.created_at.date():
+            result.append(_serialize_yearly(t, occ))
+
     result.sort(key=lambda r: (r.scheduled_date, r.id))
     return result
 

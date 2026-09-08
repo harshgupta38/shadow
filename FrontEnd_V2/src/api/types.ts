@@ -785,6 +785,10 @@ export interface DashboardTodayItem {
 
 export interface DashboardUpcomingItem {
   id: number;
+  // scheduled_tasks and yearly_tasks are separate tables with their own id
+  // sequences, so an id can collide across the two — use id+repeat_yearly
+  // together as the unique key (same pattern SchedulePage already uses).
+  repeat_yearly: boolean;
   title: string;
   scheduled_date: string; // YYYY-MM-DD
   priority: ScheduledTaskPriority;

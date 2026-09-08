@@ -18,6 +18,16 @@
   flex-direction: column;
   animation: dp-page-in 260ms var(--jv-ease) both;
 
+  .dp-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    padding: 3rem 0;
+    color: var(--jv-muted);
+    font-size: 0.9rem;
+  }
+
   // ── Welcome header ────────────────────────────────────────────────────────────
 
   .dp-welcome {
@@ -110,12 +120,15 @@
 
   .dp-coming-up-grid {
     display: grid;
-    grid-template-columns: 4fr 6fr;
+    // minmax(0, ...) — see the note in TodaySnapshot.scss: a bare fr track's
+    // implicit min-width:auto lets nowrap+ellipsis text (e.g. upcoming-item
+    // titles) force the track wider than the container instead of truncating.
+    grid-template-columns: minmax(0, 4fr) minmax(0, 6fr);
     gap: 1rem;
     align-items: start;
 
     @media (max-width: 760px) {
-      grid-template-columns: 1fr;
+      grid-template-columns: minmax(0, 1fr);
     }
   }
 
@@ -130,6 +143,7 @@
 
     &.no-gap {
       gap: 0;
+      padding-bottom: 0.55rem;
     }
   }
 

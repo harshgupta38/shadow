@@ -27,7 +27,7 @@ export function UpcomingPanel({ items }: Props) {
         </div>
       ) : (
         items.map((item) => (
-          <div key={item.id} className="dp-upcoming-item">
+          <div key={`${item.repeat_yearly ? "y" : "n"}-${item.id}`} className="dp-upcoming-item">
             <span className="dp-upcoming-dot" style={{ background: PRIORITY_COLOR[item.priority] }} />
             <div className="dp-upcoming-body">
               <div className="dp-upcoming-row1">

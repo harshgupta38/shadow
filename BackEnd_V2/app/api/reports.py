@@ -8,12 +8,11 @@ from app.common.timezone import _IST
 from app.core.endpoints import ENDPOINTS
 from app.core.exceptions import ValidationError
 from app.db.session import get_db
-from app.models.report import ReportDBM
 from app.models.user import UserDBM
 from app.schemas.daily_report import ReportResponse
 from app.schemas.reports import MonthlyReportResponse
 from app.services import reports_service
-from app.services.report_service import generate_report_background, get_reports
+from app.services.report_service import generate_report_background, get_reports, to_report_response
 
 router = APIRouter(prefix=ENDPOINTS.REPORTS.PREFIX, tags=["Reports"])
 
@@ -28,21 +27,6 @@ def get_monthly_report(
     return reports_service.get_monthly_report(db, current_user, year, month)
 
 
-def _to_response(report: ReportDBM) -> ReportResponse:
-    return ReportResponse.model_validate({
-        "date": report.report_date,
-        "report_type": report.report_type,
-        "generated_at": report.generated_at,
-        "alignment_score": report.alignment_score,
-        "headline": report.headline,
-        "summary": report.summary,
-        "stats": report.stats,
-        "goals": report.goals,
-        "highlights": report.highlights,
-        "closing": report.closing,
-    })
-
-
 @router.get(ENDPOINTS.REPORTS.REPORT_DETAIL, response_model=list[ReportResponse])
 def get_report_detail(
     report_date: date,
@@ -51,7 +35,7 @@ def get_report_detail(
     current_user: UserDBM = Depends(get_current_user),
 ) -> list[ReportResponse]:
     reports = get_reports(db, current_user.id, report_date, report_type)
-    return [_to_response(r) for r in reports]
+    return [to_report_response(r) for r in reports]
 
 
 @router.post(ENDPOINTS.REPORTS.GENERATE_REPORT_REQUEST, status_code=status.HTTP_204_NO_CONTENT)

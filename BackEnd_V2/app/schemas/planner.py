@@ -25,6 +25,7 @@ class DailyPlanSavedData(BaseModel):
 class GoalDataInPlan(BaseModel):
     id: int
     title: str
+    summary: str
     category: str | None
 
 

@@ -3,12 +3,15 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft,
   BarChartFill,
+  Calendar3,
   CheckCircleFill,
   ChevronLeft,
   ChevronRight,
   ExclamationTriangleFill,
   FileEarmarkBarGraphFill,
 } from "react-bootstrap-icons";
+
+import { formatDisplayDate } from "@/services/date.service";
 
 import { api, ApiError } from "@/api";
 import { ROUTES } from "@/routes/RoutePaths";
@@ -100,6 +103,95 @@ function GoalCard({ goal }: { goal: GoalAlignment }) {
   );
 }
 
+// ── Date Picker ───────────────────────────────────────────────────────────────
+
+function ReportDatePicker({ date, reportType }: { date: string; reportType: string }) {
+  const navigate = useNavigate();
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+  const isToday = date >= today;
+
+  function shift(days: number) {
+    const [y, m, d] = date.split("-").map(Number);
+    const shifted = new Date(Date.UTC(y, m - 1, d + days, 12));
+    navigate(`/reports/${shifted.toISOString().slice(0, 10)}?report_type=${reportType}`);
+  }
+
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    if (e.target.value) navigate(`/reports/${e.target.value}?report_type=${reportType}`);
+  }
+
+  return (
+    <div className="rdp-date-nav">
+      <button type="button" className="rdp-date-nav-icon-btn" aria-label="Previous day" onClick={() => shift(-1)}>
+        <ChevronLeft size={18} />
+      </button>
+      <label className="rdp-date-nav-field">
+        <span className="visually-hidden">Report date</span>
+        <span className="rdp-date-nav-display" aria-hidden="true">{formatDisplayDate(date)}</span>
+        <Calendar3 className="rdp-date-nav-calendar-icon" size={16} aria-hidden="true" />
+        <input
+          type="date"
+          value={date}
+          max={today}
+          onChange={handleChange}
+          onClick={(e) => e.currentTarget.showPicker?.()}
+          aria-label="Report date"
+        />
+      </label>
+      <button type="button" className="rdp-date-nav-icon-btn" aria-label="Next day" disabled={isToday} onClick={() => shift(1)}>
+        <ChevronRight size={18} />
+      </button>
+    </div>
+  );
+}
+
+// ── Pagination ────────────────────────────────────────────────────────────────
+
+function ReportPagination({ total, idx, onChange }: { total: number; idx: number; onChange: (i: number) => void }) {
+  const WINDOW = 5;
+  const [windowStart, setWindowStart] = useState(() => Math.max(0, idx - 2));
+
+  useEffect(() => {
+    setWindowStart(w => {
+      if (idx < w) return idx;
+      if (idx >= w + WINDOW) return Math.max(0, idx - WINDOW + 1);
+      return w;
+    });
+  }, [idx]);
+
+  return (
+    <nav className="rdp-pagination" aria-label="Report versions">
+      <button
+        type="button" className="rdp-pagination-btn"
+        disabled={idx === 0} aria-label="Previous version"
+        onClick={() => onChange(idx - 1)}
+      >
+        <ChevronLeft size={15} />
+      </button>
+      {Array.from({ length: Math.min(WINDOW, total - windowStart) }, (_, i) => {
+        const pageIdx = windowStart + i;
+        return (
+          <button
+            key={pageIdx} type="button"
+            className={`rdp-pagination-num${pageIdx === idx ? " rdp-pagination-num--active" : ""}`}
+            aria-current={pageIdx === idx ? "page" : undefined}
+            onClick={() => onChange(pageIdx)}
+          >
+            {pageIdx + 1}
+          </button>
+        );
+      })}
+      <button
+        type="button" className="rdp-pagination-btn"
+        disabled={idx === total - 1} aria-label="Next version"
+        onClick={() => onChange(idx + 1)}
+      >
+        <ChevronRight size={15} />
+      </button>
+    </nav>
+  );
+}
+
 // ── Ghost Shell ───────────────────────────────────────────────────────────────
 
 function RdpGhostShell() {
@@ -169,13 +261,17 @@ export function ReportDetailPage() {
       .finally(() => setLoading(false));
   }, [historyDate, reportType]);
 
+  const datePicker = historyDate
+    ? <ReportDatePicker date={historyDate} reportType={reportType} />
+    : undefined;
+
   if (loading) {
     return (
       <div className="rdp-page">
         <button type="button" className="rdp-back-link" onClick={() => navigate(ROUTES.REPORTS)}>
           <ArrowLeft size={16} /> Back
         </button>
-        <PageHeader icon={<BarChartFill size={20} />} title={pageTitle} subtitle={historyDate ?? "Loading…"} actions={[]} />
+        <PageHeader icon={<BarChartFill size={20} />} title={pageTitle} subtitle="Loading…" rightSlot={datePicker} />
         <RdpGhostShell />
       </div>
     );
@@ -188,7 +284,7 @@ export function ReportDetailPage() {
         <button type="button" className="rdp-back-link" onClick={() => navigate(ROUTES.REPORTS)}>
           <ArrowLeft size={16} /> Back
         </button>
-        <PageHeader icon={<BarChartFill size={20} />} title={pageTitle} subtitle={historyDate ?? ""} actions={[]} />
+        <PageHeader icon={<BarChartFill size={20} />} title={pageTitle} subtitle={historyDate ?? ""} rightSlot={datePicker} />
         <div className="rdp-empty-state">
           <div className={`rdp-empty-icon ${isError ? "rdp-empty-icon--warn" : "rdp-empty-icon--muted"}`}>
             <FileEarmarkBarGraphFill size={36} />
@@ -213,36 +309,8 @@ export function ReportDetailPage() {
 
   const report = reports[idx];
   const total = reports.length;
-  const hasPrev = idx > 0;
-  const hasNext = idx < total - 1;
   const goalsOnTrack = report.goals.filter(g => g.alignment_pct >= 75).length;
-  const dateLabel = new Date(`${report.date}T12:00:00Z`).toLocaleDateString("en-GB", {
-    weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Kolkata",
-  });
   const isToday = report.date === new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
-
-  const paginationActions = total > 1 ? [
-    {
-      key: "prev",
-      label: "Previous report",
-      icon: <ChevronLeft size={15} />,
-      iconOnly: true,
-      disabled: !hasPrev,
-      onClick: () => setIdx(i => i - 1),
-      tone: "none" as const,
-      className: "btn-ghost btn-icon",
-    },
-    {
-      key: "next",
-      label: "Next report",
-      icon: <ChevronRight size={15} />,
-      iconOnly: true,
-      disabled: !hasNext,
-      onClick: () => setIdx(i => i + 1),
-      tone: "none" as const,
-      className: "btn-ghost btn-icon",
-    },
-  ] : [];
 
   return (
     <div className="rdp-page">
@@ -255,8 +323,8 @@ export function ReportDetailPage() {
       <PageHeader
         icon={<BarChartFill size={20} />}
         title={report.report_type === "weekly" ? "Weekly Report" : "Daily Report"}
-        subtitle={`${dateLabel} · ${fmtTime(report.generated_at)}${total > 1 ? ` · ${idx + 1} of ${total}` : ""}`}
-        actions={paginationActions}
+        subtitle={`${fmtTime(report.generated_at)}${total > 1 ? ` · ${idx + 1} of ${total}` : ""}`}
+        rightSlot={datePicker}
       />
 
       {/* ── Hero ─────────────────────────────────────────────────────────── */}
@@ -347,6 +415,9 @@ export function ReportDetailPage() {
         <span className="rdp-closing-icon" aria-hidden="true">{CLOSING_EMOJI[report.closing.tone]}</span>
         <p className="rdp-closing-msg">{report.closing.message}</p>
       </div>
+
+      {/* ── Pagination ───────────────────────────────────────────────────── */}
+      {total > 1 && <ReportPagination total={total} idx={idx} onChange={setIdx} />}
 
     </div>
   );

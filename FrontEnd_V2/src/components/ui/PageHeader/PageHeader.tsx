@@ -24,6 +24,7 @@ interface PageHeaderProps {
     subtitle?: string;
     icon?: ReactNode;
     actions?: PageHeaderAction[];
+    rightSlot?: ReactNode;
 }
 
 const DESKTOP_TONE_CLASS: Record<PageHeaderActionTone, string> = {
@@ -40,7 +41,7 @@ const MOBILE_TONE_CLASS: Record<PageHeaderActionTone, string> = {
     none: "is-none",
 };
 
-export function PageHeader({ title, subtitle, icon, actions }: PageHeaderProps) {
+export function PageHeader({ title, subtitle, icon, actions, rightSlot }: PageHeaderProps) {
     const mobileMenuRef = useRef<HTMLDetailsElement>(null);
 
     const closeMobileMenu = () => {
@@ -67,7 +68,7 @@ export function PageHeader({ title, subtitle, icon, actions }: PageHeaderProps) 
     }, []);
 
     return (
-        <div className="page-header-jv d-flex flex-nowrap align-items-center justify-content-between gap-3 mb-3 mb-sm-4">
+        <div className="page-header-jv d-flex flex-nowrap align-items-center justify-content-between gap-3 mb-3">
             <div className="page-header-jv-main d-flex align-items-center gap-3 min-w-0">
                 {icon && <div className="stat-icon">{icon}</div>}
                 <div className="min-w-0">
@@ -75,6 +76,10 @@ export function PageHeader({ title, subtitle, icon, actions }: PageHeaderProps) 
                     {subtitle && <p className="page-subtitle text-muted-2 mb-0">{subtitle}</p>}
                 </div>
             </div>
+
+            {rightSlot && (
+                <div className="page-header-right-slot flex-shrink-0 ms-auto align-self-end">{rightSlot}</div>
+            )}
 
             {!!actions?.length && (
                 <div className="d-none d-lg-flex align-items-center gap-2 flex-nowrap flex-shrink-0">

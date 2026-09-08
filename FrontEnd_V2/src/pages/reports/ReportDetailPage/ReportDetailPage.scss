@@ -1,5 +1,125 @@
 // rdp = Report Detail Page
 
+// ── Date navigator (matches Plan page date-controls pattern) ─────────────────
+
+.rdp-date-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+
+  &-icon-btn {
+    width: 35px;
+    height: 35px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 1px solid var(--jv-border-strong);
+    border-radius: 9px;
+    background: var(--jv-surface);
+    color: var(--jv-muted);
+    font: inherit;
+    cursor: pointer;
+
+    &:hover { background: var(--jv-surface-2); color: var(--jv-text); }
+    &:disabled { opacity: 0.5; cursor: not-allowed; }
+  }
+
+  &-field {
+    position: relative;
+    display: flex;
+    height: 35px;
+    align-items: center;
+    cursor: pointer;
+  }
+
+  &-display {
+    display: flex;
+    height: 100%;
+    align-items: center;
+    padding: 0 2.4rem 0 0.8rem;
+    border: 1px solid var(--jv-border-strong);
+    border-radius: 9px;
+    background: var(--jv-surface);
+    color: var(--jv-text);
+    font-size: 0.88rem;
+    white-space: nowrap;
+  }
+
+  &-calendar-icon {
+    position: absolute;
+    right: 0.8rem;
+    color: var(--jv-text);
+    pointer-events: none;
+  }
+
+  &-field input {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    cursor: pointer;
+    opacity: 0;
+  }
+}
+
+@media (max-width: 520px) {
+  .rdp-page .page-header-right-slot {
+    .rdp-date-nav { width: 100%; }
+    .rdp-date-nav-field { flex: 1; }
+    .rdp-date-nav-display { flex: 1; }
+  }
+}
+
+// ── Pagination bar ────────────────────────────────────────────────────────────
+
+.rdp-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  margin-top: 1.5rem;
+}
+
+.rdp-pagination-btn,
+.rdp-pagination-num {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 8px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.rdp-pagination-btn {
+  border: 1px solid var(--jv-border-strong);
+  background: var(--jv-surface);
+  color: var(--jv-muted);
+
+  &:hover:not(:disabled) { background: var(--jv-surface-2); color: var(--jv-text); }
+  &:disabled { opacity: 0.4; cursor: not-allowed; }
+}
+
+.rdp-pagination-num {
+  border: 1px solid var(--jv-border);
+  background: var(--jv-surface);
+  color: var(--jv-text);
+  font-size: 0.875rem;
+  font-weight: 500;
+
+  &:hover { background: var(--jv-surface-2); }
+
+  &--active {
+    background: var(--jv-brand-1);
+    border-color: var(--jv-brand-1);
+    color: #fff;
+    font-weight: 700;
+    pointer-events: none;
+  }
+}
+
+// ── Empty state ───────────────────────────────────────────────────────────────
+
 .rdp-empty-state {
   display: flex;
   flex-direction: column;
@@ -260,22 +380,6 @@
     line-height: 1.65;
     color: var(--jv-text);
     margin: 0;
-  }
-
-  .rdp-ai-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 0.63rem;
-    font-weight: 700;
-    color: var(--jv-muted);
-    background: var(--jv-surface-2);
-    border: 1px solid var(--jv-border);
-    border-radius: var(--jv-radius-pill);
-    padding: 2px 9px;
-    width: fit-content;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
   }
 
   // ── Sections ──────────────────────────────────────────────────────────────────
@@ -668,125 +772,6 @@
     border-radius: 4px;
     height: 10px;
     width: 50%;
-  }
-
-  // Ghost section
-  .rdp-ghost-section {
-    background: var(--jv-surface-2);
-    border: 1px solid var(--jv-border);
-    border-radius: var(--jv-radius-sm);
-    padding: 0.9rem 1rem;
-  }
-
-  .rdp-ghost-sec-head {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    margin-bottom: 0.85rem;
-  }
-
-  .rdp-ghost-sec-title {
-    @include ghost-shimmer;
-    border-radius: 4px;
-    height: 14px;
-    width: 140px;
-  }
-
-  .rdp-ghost-sec-chip {
-    @include ghost-shimmer;
-    height: 20px;
-    width: 56px;
-    border-radius: 20px;
-  }
-
-  // Ghost goal cards
-  .rdp-ghost-goal-cards {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 0.65rem;
-  }
-
-  .rdp-ghost-goal-card {
-    background: var(--jv-surface);
-    border: 1px solid var(--jv-border);
-    border-radius: var(--jv-radius-sm);
-    padding: 0.85rem 0.95rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .rdp-ghost-goal-top {
-    display: flex;
-    align-items: center;
-    gap: 0.7rem;
-  }
-
-  .rdp-ghost-mini-ring {
-    @include ghost-shimmer;
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
-
-  .rdp-ghost-goal-meta {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-  }
-
-  .rdp-ghost-goal-title {
-    @include ghost-shimmer;
-    border-radius: 4px;
-    height: 13px;
-    width: 75%;
-  }
-
-  .rdp-ghost-goal-badge {
-    @include ghost-shimmer;
-    border-radius: 4px;
-    height: 10px;
-    width: 50%;
-  }
-
-  .rdp-ghost-goal-note {
-    @include ghost-shimmer;
-    border-radius: 4px;
-    height: 11px;
-    width: 92%;
-
-    &--short { width: 60%; }
-  }
-
-  // Ghost highlights
-  .rdp-ghost-highlights {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 0.65rem;
-  }
-
-  .rdp-ghost-hl-col {
-    display: flex;
-    flex-direction: column;
-    gap: 0.45rem;
-  }
-
-  .rdp-ghost-hl-label {
-    @include ghost-shimmer;
-    height: 12px;
-    width: 60px;
-    border-radius: 20px;
-  }
-
-  .rdp-ghost-hl-item {
-    @include ghost-shimmer;
-    height: 44px;
-    border-radius: var(--jv-radius-sm);
-    width: 100%;
-
-    &--short { height: 38px; width: 80%; }
   }
 
   // Ghost centered overlay — normal flow, sits below the faded shell

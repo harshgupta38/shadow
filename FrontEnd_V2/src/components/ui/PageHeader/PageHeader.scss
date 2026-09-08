@@ -131,3 +131,15 @@
     font-size: 0.75rem;
   }
 }
+
+@media (max-width: 520px) {
+  .page-header-jv:has(.page-header-right-slot) {
+    flex-wrap: wrap !important;
+  }
+
+  .page-header-right-slot {
+    width: 100%;
+    order: 3;
+    margin-left: 0 !important;
+  }
+}

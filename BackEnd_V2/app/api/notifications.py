@@ -15,6 +15,18 @@ from app.services import notifications_service
 
 logger = logging.getLogger(__name__)
 
+# Set by the lifespan shutdown hook so all active SSE generators exit promptly.
+_shutdown = asyncio.Event()
+
+
+def signal_shutdown() -> None:
+    _shutdown.set()
+
+
+def reset_shutdown() -> None:
+    _shutdown.clear()
+
+
 router = APIRouter(prefix=ENDPOINTS.NOTIFICATIONS.PREFIX, tags=["Notifications"])
 
 
@@ -97,7 +109,11 @@ async def stream_notifications(
         # pin server resources indefinitely; the frontend already auto-reconnects.
         max_duration_s = 20 * 60
         while elapsed_s < max_duration_s:
-            await asyncio.sleep(5)
+            try:
+                await asyncio.wait_for(_shutdown.wait(), timeout=5)
+                break  # server is shutting down
+            except asyncio.TimeoutError:
+                pass   # normal tick
             elapsed_s += 5
             if await request.is_disconnected():
                 break

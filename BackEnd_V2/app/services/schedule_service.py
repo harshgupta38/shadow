@@ -4,7 +4,7 @@ from datetime import date, timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
-from app.common import today_ist
+from app.common import to_ist, today_ist
 from app.core.exceptions import NotFoundError, ValidationError
 from app.models.goal import GoalDBM
 from app.models.schedule_task import ScheduledTaskDBM
@@ -137,7 +137,7 @@ def get_list(db: Session, current_user: UserDBM, year: int, month: int) -> list[
     result += [
         _serialize_yearly(t, occ)
         for t in yearly_tasks
-        if (occ := _date_for_year_month(t.recurrence_month, t.recurrence_day, year)) >= t.created_at.date()
+        if (occ := _date_for_year_month(t.recurrence_month, t.recurrence_day, year)) >= to_ist(t.created_at).date()
     ]
     result.sort(key=lambda r: (r.scheduled_date, r.id))
     return result
@@ -170,7 +170,7 @@ def get_upcoming(db: Session, current_user: UserDBM, *, days: int = 7) -> list[S
     result: list[ScheduledTaskDataResponse] = [_serialize(t) for t in tasks]
     for t in yearly_tasks:
         occ = _next_yearly_occurrence(t.recurrence_month, t.recurrence_day, today)
-        if occ <= end and occ >= t.created_at.date():
+        if occ <= end and occ >= to_ist(t.created_at).date():
             result.append(_serialize_yearly(t, occ))
 
     result.sort(key=lambda r: (r.scheduled_date, r.id))

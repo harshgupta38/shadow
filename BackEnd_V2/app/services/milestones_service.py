@@ -3,6 +3,7 @@ from datetime import date, datetime, timedelta, timezone
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
+from app.common import to_ist
 from app.core.exceptions import ConflictError, NotFoundError
 from app.services import notifications_service, planner_service
 from app.models.chat import MessageDBM
@@ -309,7 +310,7 @@ def update_milestone(
                 and (milestone.estimated_duration_days or 0) > 0
             ):
                 milestone.target_date = (
-                    now.date() + timedelta(days=milestone.estimated_duration_days)
+                    to_ist(now).date() + timedelta(days=milestone.estimated_duration_days)
                 )
         elif data.status == "Paused":
             milestone.paused_at = now

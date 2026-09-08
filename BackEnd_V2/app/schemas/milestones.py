@@ -3,6 +3,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.common import today_ist
 from app.schemas.common import ORMModel
 
 MilestoneStatus = Literal[
@@ -75,7 +76,7 @@ class MilestoneUpdateRequest(BaseModel):
     @field_validator("target_date")
     @classmethod
     def validate_target_date(cls, value: date | None) -> date | None:
-        if value is not None and value < date.today():
+        if value is not None and value < today_ist():
             raise ValueError("Target date must be today or a future date.")
 
         return value

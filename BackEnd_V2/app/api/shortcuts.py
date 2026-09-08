@@ -1,10 +1,9 @@
-from datetime import date
-
 from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.common import today_ist
 from app.core.endpoints import ENDPOINTS
 from app.core.exceptions import AuthError
 from app.db.session import get_db
@@ -40,7 +39,7 @@ def shortcut_update(
             select(DailyPlanRecordDBM).where(
                 DailyPlanRecordDBM.source_id == body.source_id,
                 DailyPlanRecordDBM.user_id == user.id,
-                DailyPlanRecordDBM.scheduled_date == date.today(),
+                DailyPlanRecordDBM.scheduled_date == today_ist(),
             )
         )
         if record is None:

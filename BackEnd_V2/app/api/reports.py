@@ -1,10 +1,10 @@
-from datetime import date, datetime
+from datetime import date
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
 from fastapi.responses import Response
 
 from app.api.deps import get_current_user
-from app.common.timezone import _IST
+from app.common import today_ist
 from app.core.endpoints import ENDPOINTS
 from app.core.exceptions import ValidationError
 from app.db.session import get_db
@@ -45,7 +45,7 @@ async def request_report(
     report_type: str = Query(default="daily", pattern="^(daily|weekly)$"),
     current_user: UserDBM = Depends(get_current_user),
 ) -> Response:
-    if report_date > datetime.now(_IST).date():
+    if report_date > today_ist():
         raise ValidationError("Cannot generate a report for a future date.")
     if report_type == "weekly" and report_date.weekday() != 5:
         raise ValidationError("Weekly reports must be dated on a Saturday.")

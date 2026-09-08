@@ -24,12 +24,12 @@ per user.  Total queries: O(job_types) instead of O(users × job_types).
 import asyncio
 import logging
 from collections import defaultdict
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 
 from sqlalchemy import case, func, select
 
+from app.common import now_ist
 from app.common.proc_lock import acquire_singleton_lock
-from app.common.timezone import _IST
 from app.db.session import SessionLocal
 from app.models.goal import GoalDBM
 from app.models.milestone import MilestoneDBM
@@ -53,7 +53,7 @@ def _active_users(db) -> dict[int, UserDBM]:
 def _morning_jobs(today: date) -> None:
     three_days = today + timedelta(days=3)
     yesterday = today - timedelta(days=1)
-    now_ist = datetime.now(_IST)
+    current_ist_time = now_ist()
 
     with SessionLocal() as db:
         users = _active_users(db)
@@ -154,8 +154,8 @@ def _morning_jobs(today: date) -> None:
         ).all():
             try:
                 h, m = map(int, task.specific_time.split(":"))
-                task_time = now_ist.replace(hour=h, minute=m, second=0, microsecond=0)
-                diff_s = (task_time - now_ist).total_seconds()
+                task_time = current_ist_time.replace(hour=h, minute=m, second=0, microsecond=0)
+                diff_s = (task_time - current_ist_time).total_seconds()
                 if 0 < diff_s <= 1800:
                     notifications_service.create_notification(
                         db, users[task.user_id],
@@ -252,12 +252,12 @@ async def notification_scheduler_loop() -> None:
     log.info("Notification scheduler started.")
 
     triggered_today: set[str] = set()
-    last_date: date = datetime.now(_IST).date()
+    last_date: date = now_ist().date()
 
     while True:
         await asyncio.sleep(60)
 
-        now = datetime.now(_IST)
+        now = now_ist()
         today = now.date()
 
         if today != last_date:

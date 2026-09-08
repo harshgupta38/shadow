@@ -51,10 +51,10 @@ def get_schedule_task_details(context: ToolContext, arguments: dict) -> dict:
 
 
 def get_schedule_task_list(context: ToolContext, arguments: dict) -> dict:
-    from datetime import date
+    from app.common import today_ist
     from app.services.schedule_service import get_list
 
-    today = date.today()
+    today = today_ist()
     year = arguments.get("year") or today.year
     month = arguments.get("month") or today.month
     tasks = get_list(context.db, context.current_user, year, month)

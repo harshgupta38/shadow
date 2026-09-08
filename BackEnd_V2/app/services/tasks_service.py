@@ -3,6 +3,7 @@ from datetime import UTC, date, datetime
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
+from app.common import today_ist
 from app.core.exceptions import ConflictError, NotFoundError
 from app.core.exceptions import ValidationError
 from app.models.chat import MessageDBM
@@ -446,7 +447,7 @@ def get_task_activity(
     if plan is None:
         return TaskActivityResponse(task=task_response, goal_title=goal.title if goal else None, records=[])
 
-    today = date.today()
+    today = today_ist()
     m = today.month - 11
     y = today.year
     if m <= 0:

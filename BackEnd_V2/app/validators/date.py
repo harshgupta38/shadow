@@ -1,5 +1,7 @@
 from datetime import date
 
+from app.common import today_ist
+
 MIN_YEAR = 1900
 
 
@@ -40,7 +42,7 @@ def validate_year(value: str) -> str:
     if year_int == 0:
         raise ValueError("Please select year.")
 
-    current_year = date.today().year
+    current_year = today_ist().year
     if year_int < MIN_YEAR or year_int > current_year:
         raise ValueError(f"Year must be between {MIN_YEAR} and {current_year}.")
 
@@ -57,5 +59,5 @@ def validate_date(day: str, month: str, year: str) -> None:
     except ValueError:
         raise ValueError("Please enter a valid date.")
 
-    if parsed_date > date.today():
+    if parsed_date > today_ist():
         raise ValueError("Date cannot be in the future.")

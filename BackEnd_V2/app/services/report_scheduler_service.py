@@ -1,11 +1,11 @@
 import asyncio
 import logging
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 
 from sqlalchemy import select
 
+from app.common import now_ist
 from app.common.proc_lock import acquire_singleton_lock
-from app.common.timezone import _IST
 from app.core.config import settings
 from app.db.session import SessionLocal
 from app.services.report_service import generate_report_background
@@ -105,12 +105,12 @@ async def report_scheduler_loop() -> None:
     )
 
     triggered_today: set[str] = set()
-    last_date: date = datetime.now(_IST).date()
+    last_date: date = now_ist().date()
 
     while True:
         await asyncio.sleep(30)
 
-        now = datetime.now(_IST)
+        now = now_ist()
         today = now.date()
 
         # Reset triggers at midnight so each job fires exactly once per day.

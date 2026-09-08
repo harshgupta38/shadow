@@ -1,11 +1,11 @@
 import asyncio
 import logging
 import sqlite3
-from datetime import date, datetime
+from datetime import date
 from pathlib import Path
 
+from app.common import now_ist
 from app.common.proc_lock import acquire_singleton_lock
-from app.common.timezone import _IST
 from app.core.config import settings
 
 log = logging.getLogger("uvicorn.error")
@@ -29,7 +29,7 @@ def create_backup() -> Path | None:
     backup_dir = Path(settings.db_backup_dir)
     backup_dir.mkdir(parents=True, exist_ok=True)
 
-    now = datetime.now()
+    now = now_ist()
     ms = now.microsecond // 1000
     dest = backup_dir / f"shadow-{now.strftime('%Y%m%d-%H%M%S')}{ms:03d}.db"
 
@@ -100,12 +100,12 @@ async def backup_scheduler_loop() -> None:
     log.info("DB backup scheduler started. Slots: %s", ", ".join(s for s, _ in runtimes))
 
     triggered_today: set[str] = set()
-    last_date: date = datetime.now(_IST).date()
+    last_date: date = now_ist().date()
 
     while True:
         await asyncio.sleep(30)
 
-        now = datetime.now(_IST)
+        now = now_ist()
         today = now.date()
 
         # Reset at midnight so each slot fires once per day.

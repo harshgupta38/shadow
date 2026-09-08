@@ -1,5 +1,4 @@
-from datetime import date
-
+from app.common import today_ist
 from app.llm.common import build_schema_prompt
 from app.schemas.chat import (
     ConversationContextFromLLMSchema,
@@ -45,7 +44,7 @@ GOAL_REFINEMENT_SYSTEM_INSTRUCTION_CLAUDE = (
 
 def build_goal_refinement_user_prompt(request_data: RefineGoalRequest) -> str:
     return (
-        f"Current Date: {date.today().isoformat()}\n\n"
+        f"Current Date: {today_ist().isoformat()}\n\n"
         "User Responses\n\n"
         f"Goal: {request_data.goal.strip()}\n"
         f"Why: {request_data.why.strip()}\n"
@@ -206,7 +205,7 @@ def build_task_proposal_user_prompt(
     success_metrics = goal_data.get("success_metrics") or []
 
     return (
-        f"Current Date: {date.today().isoformat()}\n\n"
+        f"Current Date: {today_ist().isoformat()}\n\n"
         "Goal:\n"
         f"Title: {goal_data.get('title', '')}\n"
         f"Success Definition: {goal_data.get('success_definition', '')}\n"
@@ -225,7 +224,7 @@ def build_milestone_proposal_user_prompt(goal_data: dict) -> str:
     success_metrics = goal_data.get("success_metrics") or []
 
     return (
-        f"Current Date: {date.today().isoformat()}\n\n"
+        f"Current Date: {today_ist().isoformat()}\n\n"
         "Goal:\n"
         f"Title: {goal_data.get('title', '')}\n"
         f"Summary: {goal_data.get('summary', '')}\n"

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { BellFill, Check2All, Trash3 } from "react-bootstrap-icons";
 
 import { api, ApiError, type Notification } from "@/api";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { useToast } from "@/context/ToastContext";
 import { IST_TIMEZONE, notifDateLabel, notifTime } from "@/services/date.service";
@@ -44,6 +45,7 @@ export function NotificationsPage() {
   const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("unread");
+  const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
 
   const sentinelRef = useRef<HTMLDivElement>(null);
   const loadMoreRef = useRef<() => void>(() => {});
@@ -129,7 +131,10 @@ export function NotificationsPage() {
     });
   }
 
-  function deleteNotification(id: number) {
+  function confirmDelete() {
+    if (pendingDeleteId === null) return;
+    const id = pendingDeleteId;
+    setPendingDeleteId(null);
     setNotifications(prev => prev.filter(n => n.id !== id));
     api.notifications.delete(id).catch(() => {
       toast.error("Couldn't delete notification.");
@@ -265,7 +270,7 @@ export function NotificationsPage() {
                           type="button"
                           className="notif-item-delete"
                           title="Delete"
-                          onClick={() => deleteNotification(n.id)}
+                          onClick={() => setPendingDeleteId(n.id)}
                         >
                           <Trash3 size={14} />
                         </button>
@@ -283,6 +288,16 @@ export function NotificationsPage() {
       <div ref={sentinelRef} className="notif-load-more">
         {loadingMore && <span className="text-muted-2 small">Loading more…</span>}
       </div>
+
+      <ConfirmDialog
+        show={pendingDeleteId !== null}
+        title="Delete notification"
+        message="This notification will be permanently removed."
+        confirmLabel="Delete"
+        destructive
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDeleteId(null)}
+      />
     </section>
   );
 }

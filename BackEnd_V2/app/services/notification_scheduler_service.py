@@ -28,6 +28,7 @@ from datetime import date, datetime, timedelta
 
 from sqlalchemy import case, func, select
 
+from app.common.proc_lock import acquire_singleton_lock
 from app.common.timezone import _IST
 from app.db.session import SessionLocal
 from app.models.goal import GoalDBM
@@ -244,6 +245,10 @@ def _evening_jobs(today: date) -> None:
 # ── Scheduler loop ────────────────────────────────────────────────────────────
 
 async def notification_scheduler_loop() -> None:
+    if not acquire_singleton_lock("notification_scheduler"):
+        log.info("Notification scheduler: another worker is already running it, skipping.")
+        return
+
     log.info("Notification scheduler started.")
 
     triggered_today: set[str] = set()

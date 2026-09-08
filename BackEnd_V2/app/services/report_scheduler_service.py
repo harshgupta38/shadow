@@ -4,6 +4,7 @@ from datetime import date, datetime, timedelta
 
 from sqlalchemy import select
 
+from app.common.proc_lock import acquire_singleton_lock
 from app.common.timezone import _IST
 from app.core.config import settings
 from app.db.session import SessionLocal
@@ -92,6 +93,10 @@ async def report_scheduler_loop() -> None:
         )
 
     if daily_slot is None and weekly_slot is None:
+        return
+
+    if not acquire_singleton_lock("report_scheduler"):
+        log.info("Report scheduler: another worker is already running it, skipping.")
         return
 
     log.info(

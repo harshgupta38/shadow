@@ -1,44 +1,14 @@
 import asyncio
 import logging
-import os
 import sqlite3
 from datetime import date, datetime
 from pathlib import Path
-from typing import IO
 
+from app.common.proc_lock import acquire_singleton_lock
 from app.common.timezone import _IST
 from app.core.config import settings
 
 log = logging.getLogger("uvicorn.error")
-
-_LOCK_FILE = Path(".backup_scheduler.lock")
-_lock_fh: IO | None = None  # kept open for the lifetime of the process
-
-
-def _acquire_lock() -> bool:
-    """Try to become the one scheduler process. Returns True if lock acquired.
-
-    Uses an OS-level exclusive flock on Linux/Android so the lock is
-    automatically released if the process dies — no stale lock files.
-    On Windows (local dev, always single-worker) fcntl is unavailable so
-    we skip locking — ImportError is the cross-platform signal.
-    """
-    global _lock_fh
-
-    try:
-        import fcntl
-    except ImportError:
-        return True  # Windows — single worker assumed, no lock needed
-
-    try:
-        fh = open(_LOCK_FILE, "w")
-        fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        fh.write(str(os.getpid()))
-        fh.flush()
-        _lock_fh = fh  # hold open — OS releases lock when this process exits
-        return True
-    except OSError:
-        return False
 
 
 def _sqlite_db_path() -> Path | None:
@@ -123,7 +93,7 @@ async def backup_scheduler_loop() -> None:
         log.warning("DB backup scheduler: no valid slots remain after validation, skipping.")
         return
 
-    if not _acquire_lock():
+    if not acquire_singleton_lock("backup_scheduler"):
         log.info("DB backup scheduler: another worker is already running it, skipping.")
         return
 

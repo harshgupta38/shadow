@@ -31,7 +31,7 @@ def create_backup() -> Path | None:
 
     now = datetime.now()
     ms = now.microsecond // 1000
-    dest = backup_dir / f"shadow-{now.strftime('%d%m%Y-%H%M%S')}{ms:03d}.db"
+    dest = backup_dir / f"shadow-{now.strftime('%Y%m%d-%H%M%S')}{ms:03d}.db"
 
     if not src.exists():
         log.error("DB backup skipped: database file not found at %s", src)

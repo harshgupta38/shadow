@@ -92,8 +92,13 @@ async def stream_notifications(
 
     async def generator():
         last_id = effective_since
-        while True:
-            await asyncio.sleep(3)
+        elapsed_s = 0
+        # Force a reconnect every 20 min so a stalled/orphaned client can never
+        # pin server resources indefinitely; the frontend already auto-reconnects.
+        max_duration_s = 20 * 60
+        while elapsed_s < max_duration_s:
+            await asyncio.sleep(5)
+            elapsed_s += 5
             if await request.is_disconnected():
                 break
             try:

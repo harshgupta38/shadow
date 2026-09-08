@@ -20,6 +20,7 @@ import { DetailPageSkeleton } from "@/pages/habit_library/HabitDetailPage/Detail
 
 import "@/pages/my_goals/GoalDetailPage/GoalDetailPage.scss";
 import "@/pages/habit_library/HabitDetailPage/HabitDetailPage.scss";
+import "@/pages/plan/PlanCard/PlanCard.scss";
 import "./TaskDetailPage.scss";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

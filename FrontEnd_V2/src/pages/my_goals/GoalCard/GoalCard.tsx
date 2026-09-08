@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 
 import { type GoalDataShortResponse } from "@/api";
 import { ROUTES } from "@/routes/RoutePaths";
+import "@/pages/my_goals/MyGoalsPage.scss";
 
 interface GoalCardProps {
   goal: GoalDataShortResponse;

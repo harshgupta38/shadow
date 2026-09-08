@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Modal } from "react-bootstrap";
 import { PencilSquare } from "react-bootstrap-icons";
 
+import "@/components/ui/NoteDialog/NoteDialog.scss";
 import "@/components/ui/TextFieldPromptDialog/TextFieldPromptDialog.scss";
 
 interface TextFieldPromptDialogProps {

@@ -29,6 +29,7 @@ import { HabitHistory } from "./HabitHistory/HabitHistory";
 import { DetailPageSkeleton } from "./DetailPageSkeleton/DetailPageSkeleton";
 
 import "@/pages/my_goals/GoalDetailPage/GoalDetailPage.scss";
+import "@/pages/plan/PlanCard/PlanCard.scss";
 import "./HabitDetailPage.scss";
 
 function formatLongDate(value: string): string {

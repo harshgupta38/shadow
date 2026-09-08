@@ -15,6 +15,7 @@ import { resizeTextareaToMaxLines } from "@/services/textarea-resize.service";
 
 import "@/pages/my_goals/GoalCreationWizard/GoalCreationWizard.scss";
 import "@/pages/my_goals/GoalMilestoneWizard/GoalMilestoneWizardPage.scss";
+import "@/pages/my_goals/GoalTaskWizard/GoalTaskWizardPage.scss";
 import "@/pages/assistant/RefinedGoalReviewPanel/RefinedGoalReviewPanel.scss";
 
 function parsePositiveNumber(value: string): number | null {

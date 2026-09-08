@@ -4,6 +4,8 @@ import { CalendarDate, Stars } from "react-bootstrap-icons";
 
 import { api, ApiError } from "@/api";
 import { useToast } from "@/context/ToastContext";
+import "@/components/ui/NoteDialog/NoteDialog.scss";
+import "@/pages/my_goals/GoalTaskWizard/GoalTaskWizardPage.scss";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -111,91 +113,91 @@ export function GenerateReportDialog({ show, onHide, todayStr }: Props) {
       <Modal.Body className="p-4">
 
         {/* Header */}
-            <div className="note-dialog-header mb-4">
-              <div className="empty-icon" aria-hidden="true">
-                <Stars size={24} />
-              </div>
-              <div>
-                <h2 className="h5 fw-bold mb-0">Generate Report</h2>
-                <p className="text-muted-2 mb-0">Choose a report type and date.</p>
-              </div>
-            </div>
+        <div className="note-dialog-header mb-4">
+          <div className="empty-icon" aria-hidden="true">
+            <Stars size={24} />
+          </div>
+          <div>
+            <h2 className="h5 fw-bold mb-0">Generate Report</h2>
+            <p className="text-muted-2 mb-0">Choose a report type and date.</p>
+          </div>
+        </div>
 
-            {/* Type toggle */}
-            <div className="mb-3">
-              <p className="form-label fw-semibold text-muted-2 small mb-2">Report Type</p>
-              <div className="goal-task-type-toggle goal-task-type-toggle--compact mt-0">
-                <button
-                  type="button"
-                  className={`goal-task-type-option ${reportType === "daily" ? "is-active" : ""}`.trim()}
-                  onClick={() => handleTypeChange("daily")}
-                  disabled={dialogState === "loading"}
-                >
-                  <span className="goal-task-type-option-title">Daily</span>
-                </button>
-                <button
-                  type="button"
-                  className={`goal-task-type-option ${reportType === "weekly" ? "is-active" : ""}`.trim()}
-                  onClick={() => handleTypeChange("weekly")}
-                  disabled={dialogState === "loading"}
-                >
-                  <span className="goal-task-type-option-title">Weekly</span>
-                </button>
-              </div>
-              {reportType === "weekly" && (
-                <p className="text-muted-2 small mt-2 mb-0">
-                  Weekly reports cover Sunday–Saturday. The date will snap to the nearest past Saturday.
-                </p>
-              )}
-            </div>
+        {/* Type toggle */}
+        <div className="mb-3">
+          <p className="form-label fw-semibold text-muted-2 small mb-2">Report Type</p>
+          <div className="goal-task-type-toggle goal-task-type-toggle--compact mt-0">
+            <button
+              type="button"
+              className={`goal-task-type-option ${reportType === "daily" ? "is-active" : ""}`.trim()}
+              onClick={() => handleTypeChange("daily")}
+              disabled={dialogState === "loading"}
+            >
+              <span className="goal-task-type-option-title">Daily</span>
+            </button>
+            <button
+              type="button"
+              className={`goal-task-type-option ${reportType === "weekly" ? "is-active" : ""}`.trim()}
+              onClick={() => handleTypeChange("weekly")}
+              disabled={dialogState === "loading"}
+            >
+              <span className="goal-task-type-option-title">Weekly</span>
+            </button>
+          </div>
+          {reportType === "weekly" && (
+            <p className="text-muted-2 small mt-2 mb-0">
+              Weekly reports cover Sunday–Saturday. The date will snap to the nearest past Saturday.
+            </p>
+          )}
+        </div>
 
-            {/* Date input */}
-            <div className="mb-4">
-              <label className="form-label fw-semibold text-muted-2 small mb-2">
-                Report Date
-              </label>
-              <div
-                className="form-control d-flex align-items-center justify-content-between position-relative"
-                style={{ cursor: dialogState === "loading" ? "not-allowed" : "pointer" }}
-                onClick={() => dialogState !== "loading" && dateInputRef.current?.showPicker()}
-              >
-                <span>{fmtDisplay(dateStr)}</span>
-                <CalendarDate size={15} className="text-muted-2 flex-shrink-0" />
-                <input
-                  ref={dateInputRef}
-                  type="date"
-                  value={dateStr}
-                  max={todayStr}
-                  onChange={e => handleDateChange(e.target.value)}
-                  style={{ position: "absolute", bottom: 0, left: 0, width: 1, height: 1, opacity: 0, pointerEvents: "none", border: "none" }}
-                />
-              </div>
-            </div>
+        {/* Date input */}
+        <div className="mb-4">
+          <label className="form-label fw-semibold text-muted-2 small mb-2">
+            Report Date
+          </label>
+          <div
+            className="form-control d-flex align-items-center justify-content-between position-relative"
+            style={{ cursor: dialogState === "loading" ? "not-allowed" : "pointer" }}
+            onClick={() => dialogState !== "loading" && dateInputRef.current?.showPicker()}
+          >
+            <span>{fmtDisplay(dateStr)}</span>
+            <CalendarDate size={15} className="text-muted-2 flex-shrink-0" />
+            <input
+              ref={dateInputRef}
+              type="date"
+              value={dateStr}
+              max={todayStr}
+              onChange={e => handleDateChange(e.target.value)}
+              style={{ position: "absolute", bottom: 0, left: 0, width: 1, height: 1, opacity: 0, pointerEvents: "none", border: "none" }}
+            />
+          </div>
+        </div>
 
-            {/* Error message */}
-            {dialogState === "error" && (
-              <p className="text-danger small mb-3">{errorMsg}</p>
-            )}
+        {/* Error message */}
+        {dialogState === "error" && (
+          <p className="text-danger small mb-3">{errorMsg}</p>
+        )}
 
-            {/* Actions */}
-            <div className="d-flex gap-2 justify-content-end">
-              <button
-                type="button"
-                className="btn btn-outline-secondary px-4"
-                onClick={onHide}
-                disabled={dialogState === "loading"}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn btn-brand px-4"
-                onClick={handleSubmit}
-                disabled={!dateStr || dialogState === "loading"}
-              >
-                {dialogState === "loading" ? "Requesting…" : "Generate"}
-              </button>
-            </div>
+        {/* Actions */}
+        <div className="d-flex gap-2 justify-content-end">
+          <button
+            type="button"
+            className="btn btn-outline-secondary px-4"
+            onClick={onHide}
+            disabled={dialogState === "loading"}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="btn btn-brand px-4"
+            onClick={handleSubmit}
+            disabled={!dateStr || dialogState === "loading"}
+          >
+            {dialogState === "loading" ? "Requesting…" : "Generate"}
+          </button>
+        </div>
 
       </Modal.Body>
     </Modal>

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Modal } from "react-bootstrap";
 import { CalendarEvent } from "react-bootstrap-icons";
 
+import "@/components/ui/NoteDialog/NoteDialog.scss";
 import "@/components/ui/TargetDatePromptDialog/TargetDatePromptDialog.scss";
 
 interface TargetDatePromptDialogProps {

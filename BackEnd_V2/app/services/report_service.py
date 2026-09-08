@@ -356,6 +356,21 @@ async def generate_report_background(
             "Report generation failed for user=%d date=%s type=%s",
             user_id, report_date, report_type,
         )
+        try:
+            user = db.get(UserDBM, user_id)
+            if user:
+                label = report_type.capitalize()
+                notifications_service.create_notification(
+                    db, user,
+                    title=f"Your {label} report for {report_date.strftime('%d %b')} couldn't be generated",
+                    body="Something went wrong while generating your report. Please try again.",
+                    type="system",
+                )
+        except Exception:
+            logger.exception(
+                "Failed to send report-generation-failed notification for user=%d date=%s type=%s",
+                user_id, report_date, report_type,
+            )
     finally:
         _in_progress.discard(key)
         db.close()

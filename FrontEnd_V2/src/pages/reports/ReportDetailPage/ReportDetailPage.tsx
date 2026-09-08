@@ -259,7 +259,12 @@ export function ReportDetailPage() {
     setLoading(true);
     setError(null);
     api.reports.getReports(historyDate, reportType)
-      .then(data => { setReports(data); setIdx(0); })
+      .then(data => {
+        // Backend returns newest-first; reverse so pagination reads oldest (page 1) → latest (last page).
+        const sorted = [...data].reverse();
+        setReports(sorted);
+        setIdx(sorted.length - 1); // default to the latest report
+      })
       .catch((err) => setError(err instanceof ApiError ? err.message : "Report not found. It may still be generating — check back in a moment."))
       .finally(() => setLoading(false));
   }

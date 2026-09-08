@@ -956,6 +956,12 @@ class OpenAIProvider(BaseLLMProvider):
                 kwargs["temperature"] = request.temperature
             if request.max_tokens is not None:
                 kwargs["max_completion_tokens"] = request.max_tokens
+            # Report generation is a structured summarization pass over already-aggregated
+            # data — no multi-step reasoning needed. Reasoning-family models (gpt-5*, o-series)
+            # default to "medium" effort when unset, burning hidden reasoning tokens for no
+            # quality benefit here, so pin it low. Non-reasoning models (gpt-4.1*) reject this param.
+            if model.startswith("gpt-5") or model.startswith("o"):
+                kwargs["reasoning_effort"] = "minimal"
 
             completion = await self._client.beta.chat.completions.parse(**kwargs)
         except (APIConnectionError, APIStatusError, OpenAIError) as exc:

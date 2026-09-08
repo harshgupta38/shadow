@@ -336,6 +336,10 @@ export function ReportDetailPage() {
   const total = reports.length;
   const goalsOnTrack = report.goals.filter(g => g.alignment_pct >= 75).length;
   const isToday = report.date === new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+  const _genNorm = report.generated_at.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(report.generated_at) ? report.generated_at : report.generated_at + "Z";
+  const dateLabel = new Date(_genNorm).toLocaleDateString("en-GB", {
+    day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata",
+  });
 
   return (
     <div className="rdp-page">
@@ -348,7 +352,7 @@ export function ReportDetailPage() {
       <PageHeader
         icon={<BarChartFill size={20} />}
         title={report.report_type === "weekly" ? "Weekly Report" : "Daily Report"}
-        subtitle={`${fmtTime(report.generated_at)}${total > 1 ? ` · ${idx + 1} of ${total}` : ""}`}
+        subtitle={`${dateLabel} · ${fmtTime(report.generated_at)}${total > 1 ? ` · ${idx + 1} of ${total}` : ""}`}
         rightSlot={datePicker}
       />
 

@@ -1,0 +1,38 @@
+.dp-matrix-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.dp-week-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1rem 0 1.5rem;
+  text-align: center;
+}
+
+.dp-week-empty-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 0.75rem;
+  border-radius: 13px;
+  font-size: 1.3rem;
+  background: var(--jv-brand-soft);
+}
+
+.dp-week-empty-title {
+  margin: 0 0 0.3rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--jv-text);
+}
+
+.dp-week-empty-sub {
+  margin: 0;
+  max-width: 26ch;
+  color: var(--jv-muted);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}

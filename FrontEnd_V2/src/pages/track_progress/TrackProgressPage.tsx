@@ -15,6 +15,7 @@ import {
   toMetricDataFromTask,
   toSimpleData,
   toSimpleDataFromTask,
+  type MatrixRow,
 } from "./TrackProgressPage.constants";
 import "@/pages/track_progress/TrackProgressPage.scss";
 
@@ -75,12 +76,6 @@ function GhostShell({ icon, title, subtitle, cta }: GhostShellProps) {
 }
 
 // ── Weekly Accountability Matrix ──────────────────────────────────────────────
-
-interface MatrixRow {
-  id: number;
-  title: string;
-  week: boolean[];
-}
 
 function WeeklyMatrix({ rows }: { rows: MatrixRow[] }) {
   return (

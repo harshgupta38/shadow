@@ -1,6 +1,8 @@
 import { todayDate } from "@/services/date.service";
 import type { ColorKey, GoalCategory, HabitTrackItem, MetricHabitData, SimpleHabitData, TaskTrackItem } from "@/api/types";
 
+export type { WeeklyMatrixRow as MatrixRow } from "@/api/types";
+
 export const TODAY = todayDate();
 
 // Fixed Sun–Sat week; index matches JS getDay() (0=Sun … 6=Sat)

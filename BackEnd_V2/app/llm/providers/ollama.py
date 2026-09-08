@@ -20,12 +20,15 @@ from app.llm.knowledge_base import (
     build_goal_refinement_user_prompt,
     build_milestone_proposal_user_prompt,
     build_task_proposal_user_prompt,
+    get_report_system_instruction,
+    build_report_prompt,
     CREATE_CONVERSATION_SYSTEM_INSTRUCTION,
 )
 from app.schemas.goals import RefineGoalFromLLMSchema
 from app.schemas.milestones import MilestoneProposalListLLMSchema
 from app.schemas.tasks import TaskProposalListLLMSchema
 from app.schemas.memory import MemoryExtractionFromLLMSchema
+from app.schemas.daily_report import GenerateReportSchema
 from app.llm.models import (
     MessageToLLM,
     MessageFromLLM,
@@ -42,6 +45,8 @@ from app.llm.models import (
     ConversationContextFromLLM,
     ExtractUserMemoryToLLM,
     ExtractUserMemoryFromLLM,
+    GenerateReportToLLM,
+    GenerateReportFromLLM,
 )
 from app.llm.base import BaseLLMProvider
 from app.llm.config import LLMSettings, llm_settings
@@ -879,8 +884,77 @@ class OllamaProvider(BaseLLMProvider):
             cost=_ollama_cost(model, usage.input_tokens if usage else 0, usage.output_tokens if usage else 0),
         )
 
-    async def generate_report(self, request):  # type: ignore[override]
-        raise NotImplementedError
+    async def generate_report(self, request: GenerateReportToLLM) -> GenerateReportFromLLM:
+        model = self._resolve_model(request)
+
+        messages = [
+            {
+                "role": Role.SYSTEM,
+                "content": get_report_system_instruction(request.report_type),
+            },
+            {
+                "role": Role.USER,
+                "content": build_report_prompt(
+                    request.report_date, request.report_type, request.day_data
+                ),
+            },
+        ]
+
+        started_at = perf_counter()
+        try:
+            completion = await self._client.beta.chat.completions.parse(
+                model=model,
+                messages=messages,
+                response_format=GenerateReportSchema,
+                temperature=request.temperature,
+                max_tokens=request.max_tokens,
+            )
+        except (APIConnectionError, APIStatusError, OpenAIError) as exc:
+            raise LLMProviderError(f"Ollama generate_report failed: {exc}") from exc
+        response_time_ms = int((perf_counter() - started_at) * 1000)
+
+        await log_ollama_completion_usage_async(
+            settings=self._settings,
+            model=model,
+            completion=completion,
+            latency_ms=response_time_ms,
+            user_id=request.user_id,
+            operation="generate_report",
+        )
+
+        if not completion.choices:
+            raise LLMRequestError("Ollama returned no choices for generate_report.")
+
+        first_choice = completion.choices[0]
+        message = first_choice.message
+        parsed = message.parsed
+
+        if parsed is None:
+            if message.refusal:
+                raise LLMRequestError(
+                    f"Ollama refused generate_report response: {message.refusal}"
+                )
+            raise LLMRequestError("Ollama returned an unparsable generate_report response.")
+
+        usage = None
+        if completion.usage is not None:
+            usage = TokenUsage(
+                input_tokens=completion.usage.prompt_tokens,
+                output_tokens=completion.usage.completion_tokens,
+                total_tokens=completion.usage.total_tokens,
+            )
+
+        return GenerateReportFromLLM(
+            provider=LLMProvider.OLLAMA,
+            model=model,
+            model_str=completion.model or model,
+            report_data=parsed,
+            finish_reason=first_choice.finish_reason,
+            usage=usage,
+            response_id=completion.id,
+            response_time_ms=response_time_ms,
+            cost=_ollama_cost(model, usage.input_tokens if usage else 0, usage.output_tokens if usage else 0),
+        )
 
     async def health_check(self) -> bool:
         # Ollama OpenAI compatibility includes the /models endpoint used by SDK model listing.

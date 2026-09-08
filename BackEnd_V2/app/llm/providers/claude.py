@@ -19,11 +19,15 @@ from app.llm.knowledge_base import (
     CONVERSATION_CONTEXT_SYSTEM_INSTRUCTION_CLAUDE,
     GOAL_REFINEMENT_SYSTEM_INSTRUCTION_CLAUDE,
     MILESTONE_PROPOSAL_SYSTEM_INSTRUCTION_CLAUDE,
+    TASK_PROPOSAL_SYSTEM_INSTRUCTION_CLAUDE,
     RESPOND_TO_MESSAGE_SYSTEM_INSTRUCTION_CLAUDE,
     CREATE_CONVERSATION_SYSTEM_INSTRUCTION_CLAUDE,
     USER_MEMORY_EXTRACTION_SYSTEM_INSTRUCTION,
     build_goal_refinement_user_prompt,
     build_milestone_proposal_user_prompt,
+    build_task_proposal_user_prompt,
+    get_report_system_instruction_claude,
+    build_report_prompt,
 )
 from app.llm.models import (
     ConversationContextToLLM,
@@ -42,15 +46,19 @@ from app.llm.models import (
     NewConvoFromLLM,
     TokenUsage,
     MetadataToLLM,
+    GenerateReportToLLM,
+    GenerateReportFromLLM,
 )
 from app.schemas.goals import RefineGoalFromLLMSchema
 from app.schemas.milestones import MilestoneProposalListLLMSchema
+from app.schemas.tasks import TaskProposalListLLMSchema
 from app.schemas.chat import (
     ConversationContextFromLLMSchema,
     MessageFromLLMSchema,
     NewConvoFromLLMSchema,
 )
 from app.schemas.memory import MemoryExtractionFromLLMSchema
+from app.schemas.daily_report import GenerateReportSchema
 from app.llm.tools import MAX_TOOL_ITERATIONS, AGENT_TOOL_DEFINITIONS, TERMINAL_TOOL_NAMES
 
 
@@ -327,11 +335,81 @@ class ClaudeProvider(BaseLLMProvider):
             ),
         )
 
+    def _parse_TaskProposalListLLMSchema(self, response) -> TaskProposalListLLMSchema:
+        try:
+            raw = self._strip_code_fence(self._extract_text_content(response))
+            return TaskProposalListLLMSchema.model_validate_json(raw)
+        except ValidationError as exc:
+            raise LLMRequestError(
+                "Claude returned a response that does not match TaskProposalListLLMSchema schema."
+            ) from exc
+
     async def generate_task_proposals(
         self, request: TaskProposalsToLLM
     ) -> TaskProposalsFromLLM:
-        # TODO: implement — mirror generate_milestone_proposals using TASK_PROPOSAL_SYSTEM_INSTRUCTION_CLAUDE
-        raise NotImplementedError
+        model = self._resolve_model(request)
+
+        started_at = perf_counter()
+        try:
+            kwargs = {
+                "model": model,
+                "system": TASK_PROPOSAL_SYSTEM_INSTRUCTION_CLAUDE,
+                "messages": [
+                    {
+                        "role": Role.USER,
+                        "content": build_task_proposal_user_prompt(
+                            request.goal_data, request.milestone_data
+                        ),
+                    }
+                ],
+                "max_tokens": request.max_tokens or 2048,
+            }
+            if request.temperature is not None:
+                kwargs["temperature"] = request.temperature
+            completion = await self._client.messages.create(**kwargs)
+        except (APIConnectionError, APIStatusError, APIError) as exc:
+            raise LLMProviderError(f"Claude generate_task_proposals failed: {exc}") from exc
+
+        response_time_ms = int((perf_counter() - started_at) * 1000)
+
+        await log_claude_completion_usage_async(
+            settings=self._settings,
+            model=model,
+            completion=completion,
+            latency_ms=response_time_ms,
+            user_id=request.user_id,
+            operation="generate_task_proposals",
+        )
+
+        parsed = self._parse_TaskProposalListLLMSchema(completion)
+
+        usage = None
+        if completion.usage is not None:
+            input_tokens = completion.usage.input_tokens
+            output_tokens = completion.usage.output_tokens
+            usage = TokenUsage(
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                total_tokens=input_tokens + output_tokens,
+            )
+
+        return TaskProposalsFromLLM(
+            provider=LLMProvider.CLAUDE,
+            model=model,
+            model_str=completion.model or model,
+            proposals=parsed,
+            finish_reason=completion.stop_reason or "unknown",
+            usage=usage,
+            response_id=completion.id,
+            response_time_ms=response_time_ms,
+            cost=calculate_token_cost(
+                model_key=model,
+                input_tokens=usage.input_tokens if usage and usage.input_tokens else 0,
+                output_tokens=(
+                    usage.output_tokens if usage and usage.output_tokens else 0
+                ),
+            ),
+        )
 
     async def create_conversation(self, request: NewConvoToLLM) -> NewConvoFromLLM:
         model = self._resolve_model(request)
@@ -754,8 +832,79 @@ class ClaudeProvider(BaseLLMProvider):
             ),
         )
 
-    async def generate_report(self, request):  # type: ignore[override]
-        raise NotImplementedError
+    def _parse_GenerateReportSchema(self, response) -> GenerateReportSchema:
+        try:
+            raw = self._strip_code_fence(self._extract_text_content(response))
+            return GenerateReportSchema.model_validate_json(raw)
+        except ValidationError as exc:
+            raise LLMRequestError(
+                "Claude returned a response that does not match GenerateReportSchema schema."
+            ) from exc
+
+    async def generate_report(self, request: GenerateReportToLLM) -> GenerateReportFromLLM:
+        model = self._resolve_model(request)
+
+        started_at = perf_counter()
+        try:
+            kwargs = {
+                "model": model,
+                "system": get_report_system_instruction_claude(request.report_type),
+                "messages": [
+                    {
+                        "role": Role.USER,
+                        "content": build_report_prompt(
+                            request.report_date, request.report_type, request.day_data
+                        ),
+                    }
+                ],
+                "max_tokens": request.max_tokens or 2048,
+            }
+            if request.temperature is not None:
+                kwargs["temperature"] = request.temperature
+            completion = await self._client.messages.create(**kwargs)
+        except (APIConnectionError, APIStatusError, APIError) as exc:
+            raise LLMProviderError(f"Claude generate_report failed: {exc}") from exc
+
+        response_time_ms = int((perf_counter() - started_at) * 1000)
+
+        await log_claude_completion_usage_async(
+            settings=self._settings,
+            model=model,
+            completion=completion,
+            latency_ms=response_time_ms,
+            user_id=request.user_id,
+            operation="generate_report",
+        )
+
+        parsed = self._parse_GenerateReportSchema(completion)
+
+        usage = None
+        if completion.usage is not None:
+            input_tokens = completion.usage.input_tokens
+            output_tokens = completion.usage.output_tokens
+            usage = TokenUsage(
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                total_tokens=input_tokens + output_tokens,
+            )
+
+        return GenerateReportFromLLM(
+            provider=LLMProvider.CLAUDE,
+            model=model,
+            model_str=completion.model or model,
+            report_data=parsed,
+            finish_reason=completion.stop_reason or "unknown",
+            usage=usage,
+            response_id=completion.id,
+            response_time_ms=response_time_ms,
+            cost=calculate_token_cost(
+                model_key=model,
+                input_tokens=usage.input_tokens if usage and usage.input_tokens else 0,
+                output_tokens=(
+                    usage.output_tokens if usage and usage.output_tokens else 0
+                ),
+            ),
+        )
 
     async def health_check(self) -> bool:
         try:

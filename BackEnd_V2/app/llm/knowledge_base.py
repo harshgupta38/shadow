@@ -10,6 +10,7 @@ from app.schemas.memory import MemoryExtractionFromLLMSchema
 from app.schemas.goals import RefineGoalRequest, RefineGoalFromLLMSchema
 from app.schemas.milestones import MilestoneProposalListLLMSchema
 from app.schemas.tasks import TaskProposalListLLMSchema
+from app.schemas.daily_report import GenerateReportSchema
 
 # ---------------------------------------------------------------------------
 # Goal refinement: turns five collected discovery answers into a structured
@@ -592,6 +593,25 @@ def get_report_system_instruction(report_type: str) -> str:
     if report_type == "weekly":
         return _GENERATE_WEEKLY_REPORT_SYSTEM_INSTRUCTION
     return _GENERATE_DAILY_REPORT_SYSTEM_INSTRUCTION
+
+
+_GENERATE_DAILY_REPORT_SYSTEM_INSTRUCTION_CLAUDE = (
+    _GENERATE_DAILY_REPORT_SYSTEM_INSTRUCTION
+    + _CONVERSATION_SCHEMA_FOR_CLAUDE(GenerateReportSchema)
+)
+
+_GENERATE_WEEKLY_REPORT_SYSTEM_INSTRUCTION_CLAUDE = (
+    _GENERATE_WEEKLY_REPORT_SYSTEM_INSTRUCTION
+    + _CONVERSATION_SCHEMA_FOR_CLAUDE(GenerateReportSchema)
+)
+
+
+def get_report_system_instruction_claude(report_type: str) -> str:
+    """Return the Claude-specific system instruction (with the JSON schema inlined,
+    since Claude has no response_format/response_schema parameter)."""
+    if report_type == "weekly":
+        return _GENERATE_WEEKLY_REPORT_SYSTEM_INSTRUCTION_CLAUDE
+    return _GENERATE_DAILY_REPORT_SYSTEM_INSTRUCTION_CLAUDE
 
 
 def _format_record_line(r: dict, indent: str = "  ") -> str:

@@ -342,7 +342,7 @@ def _enrich_goals(
             gid = schedule_goal.get(sid)
         if gid and gid in goal_objs:
             g = goal_objs[gid]
-            result[(st, sid)] = GoalDataInPlan(id=gid, title=g.title, category=g.category)
+            result[(st, sid)] = GoalDataInPlan(id=gid, title=g.title, summary=g.summary, category=g.category)
         else:
             result[(st, sid)] = None
     return result

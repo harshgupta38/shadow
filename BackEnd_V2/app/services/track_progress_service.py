@@ -115,10 +115,12 @@ def get_habits_with_history(
 
         # 7 entries: index 0 = Sunday … index 6 = Saturday; future days are 0
         history: list[int] = []
+        week_done: list[bool] = []
         for i in range(7):
             day = week_start + timedelta(days=i)
             if day > today:
                 history.append(0)
+                week_done.append(False)
                 continue
             rec = day_map.get(day)
             if rec and is_metric:
@@ -127,6 +129,7 @@ def get_habits_with_history(
                 history.append(1)
             else:
                 history.append(0)
+            week_done.append(bool(rec and rec.status == "done"))
 
         today_rec = day_map.get(today)
         done_today = bool(today_rec and today_rec.status == "done")
@@ -142,6 +145,7 @@ def get_habits_with_history(
             current_streak=current_streak,
             max_streak=max_streak,
             history=history,
+            week_done=week_done,
             done_today=done_today,
             current_value=current_value,
             color=_color(habit.id),

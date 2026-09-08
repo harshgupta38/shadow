@@ -21,6 +21,10 @@ class Endpoints:
         REFRESH = "/refresh"
         USER_DATA = "/my-data"
 
+    class DASHBOARD:
+        PREFIX = "/dashboard"
+        ROOT = ""
+
     class GOALS:
         PREFIX = "/goal"
         REFINE = "/refine"

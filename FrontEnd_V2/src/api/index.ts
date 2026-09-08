@@ -12,6 +12,7 @@ import { notificationsApi } from "@/api/notifications";
 import { appearanceApi } from "@/api/appearance";
 import { reportsApi } from "@/api/reports";
 import { chatApi } from "@/api/chat";
+import { dashboardApi } from "@/api/dashboard";
 import { goalsApi } from "@/api/goals";
 import { milestonesApi } from "@/api/milestones";
 import { tasksApi } from "@/api/tasks";
@@ -24,6 +25,7 @@ export const api = {
   notifications: notificationsApi,
   theme: appearanceApi,
   chat: chatApi,
+  dashboard: dashboardApi,
   goals: goalsApi,
   milestones: milestonesApi,
   tasks: tasksApi,

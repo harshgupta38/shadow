@@ -31,6 +31,10 @@ class HabitTrackItem(BaseModel):
     # Simple habits: 1 if done, 0 otherwise.
     # Metric habits: actual_value if done, 0 otherwise. Future days are 0.
     history: list[int]
+    # Same 7-day window as `history`, but always a real done/not-done boolean —
+    # for metric habits `history` holds the raw actual_value, not a threshold
+    # check, so this is the field to use when you need a plain "was it done".
+    week_done: list[bool]
     done_today: bool
     current_value: int  # today's actual_value (0 if not logged yet)
     color: ColorKey

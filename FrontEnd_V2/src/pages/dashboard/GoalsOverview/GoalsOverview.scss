@@ -1,0 +1,130 @@
+.dp-goal-scroll-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  // overflow-x:auto implicitly forces overflow-y:auto too, which clips the hover
+  // lift + shadow on cards near the top edge — pad it out and pull the margin
+  // back in so the row's visual position doesn't shift.
+  padding: 6px 2px 8px;
+  margin: -6px -2px -8px;
+
+  &::-webkit-scrollbar {
+    height: 3px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: var(--jv-border);
+    border-radius: 2px;
+  }
+}
+
+.dp-goal-cards {
+  display: flex;
+  gap: 0.875rem;
+  width: max-content;
+}
+
+.dp-goal-card {
+  width: 250px;
+  flex-shrink: 0;
+  background: var(--jv-surface);
+  border: 1px solid var(--jv-border);
+  border-radius: var(--jv-radius);
+  padding: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  text-decoration: none;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+
+  &:hover {
+    border-color: var(--jv-border-strong);
+    box-shadow: var(--jv-shadow);
+    transform: translateY(-2px);
+  }
+}
+
+.dp-goal-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.dp-goal-category {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.55rem;
+  border-radius: var(--jv-radius-pill);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--jv-brand-1);
+  background: var(--jv-brand-soft);
+  white-space: nowrap;
+}
+
+.dp-goal-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--jv-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dp-goal-progress-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  color: var(--jv-muted);
+
+  strong {
+    font-size: 0.8rem;
+    color: var(--jv-text);
+  }
+}
+
+.dp-goal-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: auto;
+  font-size: 0.7rem;
+  color: var(--jv-muted);
+
+  span {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+}
+
+.dp-goal-meta-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+  flex-wrap: nowrap;
+
+  >span:nth-child(1) svg {
+    color: color-mix(in srgb, var(--jv-brand-1) 78%, #2f57d0 22%);
+  }
+
+  >span:nth-child(2) svg {
+    color: color-mix(in srgb, #0f7a37 72%, var(--jv-brand-1) 28%);
+  }
+}
+
+.dp-goal-meta-date {
+  margin-left: auto;
+  white-space: nowrap;
+  flex-shrink: 0;
+
+  svg {
+    color: color-mix(in srgb, #8b5e00 72%, var(--jv-brand-2) 28%);
+  }
+}

@@ -15,6 +15,7 @@ from app.models.plan_record import DailyPlanRecordDBM
 from app.models.report import ReportDBM
 from app.models.task import TaskDBM
 from app.models.user import UserDBM
+from app.schemas.daily_report import ReportResponse
 from app.services import notifications_service
 
 logger = logging.getLogger(__name__)
@@ -235,6 +236,31 @@ def get_reports(db: Session, user_id: int, report_date: date, report_type: str) 
         )
         .order_by(desc(ReportDBM.generated_at))
     ).all())
+
+
+def get_latest_report(db: Session, user_id: int) -> ReportDBM | None:
+    """Most recent report across all dates/types for a user — None if none exist yet."""
+    return db.scalar(
+        select(ReportDBM)
+        .where(ReportDBM.user_id == user_id)
+        .order_by(desc(ReportDBM.report_date), desc(ReportDBM.generated_at))
+        .limit(1)
+    )
+
+
+def to_report_response(report: ReportDBM) -> ReportResponse:
+    return ReportResponse.model_validate({
+        "date": report.report_date,
+        "report_type": report.report_type,
+        "generated_at": report.generated_at,
+        "alignment_score": report.alignment_score,
+        "headline": report.headline,
+        "summary": report.summary,
+        "stats": report.stats,
+        "goals": report.goals,
+        "highlights": report.highlights,
+        "closing": report.closing,
+    })
 
 
 def save_report(

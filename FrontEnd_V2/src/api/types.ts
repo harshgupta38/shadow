@@ -753,3 +753,55 @@ export interface DailyReportDetail {
   highlights: { good: string[]; attention: string[] };
   closing: { tone: "motivate" | "guide" | "celebrate"; message: string };
 }
+
+// ── Dashboard ──────────────────────────────────────────────────────────────────
+
+// A single habit's Sun–Sat completion row, used by both TrackProgressPage's
+// weekly matrix and the Dashboard's "This Week" panel.
+export interface WeeklyMatrixRow {
+  id: number;
+  title: string;
+  week: boolean[];
+}
+
+// Shaped specifically for the Dashboard's today-snapshot preview — not a reuse
+// of PlanDataResponse, since the widget only ever needs a goal's summary line
+// (never its title/category/id) and never touches duration, notes, or streak max.
+export interface DashboardTodayItem {
+  plan_id: number;
+  source_type: "habit" | "task" | "schedule";
+  title: string;
+  planner_type: "simple" | "metric";
+  planner_target: number | null;
+  value_unit: string | null;
+  priority: PlanPriority;
+  preferred_time: PlanPreferredTime;
+  specific_time: string | null;
+  goal_summary: string | null;
+  status: "due" | "done";
+  current_value: number;
+  current_streak: number;
+}
+
+export interface DashboardUpcomingItem {
+  id: number;
+  // scheduled_tasks and yearly_tasks are separate tables with their own id
+  // sequences, so an id can collide across the two — use id+repeat_yearly
+  // together as the unique key (same pattern SchedulePage already uses).
+  repeat_yearly: boolean;
+  title: string;
+  scheduled_date: string; // YYYY-MM-DD
+  priority: ScheduledTaskPriority;
+  note: string | null;
+}
+
+// Single-endpoint contract for the Dashboard — every widget's data is a slice
+// of this one response, no per-widget requests.
+export interface DashboardResponse {
+  today_items: DashboardTodayItem[];
+  latest_report: DailyReportDetail | null; // null when no report has ever been generated
+  month_days: DayReport[];
+  goals: GoalDataShortResponse[];
+  upcoming: DashboardUpcomingItem[];
+  week_habits: WeeklyMatrixRow[];
+}

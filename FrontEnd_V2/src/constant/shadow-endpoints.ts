@@ -1,4 +1,8 @@
 export const ENDPOINTS = {
+    DASHBOARD: {
+        PREFIX: "/dashboard",
+        ROOT: "",
+    },
     AUTH: {
         PREFIX: "/auth",
         LOGIN: "/login",

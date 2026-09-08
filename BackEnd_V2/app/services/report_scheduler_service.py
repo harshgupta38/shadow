@@ -61,7 +61,7 @@ async def _run_for_all_users(report_date: date, report_type: str) -> None:
     )
 
     tasks = [
-        asyncio.create_task(generate_report_background(uid, report_date, report_type))
+        asyncio.create_task(generate_report_background(uid, report_date, report_type, force=True))
         for uid in user_ids
     ]
     results = await asyncio.gather(*tasks, return_exceptions=True)

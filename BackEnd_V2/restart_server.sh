@@ -1,11 +1,8 @@
 #!/bin/bash
 
-# --workers forks children that keep the same "uvicorn" argv on Linux (fork start
-# method), so pkill -f uvicorn already catches them too.
-pkill -f uvicorn
-# pkill -f "localhost:8000"
-# kill -9 $(lsof -t -i:8000) 2>/dev/null
-
+# Graceful shutdown (SIGTERM) can hang forever if a worker never reports back
+# to the master's reap loop — force-kill immediately instead of waiting on it.
+pkill -9 -f uvicorn
 sleep 2
 
 # Wait for the port to actually be free before starting a new instance, otherwise

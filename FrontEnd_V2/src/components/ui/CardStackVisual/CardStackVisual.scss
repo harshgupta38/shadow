@@ -1,0 +1,142 @@
+.card-stack {
+  position: relative;
+  width: 380px;
+  height: 300px;
+  max-width: 100%;
+}
+
+.card-stack-card {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  background: var(--jv-surface);
+  border: 1px solid var(--jv-border);
+  border-radius: 16px;
+  box-shadow: var(--jv-shadow-lg);
+  padding: 0.95rem 1.05rem;
+  opacity: 0;
+  animation-name: card-stack-fade-in;
+  animation-duration: 0.6s;
+  animation-timing-function: var(--jv-ease);
+  animation-fill-mode: forwards;
+}
+
+.card-stack-card--today {
+  width: 210px;
+  animation-name: card-stack-fade-in, card-stack-sway-today;
+  animation-duration: 0.6s, 5s;
+  animation-delay: 0s, 0.6s;
+  animation-timing-function: var(--jv-ease), ease-in-out;
+  animation-iteration-count: 1, infinite;
+  animation-fill-mode: forwards, both;
+}
+
+.card-stack-card--progress {
+  width: 148px;
+  text-align: center;
+  animation-name: card-stack-fade-in, card-stack-sway-progress;
+  animation-duration: 0.6s, 5s;
+  animation-delay: 0.15s, 0.75s;
+  animation-timing-function: var(--jv-ease), ease-in-out;
+  animation-iteration-count: 1, infinite;
+  animation-fill-mode: forwards, both;
+}
+
+.card-stack-card--streak {
+  width: 128px;
+  text-align: center;
+  animation-name: card-stack-fade-in, card-stack-sway-streak;
+  animation-duration: 0.6s, 5s;
+  animation-delay: 0.3s, 0.9s;
+  animation-timing-function: var(--jv-ease), ease-in-out;
+  animation-iteration-count: 1, infinite;
+  animation-fill-mode: forwards, both;
+}
+
+.card-stack-title {
+  margin: 0 0 0.55rem;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--jv-text);
+}
+
+.card-stack-row {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.8rem;
+  color: var(--jv-text);
+  margin-bottom: 0.3rem;
+  white-space: nowrap;
+
+  &:last-child { margin-bottom: 0; }
+}
+
+.card-stack-check {
+  color: var(--jv-success);
+  font-weight: 700;
+  flex-shrink: 0;
+
+  &--pending { color: var(--jv-border-strong); }
+}
+
+.card-stack-ring {
+  position: relative;
+  width: 62px;
+  height: 62px;
+  margin: 0 auto;
+}
+
+.card-stack-ring-svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.card-stack-ring-track {
+  stroke: color-mix(in srgb, var(--jv-border) 88%, transparent);
+}
+
+.card-stack-ring-pct {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 0.86rem;
+  color: var(--jv-brand-1);
+}
+
+.card-stack-sub {
+  margin: 0.45rem 0 0;
+  font-size: 0.78rem;
+  color: var(--jv-muted);
+}
+
+.card-stack-flame {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+@keyframes card-stack-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+// X offsets are +38px from a naive centered layout — the three cards' combined
+// bounding box (accounting for each card's own width) sits 38px left of the
+// stack's actual center otherwise, which reads as the whole composition leaning left.
+@keyframes card-stack-sway-today {
+  0%, 100% { transform: translate(-50%, -50%) rotate(-7deg) translate(-77px, -55px); }
+  50%      { transform: translate(-50%, -50%) rotate(-7deg) translate(-77px, -61px); }
+}
+
+@keyframes card-stack-sway-progress {
+  0%, 100% { transform: translate(-50%, -50%) rotate(5deg) translate(108px, -20px); }
+  50%      { transform: translate(-50%, -50%) rotate(5deg) translate(108px, -26px); }
+}
+
+@keyframes card-stack-sway-streak {
+  0%, 100% { transform: translate(-50%, -50%) rotate(-4deg) translate(28px, 115px); }
+  50%      { transform: translate(-50%, -50%) rotate(-4deg) translate(28px, 109px); }
+}

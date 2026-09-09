@@ -8,6 +8,7 @@ import {
 } from "react-bootstrap-icons";
 
 import { Brand } from "@/components/ui/Brand/Brand";
+import { CardStackVisual } from "@/components/ui/CardStackVisual/CardStackVisual";
 import { ThemeToggle } from "@/components/ui/ThemeToggle/ThemeToggle";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
@@ -28,55 +29,6 @@ import assistantLight from "@/assets/landing/assistant-light.png";
 import assistantDark from "@/assets/landing/assistant-dark.png";
 
 import "@/pages/landing_page/LandingPage.scss";
-
-function CardStackVisual() {
-  return (
-    <div className="landing-stack" aria-hidden="true">
-      <div className="landing-stack-card landing-stack-card--today">
-        <p className="landing-stack-title">Today</p>
-        <div className="landing-stack-row">
-          <span className="landing-stack-check">✓</span> Morning workout
-        </div>
-        <div className="landing-stack-row">
-          <span className="landing-stack-check">✓</span> Read 20 pages
-        </div>
-        <div className="landing-stack-row">
-          <span className="landing-stack-check landing-stack-check--pending">○</span> Deep work block
-        </div>
-      </div>
-
-      <div className="landing-stack-card landing-stack-card--progress">
-        <p className="landing-stack-title">Progress</p>
-        <div className="landing-stack-ring">
-          <svg className="landing-stack-ring-svg" viewBox="0 0 62 62">
-            <defs>
-              <linearGradient id="landingStackRingGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="var(--jv-brand-1)" />
-                <stop offset="100%" stopColor="var(--jv-brand-2)" />
-              </linearGradient>
-            </defs>
-            <circle className="landing-stack-ring-track" cx={31} cy={31} r={26} fill="none" strokeWidth={6} />
-            <circle
-              className="landing-stack-ring-value"
-              cx={31} cy={31} r={26} fill="none" strokeWidth={6}
-              stroke="url(#landingStackRingGradient)"
-              strokeLinecap="round"
-              strokeDasharray={2 * Math.PI * 26}
-              strokeDashoffset={2 * Math.PI * 26 * (1 - 0.64)}
-            />
-          </svg>
-          <span className="landing-stack-ring-pct">64%</span>
-        </div>
-        <p className="landing-stack-sub">9 of 14 done</p>
-      </div>
-
-      <div className="landing-stack-card landing-stack-card--streak">
-        <p className="landing-stack-flame">🔥 11</p>
-        <p className="landing-stack-sub">day streak</p>
-      </div>
-    </div>
-  );
-}
 
 const STEPS = [
   {

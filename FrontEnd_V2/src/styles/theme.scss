@@ -1069,47 +1069,26 @@ a {
   user-select: none;
   -webkit-user-select: none;
 }
+
+// Same neutral-surface-plus-glow treatment as the landing page hero — a
+// colored marketing gradient panel is a different (older) pattern, this is
+// meant to read as literally the same design system, not just re-tinted.
 .auth-aside {
   position: relative;
   overflow: hidden;
-  color: #fff;
-  background:
-    radial-gradient(620px 320px at 76% -5%, rgba(255, 255, 255, 0.2), transparent 62%),
-    radial-gradient(500px 300px at -10% 105%, rgba(0, 0, 0, 0.16), transparent 58%),
-    linear-gradient(154deg, #6758f4 0%, #4f8bff 100%);
+  color: var(--jv-text);
+  background: var(--jv-bg);
   padding: 2.65rem 2.35rem;
-}
-.auth-aside::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.12) 1px, transparent 1px);
-  background-size: 22px 22px;
-  opacity: 0.18;
-  pointer-events: none;
-}
+  border-right: 1px solid var(--jv-border);
 
-.auth-aside-orb {
-  position: absolute;
-  border-radius: 999px;
-  filter: blur(2px);
-  pointer-events: none;
-}
-
-.auth-aside-orb.orb-1 {
-  width: 260px;
-  height: 260px;
-  top: -88px;
-  right: -72px;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0));
-}
-
-.auth-aside-orb.orb-2 {
-  width: 220px;
-  height: 220px;
-  bottom: -96px;
-  left: -84px;
-  background: radial-gradient(circle, rgba(33, 27, 79, 0.34), rgba(33, 27, 79, 0));
+  &::before {
+    content: "";
+    position: absolute;
+    inset: -15%;
+    background: radial-gradient(ellipse 65% 55% at 78% 8%, color-mix(in srgb, var(--jv-brand-1) 20%, transparent), transparent 70%);
+    z-index: 0;
+    pointer-events: none;
+  }
 }
 
 .auth-aside-inner {
@@ -1118,57 +1097,113 @@ a {
   min-height: calc(100vh - 5.3rem);
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  align-items: center;
+}
+
+// Body/footer share one max-width so they line up with each other, then get
+// centered as a single column within the (much wider) aside — the aside is a
+// standalone marketing panel here, not paired beside a visual the way the
+// landing hero is, so a left-hugging column reads as a mistake, not a
+// choice, once the rest of the panel is empty neutral space next to it.
+// The header (just the logo) is exempt — it stays pinned to the true
+// top-left corner, the standard spot for a logo, rather than centering with
+// the rest of the copy below it.
+.auth-aside-body,
+.auth-aside-footer {
+  width: 100%;
+  max-width: 480px;
 }
 
 .auth-aside-header {
+  align-self: flex-start;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
 }
 
-.auth-aside-brand-mark {
-  background: rgba(255, 255, 255, 0.19);
-}
-
-.auth-aside-chip {
+.auth-aside-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  background: rgba(255, 255, 255, 0.12);
-  color: rgba(255, 255, 255, 0.94);
-  font-size: 0.73rem;
+  border: 1px solid color-mix(in srgb, var(--jv-brand-1) 26%, transparent);
+  background: color-mix(in srgb, var(--jv-brand-soft) 80%, transparent);
+  color: var(--jv-brand-1);
+  font-size: 0.7rem;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  padding: 0.32rem 0.68rem;
+  padding: 0.32rem 0.7rem;
+  margin-bottom: 1.15rem;
+
+  svg { color: var(--jv-brand-1); flex-shrink: 0; }
 }
 
+// flex:1 + centering (rather than the old space-between across just 3 blocks)
+// keeps the header pinned to the top and the footer pinned to the bottom
+// without stretching a single huge gap wherever the leftover space happens to
+// land — the body is one balanced, vertically-centered group instead.
 .auth-aside-body {
-  margin-top: 2.1rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  margin-top: 1.5rem;
 }
 
 .auth-aside-title {
   font-size: clamp(1.85rem, 3.2vw, 2.75rem);
   font-family: var(--jv-font-display);
+  font-weight: 800;
   letter-spacing: -0.03em;
   line-height: 1.05;
   margin: 0;
   max-width: 480px;
 }
 
-.auth-aside-subtitle {
-  margin: 0.95rem 0 1.7rem;
-  color: rgba(240, 245, 255, 0.84);
-  font-size: 1.03rem;
-  line-height: 1.62;
-  max-width: 470px;
+.auth-aside-title-accent {
+  background: linear-gradient(135deg, var(--jv-brand-1) 0%, var(--jv-brand-2) 100%);
+  // stylelint-disable-next-line property-no-vendor-prefix
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
-.auth-feature-list {
+.auth-aside-subtitle {
+  margin: 0.95rem 0 0;
+  color: var(--jv-muted);
+  font-size: 1.03rem;
+  line-height: 1.62;
+  max-width: 420px;
+}
+
+// Wraps the shared CardStackVisual with its own glow, matching how the
+// landing hero visual frames it.
+.auth-aside-visual {
+  position: relative;
   display: flex;
-  flex-direction: column;
-  gap: 0.9rem;
+  align-items: center;
+  justify-content: center;
+  height: 260px;
+  margin-top: 0.75rem;
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: -20% -10%;
+    background: radial-gradient(ellipse 65% 65% at 40% 50%, color-mix(in srgb, var(--jv-brand-1) 14%, transparent), transparent 70%);
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  .card-stack {
+    position: relative;
+    z-index: 1;
+    transform: scale(0.72);
+  }
 }
 
 .auth-main {
@@ -1186,115 +1221,80 @@ a {
   width: 100%;
   max-width: 428px;
 }
-.auth-feature {
-  display: flex;
-  gap: 0.8rem;
-  align-items: flex-start;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 14px;
-  padding: 0.72rem 0.78rem;
-  backdrop-filter: blur(3px);
-}
-.auth-feature .auth-feature-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.18);
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-}
-
-.auth-feature--violet .auth-feature-icon {
-  color: #f0edff;
-  background: rgba(121, 104, 255, 0.46);
-}
-
-.auth-feature--blue .auth-feature-icon {
-  color: #eaf4ff;
-  background: rgba(76, 148, 255, 0.45);
-}
-
-.auth-feature--mint .auth-feature-icon {
-  color: #e8fff8;
-  background: rgba(53, 186, 150, 0.34);
-}
-
-.auth-feature-title {
-  font-weight: 700;
-  line-height: 1.24;
-}
-
-.auth-feature-text {
-  margin-top: 0.22rem;
-  font-size: 0.84rem;
-  line-height: 1.38;
-  color: rgba(236, 243, 255, 0.84);
-}
 
 .auth-aside-footer {
-  margin-top: 1.4rem;
+  flex-shrink: 0;
+  margin-top: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
-.auth-aside-stats {
+.auth-aside-proof {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.45rem;
+  justify-content: center;
+  gap: 0.7rem;
   margin-bottom: 0.85rem;
-}
+  color: var(--jv-text);
+  font-size: 0.85rem;
 
-.auth-aside-stats span {
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.08);
-  padding: 0.28rem 0.6rem;
-  font-size: 0.74rem;
-  font-weight: 700;
-  color: rgba(241, 246, 255, 0.9);
+  span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  svg { color: var(--jv-success); }
 }
 
 .auth-aside-footnote {
   font-size: 0.83rem;
   line-height: 1.45;
-  color: rgba(233, 241, 255, 0.84);
+  color: var(--jv-muted);
+  text-align: center;
 }
 
+// Small tablets (768–991.98px): the aside column is genuinely narrow here (as
+// little as ~270px of usable width), but it still gets a real layout — not
+// just the large-screen version with pieces switched off.
 @media (max-width: 991.98px) {
   .auth-shell {
     grid-template-columns: 0.78fr 1fr;
   }
   .auth-aside {
-    padding: 2rem 1.35rem;
+    padding: 1.85rem 1.3rem;
   }
   .auth-aside-inner {
-    min-height: calc(100vh - 4rem);
+    min-height: calc(100vh - 3.7rem);
+  }
+  .auth-aside-kicker {
+    font-size: 0.62rem;
+    padding: 0.26rem 0.55rem;
+    margin-bottom: 0.9rem;
   }
   .auth-aside-title {
-    font-size: 1.65rem;
-    max-width: 320px;
+    font-size: 1.5rem;
+    max-width: 260px;
   }
   .auth-aside-subtitle {
-    font-size: 0.92rem;
-    max-width: 320px;
-    margin-bottom: 1.25rem;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    max-width: 260px;
   }
-  .auth-feature-text {
-    display: none;
+  .auth-aside-visual {
+    height: 165px;
+
+    .card-stack {
+      transform: scale(0.5);
+    }
   }
-  .auth-feature {
-    align-items: center;
-    padding: 0.62rem 0.64rem;
+  .auth-aside-proof {
+    font-size: 0.76rem;
+    gap: 0.5rem 0.6rem;
   }
-  .auth-feature .auth-feature-icon {
-    width: 33px;
-    height: 33px;
-    border-radius: 9px;
-  }
-  .auth-aside-chip,
-  .auth-aside-stats,
   .auth-aside-footnote {
-    display: none;
+    font-size: 0.72rem;
   }
   .auth-card {
     max-width: 392px;
@@ -1330,10 +1330,6 @@ a {
     margin-bottom: 1.4rem;
     padding: 0.15rem 0.1rem;
     width: 100%;
-  }
-
-  .auth-mobile-menu {
-    color: var(--jv-muted);
   }
 
   .auth-mobile-theme .btn {

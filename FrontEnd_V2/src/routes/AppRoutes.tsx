@@ -11,8 +11,8 @@ import { ROUTES } from "@/routes/RoutePaths";
 import { AppLayout } from "@/components/layout/AppLayout";
 
 // Pages — lazy-loaded so each route ships in its own chunk instead of one monolithic
-// bundle (e.g. the landing page's @xyflow/react and the goal/task wizards' react-quill
-// no longer load for every visitor regardless of which page they're on).
+// bundle (e.g. the goal/task wizards' react-quill no longer loads for every visitor
+// regardless of which page they're on).
 const LandingPage = lazy(() => import("@/pages/landing_page/LandingPage").then(m => ({ default: m.LandingPage })));
 const LoginPage = lazy(() => import("@/pages/auth/LoginPage").then(m => ({ default: m.LoginPage })));
 const RegisterPage = lazy(() => import("@/pages/auth/RegisterPage").then(m => ({ default: m.RegisterPage })));

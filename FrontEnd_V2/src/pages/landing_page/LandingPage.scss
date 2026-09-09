@@ -1,63 +1,14 @@
-// ── Variables ────────────────────────────────────────────────────────────────
-
-$handle-size:      8px;
-$handle-offset:   -5px;
-$node-max-width:   258px;
-
-// Node accent colors — icon tints and handle rings
-$color-goal:       #6d5efc;
-$color-milestone:  #4f8bff;
-$color-habit:      #139f72;
-$color-coach:      #c05d12;
-
-// ── Mixins ───────────────────────────────────────────────────────────────────
-
-// Positions a node handle dot on the specified side
-@mixin node-handle($side, $color: var(--jv-brand-1)) {
-  border: 2px solid #{$color};
-
-  @if $side == right {
-    right: $handle-offset;
-    top: 50%;
-    transform: translateY(-50%);
-  } @else if $side == left {
-    left: $handle-offset;
-    top: 50%;
-    transform: translateY(-50%);
-  } @else if $side == bottom {
-    bottom: $handle-offset;
-    left: 50%;
-    transform: translateX(-50%);
-  } @else if $side == top {
-    top: $handle-offset;
-    left: 50%;
-    transform: translateX(-50%);
-  }
-}
-
-// Sets icon container color + tinted background
-@mixin node-icon($color, $alpha: 0.15) {
-  color: $color;
-  background: rgba($color, $alpha);
-}
-
 // ── Shell & navigation ───────────────────────────────────────────────────────
 
 .landing-shell {
   min-height: 100vh;
+  // The hero/showcase glow pseudo-elements bleed past their containers via a
+  // negative inset (see .landing-hero-visual::before, .landing-feature-media::before)
+  // — clip it here so the atmospheric bleed never forces page-level horizontal scroll.
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
   padding: 1.15rem 1.25rem 2.5rem;
-
-  // Full-page dot grid in dark mode — mirrors RF's canvas-as-page treatment
-  [data-bs-theme="dark"] & {
-    background-image: radial-gradient(circle, rgba(245, 237, 237, 0.2) 1.2px, transparent 1.2px);
-    background-size: 22px 22px;
-  }
-  [data-bs-theme="light"] & {
-    background-image: radial-gradient(circle, rgba(92, 135, 255, 0.5) 1.2px, transparent 1.2px);
-    background-size: 22px 22px;
-  }
 }
 
 .landing-topbar {
@@ -92,9 +43,8 @@ $color-coach:      #c05d12;
   align-items: stretch;
 }
 
-// Shared card surface for all four panel types
+// Shared card surface for all three panel types
 .landing-copy,
-.landing-flow-wrap,
 .landing-step-card,
 .landing-cta {
   background: color-mix(in srgb, var(--jv-surface) 90%, white 10%);
@@ -116,32 +66,6 @@ $color-coach:      #c05d12;
     background: transparent;
     border-color: transparent;
     box-shadow: none;
-  }
-}
-
-.landing-kicker {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.38rem;
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--jv-brand-soft) 80%, transparent);
-  color: var(--jv-brand-1);
-  border: 1px solid color-mix(in srgb, var(--jv-brand-1) 26%, transparent);
-  font-size: 0.7rem;
-  font-weight: 700;
-  padding: 0.28rem 0.62rem;
-  margin-bottom: 1rem;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-
-  &::before {
-    content: "";
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--jv-brand-1);
-    flex-shrink: 0;
-    animation: kickerPulse 2.2s ease-in-out infinite;
   }
 }
 
@@ -253,191 +177,175 @@ $color-coach:      #c05d12;
   svg { color: var(--jv-success); }
 }
 
-// ── Hero flow canvas panel ────────────────────────────────────────────────────
+// ── Hero visual — tilted card stack ───────────────────────────────────────────
 
-.landing-flow-wrap {
-  padding: clamp(0.85rem, 2vw, 1.15rem);
+.landing-hero-visual {
   position: relative;
-  overflow: hidden;
-  background: transparent;
-  border-color: transparent;
-  box-shadow: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 380px;
 
-  // Strip the card and add atmospheric glow — the flow area merges into the page canvas in dark mode
-  [data-bs-theme="dark"] & {
-    background: transparent;
-    border-color: transparent;
-    box-shadow: none;
-
-    // Radial glow behind the canvas — mirrors RF's purple/blue atmospheric effect
-    &::before {
-      content: "";
-      position: absolute;
-      inset: 0;
-      background:
-        radial-gradient(ellipse 80% 55% at 65% 38%, rgba(109, 94, 252, 0.22), transparent 68%),
-        radial-gradient(ellipse 55% 40% at 88% 12%, rgba(79, 139, 255, 0.16), transparent 68%);
-      pointer-events: none;
-      z-index: 0;
-    }
-
-    .landing-flow-canvas { z-index: 1; }
+  &::before {
+    content: "";
+    position: absolute;
+    inset: -12%;
+    background: radial-gradient(ellipse 70% 65% at 55% 55%, color-mix(in srgb, var(--jv-brand-1) 16%, transparent), transparent 70%);
+    z-index: 0;
+    pointer-events: none;
   }
 }
 
-
-.landing-flow-canvas {
+.landing-stack {
   position: relative;
-  height: 420px;
-  border-radius: 14px;
-  background: color-mix(in srgb, var(--jv-bg) 60%, var(--jv-surface-2) 40%);
+  z-index: 1;
+  width: 380px;
+  height: 300px;
+  max-width: 100%;
+
+  // transform: scale() shrinks the visual only — it doesn't shrink the box the
+  // parent reserves space for, so .landing-hero-visual's min-height is brought
+  // down to match further down, otherwise this leaves a scaled-down stack
+  // floating in a box sized for the full-size one.
+  @media (max-width: 480px) {
+    transform: scale(0.82);
+  }
+}
+
+.landing-stack-card {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  background: var(--jv-surface);
   border: 1px solid var(--jv-border);
-  padding: 0;
-  overflow: hidden;
-
-  // Remove the inner box — nodes float on the page canvas in dark mode
-  [data-bs-theme="dark"] & {
-    background: transparent;
-    border-color: transparent;
-  }
+  border-radius: 16px;
+  box-shadow: var(--jv-shadow-lg);
+  padding: 0.95rem 1.05rem;
+  opacity: 0;
+  animation-name: stack-fade-in;
+  animation-duration: 0.6s;
+  animation-timing-function: var(--jv-ease);
+  animation-fill-mode: forwards;
 }
 
-.landing-reactflow {
+.landing-stack-card--today {
+  width: 210px;
+  animation-name: stack-fade-in, stack-sway-today;
+  animation-duration: 0.6s, 5s;
+  animation-delay: 0s, 0.6s;
+  animation-timing-function: var(--jv-ease), ease-in-out;
+  animation-iteration-count: 1, infinite;
+  animation-fill-mode: forwards, both;
+}
+
+.landing-stack-card--progress {
+  width: 148px;
+  text-align: center;
+  animation-name: stack-fade-in, stack-sway-progress;
+  animation-duration: 0.6s, 5s;
+  animation-delay: 0.15s, 0.75s;
+  animation-timing-function: var(--jv-ease), ease-in-out;
+  animation-iteration-count: 1, infinite;
+  animation-fill-mode: forwards, both;
+}
+
+.landing-stack-card--streak {
+  width: 128px;
+  text-align: center;
+  animation-name: stack-fade-in, stack-sway-streak;
+  animation-duration: 0.6s, 5s;
+  animation-delay: 0.3s, 0.9s;
+  animation-timing-function: var(--jv-ease), ease-in-out;
+  animation-iteration-count: 1, infinite;
+  animation-fill-mode: forwards, both;
+}
+
+.landing-stack-title {
+  margin: 0 0 0.55rem;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--jv-text);
+}
+
+.landing-stack-row {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.8rem;
+  color: var(--jv-text);
+  margin-bottom: 0.3rem;
+  white-space: nowrap;
+
+  &:last-child { margin-bottom: 0; }
+}
+
+.landing-stack-check {
+  color: var(--jv-success);
+  font-weight: 700;
+  flex-shrink: 0;
+
+  &--pending { color: var(--jv-border-strong); }
+}
+
+.landing-stack-ring {
+  position: relative;
+  width: 62px;
+  height: 62px;
+  margin: 0 auto;
+}
+
+.landing-stack-ring-svg {
   width: 100%;
   height: 100%;
-  border-radius: inherit;
+  transform: rotate(-90deg);
 }
 
-.landing-reactflow .react-flow__pane {
-  cursor: default;
+.landing-stack-ring-track {
+  stroke: color-mix(in srgb, var(--jv-border) 88%, transparent);
 }
 
-.landing-reactflow .react-flow__node {
-  background: transparent;
-  border: 0;
-  padding: 0;
-  box-shadow: none;
-  width: auto;
-}
-
-.landing-reactflow .react-flow__edge-path {
-  stroke: color-mix(in srgb, var(--jv-brand-1) 70%, var(--jv-brand-2) 30%);
-  stroke-width: 2;
-  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--jv-brand-1) 38%, transparent));
-}
-
-.landing-reactflow .react-flow__controls {
-  border: 1px solid var(--jv-border);
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: var(--jv-shadow);
-}
-
-.landing-reactflow .react-flow__controls-button {
-  width: 28px;
-  height: 28px;
-  border-color: var(--jv-border);
-  background: var(--jv-surface);
-  color: var(--jv-muted);
-}
-
-.landing-reactflow .react-flow__controls-button:hover {
-  background: var(--jv-surface-2);
-  color: var(--jv-text);
-}
-
-// ── Flow nodes ────────────────────────────────────────────────────────────────
-
-.landing-flow-node {
-  position: relative;
-  width: $node-max-width;
-  min-width: $node-max-width;
-  border-radius: 10px;
-  border: 1px solid var(--jv-border);
-  background: var(--jv-surface);
-  box-shadow: 0 2px 8px rgba(20, 22, 40, 0.07);
-  padding: 0.7rem 0.82rem;
-  display: flex;
-  align-items: flex-start;
-  gap: 0.55rem;
-  line-height: 1.2;
-
-  [data-bs-theme="dark"] & {
-    border-color: rgba(255, 255, 255, 0.1);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.55);
-  }
-}
-
-.landing-node-handle {
-  width: $handle-size;
-  height: $handle-size;
-  border-radius: 50%;
-  border: 2px solid var(--jv-brand-1);
-  background: var(--jv-surface);
-}
-
-.landing-flow-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
+.landing-stack-ring-pct {
+  position: absolute;
+  inset: 0;
   display: grid;
   place-items: center;
-  flex-shrink: 0;
+  font-weight: 800;
+  font-size: 0.86rem;
+  color: var(--jv-brand-1);
 }
 
-.landing-flow-title {
-  margin: 0;
-  color: var(--jv-text);
-  font-size: 1.04rem;
-  font-weight: 700;
-}
-
-.landing-flow-text {
-  margin: 0.22rem 0 0;
+.landing-stack-sub {
+  margin: 0.45rem 0 0;
+  font-size: 0.78rem;
   color: var(--jv-muted);
-  font-size: 0.88rem;
-  line-height: 1.35;
 }
 
-// Goal — "selected" state (2px ring), single output on right
-.landing-node-goal {
-  border-color: var(--jv-brand-1);
-  box-shadow: 0 0 0 2px var(--jv-brand-1), 0 6px 20px color-mix(in srgb, var(--jv-brand-1) 22%, transparent);
-
-  // Restore the selection ring overridden by the general dark mode node rule
-  [data-bs-theme="dark"] & {
-    border-color: var(--jv-brand-1);
-    box-shadow: 0 0 0 2px var(--jv-brand-1), 0 8px 28px rgba(0, 0, 0, 0.6);
-  }
-
-  .landing-flow-icon { @include node-icon($color-goal); }
-
-  .landing-node-handle {
-    border-color: var(--jv-brand-1);
-  }
+.landing-stack-flame {
+  margin: 0;
+  font-size: 1.5rem;
 }
 
-// Milestone — input left, output bottom
-.landing-node-milestone {
-  .landing-flow-icon { @include node-icon($color-milestone, 0.16); }
-
-  .landing-node-handle {
-    border-color: var(--jv-brand-2);
-  }
+@keyframes stack-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
-// Habit — input top, output right
-.landing-node-habit {
-  .landing-flow-icon { @include node-icon($color-habit, 0.16); }
-
-  .landing-node-handle {
-    border-color: var(--jv-brand-2);
-  }
+// X offsets shifted +38px from their original values — the three cards' combined
+// bounding box (accounting for each card's own width) was centered 38px left of
+// the stack's actual center, which read as the whole composition leaning left.
+@keyframes stack-sway-today {
+  0%, 100% { transform: translate(-50%, -50%) rotate(-7deg) translate(-77px, -55px); }
+  50%      { transform: translate(-50%, -50%) rotate(-7deg) translate(-77px, -61px); }
 }
 
-// Coach — input left only
-.landing-node-coach {
-  .landing-flow-icon { @include node-icon($color-coach, 0.22); }
+@keyframes stack-sway-progress {
+  0%, 100% { transform: translate(-50%, -50%) rotate(5deg) translate(108px, -20px); }
+  50%      { transform: translate(-50%, -50%) rotate(5deg) translate(108px, -26px); }
+}
+
+@keyframes stack-sway-streak {
+  0%, 100% { transform: translate(-50%, -50%) rotate(-4deg) translate(28px, 115px); }
+  50%      { transform: translate(-50%, -50%) rotate(-4deg) translate(28px, 109px); }
 }
 
 // ── Step cards ────────────────────────────────────────────────────────────────
@@ -533,6 +441,207 @@ $color-coach:      #c05d12;
   color: var(--jv-brand-1);
 }
 
+// ── Problem strip ─────────────────────────────────────────────────────────────
+
+.landing-problem {
+  text-align: center;
+  padding: 0.5rem 0 0.25rem;
+}
+
+.landing-problem-title {
+  font-family: var(--jv-font-display);
+  font-size: clamp(1.4rem, 2.4vw, 1.9rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0 0 1.25rem;
+}
+
+.landing-problem-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.landing-problem-item {
+  text-align: left;
+  padding: 1.25rem 1.3rem 1.1rem;
+  background: var(--jv-surface);
+  border: 1px solid var(--jv-border);
+  border-radius: 18px;
+  box-shadow: var(--jv-shadow);
+
+  p {
+    margin: 0;
+    color: var(--jv-text);
+    font-size: 0.96rem;
+    line-height: 1.55;
+  }
+}
+
+.landing-problem-mark {
+  display: block;
+  font-family: var(--jv-font-display);
+  font-size: 2.6rem;
+  line-height: 1;
+  color: var(--jv-brand-1);
+  opacity: 0.35;
+  margin-bottom: 0.2rem;
+}
+
+.landing-problem-resolve {
+  margin: 1.4rem 0 0;
+  color: var(--jv-muted);
+  font-size: 1rem;
+}
+
+// ── Feature showcase ──────────────────────────────────────────────────────────
+
+.landing-showcase {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(2.75rem, 6vw, 4.5rem);
+  padding: 0.5rem 0 1rem;
+}
+
+.landing-showcase-head {
+  text-align: center;
+
+  h2 {
+    font-family: var(--jv-font-display);
+    font-size: clamp(1.6rem, 3vw, 2.3rem);
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    margin: 0 0 0.5rem;
+  }
+
+  p {
+    margin: 0;
+    color: var(--jv-muted);
+    font-size: 1rem;
+  }
+}
+
+.landing-feature-row {
+  display: flex;
+  align-items: center;
+  gap: clamp(1.75rem, 5vw, 3.5rem);
+
+  &.is-reversed {
+    flex-direction: row-reverse;
+  }
+}
+
+.landing-feature-media,
+.landing-feature-copy {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.landing-feature-media {
+  position: relative;
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: -10%;
+    background: radial-gradient(ellipse 60% 60% at 50% 45%, color-mix(in srgb, var(--jv-brand-1) 16%, transparent), transparent 70%);
+    z-index: 0;
+    pointer-events: none;
+  }
+}
+
+.landing-feature-frame {
+  position: relative;
+  z-index: 1;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid var(--jv-border);
+  background: var(--jv-surface);
+  box-shadow: var(--jv-shadow-lg);
+}
+
+.landing-feature-frame-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px;
+  background: var(--jv-surface-2);
+  border-bottom: 1px solid var(--jv-border);
+
+  span {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--jv-border-strong);
+  }
+
+  span:nth-child(1) { background: #ff5f57; }
+  span:nth-child(2) { background: #febc2e; }
+  span:nth-child(3) { background: #28c840; }
+}
+
+.landing-feature-frame img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.landing-feature-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.landing-feature-eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--jv-brand-1);
+}
+
+.landing-feature-copy {
+  h3 {
+    font-family: var(--jv-font-display);
+    font-size: clamp(1.3rem, 2.2vw, 1.7rem);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin: 0;
+  }
+
+  > p {
+    margin: 0;
+    color: var(--jv-muted);
+    font-size: 0.98rem;
+    line-height: 1.65;
+    max-width: 46ch;
+  }
+}
+
+.landing-feature-bullets {
+  list-style: none;
+  margin: 0.35rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+
+  li {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    color: var(--jv-text);
+    font-size: 0.9rem;
+    line-height: 1.4;
+  }
+
+  svg {
+    color: var(--jv-success);
+    flex-shrink: 0;
+    margin-top: 0.15rem;
+  }
+}
+
 // ── CTA section ───────────────────────────────────────────────────────────────
 
 .landing-cta {
@@ -611,55 +720,21 @@ $color-coach:      #c05d12;
   }
 }
 
-.landing-metrics {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.9rem;
-  margin-top: 0.15rem;
-}
+// ── Footer ────────────────────────────────────────────────────────────────────
 
-.landing-metric-item {
-  padding: 1.1rem 1rem 1rem;
-  text-align: left;
-  border: 1px solid color-mix(in srgb, var(--jv-border) 78%, transparent);
-  border-radius: 18px;
-  background: color-mix(in srgb, var(--jv-surface) 94%, transparent);
+.landing-footer {
+  width: min(1180px, 100%);
+  margin: 2rem auto 0;
   display: flex;
-  flex-direction: column;
-  gap: 0;
-  transition: border-color var(--jv-transition), box-shadow var(--jv-transition);
-
-  &:hover {
-    border-color: color-mix(in srgb, var(--jv-brand-1) 28%, var(--jv-border) 72%);
-    box-shadow: 0 6px 18px rgba(109, 94, 252, 0.08);
-  }
-
-  h3 {
-    margin: 0.6rem 0 0;
-    font-size: clamp(1.08rem, 1.8vw, 1.32rem);
-    font-weight: 800;
-    color: var(--jv-brand-1);
-    letter-spacing: -0.02em;
-  }
-
-  p {
-    margin: 0.3rem 0 0;
-    color: var(--jv-muted);
-    font-size: 0.91rem;
-    line-height: 1.52;
-    max-width: 32ch;
-  }
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
 }
 
-.landing-metric-icon {
-  width: 38px;
-  height: 38px;
-  border-radius: 11px;
-  display: grid;
-  place-items: center;
-  background: color-mix(in srgb, var(--jv-brand-soft) 82%, transparent);
-  color: var(--jv-brand-1);
-  flex-shrink: 0;
+.landing-footer-copyright {
+  margin: 0;
+  color: var(--jv-muted);
+  font-size: 0.85rem;
 }
 
 // ── Reveal animations ─────────────────────────────────────────────────────────
@@ -689,18 +764,27 @@ $color-coach:      #c05d12;
   }
 }
 
-@keyframes kickerPulse {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.42; }
-}
-
 // ── Responsive ────────────────────────────────────────────────────────────────
 
 @media (max-width: 1023.98px) {
   .landing-hero        { grid-template-columns: 1fr; }
-  .landing-flow-canvas { height: 420px; }
   .landing-steps       { grid-template-columns: 1fr; }
-  .landing-metrics     { grid-template-columns: 1fr; }
+  .landing-problem-grid { grid-template-columns: 1fr; }
+
+  // Once stacked below the copy, the visual no longer needs to match the text
+  // column's height — the 380px desktop min-height was leaving a lot of dead
+  // space around the (much shorter) card stack. A fixed height (not min-height)
+  // is used because .landing-stack's own 300px height would otherwise still
+  // force the flex parent that tall — its cards are absolutely positioned and
+  // don't need the box to actually contain them.
+  .landing-hero-visual { height: 300px; min-height: 0; }
+
+  .landing-feature-row,
+  .landing-feature-row.is-reversed {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1.5rem;
+  }
 }
 
 @media (max-width: 767.98px) {
@@ -708,42 +792,14 @@ $color-coach:      #c05d12;
     padding: 0.9rem 0.8rem 1.8rem;
   }
 
-  .landing-topbar {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .landing-topbar-actions {
-    width: 100%;
-    justify-content: space-between;
-  }
-
   .landing-main {
     margin-top: 0.9rem;
   }
 
   .landing-copy,
-  .landing-flow-wrap,
   .landing-step-card,
   .landing-cta {
     border-radius: 20px;
-  }
-
-  .landing-flow-canvas {
-    min-height: 480px;
-  }
-
-  .landing-flow-node {
-    width: min(86vw, $node-max-width);
-    min-width: 170px;
-
-    .landing-flow-title {
-      font-size: 0.98rem;
-    }
-
-    .landing-flow-text {
-      font-size: 0.84rem;
-    }
   }
 
   .landing-hero-btn {
@@ -767,7 +823,22 @@ $color-coach:      #c05d12;
     padding: 0.56rem 0.9rem;
   }
 
-  .landing-metric-item {
-    padding: 0.9rem 0.85rem 0.85rem;
+  .landing-problem-item {
+    padding: 1rem 1.05rem 0.9rem;
   }
+
+  .landing-showcase {
+    gap: 2.25rem;
+  }
+
+  .landing-feature-frame-bar span {
+    width: 8px;
+    height: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  // Matches the 0.82 scale applied to .landing-stack at this breakpoint —
+  // without this the container still reserves room for the unscaled stack.
+  .landing-hero-visual { height: 250px; min-height: 0; }
 }

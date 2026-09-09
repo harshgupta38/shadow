@@ -18,16 +18,6 @@
   flex-direction: column;
   animation: dp-page-in 260ms var(--jv-ease) both;
 
-  .dp-loading {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.6rem;
-    padding: 3rem 0;
-    color: var(--jv-muted);
-    font-size: 0.9rem;
-  }
-
   // ── Welcome header ────────────────────────────────────────────────────────────
 
   .dp-welcome {
@@ -162,6 +152,121 @@
     font-weight: 700;
     color: var(--jv-text);
     margin: 0;
+  }
+
+  // ── Loading ghost shell (mirrors TrackProgressPage's tp-empty pattern) ───────
+
+  .dp-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .dp-empty-ghost-shell {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0.875rem;
+    pointer-events: none;
+    user-select: none;
+    mask-image: linear-gradient(to bottom, black 0%, black 40%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, black 0%, black 40%, transparent 100%);
+
+    // On narrow screens the ring panel drops below the list (see dp-today-grid's
+    // own breakpoint) and stacks 4 stat cards into 2 rows, which together push the
+    // loading text off-screen. Trim the ghost preview so it stays as compact as
+    // TrackProgressPage's mobile loading view.
+    @media (max-width: 860px) {
+      .dp-stats .dp-stat:nth-child(n + 3) {
+        display: none;
+      }
+
+      .dp-today-list .dp-today-item:nth-child(n + 2) {
+        display: none;
+      }
+
+      .dp-today-ring-panel {
+        display: none;
+      }
+    }
+  }
+
+  .dp-ghost-line {
+    display: block;
+    height: 9px;
+    border-radius: 4px;
+    background: var(--jv-surface-3);
+  }
+
+  .dp-ghost-val {
+    display: block;
+    width: 46px;
+    height: 22px;
+    flex-shrink: 0;
+    border-radius: 6px;
+    background: var(--jv-surface-3);
+  }
+
+  .dp-ghost-dot {
+    background: var(--jv-surface-3);
+  }
+
+  .dp-ghost-ring {
+    display: block;
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    border: 10px solid var(--jv-surface-3);
+  }
+
+  .dp-empty-core {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    max-width: 300px;
+    margin-top: -0.5rem;
+  }
+
+  .dp-empty-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 14px;
+    background: var(--jv-brand-soft);
+    border: 1px solid color-mix(in srgb, var(--jv-brand-1) 28%, transparent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--jv-brand-1);
+    margin-bottom: 1.1rem;
+  }
+
+  .dp-empty-title {
+    margin: 0 0 0.45rem;
+    font-size: 1.05rem;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    color: var(--jv-text);
+  }
+
+  .dp-empty-sub {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--jv-muted);
+    line-height: 1.58;
+  }
+
+  @keyframes dp-spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .dp-loading-spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--jv-border);
+    border-top-color: var(--jv-brand-1);
+    border-radius: 50%;
+    animation: dp-spin 700ms linear infinite;
   }
 
 }

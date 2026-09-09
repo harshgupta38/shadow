@@ -14,6 +14,60 @@ import { ThisWeekPanel } from "./ThisWeekPanel/ThisWeekPanel";
 import { greeting } from "./DashboardPage.constants";
 import "./DashboardPage.scss";
 
+// ── Ghost Shell (loading placeholder, shaped like Today's Snapshot) ──────────
+
+const GHOST_STATS = 4;
+const GHOST_ITEM_WIDTHS = [72, 58, 65];
+
+function DashboardGhostShell() {
+  return (
+    <div className="dp-empty" role="status" aria-live="polite">
+      <div className="dp-empty-ghost-shell">
+        <div className="dp-section-head">
+          <span className="dp-ghost-line" style={{ width: 150, height: 14 }} />
+          <span className="dp-ghost-line ms-auto" style={{ width: 90, height: 11 }} />
+        </div>
+
+        <div className="dp-stats">
+          {Array.from({ length: GHOST_STATS }).map((_, i) => (
+            <div key={i} className="dp-stat">
+              <span className="dp-ghost-val" />
+              <div className="dp-stat-text">
+                <span className="dp-ghost-line" style={{ width: "70%" }} />
+                <span className="dp-ghost-line" style={{ width: "50%" }} />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="dp-today-grid">
+          <div className="dp-today-list">
+            {GHOST_ITEM_WIDTHS.map((w, i) => (
+              <div key={i} className="dp-today-item">
+                <span className="dp-today-item-dot dp-ghost-dot" />
+                <div className="dp-today-item-body">
+                  <span className="dp-ghost-line" style={{ width: `${w}%` }} />
+                  <span className="dp-ghost-line" style={{ width: "40%" }} />
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="dp-today-ring-panel">
+            <span className="dp-ghost-ring" />
+            <span className="dp-ghost-line" style={{ width: "60%" }} />
+          </div>
+        </div>
+      </div>
+
+      <div className="dp-empty-core">
+        <div className="dp-empty-icon"><span className="dp-loading-spinner" /></div>
+        <h3 className="dp-empty-title">Loading your dashboard…</h3>
+        <p className="dp-empty-sub">Fetching today's data, just a moment.</p>
+      </div>
+    </div>
+  );
+}
+
 export function DashboardPage() {
   const { user } = useAuth();
   const firstName = user?.name?.split(" ")[0] ?? "there";
@@ -50,12 +104,7 @@ export function DashboardPage() {
         </div>
       </div>
 
-      {loading && (
-        <div className="dp-loading" role="status" aria-live="polite">
-          <span className="spinner-border spinner-border-sm" aria-hidden="true" />
-          <span>Loading your dashboard…</span>
-        </div>
-      )}
+      {loading && <DashboardGhostShell />}
 
       {!loading && error && <IllustratedErrorState onRetry={load} />}
 

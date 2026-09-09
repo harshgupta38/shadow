@@ -27,6 +27,47 @@ function processPendingQueue(error: unknown, token: string | null): void {
     pendingQueue = [];
 }
 
+/**
+ * Refreshes the access token, coordinating with any refresh already in flight
+ * (from a concurrent 401 elsewhere) so only one refresh request is ever made at
+ * a time. Used by the axios 401 interceptor below, and by the notifications SSE
+ * stream (which bypasses axios via a raw `fetch`, so it needs its own way to
+ * recover from an expired token instead of just failing the connection).
+ *
+ * On failure, clears stored tokens and dispatches "unauthorized" (same as the
+ * interceptor) so the app logs the user out consistently either way.
+ */
+export async function refreshAccessToken(): Promise<string> {
+    if (isRefreshing) {
+        return new Promise<string>((resolve, reject) => {
+            pendingQueue.push({ resolve, reject });
+        });
+    }
+
+    const refreshToken = tokenStore.getRefreshToken();
+    if (!refreshToken) {
+        window.dispatchEvent(new Event("unauthorized"));
+        throw new Error("No refresh token available");
+    }
+
+    isRefreshing = true;
+    try {
+        const { data } = await httpClient.post<TokenResponse>(REFRESH_URL, { refresh_token: refreshToken });
+        tokenStore.set(data.access_token);
+        tokenStore.setRefreshToken(data.refresh_token);
+        processPendingQueue(null, data.access_token);
+        return data.access_token;
+    } catch (err) {
+        processPendingQueue(err, null);
+        tokenStore.clear();
+        tokenStore.clearRefreshToken();
+        window.dispatchEvent(new Event("unauthorized"));
+        throw err;
+    } finally {
+        isRefreshing = false;
+    }
+}
+
 function createClient(): AxiosInstance {
     const baseURL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api";
     const timeoutMs = Number(import.meta.env.VITE_API_TIMEOUT_SECONDS ?? 30) * 1000;
@@ -62,47 +103,14 @@ function createClient(): AxiosInstance {
                 return Promise.reject(normaliseError(error));
             }
 
-            const refreshToken = tokenStore.getRefreshToken();
-            if (!refreshToken) {
-                window.dispatchEvent(new Event("unauthorized"));
-                return Promise.reject(normaliseError(error));
-            }
+            original._retry = true;
 
-            // Another refresh is in flight — queue this request to retry once it resolves
-            if (isRefreshing) {
-                original._retry = true;
-                return new Promise<string>((resolve, reject) => {
-                    pendingQueue.push({ resolve, reject });
-                }).then((token) => {
+            return refreshAccessToken()
+                .then((token) => {
                     if (original.headers) original.headers["Authorization"] = `Bearer ${token}`;
                     return instance(original);
-                }).catch(() => Promise.reject(normaliseError(error)));
-            }
-
-            original._retry = true;
-            isRefreshing = true;
-
-            return new Promise((resolve, reject) => {
-                instance
-                    .post<TokenResponse>(REFRESH_URL, { refresh_token: refreshToken })
-                    .then(({ data }) => {
-                        tokenStore.set(data.access_token);
-                        tokenStore.setRefreshToken(data.refresh_token);
-                        processPendingQueue(null, data.access_token);
-                        if (original.headers) original.headers["Authorization"] = `Bearer ${data.access_token}`;
-                        resolve(instance(original));
-                    })
-                    .catch((err) => {
-                        processPendingQueue(err, null);
-                        tokenStore.clear();
-                        tokenStore.clearRefreshToken();
-                        window.dispatchEvent(new Event("unauthorized"));
-                        reject(normaliseError(error));
-                    })
-                    .finally(() => {
-                        isRefreshing = false;
-                    });
-            });
+                })
+                .catch(() => Promise.reject(normaliseError(error)));
         },
     );
 

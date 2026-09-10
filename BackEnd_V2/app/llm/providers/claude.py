@@ -24,6 +24,7 @@ from app.llm.knowledge_base import (
     CREATE_CONVERSATION_SYSTEM_INSTRUCTION_CLAUDE,
     USER_MEMORY_EXTRACTION_SYSTEM_INSTRUCTION,
     RESPONSE_LENGTH_INSTRUCTION,
+    AI_PERSONALITY_INSTRUCTION,
     build_goal_refinement_user_prompt,
     build_milestone_proposal_user_prompt,
     build_task_proposal_user_prompt,
@@ -421,6 +422,8 @@ class ClaudeProvider(BaseLLMProvider):
             system += f"\n\n{request.user_memory}"
         if instruction := RESPONSE_LENGTH_INSTRUCTION.get(request.response_length, ""):
             system += f"\n\n{instruction}"
+        if instruction := AI_PERSONALITY_INSTRUCTION.get(request.personality, ""):
+            system += f"\n\n{instruction}"
         messages = [{"role": Role.USER, "content": request_data.content}]
 
         started_at = perf_counter()
@@ -665,6 +668,8 @@ class ClaudeProvider(BaseLLMProvider):
         if request.user_memory:
             system += f"\n\n{request.user_memory}"
         if instruction := RESPONSE_LENGTH_INSTRUCTION.get(request.response_length, ""):
+            system += f"\n\n{instruction}"
+        if instruction := AI_PERSONALITY_INSTRUCTION.get(request.personality, ""):
             system += f"\n\n{instruction}"
         messages = [
             *request.recent_messages,

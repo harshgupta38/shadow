@@ -298,6 +298,35 @@ RESPONSE_LENGTH_INSTRUCTION: dict[str, str] = {
     ),
 }
 
+AI_PERSONALITY_INSTRUCTION: dict[str, str] = {
+    "professional": (
+        "Communication style (user preference): Use a formal, precise tone. Structure responses"
+        " clearly. Avoid casual language, contractions, and filler phrases. Every sentence should"
+        " carry substance."
+    ),
+    "friendly": (
+        "Communication style (user preference): Use a warm, conversational tone. Natural language"
+        " and light encouragement are welcome. Make the interaction feel approachable — like"
+        " talking with a knowledgeable friend, not reading a manual."
+    ),
+    "coach": "",  # default — base personas already carry a coaching tone
+    "teacher": (
+        "Communication style (user preference): Explain things step by step. Assume the user may"
+        " be learning this topic and break down concepts clearly. Use examples and analogies where"
+        " they genuinely help understanding."
+    ),
+    "mentor": (
+        "Communication style (user preference): Take a reflective, empathetic approach. Acknowledge"
+        " the user's situation before offering guidance. Ask thoughtful questions that help the user"
+        " think through problems themselves rather than just delivering answers."
+    ),
+    "minimal": (
+        "Communication style (user preference): Be as concise as possible. Answer directly with no"
+        " preamble, no affirmations, no summaries. One idea per sentence. Skip examples and"
+        " elaboration unless explicitly requested."
+    ),
+}
+
 _NEW_CONVO_OUTPUT = (
     "\n\nReturn a single JSON object matching the required schema: title, stable_context,"
     " context_summary, and content (your reply to the user). Tool calls are internal and must"

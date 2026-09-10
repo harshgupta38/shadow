@@ -92,6 +92,7 @@ class NewConvoToLLM(MetadataToLLM):
     request_data: NewConvoRequest
     user_memory: str = ""
     response_length: str = "balanced"
+    personality: str = "coach"
 
 
 class NewConvoFromLLM(MetadataFromLLM):
@@ -125,6 +126,7 @@ class MessageToLLM(MetadataToLLM):
     # Empty string means no memory is available.
     user_memory: str = ""
     response_length: str = "balanced"
+    personality: str = "coach"
 
 
 class MessageFromLLM(MetadataFromLLM):

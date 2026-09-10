@@ -116,6 +116,7 @@ class LLMService:
         tool_executor: Callable[[str, dict], dict] | None = None,
         user_memory: str = "",
         response_length: str = "balanced",
+        personality: str = "coach",
     ) -> NewConvoFromLLM:
         request = NewConvoToLLM(
             request_data=data,
@@ -125,6 +126,7 @@ class LLMService:
             tool_executor=tool_executor,
             user_memory=user_memory,
             response_length=response_length,
+            personality=personality,
         )
         response = await self._provider.create_conversation(request)
 
@@ -146,6 +148,7 @@ class LLMService:
         tool_executor: Callable[[str, dict], dict] | None = None,
         user_memory: str = "",
         response_length: str = "balanced",
+        personality: str = "coach",
     ) -> MessageFromLLM:
         request = MessageToLLM(
             request_data=data.content,
@@ -159,6 +162,7 @@ class LLMService:
             tool_executor=tool_executor,
             user_memory=user_memory,
             response_length=response_length,
+            personality=personality,
         )
         response = await self._provider.respond_to_message(request)
 

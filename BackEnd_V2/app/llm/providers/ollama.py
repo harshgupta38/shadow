@@ -17,6 +17,8 @@ from app.llm.knowledge_base import (
     TASK_PROPOSAL_SYSTEM_INSTRUCTION,
     RESPOND_TO_MESSAGE_SYSTEM_INSTRUCTION,
     USER_MEMORY_EXTRACTION_SYSTEM_INSTRUCTION,
+    RESPONSE_LENGTH_INSTRUCTION,
+    AI_PERSONALITY_INSTRUCTION,
     build_goal_refinement_user_prompt,
     build_milestone_proposal_user_prompt,
     build_task_proposal_user_prompt,
@@ -364,6 +366,10 @@ class OllamaProvider(BaseLLMProvider):
         system_content = CREATE_CONVERSATION_SYSTEM_INSTRUCTION[request_data.agent_type]
         if request.user_memory:
             system_content += f"\n\n{request.user_memory}"
+        if instruction := RESPONSE_LENGTH_INSTRUCTION.get(request.response_length, ""):
+            system_content += f"\n\n{instruction}"
+        if instruction := AI_PERSONALITY_INSTRUCTION.get(request.personality, ""):
+            system_content += f"\n\n{instruction}"
         messages = [
             {
                 "role": Role.SYSTEM,
@@ -588,6 +594,10 @@ class OllamaProvider(BaseLLMProvider):
         )
         if request.user_memory:
             conversation_context += f"\n\n{request.user_memory}"
+        if instruction := RESPONSE_LENGTH_INSTRUCTION.get(request.response_length, ""):
+            conversation_context += f"\n\n{instruction}"
+        if instruction := AI_PERSONALITY_INSTRUCTION.get(request.personality, ""):
+            conversation_context += f"\n\n{instruction}"
         messages = [
             {
                 "role": Role.SYSTEM,
@@ -956,10 +966,12 @@ class OllamaProvider(BaseLLMProvider):
             cost=_ollama_cost(model, usage.input_tokens if usage else 0, usage.output_tokens if usage else 0),
         )
 
-    async def health_check(self) -> bool:
-        # Ollama OpenAI compatibility includes the /models endpoint used by SDK model listing.
+    async def health_check(self, model: str | None = None) -> bool:
         try:
-            await self._client.models.list()
+            if model:
+                await self._client.models.retrieve(model)
+            else:
+                await self._client.models.list()
             return True
         except (APIConnectionError, APIStatusError, OpenAIError) as exc:
             raise LLMHealthCheckError(f"Ollama health check failed: {exc}") from exc

@@ -43,9 +43,9 @@ class NotificationsSection(BaseModel):
 
 class AIBehaviorSection(BaseModel):
     ai_response_length: AIResponseLength = "balanced"
-    ai_personality: AIPersonality = "friendly"
-    ai_provider: str = "gemini"
-    ai_default_model: str = "gemini-2.5-flash"
+    ai_personality: AIPersonality = "coach"
+    ai_provider: str = "openai"
+    ai_default_model: str = "gpt-5-mini"
 
 
 class PlannerSection(BaseModel):
@@ -103,3 +103,13 @@ class AIProviderResponse(BaseModel):
     name: str
     key: str
     models: list[AIModelResponse]
+
+
+class AIProviderHealthCheckRequest(BaseModel):
+    provider: str
+    model: str
+
+
+class AIProviderHealthCheckResponse(BaseModel):
+    healthy: bool
+    message: str

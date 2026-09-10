@@ -4,11 +4,14 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.llm.enums import ClaudeModel, GeminiModel, OllamaModel, OpenAIModel
+from app.llm.config import llm_settings
+from app.llm.exceptions import LLMError
 from app.models.chat import ConversationDBM
 from app.models.user import UserDBM
 from app.models.user_setting import UserSettingDBM
 from app.schemas.settings import (
     AIModelResponse,
+    AIProviderHealthCheckResponse,
     AIProviderResponse,
     AppearanceSection,
     AIBehaviorSection,
@@ -34,26 +37,28 @@ _DEFAULT_ACCESSIBILITY = AccessibilitySection().model_dump()
 
 _AI_PROVIDERS: list[AIProviderResponse] = [
     AIProviderResponse(
-        name="Google Gemini",
-        key="gemini",
-        models=[AIModelResponse(name=m.replace("-", " ").title(), key=m) for m in GeminiModel],
-    ),
-    AIProviderResponse(
         name="OpenAI",
         key="openai",
         models=[AIModelResponse(name=m.replace("-", " ").title(), key=m) for m in OpenAIModel],
+    ),
+    AIProviderResponse(
+        name="Google Gemini",
+        key="gemini",
+        models=[AIModelResponse(name=m.replace("-", " ").title(), key=m) for m in GeminiModel],
     ),
     AIProviderResponse(
         name="Anthropic Claude",
         key="claude",
         models=[AIModelResponse(name=m.replace("-", " ").title(), key=m) for m in ClaudeModel],
     ),
-    AIProviderResponse(
+]
+
+if llm_settings.show_local_provider:
+    _AI_PROVIDERS.append(AIProviderResponse(
         name="Ollama (Local)",
         key="ollama",
         models=[AIModelResponse(name=m.replace("-", " ").title(), key=m) for m in OllamaModel if m != OllamaModel.BASE_URL],
-    ),
-]
+    ))
 
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -94,6 +99,16 @@ def get_theme_preference(db: Session, user_id: int) -> str:
     if setting is None:
         return _DEFAULT_APPEARANCE["theme_preference"]
     return str(setting.appearance.get("theme_preference", _DEFAULT_APPEARANCE["theme_preference"]))
+
+
+def get_ai_behavior(db: Session, user_id: int) -> dict:
+    """Single read for all ai_behavior fields used by chat. Does NOT create a default row."""
+    setting = db.scalar(
+        select(UserSettingDBM).where(UserSettingDBM.user_id == user_id)
+    )
+    if setting is None:
+        return dict(_DEFAULT_AI_BEHAVIOR)
+    return {**_DEFAULT_AI_BEHAVIOR, **setting.ai_behavior}
 
 
 def get_settings(db: Session, current_user: UserDBM) -> SettingsResponse:
@@ -142,3 +157,16 @@ def clear_chat_history(db: Session, current_user: UserDBM) -> None:
         delete(ConversationDBM).where(ConversationDBM.user_id == current_user.id)
     )
     db.commit()
+
+
+async def check_provider_health(provider: str, model: str) -> AIProviderHealthCheckResponse:
+    from app.llm.service import get_llm_service_for_user
+
+    service = get_llm_service_for_user(provider)
+    try:
+        await service.health_check(model=model)
+        return AIProviderHealthCheckResponse(healthy=True, message="Connected successfully.")
+    except LLMError as exc:
+        return AIProviderHealthCheckResponse(healthy=False, message=str(exc))
+    except Exception as exc:
+        return AIProviderHealthCheckResponse(healthy=False, message=f"Unexpected error: {exc}")

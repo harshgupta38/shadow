@@ -833,6 +833,16 @@ export interface AIProvider {
   models: AIModel[];
 }
 
+export interface AIProviderHealthCheckRequest {
+  provider: string;
+  model: string;
+}
+
+export interface AIProviderHealthCheckResponse {
+  healthy: boolean;
+  message: string;
+}
+
 export interface AppearanceSettings {
   theme_preference: ThemePreferenceValue;
 }

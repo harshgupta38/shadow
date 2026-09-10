@@ -5,7 +5,6 @@ import { useTheme } from "@/context/ThemeContext";
 import { useToast } from "@/context/ToastContext";
 import { api, ApiError } from "@/api";
 import type { AccessibilitySettings, FullSettings } from "@/api/settings";
-import { MOCK_SETTINGS } from "@/pages/settings/settings.mock";
 import { AppearanceCard } from "@/pages/settings/AppearanceCard/AppearanceCard";
 import { NotificationsCard } from "@/pages/settings/NotificationsCard/NotificationsCard";
 import { PrivacyCard } from "@/pages/settings/PrivacyCard/PrivacyCard";
@@ -45,9 +44,7 @@ export function SettingsPage() {
       setSettings(data);
       setBaseline(data);
     } catch {
-      setSettings(MOCK_SETTINGS);
-      setBaseline(MOCK_SETTINGS);
-      error("Could not load settings — showing defaults.");
+      error("Could not load settings. Please refresh and try again.");
     } finally {
       setLoading(false);
     }

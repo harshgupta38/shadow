@@ -7,7 +7,6 @@ import type {
   AIProvider,
   AIResponseLength,
 } from "@/api/settings";
-import { MOCK_AI_PROVIDERS } from "@/pages/settings/settings.mock";
 import { Card, FieldRow, SegmentedControl } from "@/pages/settings/SettingsShared";
 import "@/pages/settings/AIBehaviorCard/AIBehaviorCard.scss";
 
@@ -42,7 +41,7 @@ export function AIBehaviorCard({
     api.settings
       .getProviders()
       .then(setProviders)
-      .catch(() => setProviders(MOCK_AI_PROVIDERS));
+      .catch(() => {});
   }, []);
 
   function set<K extends keyof AIBehaviorSettings>(key: K, value: AIBehaviorSettings[K]) {

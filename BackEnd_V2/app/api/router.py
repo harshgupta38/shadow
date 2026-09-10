@@ -12,6 +12,7 @@ from app.api import (
     planner,
     reports,
     schedule,
+    settings,
     tasks,
     track_progress,
 )
@@ -30,6 +31,7 @@ for _module in (
     planner,
     reports,
     schedule,
+    settings,
     tasks,
     track_progress,
 ):

@@ -64,9 +64,12 @@ export function RegisterPage() {
     }
 
     return (
-        <AuthLayout>
-            <h1 className="h3 fw-bold mb-1">Create your account</h1>
-            <p className="text-muted-2 mb-4">Start turning your goals into daily momentum.</p>
+        <AuthLayout
+            mobileTitle={<>Create your <span className="auth-aside-title-accent">account</span> ✨</>}
+            mobileSubtitle="Turn your goals into daily momentum."
+        >
+            <h1 className="h3 fw-bold mb-1 d-none d-md-block">Create your account</h1>
+            <p className="text-muted-2 mb-4 d-none d-md-block">Start turning your goals into daily momentum.</p>
 
             {error && (
                 <div className="alert alert-danger py-2 px-3 small" role="alert">

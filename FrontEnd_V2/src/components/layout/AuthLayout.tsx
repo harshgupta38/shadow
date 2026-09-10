@@ -1,5 +1,5 @@
-import { ChildProps } from "@/api";
-import { Check2Circle, Lightning } from "react-bootstrap-icons";
+import type { ReactNode } from "react";
+import { Check2Circle } from "react-bootstrap-icons";
 
 import { Brand } from "@/components/ui/Brand/Brand";
 import { CardStackVisual } from "@/components/ui/CardStackVisual/CardStackVisual";
@@ -7,7 +7,13 @@ import { ThemeToggle } from "@/components/ui/ThemeToggle/ThemeToggle";
 
 const PROOF_POINTS = ["Goal clarity", "Daily focus", "Weekly momentum"];
 
-export function AuthLayout({ children }: ChildProps) {
+interface AuthLayoutProps {
+	children: ReactNode;
+	mobileTitle?: ReactNode;
+	mobileSubtitle?: string;
+}
+
+export function AuthLayout({ children, mobileTitle, mobileSubtitle }: AuthLayoutProps) {
 	return (
 		<div className="auth-shell">
 			<aside className="auth-aside">
@@ -60,6 +66,25 @@ export function AuthLayout({ children }: ChildProps) {
 					<span className="auth-mobile-theme">
 						<ThemeToggle />
 					</span>
+				</div>
+
+				<div className="auth-mobile-marketing d-md-none">
+					{mobileTitle && (
+						<div className="auth-mobile-page-header">
+							<h1 className="auth-mobile-form-title fw-bold mb-1">{mobileTitle}</h1>
+							{mobileSubtitle && <p className="text-muted-2 mb-0">{mobileSubtitle}</p>}
+						</div>
+					)}
+					<div className="auth-mobile-visual">
+						<CardStackVisual />
+					</div>
+					<div className="auth-aside-proof">
+						{PROOF_POINTS.map((point) => (
+							<span key={point}>
+								<Check2Circle size={14} /> {point}
+							</span>
+						))}
+					</div>
 				</div>
 
 				<div className="auth-card fade-in">

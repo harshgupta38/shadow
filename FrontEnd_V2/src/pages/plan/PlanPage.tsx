@@ -14,6 +14,7 @@ import type { DailyPlanSavedData, PlanResponse } from "@/api";
 import { ROUTES } from "@/routes/RoutePaths";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { ProgressRing } from "@/components/ui/ProgressRing/ProgressRing";
+import { completionMessage } from "@/pages/dashboard/TodaySnapshot/TodaySnapshot.constants";
 import {
   toDateInputValue,
   formatDisplayDate,
@@ -243,9 +244,7 @@ export function PlanPage() {
   const progressMessage =
     totalCount === 0
       ? "Plan a few tasks to get started."
-      : completion === 100
-        ? "Everything done — nice work!"
-        : "Keep going, you've got this.";
+      : completionMessage(completion);
 
 
   return (

@@ -6,7 +6,7 @@ import { ROUTES } from "@/routes/RoutePaths";
 import { PRIORITY_COLOR } from "@/constant/priority";
 import { ProgressRing } from "@/components/ui/ProgressRing/ProgressRing";
 import type { DashboardTodayItem } from "@/api";
-import { computeCompletion, remainingLabel, timeLabel, topUndoneItems } from "./TodaySnapshot.constants";
+import { computeCompletion, completionMessage, remainingLabel, timeLabel, topUndoneItems } from "./TodaySnapshot.constants";
 import "./TodaySnapshot.scss";
 
 interface Props {
@@ -148,7 +148,7 @@ export function TodaySnapshot({ items, currentStreak, latestAlignmentScore }: Pr
         <div className="dp-today-ring-panel">
           <ProgressRing percentage={completion} />
           <h3>{doneCount} of {items.length} done</h3>
-          <p>Keep going, you've got this.</p>
+          <p>{completionMessage(completion)}</p>
         </div>
       </div>
     </div>

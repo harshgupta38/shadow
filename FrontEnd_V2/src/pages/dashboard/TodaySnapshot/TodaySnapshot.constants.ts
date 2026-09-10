@@ -31,3 +31,12 @@ export function timeLabel(item: DashboardTodayItem): string | null {
   if (item.preferred_time === "flexible") return null;
   return item.preferred_time.charAt(0).toUpperCase() + item.preferred_time.slice(1);
 }
+
+export function completionMessage(percentage: number): string {
+  if (percentage >= 100) return "All done, you crushed it today.";
+  if (percentage >= 75) return "Almost there, finish strong.";
+  if (percentage >= 50) return "Halfway done, keep the momentum.";
+  if (percentage >= 25) return "Good start, keep going.";
+  if (percentage > 0) return "You've made a start, keep going.";
+  return "Let's get today started.";
+}

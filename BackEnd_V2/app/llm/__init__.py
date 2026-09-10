@@ -33,7 +33,7 @@ from app.llm.models import (
     ExtractUserMemoryToLLM,
     ExtractUserMemoryFromLLM,
 )
-from app.llm.service import LLMService, get_llm_service
+from app.llm.service import LLMService, get_llm_service, get_llm_service_for_user
 from app.llm.cost import calculate_token_cost
 
 __all__ = [
@@ -72,6 +72,7 @@ __all__ = [
 
     "LLMService",
     "get_llm_service",
+    "get_llm_service_for_user",
 
     "ExtractUserMemoryToLLM",
     "ExtractUserMemoryFromLLM",

@@ -4,6 +4,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.llm.enums import ClaudeModel, GeminiModel, OllamaModel, OpenAIModel
+from app.llm.config import llm_settings
 from app.models.chat import ConversationDBM
 from app.models.user import UserDBM
 from app.models.user_setting import UserSettingDBM
@@ -35,26 +36,28 @@ _DEFAULT_ACCESSIBILITY = AccessibilitySection().model_dump()
 
 _AI_PROVIDERS: list[AIProviderResponse] = [
     AIProviderDBS(
-        name="Google Gemini",
-        key="gemini",
-        models=[AIModelDBS(name=m.replace("-", " ").title(), key=m) for m in GeminiModel],
-    ),
-    AIProviderDBS(
         name="OpenAI",
         key="openai",
         models=[AIModelDBS(name=m.replace("-", " ").title(), key=m) for m in OpenAIModel],
+    ),
+    AIProviderDBS(
+        name="Google Gemini",
+        key="gemini",
+        models=[AIModelDBS(name=m.replace("-", " ").title(), key=m) for m in GeminiModel],
     ),
     AIProviderDBS(
         name="Anthropic Claude",
         key="claude",
         models=[AIModelDBS(name=m.replace("-", " ").title(), key=m) for m in ClaudeModel],
     ),
-    AIProviderDBS(
+]
+
+if llm_settings.show_local_provider:
+    _AI_PROVIDERS.append(AIProviderDBS(
         name="Ollama (Local)",
         key="ollama",
         models=[AIModelDBS(name=m.replace("-", " ").title(), key=m) for m in OllamaModel if m != OllamaModel.BASE_URL],
-    ),
-]
+    ))
 
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -97,24 +100,14 @@ def get_theme_preference(db: Session, user_id: int) -> str:
     return str(setting.appearance.get("theme_preference", _DEFAULT_APPEARANCE["theme_preference"]))
 
 
-def get_response_length(db: Session, user_id: int) -> str:
-    """Lightweight read used by chat — does NOT create a default row."""
+def get_ai_behavior(db: Session, user_id: int) -> dict:
+    """Single read for all ai_behavior fields used by chat. Does NOT create a default row."""
     setting = db.scalar(
         select(UserSettingDBM).where(UserSettingDBM.user_id == user_id)
     )
     if setting is None:
-        return str(_DEFAULT_AI_BEHAVIOR["ai_response_length"])
-    return str(setting.ai_behavior.get("ai_response_length", _DEFAULT_AI_BEHAVIOR["ai_response_length"]))
-
-
-def get_personality(db: Session, user_id: int) -> str:
-    """Lightweight read used by chat — does NOT create a default row."""
-    setting = db.scalar(
-        select(UserSettingDBM).where(UserSettingDBM.user_id == user_id)
-    )
-    if setting is None:
-        return str(_DEFAULT_AI_BEHAVIOR["ai_personality"])
-    return str(setting.ai_behavior.get("ai_personality", _DEFAULT_AI_BEHAVIOR["ai_personality"]))
+        return dict(_DEFAULT_AI_BEHAVIOR)
+    return {**_DEFAULT_AI_BEHAVIOR, **setting.ai_behavior}
 
 
 def get_settings(db: Session, current_user: UserDBM) -> SettingsResponse:

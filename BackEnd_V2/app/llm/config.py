@@ -89,6 +89,13 @@ Rules:
         alias="SAVE_USER_MEMORY",
     )
 
+    # When True, Ollama appears in the AI provider list and can be selected
+    # by users. Set this in .env on localhost only — never in production.
+    show_local_provider: bool = Field(
+        default=False,
+        alias="SHOW_LOCAL_PROVIDER",
+    )
+
     model_config = SettingsConfigDict(
         env_file=".env",
         extra="ignore",

@@ -15,7 +15,7 @@ from app.llm.models import MessageResponse
 from app.llm.config import llm_settings
 from app.llm.tools import ToolContext, execute_tool
 from app.core.exceptions import NotFoundError, ValidationError
-from app.llm import get_llm_service, NewConvoResponse, LLMError, LLMRequestError
+from app.llm import get_llm_service, get_llm_service_for_user, NewConvoResponse, LLMError, LLMRequestError
 from app.services import memory_service, settings_service
 from app.models.user import UserDBM
 from app.models.chat import ConversationDBM, MessageDBM
@@ -431,11 +431,15 @@ async def create_conversation(
         user_memories = memory_service.get_user_memories(db, current_user.id)
         user_memory_str = memory_service.format_memories_for_prompt(user_memories)
 
-    response_length = settings_service.get_response_length(db, current_user.id)
-    personality = settings_service.get_personality(db, current_user.id)
+    ai_behavior = settings_service.get_ai_behavior(db, current_user.id)
+    response_length = ai_behavior["ai_response_length"]
+    personality = ai_behavior["ai_personality"]
+    ai_provider = ai_behavior["ai_provider"]
+    ai_model = ai_behavior["ai_default_model"]
 
     tool_context = ToolContext(db=db, current_user=current_user)
     tool_executor = partial(execute_tool, context=tool_context)
+    llm_service = get_llm_service_for_user(ai_provider)
 
     try:
         response = await llm_service.create_conversation(
@@ -447,6 +451,7 @@ async def create_conversation(
             user_memory=user_memory_str,
             response_length=response_length,
             personality=personality,
+            model=ai_model,
         )
     except LLMError as exc:
         raise LLMRequestError(f"Failed to create conversation: {exc}") from exc
@@ -627,6 +632,8 @@ async def _call_llm_and_save(
     user_memory: str = "",
     response_length: str = "balanced",
     personality: str = "coach",
+    ai_provider: str = "openai",
+    ai_model: str = "gpt-5-mini",
 ) -> MessageResponse:
     user_message.request_status = "pending"
     db.commit()
@@ -634,7 +641,7 @@ async def _call_llm_and_save(
     tool_context = ToolContext(db=db, current_user=current_user)
     tool_executor = partial(execute_tool, context=tool_context)
 
-    llm_service = get_llm_service()
+    llm_service = get_llm_service_for_user(ai_provider)
     try:
         response = await llm_service.respond_to_message(
             data,
@@ -650,6 +657,7 @@ async def _call_llm_and_save(
             user_memory=user_memory,
             response_length=response_length,
             personality=personality,
+            model=ai_model,
         )
     except LLMError as exc:
         user_message.request_status = "failed"
@@ -754,9 +762,15 @@ async def respond_to_message(
         user_memories = memory_service.get_user_memories(db, current_user.id)
         user_memory_str = memory_service.format_memories_for_prompt(user_memories)
 
-    response_length = settings_service.get_response_length(db, current_user.id)
-    personality = settings_service.get_personality(db, current_user.id)
+    ai_behavior = settings_service.get_ai_behavior(db, current_user.id)
+    response_length = ai_behavior["ai_response_length"]
+    personality = ai_behavior["ai_personality"]
+    ai_provider = ai_behavior["ai_provider"]
+    ai_model = ai_behavior["ai_default_model"]
 
+    # Background ops use the env-default provider intentionally — they run internal
+    # bookkeeping prompts that are tuned for the deployment model, not the user's
+    # chosen chat provider.
     llm_service = get_llm_service()
     context_task = None
     memory_task = None
@@ -810,6 +824,7 @@ async def respond_to_message(
             db, current_user, conversation, user_message, data,
             recent_message_data, user_memory=user_memory_str,
             response_length=response_length, personality=personality,
+            ai_provider=ai_provider, ai_model=ai_model,
         )
     except Exception:
         # Cancel background tasks on main-call failure to avoid orphaned warnings.
@@ -896,11 +911,14 @@ async def retry_failed_message(
         goal_id=user_message.linked_items.get("goal_id"),
         milestone_id=user_message.linked_items.get("milestone_id"),
     )
-    response_length = settings_service.get_response_length(db, current_user.id)
-    personality = settings_service.get_personality(db, current_user.id)
+    ai_behavior = settings_service.get_ai_behavior(db, current_user.id)
     return await _call_llm_and_save(
         db, current_user, conversation, user_message, data,
-        recent_message_data, response_length=response_length, personality=personality,
+        recent_message_data,
+        response_length=ai_behavior["ai_response_length"],
+        personality=ai_behavior["ai_personality"],
+        ai_provider=ai_behavior["ai_provider"],
+        ai_model=ai_behavior["ai_default_model"],
     )
 
 
@@ -969,13 +987,12 @@ async def regenerate_response(
         user_memories = memory_service.get_user_memories(db, current_user.id)
         user_memory_str = memory_service.format_memories_for_prompt(user_memories)
 
-    response_length = settings_service.get_response_length(db, current_user.id)
-    personality = settings_service.get_personality(db, current_user.id)
+    ai_behavior = settings_service.get_ai_behavior(db, current_user.id)
 
     tool_context = ToolContext(db=db, current_user=current_user)
     tool_executor = partial(execute_tool, context=tool_context)
 
-    llm_service = get_llm_service()
+    llm_service = get_llm_service_for_user(ai_behavior["ai_provider"])
     try:
         response = await llm_service.respond_to_message(
             data,
@@ -988,8 +1005,9 @@ async def regenerate_response(
             recent_messages=recent_message_data,
             tool_executor=tool_executor,
             user_memory=user_memory_str,
-            response_length=response_length,
-            personality=personality,
+            response_length=ai_behavior["ai_response_length"],
+            personality=ai_behavior["ai_personality"],
+            model=ai_behavior["ai_default_model"],
         )
     except LLMError as exc:
         raise LLMRequestError(f"Failed to regenerate response: {exc}") from exc

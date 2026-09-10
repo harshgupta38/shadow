@@ -117,6 +117,7 @@ class LLMService:
         user_memory: str = "",
         response_length: str = "balanced",
         personality: str = "coach",
+        model: str | None = None,
     ) -> NewConvoFromLLM:
         request = NewConvoToLLM(
             request_data=data,
@@ -127,6 +128,7 @@ class LLMService:
             user_memory=user_memory,
             response_length=response_length,
             personality=personality,
+            model=model,
         )
         response = await self._provider.create_conversation(request)
 
@@ -149,6 +151,7 @@ class LLMService:
         user_memory: str = "",
         response_length: str = "balanced",
         personality: str = "coach",
+        model: str | None = None,
     ) -> MessageFromLLM:
         request = MessageToLLM(
             request_data=data.content,
@@ -163,6 +166,7 @@ class LLMService:
             user_memory=user_memory,
             response_length=response_length,
             personality=personality,
+            model=model,
         )
         response = await self._provider.respond_to_message(request)
 
@@ -250,3 +254,23 @@ class LLMService:
 @lru_cache(maxsize=1)
 def get_llm_service() -> LLMService:
     return LLMService()
+
+
+_USER_PROVIDER_MAP: dict[str, type[BaseLLMProvider]] = {
+    LLMProvider.OPENAI: OpenAIProvider,
+    LLMProvider.GEMINI: GeminiProvider,
+    LLMProvider.CLAUDE: ClaudeProvider,
+}
+
+if llm_settings.show_local_provider:
+    _USER_PROVIDER_MAP[LLMProvider.OLLAMA] = OllamaProvider
+
+
+@lru_cache(maxsize=4)
+def get_llm_service_for_user(provider_key: str) -> LLMService:
+    """Returns a cached LLMService for the given provider key.
+    Falls back to the env-default service for unknown or unsupported keys."""
+    provider_cls = _USER_PROVIDER_MAP.get(provider_key)
+    if provider_cls is None:
+        return get_llm_service()
+    return LLMService(provider=provider_cls(settings=llm_settings))

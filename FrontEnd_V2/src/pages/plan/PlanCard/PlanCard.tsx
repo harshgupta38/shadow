@@ -216,7 +216,7 @@ export function PlanCard({ item, onToggle, onSaveProgress, onSaveNote, onSaveNot
       </div>
 
       {/* Row 2 — saved note */}
-      {existingNote && (
+      {!isMetric && existingNote && (
         <p className="plan-card-note">
           <span className="plan-card-note-text">{existingNote}</span>
           {!readOnly && (
@@ -400,6 +400,24 @@ export function PlanCard({ item, onToggle, onSaveProgress, onSaveNote, onSaveNot
           )}
         </div>
       )}
+
+      {/* Row 5 — saved note (only for metric) */}
+      {isMetric && existingNote && (
+        <p className="plan-card-note">
+          <span className="plan-card-note-text">{existingNote}</span>
+          {!readOnly && (
+            <button
+              type="button"
+              className="plan-card-note-edit"
+              onClick={() => setNoteOpen(true)}
+              aria-label="Edit note"
+            >
+              <PencilFill size={12} />
+            </button>
+          )}
+        </p>
+      )}
+
       <NoteDialog
         show={noteOpen}
         initialValue={existingNote}

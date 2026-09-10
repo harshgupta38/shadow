@@ -10,7 +10,7 @@ import "@/pages/my_goals/GoalTaskWizard/GoalTaskWizardPage.scss";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type ReportType = "daily" | "weekly";
-type DialogState = "form" | "loading" | "error";
+type DialogState = "form" | "loading" | "error" | "no_data";
 
 interface Props {
   show: boolean;
@@ -87,12 +87,14 @@ export function GenerateReportDialog({ show, onHide, todayStr }: Props) {
 
   function handleTypeChange(type: ReportType) {
     setReportType(type);
+    if (dialogState === "no_data") setDialogState("form");
     if (type === "weekly") setDateStr(snapToSaturday(dateStr, todayStr));
     else setDateStr(prev => (prev > todayStr ? todayStr : prev));
   }
 
   function handleDateChange(val: string) {
     if (!val) return;
+    if (dialogState === "no_data") setDialogState("form");
     setDateStr(reportType === "weekly" ? snapToSaturday(val, todayStr) : val);
   }
 
@@ -103,6 +105,10 @@ export function GenerateReportDialog({ show, onHide, todayStr }: Props) {
       onHide();
       toast.info("Report requested — we'll notify you when it's ready.");
     } catch (error) {
+      if (error instanceof ApiError && error.status === 422) {
+        setDialogState("no_data");
+        return;
+      }
       setErrorMsg(error instanceof ApiError ? error.message : "Something went wrong. Please try again.");
       setDialogState("error");
     }
@@ -152,7 +158,7 @@ export function GenerateReportDialog({ show, onHide, todayStr }: Props) {
         </div>
 
         {/* Date input */}
-        <div className="mb-4">
+        <div className={`${dialogState === "no_data" || dialogState === "error" ? "mb-2" : "mb-4"}`}>
           <label className="form-label fw-semibold text-muted-2 small mb-2">
             Report Date
           </label>
@@ -176,7 +182,10 @@ export function GenerateReportDialog({ show, onHide, todayStr }: Props) {
 
         {/* Error message */}
         {dialogState === "error" && (
-          <p className="text-danger small mb-3">{errorMsg}</p>
+          <p className="text-danger small mb-3 ms-1">{errorMsg}</p>
+        )}
+        {dialogState === "no_data" && (
+          <p className="text-danger small mb-3 ms-1">Nothing was planned on this date, so there's no report to generate.</p>
         )}
 
         {/* Actions */}

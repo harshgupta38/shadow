@@ -224,6 +224,17 @@
     line-height: 1.55;
   }
 
+  // PageHeader's "Add habit" action is visually cramped below 992px, so surface a CTA here instead.
+  .hl-empty-cta {
+    display: none;
+    margin-top: 1.25rem;
+
+    @media (max-width: 991.98px) {
+      display: inline-flex;
+      align-items: center;
+    }
+  }
+
   // -- Habit viewing cards ---------------------------------------------
   .hl-habit-grid {
     display: flex;

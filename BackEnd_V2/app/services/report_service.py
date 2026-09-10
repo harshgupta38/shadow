@@ -238,6 +238,25 @@ def get_reports(db: Session, user_id: int, report_date: date, report_type: str) 
     ).all())
 
 
+def has_planned_items(db: Session, user_id: int, report_date: date, report_type: str) -> bool:
+    """Cheap existence check — mirrors build_day_data's date range without loading full day data."""
+    if report_type == "weekly":
+        week_start = report_date - timedelta(days=6)
+        date_filter = (
+            DailyPlanRecordDBM.scheduled_date >= week_start,
+            DailyPlanRecordDBM.scheduled_date <= report_date,
+        )
+    else:
+        date_filter = (DailyPlanRecordDBM.scheduled_date == report_date,)
+
+    return db.scalar(
+        select(DailyPlanRecordDBM.id).where(
+            DailyPlanRecordDBM.user_id == user_id,
+            *date_filter,
+        ).limit(1)
+    ) is not None
+
+
 def get_latest_report(db: Session, user_id: int) -> ReportDBM | None:
     """Most recent report across all dates/types for a user — None if none exist yet."""
     return db.scalar(
@@ -342,13 +361,13 @@ async def generate_report_background(
                 )
                 return
 
-        day_data = build_day_data(db, user_id, report_date, report_type)
-        if not day_data.get("all_records"):
+        if not has_planned_items(db, user_id, report_date, report_type):
             logger.info(
                 "Skipping report — no records for user=%d date=%s type=%s",
                 user_id, report_date, report_type,
             )
             return
+        day_data = build_day_data(db, user_id, report_date, report_type)
         llm_result = await get_llm_service().generate_report(
             user_id=user_id,
             report_date=str(report_date),

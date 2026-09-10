@@ -87,9 +87,19 @@ export function TodaySnapshot({ items, currentStreak, latestAlignmentScore }: Pr
         <div className="dp-today-list">
           {preview.length === 0 ? (
             <div className="dp-today-empty">
-              <span className="dp-today-empty-icon" aria-hidden="true">🎉</span>
-              <p className="dp-today-empty-title">All done, great work!</p>
-              <p className="dp-today-empty-sub">You've completed everything on your list. Keep it up!</p>
+              {items.length === 0 ? (
+                <>
+                  <span className="dp-today-empty-icon" aria-hidden="true">📭</span>
+                  <p className="dp-today-empty-title">Nothing planned for today</p>
+                  <p className="dp-today-empty-sub">Add a task or habit to get started.</p>
+                </>
+              ) : (
+                <>
+                  <span className="dp-today-empty-icon" aria-hidden="true">🎉</span>
+                  <p className="dp-today-empty-title">All done, great work!</p>
+                  <p className="dp-today-empty-sub">You've completed everything on your list. Keep it up!</p>
+                </>
+              )}
             </div>
           ) : (
             preview.map((item) => {

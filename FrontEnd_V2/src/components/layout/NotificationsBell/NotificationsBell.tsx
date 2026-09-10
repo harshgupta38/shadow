@@ -84,6 +84,7 @@ export function NotificationsBell() {
       // Snapshot the current unread items before marking them read
       const items = unread.slice(0, 10);
       setSnapshot(items);
+      if (items.length === 0) return;
       const ids = items.map(n => n.id);
       setNotifications(prev => prev.map(n => ids.includes(n.id) ? { ...n, read: true } : n));
       api.notifications.markReadBatch(ids).catch(() => {

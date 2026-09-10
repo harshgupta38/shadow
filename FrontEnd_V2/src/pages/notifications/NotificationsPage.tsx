@@ -44,7 +44,7 @@ export function NotificationsPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<Tab>("unread");
+  const [tab, setTab] = useState<Tab>("read");
   const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
 
   const sentinelRef = useRef<HTMLDivElement>(null);

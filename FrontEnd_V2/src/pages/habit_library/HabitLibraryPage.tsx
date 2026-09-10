@@ -371,6 +371,10 @@ export function HabitLibraryPage() {
               <p className="hl-empty-subtitle">
                 Create your first habit to build daily consistency.
               </p>
+              <button type="button" className="btn btn-brand btn-sm hl-empty-cta" onClick={openCreatePanel}>
+                <PlusLg size={14} className="me-1" />
+                Add habit
+              </button>
             </div>
           ) : filteredHabits.length === 0 ? (
             <div className="hl-empty-state">

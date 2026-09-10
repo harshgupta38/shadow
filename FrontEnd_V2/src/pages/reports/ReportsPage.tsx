@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BarChartFill, ChevronLeft, ChevronRight, LightbulbFill, Stars } from "react-bootstrap-icons";
+import { BarChartFill, CalendarEvent, ChevronLeft, ChevronRight, LightbulbFill, Stars } from "react-bootstrap-icons";
 import { useNavigate } from "react-router-dom";
 import { api, ApiError } from "@/api";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { ROUTES } from "@/routes/RoutePaths";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
+import { ChoiceDialog } from "@/components/ui/ChoiceDialog/ChoiceDialog";
 import { useToast } from "@/context/ToastContext";
 import type { ScoreTier, DayData, CalDay, CalCell } from "@/pages/reports/types";
 import {
@@ -69,6 +70,7 @@ export function ReportsPage() {
   const toast = useToast();
   const [showGenerateDialog, setShowGenerateDialog] = useState(false);
   const [confirmDate, setConfirmDate] = useState<string | null>(null);
+  const [noDataDate, setNoDataDate] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [activeMonth, setActiveMonth] = useState(
     () => new Date(TODAY.getFullYear(), TODAY.getMonth(), 1),
@@ -249,12 +251,13 @@ export function ReportsPage() {
             if (cell.type === "filler") return <div key={`f${i}`} className="rp-filler" />;
 
             const { date, key, data, isToday, isFuture } = cell;
-            const t: ScoreTier = isFuture ? "empty" : tierOf(data.score);
+            const displayedScore = data.alignmentScore ?? data.score;
+            const t: ScoreTier = isFuture ? "empty" : tierOf(displayedScore);
             const cls = [
               "rp-day", `rp-day--${t}`,
               isToday ? "rp-day--today" : "",
               isFuture ? "rp-day--future" : "",
-              (!isFuture && (data.hasDailyReport || data.hasWeeklyReport || data.score !== null)) ? "rp-day--clickable" : "",
+              !isFuture ? "rp-day--clickable" : "",
               hoveredKey === key ? "rp-day--active" : "",
             ].filter(Boolean).join(" ");
 
@@ -268,6 +271,7 @@ export function ReportsPage() {
                   const reportType = data.hasDailyReport ? "daily" : data.hasWeeklyReport ? "weekly" : null;
                   if (reportType) navigate(`${ROUTES.REPORTS_DETAIL.replace(":historyDate", key)}?report_type=${reportType}`);
                   else if (data.score !== null) setConfirmDate(key);
+                  else setNoDataDate(key);
                 }}
                 onKeyDown={!isFuture ? (e) => {
                   if (e.key === "Enter" || e.key === " ") {
@@ -275,15 +279,16 @@ export function ReportsPage() {
                     const reportType = data.hasDailyReport ? "daily" : data.hasWeeklyReport ? "weekly" : null;
                     if (reportType) navigate(`${ROUTES.REPORTS_DETAIL.replace(":historyDate", key)}?report_type=${reportType}`);
                     else if (data.score !== null) setConfirmDate(key);
+                    else setNoDataDate(key);
                   }
                 } : undefined}
                 role={!isFuture ? "button" : undefined}
                 tabIndex={!isFuture ? 0 : undefined}
-                aria-label={data.score !== null ? `${date.toLocaleDateString("en-US", { month: "long", day: "numeric" })}, ${data.score}% completion` : undefined}
+                aria-label={displayedScore !== null ? `${date.toLocaleDateString("en-US", { month: "long", day: "numeric" })}, ${displayedScore}% completion` : undefined}
               >
                 <span className="rp-day-num">{date.getDate()}</span>
-                {(data.score !== null || data.alignmentScore !== null) && (() => {
-                  const displayed = data.alignmentScore ?? data.score!;
+                {displayedScore !== null && (() => {
+                  const displayed = displayedScore;
                   return (
                     <div className="rp-day-ring" aria-hidden="true">
                       <svg viewBox="0 0 40 40" className="rp-day-ring-svg">
@@ -314,10 +319,14 @@ export function ReportsPage() {
               <span className="rp-preview-date">
                 {hoveredCell.date.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
               </span>
-              <span className="rp-preview-sep" />
-              <span className={`rp-preview-score rp-preview-score--${tierOf(hoveredCell.data.score)}`}>
-                {hoveredCell.data.score}% overall
-              </span>
+              {(hoveredCell.data.alignmentScore ?? hoveredCell.data.score) !== null && (
+                <>
+                  <span className="rp-preview-sep" />
+                  <span className={`rp-preview-score rp-preview-score--${tierOf(hoveredCell.data.alignmentScore ?? hoveredCell.data.score)}`}>
+                    {hoveredCell.data.alignmentScore ?? hoveredCell.data.score}% overall
+                  </span>
+                </>
+              )}
               <span className="rp-preview-sep" />
               <span className="rp-preview-detail">{hoveredCell.data.habitsDone}/{hoveredCell.data.habitsTotal} habits</span>
               <span className="rp-preview-sep" />
@@ -349,6 +358,15 @@ export function ReportsPage() {
         busy={generating}
         onConfirm={handleGenerateForDate}
         onCancel={() => setConfirmDate(null)}
+      />
+
+      <ChoiceDialog
+        show={noDataDate !== null}
+        title="Nothing planned for this date"
+        message="There were no tasks or habits tracked on this date, so there's no report to view."
+        icon={<CalendarEvent size={26} />}
+        onHide={() => setNoDataDate(null)}
+        buttons={[{ label: "OK", variant: "brand", onClick: () => setNoDataDate(null) }]}
       />
 
     </section>

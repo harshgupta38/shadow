@@ -805,3 +805,81 @@ export interface DashboardResponse {
   upcoming: DashboardUpcomingItem[];
   week_habits: WeeklyMatrixRow[];
 }
+
+// ─── Settings ─────────────────────────────────────────────────────────────────
+
+export type ThemePreferenceValue = "browser" | "dynamic" | "light" | "dark";
+export type AIResponseLength = "short" | "balanced" | "detailed" | "very_detailed";
+export type AIPersonality = "professional" | "friendly" | "coach" | "teacher" | "mentor" | "minimal";
+export type WeekStartsOn = "monday" | "sunday";
+export type TimeFormat = "12h" | "24h";
+export type DateFormat =
+  | "dd/mm/yyyy"
+  | "mm/dd/yyyy"
+  | "dd-mm-yyyy"
+  | "mm-dd-yyyy"
+  | "mmm d yyyy"
+  | "yyyy-mm-dd";
+
+export interface AIModel {
+  name: string;
+  key: string;
+}
+
+export interface AIProvider {
+  name: string;
+  key: string;
+  models: AIModel[];
+}
+
+export interface AppearanceSettings {
+  theme_preference: ThemePreferenceValue;
+}
+
+export interface NotificationSettings {
+  notifications_enabled: boolean;
+  push_notifications_enabled: boolean;
+  email_notifications_enabled: boolean;
+  reminder_notifications_enabled: boolean;
+  daily_brief_enabled: boolean;
+  daily_brief_time: string;
+  weekly_summary_enabled: boolean;
+  quiet_hours_enabled: boolean;
+  quiet_hours_start: string;
+  quiet_hours_end: string;
+  quiet_hours_allow_urgent: boolean;
+}
+
+export interface AIBehaviorSettings {
+  ai_response_length: AIResponseLength;
+  ai_personality: AIPersonality;
+  ai_provider: string;
+  ai_default_model: string;
+}
+
+export interface PlannerSettings {
+  week_starts_on: WeekStartsOn;
+  default_reminder_time: string;
+  default_task_duration_minutes: number;
+  time_format: TimeFormat;
+  date_format: DateFormat;
+}
+
+export interface PrivacySettings {
+  ai_memory_enabled: boolean;
+}
+
+export interface AccessibilitySettings {
+  accessibility_reduced_motion: boolean;
+  accessibility_high_contrast: boolean;
+  accessibility_font_scale_percent: number;
+}
+
+export interface FullSettings {
+  appearance: AppearanceSettings;
+  notifications: NotificationSettings;
+  ai_behavior: AIBehaviorSettings;
+  planner: PlannerSettings;
+  privacy: PrivacySettings;
+  accessibility: AccessibilitySettings;
+}

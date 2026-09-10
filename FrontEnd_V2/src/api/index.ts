@@ -19,6 +19,7 @@ import { tasksApi } from "@/api/tasks";
 import { habitsApi } from "@/api/habits";
 import { planItemsApi } from "@/api/plan_items";
 import { scheduleApi } from "@/api/schedule";
+import { settingsApi } from "@/api/settings";
 
 export const api = {
   auth: authApi,
@@ -33,6 +34,7 @@ export const api = {
   planItems: planItemsApi,
   schedule: scheduleApi,
   reports: reportsApi,
+  settings: settingsApi,
 };
 
 export type Api = typeof api;

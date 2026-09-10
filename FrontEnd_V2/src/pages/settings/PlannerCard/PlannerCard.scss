@@ -1,0 +1,49 @@
+.planner-card {
+
+  .st-stepper {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--jv-border);
+    border-radius: var(--jv-radius-sm);
+    overflow: hidden;
+    background: var(--jv-surface);
+    flex-shrink: 0;
+  }
+
+  .st-stepper-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.9rem;
+    height: 1.9rem;
+    padding: 0;
+    border: 0;
+    background: var(--jv-surface-2);
+    color: var(--jv-muted);
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: background var(--jv-transition), color var(--jv-transition);
+
+    &:hover:not(:disabled) {
+      background: var(--jv-brand-soft);
+      color: var(--jv-brand-1);
+    }
+
+    &:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+  }
+
+  .st-stepper-value {
+    padding: 0 0.7rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--jv-text);
+    font-variant-numeric: tabular-nums;
+    min-width: 68px;
+    text-align: center;
+    border-inline: 1px solid var(--jv-border);
+  }
+}

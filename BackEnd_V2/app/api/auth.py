@@ -8,7 +8,7 @@ from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.models.user import UserDBM
 from app.schemas.auth import LoginRequest, TokenResponse, RegisterRequest, RefreshRequest
-from app.services import auth_service
+from app.services import auth_service, settings_service
 from app.core import security
 
 router = APIRouter(prefix=ENDPOINTS.AUTH.PREFIX, tags=["Authentication"])
@@ -53,5 +53,13 @@ def refresh(data: RefreshRequest, db=Depends(get_db)) -> TokenResponse:
 
 
 @router.get(ENDPOINTS.AUTH.USER_DATA, response_model=UserDataResponse)
-def me(current_user: UserDBM = Depends(get_current_user)) -> UserDataResponse:
-    return current_user
+def me(
+    db=Depends(get_db),
+    current_user: UserDBM = Depends(get_current_user),
+) -> UserDataResponse:
+    return UserDataResponse(
+        id=current_user.id,
+        name=current_user.name,
+        email=current_user.email,
+        theme_preference=settings_service.get_theme_preference(db, current_user.id),
+    )

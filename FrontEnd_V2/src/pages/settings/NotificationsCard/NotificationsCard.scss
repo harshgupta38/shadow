@@ -1,0 +1,141 @@
+.notifications-card {
+
+  // ── Expand / collapse animation ───────────────────────────────────────────
+  .st-notif-expand {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 280ms var(--jv-ease, cubic-bezier(0.4, 0, 0.2, 1)), margin-top 280ms var(--jv-ease, cubic-bezier(0.4, 0, 0.2, 1));
+
+    &--open {
+      grid-template-rows: 1fr;
+      margin-top: 0.72rem;
+    }
+  }
+
+  .st-notif-expand-inner {
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  // ── Device status row ────────────────────────────────────────────────────
+  .st-device-status-row {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.35rem 0 0.6rem;
+  }
+
+  .st-device-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.23rem 0.7rem 0.23rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    border: 1px solid transparent;
+
+    &--connecting {
+      background: color-mix(in srgb, var(--jv-brand-1) 10%, transparent);
+      color: var(--jv-brand-1);
+      border-color: color-mix(in srgb, var(--jv-brand-1) 25%, transparent);
+    }
+
+    &--connected {
+      background: color-mix(in srgb, #22c55e 12%, transparent);
+      color: #16a34a;
+      border-color: color-mix(in srgb, #22c55e 35%, transparent);
+    }
+
+    &--failed {
+      background: color-mix(in srgb, var(--jv-muted) 10%, transparent);
+      color: var(--jv-muted);
+      border-color: color-mix(in srgb, var(--jv-border) 80%, transparent);
+    }
+  }
+
+  .st-device-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: currentColor;
+
+    .st-device-pill--connecting & {
+      animation: st-dot-pulse 1s ease-in-out infinite;
+    }
+  }
+
+  @keyframes st-dot-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%       { opacity: 0.3; transform: scale(0.7); }
+  }
+
+  .st-device-cta {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.22rem 0.65rem;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background var(--jv-transition), color var(--jv-transition),
+      border-color var(--jv-transition);
+
+    &--primary {
+      background: var(--jv-brand-soft);
+      color: var(--jv-brand-1);
+      border-color: color-mix(in srgb, var(--jv-brand-1) 30%, transparent);
+
+      &:hover {
+        background: color-mix(in srgb, var(--jv-brand-1) 18%, transparent);
+      }
+    }
+
+    &--ghost {
+      background: transparent;
+      color: var(--jv-muted);
+      border-color: color-mix(in srgb, var(--jv-border) 80%, transparent);
+
+      &:hover {
+        background: var(--jv-surface-2);
+        color: var(--jv-text);
+        border-color: var(--jv-border);
+      }
+    }
+  }
+
+  // ── Quiet hours range ────────────────────────────────────────────────────
+  .st-quiet-range {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+
+    @media (max-width: 480px) {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+
+  .st-quiet-range-label {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--jv-muted);
+    white-space: nowrap;
+  }
+
+  .st-quiet-range-inputs {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+  }
+
+  .st-quiet-range-arrow {
+    font-size: 0.8rem;
+    color: var(--jv-muted);
+    flex-shrink: 0;
+  }
+}

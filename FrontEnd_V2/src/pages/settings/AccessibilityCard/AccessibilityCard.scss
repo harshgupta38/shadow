@@ -1,0 +1,37 @@
+.accessibility-card {
+
+  .st-range-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    padding: 0.7rem 0 0.2rem;
+  }
+
+  .st-range-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .st-scale-badge {
+    font-size: 0.78rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--jv-brand-1);
+    background: var(--jv-brand-soft);
+    padding: 0.12rem 0.5rem;
+    border-radius: var(--jv-radius-pill);
+  }
+
+  .st-range {
+    accent-color: var(--jv-brand-1);
+    width: 100%;
+  }
+
+  .st-range-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.7rem;
+    color: var(--jv-faint);
+  }
+}

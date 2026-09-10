@@ -1123,24 +1123,6 @@ a {
   gap: 1rem;
 }
 
-.auth-aside-kicker {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--jv-brand-1) 26%, transparent);
-  background: color-mix(in srgb, var(--jv-brand-soft) 80%, transparent);
-  color: var(--jv-brand-1);
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  padding: 0.32rem 0.7rem;
-  margin-bottom: 1.15rem;
-
-  svg { color: var(--jv-brand-1); flex-shrink: 0; }
-}
-
 // flex:1 + centering (rather than the old space-between across just 3 blocks)
 // keeps the header pinned to the top and the footer pinned to the bottom
 // without stretching a single huge gap wherever the leftover space happens to
@@ -1267,11 +1249,6 @@ a {
   }
   .auth-aside-inner {
     min-height: calc(100vh - 3.7rem);
-  }
-  .auth-aside-kicker {
-    font-size: 0.62rem;
-    padding: 0.26rem 0.55rem;
-    margin-bottom: 0.9rem;
   }
   .auth-aside-title {
     font-size: 1.5rem;

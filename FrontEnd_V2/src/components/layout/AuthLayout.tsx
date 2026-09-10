@@ -17,10 +17,6 @@ export function AuthLayout({ children }: ChildProps) {
 					</header>
 
 					<div className="auth-aside-body">
-						<span className="auth-aside-kicker">
-							<Lightning size={11} />
-							AI-guided execution
-						</span>
 						<h1 className="auth-aside-title">
 							Big goals,
 							<br />
@@ -46,7 +42,7 @@ export function AuthLayout({ children }: ChildProps) {
 						<p className="auth-aside-footnote mb-0">
 							Private by design · Your data stays yours.
 							<br />
-							Made with care by Harsh
+							Made with ❤️ by Harsh
 						</p>
 					</footer>
 				</div>

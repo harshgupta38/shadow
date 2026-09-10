@@ -2,6 +2,7 @@ export interface UserDataResponse {
   id: number;
   name: string;
   email: string;
+  theme_preference: ThemePreference;
 }
 
 export interface LoginRequest {

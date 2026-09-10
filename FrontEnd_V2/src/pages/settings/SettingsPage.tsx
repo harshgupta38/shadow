@@ -43,12 +43,13 @@ export function SettingsPage() {
       const data = await api.settings.get();
       setSettings(data);
       setBaseline(data);
+      setThemePreference(data.appearance.theme_preference);
     } catch {
       error("Could not load settings. Please refresh and try again.");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [setThemePreference, error]);
 
   useEffect(() => {
     void loadSettings();
@@ -79,16 +80,19 @@ export function SettingsPage() {
       const saved = await api.settings.update(settings);
       setSettings(saved);
       setBaseline(saved);
+      setThemePreference(saved.appearance.theme_preference);
       success("Settings saved.");
     } catch (err) {
       error(err instanceof ApiError ? err.message : "Could not save settings.");
     } finally {
       setSaving(false);
     }
-  }, [settings, isDirty, success, error]);
+  }, [settings, isDirty, setThemePreference, success, error]);
 
   function restore() {
-    if (baseline) setSettings(baseline);
+    if (!baseline) return;
+    setSettings(baseline);
+    setThemePreference(baseline.appearance.theme_preference);
   }
 
   const saveBar = isDirty ? (
@@ -165,7 +169,11 @@ export function SettingsPage() {
               isDirty={dirtySections.includes("appearance")}
               onUpdate={(d) => {
                 patch("appearance", d);
-                setThemePreference(d.theme_preference);
+                // light / dark / browser apply instantly (no API call needed).
+                // dynamic waits for Save so we don't trigger geolocation prematurely.
+                if (d.theme_preference !== "dynamic") {
+                  setThemePreference(d.theme_preference);
+                }
               }}
             />
             <NotificationsCard

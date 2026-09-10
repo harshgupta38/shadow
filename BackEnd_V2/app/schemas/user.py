@@ -9,4 +9,4 @@ class UserDataDBS(ORMModel):
 
 
 class UserDataResponse(UserDataDBS):
-    pass
+    theme_preference: str = "browser"

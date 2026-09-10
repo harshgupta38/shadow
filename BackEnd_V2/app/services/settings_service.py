@@ -5,12 +5,14 @@ from sqlalchemy.orm import Session
 
 from app.llm.enums import ClaudeModel, GeminiModel, OllamaModel, OpenAIModel
 from app.llm.config import llm_settings
+from app.llm.exceptions import LLMError
 from app.models.chat import ConversationDBM
 from app.models.user import UserDBM
 from app.models.user_setting import UserSettingDBM
 from app.schemas.settings import (
     AIModelDBS,
     AIProviderDBS,
+    AIProviderHealthCheckResponse,
     AIProviderResponse,
     AppearanceSection,
     AIBehaviorSection,
@@ -156,3 +158,16 @@ def clear_chat_history(db: Session, current_user: UserDBM) -> None:
         delete(ConversationDBM).where(ConversationDBM.user_id == current_user.id)
     )
     db.commit()
+
+
+async def check_provider_health(provider: str, model: str) -> AIProviderHealthCheckResponse:
+    from app.llm.service import get_llm_service_for_user
+
+    service = get_llm_service_for_user(provider)
+    try:
+        await service.health_check(model=model)
+        return AIProviderHealthCheckResponse(healthy=True, message="Connected successfully.")
+    except LLMError as exc:
+        return AIProviderHealthCheckResponse(healthy=False, message=str(exc))
+    except Exception as exc:
+        return AIProviderHealthCheckResponse(healthy=False, message=f"Unexpected error: {exc}")

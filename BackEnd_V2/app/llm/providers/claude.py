@@ -916,13 +916,10 @@ class ClaudeProvider(BaseLLMProvider):
             ),
         )
 
-    async def health_check(self) -> bool:
+    async def health_check(self, model: str | None = None) -> bool:
+        resolved = model or self._settings.claude_model
         try:
-            await self._client.messages.create(
-                model=self._settings.claude_model,
-                max_tokens=1,
-                messages=[{"role": "user", "content": "ping"}],
-            )
+            await self._client.models.retrieve(resolved)
             return True
         except (APIConnectionError, APIStatusError, APIError) as exc:
             raise LLMHealthCheckError(f"Claude health check failed: {exc}") from exc

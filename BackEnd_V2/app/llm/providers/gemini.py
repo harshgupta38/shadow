@@ -955,10 +955,12 @@ class GeminiProvider(BaseLLMProvider):
             ),
         )
 
-    async def health_check(self) -> bool:
-        # Gemini health check using the /models endpoint.
+    async def health_check(self, model: str | None = None) -> bool:
         try:
-            await self._client.aio.models.list()
+            if model:
+                await self._client.aio.models.get(model=model)
+            else:
+                await self._client.aio.models.list()
             return True
         except errors.APIError as exc:
             raise LLMHealthCheckError(f"Gemini health check failed: {exc}") from exc

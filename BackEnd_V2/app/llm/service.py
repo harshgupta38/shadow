@@ -244,8 +244,8 @@ class LLMService:
             raise LLMConfigurationError("LLM provider returned no report data.")
         return response
 
-    async def health_check(self) -> bool:
-        return await self._provider.health_check()
+    async def health_check(self, model: str | None = None) -> bool:
+        return await self._provider.health_check(model=model)
 
     async def close(self) -> None:
         await self._provider.close()

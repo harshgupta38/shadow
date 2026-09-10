@@ -103,7 +103,7 @@ export function FieldRow({
   className,
 }: {
   label: string;
-  hint?: string;
+  hint?: React.ReactNode;
   noBorder?: boolean;
   children: React.ReactNode;
   className?: string;

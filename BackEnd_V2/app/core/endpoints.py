@@ -104,6 +104,7 @@ class Endpoints:
     class SETTINGS:
         PREFIX = "/settings"
         AI_PROVIDERS = "/ai-providers"
+        PROVIDER_HEALTH_CHECK = "/ai-providers/health-check"
         EXPORT = "/export"
         CHAT_HISTORY = "/chat-history"
 

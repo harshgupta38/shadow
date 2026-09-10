@@ -105,5 +105,15 @@ class AIProviderDBS(BaseModel):
     models: list[AIModelDBS]
 
 
+class AIProviderHealthCheckRequest(BaseModel):
+    provider: str
+    model: str
+
+
+class AIProviderHealthCheckResponse(BaseModel):
+    healthy: bool
+    message: str
+
+
 class AIProviderResponse(AIProviderDBS):
     pass

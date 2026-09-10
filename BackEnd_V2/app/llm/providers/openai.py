@@ -1025,10 +1025,12 @@ class OpenAIProvider(BaseLLMProvider):
             ),
         )
 
-    async def health_check(self) -> bool:
-        # OpenAI health check using the /models endpoint.
+    async def health_check(self, model: str | None = None) -> bool:
         try:
-            await self._client.models.list()
+            if model:
+                await self._client.models.retrieve(model)
+            else:
+                await self._client.models.list()
             return True
         except (APIConnectionError, APIStatusError, OpenAIError) as exc:
             raise LLMHealthCheckError(f"OpenAI health check failed: {exc}") from exc

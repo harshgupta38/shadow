@@ -1,6 +1,6 @@
 import { http } from "@/api/client";
 import { ENDPOINTS } from "@/constant/shadow-endpoints";
-import type { AIProvider, FullSettings } from "@/api/types";
+import type { AIProvider, AIProviderHealthCheckRequest, AIProviderHealthCheckResponse, FullSettings } from "@/api/types";
 
 export type {
   ThemePreferenceValue,
@@ -31,6 +31,10 @@ export const settingsApi = {
   },
   getProviders(): Promise<AIProvider[]> {
     return http.get<AIProvider[]>(BASE + ENDPOINTS.SETTINGS.AI_PROVIDERS);
+  },
+  checkProviderHealth(provider: string, model: string): Promise<AIProviderHealthCheckResponse> {
+    const body: AIProviderHealthCheckRequest = { provider, model };
+    return http.post<AIProviderHealthCheckResponse>(BASE + ENDPOINTS.SETTINGS.PROVIDER_HEALTH_CHECK, body);
   },
   exportData(): Promise<Blob> {
     return http.get<Blob>(BASE + ENDPOINTS.SETTINGS.EXPORT, { responseType: "blob" });

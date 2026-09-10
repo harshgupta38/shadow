@@ -966,10 +966,12 @@ class OllamaProvider(BaseLLMProvider):
             cost=_ollama_cost(model, usage.input_tokens if usage else 0, usage.output_tokens if usage else 0),
         )
 
-    async def health_check(self) -> bool:
-        # Ollama OpenAI compatibility includes the /models endpoint used by SDK model listing.
+    async def health_check(self, model: str | None = None) -> bool:
         try:
-            await self._client.models.list()
+            if model:
+                await self._client.models.retrieve(model)
+            else:
+                await self._client.models.list()
             return True
         except (APIConnectionError, APIStatusError, OpenAIError) as exc:
             raise LLMHealthCheckError(f"Ollama health check failed: {exc}") from exc

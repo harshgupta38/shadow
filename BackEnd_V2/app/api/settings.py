@@ -5,7 +5,13 @@ from app.api.deps import get_current_user
 from app.core.endpoints import ENDPOINTS
 from app.db.session import get_db
 from app.models.user import UserDBM
-from app.schemas.settings import AIProviderResponse, SettingsResponse, UpdateSettingsRequest
+from app.schemas.settings import (
+    AIProviderHealthCheckRequest,
+    AIProviderHealthCheckResponse,
+    AIProviderResponse,
+    SettingsResponse,
+    UpdateSettingsRequest,
+)
 from app.services import settings_service
 
 router = APIRouter(prefix=ENDPOINTS.SETTINGS.PREFIX, tags=["Settings"])
@@ -31,6 +37,14 @@ def update_settings(
 @router.get(ENDPOINTS.SETTINGS.AI_PROVIDERS, response_model=list[AIProviderResponse])
 def get_ai_providers() -> list[AIProviderResponse]:
     return settings_service.get_ai_providers()
+
+
+@router.post(ENDPOINTS.SETTINGS.PROVIDER_HEALTH_CHECK, response_model=AIProviderHealthCheckResponse)
+async def check_provider_health(
+    data: AIProviderHealthCheckRequest,
+    current_user: UserDBM = Depends(get_current_user),
+) -> AIProviderHealthCheckResponse:
+    return await settings_service.check_provider_health(data.provider, data.model)
 
 
 @router.get(ENDPOINTS.SETTINGS.EXPORT)

@@ -1,4 +1,4 @@
-import { ArrowRepeat, Grid3x3Gap, List, PlusLg, Stars } from "react-bootstrap-icons";
+import { ArrowRepeat, Grid3x3Gap, List, PlusLg, Search, Stars } from "react-bootstrap-icons";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -21,6 +21,7 @@ export function HabitLibraryPage() {
   const [loadingHabits, setLoadingHabits] = useState(false);
   const [habitsError, setHabitsError] = useState<string | null>(null);
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
+  const [searchTerm, setSearchTerm] = useState("");
   const [deleteTargetHabit, setDeleteTargetHabit] = useState<HabitDataResponse | null>(null);
   const [openHabitMenuId, setOpenHabitMenuId] = useState<number | null>(null);
   const [menuActionHabitId, setMenuActionHabitId] = useState<number | null>(null);
@@ -107,7 +108,10 @@ export function HabitLibraryPage() {
   }
 
   const filteredHabits = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase();
     return habits.filter((h) => {
+      if (query && !h.title.toLowerCase().includes(query))
+        return false;
       if (filters.status.length && !filters.status.some((s) => s === h.status))
         return false;
       if (filters.priority.length && !filters.priority.some((p) => p === h.priority))
@@ -121,7 +125,7 @@ export function HabitLibraryPage() {
       //   return false;
       return true;
     });
-  }, [habits, filters]);
+  }, [habits, filters, searchTerm]);
 
   function openCreatePanel() {
     navigate(ROUTES.HABIT_LIBRARY_CREATE);
@@ -299,6 +303,20 @@ export function HabitLibraryPage() {
           </div>
 
           <div className="hl-card-header-actions">
+            {!loadingHabits && (
+              <div className="hl-search-box">
+                <Search size={14} className="hl-search-icon" />
+                <input
+                  type="search"
+                  className="hl-search-input"
+                  placeholder="Search habits…"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  aria-label="Search habits"
+                />
+              </div>
+            )}
+
             {!loadingHabits && (<div className="hl-view-toggle" role="group" aria-label="Habit view">
               {viewMode === "list" && (<button
                 type="button"

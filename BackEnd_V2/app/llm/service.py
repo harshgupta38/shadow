@@ -115,6 +115,7 @@ class LLMService:
         milestone_id: int | None = None,
         tool_executor: Callable[[str, dict], dict] | None = None,
         user_memory: str = "",
+        response_length: str = "balanced",
     ) -> NewConvoFromLLM:
         request = NewConvoToLLM(
             request_data=data,
@@ -123,6 +124,7 @@ class LLMService:
             milestone_id=milestone_id,
             tool_executor=tool_executor,
             user_memory=user_memory,
+            response_length=response_length,
         )
         response = await self._provider.create_conversation(request)
 
@@ -143,6 +145,7 @@ class LLMService:
         milestone_id: int | None = None,
         tool_executor: Callable[[str, dict], dict] | None = None,
         user_memory: str = "",
+        response_length: str = "balanced",
     ) -> MessageFromLLM:
         request = MessageToLLM(
             request_data=data.content,
@@ -155,6 +158,7 @@ class LLMService:
             recent_messages=recent_messages,
             tool_executor=tool_executor,
             user_memory=user_memory,
+            response_length=response_length,
         )
         response = await self._provider.respond_to_message(request)
 

@@ -17,6 +17,7 @@ from app.llm.knowledge_base import (
     TASK_PROPOSAL_SYSTEM_INSTRUCTION,
     RESPOND_TO_MESSAGE_SYSTEM_INSTRUCTION,
     USER_MEMORY_EXTRACTION_SYSTEM_INSTRUCTION,
+    RESPONSE_LENGTH_INSTRUCTION,
     build_goal_refinement_user_prompt,
     build_milestone_proposal_user_prompt,
     build_task_proposal_user_prompt,
@@ -364,6 +365,8 @@ class OllamaProvider(BaseLLMProvider):
         system_content = CREATE_CONVERSATION_SYSTEM_INSTRUCTION[request_data.agent_type]
         if request.user_memory:
             system_content += f"\n\n{request.user_memory}"
+        if instruction := RESPONSE_LENGTH_INSTRUCTION.get(request.response_length, ""):
+            system_content += f"\n\n{instruction}"
         messages = [
             {
                 "role": Role.SYSTEM,
@@ -588,6 +591,8 @@ class OllamaProvider(BaseLLMProvider):
         )
         if request.user_memory:
             conversation_context += f"\n\n{request.user_memory}"
+        if instruction := RESPONSE_LENGTH_INSTRUCTION.get(request.response_length, ""):
+            conversation_context += f"\n\n{instruction}"
         messages = [
             {
                 "role": Role.SYSTEM,

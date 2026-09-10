@@ -91,6 +91,7 @@ class TaskProposalsFromLLM(MetadataFromLLM):
 class NewConvoToLLM(MetadataToLLM):
     request_data: NewConvoRequest
     user_memory: str = ""
+    response_length: str = "balanced"
 
 
 class NewConvoFromLLM(MetadataFromLLM):
@@ -123,6 +124,7 @@ class MessageToLLM(MetadataToLLM):
     # Formatted user memory block injected from previous conversations.
     # Empty string means no memory is available.
     user_memory: str = ""
+    response_length: str = "balanced"
 
 
 class MessageFromLLM(MetadataFromLLM):

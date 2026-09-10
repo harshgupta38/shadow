@@ -278,6 +278,26 @@ _RESPONSE_STYLE = (
     " not for short replies."
 )
 
+RESPONSE_LENGTH_INSTRUCTION: dict[str, str] = {
+    "short": (
+        "Response length override (user preference): Keep your reply concise. "
+        "Prefer 1 to 3 sentences when possible. Skip examples, background, "
+        "and elaboration unless the user explicitly asks or they are necessary "
+        "to answer correctly."
+    ),
+    "balanced": "",
+    "detailed": (
+        "Response length override (user preference): Provide a thorough answer. Include relevant"
+        " examples, reasoning, and context that help the user fully understand. Structure with"
+        " headers or lists where it aids clarity."
+    ),
+    "very_detailed": (
+        "Response length override (user preference): Be comprehensive. Cover all relevant aspects,"
+        " edge cases, and nuances. Use structured formatting (headers, numbered steps, code blocks)"
+        " as appropriate. Do not abbreviate unless the topic is genuinely narrow."
+    ),
+}
+
 _NEW_CONVO_OUTPUT = (
     "\n\nReturn a single JSON object matching the required schema: title, stable_context,"
     " context_summary, and content (your reply to the user). Tool calls are internal and must"

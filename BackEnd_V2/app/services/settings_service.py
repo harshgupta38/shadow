@@ -97,6 +97,16 @@ def get_theme_preference(db: Session, user_id: int) -> str:
     return str(setting.appearance.get("theme_preference", _DEFAULT_APPEARANCE["theme_preference"]))
 
 
+def get_response_length(db: Session, user_id: int) -> str:
+    """Lightweight read used by chat — does NOT create a default row."""
+    setting = db.scalar(
+        select(UserSettingDBM).where(UserSettingDBM.user_id == user_id)
+    )
+    if setting is None:
+        return str(_DEFAULT_AI_BEHAVIOR["ai_response_length"])
+    return str(setting.ai_behavior.get("ai_response_length", _DEFAULT_AI_BEHAVIOR["ai_response_length"]))
+
+
 def get_settings(db: Session, current_user: UserDBM) -> SettingsResponse:
     setting = _get_or_create(db, current_user.id)
     return _to_response(setting)

@@ -16,7 +16,7 @@ from app.llm.config import llm_settings
 from app.llm.tools import ToolContext, execute_tool
 from app.core.exceptions import NotFoundError, ValidationError
 from app.llm import get_llm_service, NewConvoResponse, LLMError, LLMRequestError
-from app.services import memory_service
+from app.services import memory_service, settings_service
 from app.models.user import UserDBM
 from app.models.chat import ConversationDBM, MessageDBM
 from app.models.goal import GoalDBM
@@ -431,6 +431,8 @@ async def create_conversation(
         user_memories = memory_service.get_user_memories(db, current_user.id)
         user_memory_str = memory_service.format_memories_for_prompt(user_memories)
 
+    response_length = settings_service.get_response_length(db, current_user.id)
+
     tool_context = ToolContext(db=db, current_user=current_user)
     tool_executor = partial(execute_tool, context=tool_context)
 
@@ -442,6 +444,7 @@ async def create_conversation(
             milestone_id=data.milestone_id,
             tool_executor=tool_executor,
             user_memory=user_memory_str,
+            response_length=response_length,
         )
     except LLMError as exc:
         raise LLMRequestError(f"Failed to create conversation: {exc}") from exc
@@ -620,6 +623,7 @@ async def _call_llm_and_save(
     data: MessageRequest,
     recent_message_data: list[dict],
     user_memory: str = "",
+    response_length: str = "balanced",
 ) -> MessageResponse:
     user_message.request_status = "pending"
     db.commit()
@@ -641,6 +645,7 @@ async def _call_llm_and_save(
             recent_messages=recent_message_data,
             tool_executor=tool_executor,
             user_memory=user_memory,
+            response_length=response_length,
         )
     except LLMError as exc:
         user_message.request_status = "failed"
@@ -745,6 +750,8 @@ async def respond_to_message(
         user_memories = memory_service.get_user_memories(db, current_user.id)
         user_memory_str = memory_service.format_memories_for_prompt(user_memories)
 
+    response_length = settings_service.get_response_length(db, current_user.id)
+
     llm_service = get_llm_service()
     context_task = None
     memory_task = None
@@ -797,6 +804,7 @@ async def respond_to_message(
         message_response = await _call_llm_and_save(
             db, current_user, conversation, user_message, data,
             recent_message_data, user_memory=user_memory_str,
+            response_length=response_length,
         )
     except Exception:
         # Cancel background tasks on main-call failure to avoid orphaned warnings.
@@ -883,7 +891,11 @@ async def retry_failed_message(
         goal_id=user_message.linked_items.get("goal_id"),
         milestone_id=user_message.linked_items.get("milestone_id"),
     )
-    return await _call_llm_and_save(db, current_user, conversation, user_message, data, recent_message_data)
+    response_length = settings_service.get_response_length(db, current_user.id)
+    return await _call_llm_and_save(
+        db, current_user, conversation, user_message, data,
+        recent_message_data, response_length=response_length,
+    )
 
 
 async def regenerate_response(
@@ -951,6 +963,8 @@ async def regenerate_response(
         user_memories = memory_service.get_user_memories(db, current_user.id)
         user_memory_str = memory_service.format_memories_for_prompt(user_memories)
 
+    response_length = settings_service.get_response_length(db, current_user.id)
+
     tool_context = ToolContext(db=db, current_user=current_user)
     tool_executor = partial(execute_tool, context=tool_context)
 
@@ -967,6 +981,7 @@ async def regenerate_response(
             recent_messages=recent_message_data,
             tool_executor=tool_executor,
             user_memory=user_memory_str,
+            response_length=response_length,
         )
     except LLMError as exc:
         raise LLMRequestError(f"Failed to regenerate response: {exc}") from exc

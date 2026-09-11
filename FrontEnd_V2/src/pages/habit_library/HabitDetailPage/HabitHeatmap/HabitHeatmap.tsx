@@ -81,7 +81,7 @@ export function HabitHeatmap({ habit, records }: HabitHeatmapProps) {
 
       <div className="hl-card-body hh-body">
         <div className="hh-months-container" ref={scrollRef}>
-          <div className="hh-months">
+          <div className="hh-months justify-content-center align-items-center">
             {months.map((mg) => (
               <div key={`${mg.year}-${mg.month}`} className="hh-month">
                 <div className="hh-month-label">

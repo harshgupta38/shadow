@@ -112,7 +112,7 @@ def get_week_starts_on(db: Session, user_id: int) -> str:
 
 
 def get_startup_settings(db: Session, user_id: int) -> dict:
-    """Lightweight read for /auth/my-data — returns theme + planner defaults without creating a row."""
+    """Lightweight read for /auth/me — returns theme + planner + accessibility without creating a row."""
     setting = db.scalar(
         select(UserSettingDBM).where(UserSettingDBM.user_id == user_id)
     )
@@ -120,10 +120,12 @@ def get_startup_settings(db: Session, user_id: int) -> dict:
         return {
             "theme_preference": _DEFAULT_APPEARANCE["theme_preference"],
             "planner": _DEFAULT_PLANNER,
+            "accessibility": _DEFAULT_ACCESSIBILITY,
         }
     return {
         "theme_preference": setting.appearance.get("theme_preference", _DEFAULT_APPEARANCE["theme_preference"]),
         "planner": {**_DEFAULT_PLANNER, **setting.planner},
+        "accessibility": {**_DEFAULT_ACCESSIBILITY, **(setting.accessibility or {})},
     }
 
 

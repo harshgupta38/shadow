@@ -4,6 +4,7 @@ export interface UserDataResponse {
   email: string;
   theme_preference: ThemePreference;
   planner: PlannerSettings;
+  accessibility: AccessibilitySettings;
 }
 
 export interface LoginRequest {

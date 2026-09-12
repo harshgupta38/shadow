@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { useTheme } from "@/context/ThemeContext";
 import { useToast } from "@/context/ToastContext";
 import { api, ApiError } from "@/api";
-import type { AccessibilitySettings, FullSettings } from "@/api";
+import type { FullSettings } from "@/api";
 import { AppearanceCard } from "@/pages/settings/AppearanceCard/AppearanceCard";
 import { NotificationsCard } from "@/pages/settings/NotificationsCard/NotificationsCard";
 import { PrivacyCard } from "@/pages/settings/PrivacyCard/PrivacyCard";
@@ -18,13 +18,6 @@ import "@/pages/settings/SettingsPage.scss";
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 type SectionKey = keyof FullSettings;
-
-function applyAccessibility(s: AccessibilitySettings) {
-  const root = document.documentElement;
-  root.setAttribute("data-reduced-motion", String(s.accessibility_reduced_motion));
-  root.setAttribute("data-high-contrast", String(s.accessibility_high_contrast));
-  root.style.setProperty("--shadow-font-scale-percent", String(s.accessibility_font_scale_percent));
-}
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
@@ -68,9 +61,12 @@ export function SettingsPage() {
 
   const isDirty = dirtySections.length > 0;
 
-  // Apply accessibility values to the document immediately — same pattern as setThemePreference.
+  // Dispatch accessibility:sync on any local change so AccessibilityContext applies it live.
+  // Also fires on Restore (settings reverts to baseline) and on Save (dispatched again, idempotent).
   useEffect(() => {
-    if (settings?.accessibility) applyAccessibility(settings.accessibility);
+    if (settings?.accessibility) {
+      window.dispatchEvent(new CustomEvent("accessibility:sync", { detail: settings.accessibility }));
+    }
   }, [settings?.accessibility]);
 
   const saveAll = useCallback(async () => {
@@ -82,6 +78,7 @@ export function SettingsPage() {
       setBaseline(saved);
       setThemePreference(saved.appearance.theme_preference);
       window.dispatchEvent(new CustomEvent("planner:sync", { detail: saved.planner }));
+      window.dispatchEvent(new CustomEvent("accessibility:sync", { detail: saved.accessibility }));
       success("Settings saved.");
     } catch (err) {
       error(err instanceof ApiError ? err.message : "Could not save settings.");

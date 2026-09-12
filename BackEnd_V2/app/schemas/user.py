@@ -1,6 +1,6 @@
 
 from app.schemas.common import ORMModel
-from app.schemas.settings import PlannerSection, ThemePreferenceValue
+from app.schemas.settings import AccessibilitySection, PlannerSection, ThemePreferenceValue
 
 
 class UserDataDBS(ORMModel):
@@ -12,3 +12,4 @@ class UserDataDBS(ORMModel):
 class UserDataResponse(UserDataDBS):
     theme_preference: ThemePreferenceValue = "browser"
     planner: PlannerSection = PlannerSection()
+    accessibility: AccessibilitySection = AccessibilitySection()

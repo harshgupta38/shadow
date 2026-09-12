@@ -19,6 +19,7 @@ import type { DailyReportDetail, GoalAlignment } from "@/api/types";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { useToast } from "@/context/ToastContext";
 import { CLOSING_EMOJI, fmtTime, ringColor } from "./ReportDetailPage.constants";
+import { useTimeFormat } from "@/context/PlannerContext";
 import "./ReportDetailPage.scss";
 
 // ── Progress Ring ─────────────────────────────────────────────────────────────
@@ -241,6 +242,7 @@ function RdpGhostShell() {
 
 export function ReportDetailPage() {
   const navigate = useNavigate();
+  const timeFormat = useTimeFormat();
   const { historyDate } = useParams<{ historyDate: string }>();
   const [searchParams] = useSearchParams();
   const reportType = (searchParams.get("report_type") ?? "daily") as "daily" | "weekly";
@@ -356,7 +358,7 @@ export function ReportDetailPage() {
       <PageHeader
         icon={<BarChartFill size={20} />}
         title={report.report_type === "weekly" ? "Weekly Report" : "Daily Report"}
-        subtitle={`${dateLabel} · ${fmtTime(report.generated_at)}${total > 1 ? ` · ${idx + 1} of ${total}` : ""}`}
+        subtitle={`${dateLabel} · ${fmtTime(report.generated_at, timeFormat)}${total > 1 ? ` · ${idx + 1} of ${total}` : ""}`}
         rightSlot={datePicker}
       />
 

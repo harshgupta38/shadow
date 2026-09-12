@@ -1,5 +1,6 @@
 import { PRIORITY_ORDER } from "@/pages/plan/DayOverviewPanel/DayOverviewPanel.constants";
-import type { DashboardTodayItem } from "@/api";
+import type { DashboardTodayItem, TimeFormat } from "@/api";
+import { formatTime } from "@/services/date.service";
 
 export function computeCompletion(items: DashboardTodayItem[]): number {
   if (items.length === 0) return 0;
@@ -26,8 +27,8 @@ export function remainingLabel(item: DashboardTodayItem): string {
   return "Few extra steps for better future";
 }
 
-export function timeLabel(item: DashboardTodayItem): string | null {
-  if (item.preferred_time === "custom") return item.specific_time;
+export function timeLabel(item: DashboardTodayItem, format: TimeFormat = "12h"): string | null {
+  if (item.preferred_time === "custom") return item.specific_time ? formatTime(item.specific_time, format) : null;
   if (item.preferred_time === "flexible") return null;
   return item.preferred_time.charAt(0).toUpperCase() + item.preferred_time.slice(1);
 }

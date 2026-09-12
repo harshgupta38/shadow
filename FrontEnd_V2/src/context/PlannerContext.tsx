@@ -1,43 +1,57 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
-import { type ChildProps, type WeekStartsOn } from "@/api";
+import { type ChildProps, type TimeFormat, type WeekStartsOn } from "@/api";
 
-const CACHE_KEY = "shadow_week_start";
+type PlannerSyncDetail = { week_starts_on: WeekStartsOn; time_format: TimeFormat };
 
-function readCache(): WeekStartsOn {
+// ── localStorage helpers ──────────────────────────────────────────────────────
+
+function readWeekCache(): WeekStartsOn {
   try {
-    const v = localStorage.getItem(CACHE_KEY);
+    const v = localStorage.getItem("shadow_week_start");
     if (v === "monday" || v === "sunday") return v;
   } catch {}
   return "sunday";
 }
 
-function writeCache(v: WeekStartsOn): void {
-  try { localStorage.setItem(CACHE_KEY, v); } catch {}
+function readTimeCache(): TimeFormat {
+  try {
+    const v = localStorage.getItem("shadow_time_fmt");
+    if (v === "12h" || v === "24h") return v;
+  } catch {}
+  return "12h";
 }
+
+// ── Context ───────────────────────────────────────────────────────────────────
 
 interface PlannerContextValue {
   weekStartsOn: WeekStartsOn;
+  timeFormat: TimeFormat;
 }
 
 const PlannerContext = createContext<PlannerContextValue | undefined>(undefined);
 
 export function PlannerProvider({ children }: ChildProps) {
-  const [weekStartsOn, setWeekStartsOn] = useState<WeekStartsOn>(readCache);
+  const [weekStartsOn, setWeekStartsOn] = useState<WeekStartsOn>(readWeekCache);
+  const [timeFormat, setTimeFormat] = useState<TimeFormat>(readTimeCache);
 
   // AuthContext fires planner:sync on session restore, login, register, and refreshUser.
   // SettingsPage fires it after a successful save.
   useEffect(() => {
     function handler(e: Event) {
-      const v = (e as CustomEvent<{ week_starts_on: WeekStartsOn }>).detail.week_starts_on;
-      setWeekStartsOn(v);
-      writeCache(v);
+      const d = (e as CustomEvent<PlannerSyncDetail>).detail;
+      setWeekStartsOn(d.week_starts_on);
+      setTimeFormat(d.time_format);
+      try {
+        localStorage.setItem("shadow_week_start", d.week_starts_on);
+        localStorage.setItem("shadow_time_fmt", d.time_format);
+      } catch {}
     }
     window.addEventListener("planner:sync", handler);
     return () => window.removeEventListener("planner:sync", handler);
   }, []);
 
-  const value = useMemo(() => ({ weekStartsOn }), [weekStartsOn]);
+  const value = useMemo(() => ({ weekStartsOn, timeFormat }), [weekStartsOn, timeFormat]);
 
   return <PlannerContext.Provider value={value}>{children}</PlannerContext.Provider>;
 }
@@ -46,4 +60,10 @@ export function useWeekStart(): WeekStartsOn {
   const ctx = useContext(PlannerContext);
   if (!ctx) throw new Error("useWeekStart must be used within a PlannerProvider");
   return ctx.weekStartsOn;
+}
+
+export function useTimeFormat(): TimeFormat {
+  const ctx = useContext(PlannerContext);
+  if (!ctx) throw new Error("useTimeFormat must be used within a PlannerProvider");
+  return ctx.timeFormat;
 }

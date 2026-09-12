@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { useTimeFormat } from "@/context/PlannerContext";
+import { formatTime } from "@/services/date.service";
 import { createPortal } from "react-dom";
 import { ArrowRepeat, ChevronRight, Clock, Files, MoonFill, MoonStarsFill, PencilFill, SunFill, Trash3Fill } from "react-bootstrap-icons";
 
@@ -14,13 +16,13 @@ import "@/pages/schedule/ScheduleTaskDetailPanel/ScheduleTaskDetailPanel.scss";
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function TimeChip({ preferredTime, specificTime }: { preferredTime: string; specificTime: string | null }) {
+    const timeFormat = useTimeFormat();
     const t = preferredTime.toLowerCase();
     if (t === "flexible") return null;
-
     let icon: React.ReactNode;
     let mod: string;
     const label = t === "custom"
-        ? specificTime ?? ""
+        ? (specificTime ? formatTime(specificTime, timeFormat) : "")
         : t.charAt(0).toUpperCase() + t.slice(1);
 
     if (t === "morning")        { icon = <SunFill size={12} />;        mod = "stdp-time--morning"; }

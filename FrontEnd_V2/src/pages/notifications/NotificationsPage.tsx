@@ -7,6 +7,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { useToast } from "@/context/ToastContext";
 import { IST_TIMEZONE, notifDateLabel, notifTime } from "@/services/date.service";
+import { useTimeFormat } from "@/context/PlannerContext";
 import { TYPE_COLOR, TYPE_ICON } from "@/pages/notifications/NotificationsPage.constants";
 import "@/pages/notifications/NotificationsPage.scss";
 
@@ -37,6 +38,7 @@ function groupByDate(items: Notification[]): { label: string; items: Notificatio
 
 export function NotificationsPage() {
   const toast = useToast();
+  const timeFormat = useTimeFormat();
   const navigate = useNavigate();
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -254,7 +256,7 @@ export function NotificationsPage() {
                           {!n.read && <span className="notif-item-dot" />}
                         </div>
                         {n.body && <p className="text-muted-2 small mb-1 mt-1">{n.body}</p>}
-                        <span className="notif-item-time">{notifTime(n.created_at)}</span>
+                        <span className="notif-item-time">{notifTime(n.created_at, timeFormat)}</span>
                       </div>
                       <div className="notif-item-actions" onClick={e => e.stopPropagation()}>
                         {!n.read && (

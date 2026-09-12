@@ -18,7 +18,8 @@ import type { HabitActivityRecord, HabitDataResponse } from "@/api";
 import { ProgressRing } from "@/components/ui/ProgressRing/ProgressRing";
 import { ROUTES } from "@/routes/RoutePaths";
 import { PRIORITY_LABEL } from "@/pages/plan/PlanPage.constants";
-import { todayDate } from "@/services/date.service";
+import { todayDate, formatTime } from "@/services/date.service";
+import { useTimeFormat } from "@/context/PlannerContext";
 import {
   formatStatusLabel,
   getSimpleFrequencyLabel,
@@ -44,12 +45,12 @@ function formatLongDate(value: string): string {
 // ── Inline time label — mirrors ScheduleTaskDetailPanel's TimeChip ────────────
 
 function TimeLabel({ habit }: { habit: HabitDataResponse }) {
+  const timeFormat = useTimeFormat();
   const t = habit.preferred_time;
   if (!t || t === "flexible") return null;
-
   const label =
     t === "custom"
-      ? (habit.specific_time ?? "Custom")
+      ? (habit.specific_time ? formatTime(habit.specific_time, timeFormat) : "Custom")
       : t.charAt(0).toUpperCase() + t.slice(1);
 
   let icon: React.ReactNode;

@@ -1,3 +1,5 @@
+import type { TimeFormat } from "@/api";
+
 export const IST_TIMEZONE = "Asia/Kolkata";
 
 export function todayIso(): string {
@@ -79,7 +81,18 @@ export function notifDateLabel(iso: string): string {
     return parseServerDate(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric", timeZone: IST_TIMEZONE });
 }
 
-export function notifTime(iso: string): string {
+export function formatTime(hhmm: string, format: TimeFormat = "12h"): string {
+    const [hStr, mStr] = hhmm.split(":");
+    const h = parseInt(hStr, 10);
+    const m = parseInt(mStr, 10);
+    if (isNaN(h) || isNaN(m)) return hhmm;
+    if (format === "24h") return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+    const period = h < 12 ? "AM" : "PM";
+    const h12 = h % 12 || 12;
+    return `${h12}:${String(m).padStart(2, "0")} ${period}`;
+}
+
+export function notifTime(iso: string, format: TimeFormat = "12h"): string {
     const date = parseServerDate(iso);
     const diffMs = Date.now() - date.getTime();
     const mins = Math.floor(diffMs / 60_000);
@@ -87,7 +100,7 @@ export function notifTime(iso: string): string {
     if (mins < 60) return `${mins} min${mins === 1 ? "" : "s"} ago`;
     const hrs = Math.floor(mins / 60);
     if (hrs < 12) return `${hrs} hr${hrs === 1 ? "" : "s"} ago`;
-    const time = date.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: IST_TIMEZONE });
+    const time = date.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: format === "12h", timeZone: IST_TIMEZONE });
     const day = date.toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric", timeZone: IST_TIMEZONE });
     return `${time}, ${day}`;
 }

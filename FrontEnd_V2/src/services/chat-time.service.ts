@@ -1,4 +1,5 @@
 import { parseServerDate } from "@/services/date.service";
+import type { TimeFormat } from "@/api";
 
 const IST_TIMEZONE = "Asia/Kolkata";
 
@@ -25,7 +26,7 @@ function istParts(date: Date) {
     };
 }
 
-export function formatChatTime(createdAt: string): string {
+export function formatChatTime(createdAt: string, format: TimeFormat = "12h"): string {
     const date = parseServerDate(createdAt);
     if (Number.isNaN(date.getTime())) return createdAt;
 
@@ -40,9 +41,14 @@ export function formatChatTime(createdAt: string): string {
     const msgIst = istParts(date);
     const nowIst = istParts(now);
 
-    const period = msgIst.hour24 >= 12 ? "pm" : "am";
-    const hour12 = msgIst.hour24 % 12 || 12;
-    const timePart = `${String(hour12).padStart(2, "0")}:${msgIst.minute} ${period}`;
+    let timePart: string;
+    if (format === "24h") {
+        timePart = `${String(msgIst.hour24).padStart(2, "0")}:${msgIst.minute}`;
+    } else {
+        const period = msgIst.hour24 >= 12 ? "pm" : "am";
+        const hour12 = msgIst.hour24 % 12 || 12;
+        timePart = `${String(hour12).padStart(2, "0")}:${msgIst.minute} ${period}`;
+    }
 
     const isSameDate = msgIst.year === nowIst.year && msgIst.month === nowIst.month && msgIst.day === nowIst.day;
     if (isSameDate) return timePart;

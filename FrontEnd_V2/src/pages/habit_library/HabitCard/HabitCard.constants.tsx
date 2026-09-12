@@ -1,6 +1,6 @@
-import type { HabitDataResponse } from "@/api";
+import type { HabitDataResponse, TimeFormat } from "@/api";
 import { FREQUENCY_OPTIONS, PREFERRED_TIME_OPTIONS } from "@/pages/habit_library/HabitWizard/HabitWizard.constants";
-import { todayDate } from "@/services/date.service";
+import { todayDate, formatTime } from "@/services/date.service";
 
 export { PriorityIcon } from "@/constant/priority";
 
@@ -43,11 +43,11 @@ export function getHabitDateLabel(habit: HabitDataResponse): string | null {
   return habit.end_date ? `Ends ${formatHabitDate(habit.end_date)}` : null;
 }
 
-export function getPreferredTimeLabel(habit: HabitDataResponse): string | null {
+export function getPreferredTimeLabel(habit: HabitDataResponse, format: TimeFormat = "12h"): string | null {
   if (habit.preferred_time === "flexible") return null;
   if (habit.preferred_time === "custom") {
     const t = habit.specific_time?.trim();
-    return t ? `${t} hrs` : null;
+    return t ? formatTime(t, format) : null;
   }
   const option = PREFERRED_TIME_OPTIONS.find((item) => item.value === habit.preferred_time);
   return option?.label.split(" (")[0] ?? habit.preferred_time;

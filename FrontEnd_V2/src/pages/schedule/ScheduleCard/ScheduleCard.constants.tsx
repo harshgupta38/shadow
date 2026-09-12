@@ -1,7 +1,7 @@
 import { Clock, MoonFill, MoonStarsFill, SunFill } from "react-bootstrap-icons";
 
-import type { ScheduledTaskPreferredTime, ScheduledTaskStatus } from "@/api/types";
-import { formatDisplayDate, formatDisplayDateShort } from "@/services/date.service";
+import type { ScheduledTaskPreferredTime, ScheduledTaskStatus, TimeFormat } from "@/api/types";
+import { formatDisplayDate, formatDisplayDateShort, formatTime } from "@/services/date.service";
 
 export { PRIORITY_COLOR, PRIORITY_LABEL } from "@/constant/priority";
 
@@ -25,15 +25,12 @@ const PREFERRED_TIME_LABEL: Partial<Record<ScheduledTaskPreferredTime, string>> 
 export function formatTimeDisplay(
     preferredTime: ScheduledTaskPreferredTime,
     specificTime: string | null,
+    format: TimeFormat = "12h",
 ): string | null {
     if (preferredTime === "flexible") return null;
     if (preferredTime === "custom") {
         if (!specificTime) return null;
-        const [hh, mm] = specificTime.split(":");
-        const h24 = parseInt(hh, 10);
-        const ampm = h24 < 12 ? "AM" : "PM";
-        const h12 = h24 === 0 ? 12 : h24 > 12 ? h24 - 12 : h24;
-        return `${h12}:${mm} ${ampm}`;
+        return formatTime(specificTime, format);
     }
     return PREFERRED_TIME_LABEL[preferredTime] ?? null;
 }

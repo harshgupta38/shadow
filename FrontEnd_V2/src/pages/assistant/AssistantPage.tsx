@@ -20,6 +20,7 @@ import { MilestoneProposalReviewPanel } from "@/pages/assistant/MilestoneProposa
 import { TaskProposalReviewPanel } from "@/pages/assistant/TaskProposalReviewPanel/TaskProposalReviewPanel";
 import { useToast } from "@/context/ToastContext";
 import { formatChatTime } from "@/services/chat-time.service";
+import { useTimeFormat } from "@/context/PlannerContext";
 import { resizeTextareaToMaxLines } from "@/services/textarea-resize.service";
 
 import "@/pages/assistant/AssistantPage.scss";
@@ -35,6 +36,7 @@ interface State {
 
 export function AssistantPage() {
   const toast = useToast();
+  const timeFormat = useTimeFormat();
   const location = useLocation();
   const navigate = useNavigate();
   const navigationState = location.state as State | null;
@@ -615,7 +617,7 @@ export function AssistantPage() {
                       <span className="d-inline-grid flex-shrink-0 icon" style={avatarStyle(agent.gradient, 38)} aria-hidden="true"><Icon size={19} /></span>
                       <div className="flex-grow-1 min-w-0 text-start">
                         <div className="fw-semibold small text-truncate chat-session-title">{title}</div>
-                        <div className="text-faint text-truncate chat-session-meta" style={{ fontSize: "0.72rem" }}>{agent.tagline} · {formatChatTime(conversation.updated_at)}</div>
+                        <div className="text-faint text-truncate chat-session-meta" style={{ fontSize: "0.72rem" }}>{agent.tagline} · {formatChatTime(conversation.updated_at, timeFormat)}</div>
                       </div>
                     </button>
                     <Dropdown

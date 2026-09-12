@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTimeFormat } from "@/context/PlannerContext";
 import { createPortal } from "react-dom";
 import { ArrowRepeat, Files, PencilFill, Trash3Fill } from "react-bootstrap-icons";
 import { Dropdown } from "react-bootstrap";
@@ -19,7 +20,8 @@ interface ScheduleCardProps {
 }
 
 export function ScheduleCard({ task, onSelect, onEdit, onDuplicate, onDelete }: ScheduleCardProps) {
-    const timeDisplay = formatTimeDisplay(task.preferred_time, task.specific_time);
+    const timeFormat = useTimeFormat();
+    const timeDisplay = formatTimeDisplay(task.preferred_time, task.specific_time, timeFormat);
     const [showCtx, setShowCtx] = useState(false);
     const [ctxPos, setCtxPos] = useState({ x: 0, y: 0 });
 

@@ -8,15 +8,15 @@ import { TrackHabitPanel } from "./TrackHabitPanel/TrackHabitPanel";
 import { trackProgressApi } from "@/api/track_progress";
 import type { EligibleHabitItem, EligibleTaskItem, HabitTrackItem, TaskTrackItem } from "@/api/types";
 import {
-  TODAY_COL,
-  WEEK_DAY_LABELS,
-  WEEK_RANGE,
   toMetricData,
   toMetricDataFromTask,
   toSimpleData,
   toSimpleDataFromTask,
   type MatrixRow,
 } from "./TrackProgressPage.constants";
+import { useWeekStart } from "@/context/PlannerContext";
+import { dayToCol, weekDayLabels, weekRangeStr } from "@/utils/weekUtils";
+import { todayDate } from "@/services/date.service";
 import "@/pages/track_progress/TrackProgressPage.scss";
 
 
@@ -32,6 +32,11 @@ interface GhostShellProps {
 }
 
 function GhostShell({ icon, title, subtitle, cta }: GhostShellProps) {
+  const weekStart = useWeekStart();
+  const today = todayDate();
+  const dayLabels = weekDayLabels(weekStart);
+  const todayCol = dayToCol(today, weekStart);
+
   return (
     <div className="tp-empty">
       <div className="tp-empty-ghost-shell">
@@ -39,8 +44,8 @@ function GhostShell({ icon, title, subtitle, cta }: GhostShellProps) {
           <div className="tp-matrix-wrap">
             <div className="tp-matrix-row tp-matrix-row--header">
               <div className="tp-matrix-label tp-matrix-label--hdr">Habit</div>
-              {WEEK_DAY_LABELS.map((d, i) => (
-                <div key={`${d}-${i}`} className={`tp-matrix-day-hdr${i === TODAY_COL ? " tp-matrix-day-hdr--today" : ""}`}>{d}</div>
+              {dayLabels.map((d, i) => (
+                <div key={`${d}-${i}`} className={`tp-matrix-day-hdr${i === todayCol ? " tp-matrix-day-hdr--today" : ""}`}>{d}</div>
               ))}
               <div className="tp-matrix-pct-hdr">Progress</div>
             </div>
@@ -78,14 +83,19 @@ function GhostShell({ icon, title, subtitle, cta }: GhostShellProps) {
 // ── Weekly Accountability Matrix ──────────────────────────────────────────────
 
 function WeeklyMatrix({ rows }: { rows: MatrixRow[] }) {
+  const weekStart = useWeekStart();
+  const today = todayDate();
+  const dayLabels = weekDayLabels(weekStart);
+  const todayCol = dayToCol(today, weekStart);
+
   return (
     <div className="tp-matrix-wrap">
       <div className="tp-matrix-row tp-matrix-row--header">
         <div className="tp-matrix-label tp-matrix-label--hdr">Habit</div>
-        {WEEK_DAY_LABELS.map((d, i) => (
+        {dayLabels.map((d, i) => (
           <div
             key={`${d}-${i}`}
-            className={`tp-matrix-day-hdr${i === TODAY_COL ? " tp-matrix-day-hdr--today" : ""}`}
+            className={`tp-matrix-day-hdr${i === todayCol ? " tp-matrix-day-hdr--today" : ""}`}
           >
             {d}
           </div>
@@ -106,8 +116,8 @@ function WeeklyMatrix({ rows }: { rows: MatrixRow[] }) {
                 className={[
                   "tp-matrix-cell",
                   done ? "tp-matrix-cell--done" : "tp-matrix-cell--miss",
-                  i === TODAY_COL ? "tp-matrix-cell--today" : "",
-                  i > TODAY_COL ? "tp-matrix-cell--future" : "",
+                  i === todayCol ? "tp-matrix-cell--today" : "",
+                  i > todayCol ? "tp-matrix-cell--future" : "",
                 ].filter(Boolean).join(" ")}
               />
             ))}
@@ -127,6 +137,7 @@ type LoadState = "loading" | "error" | "loaded";
 
 export function TrackProgressPage() {
   const toast = useToast();
+  const weekStart = useWeekStart();
 
   const [habits, setHabits] = useState<HabitTrackItem[]>([]);
   const [tasks, setTasks] = useState<TaskTrackItem[]>([]);
@@ -318,7 +329,7 @@ export function TrackProgressPage() {
           <section className="tp-section">
             <div className="tp-section-head">
               <h2 className="tp-section-title">This Week</h2>
-              <span className="tp-section-chip">{WEEK_RANGE}</span>
+              <span className="tp-section-chip">{weekRangeStr(todayDate(), weekStart)}</span>
             </div>
             <div className="tp-matrix-shell">
               <WeeklyMatrix rows={matrixRows} />

@@ -49,7 +49,7 @@ class AIBehaviorSection(BaseModel):
 
 
 class PlannerSection(BaseModel):
-    week_starts_on: WeekStartsOn = "monday"
+    week_starts_on: WeekStartsOn = "sunday"
     default_reminder_time: str = "09:00"
     default_task_duration_minutes: int = Field(default=30, ge=5, le=480)
     time_format: TimeFormat = "12h"

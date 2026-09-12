@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useWeekStart } from "@/context/PlannerContext";
+import { weekDayLabels } from "@/utils/weekUtils";
 import { Link, useNavigate } from "react-router-dom";
 import { CheckCircleFill, ExclamationTriangleFill } from "react-bootstrap-icons";
 
@@ -9,7 +11,7 @@ import { useToast } from "@/context/ToastContext";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { formatDisplayDate, todayDate } from "@/services/date.service";
 import { CLOSING_EMOJI } from "@/pages/reports/ReportDetailPage/ReportDetailPage.constants";
-import { buildCalCells, DAY_LABELS, ringColor, type CalCell } from "./ReportsOverview.constants";
+import { buildCalCells, ringColor, type CalCell } from "./ReportsOverview.constants";
 import "./ReportsOverview.scss";
 
 interface Props {
@@ -50,6 +52,7 @@ function ReportRing({ pct, size = 96, stroke = 9 }: { pct: number; size?: number
 export function ReportsOverview({ monthDays, latestReport }: Props) {
   const navigate = useNavigate();
   const toast = useToast();
+  const weekStart = useWeekStart();
   const [confirmDate, setConfirmDate] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
 
@@ -57,7 +60,7 @@ export function ReportsOverview({ monthDays, latestReport }: Props) {
   if (!latestReport) return null;
 
   const today = todayDate();
-  const calCells = buildCalCells(monthDays, today.getFullYear(), today.getMonth(), today);
+  const calCells = buildCalCells(monthDays, today.getFullYear(), today.getMonth(), today, weekStart);
   const reportHref = `${ROUTES.REPORTS_DETAIL.replace(":historyDate", latestReport.date)}?report_type=${latestReport.report_type}`;
 
   function handleCalCellClick(cell: CalCell) {
@@ -97,7 +100,7 @@ export function ReportsOverview({ monthDays, latestReport }: Props) {
             {today.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
           </div>
           <div className="dp-cal-dow-row">
-            {DAY_LABELS.map((d) => <span key={d} className="dp-cal-dow">{d}</span>)}
+            {weekDayLabels(weekStart).map((d) => <span key={d} className="dp-cal-dow">{d}</span>)}
           </div>
           <div className="dp-cal-grid">
             {calCells.map((cell) => {

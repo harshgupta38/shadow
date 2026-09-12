@@ -27,13 +27,13 @@ class HabitTrackItem(BaseModel):
 
     current_streak: int
     max_streak: int
-    # 7 entries — index 0 = Sunday, index 6 = Saturday of the current week.
-    # Simple habits: 1 if done, 0 otherwise.
-    # Metric habits: actual_value if done, 0 otherwise. Future days are 0.
+    # 7 entries ordered by the user's week_starts_on preference (index 0 = first day of week).
+    # Simple habits: 1 if done, 0 otherwise. Metric habits: actual_value if done, 0 otherwise.
+    # Future days within the window are 0.
     history: list[int]
-    # Same 7-day window as `history`, but always a real done/not-done boolean —
+    # Same 7-day window as `history`, but always a plain done/not-done boolean —
     # for metric habits `history` holds the raw actual_value, not a threshold
-    # check, so this is the field to use when you need a plain "was it done".
+    # check, so this is the field to use when you need "was it done".
     week_done: list[bool]
     done_today: bool
     current_value: int  # today's actual_value (0 if not logged yet)

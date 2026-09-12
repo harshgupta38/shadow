@@ -94,8 +94,11 @@ export function buildGrid(
   plannerTarget: number | null,
   frequencies: string[],
   specificDays: number[] | null,
+  weekStart: "monday" | "sunday" = "sunday",
 ): MonthGrid {
-  const firstDow = new Date(year, month, 1).getDay();
+  const firstDow = weekStart === "monday"
+    ? (new Date(year, month, 1).getDay() + 6) % 7
+    : new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const cells: DayCell[] = [];
 

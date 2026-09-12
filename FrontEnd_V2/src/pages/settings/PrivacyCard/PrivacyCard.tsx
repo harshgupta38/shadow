@@ -40,6 +40,7 @@ export function PrivacyCard({
     setClearingHistory(true);
     try {
       await api.settings.clearChatHistory();
+      window.dispatchEvent(new CustomEvent("chat:cleared"));
       setShowClearConfirm(false);
       success("Chat history cleared.");
     } catch (err) {

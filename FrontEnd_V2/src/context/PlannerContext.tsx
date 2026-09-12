@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 import { type ChildProps, type DateFormat, type TimeFormat, type WeekStartsOn } from "@/api";
 
-type PlannerSyncDetail = { week_starts_on: WeekStartsOn; time_format: TimeFormat; date_format: DateFormat };
+type PlannerSyncDetail = { week_starts_on: WeekStartsOn; time_format: TimeFormat; date_format: DateFormat; default_task_duration_minutes?: number };
 
 // ── localStorage helpers ──────────────────────────────────────────────────────
 
@@ -34,12 +34,24 @@ function readDateCache(): DateFormat {
   return "dd mmmm yyyy";
 }
 
+function readDurationCache(): number {
+  try {
+    const v = localStorage.getItem("shadow_task_duration");
+    if (v) {
+      const n = Number(v);
+      if (Number.isInteger(n) && n >= 5 && n <= 480) return n;
+    }
+  } catch {}
+  return 30;
+}
+
 // ── Context ───────────────────────────────────────────────────────────────────
 
 interface PlannerContextValue {
   weekStartsOn: WeekStartsOn;
   timeFormat: TimeFormat;
   dateFormat: DateFormat;
+  taskDuration: number;
 }
 
 const PlannerContext = createContext<PlannerContextValue | undefined>(undefined);
@@ -48,6 +60,7 @@ export function PlannerProvider({ children }: ChildProps) {
   const [weekStartsOn, setWeekStartsOn] = useState<WeekStartsOn>(readWeekCache);
   const [timeFormat, setTimeFormat] = useState<TimeFormat>(readTimeCache);
   const [dateFormat, setDateFormat] = useState<DateFormat>(readDateCache);
+  const [taskDuration, setTaskDuration] = useState<number>(readDurationCache);
 
   // AuthContext fires planner:sync on session restore, login, register, and refreshUser.
   // SettingsPage fires it after a successful save.
@@ -57,17 +70,19 @@ export function PlannerProvider({ children }: ChildProps) {
       setWeekStartsOn(d.week_starts_on);
       setTimeFormat(d.time_format);
       if (d.date_format) setDateFormat(d.date_format);
+      if (d.default_task_duration_minutes != null) setTaskDuration(d.default_task_duration_minutes);
       try {
         localStorage.setItem("shadow_week_start", d.week_starts_on);
         localStorage.setItem("shadow_time_fmt", d.time_format);
         if (d.date_format) localStorage.setItem("shadow_date_fmt", d.date_format);
+        if (d.default_task_duration_minutes != null) localStorage.setItem("shadow_task_duration", String(d.default_task_duration_minutes));
       } catch {}
     }
     window.addEventListener("planner:sync", handler);
     return () => window.removeEventListener("planner:sync", handler);
   }, []);
 
-  const value = useMemo(() => ({ weekStartsOn, timeFormat, dateFormat }), [weekStartsOn, timeFormat, dateFormat]);
+  const value = useMemo(() => ({ weekStartsOn, timeFormat, dateFormat, taskDuration }), [weekStartsOn, timeFormat, dateFormat, taskDuration]);
 
   return <PlannerContext.Provider value={value}>{children}</PlannerContext.Provider>;
 }
@@ -88,4 +103,10 @@ export function useDateFormat(): DateFormat {
   const ctx = useContext(PlannerContext);
   if (!ctx) throw new Error("useDateFormat must be used within a PlannerProvider");
   return ctx.dateFormat;
+}
+
+export function useDefaultTaskDuration(): number {
+  const ctx = useContext(PlannerContext);
+  if (!ctx) throw new Error("useDefaultTaskDuration must be used within a PlannerProvider");
+  return ctx.taskDuration;
 }

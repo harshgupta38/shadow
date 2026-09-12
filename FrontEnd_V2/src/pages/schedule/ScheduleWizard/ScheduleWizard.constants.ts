@@ -62,7 +62,7 @@ export const STEPS: ScheduleWizardStep[] = [
 ];
 
 
-export function makeEmptyAnswers(): ScheduleWizardAnswers {
+export function makeEmptyAnswers(defaultDuration = 30): ScheduleWizardAnswers {
     return {
         title: "",
         plannerType: "simple",
@@ -75,7 +75,7 @@ export function makeEmptyAnswers(): ScheduleWizardAnswers {
         allowSnoozing: false,
         snoozeLimit: "",
         repeatYearly: false,
-        durationMinutes: "",
+        durationMinutes: String(defaultDuration),
         note: "",
         category: "",
         goalId: "",

@@ -14,7 +14,7 @@ import LOADING_IMAGE from "@/assets/loading_default.png";
 import { StepImageVisual } from "@/components/ui/StepImageVisual/StepImageVisual";
 import { ThemeToggle } from "@/components/ui/ThemeToggle/ThemeToggle";
 import { useToast } from "@/context/ToastContext";
-import { useTimeFormat } from "@/context/PlannerContext";
+import { useDefaultTaskDuration, useTimeFormat } from "@/context/PlannerContext";
 import { ROUTES } from "@/routes/RoutePaths";
 import { GoalWizardVisual } from "@/pages/my_goals/GoalCreationWizard/GoalWizardVisual";
 
@@ -60,6 +60,7 @@ export function HabitWizardPage() {
     const location = useLocation();
     const toast = useToast();
     const timeFormat = useTimeFormat();
+    const defaultDuration = useDefaultTaskDuration();
 
     const isEditMode = Boolean(habitId);
     const numericHabitId = Number(habitId);
@@ -75,7 +76,7 @@ export function HabitWizardPage() {
     const [answers, setAnswers] = useState<HabitWizardAnswers>(() => {
         if (isEditMode && stateHabit) return answersFromHabit(stateHabit);
         if (!isEditMode && stateDraft) return answersFromDraft(stateDraft);
-        return makeEmptyAnswers();
+        return makeEmptyAnswers(defaultDuration);
     });
     const [fieldErrors, setFieldErrors] = useState<HabitFieldErrors>({});
     const [error, setError] = useState<string | null>(null);

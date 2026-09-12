@@ -8,7 +8,7 @@ import LOADING_IMAGE from "@/assets/loading_default.png";
 import { StepImageVisual } from "@/components/ui/StepImageVisual/StepImageVisual";
 import { ThemeToggle } from "@/components/ui/ThemeToggle/ThemeToggle";
 import { useToast } from "@/context/ToastContext";
-import { useDateFormat, useTimeFormat } from "@/context/PlannerContext";
+import { useDateFormat, useDefaultTaskDuration, useTimeFormat } from "@/context/PlannerContext";
 import { GoalWizardVisual } from "@/pages/my_goals/GoalCreationWizard/GoalWizardVisual";
 import { ROUTES } from "@/routes/RoutePaths";
 import { todayIso, formatDisplayDate } from "@/services/date.service";
@@ -52,6 +52,7 @@ export function ScheduleWizardPage() {
     const toast = useToast();
     const timeFormat = useTimeFormat();
     const dateFormat = useDateFormat();
+    const defaultDuration = useDefaultTaskDuration();
 
     const isEditMode = Boolean(taskId);
     const numericTaskId = Number(taskId);
@@ -80,8 +81,8 @@ export function ScheduleWizardPage() {
             // Duplicate: pre-fill all fields but reset the date so user picks a new one
             return { ...answersFromTask(stateDraft), scheduledDate: "" };
         }
-        if (stateDate && stateDate >= todayIso()) return { ...makeEmptyAnswers(), scheduledDate: stateDate };
-        return makeEmptyAnswers();
+        if (stateDate && stateDate >= todayIso()) return { ...makeEmptyAnswers(defaultDuration), scheduledDate: stateDate };
+        return makeEmptyAnswers(defaultDuration);
     });
     const [fieldErrors, setFieldErrors] = useState<ScheduleFieldErrors>({});
     const [error, setError] = useState<string | null>(null);

@@ -68,7 +68,7 @@ export const STEPS: HabitWizardStep[] = [
 ];
 
 
-export function makeEmptyAnswers(): HabitWizardAnswers {
+export function makeEmptyAnswers(defaultDuration = 30): HabitWizardAnswers {
     return {
         title: "",
         plannerType: "simple",
@@ -86,7 +86,7 @@ export function makeEmptyAnswers(): HabitWizardAnswers {
         endDate: "",
         preferredTime: "flexible",
         specificTime: "",
-        durationMinutes: "",
+        durationMinutes: String(defaultDuration),
         note: "",
         goalId: "",
         category: "",

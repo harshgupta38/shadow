@@ -8,12 +8,12 @@ import LOADING_IMAGE from "@/assets/loading_default.png";
 import { StepImageVisual } from "@/components/ui/StepImageVisual/StepImageVisual";
 import { ThemeToggle } from "@/components/ui/ThemeToggle/ThemeToggle";
 import { useToast } from "@/context/ToastContext";
-import { useTimeFormat } from "@/context/PlannerContext";
+import { useDefaultTaskDuration, useTimeFormat } from "@/context/PlannerContext";
 import { ROUTES } from "@/routes/RoutePaths";
 
 import { GoalWizardVisual } from "@/pages/my_goals/GoalCreationWizard/GoalWizardVisual";
 import {
-	EMPTY_ANSWERS,
+	makeEmptyAnswers,
 	FREQ_DAYS,
 	FREQ_PERIODS,
 	FREQUENCY_OPTIONS,
@@ -215,7 +215,7 @@ export function GoalTaskWizardPage() {
 	const location = useLocation();
 	const toast = useToast();
 	const timeFormat = useTimeFormat();
-
+	const defaultDuration = useDefaultTaskDuration();
 
 	const isEditMode = Boolean(taskId);
 	const numericTaskId = Number(taskId);
@@ -238,7 +238,7 @@ export function GoalTaskWizardPage() {
 	});
 	const [answers, setAnswers] = useState<TaskWizardAnswers>(() => {
 		const s = location.state as { draft?: Partial<TaskWizardAnswers> } | null;
-		return s?.draft ? { ...EMPTY_ANSWERS, ...s.draft } : EMPTY_ANSWERS;
+		return s?.draft ? { ...makeEmptyAnswers(defaultDuration), ...s.draft } : makeEmptyAnswers(defaultDuration);
 	});
 	const [fieldErrors, setFieldErrors] = useState<TaskFieldErrors>({});
 	const [error, setError] = useState<string | null>(null);

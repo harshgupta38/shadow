@@ -101,6 +101,32 @@ def get_theme_preference(db: Session, user_id: int) -> str:
     return str(setting.appearance.get("theme_preference", _DEFAULT_APPEARANCE["theme_preference"]))
 
 
+def get_week_starts_on(db: Session, user_id: int) -> str:
+    """Lightweight read — returns 'monday' or 'sunday' without creating a default row."""
+    setting = db.scalar(
+        select(UserSettingDBM).where(UserSettingDBM.user_id == user_id)
+    )
+    if setting is None:
+        return _DEFAULT_PLANNER["week_starts_on"]
+    return str(setting.planner.get("week_starts_on", _DEFAULT_PLANNER["week_starts_on"]))
+
+
+def get_startup_settings(db: Session, user_id: int) -> dict:
+    """Lightweight read for /auth/my-data — returns theme + planner defaults without creating a row."""
+    setting = db.scalar(
+        select(UserSettingDBM).where(UserSettingDBM.user_id == user_id)
+    )
+    if setting is None:
+        return {
+            "theme_preference": _DEFAULT_APPEARANCE["theme_preference"],
+            "planner": _DEFAULT_PLANNER,
+        }
+    return {
+        "theme_preference": setting.appearance.get("theme_preference", _DEFAULT_APPEARANCE["theme_preference"]),
+        "planner": {**_DEFAULT_PLANNER, **setting.planner},
+    }
+
+
 def get_ai_behavior(db: Session, user_id: int) -> dict:
     """Single read for all ai_behavior fields used by chat. Does NOT create a default row."""
     setting = db.scalar(

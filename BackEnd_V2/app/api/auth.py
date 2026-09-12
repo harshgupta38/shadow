@@ -4,6 +4,7 @@ from app.core.endpoints import ENDPOINTS
 from app.core.exceptions import AuthError
 
 from app.schemas.user import UserDataResponse
+from app.schemas.settings import PlannerSection
 from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.models.user import UserDBM
@@ -57,9 +58,11 @@ def me(
     db=Depends(get_db),
     current_user: UserDBM = Depends(get_current_user),
 ) -> UserDataResponse:
+    startup = settings_service.get_startup_settings(db, current_user.id)
     return UserDataResponse(
         id=current_user.id,
         name=current_user.name,
         email=current_user.email,
-        theme_preference=settings_service.get_theme_preference(db, current_user.id),
+        theme_preference=startup["theme_preference"],
+        planner=PlannerSection(**startup["planner"]),
     )

@@ -15,10 +15,12 @@ export interface CalCell {
   hasWeeklyReport: boolean;
 }
 
-export function buildCalCells(monthDays: DayReport[], year: number, month: number, today: Date): CalCell[] {
+export function buildCalCells(monthDays: DayReport[], year: number, month: number, today: Date, weekStart: "monday" | "sunday" = "sunday"): CalCell[] {
   const monthMap = buildMonthData(year, month, monthDays);
   const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const firstDow = new Date(year, month, 1).getDay();
+  const firstDow = weekStart === "monday"
+    ? (new Date(year, month, 1).getDay() + 6) % 7
+    : new Date(year, month, 1).getDay();
   const cells: CalCell[] = [];
 
   for (let i = 0; i < firstDow; i++) {

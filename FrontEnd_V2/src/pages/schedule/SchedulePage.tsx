@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { useWeekStart } from "@/context/PlannerContext";
+import { weekDayLabels } from "@/utils/weekUtils";
 import { CalendarWeek, ChevronDoubleLeft, ChevronDoubleRight, ChevronLeft, ChevronRight, PlusLg } from "react-bootstrap-icons";
 import { useNavigate } from "react-router-dom";
 
@@ -8,7 +10,6 @@ import {
     buildCalendarCells,
     DEFAULT_FILTERS,
     MONTH_NAMES,
-    DAY_NAMES,
     PRIORITY_FILTER_OPTIONS,
     STATUS_FILTER_OPTIONS,
     TIME_FILTER_OPTIONS,
@@ -111,7 +112,8 @@ export function SchedulePage() {
         return acc;
     }, {}), [tasks]);
 
-    const calCells = useMemo(() => buildCalendarCells(calYear, calMonth), [calYear, calMonth]);
+    const weekStart = useWeekStart();
+    const calCells = useMemo(() => buildCalendarCells(calYear, calMonth, weekStart), [calYear, calMonth, weekStart]);
 
     function prevMonth() {
         if (calMonth === 0) { setCalYear(y => y - 1); setCalMonth(11); }
@@ -239,7 +241,7 @@ export function SchedulePage() {
                         </div>
 
                         <div className="schedule-cal-day-names">
-                            {DAY_NAMES.map(d => (
+                            {weekDayLabels(weekStart).map(d => (
                                 <div key={d} className="schedule-cal-day-name">{d}</div>
                             ))}
                         </div>

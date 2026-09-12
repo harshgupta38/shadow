@@ -12,12 +12,12 @@ AIPersonality = Literal["professional", "friendly", "coach", "teacher", "mentor"
 WeekStartsOn = Literal["monday", "sunday"]
 TimeFormat = Literal["12h", "24h"]
 DateFormat = Literal[
+    "dd mmmm yyyy",
+    "dd/mm/yy",
     "dd/mm/yyyy",
-    "mm/dd/yyyy",
+    "dd-mm-yy",
     "dd-mm-yyyy",
-    "mm-dd-yyyy",
-    "mmm d yyyy",
-    "yyyy-mm-dd",
+    "mmm d, yyyy",
 ]
 
 # ─── Section schemas ──────────────────────────────────────────────────────────
@@ -49,11 +49,11 @@ class AIBehaviorSection(BaseModel):
 
 
 class PlannerSection(BaseModel):
-    week_starts_on: WeekStartsOn = "monday"
-    default_reminder_time: str = "09:00"
+    week_starts_on: WeekStartsOn = "sunday"
+    default_reminder_time: str = Field(default="21:00", pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
     default_task_duration_minutes: int = Field(default=30, ge=5, le=480)
     time_format: TimeFormat = "12h"
-    date_format: DateFormat = "dd/mm/yyyy"
+    date_format: DateFormat = "dd mmmm yyyy"
 
 
 class PrivacySection(BaseModel):

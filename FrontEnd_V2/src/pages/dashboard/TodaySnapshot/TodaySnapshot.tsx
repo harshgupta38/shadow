@@ -6,6 +6,7 @@ import { ROUTES } from "@/routes/RoutePaths";
 import { PRIORITY_COLOR } from "@/constant/priority";
 import { ProgressRing } from "@/components/ui/ProgressRing/ProgressRing";
 import type { DashboardTodayItem } from "@/api";
+import { useTimeFormat } from "@/context/PlannerContext";
 import { computeCompletion, completionMessage, remainingLabel, timeLabel, topUndoneItems } from "./TodaySnapshot.constants";
 import "./TodaySnapshot.scss";
 
@@ -36,6 +37,7 @@ function TimeChip({ preferredTime, label }: { preferredTime: string; label: stri
 }
 
 export function TodaySnapshot({ items, currentStreak, latestAlignmentScore }: Props) {
+  const timeFormat = useTimeFormat();
   const habitItems = items.filter((item) => item.source_type === "habit");
   const taskItems = items.filter((item) => item.source_type !== "habit");
   const habitsDone = habitItems.filter((item) => item.status === "done").length;
@@ -108,7 +110,7 @@ export function TodaySnapshot({ items, currentStreak, latestAlignmentScore }: Pr
               const pct = isMetric && target > 0
                 ? Math.min(100, Math.round((item.current_value / target) * 100))
                 : 0;
-              const label = timeLabel(item);
+              const label = timeLabel(item, timeFormat);
 
               return (
                 <div key={item.plan_id} className="dp-today-item">

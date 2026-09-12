@@ -18,7 +18,8 @@ import type { HabitActivityRecord, HabitDataResponse } from "@/api";
 import { ProgressRing } from "@/components/ui/ProgressRing/ProgressRing";
 import { ROUTES } from "@/routes/RoutePaths";
 import { PRIORITY_LABEL } from "@/pages/plan/PlanPage.constants";
-import { todayDate } from "@/services/date.service";
+import { todayDate, formatTime, formatDisplayDate } from "@/services/date.service";
+import { useDateFormat, useTimeFormat } from "@/context/PlannerContext";
 import {
   formatStatusLabel,
   getSimpleFrequencyLabel,
@@ -33,23 +34,15 @@ import "@/pages/plan/PlanCard/PlanCard.scss";
 import "@/pages/habit_library/HabitCard/HabitCard.scss";
 import "./HabitDetailPage.scss";
 
-function formatLongDate(value: string): string {
-  const d = new Date(`${value}T00:00:00`);
-  if (Number.isNaN(d.getTime())) return value;
-  const day = String(d.getDate()).padStart(2, "0");
-  const month = d.toLocaleDateString("en-GB", { month: "long" });
-  return `${day} ${month} ${d.getFullYear()}`;
-}
-
 // ── Inline time label — mirrors ScheduleTaskDetailPanel's TimeChip ────────────
 
 function TimeLabel({ habit }: { habit: HabitDataResponse }) {
+  const timeFormat = useTimeFormat();
   const t = habit.preferred_time;
   if (!t || t === "flexible") return null;
-
   const label =
     t === "custom"
-      ? (habit.specific_time ?? "Custom")
+      ? (habit.specific_time ? formatTime(habit.specific_time, timeFormat) : "Custom")
       : t.charAt(0).toUpperCase() + t.slice(1);
 
   let icon: React.ReactNode;
@@ -82,14 +75,15 @@ function HabitHero({
   deleting: boolean;
 }) {
   const navigate = useNavigate();
+  const dateFormat = useDateFormat();
   const [isExpanded, setIsExpanded] = useState(false);
 
   const freqLabel = getSimpleFrequencyLabel(habit);
 
   const dateRangeLabel = (() => {
     if (!habit.start_date && !habit.end_date) return null;
-    const from = habit.start_date ? formatLongDate(habit.start_date) : "—";
-    const to = habit.end_date ? formatLongDate(habit.end_date) : "ongoing";
+    const from = habit.start_date ? formatDisplayDate(habit.start_date, dateFormat) : "—";
+    const to = habit.end_date ? formatDisplayDate(habit.end_date, dateFormat) : "ongoing";
     return `${from} → ${to}`;
   })();
 

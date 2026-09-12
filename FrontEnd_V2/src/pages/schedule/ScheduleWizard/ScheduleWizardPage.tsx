@@ -8,6 +8,7 @@ import LOADING_IMAGE from "@/assets/loading_default.png";
 import { StepImageVisual } from "@/components/ui/StepImageVisual/StepImageVisual";
 import { ThemeToggle } from "@/components/ui/ThemeToggle/ThemeToggle";
 import { useToast } from "@/context/ToastContext";
+import { useDateFormat, useDefaultTaskDuration, useTimeFormat } from "@/context/PlannerContext";
 import { GoalWizardVisual } from "@/pages/my_goals/GoalCreationWizard/GoalWizardVisual";
 import { ROUTES } from "@/routes/RoutePaths";
 import { todayIso, formatDisplayDate } from "@/services/date.service";
@@ -49,6 +50,9 @@ export function ScheduleWizardPage() {
     const navigate = useNavigate();
     const location = useLocation();
     const toast = useToast();
+    const timeFormat = useTimeFormat();
+    const dateFormat = useDateFormat();
+    const defaultDuration = useDefaultTaskDuration();
 
     const isEditMode = Boolean(taskId);
     const numericTaskId = Number(taskId);
@@ -77,8 +81,8 @@ export function ScheduleWizardPage() {
             // Duplicate: pre-fill all fields but reset the date so user picks a new one
             return { ...answersFromTask(stateDraft), scheduledDate: "" };
         }
-        if (stateDate && stateDate >= todayIso()) return { ...makeEmptyAnswers(), scheduledDate: stateDate };
-        return makeEmptyAnswers();
+        if (stateDate && stateDate >= todayIso()) return { ...makeEmptyAnswers(defaultDuration), scheduledDate: stateDate };
+        return makeEmptyAnswers(defaultDuration);
     });
     const [fieldErrors, setFieldErrors] = useState<ScheduleFieldErrors>({});
     const [error, setError] = useState<string | null>(null);
@@ -466,7 +470,7 @@ export function ScheduleWizardPage() {
                                                                     aria-label="Open date picker"
                                                                 >
                                                                     {answers.scheduledDate
-                                                                        ? formatDisplayDate(answers.scheduledDate)
+                                                                        ? formatDisplayDate(answers.scheduledDate, dateFormat)
                                                                         : <span className="schedule-date-placeholder">Pick a date</span>
                                                                     }
                                                                     <input
@@ -508,17 +512,23 @@ export function ScheduleWizardPage() {
                                                                 </select>
                                                                 {answers.preferredTime === "custom" && (
                                                                     <div className="d-flex gap-1 align-items-center flex-shrink-0">
-                                                                        <select className="form-select schedule-time-select" value={parsedSpecificTime.h} onChange={(e) => setSpecificTimePart("h", e.target.value)} disabled={!isActive || submitting} aria-label="Hour">
-                                                                            {Array.from({ length: 12 }, (_, i) => String(i + 1)).map((h) => <option key={h} value={h}>{String(Number(h)).padStart(2, "0")}</option>)}
-                                                                        </select>
-                                                                        :
-                                                                        <select className="form-select schedule-time-select" value={parsedSpecificTime.m} onChange={(e) => setSpecificTimePart("m", e.target.value)} disabled={!isActive || submitting} aria-label="Minute">
-                                                                            {MINUTES.map((m) => <option key={m} value={m}>{m}</option>)}
-                                                                        </select>
-                                                                        <select className="form-select schedule-time-select" value={parsedSpecificTime.a} onChange={(e) => setSpecificTimePart("a", e.target.value)} disabled={!isActive || submitting} aria-label="AM/PM" style={{ minWidth: "3.5rem" }}>
-                                                                            <option value="AM">AM</option>
-                                                                            <option value="PM">PM</option>
-                                                                        </select>
+                                                                        {timeFormat === "24h" ? (
+                                                                            <input type="time" className="form-control schedule-time-select" value={answers.specificTime || "08:00"} onChange={(e) => updateAnswer("specificTime", e.target.value)} disabled={!isActive || submitting} aria-label="Time" />
+                                                                        ) : (
+                                                                            <>
+                                                                                <select className="form-select schedule-time-select" value={parsedSpecificTime.h} onChange={(e) => setSpecificTimePart("h", e.target.value)} disabled={!isActive || submitting} aria-label="Hour">
+                                                                                    {Array.from({ length: 12 }, (_, i) => String(i + 1)).map((h) => <option key={h} value={h}>{String(Number(h)).padStart(2, "0")}</option>)}
+                                                                                </select>
+                                                                                :
+                                                                                <select className="form-select schedule-time-select" value={parsedSpecificTime.m} onChange={(e) => setSpecificTimePart("m", e.target.value)} disabled={!isActive || submitting} aria-label="Minute">
+                                                                                    {MINUTES.map((m) => <option key={m} value={m}>{m}</option>)}
+                                                                                </select>
+                                                                                <select className="form-select schedule-time-select" value={parsedSpecificTime.a} onChange={(e) => setSpecificTimePart("a", e.target.value)} disabled={!isActive || submitting} aria-label="AM/PM" style={{ minWidth: "3.5rem" }}>
+                                                                                    <option value="AM">AM</option>
+                                                                                    <option value="PM">PM</option>
+                                                                                </select>
+                                                                            </>
+                                                                        )}
                                                                     </div>
                                                                 )}
                                                             </div>

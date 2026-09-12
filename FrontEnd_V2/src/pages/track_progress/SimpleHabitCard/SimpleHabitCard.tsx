@@ -1,18 +1,22 @@
 import type { SimpleHabitData } from "@/api/types";
 import { todayDate } from "@/services/date.service";
+import { useWeekStart } from "@/context/PlannerContext";
+import { dayToCol, weekDayLabels } from "@/utils/weekUtils";
 import "./SimpleHabitCard.scss";
 
 // ── Mini Heatmap ──────────────────────────────────────────────────────────────
 
-const WEEK_DAYS = ["S", "M", "T", "W", "T", "F", "S"];
-const _TODAY_IDX = todayDate().getDay(); // 0=Sun … 6=Sat
-
 function MiniHeatmap({ history, color }: { history: boolean[]; color: string }) {
-  // history[0]=Sun … history[6]=Sat; index matches JS getDay()
+  // history from backend: 7 entries ordered by week_starts_on (index 0 = first day of user's week)
+  const weekStart = useWeekStart();
+  const today = todayDate();
+  const dayLetters = weekDayLabels(weekStart, "letter");
+  const todayCol = dayToCol(today, weekStart);
+
   return (
     <div className="tp-heatmap" aria-label="This week's completion">
       <div className="tp-heatmap-header">
-        {WEEK_DAYS.map((d, i) => (
+        {dayLetters.map((d, i) => (
           <span key={i} className="tp-heatmap-day">{d}</span>
         ))}
       </div>
@@ -23,8 +27,8 @@ function MiniHeatmap({ history, color }: { history: boolean[]; color: string }) 
             className={[
               "tp-heatmap-cell",
               done ? `tp-heatmap-cell--done tp-heatmap-cell--${color}` : "tp-heatmap-cell--miss",
-              idx === _TODAY_IDX ? "tp-heatmap-cell--today" : "",
-              idx > _TODAY_IDX ? "tp-heatmap-cell--future" : "",
+              idx === todayCol ? "tp-heatmap-cell--today" : "",
+              idx > todayCol ? "tp-heatmap-cell--future" : "",
             ].filter(Boolean).join(" ")}
             style={{ animationDelay: `${idx * 18}ms` }}
             aria-label={done ? "completed" : "missed"}

@@ -63,26 +63,28 @@ export const STEPS: TaskWizardStep[] = [
     },
 ];
 
-export const EMPTY_ANSWERS: TaskWizardAnswers = {
-    title: "",
-    note: "",
-    taskType: "Binary",
-    targetValue: "",
-    valueUnit: "",
-    planningEnabled: false,
-    plannerType: "simple",
-    plannerTarget: "",
-    frequencies: [],
-    priority: "medium",
-    preferredTime: "flexible",
-    specificTime: "",
-    durationMinutes: "",
+export function makeEmptyAnswers(defaultDuration = 30): TaskWizardAnswers {
+    return {
+        title: "",
+        note: "",
+        taskType: "Binary",
+        targetValue: "",
+        valueUnit: "",
+        planningEnabled: false,
+        plannerType: "simple",
+        plannerTarget: "",
+        frequencies: [],
+        priority: "medium",
+        preferredTime: "flexible",
+        specificTime: "",
+        durationMinutes: String(defaultDuration),
 
-    weeklyCount: 1,
-    monthlyCount: 1,
-    specificDays: [],
-    dayFallback: false,
-};
+        weeklyCount: 1,
+        monthlyCount: 1,
+        specificDays: [],
+        dayFallback: false,
+    };
+}
 
 export const FREQUENCY_OPTIONS = [
     { value: "sunday",        label: "Sunday" },

@@ -3,6 +3,7 @@ export interface UserDataResponse {
   name: string;
   email: string;
   theme_preference: ThemePreference;
+  planner: PlannerSettings;
 }
 
 export interface LoginRequest {
@@ -644,7 +645,7 @@ export interface HabitTrackItem extends HabitBaseData {
   planner_type: HabitType;
   planner_target: number | null;
   value_unit: string | null;
-  /** 7 integers — index 0 = Sunday, index 6 = Saturday; simple=0|1, metric=actual_value, future=0 */
+  /** 7 integers ordered by week_starts_on (index 0 = first day of week); simple=0|1, metric=actual_value, future=0 */
   history: number[];
   current_value: number;
 }
@@ -682,13 +683,13 @@ export interface TaskTrackItem {
 export interface MetricHabitData extends HabitBaseData {
   value_unit: string;
   planner_target: number;
-  /** 7 entries — index 0 = Sunday, index 6 = Saturday of the current week */
+  /** 7 entries ordered by week_starts_on (index 0 = first day of week) */
   history: number[];
   current_value: number;
 }
 
 export interface SimpleHabitData extends HabitBaseData {
-  /** 7 entries — index 0 = Sunday, index 6 = Saturday of the current week */
+  /** 7 entries ordered by week_starts_on (index 0 = first day of week) */
   history: boolean[];
 }
 
@@ -815,12 +816,12 @@ export type AIPersonality = "professional" | "friendly" | "coach" | "teacher" | 
 export type WeekStartsOn = "monday" | "sunday";
 export type TimeFormat = "12h" | "24h";
 export type DateFormat =
+  | "dd mmmm yyyy"
+  | "dd/mm/yy"
   | "dd/mm/yyyy"
-  | "mm/dd/yyyy"
+  | "dd-mm-yy"
   | "dd-mm-yyyy"
-  | "mm-dd-yyyy"
-  | "mmm d yyyy"
-  | "yyyy-mm-dd";
+  | "mmm d, yyyy";
 
 export interface AIModel {
   name: string;

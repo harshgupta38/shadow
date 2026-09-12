@@ -8,11 +8,12 @@ import LOADING_IMAGE from "@/assets/loading_default.png";
 import { StepImageVisual } from "@/components/ui/StepImageVisual/StepImageVisual";
 import { ThemeToggle } from "@/components/ui/ThemeToggle/ThemeToggle";
 import { useToast } from "@/context/ToastContext";
+import { useDefaultTaskDuration, useTimeFormat } from "@/context/PlannerContext";
 import { ROUTES } from "@/routes/RoutePaths";
 
 import { GoalWizardVisual } from "@/pages/my_goals/GoalCreationWizard/GoalWizardVisual";
 import {
-	EMPTY_ANSWERS,
+	makeEmptyAnswers,
 	FREQ_DAYS,
 	FREQ_PERIODS,
 	FREQUENCY_OPTIONS,
@@ -213,7 +214,8 @@ export function GoalTaskWizardPage() {
 	const navigate = useNavigate();
 	const location = useLocation();
 	const toast = useToast();
-
+	const timeFormat = useTimeFormat();
+	const defaultDuration = useDefaultTaskDuration();
 
 	const isEditMode = Boolean(taskId);
 	const numericTaskId = Number(taskId);
@@ -236,7 +238,7 @@ export function GoalTaskWizardPage() {
 	});
 	const [answers, setAnswers] = useState<TaskWizardAnswers>(() => {
 		const s = location.state as { draft?: Partial<TaskWizardAnswers> } | null;
-		return s?.draft ? { ...EMPTY_ANSWERS, ...s.draft } : EMPTY_ANSWERS;
+		return s?.draft ? { ...makeEmptyAnswers(defaultDuration), ...s.draft } : makeEmptyAnswers(defaultDuration);
 	});
 	const [fieldErrors, setFieldErrors] = useState<TaskFieldErrors>({});
 	const [error, setError] = useState<string | null>(null);
@@ -965,17 +967,23 @@ export function GoalTaskWizardPage() {
 																		</select>
 																		{answers.preferredTime === "custom" && (
 																			<div className="d-flex gap-1 align-items-center flex-shrink-0">
-																				<select className="form-select habit-time-select" value={parsedSpecificTime.h} onChange={(e) => setSpecificTimePart("h", e.target.value)} disabled={!isActive || submitting} aria-label="Hour">
-																					{Array.from({ length: 12 }, (_, i) => String(i + 1)).map((h) => <option key={h} value={h}>{String(Number(h)).padStart(2, "0")}</option>)}
-																				</select>
-																				:
-																				<select className="form-select habit-time-select" value={parsedSpecificTime.m} onChange={(e) => setSpecificTimePart("m", e.target.value)} disabled={!isActive || submitting} aria-label="Minute">
-																					{MINUTES.map((m) => <option key={m} value={m}>{m}</option>)}
-																				</select>
-																				<select className="form-select habit-time-select" value={parsedSpecificTime.a} onChange={(e) => setSpecificTimePart("a", e.target.value)} disabled={!isActive || submitting} aria-label="AM/PM" style={{ minWidth: "3.5rem" }}>
-																					<option value="AM">AM</option>
-																					<option value="PM">PM</option>
-																				</select>
+																				{timeFormat === "24h" ? (
+																					<input type="time" className="form-control habit-time-select" value={answers.specificTime || "08:00"} onChange={(e) => updateAnswer("specificTime", e.target.value)} disabled={!isActive || submitting} aria-label="Time" />
+																				) : (
+																					<>
+																						<select className="form-select habit-time-select" value={parsedSpecificTime.h} onChange={(e) => setSpecificTimePart("h", e.target.value)} disabled={!isActive || submitting} aria-label="Hour">
+																							{Array.from({ length: 12 }, (_, i) => String(i + 1)).map((h) => <option key={h} value={h}>{String(Number(h)).padStart(2, "0")}</option>)}
+																						</select>
+																						:
+																						<select className="form-select habit-time-select" value={parsedSpecificTime.m} onChange={(e) => setSpecificTimePart("m", e.target.value)} disabled={!isActive || submitting} aria-label="Minute">
+																							{MINUTES.map((m) => <option key={m} value={m}>{m}</option>)}
+																						</select>
+																						<select className="form-select habit-time-select" value={parsedSpecificTime.a} onChange={(e) => setSpecificTimePart("a", e.target.value)} disabled={!isActive || submitting} aria-label="AM/PM" style={{ minWidth: "3.5rem" }}>
+																							<option value="AM">AM</option>
+																							<option value="PM">PM</option>
+																						</select>
+																					</>
+																				)}
 																			</div>
 																		)}
 																	</div>

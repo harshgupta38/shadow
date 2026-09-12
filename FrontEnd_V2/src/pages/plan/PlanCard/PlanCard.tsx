@@ -19,6 +19,8 @@ import {
 } from "react-bootstrap-icons";
 
 import { NoteDialog } from "@/components/ui/NoteDialog/NoteDialog";
+import { useTimeFormat } from "@/context/PlannerContext";
+import { formatTime } from "@/services/date.service";
 
 import type { PlanDataResponse } from "@/api";
 import { ROUTES } from "@/routes/RoutePaths";
@@ -74,6 +76,7 @@ function TimeChip({ preferredTime, label }: { preferredTime: string; label: stri
 
 export function PlanCard({ item, onToggle, onSaveProgress, onSaveNote, onSaveNoteAndDone, busy = false, readOnly = false, isCompleting = false }: PlanCardProps) {
   const navigate = useNavigate();
+  const timeFormat = useTimeFormat();
   const isDone = item.saved_data?.status === "done";
   const isMissed = item.saved_data?.status === "missed";
   const target = item.planner_target ?? 0;
@@ -81,7 +84,7 @@ export function PlanCard({ item, onToggle, onSaveProgress, onSaveNote, onSaveNot
 
   const timeLabel =
     item.preferred_time === "custom"
-      ? item.specific_time
+      ? (item.specific_time ? formatTime(item.specific_time, timeFormat) : null)
       : item.preferred_time !== "flexible"
         ? item.preferred_time.charAt(0).toUpperCase() + item.preferred_time.slice(1)
         : null;

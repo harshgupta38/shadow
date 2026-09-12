@@ -81,6 +81,7 @@ export function SettingsPage() {
       setSettings(saved);
       setBaseline(saved);
       setThemePreference(saved.appearance.theme_preference);
+      window.dispatchEvent(new CustomEvent("planner:sync", { detail: saved.planner }));
       success("Settings saved.");
     } catch (err) {
       error(err instanceof ApiError ? err.message : "Could not save settings.");

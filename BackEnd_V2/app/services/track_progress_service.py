@@ -46,17 +46,25 @@ def get_eligible_habits(
     ]
 
 
+def _week_start_for(today: date, week_starts_on: str) -> date:
+    if week_starts_on == "monday":
+        # Python weekday(): Mon=0 … Sun=6  — exactly days since Monday
+        return today - timedelta(days=today.weekday())
+    # sunday (default)
+    days_since_sunday = (today.weekday() + 1) % 7
+    return today - timedelta(days=days_since_sunday)
+
+
 def get_habits_with_history(
     db: Session,
     current_user: UserDBM,
     *,
+    week_starts_on: str = "sunday",
     today: date | None = None,
 ) -> list[HabitTrackItem]:
     if today is None:
         today = today_ist()
-    # Week always starts on Sunday (Python weekday: Mon=0…Sun=6)
-    days_since_sunday = (today.weekday() + 1) % 7
-    week_start = today - timedelta(days=days_since_sunday)
+    week_start = _week_start_for(today, week_starts_on)
 
     habits = db.scalars(
         select(HabitDBM)
@@ -113,7 +121,7 @@ def get_habits_with_history(
         day_map = records_for_history[habit.id]
         is_metric = habit.planner_type == "metric"
 
-        # 7 entries: index 0 = Sunday … index 6 = Saturday; future days are 0
+        # 7 entries ordered by week_starts_on preference (index 0 = first day of user's week); future days are 0
         history: list[int] = []
         week_done: list[bool] = []
         for i in range(7):
@@ -185,12 +193,12 @@ def get_tasks_with_history(
     db: Session,
     current_user: UserDBM,
     *,
+    week_starts_on: str = "sunday",
     today: date | None = None,
 ) -> list[TaskTrackItem]:
     if today is None:
         today = today_ist()
-    days_since_sunday = (today.weekday() + 1) % 7
-    week_start = today - timedelta(days=days_since_sunday)
+    week_start = _week_start_for(today, week_starts_on)
 
     tasks = db.scalars(
         select(TaskDBM)

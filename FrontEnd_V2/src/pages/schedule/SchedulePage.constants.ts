@@ -2,6 +2,7 @@ import type { ScheduledTaskPreferredTime, ScheduledTaskPriority, ScheduledTaskSt
 
 // ── Calendar display ─────────────────────────────────────────────────────────
 
+// Use weekDayLabels(weekStart) from weekUtils for rendered headers.
 export const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export const MONTH_NAMES = [
@@ -55,9 +56,10 @@ export function calIso(year: number, month: number, day: number): string {
     return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
-export function buildCalendarCells(year: number, month: number): CalCell[] {
-    const firstDay = new Date(year, month, 1);
-    const startDow = firstDay.getDay();
+export function buildCalendarCells(year: number, month: number, weekStart: "monday" | "sunday" = "sunday"): CalCell[] {
+    const startDow = weekStart === "monday"
+        ? (new Date(year, month, 1).getDay() + 6) % 7
+        : new Date(year, month, 1).getDay();
     const totalDays = new Date(year, month + 1, 0).getDate();
     const cells: CalCell[] = [];
 

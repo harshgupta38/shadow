@@ -8,12 +8,16 @@ import {
     type ReactNode,
 } from "react";
 
-import { api, tokenStore, LoginRequest, RegisterRequest, type ThemePreference, type UserDataResponse } from "@/api";
+import { api, tokenStore, LoginRequest, RegisterRequest, type PlannerSettings, type ThemePreference, type UserDataResponse } from "@/api";
 
 type AuthStatus = "loading" | "authenticated" | "unauthenticated";
 
 function dispatchThemeSync(preference: ThemePreference): void {
     window.dispatchEvent(new CustomEvent<{ preference: ThemePreference }>("theme:sync", { detail: { preference } }));
+}
+
+function dispatchPlannerSync(planner: PlannerSettings): void {
+    window.dispatchEvent(new CustomEvent("planner:sync", { detail: planner }));
 }
 
 interface AuthContextValue {
@@ -38,6 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(user);
         setStatus("authenticated");
         dispatchThemeSync(user.theme_preference);
+        dispatchPlannerSync(user.planner);
         return user;
     }, []);
 
@@ -53,6 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(user);
         setStatus("authenticated");
         dispatchThemeSync(user.theme_preference);
+        dispatchPlannerSync(user.planner);
         return user;
     }, []);
 
@@ -61,6 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(user);
         setStatus("authenticated");
         dispatchThemeSync(user.theme_preference);
+        dispatchPlannerSync(user.planner);
         return user;
     }, []);
 
@@ -76,6 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 setUser(user);
                 setStatus("authenticated");
                 dispatchThemeSync(user.theme_preference);
+                dispatchPlannerSync(user.planner);
             } catch {
                 api.auth.logout();
                 // setUser(null); // No need for this, because user is already null on startup

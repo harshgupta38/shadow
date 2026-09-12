@@ -3,6 +3,7 @@ import { CalendarCheck, Compass, Diagram3 } from "react-bootstrap-icons";
 
 import { ROUTES } from "@/routes/RoutePaths";
 import type { GoalDataShortResponse } from "@/api";
+import { useDateFormat } from "@/context/PlannerContext";
 import { formatDisplayDate } from "@/services/date.service";
 import "./GoalsOverview.scss";
 
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export function GoalsOverview({ goals }: Props) {
+  const dateFormat = useDateFormat();
   if (goals.length === 0) return null;
 
   return (
@@ -50,7 +52,7 @@ export function GoalsOverview({ goals }: Props) {
                     <span><Compass size={12} /> {goal.habits_active}/{goal.habits_total}</span>
                   </div>
                   <span className="dp-goal-meta-date">
-                    <CalendarCheck size={12} /> {formatDisplayDate(goal.target_date)}
+                    <CalendarCheck size={12} /> {formatDisplayDate(goal.target_date, dateFormat)}
                   </span>
                 </div>
               </Link>

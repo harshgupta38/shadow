@@ -25,9 +25,8 @@ export function PrivacyCard({
   const [memoryCount, setMemoryCount] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!data.ai_memory_enabled) return;
-    // TODO: replace with real API call
-    setMemoryCount(18);
+    if (!data.ai_memory_enabled) { setMemoryCount(null); return; }
+    void api.settings.getMemoryCount().then(setMemoryCount).catch(() => setMemoryCount(null));
   }, [data.ai_memory_enabled]);
 
   function set<K extends keyof PrivacySettings>(key: K, value: PrivacySettings[K]) {
@@ -83,7 +82,7 @@ export function PrivacyCard({
             checked={data.ai_memory_enabled}
             onChange={(v) => set("ai_memory_enabled", v)}
           />
-          {data.ai_memory_enabled && memoryCount !== null && (
+          {data.ai_memory_enabled && (memoryCount ?? 0) > 0 && (
             <div className="st-memory-usage">
               <div className="st-memory-usage-top">
                 <span className="st-memory-usage-label">Memory usage</span>

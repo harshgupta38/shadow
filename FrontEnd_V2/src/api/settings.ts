@@ -24,4 +24,7 @@ export const settingsApi = {
   clearChatHistory(): Promise<void> {
     return http.delete<void>(BASE + ENDPOINTS.SETTINGS.CHAT_HISTORY);
   },
+  getMemoryCount(): Promise<number> {
+    return http.get<number>(BASE + ENDPOINTS.SETTINGS.MEMORIES_COUNT);
+  },
 };

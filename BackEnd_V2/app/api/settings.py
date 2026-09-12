@@ -12,7 +12,7 @@ from app.schemas.settings import (
     SettingsResponse,
     UpdateSettingsRequest,
 )
-from app.services import settings_service
+from app.services import memory_service, settings_service
 
 router = APIRouter(prefix=ENDPOINTS.SETTINGS.PREFIX, tags=["Settings"])
 
@@ -58,6 +58,14 @@ def export_user_data(
         media_type="application/json",
         headers={"Content-Disposition": "attachment; filename=shadow-export.json"},
     )
+
+
+@router.get(ENDPOINTS.SETTINGS.MEMORIES_COUNT)
+def get_memories_count(
+    db=Depends(get_db),
+    current_user: UserDBM = Depends(get_current_user),
+) -> int:
+    return memory_service.get_memory_count(db, current_user.id)
 
 
 @router.delete(ENDPOINTS.SETTINGS.CHAT_HISTORY, status_code=204)

@@ -129,6 +129,16 @@ def get_startup_settings(db: Session, user_id: int) -> dict:
     }
 
 
+def get_ai_memory_enabled(db: Session, user_id: int) -> bool:
+    """Returns whether AI memory is enabled for this user. Defaults to True if no row exists."""
+    setting = db.scalar(
+        select(UserSettingDBM).where(UserSettingDBM.user_id == user_id)
+    )
+    if setting is None:
+        return bool(_DEFAULT_PRIVACY.get("ai_memory_enabled", True))
+    return bool((setting.privacy or {}).get("ai_memory_enabled", True))
+
+
 def get_ai_behavior(db: Session, user_id: int) -> dict:
     """Single read for all ai_behavior fields used by chat. Does NOT create a default row."""
     setting = db.scalar(

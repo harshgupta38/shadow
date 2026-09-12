@@ -425,7 +425,8 @@ async def create_conversation(
     data: NewConvoRequest,
 ) -> NewConvoResponse:
     user_memory_str = ""
-    if llm_settings.save_user_memory:
+    memory_enabled = llm_settings.save_user_memory and settings_service.get_ai_memory_enabled(db, current_user.id)
+    if memory_enabled:
         user_memories = memory_service.get_user_memories(db, current_user.id)
         user_memory_str = memory_service.format_memories_for_prompt(user_memories)
 
@@ -756,7 +757,8 @@ async def respond_to_message(
 
     user_memory_str = ""
     user_memories = []
-    if llm_settings.save_user_memory:
+    memory_enabled = llm_settings.save_user_memory and settings_service.get_ai_memory_enabled(db, current_user.id)
+    if memory_enabled:
         user_memories = memory_service.get_user_memories(db, current_user.id)
         user_memory_str = memory_service.format_memories_for_prompt(user_memories)
 
@@ -787,7 +789,7 @@ async def respond_to_message(
 
     # Memory extraction: fires every chat_memory_extraction_user_messages (default 3),
     # independent of the summary threshold so short conversations can persist durable info.
-    if llm_settings.save_user_memory:
+    if memory_enabled:
         new_memory_message_count = (
             total_user_message_count - conversation.memory_user_message_count
         )
@@ -981,7 +983,8 @@ async def regenerate_response(
     )
 
     user_memory_str = ""
-    if llm_settings.save_user_memory:
+    memory_enabled = llm_settings.save_user_memory and settings_service.get_ai_memory_enabled(db, current_user.id)
+    if memory_enabled:
         user_memories = memory_service.get_user_memories(db, current_user.id)
         user_memory_str = memory_service.format_memories_for_prompt(user_memories)
 

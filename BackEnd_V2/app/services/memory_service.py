@@ -1,7 +1,7 @@
 import json
 import logging
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models.memory import UserMemoryDBM
@@ -12,6 +12,12 @@ logger = logging.getLogger(__name__)
 # Maximum number of memories retrieved per user per request.
 # Keeps the injected prompt block bounded without vector search.
 _MEMORY_RETRIEVAL_LIMIT = 20
+
+
+def get_memory_count(db: Session, user_id: int) -> int:
+    return db.scalar(
+        select(func.count()).select_from(UserMemoryDBM).where(UserMemoryDBM.user_id == user_id)
+    ) or 0
 
 
 def get_user_memories(db: Session, user_id: int) -> list[UserMemoryDBM]:

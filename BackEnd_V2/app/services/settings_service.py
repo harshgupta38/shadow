@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timezone
 
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
@@ -6,7 +7,13 @@ from sqlalchemy.orm import Session
 from app.llm.enums import ClaudeModel, GeminiModel, OllamaModel, OpenAIModel
 from app.llm.config import llm_settings
 from app.llm.exceptions import LLMError
-from app.models.chat import ConversationDBM
+from app.models.chat import ConversationDBM, MessageDBM
+from app.models.goal import GoalDBM
+from app.models.habit import HabitDBM
+from app.models.memory import UserMemoryDBM
+from app.models.milestone import MilestoneDBM
+from app.models.schedule_task import ScheduledTaskDBM
+from app.models.task import TaskDBM
 from app.models.user import UserDBM
 from app.models.user_setting import UserSettingDBM
 from app.schemas.settings import (
@@ -177,17 +184,57 @@ def get_ai_providers() -> list[AIProviderResponse]:
     return _AI_PROVIDERS
 
 
-def export_user_data(db: Session, current_user: UserDBM) -> bytes:
-    setting = _get_or_create(db, current_user.id)
-    payload = {
-        "user": {
-            "id": current_user.id,
-            "name": current_user.name,
-            "email": current_user.email,
-        },
-        "settings": SettingsDBS.model_validate(setting).model_dump(),
+def _row_to_dict(row) -> dict:
+    return {k: v for k, v in row.__dict__.items() if not k.startswith("_")}
+
+
+def export_user_data(db: Session, current_user: UserDBM, sections: list[str]) -> bytes:
+    uid = current_user.id
+    payload: dict = {
+        "exported_at": datetime.now(timezone.utc).isoformat(),
+        "user": {"id": uid, "name": current_user.name, "email": current_user.email},
     }
-    return json.dumps(payload, indent=2).encode()
+
+    if "goals" in sections:
+        payload["goals"] = [
+            _row_to_dict(r) for r in db.scalars(select(GoalDBM).where(GoalDBM.user_id == uid)).all()
+        ]
+        payload["milestones"] = [
+            _row_to_dict(r) for r in db.scalars(select(MilestoneDBM).where(MilestoneDBM.user_id == uid)).all()
+        ]
+        payload["tasks"] = [
+            _row_to_dict(r) for r in db.scalars(select(TaskDBM).where(TaskDBM.user_id == uid)).all()
+        ]
+
+    if "habits" in sections:
+        payload["habits"] = [
+            _row_to_dict(r) for r in db.scalars(select(HabitDBM).where(HabitDBM.user_id == uid)).all()
+        ]
+
+    if "scheduled_tasks" in sections:
+        payload["scheduled_tasks"] = [
+            _row_to_dict(r) for r in db.scalars(select(ScheduledTaskDBM).where(ScheduledTaskDBM.user_id == uid)).all()
+        ]
+
+    if "chat_history" in sections:
+        conversations = db.scalars(select(ConversationDBM).where(ConversationDBM.user_id == uid)).all()
+        payload["conversations"] = [_row_to_dict(r) for r in conversations]
+        conv_ids = [c.id for c in conversations]
+        payload["messages"] = (
+            [_row_to_dict(r) for r in db.scalars(select(MessageDBM).where(MessageDBM.conversation_id.in_(conv_ids))).all()]
+            if conv_ids else []
+        )
+
+    if "ai_memories" in sections:
+        payload["ai_memories"] = [
+            _row_to_dict(r) for r in db.scalars(select(UserMemoryDBM).where(UserMemoryDBM.user_id == uid)).all()
+        ]
+
+    if "settings" in sections:
+        setting = _get_or_create(db, uid)
+        payload["settings"] = SettingsDBS.model_validate(setting).model_dump()
+
+    return json.dumps(payload, indent=2, default=str).encode()
 
 
 def clear_chat_history(db: Session, current_user: UserDBM) -> None:

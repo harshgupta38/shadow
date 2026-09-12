@@ -4,6 +4,8 @@ import { BoxArrowDown, ShieldFill, Trash3Fill } from "react-bootstrap-icons";
 import { api, ApiError } from "@/api";
 import type { PrivacySettings } from "@/api";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
+import { ExportDataModal } from "@/components/ui/ExportDataModal/ExportDataModal";
+import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { Card, ToggleRow } from "@/pages/settings/SettingsShared";
 import "@/pages/settings/PrivacyCard/PrivacyCard.scss";
@@ -18,10 +20,11 @@ export function PrivacyCard({
   onUpdate: (d: PrivacySettings) => void;
 }) {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { success, error } = useToast();
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
   const [clearingHistory, setClearingHistory] = useState(false);
-  const [exportingData, setExportingData] = useState(false);
   const [memoryCount, setMemoryCount] = useState<number | null>(null);
 
   useEffect(() => {
@@ -31,26 +34,6 @@ export function PrivacyCard({
 
   function set<K extends keyof PrivacySettings>(key: K, value: PrivacySettings[K]) {
     onUpdate({ ...data, [key]: value });
-  }
-
-  async function handleExport() {
-    setExportingData(true);
-    try {
-      const blob = await api.settings.exportData();
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = `shadow-export-${new Date().toISOString().slice(0, 10)}.json`;
-      document.body.appendChild(anchor);
-      anchor.click();
-      document.body.removeChild(anchor);
-      URL.revokeObjectURL(url);
-      success("Data export downloaded.");
-    } catch (err) {
-      error(err instanceof ApiError ? err.message : "Could not export data right now.");
-    } finally {
-      setExportingData(false);
-    }
   }
 
   async function handleClearHistory() {
@@ -113,15 +96,10 @@ export function PrivacyCard({
             <button
               type="button"
               className="btn btn-outline-secondary btn-sm st-action-btn"
-              onClick={() => void handleExport()}
-              disabled={exportingData}
+              onClick={() => setShowExportModal(true)}
             >
-              {exportingData ? (
-                <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" />
-              ) : (
-                <BoxArrowDown size={14} />
-              )}
-              {exportingData ? "Exporting…" : "Export"}
+              <BoxArrowDown size={14} />
+              Export
             </button>
           </div>
 
@@ -155,6 +133,12 @@ export function PrivacyCard({
         busy={clearingHistory}
         onConfirm={() => void handleClearHistory()}
         onCancel={() => setShowClearConfirm(false)}
+      />
+
+      <ExportDataModal
+        show={showExportModal}
+        userName={user?.name ?? "User"}
+        onHide={() => setShowExportModal(false)}
       />
     </>
   );

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import Response
 
 from app.api.deps import get_current_user
@@ -49,10 +49,11 @@ async def check_provider_health(
 
 @router.get(ENDPOINTS.SETTINGS.EXPORT)
 def export_user_data(
+    sections: list[str] = Query(default=[]),
     db=Depends(get_db),
     current_user: UserDBM = Depends(get_current_user),
 ) -> Response:
-    data = settings_service.export_user_data(db, current_user)
+    data = settings_service.export_user_data(db, current_user, sections)
     return Response(
         content=data,
         media_type="application/json",

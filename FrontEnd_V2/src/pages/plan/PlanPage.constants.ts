@@ -1,3 +1,4 @@
+import type { DateFormat } from "@/api";
 import { formatDisplayDate as formatIsoDisplayDate, formatDuration } from "@/services/date.service";
 
 export { PRIORITY_LABEL } from "@/constant/priority";
@@ -10,8 +11,8 @@ export function toDateInputValue(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-export function formatDisplayDate(date: Date): string {
-  return formatIsoDisplayDate(toDateInputValue(date));
+export function formatDisplayDate(date: Date, format: DateFormat = "dd mmmm yyyy"): string {
+  return formatIsoDisplayDate(toDateInputValue(date), format);
 }
 
 export function shiftDate(date: Date, days: number): Date {

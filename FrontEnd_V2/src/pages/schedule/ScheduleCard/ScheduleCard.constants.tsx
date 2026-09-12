@@ -1,6 +1,6 @@
 import { Clock, MoonFill, MoonStarsFill, SunFill } from "react-bootstrap-icons";
 
-import type { ScheduledTaskPreferredTime, ScheduledTaskStatus, TimeFormat } from "@/api/types";
+import type { DateFormat, ScheduledTaskPreferredTime, ScheduledTaskStatus, TimeFormat } from "@/api/types";
 import { formatDisplayDate, formatDisplayDateShort, formatTime } from "@/services/date.service";
 
 export { PRIORITY_COLOR, PRIORITY_LABEL } from "@/constant/priority";
@@ -12,8 +12,12 @@ export const STATUS_LABEL: Record<ScheduledTaskStatus, string> = {
     missed:    "Missed",
 };
 
-export const formatDateDisplay = formatDisplayDate;
-export const formatDateDisplayYearly = formatDisplayDateShort;
+export function formatDateDisplay(iso: string, format: DateFormat = "dd mmmm yyyy"): string {
+    return formatDisplayDate(iso, format);
+}
+export function formatDateDisplayYearly(iso: string, format: DateFormat = "dd mmmm yyyy"): string {
+    return formatDisplayDateShort(iso, format);
+}
 
 const PREFERRED_TIME_LABEL: Partial<Record<ScheduledTaskPreferredTime, string>> = {
     morning:   "Morning",

@@ -4,12 +4,12 @@ import { Card, FieldRow, SegmentedControl } from "@/pages/settings/SettingsShare
 import "@/pages/settings/PlannerCard/PlannerCard.scss";
 
 const DATE_FORMAT_OPTIONS: { value: DateFormat; label: string }[] = [
-  { value: "dd/mm/yyyy", label: "DD/MM/YYYY" },
-  { value: "mm/dd/yyyy", label: "MM/DD/YYYY" },
-  { value: "dd-mm-yyyy", label: "DD-MM-YYYY" },
-  { value: "mm-dd-yyyy", label: "MM-DD-YYYY" },
-  { value: "mmm d yyyy", label: "MMM D, YYYY" },
-  { value: "yyyy-mm-dd", label: "YYYY-MM-DD" },
+  { value: "dd mmmm yyyy", label: "DD MMMM YYYY  —  09 September 2026" },
+  { value: "dd/mm/yy",     label: "DD/MM/YY  —  09/09/26" },
+  { value: "dd/mm/yyyy",   label: "DD/MM/YYYY  —  09/09/2026" },
+  { value: "dd-mm-yy",     label: "DD-MM-YY  —  09-09-26" },
+  { value: "dd-mm-yyyy",   label: "DD-MM-YYYY  —  09-09-2026" },
+  { value: "mmm d, yyyy",  label: "MMM D, YYYY  —  Sep 9, 2026" },
 ];
 
 export function PlannerCard({

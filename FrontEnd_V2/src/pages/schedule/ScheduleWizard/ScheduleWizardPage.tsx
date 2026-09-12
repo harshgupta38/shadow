@@ -8,7 +8,7 @@ import LOADING_IMAGE from "@/assets/loading_default.png";
 import { StepImageVisual } from "@/components/ui/StepImageVisual/StepImageVisual";
 import { ThemeToggle } from "@/components/ui/ThemeToggle/ThemeToggle";
 import { useToast } from "@/context/ToastContext";
-import { useTimeFormat } from "@/context/PlannerContext";
+import { useDateFormat, useTimeFormat } from "@/context/PlannerContext";
 import { GoalWizardVisual } from "@/pages/my_goals/GoalCreationWizard/GoalWizardVisual";
 import { ROUTES } from "@/routes/RoutePaths";
 import { todayIso, formatDisplayDate } from "@/services/date.service";
@@ -51,6 +51,7 @@ export function ScheduleWizardPage() {
     const location = useLocation();
     const toast = useToast();
     const timeFormat = useTimeFormat();
+    const dateFormat = useDateFormat();
 
     const isEditMode = Boolean(taskId);
     const numericTaskId = Number(taskId);
@@ -468,7 +469,7 @@ export function ScheduleWizardPage() {
                                                                     aria-label="Open date picker"
                                                                 >
                                                                     {answers.scheduledDate
-                                                                        ? formatDisplayDate(answers.scheduledDate)
+                                                                        ? formatDisplayDate(answers.scheduledDate, dateFormat)
                                                                         : <span className="schedule-date-placeholder">Pick a date</span>
                                                                     }
                                                                     <input

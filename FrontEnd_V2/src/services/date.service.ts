@@ -1,4 +1,4 @@
-import type { TimeFormat } from "@/api";
+import type { DateFormat, TimeFormat } from "@/api";
 
 export const IST_TIMEZONE = "Asia/Kolkata";
 
@@ -28,20 +28,46 @@ const MONTH_NAMES = [
     "July", "August", "September", "October", "November", "December",
 ];
 
-/** "DD Month YYYY" from an ISO ("YYYY-MM-DD") date string. Returns the original
- * input unchanged if it isn't a valid date, instead of rendering "undefined"/"NaN". */
-export function formatDisplayDate(iso: string): string {
+const MONTH_NAMES_SHORT = [
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
+/** Format an ISO ("YYYY-MM-DD") date string using the user's preferred date format.
+ * Returns the original input unchanged if it isn't a valid date. */
+export function formatDisplayDate(iso: string, format: DateFormat = "dd mmmm yyyy"): string {
     const [y, m, d] = iso.split("-").map(Number);
     if (!y || !m || !d || m < 1 || m > 12) return iso;
-    return `${String(d).padStart(2, "0")} ${MONTH_NAMES[m - 1]} ${y}`;
+    const dd = String(d).padStart(2, "0");
+    const mm = String(m).padStart(2, "0");
+    const yy = String(y).slice(2);
+    switch (format) {
+        case "dd mmmm yyyy": return `${dd} ${MONTH_NAMES[m - 1]} ${y}`;
+        case "dd/mm/yy":     return `${dd}/${mm}/${yy}`;
+        case "dd/mm/yyyy":   return `${dd}/${mm}/${y}`;
+        case "dd-mm-yy":     return `${dd}-${mm}-${yy}`;
+        case "dd-mm-yyyy":   return `${dd}-${mm}-${y}`;
+        case "mmm d, yyyy":  return `${MONTH_NAMES_SHORT[m - 1]} ${d}, ${y}`;
+        default:             return `${dd} ${MONTH_NAMES[m - 1]} ${y}`;
+    }
 }
 
-/** "DD Month" (no year) from an ISO date string — for yearly-repeating dates. Returns
- * the original input unchanged if it isn't a valid date. */
-export function formatDisplayDateShort(iso: string): string {
+/** Year-omitted variant for yearly-repeating dates. Returns the original input unchanged
+ * if it isn't a valid date. */
+export function formatDisplayDateShort(iso: string, format: DateFormat = "dd mmmm yyyy"): string {
     const [, m, d] = iso.split("-").map(Number);
     if (!m || !d || m < 1 || m > 12) return iso;
-    return `${String(d).padStart(2, "0")} ${MONTH_NAMES[m - 1]}`;
+    const dd = String(d).padStart(2, "0");
+    const mm = String(m).padStart(2, "0");
+    switch (format) {
+        case "dd mmmm yyyy": return `${dd} ${MONTH_NAMES[m - 1]}`;
+        case "dd/mm/yy":
+        case "dd/mm/yyyy":   return `${dd}/${mm}`;
+        case "dd-mm-yy":
+        case "dd-mm-yyyy":   return `${dd}-${mm}`;
+        case "mmm d, yyyy":  return `${MONTH_NAMES_SHORT[m - 1]} ${d}`;
+        default:             return `${dd} ${MONTH_NAMES[m - 1]}`;
+    }
 }
 
 /** "1h 30m" / "45m" / "2h" style duration from a minute count. */

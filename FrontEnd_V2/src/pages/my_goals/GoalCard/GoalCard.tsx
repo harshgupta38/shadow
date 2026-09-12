@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 
 import { type GoalDataShortResponse } from "@/api";
 import { ROUTES } from "@/routes/RoutePaths";
+import { useDateFormat } from "@/context/PlannerContext";
 import { formatDisplayDate } from "@/services/date.service";
 import "@/pages/my_goals/MyGoalsPage.scss";
 
@@ -22,6 +23,7 @@ function getMilestoneProgressPercent(completed: number, total: number): number {
 
 export function GoalCard({ goal, dragDisabled = false }: GoalCardProps) {
   const navigate = useNavigate();
+  const dateFormat = useDateFormat();
 
   // Track whether this card was dragged so we can suppress the post-drop click
   const wasDragged = useRef(false);
@@ -95,7 +97,7 @@ export function GoalCard({ goal, dragDisabled = false }: GoalCardProps) {
             </span>
           </div>
           <span className="goal-summary-meta-date">
-            <CalendarCheck size={13} /> {formatDisplayDate(goal.target_date)}
+            <CalendarCheck size={13} /> {formatDisplayDate(goal.target_date, dateFormat)}
           </span>
         </div>
       </article>

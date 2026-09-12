@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { ROUTES } from "@/routes/RoutePaths";
 
 import type { HabitDataResponse } from "@/api";
-import { useTimeFormat } from "@/context/PlannerContext";
+import { useDateFormat, useTimeFormat } from "@/context/PlannerContext";
 import { PRIORITY_LABEL } from "@/pages/plan/PlanPage.constants";
 import {
   ChipTooltip,
@@ -49,11 +49,12 @@ export function HabitCard({
 }: HabitCardProps) {
   const navigate = useNavigate();
   const timeFormat = useTimeFormat();
+  const dateFormat = useDateFormat();
   const frequencyLabel = h.planner_type === "metric"
     ? getMetricFrequencyLabel(h)
     : getSimpleFrequencyLabel(h);
   const timeLabel = getPreferredTimeLabel(h, timeFormat);
-  const dateLabel = getHabitDateLabel(h);
+  const dateLabel = getHabitDateLabel(h, dateFormat);
 
   function goToDetail(e: React.MouseEvent | React.KeyboardEvent) {
     if ((e.target as HTMLElement).closest(".hl-habit-edit-btn, .hl-habit-chip--goal, .hl-habit-menu-popover")) return;

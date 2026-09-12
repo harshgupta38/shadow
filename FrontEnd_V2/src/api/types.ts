@@ -816,12 +816,12 @@ export type AIPersonality = "professional" | "friendly" | "coach" | "teacher" | 
 export type WeekStartsOn = "monday" | "sunday";
 export type TimeFormat = "12h" | "24h";
 export type DateFormat =
+  | "dd mmmm yyyy"
+  | "dd/mm/yy"
   | "dd/mm/yyyy"
-  | "mm/dd/yyyy"
+  | "dd-mm-yy"
   | "dd-mm-yyyy"
-  | "mm-dd-yyyy"
-  | "mmm d yyyy"
-  | "yyyy-mm-dd";
+  | "mmm d, yyyy";
 
 export interface AIModel {
   name: string;

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useWeekStart } from "@/context/PlannerContext";
+import { useDateFormat, useWeekStart } from "@/context/PlannerContext";
 import { weekDayLabels } from "@/utils/weekUtils";
 import { Link, useNavigate } from "react-router-dom";
 import { CheckCircleFill, ExclamationTriangleFill } from "react-bootstrap-icons";
@@ -53,6 +53,7 @@ export function ReportsOverview({ monthDays, latestReport }: Props) {
   const navigate = useNavigate();
   const toast = useToast();
   const weekStart = useWeekStart();
+  const dateFormat = useDateFormat();
   const [confirmDate, setConfirmDate] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
 
@@ -146,7 +147,7 @@ export function ReportsOverview({ monthDays, latestReport }: Props) {
             <ReportRing pct={latestReport.alignment_score} />
             <div className="dp-report-body">
               <span className="dp-report-date">
-                {formatDisplayDate(latestReport.date)} · {latestReport.report_type === "weekly" ? "Weekly" : "Daily"} Report
+                {formatDisplayDate(latestReport.date, dateFormat)} · {latestReport.report_type === "weekly" ? "Weekly" : "Daily"} Report
               </span>
               <h3 className="dp-report-headline">{latestReport.headline}</h3>
               <p className="dp-report-summary">{latestReport.summary}</p>
@@ -179,7 +180,7 @@ export function ReportsOverview({ monthDays, latestReport }: Props) {
       <ConfirmDialog
         show={confirmDate !== null}
         title="No report for this date"
-        message={confirmDate ? `No report was generated for ${formatDisplayDate(confirmDate)}. Would you like to generate one now?` : ""}
+        message={confirmDate ? `No report was generated for ${formatDisplayDate(confirmDate, dateFormat)}. Would you like to generate one now?` : ""}
         confirmLabel="Generate"
         busy={generating}
         onConfirm={handleGenerateForDate}

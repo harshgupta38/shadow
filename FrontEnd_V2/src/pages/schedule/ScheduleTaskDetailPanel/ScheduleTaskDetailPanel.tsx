@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useTimeFormat } from "@/context/PlannerContext";
+import { useDateFormat, useTimeFormat } from "@/context/PlannerContext";
 import { formatTime } from "@/services/date.service";
 import { createPortal } from "react-dom";
 import { ArrowRepeat, ChevronRight, Clock, Files, MoonFill, MoonStarsFill, PencilFill, SunFill, Trash3Fill } from "react-bootstrap-icons";
@@ -68,12 +68,13 @@ export function ScheduleTaskDetailPanel({ task, onClose, onEdit, onDuplicate, on
         return () => document.removeEventListener("keydown", handler);
     }, [isClosing]);
 
+    const dateFormat = useDateFormat();
     const isMetric = task.planner_type === "metric";
     const isDueToday = task.status === "upcoming" && task.scheduled_date === todayIso();
     const statusLabel = isDueToday ? "Due Today" : STATUS_LABEL[task.status];
     const dateDisplay = task.repeat_yearly
-        ? formatDateDisplayYearly(task.scheduled_date)
-        : formatDateDisplay(task.scheduled_date);
+        ? formatDateDisplayYearly(task.scheduled_date, dateFormat)
+        : formatDateDisplay(task.scheduled_date, dateFormat);
 
     return createPortal(
         <div className="goal-refined-review-backdrop" onClick={requestClose}>

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ArrowRepeat, CalendarCheck, ChevronDown, ChevronUp, Grid3x3Gap, List, PencilSquare, PlusLg, Trash3, Link45deg } from "react-bootstrap-icons";
 import { useNavigate, useParams } from "react-router-dom";
 
-import { api, type GoalDataResponse, type FilterState, type HabitDataResponse, type HabitCreateRequest } from "@/api";
+import { api, type DateFormat, type GoalDataResponse, type FilterState, type HabitDataResponse, type HabitCreateRequest } from "@/api";
 import { ApiError } from "@/api/client";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { FilterDropdown } from "@/components/ui/FilterDropdown/FilterDropdown";
@@ -13,6 +13,7 @@ import { useToast } from "@/context/ToastContext";
 import { GoalEditWizard } from "@/pages/my_goals/GoalEditWizard/GoalEditWizard";
 import { GoalDetailLoadingSkeleton } from "@/pages/my_goals/GoalDetailLoadingSkeleton/GoalDetailLoadingSkeleton";
 import { GoalMilestonesSection } from "@/pages/my_goals/GoalMilestonesSection/GoalMilestonesSection";
+import { useDateFormat } from "@/context/PlannerContext";
 import { formatDisplayDate, todayDate } from "@/services/date.service";
 import { HabitCard } from "@/pages/habit_library/HabitCard/HabitCard";
 import { FREQUENCY_OPTIONS, PRIORITY_OPTIONS } from "@/pages/habit_library/HabitWizard/HabitWizard.constants";
@@ -26,10 +27,10 @@ type GoalDetailListSection = {
   items: string[];
 };
 
-function formatDueLabel(value: string): string {
+function formatDueLabel(value: string, format: DateFormat = "dd mmmm yyyy"): string {
   const [y, m, d] = value.split("-").map(Number);
   if (!y || !m || !d) {
-    return formatDisplayDate(value);
+    return formatDisplayDate(value, format);
   }
 
   // `value` is an IST civil date ("YYYY-MM-DD"); build it as a local-midnight Date
@@ -87,6 +88,7 @@ export function GoalDetailPage() {
   });
 
   const toast = useToast();
+  const dateFormat = useDateFormat();
 
   const numericGoalId = Number(goalId);
 
@@ -286,7 +288,7 @@ export function GoalDetailPage() {
                         <span className="goal-detail-category">{goal.category}</span>
                         <span className={`goal-detail-status goal-detail-status-${goal.status.toLowerCase()}`}>{goal.status}</span>
                         <span className="goal-detail-due-pill">
-                          <CalendarCheck size={12} /> {formatDueLabel(goal.target_date)}
+                          <CalendarCheck size={12} /> {formatDueLabel(goal.target_date, dateFormat)}
                         </span>
                         {goal.source_conversation_id !== null && (
                           <span className="goal-detail-link-pill" onClick={openInChat}>

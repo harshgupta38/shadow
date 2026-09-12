@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useTimeFormat } from "@/context/PlannerContext";
+import { useDateFormat, useTimeFormat } from "@/context/PlannerContext";
 import { createPortal } from "react-dom";
 import { ArrowRepeat, Files, PencilFill, Trash3Fill } from "react-bootstrap-icons";
 import { Dropdown } from "react-bootstrap";
@@ -21,6 +21,7 @@ interface ScheduleCardProps {
 
 export function ScheduleCard({ task, onSelect, onEdit, onDuplicate, onDelete }: ScheduleCardProps) {
     const timeFormat = useTimeFormat();
+    const dateFormat = useDateFormat();
     const timeDisplay = formatTimeDisplay(task.preferred_time, task.specific_time, timeFormat);
     const [showCtx, setShowCtx] = useState(false);
     const [ctxPos, setCtxPos] = useState({ x: 0, y: 0 });
@@ -69,8 +70,8 @@ export function ScheduleCard({ task, onSelect, onEdit, onDuplicate, onDelete }: 
                     <div className="schedule-task-meta">
                         <span className="schedule-task-date">
                             {task.repeat_yearly
-                                ? <>{formatDateDisplayYearly(task.scheduled_date)}<ArrowRepeat size={11} className="sc-repeat-icon" /></>
-                                : formatDateDisplay(task.scheduled_date)
+                                ? <>{formatDateDisplayYearly(task.scheduled_date, dateFormat)}<ArrowRepeat size={11} className="sc-repeat-icon" /></>
+                                : formatDateDisplay(task.scheduled_date, dateFormat)
                             }
                         </span>
                         {timeDisplay && (

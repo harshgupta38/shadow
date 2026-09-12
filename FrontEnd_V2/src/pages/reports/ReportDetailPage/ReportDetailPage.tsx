@@ -19,7 +19,7 @@ import type { DailyReportDetail, GoalAlignment } from "@/api/types";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { useToast } from "@/context/ToastContext";
 import { CLOSING_EMOJI, fmtTime, ringColor } from "./ReportDetailPage.constants";
-import { useTimeFormat } from "@/context/PlannerContext";
+import { useDateFormat, useTimeFormat } from "@/context/PlannerContext";
 import "./ReportDetailPage.scss";
 
 // ── Progress Ring ─────────────────────────────────────────────────────────────
@@ -109,6 +109,7 @@ function GoalCard({ goal }: { goal: GoalAlignment }) {
 
 function ReportDatePicker({ date, reportType }: { date: string; reportType: string }) {
   const navigate = useNavigate();
+  const dateFormat = useDateFormat();
   const today = todayIso();
   const isToday = date >= today;
 
@@ -129,7 +130,7 @@ function ReportDatePicker({ date, reportType }: { date: string; reportType: stri
       </button>
       <label className="rdp-date-nav-field">
         <span className="visually-hidden">Report date</span>
-        <span className="rdp-date-nav-display" aria-hidden="true">{formatDisplayDate(date)}</span>
+        <span className="rdp-date-nav-display" aria-hidden="true">{formatDisplayDate(date, dateFormat)}</span>
         <Calendar3 className="rdp-date-nav-calendar-icon" size={16} aria-hidden="true" />
         <input
           type="date"

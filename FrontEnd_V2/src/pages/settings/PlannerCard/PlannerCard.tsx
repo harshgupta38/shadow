@@ -1,16 +1,18 @@
 import { CalendarWeekFill } from "react-bootstrap-icons";
 import type { DateFormat, PlannerSettings, TimeFormat, WeekStartsOn } from "@/api";
 import { Card, FieldRow, SegmentedControl } from "@/pages/settings/SettingsShared";
+import { formatDisplayDate, todayIso } from "@/services/date.service";
 import "@/pages/settings/PlannerCard/PlannerCard.scss";
 
-const DATE_FORMAT_OPTIONS: { value: DateFormat; label: string }[] = [
-  { value: "dd mmmm yyyy", label: "DD MMMM YYYY  —  09 September 2026" },
-  { value: "dd/mm/yy",     label: "DD/MM/YY  —  09/09/26" },
-  { value: "dd/mm/yyyy",   label: "DD/MM/YYYY  —  09/09/2026" },
-  { value: "dd-mm-yy",     label: "DD-MM-YY  —  09-09-26" },
-  { value: "dd-mm-yyyy",   label: "DD-MM-YYYY  —  09-09-2026" },
-  { value: "mmm d, yyyy",  label: "MMM D, YYYY  —  Sep 9, 2026" },
+const DATE_FORMAT_VALUES: DateFormat[] = [
+  "dd mmmm yyyy", "dd/mm/yy", "dd/mm/yyyy", "dd-mm-yy", "dd-mm-yyyy", "mmm d, yyyy",
 ];
+
+const TODAY = todayIso();
+
+const DATE_FORMAT_OPTIONS: { value: DateFormat; label: string }[] = DATE_FORMAT_VALUES.map(
+  (fmt) => ({ value: fmt, label: formatDisplayDate(TODAY, fmt) }),
+);
 
 export function PlannerCard({
   data,

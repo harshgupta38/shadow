@@ -13,6 +13,8 @@
     display: flex;
     flex-direction: column;
     padding: 1.5rem;
+    background: var(--jv-surface);
+    border-radius: var(--jv-radius);
   }
 
   // ── Month header row ────────────────────────────────────────────────────────

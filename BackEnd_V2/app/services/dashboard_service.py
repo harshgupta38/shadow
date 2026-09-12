@@ -15,7 +15,7 @@ from app.schemas.dashboard import (
     DashboardUpcomingItemResponse,
     WeeklyMatrixRowResponse,
 )
-from app.services import goals_service, planner_service, report_service, reports_service, schedule_service, track_progress_service
+from app.services import goals_service, planner_service, report_service, reports_service, schedule_service, settings_service, track_progress_service
 
 UPCOMING_WINDOW_DAYS = 60
 UPCOMING_LIMIT = 7
@@ -64,7 +64,8 @@ def get_dashboard(db: Session, current_user: UserDBM) -> DashboardResponse:
         for t in upcoming_tasks
     ]
 
-    habits = track_progress_service.get_habits_with_history(db, current_user, today=today)
+    week_starts_on = settings_service.get_week_starts_on(db, current_user.id)
+    habits = track_progress_service.get_habits_with_history(db, current_user, week_starts_on=week_starts_on, today=today)
     week_habits = [
         WeeklyMatrixRowResponse(id=h.id, title=h.title, week=h.week_done)
         for h in habits

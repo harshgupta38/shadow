@@ -86,4 +86,11 @@ export const ENDPOINTS = {
         RETRY_FAILED_MESSAGE: (conversation_id: number, message_id: number) => `/conversations/${conversation_id}/retry_message/${message_id}`,
         NEW_MESSAGE: "/conversations/messages",
     },
+    SETTINGS: {
+        PREFIX: "/settings",
+        AI_PROVIDERS: "/ai-providers",
+        PROVIDER_HEALTH_CHECK: "/ai-providers/health-check",
+        EXPORT: "/export",
+        CHAT_HISTORY: "/chat-history",
+    },
 }

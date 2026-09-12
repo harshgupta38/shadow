@@ -25,6 +25,24 @@ function getBrowserTheme(): EffectiveTheme {
 	return "light";
 }
 
+// ── Theme preference (localStorage) ──────────────────────────────────────────
+
+const PREF_KEY = "shadow_theme_pref";
+
+const VALID_PREFS = new Set<ThemePreference>(["browser", "dynamic", "light", "dark"]);
+
+function readPref(): ThemePreference {
+	try {
+		const v = localStorage.getItem(PREF_KEY);
+		if (v && VALID_PREFS.has(v as ThemePreference)) return v as ThemePreference;
+	} catch {}
+	return "browser"; // safe default — no geolocation request, no API call
+}
+
+function writePref(p: ThemePreference): void {
+	try { localStorage.setItem(PREF_KEY, p); } catch {}
+}
+
 // ── Dynamic theme cache (localStorage) ───────────────────────────────────────
 
 const CACHE_KEY = "dynamic_theme_cache";
@@ -72,7 +90,7 @@ interface ThemeContextValue {
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
 export function ThemeProvider({ children }: ChildProps) {
-	const [themePreference, setThemePreference] = useState<ThemePreference>("dynamic");
+	const [themePreference, setThemePreference] = useState<ThemePreference>(readPref);
 
 	// Seed initial theme from cache so there is no flash on load
 	const [effectiveTheme, setEffectiveTheme] = useState<EffectiveTheme>(() => {
@@ -150,6 +168,12 @@ export function ThemeProvider({ children }: ChildProps) {
 		isInitialMount.current = false;
 	}, [effectiveTheme]);
 
+	// Persist preference to localStorage whenever it changes (covers all sources:
+	// theme:sync, settings save, toggleTheme, initial load).
+	useEffect(() => {
+		writePref(themePreference);
+	}, [themePreference]);
+
 	// React to preference changes
 	useEffect(() => {
 		isDynamic.current = themePreference === "dynamic";
@@ -176,17 +200,17 @@ export function ThemeProvider({ children }: ChildProps) {
 		return clearTimer; // cancel pending timer if preference changes again
 	}, [themePreference, loadDynamicTheme, clearTimer]);
 
-	// After login, retry dynamic theme if we previously fell back to browser theme
+	// Sync theme from backend — AuthContext dispatches "theme:sync" after every
+	// api.auth.me() call (session restore, login, register, refreshUser).
+	// If the backend preference differs from what's locally stored, apply it.
 	useEffect(() => {
-		const handleLogin = () => {
-			if (themePreference !== "dynamic") return;
-			const cached = readCache();
-			if (cached && new Date(cached.nextTransitionAt).getTime() > Date.now()) return;
-			loadDynamicTheme();
-		};
-		window.addEventListener("auth:login", handleLogin);
-		return () => window.removeEventListener("auth:login", handleLogin);
-	}, [themePreference, loadDynamicTheme]);
+		function handleThemeSync(e: Event) {
+			const pref = (e as CustomEvent<{ preference: ThemePreference }>).detail.preference;
+			setThemePreference(pref); // React bails out if value is unchanged
+		}
+		window.addEventListener("theme:sync", handleThemeSync);
+		return () => window.removeEventListener("theme:sync", handleThemeSync);
+	}, []); // setThemePreference is a stable useState setter — no deps needed
 
 	// Track OS theme changes when preference is "browser"
 	useEffect(() => {

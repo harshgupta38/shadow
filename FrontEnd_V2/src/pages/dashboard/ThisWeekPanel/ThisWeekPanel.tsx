@@ -2,8 +2,10 @@ import { Link } from "react-router-dom";
 import { GraphUp } from "react-bootstrap-icons";
 
 import { ROUTES } from "@/routes/RoutePaths";
-import { TODAY_COL, WEEK_DAY_LABELS, WEEK_RANGE } from "@/pages/track_progress/TrackProgressPage.constants";
 import type { WeeklyMatrixRow } from "@/api";
+import { useWeekStart } from "@/context/PlannerContext";
+import { dayToCol, weekDayLabels, weekRangeStr } from "@/utils/weekUtils";
+import { todayDate } from "@/services/date.service";
 import "@/pages/track_progress/TrackProgressPage.scss";
 import "./ThisWeekPanel.scss";
 
@@ -12,12 +14,17 @@ interface Props {
 }
 
 export function ThisWeekPanel({ habits }: Props) {
+  const weekStart = useWeekStart();
+  const today = todayDate();
+  const dayLabels = weekDayLabels(weekStart);
+  const todayCol = dayToCol(today, weekStart);
+
   return (
     <div className="dp-panel">
       <div className="dp-panel-head">
         <GraphUp size={15} className="text-muted-2" />
         <h3 className="dp-panel-title">This Week</h3>
-        <span className="dp-section-chip">{WEEK_RANGE}</span>
+        <span className="dp-section-chip">{weekRangeStr(today, weekStart)}</span>
         <Link to={ROUTES.TRACK_PROGRESS} className="dp-section-link">View all →</Link>
       </div>
       {habits.length === 0 ? (
@@ -31,8 +38,8 @@ export function ThisWeekPanel({ habits }: Props) {
           <div className="tp-matrix-wrap">
             <div className="tp-matrix-row tp-matrix-row--header">
               <div className="tp-matrix-label tp-matrix-label--hdr">Habit</div>
-              {WEEK_DAY_LABELS.map((d, i) => (
-                <div key={`${d}-${i}`} className={`tp-matrix-day-hdr${i === TODAY_COL ? " tp-matrix-day-hdr--today" : ""}`}>
+              {dayLabels.map((d, i) => (
+                <div key={`${d}-${i}`} className={`tp-matrix-day-hdr${i === todayCol ? " tp-matrix-day-hdr--today" : ""}`}>
                   {d}
                 </div>
               ))}
@@ -51,8 +58,8 @@ export function ThisWeekPanel({ habits }: Props) {
                       className={[
                         "tp-matrix-cell",
                         done ? "tp-matrix-cell--done" : "tp-matrix-cell--miss",
-                        i === TODAY_COL ? "tp-matrix-cell--today" : "",
-                        i > TODAY_COL ? "tp-matrix-cell--future" : "",
+                        i === todayCol ? "tp-matrix-cell--today" : "",
+                        i > todayCol ? "tp-matrix-cell--future" : "",
                       ].filter(Boolean).join(" ")}
                     />
                   ))}

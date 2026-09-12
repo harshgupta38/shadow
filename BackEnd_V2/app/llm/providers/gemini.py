@@ -23,6 +23,8 @@ from app.llm.knowledge_base import (
     RESPOND_TO_MESSAGE_SYSTEM_INSTRUCTION,
     CREATE_CONVERSATION_SYSTEM_INSTRUCTION,
     USER_MEMORY_EXTRACTION_SYSTEM_INSTRUCTION,
+    RESPONSE_LENGTH_INSTRUCTION,
+    AI_PERSONALITY_INSTRUCTION,
     build_goal_refinement_user_prompt,
     build_milestone_proposal_user_prompt,
     build_task_proposal_user_prompt,
@@ -380,6 +382,10 @@ class GeminiProvider(BaseLLMProvider):
         system_instruction = CREATE_CONVERSATION_SYSTEM_INSTRUCTION[request_data.agent_type]
         if request.user_memory:
             system_instruction += f"\n\n{request.user_memory}"
+        if instruction := RESPONSE_LENGTH_INSTRUCTION.get(request.response_length, ""):
+            system_instruction += f"\n\n{instruction}"
+        if instruction := AI_PERSONALITY_INSTRUCTION.get(request.personality, ""):
+            system_instruction += f"\n\n{instruction}"
 
         contents = [
             types.Content(role="user", parts=[types.Part(text=request_data.content)])
@@ -541,6 +547,10 @@ class GeminiProvider(BaseLLMProvider):
         )
         if request.user_memory:
             system_instruction += f"\n\n{request.user_memory}"
+        if instruction := RESPONSE_LENGTH_INSTRUCTION.get(request.response_length, ""):
+            system_instruction += f"\n\n{instruction}"
+        if instruction := AI_PERSONALITY_INSTRUCTION.get(request.personality, ""):
+            system_instruction += f"\n\n{instruction}"
         contents = [
             types.Content(
                 role="model" if msg["role"] == "assistant" else msg["role"],
@@ -945,10 +955,12 @@ class GeminiProvider(BaseLLMProvider):
             ),
         )
 
-    async def health_check(self) -> bool:
-        # Gemini health check using the /models endpoint.
+    async def health_check(self, model: str | None = None) -> bool:
         try:
-            await self._client.aio.models.list()
+            if model:
+                await self._client.aio.models.get(model=model)
+            else:
+                await self._client.aio.models.list()
             return True
         except errors.APIError as exc:
             raise LLMHealthCheckError(f"Gemini health check failed: {exc}") from exc

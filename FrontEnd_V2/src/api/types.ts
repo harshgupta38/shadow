@@ -2,6 +2,8 @@ export interface UserDataResponse {
   id: number;
   name: string;
   email: string;
+  theme_preference: ThemePreference;
+  planner: PlannerSettings;
 }
 
 export interface LoginRequest {
@@ -643,7 +645,7 @@ export interface HabitTrackItem extends HabitBaseData {
   planner_type: HabitType;
   planner_target: number | null;
   value_unit: string | null;
-  /** 7 integers — index 0 = Sunday, index 6 = Saturday; simple=0|1, metric=actual_value, future=0 */
+  /** 7 integers ordered by week_starts_on (index 0 = first day of week); simple=0|1, metric=actual_value, future=0 */
   history: number[];
   current_value: number;
 }
@@ -681,13 +683,13 @@ export interface TaskTrackItem {
 export interface MetricHabitData extends HabitBaseData {
   value_unit: string;
   planner_target: number;
-  /** 7 entries — index 0 = Sunday, index 6 = Saturday of the current week */
+  /** 7 entries ordered by week_starts_on (index 0 = first day of week) */
   history: number[];
   current_value: number;
 }
 
 export interface SimpleHabitData extends HabitBaseData {
-  /** 7 entries — index 0 = Sunday, index 6 = Saturday of the current week */
+  /** 7 entries ordered by week_starts_on (index 0 = first day of week) */
   history: boolean[];
 }
 
@@ -804,4 +806,92 @@ export interface DashboardResponse {
   goals: GoalDataShortResponse[];
   upcoming: DashboardUpcomingItem[];
   week_habits: WeeklyMatrixRow[];
+}
+
+// ─── Settings ─────────────────────────────────────────────────────────────────
+
+export type ThemePreferenceValue = ThemePreference;
+export type AIResponseLength = "short" | "balanced" | "detailed" | "very_detailed";
+export type AIPersonality = "professional" | "friendly" | "coach" | "teacher" | "mentor" | "minimal";
+export type WeekStartsOn = "monday" | "sunday";
+export type TimeFormat = "12h" | "24h";
+export type DateFormat =
+  | "dd mmmm yyyy"
+  | "dd/mm/yy"
+  | "dd/mm/yyyy"
+  | "dd-mm-yy"
+  | "dd-mm-yyyy"
+  | "mmm d, yyyy";
+
+export interface AIModel {
+  name: string;
+  key: string;
+}
+
+export interface AIProvider {
+  name: string;
+  key: string;
+  models: AIModel[];
+}
+
+export interface AIProviderHealthCheckRequest {
+  provider: string;
+  model: string;
+}
+
+export interface AIProviderHealthCheckResponse {
+  healthy: boolean;
+  message: string;
+}
+
+export interface AppearanceSettings {
+  theme_preference: ThemePreferenceValue;
+}
+
+export interface NotificationSettings {
+  notifications_enabled: boolean;
+  push_notifications_enabled: boolean;
+  email_notifications_enabled: boolean;
+  reminder_notifications_enabled: boolean;
+  daily_brief_enabled: boolean;
+  daily_brief_time: string;
+  weekly_summary_enabled: boolean;
+  quiet_hours_enabled: boolean;
+  quiet_hours_start: string;
+  quiet_hours_end: string;
+  quiet_hours_allow_urgent: boolean;
+}
+
+export interface AIBehaviorSettings {
+  ai_response_length: AIResponseLength;
+  ai_personality: AIPersonality;
+  ai_provider: string;
+  ai_default_model: string;
+}
+
+export interface PlannerSettings {
+  week_starts_on: WeekStartsOn;
+  default_reminder_time: string;
+  default_task_duration_minutes: number;
+  time_format: TimeFormat;
+  date_format: DateFormat;
+}
+
+export interface PrivacySettings {
+  ai_memory_enabled: boolean;
+}
+
+export interface AccessibilitySettings {
+  accessibility_reduced_motion: boolean;
+  accessibility_high_contrast: boolean;
+  accessibility_font_scale_percent: number;
+}
+
+export interface FullSettings {
+  appearance: AppearanceSettings;
+  notifications: NotificationSettings;
+  ai_behavior: AIBehaviorSettings;
+  planner: PlannerSettings;
+  privacy: PrivacySettings;
+  accessibility: AccessibilitySettings;
 }

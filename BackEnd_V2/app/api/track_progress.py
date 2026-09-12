@@ -12,7 +12,7 @@ from app.schemas.track_progress import (
     SetTaskTrackingRequest,
     TaskTrackItem,
 )
-from app.services import habits_service, track_progress_service
+from app.services import habits_service, settings_service, track_progress_service
 
 router = APIRouter(prefix=ENDPOINTS.TRACK_PROGRESS.PREFIX, tags=["Track Progress"])
 
@@ -22,7 +22,8 @@ def get_track_habits(
     db=Depends(get_db),
     current_user: UserDBM = Depends(get_current_user),
 ) -> list[HabitTrackItem]:
-    return track_progress_service.get_habits_with_history(db, current_user)
+    week_starts_on = settings_service.get_week_starts_on(db, current_user.id)
+    return track_progress_service.get_habits_with_history(db, current_user, week_starts_on=week_starts_on)
 
 
 @router.get(ENDPOINTS.TRACK_PROGRESS.ELIGIBLE_HABITS, response_model=list[EligibleHabitItem])
@@ -47,7 +48,8 @@ def get_track_tasks(
     db=Depends(get_db),
     current_user: UserDBM = Depends(get_current_user),
 ) -> list[TaskTrackItem]:
-    return track_progress_service.get_tasks_with_history(db, current_user)
+    week_starts_on = settings_service.get_week_starts_on(db, current_user.id)
+    return track_progress_service.get_tasks_with_history(db, current_user, week_starts_on=week_starts_on)
 
 
 @router.get(ENDPOINTS.TRACK_PROGRESS.ELIGIBLE_TASKS, response_model=list[EligibleTaskItem])

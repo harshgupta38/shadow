@@ -24,6 +24,7 @@ import { todayDate } from "@/services/date.service";
 import { PlanCard } from "@/pages/plan/PlanCard/PlanCard";
 import { DayOverviewPanel } from "@/pages/plan/DayOverviewPanel/DayOverviewPanel";
 import { YesterdayClosingPanel } from "@/pages/plan/YesterdayClosingPanel/YesterdayClosingPanel";
+import { useDateFormat } from "@/context/PlannerContext";
 import { useToast } from "@/context/ToastContext";
 import "@/pages/plan/PlanPage.scss";
 
@@ -33,6 +34,7 @@ const TODAY_REFRESH_MS = 60_000;
 export function PlanPage() {
   const navigate = useNavigate();
   const toast = useToast();
+  const dateFormat = useDateFormat();
 
   // IST-anchored "today", refreshed periodically so a tab left open past midnight doesn't get stuck.
   const [today, setToday] = useState(() => todayDate());
@@ -262,7 +264,7 @@ export function PlanPage() {
           </button>
           <label className="date-field">
             <span className="visually-hidden">Plan date</span>
-            <span className="date-display" aria-hidden="true">{formatDisplayDate(selectedDate)}</span>
+            <span className="date-display" aria-hidden="true">{formatDisplayDate(selectedDate, dateFormat)}</span>
             <Calendar3 className="date-calendar-icon" size={16} aria-hidden="true" />
             <input
               type="date"
@@ -299,7 +301,7 @@ export function PlanPage() {
         <div className="plan-column">
           <section className="plan-panel today-panel">
             <h2 style={{ display: "flex", alignItems: "baseline", gap: "0.5rem" }}>
-              {isToday ? "Your Today's Plan" : formatDisplayDate(selectedDate)}
+              {isToday ? "Your Today's Plan" : formatDisplayDate(selectedDate, dateFormat)}
               <span style={{ fontSize: "0.9rem", fontWeight: 400, color: "var(--jv-muted)" }}>
                 {selectedDate.toLocaleDateString(undefined, { weekday: "long" })}
               </span>

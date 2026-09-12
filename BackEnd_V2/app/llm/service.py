@@ -115,6 +115,9 @@ class LLMService:
         milestone_id: int | None = None,
         tool_executor: Callable[[str, dict], dict] | None = None,
         user_memory: str = "",
+        response_length: str = "balanced",
+        personality: str = "coach",
+        model: str | None = None,
     ) -> NewConvoFromLLM:
         request = NewConvoToLLM(
             request_data=data,
@@ -123,6 +126,9 @@ class LLMService:
             milestone_id=milestone_id,
             tool_executor=tool_executor,
             user_memory=user_memory,
+            response_length=response_length,
+            personality=personality,
+            model=model,
         )
         response = await self._provider.create_conversation(request)
 
@@ -143,6 +149,9 @@ class LLMService:
         milestone_id: int | None = None,
         tool_executor: Callable[[str, dict], dict] | None = None,
         user_memory: str = "",
+        response_length: str = "balanced",
+        personality: str = "coach",
+        model: str | None = None,
     ) -> MessageFromLLM:
         request = MessageToLLM(
             request_data=data.content,
@@ -155,6 +164,9 @@ class LLMService:
             recent_messages=recent_messages,
             tool_executor=tool_executor,
             user_memory=user_memory,
+            response_length=response_length,
+            personality=personality,
+            model=model,
         )
         response = await self._provider.respond_to_message(request)
 
@@ -232,8 +244,8 @@ class LLMService:
             raise LLMConfigurationError("LLM provider returned no report data.")
         return response
 
-    async def health_check(self) -> bool:
-        return await self._provider.health_check()
+    async def health_check(self, model: str | None = None) -> bool:
+        return await self._provider.health_check(model=model)
 
     async def close(self) -> None:
         await self._provider.close()
@@ -242,3 +254,23 @@ class LLMService:
 @lru_cache(maxsize=1)
 def get_llm_service() -> LLMService:
     return LLMService()
+
+
+_USER_PROVIDER_MAP: dict[str, type[BaseLLMProvider]] = {
+    LLMProvider.OPENAI: OpenAIProvider,
+    LLMProvider.GEMINI: GeminiProvider,
+    LLMProvider.CLAUDE: ClaudeProvider,
+}
+
+if llm_settings.show_local_provider:
+    _USER_PROVIDER_MAP[LLMProvider.OLLAMA] = OllamaProvider
+
+
+@lru_cache(maxsize=4)
+def get_llm_service_for_user(provider_key: str) -> LLMService:
+    """Returns a cached LLMService for the given provider key.
+    Falls back to the env-default service for unknown or unsupported keys."""
+    provider_cls = _USER_PROVIDER_MAP.get(provider_key)
+    if provider_cls is None:
+        return get_llm_service()
+    return LLMService(provider=provider_cls(settings=llm_settings))

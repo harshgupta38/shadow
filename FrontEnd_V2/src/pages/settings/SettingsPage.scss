@@ -1,5 +1,28 @@
 .settings-page {
-  .page-title {
-    margin: 0;
+
+  @media (max-width: 991px) {
+    padding-bottom: 1rem;
+  }
+
+  // ── Save / restore bar (desktop — top right) ───────────────────────────────
+  .st-save-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  // ── Floating actions (mobile — fixed bottom right) ─────────────────────────
+  .st-float-actions {
+    position: fixed;
+    bottom: 1.25rem;
+    right: 1.25rem;
+    z-index: 1050;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.45rem 0.6rem;
+    background: var(--jv-surface);
+    border: 1px solid var(--jv-border);
+    border-radius: var(--jv-radius);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.14);
   }
 }

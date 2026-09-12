@@ -8,9 +8,17 @@ import {
     type ReactNode,
 } from "react";
 
-import { api, tokenStore, LoginRequest, RegisterRequest, type UserDataResponse } from "@/api";
+import { api, tokenStore, LoginRequest, RegisterRequest, type PlannerSettings, type ThemePreference, type UserDataResponse } from "@/api";
 
 type AuthStatus = "loading" | "authenticated" | "unauthenticated";
+
+function dispatchThemeSync(preference: ThemePreference): void {
+    window.dispatchEvent(new CustomEvent<{ preference: ThemePreference }>("theme:sync", { detail: { preference } }));
+}
+
+function dispatchPlannerSync(planner: PlannerSettings): void {
+    window.dispatchEvent(new CustomEvent("planner:sync", { detail: planner }));
+}
 
 interface AuthContextValue {
     user: UserDataResponse | null;
@@ -28,23 +36,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<UserDataResponse | null>(null);
     const [status, setStatus] = useState<AuthStatus>("loading");
 
-    /**
-     * Use Effect is a react feature that checked if any data is already implemented,
-     * like user already logged in, theme already set, etc. 
-     * If so, it will not re-render the page and will not call the login function again.
-     */
-    // useEffect(() => {
-    // Use this for theme effect check (Future)
-    // }, []);
-
     const login = useCallback(async (data: LoginRequest) => {
         await api.auth.login(data);
         const user = await api.auth.me();
         setUser(user);
         setStatus("authenticated");
-        window.dispatchEvent(new Event("auth:login"));
+        dispatchThemeSync(user.theme_preference);
+        dispatchPlannerSync(user.planner);
         return user;
-    }, []); // Empty dependency array ensures this function is never recreated, which is important for consumers that use it in useEffect.
+    }, []);
 
     const logout = useCallback(() => {
         api.auth.logout();
@@ -57,7 +57,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const user = await api.auth.me();
         setUser(user);
         setStatus("authenticated");
-        window.dispatchEvent(new Event("auth:login"));
+        dispatchThemeSync(user.theme_preference);
+        dispatchPlannerSync(user.planner);
         return user;
     }, []);
 
@@ -65,6 +66,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const user = await api.auth.me();
         setUser(user);
         setStatus("authenticated");
+        dispatchThemeSync(user.theme_preference);
+        dispatchPlannerSync(user.planner);
         return user;
     }, []);
 
@@ -79,6 +82,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 const user = await api.auth.me();
                 setUser(user);
                 setStatus("authenticated");
+                dispatchThemeSync(user.theme_preference);
+                dispatchPlannerSync(user.planner);
             } catch {
                 api.auth.logout();
                 // setUser(null); // No need for this, because user is already null on startup

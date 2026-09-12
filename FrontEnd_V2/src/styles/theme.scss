@@ -164,6 +164,12 @@ html[data-reduced-motion="true"] *::after {
   scroll-behavior: auto !important;
 }
 
+html {
+  /* em here is relative to the browser default (~16px), not self-referential like rem.
+     At scale 100 this equals 1em = 16px (no change). All rem-based sizes follow. */
+  font-size: calc(var(--shadow-font-scale-percent) * 0.01em);
+}
+
 /* ----------------------------------------------------------------------------
    4. Base
    -------------------------------------------------------------------------- */

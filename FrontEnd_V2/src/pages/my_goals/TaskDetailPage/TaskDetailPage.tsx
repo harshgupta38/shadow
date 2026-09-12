@@ -9,6 +9,8 @@ import {
 
 import { api, ApiError } from "@/api";
 import type { HabitActivityRecord, TaskActivityResponse, TaskDataResponse } from "@/api";
+import { useTimeFormat } from "@/context/PlannerContext";
+import { formatTime } from "@/services/date.service";
 import { ProgressRing } from "@/components/ui/ProgressRing/ProgressRing";
 import { ROUTES } from "@/routes/RoutePaths";
 import { PRIORITY_LABEL } from "@/pages/plan/PlanPage.constants";
@@ -53,6 +55,7 @@ function TaskHero({
   goalId: number;
 }) {
   const navigate = useNavigate();
+  const timeFormat = useTimeFormat();
   const [isExpanded, setIsExpanded] = useState(false);
 
   const pct = completionPct(task);
@@ -128,7 +131,7 @@ function TaskHero({
                   <div className="hd-detail-row">
                     <span className="hd-detail-label">Time</span>
                     <span className="hd-detail-value" style={{ textTransform: "capitalize" }}>
-                      {task.preferred_time === "custom" ? (task.specific_time ?? "Custom") : task.preferred_time}
+                      {task.preferred_time === "custom" ? (task.specific_time ? formatTime(task.specific_time, timeFormat) : "Custom") : task.preferred_time}
                     </span>
                   </div>
                 )}

@@ -1,6 +1,6 @@
-import type { HabitDataResponse } from "@/api";
+import type { DateFormat, HabitDataResponse, TimeFormat } from "@/api";
 import { FREQUENCY_OPTIONS, PREFERRED_TIME_OPTIONS } from "@/pages/habit_library/HabitWizard/HabitWizard.constants";
-import { todayDate } from "@/services/date.service";
+import { todayDate, formatTime, formatDisplayDate } from "@/services/date.service";
 
 export { PriorityIcon } from "@/constant/priority";
 
@@ -24,30 +24,28 @@ export function formatStatusLabel(status: HabitDataResponse["status"]): string {
   return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
-export function formatHabitDate(value: string): string {
-  const parsed = new Date(`${value}T00:00:00`);
-  if (Number.isNaN(parsed.getTime())) return value;
-  return parsed.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+export function formatHabitDate(value: string, format: DateFormat = "dd mmmm yyyy"): string {
+  return formatDisplayDate(value, format);
 }
 
-export function getHabitDateLabel(habit: HabitDataResponse): string | null {
+export function getHabitDateLabel(habit: HabitDataResponse, format: DateFormat = "dd mmmm yyyy"): string | null {
   const today = todayDate();
 
   if (habit.start_date) {
     const startDate = new Date(`${habit.start_date}T00:00:00`);
     if (!Number.isNaN(startDate.getTime()) && startDate >= today) {
-      return `Starts ${formatHabitDate(habit.start_date)}`;
+      return `Starts ${formatHabitDate(habit.start_date, format)}`;
     }
   }
 
-  return habit.end_date ? `Ends ${formatHabitDate(habit.end_date)}` : null;
+  return habit.end_date ? `Ends ${formatHabitDate(habit.end_date, format)}` : null;
 }
 
-export function getPreferredTimeLabel(habit: HabitDataResponse): string | null {
+export function getPreferredTimeLabel(habit: HabitDataResponse, format: TimeFormat = "12h"): string | null {
   if (habit.preferred_time === "flexible") return null;
   if (habit.preferred_time === "custom") {
     const t = habit.specific_time?.trim();
-    return t ? `${t} hrs` : null;
+    return t ? formatTime(t, format) : null;
   }
   const option = PREFERRED_TIME_OPTIONS.find((item) => item.value === habit.preferred_time);
   return option?.label.split(" (")[0] ?? habit.preferred_time;

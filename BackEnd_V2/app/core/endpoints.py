@@ -101,4 +101,11 @@ class Endpoints:
         REGENERATE_RESPONSE = "/conversations/{conversation_id}/regenerate_response/{message_id}"
         RETRY_FAILED_MESSAGE = "/conversations/{conversation_id}/retry_message/{message_id}"
 
+    class SETTINGS:
+        PREFIX = "/settings"
+        AI_PROVIDERS = "/ai-providers"
+        PROVIDER_HEALTH_CHECK = "/ai-providers/health-check"
+        EXPORT = "/export"
+        CHAT_HISTORY = "/chat-history"
+
 ENDPOINTS = Endpoints()

@@ -41,7 +41,7 @@ class DashboardUpcomingItemResponse(BaseModel):
 class WeeklyMatrixRowResponse(BaseModel):
     id: int
     title: str
-    week: list[bool]  # 7 entries, index 0 = Sunday .. 6 = Saturday
+    week: list[bool]  # 7 entries ordered by user's week_starts_on preference (index 0 = first day of week)
 
 
 class DashboardResponse(BaseModel):

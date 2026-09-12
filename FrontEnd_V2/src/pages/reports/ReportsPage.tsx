@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useWeekStart } from "@/context/PlannerContext";
+import { monthFirstDow, weekDayLabels } from "@/utils/weekUtils";
 import { BarChartFill, CalendarEvent, ChevronLeft, ChevronRight, LightbulbFill, Stars } from "react-bootstrap-icons";
 import { useNavigate } from "react-router-dom";
 import { api, ApiError } from "@/api";
@@ -9,7 +11,7 @@ import { ChoiceDialog } from "@/components/ui/ChoiceDialog/ChoiceDialog";
 import { useToast } from "@/context/ToastContext";
 import type { ScoreTier, DayData, CalDay, CalCell } from "@/pages/reports/types";
 import {
-  TODAY, DAY_LABELS, RING_CIRC, MONTH_NAMES,
+  TODAY, RING_CIRC, MONTH_NAMES,
   fmtKey, buildMonthData, tierOf, computeStats, insightMsg,
 } from "@/pages/reports/ReportsPage.constants";
 import { GenerateReportDialog } from "@/pages/reports/GenerateReportDialog";
@@ -43,7 +45,7 @@ function ReportGhostShell() {
             <div className="rp-ghost-nav-btn" />
           </div>
           <div className="rp-ghost-cal-dow">
-            {DAY_LABELS.map(d => <div key={d} className="rp-ghost-dow" />)}
+            {Array.from({ length: 7 }, (_, i) => <div key={i} className="rp-ghost-dow" />)}
           </div>
           <div className="rp-ghost-cal-grid">
             {Array.from({ length: 14 }, (_, i) => <div key={i} className="rp-ghost-cell" />)}
@@ -100,9 +102,11 @@ export function ReportsPage() {
 
   const stats = useMemo(() => computeStats(monthData, year, month), [monthData, year, month]);
 
+  const weekStart = useWeekStart();
+
   const cells = useMemo<CalCell[]>(() => {
     const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const firstDow = new Date(year, month, 1).getDay();
+    const firstDow = monthFirstDow(year, month, weekStart);
     const out: CalCell[] = [];
 
     for (let i = 0; i < firstDow; i++) out.push({ type: "filler" });
@@ -115,7 +119,7 @@ export function ReportsPage() {
       out.push({ type: "day", date, key, data: monthData.get(key)!, isToday, isFuture });
     }
     return out;
-  }, [year, month, monthData]);
+  }, [year, month, monthData, weekStart]);
 
   const hoveredCell = hoveredKey
     ? (cells.find(c => c.type === "day" && c.key === hoveredKey) as CalDay | undefined) ?? null
@@ -243,7 +247,7 @@ export function ReportsPage() {
         </div>
 
         <div className="rp-cal-header">
-          {DAY_LABELS.map(d => <div key={d} className="rp-cal-dow">{d}</div>)}
+          {weekDayLabels(weekStart).map(d => <div key={d} className="rp-cal-dow">{d}</div>)}
         </div>
 
         <div className="rp-cal-grid" onMouseLeave={() => setHoveredKey(null)}>

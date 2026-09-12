@@ -2,23 +2,25 @@
 Notification scheduler — fires time-based and daily-batch notifications.
 
 Jobs:
-  08:00 IST  morning_jobs:
+  08:00 IST  morning_jobs (global):
     #5  Goals due in 3 days
     #7  Milestones due in 3 days
-    #9  Tasks due today (via parent milestone target_date)
-    #10 Tasks overdue (yesterday's milestone deadline, still incomplete)
     #13 Scheduled-task reminders (tasks with specific_time within next 30 min)
 
-  21:00 IST  evening_jobs:
+  user's default_reminder_time  reminder_jobs (per-user, default 21:00 IST):
+    #9  Tasks due today (via parent milestone target_date)
+    #10 Tasks overdue (yesterday's milestone deadline, still incomplete)
+
+  21:00 IST  evening_jobs (global):
     #4  End-of-day plan completion reminder (< 50 % done)
     #12 Habits not yet logged today (streak-at-risk)
 
 Deduplication: all notifications pass a stable event_key to create_notification(),
 which skips the insert if (user_id, event_key) already exists in the table.
 
-Query strategy: both jobs load all active users once, then issue one cross-user
-query per notification type (user_id IN …) rather than looping users and querying
-per user.  Total queries: O(job_types) instead of O(users × job_types).
+Query strategy: batch jobs load all active users once and issue one cross-user
+query per notification type. Per-user reminder jobs fire only for users whose
+configured reminder time matches the current IST minute.
 """
 
 import asyncio
@@ -38,7 +40,36 @@ from app.models.plan_record import DailyPlanRecordDBM
 from app.models.schedule_task import ScheduledTaskDBM
 from app.models.task import TaskDBM
 from app.models.user import UserDBM
+from app.models.user_setting import UserSettingDBM
 from app.services import notifications_service
+
+_DEFAULT_REMINDER_TIME = "21:00"
+
+
+def _hhmm_in_window(hhmm: str, now_minutes: int) -> bool:
+    """True when now_minutes falls in the 2-minute window starting at hhmm."""
+    try:
+        h, m = map(int, hhmm.split(":"))
+        if not (0 <= h <= 23 and 0 <= m <= 59):
+            return False
+        target = h * 60 + m
+        return target <= now_minutes < target + 2
+    except (ValueError, AttributeError):
+        return False
+
+
+def _get_reminder_times(db, user_ids: list[int]) -> dict[int, str]:
+    """Returns {user_id: "HH:MM"} for each user, falling back to the default."""
+    times = {uid: _DEFAULT_REMINDER_TIME for uid in user_ids}
+    for row in db.execute(
+        select(UserSettingDBM.user_id, UserSettingDBM.planner).where(
+            UserSettingDBM.user_id.in_(user_ids)
+        )
+    ).all():
+        if row.planner:
+            t = row.planner.get("default_reminder_time", _DEFAULT_REMINDER_TIME)
+            times[row.user_id] = str(t)
+    return times
 
 log = logging.getLogger("uvicorn.error")
 
@@ -52,7 +83,6 @@ def _active_users(db) -> dict[int, UserDBM]:
 
 def _morning_jobs(today: date) -> None:
     three_days = today + timedelta(days=3)
-    yesterday = today - timedelta(days=1)
     current_ist_time = now_ist()
 
     with SessionLocal() as db:
@@ -91,6 +121,44 @@ def _morning_jobs(today: date) -> None:
                 url="/goals",
                 event_key=f"ms_due3:{ms.id}:{today}",
             )
+
+        # #13 — Scheduled-task reminders: one query, filter in Python by window
+        for task in db.scalars(
+            select(ScheduledTaskDBM).where(
+                ScheduledTaskDBM.user_id.in_(user_ids),
+                ScheduledTaskDBM.scheduled_date == today,
+                ScheduledTaskDBM.status == "upcoming",
+                ScheduledTaskDBM.preferred_time == "custom",
+                ScheduledTaskDBM.specific_time.isnot(None),
+            )
+        ).all():
+            try:
+                h, m = map(int, task.specific_time.split(":"))
+                task_time = current_ist_time.replace(hour=h, minute=m, second=0, microsecond=0)
+                diff_s = (task_time - current_ist_time).total_seconds()
+                if 0 < diff_s <= 1800:
+                    notifications_service.create_notification(
+                        db, users[task.user_id],
+                        title=f"Starting soon: {task.title}",
+                        body=f"In {int(diff_s / 60)} minutes.",
+                        url="/schedule",
+                        event_key=f"sched_reminder:{task.id}:{today}",
+                    )
+            except (ValueError, AttributeError):
+                pass
+
+
+# ── Per-user reminder jobs (at each user's default_reminder_time) ─────────────
+
+def _reminder_jobs(today: date, user_ids: list[int]) -> None:
+    yesterday = today - timedelta(days=1)
+
+    with SessionLocal() as db:
+        users = {u.id: u for u in db.scalars(
+            select(UserDBM).where(UserDBM.id.in_(user_ids))
+        ).all()}
+        if not users:
+            return
 
         # #9 — Tasks due today; group by user in Python after one query
         due_by_user: dict[int, list[TaskDBM]] = defaultdict(list)
@@ -141,31 +209,6 @@ def _morning_jobs(today: date) -> None:
                 url="/goals",
                 event_key=f"tasks_overdue:{uid}:{today}",
             )
-
-        # #13 — Scheduled-task reminders: one query, filter in Python by window
-        for task in db.scalars(
-            select(ScheduledTaskDBM).where(
-                ScheduledTaskDBM.user_id.in_(user_ids),
-                ScheduledTaskDBM.scheduled_date == today,
-                ScheduledTaskDBM.status == "upcoming",
-                ScheduledTaskDBM.preferred_time == "custom",
-                ScheduledTaskDBM.specific_time.isnot(None),
-            )
-        ).all():
-            try:
-                h, m = map(int, task.specific_time.split(":"))
-                task_time = current_ist_time.replace(hour=h, minute=m, second=0, microsecond=0)
-                diff_s = (task_time - current_ist_time).total_seconds()
-                if 0 < diff_s <= 1800:
-                    notifications_service.create_notification(
-                        db, users[task.user_id],
-                        title=f"Starting soon: {task.title}",
-                        body=f"In {int(diff_s / 60)} minutes.",
-                        url="/schedule",
-                        event_key=f"sched_reminder:{task.id}:{today}",
-                    )
-            except (ValueError, AttributeError):
-                pass
 
 
 # ── Evening jobs (21:00 IST) ──────────────────────────────────────────────────
@@ -266,7 +309,7 @@ async def notification_scheduler_loop() -> None:
 
         minutes = now.hour * 60 + now.minute
 
-        # Morning batch — 08:00 IST
+        # Morning batch — 08:00 IST (global: goals/milestones due soon + scheduled reminders)
         if 8 * 60 <= minutes < 8 * 60 + 2 and "morning" not in triggered_today:
             triggered_today.add("morning")
             try:
@@ -274,7 +317,30 @@ async def notification_scheduler_loop() -> None:
             except Exception:
                 log.exception("Notification scheduler: morning jobs error")
 
-        # Evening batch — 21:00 IST
+        # Per-user reminder batch — fires at each user's configured default_reminder_time
+        all_users: dict = {}
+        reminder_times: dict = {}
+        try:
+            with SessionLocal() as db:
+                all_users = _active_users(db)
+                if all_users:
+                    reminder_times = _get_reminder_times(db, list(all_users.keys()))
+            if all_users:
+                due_user_ids = [
+                    uid for uid, hhmm in reminder_times.items()
+                    if _hhmm_in_window(hhmm, minutes) and f"reminder:{uid}" not in triggered_today
+                ]
+                for uid in due_user_ids:
+                    triggered_today.add(f"reminder:{uid}")
+                if due_user_ids:
+                    try:
+                        await asyncio.to_thread(_reminder_jobs, today, due_user_ids)
+                    except Exception:
+                        log.exception("Notification scheduler: reminder jobs error")
+        except Exception:
+            log.exception("Notification scheduler: reminder time check error")
+
+        # Evening batch — 21:00 IST (global: plan completion + habits)
         if 21 * 60 <= minutes < 21 * 60 + 2 and "evening" not in triggered_today:
             triggered_today.add("evening")
             try:

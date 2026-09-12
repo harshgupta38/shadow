@@ -1,5 +1,6 @@
 
 from app.schemas.common import ORMModel
+from app.schemas.settings import PlannerSection, ThemePreferenceValue
 
 
 class UserDataDBS(ORMModel):
@@ -9,4 +10,5 @@ class UserDataDBS(ORMModel):
 
 
 class UserDataResponse(UserDataDBS):
-    pass
+    theme_preference: ThemePreferenceValue = "browser"
+    planner: PlannerSection = PlannerSection()

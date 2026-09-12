@@ -1,4 +1,4 @@
-import type { DailyReportDetail } from "@/api/types";
+import type { DailyReportDetail, TimeFormat } from "@/api/types";
 import { parseServerDate } from "@/services/date.service";
 
 export function ringColor(pct: number): string {
@@ -7,9 +7,9 @@ export function ringColor(pct: number): string {
   return "var(--jv-warn)";
 }
 
-export function fmtTime(iso: string): string {
+export function fmtTime(iso: string, format: TimeFormat = "12h"): string {
   return parseServerDate(iso).toLocaleTimeString("en-IN", {
-    hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata",
+    hour: "2-digit", minute: "2-digit", hour12: format === "12h", timeZone: "Asia/Kolkata",
   });
 }
 

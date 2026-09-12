@@ -23,6 +23,8 @@ from app.llm.knowledge_base import (
     RESPOND_TO_MESSAGE_SYSTEM_INSTRUCTION_CLAUDE,
     CREATE_CONVERSATION_SYSTEM_INSTRUCTION_CLAUDE,
     USER_MEMORY_EXTRACTION_SYSTEM_INSTRUCTION,
+    RESPONSE_LENGTH_INSTRUCTION,
+    AI_PERSONALITY_INSTRUCTION,
     build_goal_refinement_user_prompt,
     build_milestone_proposal_user_prompt,
     build_task_proposal_user_prompt,
@@ -418,6 +420,10 @@ class ClaudeProvider(BaseLLMProvider):
         system = CREATE_CONVERSATION_SYSTEM_INSTRUCTION_CLAUDE[request_data.agent_type]
         if request.user_memory:
             system += f"\n\n{request.user_memory}"
+        if instruction := RESPONSE_LENGTH_INSTRUCTION.get(request.response_length, ""):
+            system += f"\n\n{instruction}"
+        if instruction := AI_PERSONALITY_INSTRUCTION.get(request.personality, ""):
+            system += f"\n\n{instruction}"
         messages = [{"role": Role.USER, "content": request_data.content}]
 
         started_at = perf_counter()
@@ -661,6 +667,10 @@ class ClaudeProvider(BaseLLMProvider):
         )
         if request.user_memory:
             system += f"\n\n{request.user_memory}"
+        if instruction := RESPONSE_LENGTH_INSTRUCTION.get(request.response_length, ""):
+            system += f"\n\n{instruction}"
+        if instruction := AI_PERSONALITY_INSTRUCTION.get(request.personality, ""):
+            system += f"\n\n{instruction}"
         messages = [
             *request.recent_messages,
             {"role": Role.USER, "content": request.request_data},
@@ -906,13 +916,10 @@ class ClaudeProvider(BaseLLMProvider):
             ),
         )
 
-    async def health_check(self) -> bool:
+    async def health_check(self, model: str | None = None) -> bool:
+        resolved = model or self._settings.claude_model
         try:
-            await self._client.messages.create(
-                model=self._settings.claude_model,
-                max_tokens=1,
-                messages=[{"role": "user", "content": "ping"}],
-            )
+            await self._client.models.retrieve(resolved)
             return True
         except (APIConnectionError, APIStatusError, APIError) as exc:
             raise LLMHealthCheckError(f"Claude health check failed: {exc}") from exc

@@ -1,0 +1,45 @@
+.ai-behavior-card {
+  // All styles come from shared controls (SettingsShared.scss).
+}
+
+// ── Model select wrapper ────────────────────────────────────────────────────
+
+.st-model-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.st-model-spinner {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  margin-right: 10px;
+  border: 2.5px solid var(--bs-secondary);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: st-spin 0.7s linear infinite;
+}
+
+@keyframes st-spin {
+  to { transform: rotate(360deg); }
+}
+
+.st-model-tick {
+  flex-shrink: 0;
+  margin-right: 10px;
+  color: var(--bs-success);
+  opacity: 1;
+  transition: opacity 600ms ease;
+
+  &--fading {
+    opacity: 0;
+  }
+}
+
+// ── Error hint ──────────────────────────────────────────────────────────────
+
+.st-health-error {
+  color: var(--bs-danger);
+  font-size: 0.75rem;
+}

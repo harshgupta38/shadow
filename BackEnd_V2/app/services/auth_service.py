@@ -60,6 +60,7 @@ def register_user(db: Session, data: RegisterRequest) -> UserDBM:
         title=f"Welcome to Shadow, {user.name.split()[0]}!",
         body="Your intelligent productivity assistant is ready. Start by setting a goal.",
         type="system",
+        level=notifications_service.LEVEL_CRITICAL,
         url="/goals",
         event_key=f"welcome:{user.id}",
     )

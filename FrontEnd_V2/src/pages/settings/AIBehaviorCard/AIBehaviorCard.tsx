@@ -12,6 +12,22 @@ const RESPONSE_LENGTH_OPTIONS: { value: AIResponseLength; label: string }[] = [
   { value: "very_detailed", label: "In-depth" },
 ];
 
+type CostLevel = "low" | "medium" | "high" | "highest";
+
+const RESPONSE_LENGTH_HINTS: Record<AIResponseLength, { level: CostLevel; label: string; desc: string }> = {
+  short:        { level: "low",     label: "Low cost",     desc: "Fewest tokens per reply — fastest and cheapest. Best for quick questions and simple tasks." },
+  balanced:     { level: "medium",  label: "Medium cost",  desc: "Moderate token usage — a good fit for most everyday tasks and conversations." },
+  detailed:     { level: "high",    label: "Higher cost",  desc: "Longer replies use noticeably more tokens. Better for explanations and step-by-step guidance." },
+  very_detailed:{ level: "highest", label: "Highest cost", desc: "Maximum response length — most tokens per message. Reserve for deep analysis or complex research." },
+};
+
+const COST_LEVEL_CLASS: Record<CostLevel, string> = {
+  low:     "rl-hint--low",
+  medium:  "rl-hint--medium",
+  high:    "rl-hint--high",
+  highest: "rl-hint--highest",
+};
+
 const PROVIDER_DEFAULT_MODEL: Record<string, string> = {
   openai:  "gpt-5-mini",
   gemini:  "gemini-2.5-flash",
@@ -138,6 +154,15 @@ export function AIBehaviorCard({
             value={data.ai_response_length}
             onChange={(v) => set("ai_response_length", v)}
           />
+          {(() => {
+            const hint = RESPONSE_LENGTH_HINTS[data.ai_response_length];
+            return (
+              <p className={`rl-hint ${COST_LEVEL_CLASS[hint.level]}`}>
+                <span className="rl-hint__badge">{hint.label}</span>
+                <span className="rl-hint__desc">{hint.desc}</span>
+              </p>
+            );
+          })()}
         </div>
 
         <FieldRow label="Personality" hint="Tone and style of AI replies">

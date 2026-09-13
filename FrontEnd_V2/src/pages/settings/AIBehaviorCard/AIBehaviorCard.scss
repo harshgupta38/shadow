@@ -2,6 +2,49 @@
   // All styles come from shared controls (SettingsShared.scss).
 }
 
+// ── Response-length cost hint ───────────────────────────────────────────────
+
+.rl-hint {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  margin: 0.5rem 0 0;
+  padding: 0.45rem 0.65rem;
+  border-radius: var(--jv-radius-sm);
+  font-size: 0.775rem;
+  line-height: 1.5;
+
+  &__badge {
+    font-weight: 700;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+
+  &__desc {
+    color: var(--jv-muted);
+  }
+
+  // cost levels
+  &--low {
+    background: color-mix(in srgb, #22c55e 8%, transparent);
+    .rl-hint__badge { color: #22c55e; }
+  }
+  &--medium {
+    background: color-mix(in srgb, #3b82f6 8%, transparent);
+    .rl-hint__badge { color: #3b82f6; }
+  }
+  &--high {
+    background: color-mix(in srgb, #f59e0b 8%, transparent);
+    .rl-hint__badge { color: #f59e0b; }
+  }
+  &--highest {
+    background: color-mix(in srgb, #ef4444 8%, transparent);
+    .rl-hint__badge { color: #ef4444; }
+  }
+}
+
 // ── Model select wrapper ────────────────────────────────────────────────────
 
 .st-model-wrap {

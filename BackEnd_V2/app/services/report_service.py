@@ -226,13 +226,12 @@ def build_day_data(db: Session, user_id: int, report_date: date, report_type: st
     }
 
 
-def get_reports(db: Session, user_id: int, report_date: date, report_type: str) -> list[ReportDBM]:
+def get_reports(db: Session, user_id: int, report_date: date) -> list[ReportDBM]:
     return list(db.scalars(
         select(ReportDBM)
         .where(
             ReportDBM.user_id == user_id,
             ReportDBM.report_date == report_date,
-            ReportDBM.report_type == report_type,
         )
         .order_by(desc(ReportDBM.generated_at))
     ).all())

@@ -4,7 +4,7 @@ from app.core.endpoints import ENDPOINTS
 from app.core.exceptions import AuthError
 
 from app.schemas.user import UserDataResponse
-from app.schemas.settings import PlannerSection
+from app.schemas.settings import AccessibilitySection, PlannerSection
 from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.models.user import UserDBM
@@ -65,4 +65,5 @@ def me(
         email=current_user.email,
         theme_preference=startup["theme_preference"],
         planner=PlannerSection(**startup["planner"]),
+        accessibility=AccessibilitySection(**startup["accessibility"]),
     )

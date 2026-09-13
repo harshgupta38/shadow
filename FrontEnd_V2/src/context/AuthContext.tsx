@@ -8,7 +8,7 @@ import {
     type ReactNode,
 } from "react";
 
-import { api, tokenStore, LoginRequest, RegisterRequest, type PlannerSettings, type ThemePreference, type UserDataResponse } from "@/api";
+import { api, tokenStore, LoginRequest, RegisterRequest, type AccessibilitySettings, type PlannerSettings, type ThemePreference, type UserDataResponse } from "@/api";
 
 type AuthStatus = "loading" | "authenticated" | "unauthenticated";
 
@@ -18,6 +18,10 @@ function dispatchThemeSync(preference: ThemePreference): void {
 
 function dispatchPlannerSync(planner: PlannerSettings): void {
     window.dispatchEvent(new CustomEvent("planner:sync", { detail: planner }));
+}
+
+function dispatchAccessibilitySync(accessibility: AccessibilitySettings): void {
+    window.dispatchEvent(new CustomEvent("accessibility:sync", { detail: accessibility }));
 }
 
 interface AuthContextValue {
@@ -43,6 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setStatus("authenticated");
         dispatchThemeSync(user.theme_preference);
         dispatchPlannerSync(user.planner);
+        dispatchAccessibilitySync(user.accessibility);
         return user;
     }, []);
 
@@ -59,6 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setStatus("authenticated");
         dispatchThemeSync(user.theme_preference);
         dispatchPlannerSync(user.planner);
+        dispatchAccessibilitySync(user.accessibility);
         return user;
     }, []);
 
@@ -68,6 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setStatus("authenticated");
         dispatchThemeSync(user.theme_preference);
         dispatchPlannerSync(user.planner);
+        dispatchAccessibilitySync(user.accessibility);
         return user;
     }, []);
 
@@ -84,6 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 setStatus("authenticated");
                 dispatchThemeSync(user.theme_preference);
                 dispatchPlannerSync(user.planner);
+                dispatchAccessibilitySync(user.accessibility);
             } catch {
                 api.auth.logout();
                 // setUser(null); // No need for this, because user is already null on startup

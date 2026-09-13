@@ -11,10 +11,8 @@ export const reportsApi = {
     });
   },
 
-  async getReports(reportDate: string, reportType: "daily" | "weekly" = "daily"): Promise<DailyReportDetail[]> {
-    return http.get<DailyReportDetail[]>(`${BASE}${ENDPOINTS.REPORTS.REPORT_DETAIL(reportDate)}`, {
-      params: { report_type: reportType },
-    });
+  async getReports(reportDate: string): Promise<DailyReportDetail[]> {
+    return http.get<DailyReportDetail[]>(`${BASE}${ENDPOINTS.REPORTS.REPORT_DETAIL(reportDate)}`);
   },
 
   async generateReportRequest(reportDate: string, reportType: "daily" | "weekly"): Promise<void> {

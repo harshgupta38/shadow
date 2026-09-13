@@ -18,10 +18,17 @@ export const settingsApi = {
     const body: AIProviderHealthCheckRequest = { provider, model };
     return http.post<AIProviderHealthCheckResponse>(BASE + ENDPOINTS.SETTINGS.PROVIDER_HEALTH_CHECK, body);
   },
-  exportData(): Promise<Blob> {
-    return http.get<Blob>(BASE + ENDPOINTS.SETTINGS.EXPORT, { responseType: "blob" });
+  exportData(sections: string[]): Promise<Blob> {
+    const params = sections.map((s) => `sections=${encodeURIComponent(s)}`).join("&");
+    return http.get<Blob>(`${BASE}${ENDPOINTS.SETTINGS.EXPORT}?${params}`, { responseType: "blob" });
   },
   clearChatHistory(): Promise<void> {
     return http.delete<void>(BASE + ENDPOINTS.SETTINGS.CHAT_HISTORY);
+  },
+  getMemoryCount(): Promise<number> {
+    return http.get<number>(BASE + ENDPOINTS.SETTINGS.MEMORIES_COUNT);
+  },
+  testCustomApiKey(provider: string, model: string, apiKey: string): Promise<AIProviderHealthCheckResponse> {
+    return http.post<AIProviderHealthCheckResponse>(BASE + ENDPOINTS.SETTINGS.CUSTOM_KEY_TEST, { provider, model, api_key: apiKey });
   },
 };

@@ -89,6 +89,16 @@ export function AssistantPage() {
   }, []);
 
   useEffect(() => {
+    function handleChatCleared() {
+      setConversations([]);
+      setActiveConversation(null);
+      setMessagesCache(new Map());
+    }
+    window.addEventListener("chat:cleared", handleChatCleared);
+    return () => window.removeEventListener("chat:cleared", handleChatCleared);
+  }, []);
+
+  useEffect(() => {
     if (isLoading) return;
 
     const state = location.state as

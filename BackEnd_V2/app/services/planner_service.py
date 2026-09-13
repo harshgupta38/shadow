@@ -694,7 +694,7 @@ def _previous_day_closing(db: Session, user_id: int, target_date: date) -> Repor
     """The daily report closing message for the day before `target_date`, if one
     exists — lets the plan page show yesterday's closing note without a second
     request. `get_reports` orders by generated_at desc, so [0] is the latest version."""
-    reports = get_reports(db, user_id, target_date - timedelta(days=1), "daily")
+    reports = [r for r in get_reports(db, user_id, target_date - timedelta(days=1)) if r.report_type == "daily"]
     if not reports:
         return None
     return ReportClosingResponse.model_validate(reports[0].closing)

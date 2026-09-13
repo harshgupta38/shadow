@@ -35,7 +35,6 @@ from app.common.proc_lock import acquire_singleton_lock
 from app.db.session import SessionLocal
 from app.models.goal import GoalDBM
 from app.models.milestone import MilestoneDBM
-from app.models.plan import PlanDBM
 from app.models.plan_record import DailyPlanRecordDBM
 from app.models.schedule_task import ScheduledTaskDBM
 from app.models.task import TaskDBM
@@ -248,28 +247,21 @@ def _evening_jobs(today: date) -> None:
                 )
 
         # #12 — Habits not yet logged today (streak at risk)
-        # Load all active habit plans across all users, then batch-load done records.
-        habit_plans = list(db.scalars(
-            select(PlanDBM).where(
-                PlanDBM.user_id.in_(user_ids),
-                PlanDBM.source_type == "habit",
-                PlanDBM.status == "active",
+        # Only consider habits that are actually on today's planner (DailyPlanRecordDBM),
+        # not every active habit plan — avoids notifying for habits not scheduled today.
+        unlogged_records = list(db.scalars(
+            select(DailyPlanRecordDBM).where(
+                DailyPlanRecordDBM.user_id.in_(user_ids),
+                DailyPlanRecordDBM.scheduled_date == today,
+                DailyPlanRecordDBM.source_type == "habit",
+                DailyPlanRecordDBM.status != "done",
             )
         ).all())
 
-        if habit_plans:
-            done_plan_ids: set[int] = set(db.scalars(
-                select(DailyPlanRecordDBM.plan_id).where(
-                    DailyPlanRecordDBM.plan_id.in_([p.id for p in habit_plans]),
-                    DailyPlanRecordDBM.scheduled_date == today,
-                    DailyPlanRecordDBM.status == "done",
-                )
-            ).all())
-
+        if unlogged_records:
             unlogged_by_user: dict[int, list[str]] = defaultdict(list)
-            for plan in habit_plans:
-                if plan.id not in done_plan_ids:
-                    unlogged_by_user[plan.user_id].append(plan.title)
+            for record in unlogged_records:
+                unlogged_by_user[record.user_id].append(record.title)
 
             for uid, titles in unlogged_by_user.items():
                 names = ", ".join(titles[:3])

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import Response
 
 from app.api.deps import get_current_user
@@ -9,10 +9,11 @@ from app.schemas.settings import (
     AIProviderHealthCheckRequest,
     AIProviderHealthCheckResponse,
     AIProviderResponse,
+    CustomApiKeyTestRequest,
     SettingsResponse,
     UpdateSettingsRequest,
 )
-from app.services import settings_service
+from app.services import memory_service, settings_service
 
 router = APIRouter(prefix=ENDPOINTS.SETTINGS.PREFIX, tags=["Settings"])
 
@@ -39,6 +40,14 @@ def get_ai_providers() -> list[AIProviderResponse]:
     return settings_service.get_ai_providers()
 
 
+@router.post(ENDPOINTS.SETTINGS.CUSTOM_KEY_TEST, response_model=AIProviderHealthCheckResponse)
+async def test_custom_api_key(
+    data: CustomApiKeyTestRequest,
+    current_user: UserDBM = Depends(get_current_user),
+) -> AIProviderHealthCheckResponse:
+    return await settings_service.test_custom_api_key(data.provider, data.model, data.api_key)
+
+
 @router.post(ENDPOINTS.SETTINGS.PROVIDER_HEALTH_CHECK, response_model=AIProviderHealthCheckResponse)
 async def check_provider_health(
     data: AIProviderHealthCheckRequest,
@@ -49,15 +58,24 @@ async def check_provider_health(
 
 @router.get(ENDPOINTS.SETTINGS.EXPORT)
 def export_user_data(
+    sections: list[str] = Query(default=[]),
     db=Depends(get_db),
     current_user: UserDBM = Depends(get_current_user),
 ) -> Response:
-    data = settings_service.export_user_data(db, current_user)
+    data = settings_service.export_user_data(db, current_user, sections)
     return Response(
         content=data,
         media_type="application/json",
         headers={"Content-Disposition": "attachment; filename=shadow-export.json"},
     )
+
+
+@router.get(ENDPOINTS.SETTINGS.MEMORIES_COUNT)
+def get_memories_count(
+    db=Depends(get_db),
+    current_user: UserDBM = Depends(get_current_user),
+) -> int:
+    return memory_service.get_memory_count(db, current_user.id)
 
 
 @router.delete(ENDPOINTS.SETTINGS.CHAT_HISTORY, status_code=204)

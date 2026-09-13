@@ -14,11 +14,11 @@ const RESPONSE_LENGTH_OPTIONS: { value: AIResponseLength; label: string }[] = [
 
 type CostLevel = "low" | "medium" | "high" | "highest";
 
-const RESPONSE_LENGTH_HINTS: Record<AIResponseLength, { level: CostLevel; label: string; desc: string }> = {
-  short:        { level: "low",     label: "Short",     desc: "Fewest tokens per reply — fastest and cheapest. Best for quick questions and simple tasks." },
-  balanced:     { level: "medium",  label: "Balanced",  desc: "Moderate token usage — a good fit for most everyday tasks and conversations." },
-  detailed:     { level: "high",    label: "Detailed",  desc: "Longer replies use noticeably more tokens. Better for explanations and step-by-step guidance." },
-  very_detailed:{ level: "highest", label: "In-depth",  desc: "Maximum response length — most tokens per message. Reserve for deep analysis or complex research." },
+const RESPONSE_LENGTH_HINTS: Record<AIResponseLength, { level: CostLevel; desc: string }> = {
+  short:        { level: "low",     desc: "Fewest tokens per reply — fastest and cheapest. Best for quick questions and simple tasks." },
+  balanced:     { level: "medium",  desc: "Moderate token usage — a good fit for most everyday tasks and conversations." },
+  detailed:     { level: "high",    desc: "Longer replies use noticeably more tokens. Better for explanations and step-by-step guidance." },
+  very_detailed:{ level: "highest", desc: "Maximum response length — most tokens per message. Reserve for deep analysis or complex research." },
 };
 
 const COST_LEVEL_CLASS: Record<CostLevel, string> = {
@@ -207,7 +207,6 @@ export const AIBehaviorCard = forwardRef<AIBehaviorCardRef, {
             const hint = RESPONSE_LENGTH_HINTS[data.ai_response_length];
             return (
               <p className={`rl-hint ${COST_LEVEL_CLASS[hint.level]}`}>
-                <span className="rl-hint__badge me-2">{hint.label}</span>
                 <span className="rl-hint__desc">{hint.desc}</span>
               </p>
             );

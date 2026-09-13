@@ -11,7 +11,7 @@ import {
   FileEarmarkBarGraphFill,
 } from "react-bootstrap-icons";
 
-import { formatDisplayDate, parseServerDate, todayIso } from "@/services/date.service";
+import { formatDisplayDate, todayIso } from "@/services/date.service";
 
 import { api, ApiError } from "@/api";
 import { ROUTES } from "@/routes/RoutePaths";
@@ -244,39 +244,62 @@ function RdpGhostShell() {
 export function ReportDetailPage() {
   const navigate = useNavigate();
   const timeFormat = useTimeFormat();
+  const dateFormat = useDateFormat();
   const { historyDate } = useParams<{ historyDate: string }>();
-  const [searchParams] = useSearchParams();
-  const reportType = (searchParams.get("report_type") ?? "daily") as "daily" | "weekly";
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const [reports, setReports] = useState<DailyReportDetail[]>([]);
-  const [idx, setIdx] = useState(0);
+  const [activeType, setActiveType] = useState<"daily" | "weekly">(
+    () => searchParams.get("report_type") === "weekly" ? "weekly" : "daily",
+  );
+  const [dailyReports, setDailyReports] = useState<DailyReportDetail[]>([]);
+  const [weeklyReports, setWeeklyReports] = useState<DailyReportDetail[]>([]);
+  const [idxByType, setIdxByType] = useState<Record<"daily" | "weekly", number>>({ daily: 0, weekly: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [requested, setRequested] = useState(false);
   const toast = useToast();
 
-  const pageTitle = reportType === "weekly" ? "Weekly Report" : "Daily Report";
+  // Derived from active type
+  const reports = activeType === "daily" ? dailyReports : weeklyReports;
+  const idx = idxByType[activeType];
+  const setIdx = (val: number) => setIdxByType(prev => ({ ...prev, [activeType]: val }));
+  const hasBothTypes = dailyReports.length > 0 && weeklyReports.length > 0;
+
+  function switchType(type: "daily" | "weekly") {
+    setActiveType(type);
+    setSearchParams({ report_type: type }, { replace: true });
+  }
 
   function fetchReports() {
     if (!historyDate) return;
     setLoading(true);
     setError(null);
-    api.reports.getReports(historyDate, reportType)
+    api.reports.getReports(historyDate)
       .then(data => {
-        // Backend returns newest-first; reverse so pagination reads oldest (page 1) → latest (last page).
-        const sorted = [...data].reverse();
-        setReports(sorted);
-        setIdx(sorted.length - 1); // default to the latest report
+        const daily = data.filter(r => r.report_type === "daily");
+        const weekly = data.filter(r => r.report_type === "weekly");
+        setDailyReports(daily);
+        setWeeklyReports(weekly);
+        setIdxByType({ daily: 0, weekly: 0 });
+        if (daily.length === 0 && weekly.length === 0) {
+          setError("No reports found for this date.");
+        } else {
+          setActiveType(prev => {
+            if (prev === "daily" && daily.length > 0) return "daily";
+            if (prev === "weekly" && weekly.length > 0) return "weekly";
+            return daily.length > 0 ? "daily" : "weekly";
+          });
+        }
       })
-      .catch((err) => setError(err instanceof ApiError ? err.message : "Report not found. It may still be generating — check back in a moment."))
+      .catch(() => setError("No reports found for this date."))
       .finally(() => setLoading(false));
   }
 
-  useEffect(() => { fetchReports(); }, [historyDate, reportType]);
+  useEffect(() => { fetchReports(); }, [historyDate]);
 
   function handleGenerate() {
     if (!historyDate) return;
-    api.reports.generateReportRequest(historyDate, reportType)
+    api.reports.generateReportRequest(historyDate, activeType)
       .then(() => {
         toast.info("Report requested, check back in a few minutes.");
         setRequested(true);
@@ -285,8 +308,10 @@ export function ReportDetailPage() {
   }
 
   const datePicker = historyDate
-    ? <ReportDatePicker date={historyDate} reportType={reportType} />
+    ? <ReportDatePicker date={historyDate} reportType={activeType} />
     : undefined;
+
+  const pageTitle = activeType === "weekly" ? "Weekly Report" : "Daily Report";
 
   if (loading) {
     return (
@@ -344,9 +369,7 @@ export function ReportDetailPage() {
   const total = reports.length;
   const goalsOnTrack = report.goals.filter(g => g.alignment_pct >= 75).length;
   const isToday = report.date === todayIso();
-  const dateLabel = parseServerDate(report.generated_at).toLocaleDateString("en-GB", {
-    day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata",
-  });
+  const dateLabel = formatDisplayDate(report.date, dateFormat);
 
   return (
     <div className="rdp-page">
@@ -358,7 +381,7 @@ export function ReportDetailPage() {
       {/* ── Page Header ──────────────────────────────────────────────────── */}
       <PageHeader
         icon={<BarChartFill size={20} />}
-        title={report.report_type === "weekly" ? "Weekly Report" : "Daily Report"}
+        title={activeType === "weekly" ? "Weekly Report" : "Daily Report"}
         subtitle={`${dateLabel} · ${fmtTime(report.generated_at, timeFormat)}${total > 1 ? ` · ${idx + 1} of ${total}` : ""}`}
         rightSlot={datePicker}
       />
@@ -452,8 +475,30 @@ export function ReportDetailPage() {
         <p className="rdp-closing-msg">{report.closing.message}</p>
       </div>
 
-      {/* ── Pagination ───────────────────────────────────────────────────── */}
-      {total > 1 && <ReportPagination total={total} idx={idx} onChange={setIdx} />}
+      {/* ── Bottom bar: type switcher (left) + pagination (right) ────────── */}
+      {(hasBothTypes || total > 1) && (
+        <div className="rdp-bottom-bar">
+          {hasBothTypes ? (
+            <div className="rdp-type-switcher">
+              <button
+                type="button"
+                className={`rdp-type-btn${activeType === "daily" ? " rdp-type-btn--active" : ""}`}
+                onClick={() => switchType("daily")}
+              >
+                Daily
+              </button>
+              <button
+                type="button"
+                className={`rdp-type-btn${activeType === "weekly" ? " rdp-type-btn--active" : ""}`}
+                onClick={() => switchType("weekly")}
+              >
+                Weekly
+              </button>
+            </div>
+          ) : <span />}
+          {total > 1 && <ReportPagination total={total} idx={idx} onChange={setIdx} />}
+        </div>
+      )}
 
     </div>
   );

@@ -30,11 +30,10 @@ def get_monthly_report(
 @router.get(ENDPOINTS.REPORTS.REPORT_DETAIL, response_model=list[ReportResponse])
 def get_report_detail(
     report_date: date,
-    report_type: str = Query(default="daily", pattern="^(daily|weekly)$"),
     db=Depends(get_db),
     current_user: UserDBM = Depends(get_current_user),
 ) -> list[ReportResponse]:
-    reports = get_reports(db, current_user.id, report_date, report_type)
+    reports = get_reports(db, current_user.id, report_date)
     return [to_report_response(r) for r in reports]
 
 

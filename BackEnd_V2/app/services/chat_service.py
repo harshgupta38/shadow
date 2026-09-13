@@ -15,7 +15,8 @@ from app.llm.models import MessageResponse
 from app.llm.config import llm_settings
 from app.llm.tools import ToolContext, execute_tool
 from app.core.exceptions import NotFoundError, ValidationError
-from app.llm import get_llm_service, get_llm_service_for_user, NewConvoResponse, LLMError, LLMRequestError
+from app.llm import get_llm_service, get_llm_service_for_user, LLMService, NewConvoResponse, LLMError, LLMRequestError
+from app.llm.service import _USER_PROVIDER_MAP
 from app.services import memory_service, settings_service
 from app.models.user import UserDBM
 from app.models.chat import ConversationDBM, MessageDBM
@@ -35,6 +36,26 @@ from app.schemas.chat import (
     NewConvoRequest,
     RenameConvoRequest,
 )
+
+
+_CUSTOM_KEY_FIELD: dict[str, str] = {
+    "openai": "openai_api_key",
+    "gemini": "gemini_api_key",
+    "claude": "claude_api_key",
+    "ollama": "ollama_api_key",
+}
+
+
+def _build_user_llm_service(ai_behavior: dict) -> LLMService:
+    """Returns LLMService with the user's custom API key when enabled, else the cached global service."""
+    provider = ai_behavior.get("ai_provider", "openai")
+    if ai_behavior.get("custom_api_key_enabled") and ai_behavior.get("custom_api_key"):
+        provider_cls = _USER_PROVIDER_MAP.get(provider)
+        key_field = _CUSTOM_KEY_FIELD.get(provider)
+        if provider_cls and key_field:
+            overridden = llm_settings.model_copy(update={key_field: ai_behavior["custom_api_key"]})
+            return LLMService(provider=provider_cls(settings=overridden))
+    return get_llm_service_for_user(provider)
 
 
 def _serialize_conversation(conversation: ConversationDBM) -> ConvoDataShortResponse:
@@ -438,7 +459,7 @@ async def create_conversation(
 
     tool_context = ToolContext(db=db, current_user=current_user)
     tool_executor = partial(execute_tool, context=tool_context)
-    llm_service = get_llm_service_for_user(ai_provider)
+    llm_service = _build_user_llm_service(ai_behavior)
 
     try:
         response = await llm_service.create_conversation(
@@ -633,6 +654,8 @@ async def _call_llm_and_save(
     personality: str = "coach",
     ai_provider: str = "openai",
     ai_model: str = "gpt-5-mini",
+    custom_api_key_enabled: bool = False,
+    custom_api_key: str = "",
 ) -> MessageResponse:
     user_message.request_status = "pending"
     db.commit()
@@ -640,7 +663,11 @@ async def _call_llm_and_save(
     tool_context = ToolContext(db=db, current_user=current_user)
     tool_executor = partial(execute_tool, context=tool_context)
 
-    llm_service = get_llm_service_for_user(ai_provider)
+    llm_service = _build_user_llm_service({
+        "ai_provider": ai_provider,
+        "custom_api_key_enabled": custom_api_key_enabled,
+        "custom_api_key": custom_api_key,
+    })
     try:
         response = await llm_service.respond_to_message(
             data,
@@ -825,6 +852,8 @@ async def respond_to_message(
             recent_message_data, user_memory=user_memory_str,
             response_length=response_length, personality=personality,
             ai_provider=ai_provider, ai_model=ai_model,
+            custom_api_key_enabled=ai_behavior.get("custom_api_key_enabled", False),
+            custom_api_key=ai_behavior.get("custom_api_key", ""),
         )
     except Exception:
         # Cancel background tasks on main-call failure to avoid orphaned warnings.
@@ -993,7 +1022,7 @@ async def regenerate_response(
     tool_context = ToolContext(db=db, current_user=current_user)
     tool_executor = partial(execute_tool, context=tool_context)
 
-    llm_service = get_llm_service_for_user(ai_behavior["ai_provider"])
+    llm_service = _build_user_llm_service(ai_behavior)
     try:
         response = await llm_service.respond_to_message(
             data,

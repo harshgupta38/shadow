@@ -69,6 +69,41 @@ export function SettingsPage() {
     }
   }, [settings?.accessibility]);
 
+  const saveApiKey = useCallback(async () => {
+    if (!settings || !baseline) return;
+    const payload = {
+      ...baseline,
+      ai_behavior: {
+        ...baseline.ai_behavior,
+        custom_api_key_enabled: settings.ai_behavior.custom_api_key_enabled,
+        custom_api_key: settings.ai_behavior.custom_api_key,
+      },
+    };
+    const saved = await api.settings.update(payload);
+    setSettings((prev) => prev ? { ...prev, ai_behavior: saved.ai_behavior } : prev);
+    setBaseline((prev) => prev ? { ...prev, ai_behavior: saved.ai_behavior } : prev);
+    success("API key saved.");
+  }, [settings, baseline, success]);
+
+  const clearApiKey = useCallback(async () => {
+    if (!baseline) return;
+    const payload = {
+      ...baseline,
+      ai_behavior: {
+        ...baseline.ai_behavior,
+        custom_api_key_enabled: false,
+        custom_api_key: "",
+      },
+    };
+    try {
+      const saved = await api.settings.update(payload);
+      setSettings((prev) => prev ? { ...prev, ai_behavior: saved.ai_behavior } : prev);
+      setBaseline((prev) => prev ? { ...prev, ai_behavior: saved.ai_behavior } : prev);
+    } catch {
+      error("Could not remove the API key. Please try again.");
+    }
+  }, [baseline, error]);
+
   const saveAll = useCallback(async () => {
     if (!settings || !isDirty) return;
     setSaving(true);
@@ -192,6 +227,8 @@ export function SettingsPage() {
               data={settings.ai_behavior}
               isDirty={dirtySections.includes("ai_behavior")}
               onUpdate={(d) => patch("ai_behavior", d)}
+              onSaveApiKey={saveApiKey}
+              onClearApiKey={clearApiKey}
             />
             <PlannerCard
               data={settings.planner}

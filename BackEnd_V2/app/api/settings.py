@@ -9,6 +9,7 @@ from app.schemas.settings import (
     AIProviderHealthCheckRequest,
     AIProviderHealthCheckResponse,
     AIProviderResponse,
+    CustomApiKeyTestRequest,
     SettingsResponse,
     UpdateSettingsRequest,
 )
@@ -37,6 +38,14 @@ def update_settings(
 @router.get(ENDPOINTS.SETTINGS.AI_PROVIDERS, response_model=list[AIProviderResponse])
 def get_ai_providers() -> list[AIProviderResponse]:
     return settings_service.get_ai_providers()
+
+
+@router.post(ENDPOINTS.SETTINGS.CUSTOM_KEY_TEST, response_model=AIProviderHealthCheckResponse)
+async def test_custom_api_key(
+    data: CustomApiKeyTestRequest,
+    current_user: UserDBM = Depends(get_current_user),
+) -> AIProviderHealthCheckResponse:
+    return await settings_service.test_custom_api_key(data.provider, data.model, data.api_key)
 
 
 @router.post(ENDPOINTS.SETTINGS.PROVIDER_HEALTH_CHECK, response_model=AIProviderHealthCheckResponse)

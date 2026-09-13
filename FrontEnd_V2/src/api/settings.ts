@@ -28,4 +28,7 @@ export const settingsApi = {
   getMemoryCount(): Promise<number> {
     return http.get<number>(BASE + ENDPOINTS.SETTINGS.MEMORIES_COUNT);
   },
+  testCustomApiKey(provider: string, model: string, apiKey: string): Promise<AIProviderHealthCheckResponse> {
+    return http.post<AIProviderHealthCheckResponse>(BASE + ENDPOINTS.SETTINGS.CUSTOM_KEY_TEST, { provider, model, api_key: apiKey });
+  },
 };

@@ -868,6 +868,10 @@ export interface AIBehaviorSettings {
   ai_personality: AIPersonality;
   ai_provider: string;
   ai_default_model: string;
+  custom_api_key_enabled: boolean;
+  custom_api_key: string;
+  /** True when a key is stored server-side; the raw key is never returned. */
+  custom_api_key_saved: boolean;
 }
 
 export interface PlannerSettings {

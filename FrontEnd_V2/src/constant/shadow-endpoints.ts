@@ -93,5 +93,6 @@ export const ENDPOINTS = {
         EXPORT: "/export",
         CHAT_HISTORY: "/chat-history",
         MEMORIES_COUNT: "/memories/count",
+        CUSTOM_KEY_TEST: "/custom-api-key/test",
     },
 }

@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { CheckCircleFill, CpuFill, Eye, EyeSlash, Floppy } from "react-bootstrap-icons";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { ArrowRepeat, CheckCircleFill, CpuFill, Eye, EyeSlash } from "react-bootstrap-icons";
 import { api } from "@/api";
 import type { AIBehaviorSettings, AIPersonality, AIProvider, AIResponseLength } from "@/api";
 import { Card, FieldRow, SegmentedControl, ToggleRow } from "@/pages/settings/SettingsShared";
@@ -18,7 +18,7 @@ const RESPONSE_LENGTH_HINTS: Record<AIResponseLength, { level: CostLevel; label:
   short:        { level: "low",     label: "Short",     desc: "Fewest tokens per reply — fastest and cheapest. Best for quick questions and simple tasks." },
   balanced:     { level: "medium",  label: "Balanced",  desc: "Moderate token usage — a good fit for most everyday tasks and conversations." },
   detailed:     { level: "high",    label: "Detailed",  desc: "Longer replies use noticeably more tokens. Better for explanations and step-by-step guidance." },
-  very_detailed:{ level: "highest", label: "In-depth", desc: "Maximum response length — most tokens per message. Reserve for deep analysis or complex research." },
+  very_detailed:{ level: "highest", label: "In-depth",  desc: "Maximum response length — most tokens per message. Reserve for deep analysis or complex research." },
 };
 
 const COST_LEVEL_CLASS: Record<CostLevel, string> = {
@@ -44,50 +44,49 @@ const PERSONALITY_OPTIONS: { value: AIPersonality; label: string }[] = [
   { value: "minimal",      label: "Minimal"      },
 ];
 
-// Fade duration must match CSS transition in AIBehaviorCard.scss
+// Fade constants for the model-health tick (key health tick never fades).
 const TICK_VISIBLE_MS = 5000;
 const TICK_FADE_MS    = 600;
 
 type HealthState =
   | { status: "idle" }
   | { status: "checking" }
-  | { status: "ok"; message: string }
+  | { status: "ok";    message: string }
   | { status: "error"; message: string };
 
-export function AIBehaviorCard({
-  data,
-  isDirty,
-  onUpdate,
-  onSaveApiKey,
-  onClearApiKey,
-}: {
+export interface AIBehaviorCardRef {
+  /** Called by the global Save before persisting. Returns false and surfaces an
+   *  error in the UI if the custom key is enabled but hasn't passed a test yet. */
+  validateApiKey: () => Promise<boolean>;
+}
+
+export const AIBehaviorCard = forwardRef<AIBehaviorCardRef, {
   data: AIBehaviorSettings;
   isDirty: boolean;
   onUpdate: (d: AIBehaviorSettings) => void;
-  onSaveApiKey: () => Promise<void>;
   onClearApiKey: () => Promise<void>;
-}) {
-  const [providers, setProviders] = useState<AIProvider[]>([]);
-  const [health, setHealth] = useState<HealthState>({ status: "idle" });
+}>(function AIBehaviorCard({ data, isDirty, onUpdate, onClearApiKey }, ref) {
+  const [providers, setProviders]   = useState<AIProvider[]>([]);
+  const [health, setHealth]         = useState<HealthState>({ status: "idle" });
   const [tickFading, setTickFading] = useState(false);
-  const timerRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const timerRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const checkIdRef = useRef(0);
+  const checkIdRef  = useRef(0);
 
   const [keyHealth, setKeyHealth] = useState<HealthState>({ status: "idle" });
-  const [showKey, setShowKey] = useState(false);
+  const [showKey, setShowKey]     = useState(false);
 
   useEffect(() => {
     api.settings.getProviders().then(setProviders).catch(() => {});
   }, []);
 
-  // Debounced health check whenever provider or model changes.
+  // Debounced provider/model health check.
   useEffect(() => {
     if (!data.ai_provider || !data.ai_default_model) return;
 
     const id = ++checkIdRef.current;
     setHealth({ status: "checking" });
-    if (timerRef.current)   clearTimeout(timerRef.current);
+    if (timerRef.current)    clearTimeout(timerRef.current);
     if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current);
 
     timerRef.current = setTimeout(() => {
@@ -98,7 +97,6 @@ export function AIBehaviorCard({
           if (res.healthy) {
             setTickFading(false);
             setHealth({ status: "ok", message: res.message });
-            // Start fade after TICK_VISIBLE_MS, then transition to idle.
             fadeTimerRef.current = setTimeout(() => {
               setTickFading(true);
               fadeTimerRef.current = setTimeout(
@@ -120,32 +118,51 @@ export function AIBehaviorCard({
     }, 600);
 
     return () => {
-      if (timerRef.current)   clearTimeout(timerRef.current);
+      if (timerRef.current)    clearTimeout(timerRef.current);
       if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current);
     };
   }, [data.ai_provider, data.ai_default_model]);
 
-  function set<K extends keyof AIBehaviorSettings>(key: K, value: AIBehaviorSettings[K]) {
-    onUpdate({ ...data, [key]: value });
-  }
-
-  const activeProvider = providers.find((p) => p.key === data.ai_provider);
-  const models = activeProvider?.models ?? [];
-
-  async function handleSaveKey() {
-    if (!data.custom_api_key.trim()) return;
+  // Shared test logic — used by both the test button and the global-save validator.
+  async function runKeyTest(): Promise<boolean> {
+    const key = data.custom_api_key.trim();
+    if (!key) return false;
     setKeyHealth({ status: "checking" });
     try {
-      const res = await api.settings.testCustomApiKey(data.ai_provider, data.ai_default_model, data.custom_api_key.trim());
-      if (!res.healthy) {
-        setKeyHealth({ status: "error", message: res.message });
-        return;
+      const res = await api.settings.testCustomApiKey(
+        data.ai_provider,
+        data.ai_default_model,
+        key,
+      );
+      if (res.healthy) {
+        setKeyHealth({ status: "ok", message: res.message });
+        return true;
       }
-      await onSaveApiKey();
-      setKeyHealth({ status: "idle" });
+      setKeyHealth({ status: "error", message: res.message });
+      return false;
     } catch {
-      setKeyHealth({ status: "error", message: "Could not save. Please try again." });
+      setKeyHealth({ status: "error", message: "Could not reach the server. Please try again." });
+      return false;
     }
+  }
+
+  // Exposed to parent via ref so saveAll can gate on it.
+  useImperativeHandle(ref, () => ({
+    async validateApiKey(): Promise<boolean> {
+      if (!data.custom_api_key_enabled) return true;
+      // Existing stored key (no new key typed) — already validated on last save.
+      if (!data.custom_api_key.trim() && data.custom_api_key_saved) return true;
+      if (!data.custom_api_key.trim()) {
+        setKeyHealth({ status: "error", message: "An API key is required." });
+        return false;
+      }
+      if (keyHealth.status === "ok") return true;
+      return runKeyTest();
+    },
+  }), [data, keyHealth.status]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function set<K extends keyof AIBehaviorSettings>(key: K, value: AIBehaviorSettings[K]) {
+    onUpdate({ ...data, [key]: value });
   }
 
   function handleProviderChange(providerKey: string) {
@@ -159,6 +176,14 @@ export function AIBehaviorCard({
       ai_default_model: modelExists ? preferred : (provider?.models[0]?.key ?? ""),
     });
   }
+
+  const activeProvider = providers.find((p) => p.key === data.ai_provider);
+  const models = activeProvider?.models ?? [];
+
+  // Show the test button when the user has typed a new key, is mid-test, or has a result.
+  const showTestBtn = !!data.custom_api_key.trim()
+    || keyHealth.status === "checking"
+    || keyHealth.status === "ok";
 
   return (
     <Card
@@ -311,21 +336,28 @@ export function AIBehaviorCard({
                     {showKey ? <EyeSlash size={14} /> : <Eye size={14} />}
                   </button>
                 </div>
-                {(data.custom_api_key.trim() || keyHealth.status === "checking") && (
+
+                {showTestBtn && (
                   <button
                     type="button"
-                    className="st-custom-key-test"
-                    onClick={() => void handleSaveKey()}
-                    disabled={keyHealth.status === "checking"}
-                    aria-label="Save API key"
-                    title="Test and save API key"
+                    className={[
+                      "st-custom-key-test",
+                      keyHealth.status === "checking" && "st-custom-key-test--checking",
+                      keyHealth.status === "ok" && "st-custom-key-test--ok",
+                    ].filter(Boolean).join(" ")}
+                    onClick={() => void runKeyTest()}
+                    disabled={keyHealth.status === "ok"}
+                    aria-label="Test API key"
+                    title={keyHealth.status === "ok" ? "Key verified" : "Test API key"}
                   >
                     {keyHealth.status === "checking" ? (
-                      <span className="st-custom-key-spinner" role="status" aria-label="Saving">
+                      <span className="st-custom-key-spinner" role="status" aria-label="Testing">
                         <span className="spinner-border spinner-border-sm" aria-hidden="true" />
                       </span>
+                    ) : keyHealth.status === "ok" ? (
+                      <CheckCircleFill size={14} />
                     ) : (
-                      <Floppy size={14} />
+                      <ArrowRepeat size={14} />
                     )}
                   </button>
                 )}
@@ -342,4 +374,4 @@ export function AIBehaviorCard({
       </div>
     </Card>
   );
-}
+});

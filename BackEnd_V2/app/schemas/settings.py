@@ -52,12 +52,13 @@ class AIBehaviorSection(BaseModel):
 
 
 class AIBehaviorSectionResponse(BaseModel):
-    """Read schema — returned on GET /settings. Never exposes the raw key."""
+    """Read schema — returned on GET /settings. Raw key is always redacted to empty string."""
     ai_response_length: AIResponseLength = "balanced"
     ai_personality: AIPersonality = "coach"
     ai_provider: str = "openai"
     ai_default_model: str = "gpt-5-mini"
     custom_api_key_enabled: bool = False
+    custom_api_key: str = ""
     custom_api_key_saved: bool = False
 
 

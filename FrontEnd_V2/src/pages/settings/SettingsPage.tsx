@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowCounterclockwise, CheckLg, GearFill } from "react-bootstrap-icons";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { useTheme } from "@/context/ThemeContext";
@@ -9,6 +9,7 @@ import { AppearanceCard } from "@/pages/settings/AppearanceCard/AppearanceCard";
 import { NotificationsCard } from "@/pages/settings/NotificationsCard/NotificationsCard";
 import { PrivacyCard } from "@/pages/settings/PrivacyCard/PrivacyCard";
 import { AIBehaviorCard } from "@/pages/settings/AIBehaviorCard/AIBehaviorCard";
+import type { AIBehaviorCardRef } from "@/pages/settings/AIBehaviorCard/AIBehaviorCard";
 import { PlannerCard } from "@/pages/settings/PlannerCard/PlannerCard";
 import { AccessibilityCard } from "@/pages/settings/AccessibilityCard/AccessibilityCard";
 import { SettingsSkeleton } from "@/pages/settings/SettingsSkeleton/SettingsSkeleton";
@@ -26,6 +27,7 @@ export function SettingsPage() {
   const [baseline, setBaseline] = useState<FullSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const aiCardRef = useRef<AIBehaviorCardRef>(null);
 
   const { setThemePreference } = useTheme();
   const { success, error } = useToast();
@@ -69,22 +71,6 @@ export function SettingsPage() {
     }
   }, [settings?.accessibility]);
 
-  const saveApiKey = useCallback(async () => {
-    if (!settings || !baseline) return;
-    const payload = {
-      ...baseline,
-      ai_behavior: {
-        ...baseline.ai_behavior,
-        custom_api_key_enabled: settings.ai_behavior.custom_api_key_enabled,
-        custom_api_key: settings.ai_behavior.custom_api_key,
-      },
-    };
-    const saved = await api.settings.update(payload);
-    setSettings((prev) => prev ? { ...prev, ai_behavior: saved.ai_behavior } : prev);
-    setBaseline((prev) => prev ? { ...prev, ai_behavior: saved.ai_behavior } : prev);
-    success("API key saved.");
-  }, [settings, baseline, success]);
-
   const clearApiKey = useCallback(async () => {
     if (!baseline) return;
     const payload = {
@@ -106,6 +92,14 @@ export function SettingsPage() {
 
   const saveAll = useCallback(async () => {
     if (!settings || !isDirty) return;
+
+    // If the custom key feature is enabled, validate (and test if needed) before saving.
+    const keyOk = await aiCardRef.current?.validateApiKey() ?? true;
+    if (!keyOk) {
+      error("Please test your API key before saving, or disable 'Use my own API key'.");
+      return;
+    }
+
     setSaving(true);
     try {
       const saved = await api.settings.update(settings);
@@ -224,10 +218,10 @@ export function SettingsPage() {
           {/* ── Right column ── */}
           <div className="col-xl-6 d-flex flex-column gap-3">
             <AIBehaviorCard
+              ref={aiCardRef}
               data={settings.ai_behavior}
               isDirty={dirtySections.includes("ai_behavior")}
               onUpdate={(d) => patch("ai_behavior", d)}
-              onSaveApiKey={saveApiKey}
               onClearApiKey={clearApiKey}
             />
             <PlannerCard

@@ -1,6 +1,7 @@
 import { Display, MoonStarsFill, PaletteFill, Stars, SunFill } from "react-bootstrap-icons";
 import type { AppearanceSettings, ThemePreferenceValue } from "@/api";
 import { CheckLg } from "react-bootstrap-icons";
+import { useTheme } from "@/context/ThemeContext";
 import { Card } from "@/pages/settings/SettingsShared";
 import "@/pages/settings/AppearanceCard/AppearanceCard.scss";
 
@@ -16,6 +17,14 @@ const THEME_CARDS: {
   { value: "dynamic", label: "Dynamic", desc: "Switches with sunrise & sunset", icon: <Stars size={20} /> },
 ];
 
+function formatTransitionTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "Asia/Kolkata",
+  });
+}
+
 export function AppearanceCard({
   data,
   isDirty,
@@ -25,6 +34,10 @@ export function AppearanceCard({
   isDirty: boolean;
   onUpdate: (d: AppearanceSettings) => void;
 }) {
+  const { dynamicInfo } = useTheme();
+  const isDynamic = data.theme_preference === "dynamic";
+  const switchingTo = dynamicInfo?.scheduledTheme === "light" ? "dark" : "light";
+
   return (
     <Card
       className="appearance-card"
@@ -53,6 +66,14 @@ export function AppearanceCard({
           </button>
         ))}
       </div>
+
+      {isDynamic && (
+        <p className="st-dynamic-hint">
+          {dynamicInfo
+            ? <>Currently <strong>{dynamicInfo.scheduledTheme}</strong> · switches to {switchingTo} at <strong>{formatTransitionTime(dynamicInfo.nextTransitionAt)}</strong></>
+            : "Detecting your local sunrise & sunset…"}
+        </p>
+      )}
     </Card>
   );
 }

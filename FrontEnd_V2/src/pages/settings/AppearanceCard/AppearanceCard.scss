@@ -82,4 +82,20 @@
     align-items: center;
     justify-content: center;
   }
+
+  .st-dynamic-hint {
+    margin: 0.65rem 0 0;
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--jv-radius-sm);
+    background: color-mix(in srgb, var(--jv-brand-1) 7%, transparent);
+    font-size: 0.775rem;
+    color: var(--jv-muted);
+    line-height: 1.5;
+
+    strong {
+      color: var(--jv-text);
+      font-weight: 600;
+      text-transform: capitalize;
+    }
+  }
 }

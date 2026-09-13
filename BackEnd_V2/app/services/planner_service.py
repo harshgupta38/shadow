@@ -759,6 +759,7 @@ def get_plans_for_date(
                 title=f"Your plan for today is ready — {len(records)} item{'s' if len(records) != 1 else ''}",
                 body=body,
                 type="system",
+                level=notifications_service.LEVEL_INFORMATIONAL,
                 url="/plan",
                 event_key=f"plan_ready:{current_user.id}:{target_date}",
             )
@@ -1042,6 +1043,7 @@ def update_daily_record(
             title=f"{cs}-day streak on \"{record.title}\"! 🔥",
             body=f"You've kept this habit going for {cs} days in a row.",
             type="system",
+            level=notifications_service.LEVEL_ACHIEVEMENT,
             url="/plan",
             event_key=f"streak:{record.plan_id}:{cs}:{record.scheduled_date}",
         )

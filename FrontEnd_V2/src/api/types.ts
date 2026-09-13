@@ -703,6 +703,7 @@ export interface Notification {
   title: string;
   body: string | null;
   type: NotificationType;
+  level: number;
   read: boolean;
   created_at: string;
   url?: string;

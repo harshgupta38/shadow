@@ -391,6 +391,7 @@ async def generate_report_background(
                 title=f"Your {label} report for {report_date.strftime('%d %b')} is ready",
                 body=report.headline if report else None,
                 type="agent",
+                level=notifications_service.LEVEL_CRITICAL,
                 url=f"/reports/{report_date}",
                 event_key=None if force else f"report:{user_id}:{report_date}:{report_type}",
             )
@@ -409,6 +410,7 @@ async def generate_report_background(
                     title=f"Your {label} report for {report_date.strftime('%d %b')} couldn't be generated",
                     body="Something went wrong while generating your report. Please try again.",
                     type="system",
+                    level=notifications_service.LEVEL_CRITICAL,
                 )
         except Exception:
             logger.exception(

@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
-import { api, tokenStore, type ChildProps, type EffectiveTheme, type ThemePreference } from "@/api";
+import { api, type ChildProps, type EffectiveTheme, type ThemePreference } from "@/api";
 import { DEFAULTS } from "@/constant/data";
 import { getUserLocation } from "@/services/location.service";
 
@@ -149,12 +149,13 @@ export function ThemeProvider({ children }: ChildProps) {
 				nextTransitionAt = cached.nextTransitionAt;
 			} else {
 				// No cache or transition time has passed — fetch fresh data
-				if (!tokenStore.get()) {
-					// Not signed in — skip the protected endpoint to avoid a 401
+				try {
+					nextTransitionAt = await fetchAndCache();
+				} catch {
+					// Not signed in or server error — fall back to browser theme
 					setEffectiveTheme(getBrowserTheme());
 					return;
 				}
-				nextTransitionAt = await fetchAndCache();
 			}
 
 			if (!nextTransitionAt) return;

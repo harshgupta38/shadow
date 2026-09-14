@@ -1,11 +1,11 @@
 import { ENDPOINTS } from "@/constant/shadow-endpoints";
-import { http, refreshAccessToken, tokenStore } from "@/api/client";
+import { http, refreshAccessToken } from "@/api/client";
 import type { Notification } from "@/api/types";
 
 const P = ENDPOINTS.NOTIFICATIONS.PREFIX;
 
 // ─── SSE fetch-based stream reader ────────────────────────────────────────────
-// Uses fetch + Authorization header so no token ever appears in the URL.
+// Uses fetch + credentials:include so cookies are sent automatically.
 
 /** Thrown when the stream's initial connection is rejected with 401 — distinct
  * from other failures so `stream()` knows a token refresh (not just a retry)
@@ -14,12 +14,12 @@ class SSEUnauthorizedError extends Error {}
 
 async function readSSEStream(
   url: string,
-  token: string,
   signal: AbortSignal,
   onData: (data: string) => void,
 ): Promise<void> {
   const response = await fetch(url, {
-    headers: { Authorization: `Bearer ${token}`, Accept: "text/event-stream" },
+    credentials: "include",
+    headers: { Accept: "text/event-stream" },
     signal,
   });
 
@@ -77,21 +77,19 @@ export const notificationsApi = {
   },
 
   /**
-   * Opens a fetch-based SSE stream. Token goes in the Authorization header — never in the URL.
-   * Calls `onNotification` for each notification received. Resolves when the stream ends or
-   * the AbortSignal fires.
+   * Opens a fetch-based SSE stream. Cookies are sent automatically via
+   * credentials:include. Calls `onNotification` for each notification received.
+   * Resolves when the stream ends or the AbortSignal fires.
    *
-   * The server caps each connection at 20 minutes (see notifications.py), and the access
-   * token can expire before that reconnect happens. Since this bypasses axios (fetch, for
-   * streaming), it can't rely on the axios 401 interceptor — so a 401 here refreshes the
-   * token once and retries the connection, instead of surfacing as a dead stream.
+   * The server caps each connection at 20 minutes (see notifications.py). On
+   * 401 the client refreshes the session once and retries the connection.
    */
   async stream(
     sinceId: number,
     onNotification: (n: Notification) => void,
     signal: AbortSignal,
   ): Promise<void> {
-    const base = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? "http://localhost:8000/api";
+    const base = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? "/api";
     const url = `${base}${P}${ENDPOINTS.NOTIFICATIONS.STREAM}?since_id=${sinceId}`;
 
     const onData = (data: string) => {
@@ -101,11 +99,11 @@ export const notificationsApi = {
     };
 
     try {
-      await readSSEStream(url, tokenStore.get() ?? "", signal, onData);
+      await readSSEStream(url, signal, onData);
     } catch (err) {
       if (!(err instanceof SSEUnauthorizedError) || signal.aborted) throw err;
-      const freshToken = await refreshAccessToken();
-      await readSSEStream(url, freshToken, signal, onData);
+      await refreshAccessToken();
+      await readSSEStream(url, signal, onData);
     }
   },
 };

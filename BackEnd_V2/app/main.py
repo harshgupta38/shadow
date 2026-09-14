@@ -2,9 +2,11 @@ from contextlib import asynccontextmanager
 
 import asyncio
 
+from typing import Callable
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from fastapi.exceptions import RequestValidationError
 
 from app.api.router import api_router
@@ -76,6 +78,22 @@ app.add_middleware(
     allow_headers=["*"],
     max_age=30,
 )
+
+
+@app.middleware("http")
+async def csrf_origin_check(request: Request, call_next: Callable) -> Response:
+    """Rejects state-changing requests whose Origin header is not in the allowed list.
+    GET/HEAD/OPTIONS are exempt (read-only or preflight — CORS handles those).
+    Requests with no Origin header (curl, mobile, server-to-server) pass through.
+    """
+    if request.method not in ("GET", "HEAD", "OPTIONS"):
+        origin = request.headers.get("origin")
+        if origin is not None and origin not in settings.cors_origins_list:
+            return JSONResponse(
+                status_code=403,
+                content={"message": "Request origin not permitted."},
+            )
+    return await call_next(request)
 
 
 @app.exception_handler(AppError)

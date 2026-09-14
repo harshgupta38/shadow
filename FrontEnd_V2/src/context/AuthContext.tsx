@@ -8,7 +8,7 @@ import {
     type ReactNode,
 } from "react";
 
-import { api, tokenStore, LoginRequest, RegisterRequest, type AccessibilitySettings, type PlannerSettings, type ThemePreference, type UserDataResponse } from "@/api";
+import { api, LoginRequest, RegisterRequest, type AccessibilitySettings, type PlannerSettings, type ThemePreference, type UserDataResponse } from "@/api";
 import { refreshAccessToken } from "@/api/client";
 import { ENDPOINTS } from "@/constant/shadow-endpoints";
 
@@ -92,11 +92,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, []);
 
     useEffect(() => {
-        if (!tokenStore.get()) {
-            setStatus("unauthenticated");
-            return;
-        }
-
         const restoreSession = async () => {
             try {
                 const userData = await api.auth.me();
@@ -107,7 +102,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 dispatchPlannerSync(userData.planner);
                 dispatchAccessibilitySync(userData.accessibility);
             } catch {
-                api.auth.logout();
                 setStatus("unauthenticated");
             }
         };
@@ -127,20 +121,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         const controller = new AbortController();
         const { signal } = controller;
-        const base = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? "http://localhost:8000/api";
-        const url = `${base}${ENDPOINTS.AUTH.PREFIX}${ENDPOINTS.AUTH.SESSION_EVENTS}`;
+        const apiBase = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? "/api";
+        const url = `${apiBase}${ENDPOINTS.AUTH.PREFIX}${ENDPOINTS.AUTH.SESSION_EVENTS}`;
 
         const connect = async () => {
             while (!signal.aborted) {
-                const token = tokenStore.get();
-                if (!token) break;
                 try {
                     let response = await fetch(url, {
-                        headers: { Authorization: `Bearer ${token}`, Accept: "text/event-stream" },
+                        credentials: "include",
+                        headers: { Accept: "text/event-stream" },
                         signal,
                     });
                     if (response.status === 401) {
-                        try { const fresh = await refreshAccessToken(); response = await fetch(url, { headers: { Authorization: `Bearer ${fresh}`, Accept: "text/event-stream" }, signal }); }
+                        try { await refreshAccessToken(); continue; }
                         catch { break; }
                     }
                     if (!response.ok || !response.body) {

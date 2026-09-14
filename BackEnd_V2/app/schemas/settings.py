@@ -72,6 +72,7 @@ class PlannerSection(BaseModel):
 
 class PrivacySection(BaseModel):
     ai_memory_enabled: bool = True
+    max_concurrent_devices: int = Field(default=2, ge=1, le=6)
 
 
 class AccessibilitySection(BaseModel):

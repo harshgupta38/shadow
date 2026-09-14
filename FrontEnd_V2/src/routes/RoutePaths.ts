@@ -30,4 +30,5 @@ export const ROUTES = {
     NOTIFICATIONS: "/notifications",
     PROFILE: "/profile",
     SETTINGS: "/settings",
+    DEVICE_LIMIT: "/device-limit",
 }

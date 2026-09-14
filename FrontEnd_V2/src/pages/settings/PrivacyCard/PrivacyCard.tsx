@@ -1,14 +1,17 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { BoxArrowDown, ShieldFill, Trash3Fill } from "react-bootstrap-icons";
+import { BoxArrowDown, DashLg, PlusLg, ShieldFill, Trash3Fill } from "react-bootstrap-icons";
 import { api, ApiError } from "@/api";
 import type { PrivacySettings } from "@/api";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { ExportDataModal } from "@/components/ui/ExportDataModal/ExportDataModal";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
-import { Card, ToggleRow } from "@/pages/settings/SettingsShared";
+import { Card, FieldRow, ToggleRow } from "@/pages/settings/SettingsShared";
 import "@/pages/settings/PrivacyCard/PrivacyCard.scss";
+
+const MIN_DEVICES = 1;
+const MAX_DEVICES = 6;
 
 export function PrivacyCard({
   data,
@@ -83,6 +86,37 @@ export function PrivacyCard({
               </span>
             </div>
           )}
+        </div>
+
+        <div className="st-toggle-group">
+          <span className="st-group-label">Security</span>
+          <FieldRow
+            label="Max logged-in devices"
+            hint="How many devices can be signed in at the same time."
+            className="st-field-row--device-limit"
+          >
+            <div className="st-device-stepper">
+              <button
+                type="button"
+                className="st-device-stepper__btn"
+                aria-label="Decrease"
+                disabled={data.max_concurrent_devices <= MIN_DEVICES}
+                onClick={() => set("max_concurrent_devices", data.max_concurrent_devices - 1)}
+              >
+                <DashLg size={12} />
+              </button>
+              <span className="st-device-stepper__value">{data.max_concurrent_devices}</span>
+              <button
+                type="button"
+                className="st-device-stepper__btn"
+                aria-label="Increase"
+                disabled={data.max_concurrent_devices >= MAX_DEVICES}
+                onClick={() => set("max_concurrent_devices", data.max_concurrent_devices + 1)}
+              >
+                <PlusLg size={12} />
+              </button>
+            </div>
+          </FieldRow>
         </div>
 
         <div className="st-toggle-group">

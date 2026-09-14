@@ -9,6 +9,8 @@ import {
 } from "react";
 
 import { api, tokenStore, LoginRequest, RegisterRequest, type AccessibilitySettings, type PlannerSettings, type ThemePreference, type UserDataResponse } from "@/api";
+import { refreshAccessToken } from "@/api/client";
+import { ENDPOINTS } from "@/constant/shadow-endpoints";
 
 type AuthStatus = "loading" | "authenticated" | "unauthenticated";
 
@@ -28,10 +30,12 @@ interface AuthContextValue {
     user: UserDataResponse | null;
     status: AuthStatus;
     isAuthenticated: boolean;
+    sessionLimitExceeded: boolean;
     login: (data: LoginRequest) => Promise<UserDataResponse>;
     logout: () => void;
     register: (data: RegisterRequest) => Promise<UserDataResponse>;
     refreshUser: () => Promise<UserDataResponse>;
+    clearSessionLimit: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -39,43 +43,52 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<UserDataResponse | null>(null);
     const [status, setStatus] = useState<AuthStatus>("loading");
+    const [sessionLimitExceeded, setSessionLimitExceeded] = useState(false);
 
     const login = useCallback(async (data: LoginRequest) => {
         await api.auth.login(data);
-        const user = await api.auth.me();
-        setUser(user);
+        const userData = await api.auth.me();
+        setSessionLimitExceeded(userData.session_limit_exceeded);
+        setUser(userData);
         setStatus("authenticated");
-        dispatchThemeSync(user.theme_preference);
-        dispatchPlannerSync(user.planner);
-        dispatchAccessibilitySync(user.accessibility);
-        return user;
+        dispatchThemeSync(userData.theme_preference);
+        dispatchPlannerSync(userData.planner);
+        dispatchAccessibilitySync(userData.accessibility);
+        return userData;
     }, []);
 
     const logout = useCallback(() => {
-        api.auth.logout();
+        void api.auth.logout();
         setUser(null);
         setStatus("unauthenticated");
+        setSessionLimitExceeded(false);
     }, []);
 
     const register = useCallback(async (data: RegisterRequest) => {
         await api.auth.register(data);
-        const user = await api.auth.me();
-        setUser(user);
+        const userData = await api.auth.me();
+        setSessionLimitExceeded(userData.session_limit_exceeded);
+        setUser(userData);
         setStatus("authenticated");
-        dispatchThemeSync(user.theme_preference);
-        dispatchPlannerSync(user.planner);
-        dispatchAccessibilitySync(user.accessibility);
-        return user;
+        dispatchThemeSync(userData.theme_preference);
+        dispatchPlannerSync(userData.planner);
+        dispatchAccessibilitySync(userData.accessibility);
+        return userData;
     }, []);
 
     const refreshUser = useCallback(async () => {
-        const user = await api.auth.me();
-        setUser(user);
+        const userData = await api.auth.me();
+        setSessionLimitExceeded(userData.session_limit_exceeded);
+        setUser(userData);
         setStatus("authenticated");
-        dispatchThemeSync(user.theme_preference);
-        dispatchPlannerSync(user.planner);
-        dispatchAccessibilitySync(user.accessibility);
-        return user;
+        dispatchThemeSync(userData.theme_preference);
+        dispatchPlannerSync(userData.planner);
+        dispatchAccessibilitySync(userData.accessibility);
+        return userData;
+    }, []);
+
+    const clearSessionLimit = useCallback(() => {
+        setSessionLimitExceeded(false);
     }, []);
 
     useEffect(() => {
@@ -86,15 +99,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         const restoreSession = async () => {
             try {
-                const user = await api.auth.me();
-                setUser(user);
+                const userData = await api.auth.me();
+                setSessionLimitExceeded(userData.session_limit_exceeded);
+                setUser(userData);
                 setStatus("authenticated");
-                dispatchThemeSync(user.theme_preference);
-                dispatchPlannerSync(user.planner);
-                dispatchAccessibilitySync(user.accessibility);
+                dispatchThemeSync(userData.theme_preference);
+                dispatchPlannerSync(userData.planner);
+                dispatchAccessibilitySync(userData.accessibility);
             } catch {
                 api.auth.logout();
-                // setUser(null); // No need for this, because user is already null on startup
                 setStatus("unauthenticated");
             }
         };
@@ -108,17 +121,80 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return () => window.removeEventListener("unauthorized", handleUnauthorized);
     }, [logout]);
 
+    // SSE listener: log out immediately when this session is revoked from another device
+    useEffect(() => {
+        if (status !== "authenticated") return;
+
+        const controller = new AbortController();
+        const { signal } = controller;
+        const base = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? "http://localhost:8000/api";
+        const url = `${base}${ENDPOINTS.AUTH.PREFIX}${ENDPOINTS.AUTH.SESSION_EVENTS}`;
+
+        const connect = async () => {
+            while (!signal.aborted) {
+                const token = tokenStore.get();
+                if (!token) break;
+                try {
+                    let response = await fetch(url, {
+                        headers: { Authorization: `Bearer ${token}`, Accept: "text/event-stream" },
+                        signal,
+                    });
+                    if (response.status === 401) {
+                        try { const fresh = await refreshAccessToken(); response = await fetch(url, { headers: { Authorization: `Bearer ${fresh}`, Accept: "text/event-stream" }, signal }); }
+                        catch { break; }
+                    }
+                    if (!response.ok || !response.body) {
+                        await new Promise<void>((r) => setTimeout(r, 5000));
+                        continue;
+                    }
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder();
+                    let buffer = "";
+                    outer: while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        buffer += decoder.decode(value, { stream: true });
+                        const blocks = buffer.split("\n\n");
+                        buffer = blocks.pop()!;
+                        for (const block of blocks) {
+                            for (const line of block.split("\n")) {
+                                if (line.startsWith("data: ")) {
+                                    try {
+                                        const evt = JSON.parse(line.slice(6)) as { type: string };
+                                        if (evt.type === "logout") {
+                                            try { sessionStorage.setItem("shadow.forced_logout", "Your session was signed out from another device."); } catch { /* ignore */ }
+                                            logout();
+                                            break outer;
+                                        }
+                                    } catch { /* ignore */ }
+                                }
+                            }
+                        }
+                    }
+                } catch {
+                    if (signal.aborted) break;
+                    await new Promise<void>((r) => setTimeout(r, 5000));
+                }
+            }
+        };
+
+        void connect();
+        return () => controller.abort();
+    }, [status, logout]);
+
     const value = useMemo<AuthContextValue>(
         () => ({
-            user, // provides the current user object (or null if not logged in)
-            status, // provides the current authentication status ("loading", "authenticated", or "unauthenticated")
+            user,
+            status,
             isAuthenticated: status === "authenticated" && !!user,
-            login, // login user, which updates the user state and authentication status
-            logout, // logout user, which clears the user state and sets the authentication status to "unauthenticated"
-            register, // register user, which updates the user state and authentication status
+            sessionLimitExceeded,
+            login,
+            logout,
+            register,
             refreshUser,
+            clearSessionLimit,
         }),
-        [user, status, login, logout, register, refreshUser], // We declare that when these items update, create a new object
+        [user, status, sessionLimitExceeded, login, logout, register, refreshUser, clearSessionLimit],
     );
 
     return (

@@ -5,6 +5,7 @@ export interface UserDataResponse {
   theme_preference: ThemePreference;
   planner: PlannerSettings;
   accessibility: AccessibilitySettings;
+  session_limit_exceeded: boolean;
 }
 
 export interface LoginRequest {
@@ -16,11 +17,7 @@ export interface RegisterRequest extends LoginRequest {
   name: string;
 }
 
-export interface TokenResponse {
-  access_token: string;
-  refresh_token: string;
-  token_type: string;
-}
+// TokenResponse is defined below alongside SessionInfo
 
 export interface RefreshRequest {
   refresh_token: string;
@@ -700,6 +697,7 @@ export type NotificationType = "reminder" | "system" | "agent";
 
 export interface Notification {
   id: number;
+  priority: number;
   title: string;
   body: string | null;
   type: NotificationType;
@@ -882,8 +880,37 @@ export interface PlannerSettings {
   date_format: DateFormat;
 }
 
+export interface SessionInfo {
+  id: number;
+  device_name: string;
+  browser: string;
+  os_name: string;
+  ip_address: string | null;
+  last_seen_at: string;
+  created_at: string;
+  is_current: boolean;
+}
+
+export interface TokenResponse {
+  access_token: string;
+  refresh_token: string;
+  token_type: string;
+  session_limit_exceeded: boolean;
+  sessions: SessionInfo[];
+  current_session_id: number | null;
+  max_concurrent_devices: number;
+}
+
+export interface SessionsListResponse {
+  sessions: SessionInfo[];
+  current_session_id: number | null;
+  max_concurrent_devices: number;
+  session_limit_exceeded: boolean;
+}
+
 export interface PrivacySettings {
   ai_memory_enabled: boolean;
+  max_concurrent_devices: number;
 }
 
 export interface AccessibilitySettings {

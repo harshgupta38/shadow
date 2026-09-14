@@ -2,7 +2,7 @@ import { lazy, Suspense } from "react";
 import { Route, Routes } from "react-router-dom";
 
 // Guards
-import { PublicOnly, RequireAuth } from "@/routes/Guards";
+import { PublicOnly, RequireAuth, RequireDeviceCheck } from "@/routes/Guards";
 
 // Route paths
 import { ROUTES } from "@/routes/RoutePaths";
@@ -36,6 +36,7 @@ const ProfilePage = lazy(() => import("@/pages/profile/ProfilePage").then(m => (
 const SettingsPage = lazy(() => import("@/pages/settings/SettingsPage").then(m => ({ default: m.SettingsPage })));
 const NotificationsPage = lazy(() => import("@/pages/notifications/NotificationsPage").then(m => ({ default: m.NotificationsPage })));
 const NotFoundPage = lazy(() => import("@/pages/NotFoundPage").then(m => ({ default: m.NotFoundPage })));
+const DeviceLimitPage = lazy(() => import("@/pages/device-limit/DeviceLimitPage").then(m => ({ default: m.DeviceLimitPage })));
 
 function RouteFallback() {
 	return (
@@ -56,6 +57,10 @@ export function AppRoutes() {
 				</Route>
 
 				<Route element={<RequireAuth />}>
+					{/* Device-limit wall — accessible only when signed in */}
+					<Route path={ROUTES.DEVICE_LIMIT} element={<DeviceLimitPage />} />
+
+					<Route element={<RequireDeviceCheck />}>
 					<Route element={<AppLayout />}>
 						<Route path={ROUTES.DASHBOARD} element={<DashboardPage />} />
 						<Route path={ROUTES.PLAN} element={<PlanPage />} />
@@ -85,6 +90,7 @@ export function AppRoutes() {
 						<Route path={ROUTES.PROFILE} element={<ProfilePage />} />
 						<Route path={ROUTES.SETTINGS} element={<SettingsPage />} />
 					</Route>
+					</Route> {/* RequireDeviceCheck */}
 				</Route>
 
 				<Route path="*" element={<NotFoundPage />} />

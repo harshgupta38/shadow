@@ -19,13 +19,14 @@ def verify_password(password: str, hashed_password: str) -> bool:
         return False
 
 
-def create_access_token(subject: str | int) -> str:
+def create_access_token(subject: str | int, session_id: int) -> str:
     now = datetime.now(timezone.utc)
 
     expire = now + timedelta(minutes=settings.access_token_expire_minutes)
 
     payload = {
         "sub": str(subject),
+        "sid": session_id,
         "iat": now,
         "exp": expire,
         "type": "access",
@@ -45,11 +46,12 @@ def decode_access_token(token: str) -> dict:
     return payload
 
 
-def create_refresh_token(subject: str | int) -> str:
+def create_refresh_token(subject: str | int, session_id: int) -> str:
     now = datetime.now(timezone.utc)
     expire = now + timedelta(days=settings.refresh_token_expire_days)
     payload = {
         "sub": str(subject),
+        "sid": session_id,
         "iat": now,
         "exp": expire,
         "type": "refresh",

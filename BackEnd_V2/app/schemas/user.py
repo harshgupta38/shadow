@@ -13,3 +13,4 @@ class UserDataResponse(UserDataDBS):
     theme_preference: ThemePreferenceValue = "browser"
     planner: PlannerSection = PlannerSection()
     accessibility: AccessibilitySection = AccessibilitySection()
+    session_limit_exceeded: bool = False

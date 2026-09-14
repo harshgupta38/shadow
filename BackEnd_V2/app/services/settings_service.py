@@ -151,6 +151,16 @@ def get_ai_memory_enabled(db: Session, user_id: int) -> bool:
     return bool((setting.privacy or {}).get("ai_memory_enabled", True))
 
 
+def get_max_concurrent_devices(db: Session, user_id: int) -> int:
+    """Returns the user's max concurrent devices setting. Defaults to 2."""
+    setting = db.scalar(
+        select(UserSettingDBM).where(UserSettingDBM.user_id == user_id)
+    )
+    if setting is None:
+        return int(_DEFAULT_PRIVACY.get("max_concurrent_devices", 2))
+    return int((setting.privacy or {}).get("max_concurrent_devices", 2))
+
+
 def get_ai_behavior(db: Session, user_id: int) -> dict:
     """Single read for all ai_behavior fields used by chat. Does NOT create a default row."""
     setting = db.scalar(

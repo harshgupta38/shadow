@@ -19,6 +19,7 @@ class NotificationDBM(Base):
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    priority: Mapped[int] = mapped_column(nullable=False, default=2, server_default=text("2"))
 
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),

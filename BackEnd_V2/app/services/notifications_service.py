@@ -15,6 +15,7 @@ def create_notification(
     type: str = "system",
     url: str | None = None,
     event_key: str | None = None,
+    priority: int = 2,
 ) -> NotificationDBM | None:
     """
     Create and persist a notification for a user.
@@ -41,6 +42,7 @@ def create_notification(
         type=type,
         url=url,
         event_key=event_key,
+        priority=priority,
     )
     db.add(notif)
     db.commit()

@@ -19,7 +19,11 @@ class Endpoints:
         LOGIN = "/login"
         REGISTER = "/register"
         REFRESH = "/refresh"
+        LOGOUT = "/logout"
         USER_DATA = "/my-data"
+        SESSIONS = "/sessions"
+        SESSION_DETAIL = "/sessions/{session_id}"
+        SESSION_EVENTS = "/sessions/events"
 
     class DASHBOARD:
         PREFIX = "/dashboard"

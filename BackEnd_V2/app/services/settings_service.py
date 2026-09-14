@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timezone
 
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
@@ -6,7 +7,13 @@ from sqlalchemy.orm import Session
 from app.llm.enums import ClaudeModel, GeminiModel, OllamaModel, OpenAIModel
 from app.llm.config import llm_settings
 from app.llm.exceptions import LLMError
-from app.models.chat import ConversationDBM
+from app.models.chat import ConversationDBM, MessageDBM
+from app.models.goal import GoalDBM
+from app.models.habit import HabitDBM
+from app.models.memory import UserMemoryDBM
+from app.models.milestone import MilestoneDBM
+from app.models.schedule_task import ScheduledTaskDBM
+from app.models.task import TaskDBM
 from app.models.user import UserDBM
 from app.models.user_setting import UserSettingDBM
 from app.schemas.settings import (
@@ -85,7 +92,12 @@ def _get_or_create(db: Session, user_id: int) -> UserSettingDBM:
 
 
 def _to_response(setting: UserSettingDBM) -> SettingsResponse:
-    return SettingsResponse.model_validate(setting)
+    stored_key = (setting.ai_behavior or {}).get("custom_api_key", "")
+    resp = SettingsResponse.model_validate(setting)
+    resp.ai_behavior = resp.ai_behavior.model_copy(
+        update={"custom_api_key_saved": bool(stored_key and stored_key.strip())}
+    )
+    return resp
 
 
 # ─── Service functions ────────────────────────────────────────────────────────
@@ -112,7 +124,7 @@ def get_week_starts_on(db: Session, user_id: int) -> str:
 
 
 def get_startup_settings(db: Session, user_id: int) -> dict:
-    """Lightweight read for /auth/my-data — returns theme + planner defaults without creating a row."""
+    """Lightweight read for /auth/me — returns theme + planner + accessibility without creating a row."""
     setting = db.scalar(
         select(UserSettingDBM).where(UserSettingDBM.user_id == user_id)
     )
@@ -120,11 +132,33 @@ def get_startup_settings(db: Session, user_id: int) -> dict:
         return {
             "theme_preference": _DEFAULT_APPEARANCE["theme_preference"],
             "planner": _DEFAULT_PLANNER,
+            "accessibility": _DEFAULT_ACCESSIBILITY,
         }
     return {
         "theme_preference": setting.appearance.get("theme_preference", _DEFAULT_APPEARANCE["theme_preference"]),
         "planner": {**_DEFAULT_PLANNER, **setting.planner},
+        "accessibility": {**_DEFAULT_ACCESSIBILITY, **(setting.accessibility or {})},
     }
+
+
+def get_ai_memory_enabled(db: Session, user_id: int) -> bool:
+    """Returns whether AI memory is enabled for this user. Defaults to True if no row exists."""
+    setting = db.scalar(
+        select(UserSettingDBM).where(UserSettingDBM.user_id == user_id)
+    )
+    if setting is None:
+        return bool(_DEFAULT_PRIVACY.get("ai_memory_enabled", True))
+    return bool((setting.privacy or {}).get("ai_memory_enabled", True))
+
+
+def get_max_concurrent_devices(db: Session, user_id: int) -> int:
+    """Returns the user's max concurrent devices setting. Defaults to 2."""
+    setting = db.scalar(
+        select(UserSettingDBM).where(UserSettingDBM.user_id == user_id)
+    )
+    if setting is None:
+        return int(_DEFAULT_PRIVACY.get("max_concurrent_devices", 2))
+    return int((setting.privacy or {}).get("max_concurrent_devices", 2))
 
 
 def get_ai_behavior(db: Session, user_id: int) -> dict:
@@ -149,12 +183,35 @@ def update_settings(
 ) -> SettingsResponse:
     setting = _get_or_create(db, current_user.id)
 
+    # Validate provider/model against the enabled catalogue.
+    valid_providers = {p.key: {m.key for m in p.models} for p in _AI_PROVIDERS}
+    provider = data.ai_behavior.ai_provider
+    model = data.ai_behavior.ai_default_model
+    if provider not in valid_providers:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=422, detail=f"Unknown AI provider '{provider}'.")
+    if model not in valid_providers[provider]:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=422, detail=f"Model '{model}' is not available for provider '{provider}'.")
+
     setting.appearance = data.appearance.model_dump()
     setting.notifications = data.notifications.model_dump()
-    setting.ai_behavior = data.ai_behavior.model_dump()
     setting.planner = data.planner.model_dump()
     setting.privacy = data.privacy.model_dump()
     setting.accessibility = data.accessibility.model_dump()
+
+    ai_dict = data.ai_behavior.model_dump(exclude={"custom_api_key_saved"})
+    if not data.ai_behavior.custom_api_key_enabled:
+        # Feature disabled — clear the stored key.
+        ai_dict["custom_api_key"] = ""
+    elif not data.ai_behavior.custom_api_key.strip():
+        # Feature enabled, no new key sent — preserve the existing stored key.
+        existing_key = (setting.ai_behavior or {}).get("custom_api_key", "").strip()
+        if not existing_key:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=422, detail="An API key is required when 'Use my own API key' is enabled.")
+        ai_dict["custom_api_key"] = existing_key
+    setting.ai_behavior = ai_dict
 
     db.commit()
     db.refresh(setting)
@@ -165,17 +222,61 @@ def get_ai_providers() -> list[AIProviderResponse]:
     return _AI_PROVIDERS
 
 
-def export_user_data(db: Session, current_user: UserDBM) -> bytes:
-    setting = _get_or_create(db, current_user.id)
-    payload = {
-        "user": {
-            "id": current_user.id,
-            "name": current_user.name,
-            "email": current_user.email,
-        },
-        "settings": SettingsDBS.model_validate(setting).model_dump(),
+def _row_to_dict(row) -> dict:
+    return {k: v for k, v in row.__dict__.items() if not k.startswith("_")}
+
+
+def export_user_data(db: Session, current_user: UserDBM, sections: list[str]) -> bytes:
+    uid = current_user.id
+    payload: dict = {
+        "exported_at": datetime.now(timezone.utc).isoformat(),
+        "user": {"id": uid, "name": current_user.name, "email": current_user.email},
     }
-    return json.dumps(payload, indent=2).encode()
+
+    if "goals" in sections:
+        payload["goals"] = [
+            _row_to_dict(r) for r in db.scalars(select(GoalDBM).where(GoalDBM.user_id == uid)).all()
+        ]
+        payload["milestones"] = [
+            _row_to_dict(r) for r in db.scalars(select(MilestoneDBM).where(MilestoneDBM.user_id == uid)).all()
+        ]
+        payload["tasks"] = [
+            _row_to_dict(r) for r in db.scalars(select(TaskDBM).where(TaskDBM.user_id == uid)).all()
+        ]
+
+    if "habits" in sections:
+        payload["habits"] = [
+            _row_to_dict(r) for r in db.scalars(select(HabitDBM).where(HabitDBM.user_id == uid)).all()
+        ]
+
+    if "scheduled_tasks" in sections:
+        payload["scheduled_tasks"] = [
+            _row_to_dict(r) for r in db.scalars(select(ScheduledTaskDBM).where(ScheduledTaskDBM.user_id == uid)).all()
+        ]
+
+    if "chat_history" in sections:
+        conversations = db.scalars(select(ConversationDBM).where(ConversationDBM.user_id == uid)).all()
+        payload["conversations"] = [_row_to_dict(r) for r in conversations]
+        conv_ids = [c.id for c in conversations]
+        payload["messages"] = (
+            [_row_to_dict(r) for r in db.scalars(select(MessageDBM).where(MessageDBM.conversation_id.in_(conv_ids))).all()]
+            if conv_ids else []
+        )
+
+    if "ai_memories" in sections:
+        payload["ai_memories"] = [
+            _row_to_dict(r) for r in db.scalars(select(UserMemoryDBM).where(UserMemoryDBM.user_id == uid)).all()
+        ]
+
+    if "settings" in sections:
+        setting = _get_or_create(db, uid)
+        settings_dict = SettingsDBS.model_validate(setting).model_dump()
+        # custom_api_key is not in AIBehaviorSectionResponse so it never appears.
+        # Drop the transient server-side flag too — it's meaningless outside a live session.
+        settings_dict.get("ai_behavior", {}).pop("custom_api_key_saved", None)
+        payload["settings"] = settings_dict
+
+    return json.dumps(payload, indent=2, default=str).encode()
 
 
 def clear_chat_history(db: Session, current_user: UserDBM) -> None:
@@ -183,6 +284,36 @@ def clear_chat_history(db: Session, current_user: UserDBM) -> None:
         delete(ConversationDBM).where(ConversationDBM.user_id == current_user.id)
     )
     db.commit()
+
+
+_PROVIDER_KEY_FIELD: dict[str, str] = {
+    "openai": "openai_api_key",
+    "gemini": "gemini_api_key",
+    "claude": "claude_api_key",
+    "ollama": "ollama_api_key",
+}
+
+
+async def test_custom_api_key(provider: str, model: str, api_key: str) -> AIProviderHealthCheckResponse:
+    from app.llm.service import _USER_PROVIDER_MAP, LLMService
+
+    provider_cls = _USER_PROVIDER_MAP.get(provider)
+    if provider_cls is None:
+        return AIProviderHealthCheckResponse(healthy=False, message=f"Unknown provider '{provider}'.")
+
+    key_field = _PROVIDER_KEY_FIELD.get(provider)
+    if not key_field:
+        return AIProviderHealthCheckResponse(healthy=False, message=f"Cannot test API key for provider '{provider}'.")
+
+    try:
+        overridden = llm_settings.model_copy(update={key_field: api_key})
+        service = LLMService(provider=provider_cls(settings=overridden))
+        await service.health_check(model=model)
+        return AIProviderHealthCheckResponse(healthy=True, message="API key is valid and connected successfully.")
+    except LLMError as exc:
+        return AIProviderHealthCheckResponse(healthy=False, message=str(exc))
+    except Exception as exc:
+        return AIProviderHealthCheckResponse(healthy=False, message=f"Unexpected error: {exc}")
 
 
 async def check_provider_health(provider: str, model: str) -> AIProviderHealthCheckResponse:

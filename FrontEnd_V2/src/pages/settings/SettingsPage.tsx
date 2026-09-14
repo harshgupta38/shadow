@@ -1,14 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowCounterclockwise, CheckLg, GearFill } from "react-bootstrap-icons";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { useTheme } from "@/context/ThemeContext";
 import { useToast } from "@/context/ToastContext";
 import { api, ApiError } from "@/api";
-import type { AccessibilitySettings, FullSettings } from "@/api";
+import type { FullSettings } from "@/api";
 import { AppearanceCard } from "@/pages/settings/AppearanceCard/AppearanceCard";
 import { NotificationsCard } from "@/pages/settings/NotificationsCard/NotificationsCard";
 import { PrivacyCard } from "@/pages/settings/PrivacyCard/PrivacyCard";
 import { AIBehaviorCard } from "@/pages/settings/AIBehaviorCard/AIBehaviorCard";
+import type { AIBehaviorCardRef } from "@/pages/settings/AIBehaviorCard/AIBehaviorCard";
 import { PlannerCard } from "@/pages/settings/PlannerCard/PlannerCard";
 import { AccessibilityCard } from "@/pages/settings/AccessibilityCard/AccessibilityCard";
 import { SettingsSkeleton } from "@/pages/settings/SettingsSkeleton/SettingsSkeleton";
@@ -19,13 +20,6 @@ import "@/pages/settings/SettingsPage.scss";
 
 type SectionKey = keyof FullSettings;
 
-function applyAccessibility(s: AccessibilitySettings) {
-  const root = document.documentElement;
-  root.setAttribute("data-reduced-motion", String(s.accessibility_reduced_motion));
-  root.setAttribute("data-high-contrast", String(s.accessibility_high_contrast));
-  root.style.setProperty("--shadow-font-scale-percent", String(s.accessibility_font_scale_percent));
-}
-
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function SettingsPage() {
@@ -33,6 +27,7 @@ export function SettingsPage() {
   const [baseline, setBaseline] = useState<FullSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const aiCardRef = useRef<AIBehaviorCardRef>(null);
 
   const { setThemePreference } = useTheme();
   const { success, error } = useToast();
@@ -68,13 +63,43 @@ export function SettingsPage() {
 
   const isDirty = dirtySections.length > 0;
 
-  // Apply accessibility values to the document immediately — same pattern as setThemePreference.
+  // Dispatch accessibility:sync on any local change so AccessibilityContext applies it live.
+  // Also fires on Restore (settings reverts to baseline) and on Save (dispatched again, idempotent).
   useEffect(() => {
-    if (settings?.accessibility) applyAccessibility(settings.accessibility);
+    if (settings?.accessibility) {
+      window.dispatchEvent(new CustomEvent("accessibility:sync", { detail: settings.accessibility }));
+    }
   }, [settings?.accessibility]);
+
+  const clearApiKey = useCallback(async () => {
+    if (!baseline) return;
+    const payload = {
+      ...baseline,
+      ai_behavior: {
+        ...baseline.ai_behavior,
+        custom_api_key_enabled: false,
+        custom_api_key: "",
+      },
+    };
+    try {
+      const saved = await api.settings.update(payload);
+      setSettings((prev) => prev ? { ...prev, ai_behavior: saved.ai_behavior } : prev);
+      setBaseline((prev) => prev ? { ...prev, ai_behavior: saved.ai_behavior } : prev);
+    } catch {
+      error("Could not remove the API key. Please try again.");
+    }
+  }, [baseline, error]);
 
   const saveAll = useCallback(async () => {
     if (!settings || !isDirty) return;
+
+    // If the custom key feature is enabled, validate (and test if needed) before saving.
+    const keyOk = await aiCardRef.current?.validateApiKey() ?? true;
+    if (!keyOk) {
+      error("Please test your API key before saving, or disable 'Use my own API key'.");
+      return;
+    }
+
     setSaving(true);
     try {
       const saved = await api.settings.update(settings);
@@ -82,6 +107,7 @@ export function SettingsPage() {
       setBaseline(saved);
       setThemePreference(saved.appearance.theme_preference);
       window.dispatchEvent(new CustomEvent("planner:sync", { detail: saved.planner }));
+      window.dispatchEvent(new CustomEvent("accessibility:sync", { detail: saved.accessibility }));
       success("Settings saved.");
     } catch (err) {
       error(err instanceof ApiError ? err.message : "Could not save settings.");
@@ -192,9 +218,11 @@ export function SettingsPage() {
           {/* ── Right column ── */}
           <div className="col-xl-6 d-flex flex-column gap-3">
             <AIBehaviorCard
+              ref={aiCardRef}
               data={settings.ai_behavior}
               isDirty={dirtySections.includes("ai_behavior")}
               onUpdate={(d) => patch("ai_behavior", d)}
+              onClearApiKey={clearApiKey}
             />
             <PlannerCard
               data={settings.planner}

@@ -69,14 +69,54 @@
   }
 }
 
+// ── Type switcher (Daily / Weekly) ───────────────────────────────────────────
+
+.rdp-type-switcher {
+  display: flex;
+  gap: 0.3rem;
+  padding: 0.25rem;
+  background: var(--jv-surface);
+  border: 1px solid var(--jv-border);
+  border-radius: 10px;
+  width: fit-content;
+}
+
+.rdp-type-btn {
+  padding: 0.3rem 1.1rem;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--jv-muted);
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 140ms, color 140ms;
+
+  &:hover { color: var(--jv-text); background: var(--jv-surface-2); }
+
+  &--active {
+    background: var(--jv-brand-1);
+    color: #fff;
+    font-weight: 600;
+    pointer-events: none;
+  }
+}
+
 // ── Pagination bar ────────────────────────────────────────────────────────────
+
+.rdp-bottom-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1rem;
+}
 
 .rdp-pagination {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
   gap: 0.4rem;
-  margin-top: 1.5rem;
 }
 
 .rdp-pagination-btn,

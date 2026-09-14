@@ -35,7 +35,6 @@ from app.common.proc_lock import acquire_singleton_lock
 from app.db.session import SessionLocal
 from app.models.goal import GoalDBM
 from app.models.milestone import MilestoneDBM
-from app.models.plan import PlanDBM
 from app.models.plan_record import DailyPlanRecordDBM
 from app.models.schedule_task import ScheduledTaskDBM
 from app.models.task import TaskDBM
@@ -103,6 +102,7 @@ def _morning_jobs(today: date) -> None:
                 db, users[goal.user_id],
                 title=f"Goal due in 3 days: {goal.title}",
                 body="Review your progress and plan your final push.",
+                level=notifications_service.LEVEL_REMINDER,
                 url="/goals",
                 event_key=f"goal_due3:{goal.id}:{today}",
             )
@@ -118,6 +118,7 @@ def _morning_jobs(today: date) -> None:
             notifications_service.create_notification(
                 db, users[ms.user_id],
                 title=f"Milestone due in 3 days: {ms.title}",
+                level=notifications_service.LEVEL_REMINDER,
                 url="/goals",
                 event_key=f"ms_due3:{ms.id}:{today}",
             )
@@ -141,6 +142,7 @@ def _morning_jobs(today: date) -> None:
                         db, users[task.user_id],
                         title=f"Starting soon: {task.title}",
                         body=f"In {int(diff_s / 60)} minutes.",
+                        level=notifications_service.LEVEL_REMINDER,
                         url="/schedule",
                         event_key=f"sched_reminder:{task.id}:{today}",
                     )
@@ -181,6 +183,7 @@ def _reminder_jobs(today: date, user_ids: list[int]) -> None:
                 db, users[uid],
                 title=f"{len(tasks)} task{'s' if len(tasks) != 1 else ''} due today",
                 body=names,
+                level=notifications_service.LEVEL_REMINDER,
                 url="/goals",
                 event_key=f"tasks_due:{uid}:{today}",
             )
@@ -206,6 +209,7 @@ def _reminder_jobs(today: date, user_ids: list[int]) -> None:
                 db, users[uid],
                 title=f"{len(tasks)} overdue task{'s' if len(tasks) != 1 else ''}",
                 body=names,
+                level=notifications_service.LEVEL_REMINDER,
                 url="/goals",
                 event_key=f"tasks_overdue:{uid}:{today}",
             )
@@ -243,33 +247,27 @@ def _evening_jobs(today: date) -> None:
                     title=f"You still have {remaining} item{'s' if remaining != 1 else ''} left today",
                     body=f"{done} of {total} complete. Finish strong.",
                     type="reminder",
+                    level=notifications_service.LEVEL_NUDGE,
                     url="/plan",
                     event_key=f"plan_reminder:{uid}:{today}",
                 )
 
         # #12 — Habits not yet logged today (streak at risk)
-        # Load all active habit plans across all users, then batch-load done records.
-        habit_plans = list(db.scalars(
-            select(PlanDBM).where(
-                PlanDBM.user_id.in_(user_ids),
-                PlanDBM.source_type == "habit",
-                PlanDBM.status == "active",
+        # Only consider habits that are actually on today's planner (DailyPlanRecordDBM),
+        # not every active habit plan — avoids notifying for habits not scheduled today.
+        unlogged_records = list(db.scalars(
+            select(DailyPlanRecordDBM).where(
+                DailyPlanRecordDBM.user_id.in_(user_ids),
+                DailyPlanRecordDBM.scheduled_date == today,
+                DailyPlanRecordDBM.source_type == "habit",
+                DailyPlanRecordDBM.status != "done",
             )
         ).all())
 
-        if habit_plans:
-            done_plan_ids: set[int] = set(db.scalars(
-                select(DailyPlanRecordDBM.plan_id).where(
-                    DailyPlanRecordDBM.plan_id.in_([p.id for p in habit_plans]),
-                    DailyPlanRecordDBM.scheduled_date == today,
-                    DailyPlanRecordDBM.status == "done",
-                )
-            ).all())
-
+        if unlogged_records:
             unlogged_by_user: dict[int, list[str]] = defaultdict(list)
-            for plan in habit_plans:
-                if plan.id not in done_plan_ids:
-                    unlogged_by_user[plan.user_id].append(plan.title)
+            for record in unlogged_records:
+                unlogged_by_user[record.user_id].append(record.title)
 
             for uid, titles in unlogged_by_user.items():
                 names = ", ".join(titles[:3])
@@ -280,6 +278,7 @@ def _evening_jobs(today: date) -> None:
                     title=f"{len(titles)} habit{'s' if len(titles) != 1 else ''} not logged yet today",
                     body=names,
                     type="reminder",
+                    level=notifications_service.LEVEL_NUDGE,
                     url="/plan",
                     event_key=f"habit_risk:{uid}:{today}",
                 )

@@ -19,7 +19,11 @@ class Endpoints:
         LOGIN = "/login"
         REGISTER = "/register"
         REFRESH = "/refresh"
+        LOGOUT = "/logout"
         USER_DATA = "/my-data"
+        SESSIONS = "/sessions"
+        SESSION_DETAIL = "/sessions/{session_id}"
+        SESSION_EVENTS = "/sessions/events"
 
     class DASHBOARD:
         PREFIX = "/dashboard"
@@ -107,5 +111,7 @@ class Endpoints:
         PROVIDER_HEALTH_CHECK = "/ai-providers/health-check"
         EXPORT = "/export"
         CHAT_HISTORY = "/chat-history"
+        MEMORIES_COUNT = "/memories/count"
+        CUSTOM_KEY_TEST = "/custom-api-key/test"
 
 ENDPOINTS = Endpoints()

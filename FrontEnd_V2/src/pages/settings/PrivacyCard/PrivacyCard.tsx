@@ -1,12 +1,17 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { BoxArrowDown, ShieldFill, Trash3Fill } from "react-bootstrap-icons";
+import { BoxArrowDown, DashLg, PlusLg, ShieldFill, Trash3Fill } from "react-bootstrap-icons";
 import { api, ApiError } from "@/api";
 import type { PrivacySettings } from "@/api";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
+import { ExportDataModal } from "@/components/ui/ExportDataModal/ExportDataModal";
+import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
-import { Card, ToggleRow } from "@/pages/settings/SettingsShared";
+import { Card, FieldRow, ToggleRow } from "@/pages/settings/SettingsShared";
 import "@/pages/settings/PrivacyCard/PrivacyCard.scss";
+
+const MIN_DEVICES = 1;
+const MAX_DEVICES = 6;
 
 export function PrivacyCard({
   data,
@@ -18,46 +23,27 @@ export function PrivacyCard({
   onUpdate: (d: PrivacySettings) => void;
 }) {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { success, error } = useToast();
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
   const [clearingHistory, setClearingHistory] = useState(false);
-  const [exportingData, setExportingData] = useState(false);
   const [memoryCount, setMemoryCount] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!data.ai_memory_enabled) return;
-    // TODO: replace with real API call
-    setMemoryCount(18);
+    if (!data.ai_memory_enabled) { setMemoryCount(null); return; }
+    void api.settings.getMemoryCount().then(setMemoryCount).catch(() => setMemoryCount(null));
   }, [data.ai_memory_enabled]);
 
   function set<K extends keyof PrivacySettings>(key: K, value: PrivacySettings[K]) {
     onUpdate({ ...data, [key]: value });
   }
 
-  async function handleExport() {
-    setExportingData(true);
-    try {
-      const blob = await api.settings.exportData();
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = `shadow-export-${new Date().toISOString().slice(0, 10)}.json`;
-      document.body.appendChild(anchor);
-      anchor.click();
-      document.body.removeChild(anchor);
-      URL.revokeObjectURL(url);
-      success("Data export downloaded.");
-    } catch (err) {
-      error(err instanceof ApiError ? err.message : "Could not export data right now.");
-    } finally {
-      setExportingData(false);
-    }
-  }
-
   async function handleClearHistory() {
     setClearingHistory(true);
     try {
       await api.settings.clearChatHistory();
+      window.dispatchEvent(new CustomEvent("chat:cleared"));
       setShowClearConfirm(false);
       success("Chat history cleared.");
     } catch (err) {
@@ -83,7 +69,7 @@ export function PrivacyCard({
             checked={data.ai_memory_enabled}
             onChange={(v) => set("ai_memory_enabled", v)}
           />
-          {data.ai_memory_enabled && memoryCount !== null && (
+          {data.ai_memory_enabled && (memoryCount ?? 0) > 0 && (
             <div className="st-memory-usage">
               <div className="st-memory-usage-top">
                 <span className="st-memory-usage-label">Memory usage</span>
@@ -103,6 +89,37 @@ export function PrivacyCard({
         </div>
 
         <div className="st-toggle-group">
+          <span className="st-group-label">Security</span>
+          <FieldRow
+            label="Max logged-in devices"
+            hint="How many devices can be signed in at the same time."
+            className="st-field-row--device-limit"
+          >
+            <div className="st-device-stepper">
+              <button
+                type="button"
+                className="st-device-stepper__btn"
+                aria-label="Decrease"
+                disabled={data.max_concurrent_devices <= MIN_DEVICES}
+                onClick={() => set("max_concurrent_devices", data.max_concurrent_devices - 1)}
+              >
+                <DashLg size={12} />
+              </button>
+              <span className="st-device-stepper__value">{data.max_concurrent_devices}</span>
+              <button
+                type="button"
+                className="st-device-stepper__btn"
+                aria-label="Increase"
+                disabled={data.max_concurrent_devices >= MAX_DEVICES}
+                onClick={() => set("max_concurrent_devices", data.max_concurrent_devices + 1)}
+              >
+                <PlusLg size={12} />
+              </button>
+            </div>
+          </FieldRow>
+        </div>
+
+        <div className="st-toggle-group">
           <span className="st-group-label">Your data</span>
           <div className="st-action-row pt-0">
             <div>
@@ -114,15 +131,10 @@ export function PrivacyCard({
             <button
               type="button"
               className="btn btn-outline-secondary btn-sm st-action-btn"
-              onClick={() => void handleExport()}
-              disabled={exportingData}
+              onClick={() => setShowExportModal(true)}
             >
-              {exportingData ? (
-                <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" />
-              ) : (
-                <BoxArrowDown size={14} />
-              )}
-              {exportingData ? "Exporting…" : "Export"}
+              <BoxArrowDown size={14} />
+              Export
             </button>
           </div>
 
@@ -156,6 +168,12 @@ export function PrivacyCard({
         busy={clearingHistory}
         onConfirm={() => void handleClearHistory()}
         onCancel={() => setShowClearConfirm(false)}
+      />
+
+      <ExportDataModal
+        show={showExportModal}
+        userName={user?.name ?? "User"}
+        onHide={() => setShowExportModal(false)}
       />
     </>
   );

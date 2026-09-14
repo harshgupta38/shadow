@@ -1,18 +1,30 @@
-import { useState, type FormEvent } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { EnvelopeFill, Eye, EyeSlash, LockFill } from "react-bootstrap-icons";
 
 import { ApiError } from "@/api/client";
 import { AuthLayout } from "@/components/layout/AuthLayout";
 import { useAuth } from "@/context/AuthContext";
+import { useToast } from "@/context/ToastContext";
 import { TextField } from "@/components/ui/TextField/TextField";
 import { ROUTES } from "@/routes/RoutePaths";
 
 export function LoginPage() {
     const { login } = useAuth();
+    const { info } = useToast();
     const navigate = useNavigate();
     const location = useLocation();
     const from = location.state?.from?.pathname ?? ROUTES.DASHBOARD;
+
+    useEffect(() => {
+        try {
+            const msg = sessionStorage.getItem("shadow.forced_logout");
+            if (msg) {
+                sessionStorage.removeItem("shadow.forced_logout");
+                info(msg);
+            }
+        } catch { /* ignore storage errors */ }
+    }, [info]);
 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");

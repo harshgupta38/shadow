@@ -226,13 +226,12 @@ def build_day_data(db: Session, user_id: int, report_date: date, report_type: st
     }
 
 
-def get_reports(db: Session, user_id: int, report_date: date, report_type: str) -> list[ReportDBM]:
+def get_reports(db: Session, user_id: int, report_date: date) -> list[ReportDBM]:
     return list(db.scalars(
         select(ReportDBM)
         .where(
             ReportDBM.user_id == user_id,
             ReportDBM.report_date == report_date,
-            ReportDBM.report_type == report_type,
         )
         .order_by(desc(ReportDBM.generated_at))
     ).all())
@@ -392,6 +391,7 @@ async def generate_report_background(
                 title=f"Your {label} report for {report_date.strftime('%d %b')} is ready",
                 body=report.headline if report else None,
                 type="agent",
+                level=notifications_service.LEVEL_CRITICAL,
                 url=f"/reports/{report_date}",
                 event_key=None if force else f"report:{user_id}:{report_date}:{report_type}",
             )
@@ -410,6 +410,7 @@ async def generate_report_background(
                     title=f"Your {label} report for {report_date.strftime('%d %b')} couldn't be generated",
                     body="Something went wrong while generating your report. Please try again.",
                     type="system",
+                    level=notifications_service.LEVEL_CRITICAL,
                 )
         except Exception:
             logger.exception(

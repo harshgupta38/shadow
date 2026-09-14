@@ -27,6 +27,10 @@ class ValidationError(AppError):
         super().__init__(detail)
         self.errors = errors or {}
 
+class ForbiddenError(AppError):
+    status_code = 403
+    detail = "Access denied."
+
 class NotFoundError(AppError):
     status_code = 404
     detail = "Resource not found."

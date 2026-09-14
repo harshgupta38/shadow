@@ -42,10 +42,24 @@ class NotificationsSection(BaseModel):
 
 
 class AIBehaviorSection(BaseModel):
+    """Write schema — accepted on PUT /settings. Contains the raw key field."""
     ai_response_length: AIResponseLength = "balanced"
     ai_personality: AIPersonality = "coach"
     ai_provider: str = "openai"
     ai_default_model: str = "gpt-5-mini"
+    custom_api_key_enabled: bool = False
+    custom_api_key: str = ""
+
+
+class AIBehaviorSectionResponse(BaseModel):
+    """Read schema — returned on GET /settings. Raw key is always redacted to empty string."""
+    ai_response_length: AIResponseLength = "balanced"
+    ai_personality: AIPersonality = "coach"
+    ai_provider: str = "openai"
+    ai_default_model: str = "gpt-5-mini"
+    custom_api_key_enabled: bool = False
+    custom_api_key: str = ""
+    custom_api_key_saved: bool = False
 
 
 class PlannerSection(BaseModel):
@@ -58,6 +72,7 @@ class PlannerSection(BaseModel):
 
 class PrivacySection(BaseModel):
     ai_memory_enabled: bool = True
+    max_concurrent_devices: int = Field(default=2, ge=1, le=6)
 
 
 class AccessibilitySection(BaseModel):
@@ -81,7 +96,7 @@ class UpdateSettingsRequest(BaseModel):
 class SettingsDBS(ORMModel):
     appearance: AppearanceSection
     notifications: NotificationsSection
-    ai_behavior: AIBehaviorSection
+    ai_behavior: AIBehaviorSectionResponse
     planner: PlannerSection
     privacy: PrivacySection
     accessibility: AccessibilitySection
@@ -113,3 +128,9 @@ class AIProviderHealthCheckRequest(BaseModel):
 class AIProviderHealthCheckResponse(BaseModel):
     healthy: bool
     message: str
+
+
+class CustomApiKeyTestRequest(BaseModel):
+    provider: str
+    model: str
+    api_key: str = Field(min_length=1)

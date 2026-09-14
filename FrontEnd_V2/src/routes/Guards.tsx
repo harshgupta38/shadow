@@ -6,27 +6,45 @@ import { ChildProps } from "@/api/types";
 
 /** Requires a signed-in user. Redirects to /login otherwise. */
 export function RequireAuth({ children }: ChildProps) {
-	const { status, isAuthenticated } = useAuth();
-	const location = useLocation(); // this gives us the location user came from, so that after login we go this page instead of default homepage
+    const { status, isAuthenticated } = useAuth();
+    const location = useLocation();
 
-	if (status === "loading")
-		return null; // TODO: In future we will implement a splach screen for this
+    if (status === "loading")
+        return null; // TODO: splash screen
 
-	if (!isAuthenticated)
-		return <Navigate to={ROUTES.LOGIN} replace state={{ from: location }} />;
+    if (!isAuthenticated)
+        return <Navigate to={ROUTES.LOGIN} replace state={{ from: location }} />;
 
-	return children ? <>{children}</> : <Outlet />;
+    return children ? <>{children}</> : <Outlet />;
+}
+
+/**
+ * Blocks access to app pages when the user has exceeded their device limit.
+ * Redirects to /device-limit so they can revoke a session before continuing.
+ */
+export function RequireDeviceCheck({ children }: ChildProps) {
+    const { sessionLimitExceeded } = useAuth();
+    const location = useLocation();
+
+    // Already on the device-limit page — let it through
+    if (location.pathname === ROUTES.DEVICE_LIMIT)
+        return children ? <>{children}</> : <Outlet />;
+
+    if (sessionLimitExceeded)
+        return <Navigate to={ROUTES.DEVICE_LIMIT} replace />;
+
+    return children ? <>{children}</> : <Outlet />;
 }
 
 /** For /login and /register — redirects signed-in users away. */
 export function PublicOnly({ children }: ChildProps) {
-	const { status, isAuthenticated } = useAuth();
+    const { status, isAuthenticated } = useAuth();
 
-	if (status === "loading")
-		return null; // TODO: In future we will implement a splach screen for this
+    if (status === "loading")
+        return null;
 
-	if (isAuthenticated)
-		return <Navigate to={ROUTES.DASHBOARD} replace />;
+    if (isAuthenticated)
+        return <Navigate to={ROUTES.DASHBOARD} replace />;
 
-	return children ? <>{children}</> : <Outlet />;
+    return children ? <>{children}</> : <Outlet />;
 }

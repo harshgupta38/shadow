@@ -322,6 +322,7 @@ def update_milestone(
                 title=f"Milestone completed: {milestone.title}",
                 body=f"Part of goal: {goal.title}" if goal else None,
                 type="system",
+                level=notifications_service.LEVEL_ACHIEVEMENT,
                 url="/goals",
                 event_key=f"milestone_done:{milestone.id}",
             )
@@ -336,6 +337,7 @@ def update_milestone(
                     title=f"Goal achieved: {goal.title} 🎉",
                     body="All milestones are complete. Outstanding work.",
                     type="system",
+                    level=notifications_service.LEVEL_ACHIEVEMENT,
                     url="/goals",
                     event_key=f"goal_done:{goal.id}",
                 )

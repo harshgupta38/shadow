@@ -694,7 +694,7 @@ def _previous_day_closing(db: Session, user_id: int, target_date: date) -> Repor
     """The daily report closing message for the day before `target_date`, if one
     exists — lets the plan page show yesterday's closing note without a second
     request. `get_reports` orders by generated_at desc, so [0] is the latest version."""
-    reports = get_reports(db, user_id, target_date - timedelta(days=1), "daily")
+    reports = [r for r in get_reports(db, user_id, target_date - timedelta(days=1)) if r.report_type == "daily"]
     if not reports:
         return None
     return ReportClosingResponse.model_validate(reports[0].closing)
@@ -759,6 +759,7 @@ def get_plans_for_date(
                 title=f"Your plan for today is ready — {len(records)} item{'s' if len(records) != 1 else ''}",
                 body=body,
                 type="system",
+                level=notifications_service.LEVEL_INFORMATIONAL,
                 url="/plan",
                 event_key=f"plan_ready:{current_user.id}:{target_date}",
             )
@@ -1042,6 +1043,7 @@ def update_daily_record(
             title=f"{cs}-day streak on \"{record.title}\"! 🔥",
             body=f"You've kept this habit going for {cs} days in a row.",
             type="system",
+            level=notifications_service.LEVEL_ACHIEVEMENT,
             url="/plan",
             event_key=f"streak:{record.plan_id}:{cs}:{record.scheduled_date}",
         )

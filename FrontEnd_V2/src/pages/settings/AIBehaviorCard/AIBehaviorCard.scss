@@ -2,6 +2,137 @@
   // All styles come from shared controls (SettingsShared.scss).
 }
 
+// ── Response-length cost hint ───────────────────────────────────────────────
+
+.rl-hint {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  margin: 0.5rem 0 0;
+  padding: 0.45rem 0.65rem;
+  border-radius: var(--jv-radius-sm);
+  font-size: 0.775rem;
+  line-height: 1.5;
+
+  &__desc {
+    color: var(--jv-muted);
+  }
+
+  // cost levels
+  &--low     { background: color-mix(in srgb, #22c55e 8%, transparent); }
+  &--medium  { background: color-mix(in srgb, #3b82f6 8%, transparent); }
+  &--high    { background: color-mix(in srgb, #f59e0b 8%, transparent); }
+  &--highest { background: color-mix(in srgb, #ef4444 8%, transparent); }
+}
+
+// ── Custom API key block ────────────────────────────────────────────────────
+
+.st-custom-key-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.st-custom-key-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.st-custom-key-input-inner {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.st-custom-key-input {
+  padding-right: 2.1rem;
+  width: 100%;
+  font-family: monospace;
+  font-size: 0.8rem;
+  letter-spacing: 0.03em;
+}
+
+.st-custom-key-eye {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: var(--jv-muted);
+  cursor: pointer;
+  line-height: 1;
+  transition: color var(--jv-transition);
+
+  &:hover { color: var(--jv-text); }
+}
+
+.st-custom-key-footer {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.st-custom-key-msg {
+  font-size: 0.75rem;
+  flex: 1;
+  min-width: 0;
+}
+
+
+.st-custom-key-spinner {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  .spinner-border {
+    width: 14px;
+    height: 14px;
+    border-width: 2px;
+    // !important beats Bootstrap's `border` shorthand (which sets currentColor)
+    // regardless of cascade order.
+    border-color: var(--jv-brand-1) !important;
+    border-right-color: transparent !important;
+  }
+}
+
+.st-custom-key-test {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: transparent;
+  border: 0;
+  padding: 0.25rem;
+  color: var(--jv-brand-1);
+  cursor: pointer;
+  transition: color var(--jv-transition);
+
+  &:hover:not(:disabled) { opacity: 0.7; }
+  &:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  // While testing — keep full opacity so the spinner looks correct.
+  &--checking {
+    opacity: 1 !important;
+    cursor: default;
+    pointer-events: none;
+  }
+
+  // Green "verified" state — full opacity even when button is disabled.
+  &--ok {
+    color: var(--bs-success);
+    cursor: default;
+
+    &:disabled { opacity: 1; }
+  }
+}
+
 // ── Model select wrapper ────────────────────────────────────────────────────
 
 .st-model-wrap {

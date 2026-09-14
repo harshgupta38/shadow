@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, String, UniqueConstraint, func, text
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Integer, String, UniqueConstraint, func, text
 from sqlalchemy.orm import Mapped, mapped_column  # pyright: ignore[reportMissingImports]
 
 from app.models.base import Base
@@ -13,12 +13,17 @@ class NotificationDBM(Base):
             "type IN ('reminder', 'system', 'agent')",
             name="ck_notifications_type",
         ),
+        CheckConstraint(
+            "level BETWEEN 1 AND 5",
+            name="ck_notifications_level",
+        ),
         # Prevents duplicate event-keyed notifications per user.
         # NULL event_key rows are exempt (scheduler/manual notifications have no key).
         UniqueConstraint("user_id", "event_key", name="uq_notifications_user_event_key"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    priority: Mapped[int] = mapped_column(nullable=False, default=2, server_default=text("2"))
 
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
@@ -34,6 +39,16 @@ class NotificationDBM(Base):
         nullable=False,
         default="system",
         server_default=text("'system'"),
+    )
+
+    # Priority level 1-5.  Level 1 is always delivered regardless of user prefs;
+    # levels 2-5 respect the notifications_enabled master toggle (and levels 4-5
+    # also respect reminder_notifications_enabled).
+    level: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=3,
+        server_default=text("3"),
     )
 
     read: Mapped[bool] = mapped_column(

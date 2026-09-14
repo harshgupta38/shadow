@@ -80,11 +80,17 @@ function clearCache(): void {
 
 // ── Context ───────────────────────────────────────────────────────────────────
 
+export interface DynamicInfo {
+	scheduledTheme: EffectiveTheme; // what the API says right now (not affected by manual toggles)
+	nextTransitionAt: string;       // ISO datetime of next sunrise/sunset switch
+}
+
 interface ThemeContextValue {
 	effectiveTheme: EffectiveTheme;
 	toggleTheme: () => void;
 	themePreference: ThemePreference;
 	setThemePreference: (preference: ThemePreference) => void;
+	dynamicInfo: DynamicInfo | null;
 }
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
@@ -96,6 +102,10 @@ export function ThemeProvider({ children }: ChildProps) {
 	const [effectiveTheme, setEffectiveTheme] = useState<EffectiveTheme>(() => {
 		const cached = readCache();
 		return cached?.effectiveTheme ?? "light";
+	});
+	const [dynamicInfo, setDynamicInfo] = useState<DynamicInfo | null>(() => {
+		const c = readCache();
+		return c?.nextTransitionAt ? { scheduledTheme: c.effectiveTheme, nextTransitionAt: c.nextTransitionAt } : null;
 	});
 
 	// Ref so the async loadDynamicTheme can check if preference changed mid-flight
@@ -119,6 +129,9 @@ export function ThemeProvider({ children }: ChildProps) {
 
 		writeCache(data.effective_theme, data.next_transition_at);
 		setEffectiveTheme(data.effective_theme);
+		if (data.next_transition_at) {
+			setDynamicInfo({ scheduledTheme: data.effective_theme, nextTransitionAt: data.next_transition_at });
+		}
 
 		return data.next_transition_at;
 	}, []);
@@ -151,6 +164,7 @@ export function ThemeProvider({ children }: ChildProps) {
 				// At transition time: clear cache so we fetch fresh theme+next transition
 				timerRef.current = setTimeout(() => {
 					clearCache();
+					setDynamicInfo(null);
 					loadDynamicTheme();
 				}, delay);
 			}
@@ -232,6 +246,7 @@ export function ThemeProvider({ children }: ChildProps) {
 	// auto-transitions no longer override their choice.
 	const toggleTheme = useCallback(() => {
 		clearCache(); // manual override — don't let a stale cached theme win on next load
+		// intentionally do NOT touch dynamicInfo — the schedule is unchanged by a manual toggle
 		setEffectiveTheme((current) => {
 			const next: EffectiveTheme = current === "light" ? "dark" : "light";
 			setThemePreference(next);
@@ -240,8 +255,8 @@ export function ThemeProvider({ children }: ChildProps) {
 	}, []);
 
 	const value = useMemo(
-		() => ({ effectiveTheme, themePreference, setThemePreference, toggleTheme }),
-		[effectiveTheme, themePreference, toggleTheme],
+		() => ({ effectiveTheme, themePreference, setThemePreference, toggleTheme, dynamicInfo }),
+		[effectiveTheme, themePreference, toggleTheme, dynamicInfo],
 	);
 
 	return (

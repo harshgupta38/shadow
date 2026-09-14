@@ -17,5 +17,6 @@ class ActiveSessionDBM(Base):
     browser: Mapped[str] = mapped_column(String(100), default="Unknown")
     os_name: Mapped[str] = mapped_column(String(100), default="Unknown")
     ip_address: Mapped[str | None] = mapped_column(String(45), nullable=True)
+    refresh_token_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
     last_seen_at: Mapped[datetime] = mapped_column(server_default=func.now())
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())

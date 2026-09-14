@@ -41,6 +41,7 @@ def _build_token_response(db, user_id: int, request: Request) -> TokenResponse:
     sess = session_service.create_session(db, user_id, request)
     access_token = security.create_access_token(subject=user_id, session_id=sess.id)
     refresh_token = security.create_refresh_token(subject=user_id, session_id=sess.id)
+    session_service.set_refresh_token_hash(sess, refresh_token)
     db.commit()
 
     user = db.get(UserDBM, user_id)
@@ -109,6 +110,15 @@ def refresh(data: RefreshRequest, db=Depends(get_db)) -> TokenResponse:
 
     new_access = security.create_access_token(subject=user_id, session_id=session_id)
     new_refresh = security.create_refresh_token(subject=user_id, session_id=session_id)
+
+    rotated = session_service.rotate_refresh_token_hash(
+        db, session_id, user_id, data.refresh_token, new_refresh
+    )
+    if not rotated:
+        # CAS failed: concurrent rotation beat us, or an old token was replayed.
+        # Either way, revoke the session — the real user will re-login.
+        session_service.revoke_session(db, session_id, user_id)
+        raise AuthError("Refresh token already used — please log in again")
 
     return TokenResponse(access_token=new_access, refresh_token=new_refresh)
 

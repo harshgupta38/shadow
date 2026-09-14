@@ -1,10 +1,52 @@
+import hashlib
 from datetime import datetime, timezone
 
 from fastapi import Request
+from sqlalchemy import update, or_
 from sqlalchemy.orm import Session
 
 from app.models.active_session import ActiveSessionDBM
 from app.schemas.session import SessionInfoResponse
+
+
+def _hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+def set_refresh_token_hash(session: ActiveSessionDBM, token: str) -> None:
+    """Sets the hash on a new session object (login/register path, pre-commit)."""
+    session.refresh_token_hash = _hash_token(token)
+
+
+def rotate_refresh_token_hash(
+    db: Session,
+    session_id: int,
+    user_id: int,
+    old_token: str,
+    new_token: str,
+) -> bool:
+    """Atomic compare-and-swap: updates the hash only when the stored value
+    matches old_token (or is NULL for sessions created before rotation was
+    introduced — one-time grace period, after which full enforcement applies).
+    Returns False if the swap fails, meaning the token was already rotated
+    (concurrent request) or is a replay of an old token.
+    """
+    old_hash = _hash_token(old_token)
+    new_hash = _hash_token(new_token)
+    result = db.execute(
+        update(ActiveSessionDBM)
+        .where(
+            ActiveSessionDBM.id == session_id,
+            ActiveSessionDBM.user_id == user_id,
+            or_(
+                ActiveSessionDBM.refresh_token_hash == old_hash,
+                ActiveSessionDBM.refresh_token_hash.is_(None),
+            ),
+        )
+        .values(refresh_token_hash=new_hash)
+    )
+    db.commit()
+    return result.rowcount == 1
 
 
 def _parse_user_agent(ua: str) -> tuple[str, str, str]:

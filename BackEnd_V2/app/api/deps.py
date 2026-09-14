@@ -1,7 +1,6 @@
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
@@ -12,23 +11,19 @@ from app.core.exceptions import ForbiddenError
 from app.services.auth_service import get_user_by_id
 from app.services.session_service import update_last_seen
 
-_bearer = HTTPBearer(auto_error=False)
-
 _CREDENTIALS_EXC = HTTPException(
     status_code=status.HTTP_401_UNAUTHORIZED,
     detail="Could not validate credentials",
-    headers={"WWW-Authenticate": "Bearer"},
 )
 
 
 def get_current_user(
-    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)],
+    request: Request,
     db: Annotated[Session, Depends(get_db)],
 ) -> UserDBM:
-    if credentials is None or not credentials.credentials:
+    token = request.cookies.get("access_token")
+    if not token:
         raise _CREDENTIALS_EXC
-
-    token = credentials.credentials
 
     try:
         payload = security.decode_access_token(token)
@@ -38,7 +33,6 @@ def get_current_user(
         raise _CREDENTIALS_EXC
 
     if session_id is None:
-        # Token predates session tracking — force re-login
         raise _CREDENTIALS_EXC
 
     sess = db.get(ActiveSessionDBM, int(session_id))

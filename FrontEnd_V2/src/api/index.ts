@@ -5,7 +5,7 @@
  *   const goals = await api.goals.list();
  */
 export * from "@/api/types";
-export { tokenStore, ApiError } from "@/api/client";
+export { ApiError } from "@/api/client";
 
 import { authApi } from "@/api/auth";
 import { notificationsApi } from "@/api/notifications";

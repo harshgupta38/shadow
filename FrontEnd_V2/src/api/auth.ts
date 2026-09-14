@@ -1,5 +1,5 @@
 import { ENDPOINTS } from "@/constant/shadow-endpoints";
-import { http, tokenStore } from "@/api/client";
+import { http } from "@/api/client";
 import {
     LoginRequest,
     TokenResponse,
@@ -8,28 +8,19 @@ import {
     SessionsListResponse,
 } from "@/api/types";
 
-function storeTokens(token: TokenResponse): void {
-    tokenStore.set(token.access_token);
-    tokenStore.setRefreshToken(token.refresh_token);
-}
-
 export const authApi = {
     async register(data: RegisterRequest): Promise<TokenResponse> {
-        const token = await http.post<TokenResponse>(
+        return http.post<TokenResponse>(
             `${ENDPOINTS.AUTH.PREFIX}${ENDPOINTS.AUTH.REGISTER}`,
             data,
         );
-        storeTokens(token);
-        return token;
     },
 
     async login(data: LoginRequest): Promise<TokenResponse> {
-        const token = await http.post<TokenResponse>(
+        return http.post<TokenResponse>(
             `${ENDPOINTS.AUTH.PREFIX}${ENDPOINTS.AUTH.LOGIN}`,
             data,
         );
-        storeTokens(token);
-        return token;
     },
 
     async me(): Promise<UserDataResponse> {
@@ -40,10 +31,7 @@ export const authApi = {
         try {
             await http.post<void>(`${ENDPOINTS.AUTH.PREFIX}${ENDPOINTS.AUTH.LOGOUT}`, {});
         } catch {
-            // best-effort — always clear local tokens
-        } finally {
-            tokenStore.clear();
-            tokenStore.clearRefreshToken();
+            // best-effort — server clears cookies via Set-Cookie on success
         }
     },
 

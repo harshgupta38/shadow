@@ -7,18 +7,12 @@ from app.schemas.session import SessionInfoResponse
 
 
 class TokenResponse(BaseModel):
-    access_token: str
-    refresh_token: str
     token_type: str = "bearer"
     # Session / device-limit fields — populated on login/register, empty on refresh
     session_limit_exceeded: bool = False
     sessions: list[SessionInfoResponse] = []
     current_session_id: int | None = None
     max_concurrent_devices: int = 2
-
-
-class RefreshRequest(BaseModel):
-    refresh_token: str
 
 
 class LoginRequest(BaseModel):

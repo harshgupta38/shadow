@@ -893,8 +893,6 @@ export interface SessionInfo {
 }
 
 export interface TokenResponse {
-  access_token: string;
-  refresh_token: string;
   token_type: string;
   session_limit_exceeded: boolean;
   sessions: SessionInfo[];

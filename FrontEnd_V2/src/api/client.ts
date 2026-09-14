@@ -1,66 +1,55 @@
 /**
  * Central Axios client for the Shadow backend.
  *
- * - Attaches the JWT bearer token to every request.
- * - Normalises backend / FastAPI error payloads into a consistent `ApiError`.
- * - Emits an `unauthorized` event so the auth layer can log the user out on 401.
+ * Tokens are stored in httpOnly cookies set by the server — this client never
+ * reads or writes tokens directly. withCredentials:true ensures the browser
+ * includes cookies on every request. On 401 the interceptor triggers a silent
+ * /refresh call (which rotates the cookies server-side) and retries the
+ * original request.
  *
  * Components never import axios directly — they go through the typed endpoint
  * modules in `src/api/*` which use this client.
  */
 import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from "axios";
-import { ApiErrorShape, FieldError, TokenResponse } from "@/api/types";
+import { ApiErrorShape, FieldError } from "@/api/types";
 import { ENDPOINTS } from "@/constant/shadow-endpoints";
 
 const REFRESH_URL = `${ENDPOINTS.AUTH.PREFIX}${ENDPOINTS.AUTH.REFRESH}`;
 
-const TOKEN_STORAGE_KEY = "shadow.token";
-const REFRESH_TOKEN_KEY = "shadow.refresh_token";
+// One-time migration: remove pre-cookie legacy tokens from localStorage
+try {
+    localStorage.removeItem("shadow.token");
+    localStorage.removeItem("shadow.refresh_token");
+} catch { /* ignore (private mode, etc.) */ }
 
 // State for coordinating concurrent refresh attempts
 let isRefreshing = false;
-type PendingItem = { resolve: (token: string) => void; reject: (err: unknown) => void };
+type PendingItem = { resolve: () => void; reject: (err: unknown) => void };
 let pendingQueue: PendingItem[] = [];
 
-function processPendingQueue(error: unknown, token: string | null): void {
-    pendingQueue.forEach(({ resolve, reject }) => (error ? reject(error) : resolve(token!)));
+function processPendingQueue(error: unknown): void {
+    pendingQueue.forEach(({ resolve, reject }) => (error ? reject(error) : resolve()));
     pendingQueue = [];
 }
 
 /**
- * Refreshes the access token, coordinating with any refresh already in flight
- * (from a concurrent 401 elsewhere) so only one refresh request is ever made at
- * a time. Used by the axios 401 interceptor below, and by the notifications SSE
- * stream (which bypasses axios via a raw `fetch`, so it needs its own way to
- * recover from an expired token instead of just failing the connection).
- *
- * On failure, clears stored tokens and dispatches "unauthorized" (same as the
- * interceptor) so the app logs the user out consistently either way.
+ * POSTs /refresh so the server rotates both cookies atomically.
+ * Coordinates concurrent 401s so only one refresh fires at a time.
+ * On failure dispatches "unauthorized" to trigger global logout.
  */
-export async function refreshAccessToken(): Promise<string> {
+export async function refreshAccessToken(): Promise<void> {
     if (isRefreshing) {
-        return new Promise<string>((resolve, reject) => {
+        return new Promise<void>((resolve, reject) => {
             pendingQueue.push({ resolve, reject });
         });
     }
 
-    const refreshToken = tokenStore.getRefreshToken();
-    if (!refreshToken) {
-        window.dispatchEvent(new Event("unauthorized"));
-        throw new Error("No refresh token available");
-    }
-
     isRefreshing = true;
     try {
-        const { data } = await httpClient.post<TokenResponse>(REFRESH_URL, { refresh_token: refreshToken });
-        tokenStore.set(data.access_token);
-        tokenStore.setRefreshToken(data.refresh_token);
-        processPendingQueue(null, data.access_token);
-        return data.access_token;
+        await httpClient.post(REFRESH_URL);
+        processPendingQueue(null);
     } catch (err) {
-        processPendingQueue(err, null);
-        tokenStore.clear();
-        tokenStore.clearRefreshToken();
+        processPendingQueue(err);
         window.dispatchEvent(new Event("unauthorized"));
         throw err;
     } finally {
@@ -69,21 +58,14 @@ export async function refreshAccessToken(): Promise<string> {
 }
 
 function createClient(): AxiosInstance {
-    const baseURL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api";
+    const baseURL = import.meta.env.VITE_API_BASE_URL ?? "/api";
     const timeoutMs = Number(import.meta.env.VITE_API_TIMEOUT_SECONDS ?? 30) * 1000;
 
     const instance = axios.create({
         baseURL,
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-Requested-With": "XMLHttpRequest" },
         timeout: Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : 30_000,
-    });
-
-    instance.interceptors.request.use((config) => {
-        const token = tokenStore.get();
-        if (token) {
-            config.headers.set("Authorization", `Bearer ${token}`);
-        }
-        return config;
+        withCredentials: true,
     });
 
     instance.interceptors.response.use(
@@ -95,10 +77,8 @@ function createClient(): AxiosInstance {
 
             const original = error.config as AxiosRequestConfig & { _retry?: boolean };
 
-            // Already retried once after a refresh — don't loop
+            // Already retried once after a refresh — give up and log out
             if (!original || original._retry || original.url === REFRESH_URL) {
-                tokenStore.clear();
-                tokenStore.clearRefreshToken();
                 window.dispatchEvent(new Event("unauthorized"));
                 return Promise.reject(normaliseError(error));
             }
@@ -106,10 +86,7 @@ function createClient(): AxiosInstance {
             original._retry = true;
 
             return refreshAccessToken()
-                .then((token) => {
-                    if (original.headers) original.headers["Authorization"] = `Bearer ${token}`;
-                    return instance(original);
-                })
+                .then(() => instance(original))
                 .catch(() => Promise.reject(normaliseError(error)));
         },
     );
@@ -117,15 +94,8 @@ function createClient(): AxiosInstance {
     return instance;
 }
 
-/**
- * Axios HTTP client for making API requests to our private server
- * Contains necessary data not needed while calling third party APIs
- */
 const httpClient = createClient();
 
-/**
- * Plain HTTP client for making API requests to any third party server
- */
 export const http = {
     async get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
         const response = await httpClient.get<T>(url, config);
@@ -150,63 +120,10 @@ export const http = {
 };
 
 /**
- * Token store for managing JWT tokens in localStorage
- * Provides methods to get, set, and clear the token
- * Handles errors gracefully (e.g., private mode, storage errors)
- */
-export const tokenStore = {
-    get(): string | null {
-        try {
-            return localStorage.getItem(TOKEN_STORAGE_KEY);
-        } catch {
-            return null;
-        }
-    },
-    set(token: string): void {
-        try {
-            localStorage.setItem(TOKEN_STORAGE_KEY, token);
-        } catch {
-            /* ignore storage errors (private mode, etc.) */
-        }
-    },
-    clear(): void {
-        try {
-            localStorage.removeItem(TOKEN_STORAGE_KEY);
-        } catch {
-            /* noop */
-        }
-    },
-    getRefreshToken(): string | null {
-        try {
-            return localStorage.getItem(REFRESH_TOKEN_KEY);
-        } catch {
-            return null;
-        }
-    },
-    setRefreshToken(token: string): void {
-        try {
-            localStorage.setItem(REFRESH_TOKEN_KEY, token);
-        } catch {
-            /* ignore storage errors (private mode, etc.) */
-        }
-    },
-    clearRefreshToken(): void {
-        try {
-            localStorage.removeItem(REFRESH_TOKEN_KEY);
-        } catch {
-            /* noop */
-        }
-    },
-};
-
-/**
  * Standard error object used throughout the application.
  *
  * Converts low-level Axios and backend errors into a consistent,
  * user-friendly format that the UI can safely consume.
- *
- * Every API request throws an `ApiError`, allowing pages to handle
- * errors without knowing about Axios or backend response formats.
  */
 export class ApiError extends Error implements ApiErrorShape {
     status?: number;
@@ -220,7 +137,6 @@ export class ApiError extends Error implements ApiErrorShape {
     }
 }
 
-/** Convert an unknown thrown value into a friendly `ApiError`. */
 function normaliseError(error: unknown): ApiError {
     if (error instanceof ApiError) return error;
 
@@ -239,12 +155,12 @@ function normaliseError(error: unknown): ApiError {
         });
     }
 
-    // FastAPI's default HTTPException handler (used by a few endpoints that don't
-    // go through the app's own error handler) returns {detail} instead of {message}.
     if (typeof data?.detail === "string") {
         return new ApiError({ message: data.detail, status });
     }
 
-    const fallback = status && status >= 500 ? "The server ran into a problem. Please try again shortly." : "Request failed. Please try again.";
+    const fallback = status && status >= 500
+        ? "The server ran into a problem. Please try again shortly."
+        : "Request failed. Please try again.";
     return new ApiError({ message: fallback, status });
 }

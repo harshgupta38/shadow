@@ -1,10 +1,9 @@
-from typing import Annotated
-
-from fastapi import APIRouter, Depends, Request, status
-from fastapi.responses import StreamingResponse
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError
 
+from fastapi import APIRouter, Depends, Request, Response, status
+from fastapi.responses import StreamingResponse
+
+from app.core.config import settings
 from app.core.endpoints import ENDPOINTS
 from app.core.exceptions import AuthError
 from app.schemas.session import SessionsListResponse
@@ -13,36 +12,59 @@ from app.schemas.settings import AccessibilitySection, PlannerSection
 from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.models.user import UserDBM
-from app.schemas.auth import LoginRequest, TokenResponse, RegisterRequest, RefreshRequest
+from app.schemas.auth import LoginRequest, TokenResponse, RegisterRequest
 from app.services import auth_service, settings_service, session_service, notifications_service
 from app.core import security
 
 router = APIRouter(prefix=ENDPOINTS.AUTH.PREFIX, tags=["Authentication"])
 
-_bearer = HTTPBearer(auto_error=False)
+# ─── Cookie helpers ───────────────────────────────────────────────────────────
+
+_COOKIE_OPTS: dict = dict(httponly=True, samesite="strict", secure=False, path="/")
 
 
-def _session_id_from_token(
-    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)],
-) -> int | None:
-    """Extracts session_id from an access token without hitting the DB."""
-    if not credentials or not credentials.credentials:
+def _set_auth_cookies(response: Response, access_token: str, refresh_token: str) -> None:
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        max_age=settings.access_token_expire_minutes * 60,
+        **_COOKIE_OPTS,
+    )
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        max_age=settings.refresh_token_expire_days * 86400,
+        **_COOKIE_OPTS,
+    )
+
+
+def _clear_auth_cookies(response: Response) -> None:
+    response.delete_cookie("access_token", path="/")
+    response.delete_cookie("refresh_token", path="/")
+
+
+def _session_id_from_token(request: Request) -> int | None:
+    """Extracts session_id from the access_token cookie without hitting the DB."""
+    token = request.cookies.get("access_token")
+    if not token:
         return None
     try:
-        payload = security.decode_access_token(credentials.credentials)
+        payload = security.decode_access_token(token)
         sid = payload.get("sid")
         return int(sid) if sid is not None else None
     except Exception:
         return None
 
 
-def _build_token_response(db, user_id: int, request: Request) -> TokenResponse:
-    """Creates a session, issues tokens, checks device limit, returns full response."""
+def _build_token_response(db, user_id: int, request: Request, response: Response) -> TokenResponse:
+    """Creates a session, issues tokens as httpOnly cookies, checks device limit."""
     sess = session_service.create_session(db, user_id, request)
     access_token = security.create_access_token(subject=user_id, session_id=sess.id)
     refresh_token = security.create_refresh_token(subject=user_id, session_id=sess.id)
     session_service.set_refresh_token_hash(sess, refresh_token)
     db.commit()
+
+    _set_auth_cookies(response, access_token, refresh_token)
 
     user = db.get(UserDBM, user_id)
     if user:
@@ -60,8 +82,6 @@ def _build_token_response(db, user_id: int, request: Request) -> TokenResponse:
     sessions = session_service.get_sessions(db, user_id, current_session_id=sess.id)
 
     return TokenResponse(
-        access_token=access_token,
-        refresh_token=refresh_token,
         session_limit_exceeded=count > max_devices,
         sessions=sessions,
         current_session_id=sess.id,
@@ -72,9 +92,9 @@ def _build_token_response(db, user_id: int, request: Request) -> TokenResponse:
 # ─── Login / Register / Refresh ───────────────────────────────────────────────
 
 @router.post(ENDPOINTS.AUTH.LOGIN, response_model=TokenResponse)
-def login(data: LoginRequest, request: Request, db=Depends(get_db)) -> TokenResponse:
+def login(data: LoginRequest, request: Request, response: Response, db=Depends(get_db)) -> TokenResponse:
     user = auth_service.login_user(db, str(data.email), data.password)
-    return _build_token_response(db, user.id, request)
+    return _build_token_response(db, user.id, request, response)
 
 
 @router.post(
@@ -82,15 +102,19 @@ def login(data: LoginRequest, request: Request, db=Depends(get_db)) -> TokenResp
     response_model=TokenResponse,
     status_code=status.HTTP_201_CREATED,
 )
-def register(data: RegisterRequest, request: Request, db=Depends(get_db)) -> TokenResponse:
+def register(data: RegisterRequest, request: Request, response: Response, db=Depends(get_db)) -> TokenResponse:
     user = auth_service.register_user(db, data)
-    return _build_token_response(db, user.id, request)
+    return _build_token_response(db, user.id, request, response)
 
 
 @router.post(ENDPOINTS.AUTH.REFRESH, response_model=TokenResponse)
-def refresh(data: RefreshRequest, db=Depends(get_db)) -> TokenResponse:
+def refresh(request: Request, response: Response, db=Depends(get_db)) -> TokenResponse:
+    old_refresh = request.cookies.get("refresh_token")
+    if not old_refresh:
+        raise AuthError("No refresh token — please log in again")
+
     try:
-        payload = security.decode_refresh_token(data.refresh_token)
+        payload = security.decode_refresh_token(old_refresh)
         user_id = int(payload["sub"])
         session_id = int(payload.get("sid", 0)) or None
     except (JWTError, TypeError, ValueError, KeyError):
@@ -112,28 +136,27 @@ def refresh(data: RefreshRequest, db=Depends(get_db)) -> TokenResponse:
     new_refresh = security.create_refresh_token(subject=user_id, session_id=session_id)
 
     rotated = session_service.rotate_refresh_token_hash(
-        db, session_id, user_id, data.refresh_token, new_refresh
+        db, session_id, user_id, old_refresh, new_refresh
     )
     if not rotated:
         # CAS failed: concurrent rotation beat us, or an old token was replayed.
-        # Either way, revoke the session — the real user will re-login.
         session_service.revoke_session(db, session_id, user_id)
         raise AuthError("Refresh token already used — please log in again")
 
-    return TokenResponse(access_token=new_access, refresh_token=new_refresh)
+    _set_auth_cookies(response, new_access, new_refresh)
+    return TokenResponse()
 
 
 # ─── Logout ───────────────────────────────────────────────────────────────────
 
 @router.post(ENDPOINTS.AUTH.LOGOUT, status_code=status.HTTP_204_NO_CONTENT)
-def logout(
-    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)],
-    db=Depends(get_db),
-) -> None:
-    if not credentials or not credentials.credentials:
+def logout(request: Request, response: Response, db=Depends(get_db)) -> None:
+    _clear_auth_cookies(response)
+    token = request.cookies.get("access_token")
+    if not token:
         return
     try:
-        payload = security.decode_access_token(credentials.credentials)
+        payload = security.decode_access_token(token)
         session_id = int(payload.get("sid", 0)) or None
         user_id = int(payload.get("sub", 0))
         if session_id:
@@ -167,6 +190,7 @@ def me(
 
 @router.get(ENDPOINTS.AUTH.SESSIONS, response_model=SessionsListResponse)
 def list_sessions(
+    request: Request,
     current_user: UserDBM = Depends(get_current_user),
     current_session_id: int | None = Depends(_session_id_from_token),
     db=Depends(get_db),

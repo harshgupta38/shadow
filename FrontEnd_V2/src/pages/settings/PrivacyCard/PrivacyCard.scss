@@ -58,6 +58,50 @@
     }
   }
 
+  // ── Device stepper ─────────────────────────────────────────────────────────
+  .st-device-stepper {
+    display: inline-flex;
+    align-items: center;
+    gap: 0;
+    border: 1px solid var(--jv-border);
+    border-radius: var(--jv-radius-sm);
+    overflow: hidden;
+    flex-shrink: 0;
+
+    &__btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 2rem;
+      height: 2rem;
+      padding: 0;
+      background: var(--jv-surface-2);
+      border: 0;
+      color: var(--jv-text);
+      cursor: pointer;
+      transition: background var(--jv-transition), color var(--jv-transition);
+
+      &:hover:not(:disabled) { background: var(--jv-surface-3); }
+
+      &:disabled {
+        color: var(--jv-muted);
+        cursor: not-allowed;
+      }
+    }
+
+    &__value {
+      min-width: 2rem;
+      text-align: center;
+      font-size: 0.875rem;
+      font-weight: 700;
+      color: var(--jv-text);
+      border-left: 1px solid var(--jv-border);
+      border-right: 1px solid var(--jv-border);
+      line-height: 2rem;
+      user-select: none;
+    }
+  }
+
   // ── Action rows ────────────────────────────────────────────────────────────
   .st-action-row {
     display: flex;

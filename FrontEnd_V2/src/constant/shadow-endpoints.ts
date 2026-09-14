@@ -8,7 +8,11 @@ export const ENDPOINTS = {
         LOGIN: "/login",
         REGISTER: "/register",
         REFRESH: "/refresh",
+        LOGOUT: "/logout",
         USER_DATA: "/my-data",
+        SESSIONS: "/sessions",
+        SESSION_DETAIL: (id: number) => `/sessions/${id}`,
+        SESSION_EVENTS: "/sessions/events",
     },
     GOALS: {
         PREFIX: "/goal",

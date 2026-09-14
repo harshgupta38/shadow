@@ -33,7 +33,8 @@ from app.models.memory import UserMemoryDBM
 from app.models.report import ReportDBM
 from app.models.notification import NotificationDBM
 from app.models.user_setting import UserSettingDBM
-from app.services import planner_service, backup_service, notification_scheduler_service, report_scheduler_service
+from app.models.active_session import ActiveSessionDBM
+from app.services import planner_service, backup_service, notification_scheduler_service, report_scheduler_service, session_event_service
 from app.api.notifications import reset_shutdown as _reset_sse_shutdown
 from app.api.notifications import signal_shutdown as _signal_sse_shutdown
 
@@ -44,6 +45,7 @@ async def lifespan(_app: FastAPI):
     with SessionLocal() as db:
         planner_service.sync_all_plans(db)
 
+    session_event_service.set_event_loop(asyncio.get_running_loop())
     _reset_sse_shutdown()
     backup_sched = asyncio.create_task(backup_service.backup_scheduler_loop())
     report_sched = asyncio.create_task(report_scheduler_service.report_scheduler_loop())

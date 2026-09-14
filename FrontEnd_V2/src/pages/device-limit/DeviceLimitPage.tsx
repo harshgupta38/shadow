@@ -13,6 +13,7 @@ import { api, ApiError } from "@/api";
 import type { SessionInfo, SessionsListResponse } from "@/api";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { ThemeToggle } from "@/components/ui/ThemeToggle/ThemeToggle";
 import { ROUTES } from "@/routes/RoutePaths";
 import "@/pages/device-limit/DeviceLimitPage.scss";
@@ -171,43 +172,22 @@ export function DeviceLimitPage() {
                 )}
 
             </div>
-            {pendingRevoke && (
-                <div className="dlp-confirm-overlay" role="dialog" aria-modal="true">
-                    <div className="dlp-confirm-card surface">
-                        <h2 className="dlp-confirm-title">
-                            {pendingRevoke.is_current ? "Log out this device?" : "Remove device?"}
-                        </h2>
-                        <p className="dlp-confirm-body">
-                            {pendingRevoke.is_current
-                                ? "You'll be signed out on this device immediately."
-                                : <>
-                                    <strong>{pendingRevoke.device_name}</strong> will be signed out immediately.
-                                </>
-                            }
-                        </p>
-                        <div className="dlp-confirm-actions">
-                            <button
-                                type="button"
-                                className="dlp-confirm-btn dlp-confirm-btn--cancel"
-                                onClick={() => setPendingRevoke(null)}
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="button"
-                                className={`dlp-confirm-btn dlp-confirm-btn--confirm${pendingRevoke.is_current ? " dlp-confirm-btn--self" : ""}`}
-                                onClick={() => {
-                                    const target = pendingRevoke;
-                                    setPendingRevoke(null);
-                                    void handleRevoke(target);
-                                }}
-                            >
-                                {pendingRevoke.is_current ? "Log out" : "Remove"}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <ConfirmDialog
+                show={pendingRevoke !== null}
+                title={pendingRevoke?.is_current ? "Log out this device?" : "Remove device?"}
+                message={pendingRevoke?.is_current
+                    ? "You'll be signed out on this device immediately."
+                    : `${pendingRevoke?.device_name} will be signed out immediately.`}
+                confirmLabel={pendingRevoke?.is_current ? "Log out" : "Remove"}
+                destructive
+                busy={revoking !== null}
+                onConfirm={() => {
+                    const target = pendingRevoke;
+                    setPendingRevoke(null);
+                    if (target) void handleRevoke(target);
+                }}
+                onCancel={() => setPendingRevoke(null)}
+            />
         </div>
     );
 }

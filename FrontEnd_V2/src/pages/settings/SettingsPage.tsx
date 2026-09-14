@@ -12,6 +12,7 @@ import { AIBehaviorCard } from "@/pages/settings/AIBehaviorCard/AIBehaviorCard";
 import type { AIBehaviorCardRef } from "@/pages/settings/AIBehaviorCard/AIBehaviorCard";
 import { PlannerCard } from "@/pages/settings/PlannerCard/PlannerCard";
 import { AccessibilityCard } from "@/pages/settings/AccessibilityCard/AccessibilityCard";
+import { SessionsCard } from "@/pages/settings/SessionsCard/SessionsCard";
 import { SettingsSkeleton } from "@/pages/settings/SettingsSkeleton/SettingsSkeleton";
 
 import "@/pages/settings/SettingsPage.scss";
@@ -213,6 +214,7 @@ export function SettingsPage() {
               isDirty={dirtySections.includes("privacy")}
               onUpdate={(d) => patch("privacy", d)}
             />
+            <SessionsCard />
           </div>
 
           {/* ── Right column ── */}

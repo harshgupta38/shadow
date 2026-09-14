@@ -1,0 +1,126 @@
+.sc-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--jv-border);
+  border-radius: var(--jv-radius-sm);
+  overflow: hidden;
+}
+
+.sc-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--jv-border) 60%, transparent);
+  background: var(--jv-surface);
+  transition: background var(--jv-transition);
+
+  &:last-child { border-bottom: 0; }
+
+  &--current {
+    background: color-mix(in srgb, var(--jv-brand-1) 5%, var(--jv-surface));
+  }
+
+  @media (max-width: 540px) {
+    flex-wrap: wrap;
+  }
+}
+
+.sc-icon {
+  flex-shrink: 0;
+  color: var(--jv-muted);
+  display: flex;
+}
+
+.sc-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.sc-name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--jv-text);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.sc-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.08rem 0.4rem;
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--jv-brand-1) 18%, transparent);
+  color: var(--jv-brand-1);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.sc-meta {
+  font-size: 0.75rem;
+  color: var(--jv-muted);
+}
+
+.sc-time {
+  font-size: 0.7rem;
+  color: color-mix(in srgb, var(--jv-muted) 70%, transparent);
+}
+
+// ── Actions ───────────────────────────────────────────────────────────────────
+.sc-actions {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+.sc-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: var(--jv-radius-sm);
+  font-size: 0.775rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid color-mix(in srgb, var(--jv-danger) 35%, transparent);
+  background: color-mix(in srgb, var(--jv-danger) 8%, transparent);
+  color: var(--jv-danger);
+  transition: background var(--jv-transition), border-color var(--jv-transition);
+  white-space: nowrap;
+
+  &:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--jv-danger) 16%, transparent);
+    border-color: var(--jv-danger);
+  }
+
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  &--self {
+    border-color: color-mix(in srgb, var(--jv-muted) 35%, transparent);
+    background: color-mix(in srgb, var(--jv-muted) 8%, transparent);
+    color: var(--jv-muted);
+    &:hover:not(:disabled) {
+      background: color-mix(in srgb, var(--jv-muted) 16%, transparent);
+      border-color: var(--jv-muted);
+    }
+  }
+
+}
+
+// ── Loading ───────────────────────────────────────────────────────────────────
+.sc-loading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--jv-muted);
+  font-size: 0.875rem;
+  padding: 0.5rem 0;
+}

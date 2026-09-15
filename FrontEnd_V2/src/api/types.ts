@@ -694,7 +694,7 @@ export interface SimpleHabitData extends HabitBaseData {
 
 // ── Notifications ────────────────────────────────────────────────────────────
 
-export type NotificationType = "reminder" | "system" | "agent";
+export type NotificationType = "reminder" | "system" | "agent" | "security" | "warning" | "achievement";
 
 export interface Notification {
   id: number;

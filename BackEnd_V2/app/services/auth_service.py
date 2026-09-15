@@ -83,9 +83,10 @@ def login_user(db: Session, email: str, password: str) -> UserDBM:
 
     # ── Password check ───────────────────────────────────────────────────────
     if not security.verify_password(password, user.hashed_password):
+        # Check before the UPDATE whether this attempt crosses the lockout threshold.
+        will_lock = user.login_attempts == _LOCKOUT_ATTEMPTS - 1 and user.lockout_until is None
+
         # Single atomic UPDATE: increment counter and conditionally set lockout_until.
-        # Using a CASE expression avoids the read-increment-check-write race where two
-        # concurrent workers could both read lockout_until=None before either commits.
         lockout_time = _now_utc() + timedelta(minutes=_LOCKOUT_MINUTES)
         db.execute(
             update(UserDBM)
@@ -102,6 +103,22 @@ def login_user(db: Session, email: str, password: str) -> UserDBM:
                 ),
             )
         )
+
+        if will_lock:
+            from app.services import session_service
+            if session_service.get_session_count(db, user.id) > 0:
+                notifications_service.create_notification(
+                    db, user,
+                    title="Account temporarily locked",
+                    body=(
+                        f"Your account was locked after {_LOCKOUT_ATTEMPTS} consecutive "
+                        "failed login attempts. If this wasn't you, consider changing your password."
+                    ),
+                    type="security",
+                    level=notifications_service.LEVEL_CRITICAL,
+                    url="/settings",
+                )
+
         db.commit()  # persist failure — caller raises and session won't commit otherwise
         raise AuthError()
 

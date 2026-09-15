@@ -409,7 +409,7 @@ async def generate_report_background(
                     db, user,
                     title=f"Your {label} report for {report_date.strftime('%d %b')} couldn't be generated",
                     body="Something went wrong while generating your report. Please try again.",
-                    type="system",
+                    type="warning",
                     level=notifications_service.LEVEL_CRITICAL,
                 )
         except Exception:

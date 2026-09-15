@@ -95,14 +95,14 @@ def _build_token_response(db, user_id: int, request: Request, response: Response
 @router.post(ENDPOINTS.AUTH.LOGIN, response_model=TokenResponse)
 def login(data: LoginRequest, request: Request, response: Response, db=Depends(get_db)) -> TokenResponse:
     ip = request.client.host if request.client else "unknown"
-    email = str(data.email)
-    rate_limit_service.check_login_allowed(ip, email)
+    rate_limit_service.check_login_allowed(db, ip)
     try:
-        user = auth_service.login_user(db, email, data.password)
+        user = auth_service.login_user(db, str(data.email), data.password)
     except AuthError:
-        rate_limit_service.on_login_failure(ip, email)
+        rate_limit_service.on_login_failure(db, ip)
+        db.commit()
         raise
-    rate_limit_service.on_login_success(ip, email)
+    rate_limit_service.on_login_success(db, ip)
     return _build_token_response(db, user.id, request, response)
 
 
@@ -113,9 +113,9 @@ def login(data: LoginRequest, request: Request, response: Response, db=Depends(g
 )
 def register(data: RegisterRequest, request: Request, response: Response, db=Depends(get_db)) -> TokenResponse:
     ip = request.client.host if request.client else "unknown"
-    rate_limit_service.check_registration_allowed(ip)
+    rate_limit_service.check_registration_allowed(db, ip)
     user = auth_service.register_user(db, data)
-    rate_limit_service.on_registration(ip)
+    rate_limit_service.on_registration(db, ip)
     return _build_token_response(db, user.id, request, response)
 
 

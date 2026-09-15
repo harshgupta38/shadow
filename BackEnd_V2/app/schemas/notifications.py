@@ -32,3 +32,11 @@ class PushPublicKeyResponse(BaseModel):
 
 class DeviceConnectedAlertRequest(BaseModel):
     endpoint: str
+
+
+# ─── Daily brief schemas ──────────────────────────────────────────────────────
+
+class DailyBriefResponse(BaseModel):
+    complete_brief: str | None
+    date: str
+    generated_at: str | None

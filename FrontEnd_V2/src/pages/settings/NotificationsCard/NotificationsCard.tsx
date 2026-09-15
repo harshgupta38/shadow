@@ -279,20 +279,10 @@ export function NotificationsCard({
               />
               <ToggleRow
                 label="Daily brief"
-                description="Morning summary of your day's plan"
+                description="A warm assistant summary sent when your plan is generated each morning"
                 checked={data.daily_brief_enabled}
                 onChange={(v) => set("daily_brief_enabled", v)}
               />
-              {data.daily_brief_enabled && (
-                <FieldRow label="Brief delivery time" hint="When the morning brief is sent to you">
-                  <input
-                    type="time"
-                    className="form-control form-control-sm st-time-input"
-                    value={data.daily_brief_time}
-                    onChange={(e) => set("daily_brief_time", e.target.value)}
-                  />
-                </FieldRow>
-              )}
               <ToggleRow
                 label="Weekly summary"
                 description="A snapshot of your progress every Sunday"

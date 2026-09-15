@@ -28,6 +28,7 @@ export const ROUTES = {
     REPORTS_DETAIL: "/reports/:historyDate",
     ASSISTANT: "/assistant",
     NOTIFICATIONS: "/notifications",
+    DAILY_BRIEF: "/daily-brief",
     PROFILE: "/profile",
     SETTINGS: "/settings",
     DEVICE_LIMIT: "/device-limit",

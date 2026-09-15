@@ -14,6 +14,7 @@ import hmac
 import html
 import logging
 import re
+from datetime import date
 from functools import lru_cache
 from pathlib import Path
 
@@ -178,6 +179,41 @@ def send_email_enabled_confirmation(user: UserDBM) -> bool:
     return email_service.send_email(
         to_email=user.email,
         subject="Email notifications enabled",
+        text_body=text_body,
+        html_body=html_body,
+    )
+
+
+def send_daily_brief_email(user: UserDBM, complete_brief: str, today: date) -> bool:
+    """Daily-brief email sent when the user's plan is generated for the first time today."""
+    first_name = user.name.split()[0] if user.name else "there"
+    day_str = today.strftime("%A, %d %B %Y")
+
+    paragraphs = [p.strip() for p in complete_brief.split("\n\n") if p.strip()]
+    html_paragraphs = "".join(
+        f"<p style='margin:0 0 14px;font-size:14px;line-height:1.75;color:#374151;'>{_e(p)}</p>"
+        for p in paragraphs
+    )
+
+    context = {
+        "safe_subject": _e(f"Good morning, {first_name}! Here's your {today.strftime('%A')}"),
+        "safe_day": _e(day_str),
+        "safe_brief_text": html_paragraphs,
+        "safe_cta_url": _e(_frontend_url(f"/daily-brief?date={today}")),
+        "safe_unsub_url": _e(_unsub_url(user)),
+        "safe_support_email": _e("support@shadow.app"),
+        "safe_footer": _e("© Shadow — Your AI-powered life and career assistant"),
+    }
+    html_body = _render("daily_brief.html", context)
+    text_body = (
+        f"Good morning, {first_name}!\n\n"
+        f"{complete_brief}\n\n"
+        f"View your brief: {_frontend_url(f'/daily-brief?date={today}')}\n\n"
+        f"Unsubscribe: {_unsub_url(user)}"
+    )
+    return email_service.send_email(
+        to_email=user.email,
+        subject=f"Good morning, {first_name}! Here's your {today.strftime('%A')} — {day_str}",
         text_body=text_body,
         html_body=html_body,
     )

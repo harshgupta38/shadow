@@ -1,6 +1,6 @@
 import { ENDPOINTS } from "@/constant/shadow-endpoints";
 import { http, refreshAccessToken } from "@/api/client";
-import type { Notification, PushPublicKeyResponse, PushSubscriptionPayload } from "@/api/types";
+import type { DailyBriefResponse, Notification, PushPublicKeyResponse, PushSubscriptionPayload } from "@/api/types";
 
 const P = ENDPOINTS.NOTIFICATIONS.PREFIX;
 
@@ -92,6 +92,11 @@ export const notificationsApi = {
 
   async sendDeviceConnectedAlert(endpoint: string): Promise<void> {
     return http.post<void>(`${P}${ENDPOINTS.NOTIFICATIONS.PUSH_DEVICE_CONNECTED_ALERT}`, { endpoint });
+  },
+
+  async getDailyBrief(date?: string): Promise<DailyBriefResponse> {
+    const params = date ? { date } : {};
+    return http.get<DailyBriefResponse>(`${P}${ENDPOINTS.NOTIFICATIONS.DAILY_BRIEF}`, { params });
   },
 
   /**

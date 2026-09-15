@@ -50,6 +50,8 @@ from app.llm.models import (
     ExtractUserMemoryFromLLM,
     GenerateReportToLLM,
     GenerateReportFromLLM,
+    GenerateBriefToLLM,
+    GenerateBriefFromLLM,
 )
 from app.schemas.memory import MemoryExtractionFromLLMSchema
 from app.schemas.goals import RefineGoalFromLLMSchema
@@ -954,6 +956,9 @@ class GeminiProvider(BaseLLMProvider):
                 ),
             ),
         )
+
+    async def generate_daily_brief(self, request: GenerateBriefToLLM) -> GenerateBriefFromLLM:
+        raise NotImplementedError("Daily brief generation is only supported by the OpenAI provider currently.")
 
     async def health_check(self, model: str | None = None) -> bool:
         try:

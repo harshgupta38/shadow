@@ -49,6 +49,8 @@ from app.llm.models import (
     ExtractUserMemoryFromLLM,
     GenerateReportToLLM,
     GenerateReportFromLLM,
+    GenerateBriefToLLM,
+    GenerateBriefFromLLM,
 )
 from app.llm.base import BaseLLMProvider
 from app.llm.config import LLMSettings, llm_settings
@@ -965,6 +967,9 @@ class OllamaProvider(BaseLLMProvider):
             response_time_ms=response_time_ms,
             cost=_ollama_cost(model, usage.input_tokens if usage else 0, usage.output_tokens if usage else 0),
         )
+
+    async def generate_daily_brief(self, request: GenerateBriefToLLM) -> GenerateBriefFromLLM:
+        raise NotImplementedError("Daily brief generation is only supported by the OpenAI provider currently.")
 
     async def health_check(self, model: str | None = None) -> bool:
         try:

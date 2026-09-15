@@ -1,0 +1,77 @@
+.brief-page {
+  display: flex;
+  flex-direction: column;
+  max-width: 680px;
+}
+
+// ── Date header ───────────────────────────────────────────────────────────────
+
+.brief-date {
+  font-size: 0.85rem;
+  color: var(--jv-text-muted);
+  margin: 0;
+}
+
+// ── Brief body ────────────────────────────────────────────────────────────────
+
+.brief-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.brief-paragraph {
+  font-size: 1rem;
+  line-height: 1.8;
+  color: var(--jv-text-primary);
+  margin: 0 0 1.1rem;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+// ── Empty / loading states ────────────────────────────────────────────────────
+
+.brief-empty {
+  font-size: 0.9rem;
+  color: var(--jv-text-muted);
+  line-height: 1.6;
+}
+
+.brief-skel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.brief-skel-line {
+  position: relative;
+  height: 1rem;
+  border-radius: 6px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--jv-border) 78%, var(--jv-surface) 22%);
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      color-mix(in srgb, #fff 56%, transparent) 50%,
+      transparent 100%
+    );
+    animation: brief-skel-shimmer 1.4s ease-in-out infinite;
+  }
+
+  &--short  { width: 45%; }
+  &--medium { width: 72%; }
+  &--long   { width: 100%; }
+}
+
+@keyframes brief-skel-shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}

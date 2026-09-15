@@ -15,6 +15,7 @@ from app.llm.exceptions import (
 )
 from app.llm.knowledge_base import (
     CONVERSATION_CONTEXT_SYSTEM_INSTRUCTION,
+    DAILY_BRIEF_SYSTEM_PROMPT,
     GOAL_REFINEMENT_SYSTEM_INSTRUCTION,
     MILESTONE_PROPOSAL_SYSTEM_INSTRUCTION,
     TASK_PROPOSAL_SYSTEM_INSTRUCTION,
@@ -23,6 +24,7 @@ from app.llm.knowledge_base import (
     USER_MEMORY_EXTRACTION_SYSTEM_INSTRUCTION,
     RESPONSE_LENGTH_INSTRUCTION,
     AI_PERSONALITY_INSTRUCTION,
+    build_daily_brief_user_prompt,
     get_report_system_instruction,
     build_goal_refinement_user_prompt,
     build_milestone_proposal_user_prompt,
@@ -47,9 +49,12 @@ from app.llm.models import (
     ExtractUserMemoryFromLLM,
     GenerateReportToLLM,
     GenerateReportFromLLM,
+    GenerateBriefToLLM,
+    GenerateBriefFromLLM,
 )
 from app.schemas.memory import MemoryExtractionFromLLMSchema
 from app.schemas.daily_report import GenerateReportSchema
+from app.schemas.daily_brief import DailyBriefSchema
 from app.schemas.goals import RefineGoalFromLLMSchema
 from app.schemas.milestones import MilestoneProposalListLLMSchema
 from app.schemas.tasks import TaskProposalListLLMSchema
@@ -1022,6 +1027,89 @@ class OpenAIProvider(BaseLLMProvider):
                 model_key=model,
                 input_tokens=completion.usage.prompt_tokens if completion.usage else 0,
                 output_tokens=completion.usage.completion_tokens if completion.usage else 0,
+            ),
+        )
+
+    async def generate_daily_brief(self, request: GenerateBriefToLLM) -> GenerateBriefFromLLM:
+        model = self._resolve_model(request)
+
+        messages = [
+            {
+                "role": Role.SYSTEM,
+                "content": DAILY_BRIEF_SYSTEM_PROMPT,
+            },
+            {
+                "role": Role.USER,
+                "content": build_daily_brief_user_prompt(request.first_name, request.today, request.context),
+            },
+        ]
+
+        started_at = perf_counter()
+        try:
+            kwargs: dict = {
+                "model": model,
+                "messages": messages,
+                "response_format": DailyBriefSchema,
+                "max_completion_tokens": request.max_tokens or 4000,
+            }
+            if request.temperature is not None:
+                kwargs["temperature"] = request.temperature
+            # Reasoning-family models (gpt-5*, o-series) default to "medium" effort,
+            # burning hidden reasoning tokens for no benefit on this short summarization task.
+            if model.startswith("gpt-5") or model.startswith("o"):
+                kwargs["reasoning_effort"] = "minimal"
+
+            completion = await self._client.beta.chat.completions.parse(**kwargs)
+        except (APIConnectionError, APIStatusError, OpenAIError) as exc:
+            raise LLMProviderError(f"OpenAI generate_daily_brief failed: {exc}") from exc
+        response_time_ms = int((perf_counter() - started_at) * 1000)
+
+        await log_openai_completion_usage_async(
+            settings=self._settings,
+            model=model,
+            completion=completion,
+            latency_ms=response_time_ms,
+            user_id=request.user_id,
+            operation="generate_daily_brief",
+        )
+
+        if not completion.choices:
+            raise LLMRequestError("OpenAI returned no choices for generate_daily_brief.")
+
+        first_choice = completion.choices[0]
+        message = first_choice.message
+        parsed = message.parsed
+
+        if parsed is None:
+            if message.refusal:
+                raise LLMRequestError(
+                    f"OpenAI refused generate_daily_brief response: {message.refusal}"
+                )
+            raise LLMRequestError("OpenAI returned an unparsable generate_daily_brief response.")
+
+        usage = None
+        if completion.usage is not None:
+            usage = TokenUsage(
+                input_tokens=completion.usage.prompt_tokens,
+                output_tokens=completion.usage.completion_tokens,
+                total_tokens=completion.usage.total_tokens,
+            )
+
+        return GenerateBriefFromLLM(
+            provider=LLMProvider.OPENAI,
+            model=model,
+            model_str=completion.model or model,
+            brief_data=parsed,
+            finish_reason=first_choice.finish_reason,
+            usage=usage,
+            response_id=completion.id,
+            response_time_ms=response_time_ms,
+            cost=calculate_token_cost(
+                model_key=model,
+                input_tokens=completion.usage.prompt_tokens if completion.usage else 0,
+                output_tokens=(
+                    completion.usage.completion_tokens if completion.usage else 0
+                ),
             ),
         )
 

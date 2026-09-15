@@ -15,6 +15,7 @@ are computed on read from history + recurrence rules and are never persisted.
 """
 
 import calendar
+import threading
 from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
 
@@ -47,6 +48,12 @@ _DAY_NAMES = [
     "monday", "tuesday", "wednesday", "thursday",
     "friday", "saturday", "sunday",
 ]
+
+def _fire_daily_brief(user_id: int, today: date) -> None:
+    """Thread target: import lazily to avoid circular imports."""
+    from app.services.daily_brief_service import send_daily_brief
+    send_daily_brief(user_id, today)
+
 
 _PRIORITY_ORDER = {"highest": 0, "high": 1, "medium": 2, "low": 3, "lowest": 4}
 _TIME_ORDER = {
@@ -740,7 +747,7 @@ def get_plans_for_date(
         ]
         db.commit()
 
-        # Notification #3 — plan ready, first load of the day.
+        # Notification #3 — plan ready, first load of the day. Also fires daily brief.
         if existing_today_count == 0 and records:
             yesterday = target_date - timedelta(days=1)
             prev_report = db.scalar(
@@ -763,6 +770,15 @@ def get_plans_for_date(
                 url="/plan",
                 event_key=f"plan_ready:{current_user.id}:{target_date}",
             )
+
+            # Fire daily brief in a daemon thread — LLM call must not block the plan response.
+            _user_id = current_user.id
+            _today = target_date
+            threading.Thread(
+                target=_fire_daily_brief,
+                args=(_user_id, _today),
+                daemon=True,
+            ).start()
 
         # Batch-load full history for streak computation (single query).
         today_plan_ids = [r.plan_id for r in records if r.plan_id is not None]

@@ -1,3 +1,5 @@
+from datetime import date
+
 from app.common import today_ist
 from app.llm.common import build_schema_prompt
 from app.schemas.chat import (
@@ -777,4 +779,48 @@ def build_report_prompt(report_date: str, report_type: str, day_data: dict) -> s
         for r in all_records:
             lines.append(_format_record_line(r, indent="  "))
 
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Daily brief: concise morning briefing generated when the user's plan for
+# today is loaded for the first time.  Two outputs in one call:
+#   short_brief    — 1 punchy sentence (≤140 chars) for push / in-app body.
+#   complete_brief — 3–4 warm paragraphs for the /daily-brief page and email.
+# ---------------------------------------------------------------------------
+
+DAILY_BRIEF_SYSTEM_PROMPT = (
+    "You are Shadow, an intelligent personal assistant. "
+    "Generate a morning brief for the user. "
+    "Return ONLY valid JSON (no markdown, no code blocks) with exactly two string fields:\n\n"
+    '"short_brief": One warm, punchy sentence. Max 140 characters. '
+    "Mention 1–2 highlights from the plan. No generic opener like \"Good morning\" — go straight to something specific. "
+    'Example: "13 habits and a coding session await you today, Harsh — it\'s going to be a productive Wednesday!"\n\n'
+    '"complete_brief": 3–4 warm paragraphs. Write like a trusted personal assistant who genuinely knows the user. '
+    "Start with a warm good-morning greeting using the user's first name and the day. "
+    "Weave the habits and tasks into natural, motivating language — never a bullet list. "
+    "Acknowledge the energy of the day and close with an encouraging, personal sendoff. "
+    "Keep the total under 1600 characters."
+)
+
+
+def build_daily_brief_user_prompt(first_name: str, today: date, context: dict) -> str:
+    habits = context.get("habits", [])
+    tasks = context.get("tasks", [])
+    scheduled = context.get("scheduled", [])
+    total = len(habits) + len(tasks) + len(scheduled)
+
+    lines = [
+        f"User's first name: {first_name}",
+        f"Today: {today.strftime('%A, %d %B %Y')}",
+        f"Total plan items: {total}",
+    ]
+    if habits:
+        lines.append("Habits: " + ", ".join(h["title"] for h in habits[:8]))
+    if tasks:
+        lines.append("Tasks: " + ", ".join(t["title"] for t in tasks[:6]))
+    if scheduled:
+        lines.append("Scheduled: " + ", ".join(s["title"] for s in scheduled[:4]))
+    if total == 0:
+        lines.append("No items scheduled — clear day.")
     return "\n".join(lines)

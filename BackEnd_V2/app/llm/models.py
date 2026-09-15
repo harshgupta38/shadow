@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import date
 from typing import Callable
 
 from pydantic import BaseModel, Field
@@ -16,6 +17,7 @@ from app.schemas.chat import (
 )
 from app.schemas.memory import MemoryExtractionFromLLMSchema
 from app.schemas.daily_report import GenerateReportSchema
+from app.schemas.daily_brief import DailyBriefSchema
 
 
 @dataclass(frozen=True)
@@ -159,3 +161,14 @@ class GenerateReportToLLM(MetadataToLLM):
 
 class GenerateReportFromLLM(MetadataFromLLM):
     report_data: GenerateReportSchema
+
+
+# --- GENERATE DAILY BRIEF ---
+class GenerateBriefToLLM(MetadataToLLM):
+    first_name: str
+    today: date
+    context: dict
+
+
+class GenerateBriefFromLLM(MetadataFromLLM):
+    brief_data: DailyBriefSchema

@@ -17,6 +17,8 @@ from app.llm.models import (
     ExtractUserMemoryFromLLM,
     GenerateReportToLLM,
     GenerateReportFromLLM,
+    GenerateBriefToLLM,
+    GenerateBriefFromLLM,
 )
 
 
@@ -55,6 +57,10 @@ class BaseLLMProvider(ABC):
 
     @abstractmethod
     async def generate_report(self, request: GenerateReportToLLM) -> GenerateReportFromLLM:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def generate_daily_brief(self, request: GenerateBriefToLLM) -> GenerateBriefFromLLM:
         raise NotImplementedError
 
     @abstractmethod

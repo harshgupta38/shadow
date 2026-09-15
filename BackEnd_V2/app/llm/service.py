@@ -1,3 +1,4 @@
+from datetime import date
 from functools import lru_cache
 from typing import Callable
 
@@ -18,6 +19,8 @@ from app.llm.models import (
     ExtractUserMemoryFromLLM,
     GenerateReportToLLM,
     GenerateReportFromLLM,
+    GenerateBriefToLLM,
+    GenerateBriefFromLLM,
 )
 from app.llm.base import BaseLLMProvider
 from app.llm.config import LLMSettings, llm_settings
@@ -242,6 +245,29 @@ class LLMService:
             raise LLMConfigurationError("AI report generation is not supported by the configured LLM provider.")
         if response is None or response.report_data is None:
             raise LLMConfigurationError("LLM provider returned no report data.")
+        return response
+
+    async def generate_daily_brief(
+        self,
+        user_id: int,
+        first_name: str,
+        today: date,
+        context: dict,
+    ) -> GenerateBriefFromLLM:
+        request = GenerateBriefToLLM(
+            user_id=user_id,
+            first_name=first_name,
+            today=today,
+            context=context,
+        )
+        try:
+            response = await self._provider.generate_daily_brief(request)
+        except NotImplementedError:
+            raise LLMConfigurationError(
+                "Daily brief generation is not supported by the configured LLM provider."
+            )
+        if response is None or response.brief_data is None:
+            raise LLMConfigurationError("LLM provider returned no daily brief data.")
         return response
 
     async def health_check(self, model: str | None = None) -> bool:

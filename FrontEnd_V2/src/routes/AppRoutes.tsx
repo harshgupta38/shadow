@@ -35,6 +35,7 @@ const AssistantPage = lazy(() => import("@/pages/assistant/AssistantPage").then(
 const ProfilePage = lazy(() => import("@/pages/profile/ProfilePage").then(m => ({ default: m.ProfilePage })));
 const SettingsPage = lazy(() => import("@/pages/settings/SettingsPage").then(m => ({ default: m.SettingsPage })));
 const NotificationsPage = lazy(() => import("@/pages/notifications/NotificationsPage").then(m => ({ default: m.NotificationsPage })));
+const DailyBriefPage = lazy(() => import("@/pages/daily-brief/DailyBriefPage").then(m => ({ default: m.DailyBriefPage })));
 const NotFoundPage = lazy(() => import("@/pages/NotFoundPage").then(m => ({ default: m.NotFoundPage })));
 const DeviceLimitPage = lazy(() => import("@/pages/device-limit/DeviceLimitPage").then(m => ({ default: m.DeviceLimitPage })));
 
@@ -87,6 +88,7 @@ export function AppRoutes() {
 						<Route path={ROUTES.REPORTS_DETAIL} element={<ReportDetailPage />} />
 						<Route path={ROUTES.ASSISTANT} element={<AssistantPage />} />
 						<Route path={ROUTES.NOTIFICATIONS} element={<NotificationsPage />} />
+						<Route path={ROUTES.DAILY_BRIEF} element={<DailyBriefPage />} />
 						<Route path={ROUTES.PROFILE} element={<ProfilePage />} />
 						<Route path={ROUTES.SETTINGS} element={<SettingsPage />} />
 					</Route>

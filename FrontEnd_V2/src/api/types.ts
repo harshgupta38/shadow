@@ -708,6 +708,14 @@ export interface Notification {
   url?: string;
 }
 
+// ── Daily brief ───────────────────────────────────────────────────────────────
+
+export interface DailyBriefResponse {
+  complete_brief: string | null;
+  date: string;
+  generated_at: string | null;
+}
+
 // ── Push subscriptions ────────────────────────────────────────────────────────
 
 export interface PushSubscriptionPayload {
@@ -868,7 +876,6 @@ export interface NotificationSettings {
   email_notifications_enabled: boolean;
   reminder_notifications_enabled: boolean;
   daily_brief_enabled: boolean;
-  daily_brief_time: string;
   weekly_summary_enabled: boolean;
   quiet_hours_enabled: boolean;
   quiet_hours_start: string;

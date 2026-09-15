@@ -1,7 +1,7 @@
 from pydantic import BaseModel, field_validator
 
 from app.validators.email import validate_email_address
-from app.validators.password import validate_password
+from app.validators.password import validate_password, validate_password_strong
 from app.validators.name import validate_name
 from app.schemas.session import SessionInfoResponse
 
@@ -25,4 +25,5 @@ class LoginRequest(BaseModel):
 class RegisterRequest(LoginRequest):
     name: str
 
-    _validate_name = field_validator("name")(validate_name)
+    _validate_name     = field_validator("name")(validate_name)
+    _validate_password = field_validator("password")(validate_password_strong)  # overrides parent

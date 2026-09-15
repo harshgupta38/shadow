@@ -1207,6 +1207,64 @@ a {
   max-width: 428px;
 }
 
+.password-rules {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.28rem 0.75rem;
+  margin-top: 0.5rem;
+  margin-bottom: 0.1rem;
+}
+
+.password-rule {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.775rem;
+  color: var(--jv-faint);
+  transition: color var(--jv-transition);
+
+  &--met {
+    color: var(--jv-success);
+  }
+}
+
+.pw-strength {
+  margin-bottom: 0.1rem;
+
+  .password-rules {
+    margin-top: 0.45rem;
+    margin-bottom: 0;
+  }
+}
+
+.pw-strength-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.pw-strength-track {
+  flex: 1;
+  height: 4px;
+  background: var(--jv-border-strong);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.pw-strength-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 280ms var(--jv-ease), background 280ms var(--jv-ease);
+}
+
+.pw-strength-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  min-width: 3rem;
+  text-align: right;
+  transition: color 280ms var(--jv-ease);
+}
+
 .auth-aside-footer {
   flex-shrink: 0;
   margin-top: 1.5rem;

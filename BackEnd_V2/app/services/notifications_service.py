@@ -96,7 +96,7 @@ def create_notification(
     db.commit()
     db.refresh(notif)
 
-    # Fire push to all active devices for this user (best-effort, non-blocking).
+    # Fire push to all active devices for this user (best-effort).
     try:
         from app.services import push_service
         push_service.send_push_to_user(
@@ -108,6 +108,23 @@ def create_notification(
         )
     except Exception:
         pass
+
+    # Send email for Level-1 (Critical) and security-type notifications.
+    # Skip "welcome:*" events — auth_service sends a dedicated welcome email directly.
+    _skip_email = event_key is not None and event_key.startswith("welcome:")
+    if (level == LEVEL_CRITICAL or type == "security") and not _skip_email:
+        try:
+            from app.services import email_notification_service
+            email_notification_service.send_notification_email(
+                db, user,
+                title=title,
+                body=body,
+                notif_type=type,
+                url=url,
+                notification_id=notif.id,
+            )
+        except Exception:
+            pass
 
     return notif
 

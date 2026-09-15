@@ -194,6 +194,10 @@ def update_settings(
         from fastapi import HTTPException
         raise HTTPException(status_code=422, detail=f"Model '{model}' is not available for provider '{provider}'.")
 
+    # Detect email notifications being turned on so we can send a confirmation.
+    prev_email_enabled = (setting.notifications or {}).get("email_notifications_enabled", False)
+    new_email_enabled = data.notifications.email_notifications_enabled
+
     setting.appearance = data.appearance.model_dump()
     setting.notifications = data.notifications.model_dump()
     setting.planner = data.planner.model_dump()
@@ -215,6 +219,15 @@ def update_settings(
 
     db.commit()
     db.refresh(setting)
+
+    # Send confirmation email when email notifications are first enabled.
+    if new_email_enabled and not prev_email_enabled:
+        try:
+            from app.services import email_notification_service
+            email_notification_service.send_email_enabled_confirmation(current_user)
+        except Exception:
+            pass
+
     return _to_response(setting)
 
 

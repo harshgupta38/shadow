@@ -178,6 +178,50 @@ def unsubscribe_push(
     push_service.remove_subscription(db, current_user, body.endpoint)
 
 
+@router.get(ENDPOINTS.NOTIFICATIONS.EMAIL_UNSUBSCRIBE, response_class=None)
+def email_unsubscribe(
+    uid: int,
+    token: str,
+    db: Session = Depends(get_db),
+):
+    """One-click unsubscribe link embedded in notification emails.
+
+    Verifies the HMAC token, flips email_notifications_enabled to False, and
+    returns a plain HTML confirmation page (no auth cookie required).
+    """
+    from fastapi.responses import HTMLResponse
+    from sqlalchemy import select
+    from app.models.user import UserDBM
+    from app.models.user_setting import UserSettingDBM
+    from app.services.email_notification_service import verify_unsub_token
+
+    user = db.scalar(select(UserDBM).where(UserDBM.id == uid))
+    if not user or not verify_unsub_token(uid, user.email, token):
+        return HTMLResponse(
+            content=_unsub_page("Invalid or expired unsubscribe link.", success=False),
+            status_code=400,
+        )
+
+    row = db.scalar(select(UserSettingDBM).where(UserSettingDBM.user_id == uid))
+    if row and row.notifications:
+        prefs = dict(row.notifications)
+        prefs["email_notifications_enabled"] = False
+        row.notifications = prefs
+        db.commit()
+
+    return HTMLResponse(content=_unsub_page(f"You have been unsubscribed. {user.name.split()[0]}, you will no longer receive email notifications from Shadow. You can re-enable them in your account settings."))
+
+
+def _unsub_page(message: str, success: bool = True) -> str:
+    color = "#22c55e" if success else "#ef4444"
+    icon = "&#10003;" if success else "&#9888;"
+    return f"""<!doctype html><html><head><meta charset="utf-8"><title>Shadow — Unsubscribe</title>
+<style>body{{margin:0;background:#efeff7;font-family:Verdana,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh}}
+.box{{background:#fff;border-radius:12px;border:1px solid #e5e7eb;padding:40px 36px;max-width:420px;text-align:center}}
+.icon{{font-size:42px;color:{color}}}h2{{margin:16px 0 8px;color:#111827}}p{{color:#4b5563;font-size:14px;line-height:1.6}}</style></head>
+<body><div class="box"><div class="icon">{icon}</div><h2>Shadow Notifications</h2><p>{message}</p></div></body></html>"""
+
+
 @router.post(ENDPOINTS.NOTIFICATIONS.PUSH_DEVICE_CONNECTED_ALERT)
 def device_connected_alert(
     body: DeviceConnectedAlertRequest,

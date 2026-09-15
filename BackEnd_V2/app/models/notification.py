@@ -58,6 +58,15 @@ class NotificationDBM(Base):
         server_default=text("false"),
     )
 
+    # Set to True once an email has been successfully dispatched for this
+    # notification — prevents duplicate sends on retries or server restarts.
+    emailed: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default=text("false"),
+    )
+
     url: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     # Stable composite key for event-triggered notifications (e.g. "welcome:42",

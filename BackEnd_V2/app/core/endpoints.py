@@ -99,6 +99,7 @@ class Endpoints:
         PUSH_SUBSCRIBE = "/push/subscriptions"
         PUSH_UNSUBSCRIBE = "/push/subscriptions"
         PUSH_DEVICE_CONNECTED_ALERT = "/push/device-connected-alert"
+        EMAIL_UNSUBSCRIBE = "/email/unsubscribe"
 
     class CHAT:
         PREFIX = "/chat"

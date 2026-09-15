@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 
 import asyncio
+import logging
 
 from typing import Callable
 
@@ -43,8 +44,16 @@ from app.api.notifications import reset_shutdown as _reset_sse_shutdown
 from app.api.notifications import signal_shutdown as _signal_sse_shutdown
 
 
+_startup_logger = logging.getLogger(__name__)
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    if not settings.smtp_host or not settings.smtp_from_email:
+        _startup_logger.warning(
+            "SMTP is not configured (SMTP_HOST / SMTP_FROM_EMAIL missing). "
+            "Email notifications are disabled until these are set in the environment."
+        )
     Base.metadata.create_all(bind=engine)
     with SessionLocal() as db:
         planner_service.sync_all_plans(db)

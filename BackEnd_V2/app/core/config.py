@@ -40,6 +40,19 @@ class Settings(BaseSettings):
     report_daily_runtime: str = "2355"
     report_weekly_runtime: str = "2355"
 
+    # Frontend base URL — used to build links inside email notifications.
+    frontend_base_url: str = "https://shadowassistant.in"
+
+    # SMTP — leave smtp_host empty to disable email entirely.
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_use_tls: bool = True
+    smtp_use_ssl: bool = False
+    smtp_from_email: str = "no-reply@shadowassistant.in"
+    smtp_from_name: str = "Shadow"
+
     # Web Push (VAPID). Generate keys with:
     #   python -c "from py_vapid import Vapid; v=Vapid(); v.generate_keys(); print(v.public_key.public_bytes_raw().hex())"
     # or use https://web-push-codelab.glitch.me/

@@ -208,7 +208,7 @@ export function NotificationsCard({
                 label="Push notifications"
                 description="Instant alerts sent directly to this device."
                 checked={data.push_notifications_enabled}
-                className="pt-1"
+                className="pt-1 pb-2"
                 onChange={(v) => {
                   if (!v && (deviceStatus === "connected" || deviceStatus === "connecting")) {
                     void disconnect();

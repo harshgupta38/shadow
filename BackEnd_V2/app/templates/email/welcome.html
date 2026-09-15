@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ safe_subject }}</title>
+</head>
+<body style="margin:0;padding:0;background:#efeff7;font-family:Verdana,Geneva,Tahoma,sans-serif;color:#111827;">
+    <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#efeff7;padding:14px 0;">
+        <tr>
+            <td align="center">
+                <table role="presentation" cellpadding="0" cellspacing="0" width="620" style="max-width:620px;background:#ffffff;border-radius:12px;border:1px solid #e5e7eb;overflow:hidden;">
+
+                    <!-- Header -->
+                    <tr>
+                        <td align="center" style="padding:22px 22px 12px;">
+                            <div style="font-size:26px;line-height:1;color:#111827;font-weight:700;">
+                                <span style="font-size:24px;color:#6b5cff;font-weight:700;">&#10022;</span> Shadow
+                            </div>
+                            <div style="margin-top:5px;font-size:12px;color:#4b5563;">Your AI-powered life and career assistant</div>
+                        </td>
+                    </tr>
+                    <tr><td style="height:2px;background:#6b5cff;"></td></tr>
+
+                    <!-- Hero -->
+                    <tr>
+                        <td align="center" style="padding:32px 22px 0;background:linear-gradient(160deg,#f5f3ff 0%,#ede9ff 100%);">
+                            <div style="width:72px;height:72px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#ede9ff 0%,#a78bfa 100%);display:inline-block;text-align:center;line-height:72px;font-size:30px;color:#5f4bff;font-weight:700;">S</div>
+                            <h1 style="margin:16px 0 6px;font-size:26px;line-height:1.2;color:#111827;">Welcome to Shadow, {{ safe_first_name }}!</h1>
+                            <p style="margin:0 auto 24px;max-width:480px;font-size:14px;line-height:1.6;color:#4b5563;">
+                                Your intelligent productivity assistant is set up and ready. Shadow helps you plan your goals, build habits, and stay on track — every single day.
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Steps -->
+                    <tr>
+                        <td style="padding:24px 40px 0;">
+                            <p style="margin:0 0 12px;font-size:13px;font-weight:700;color:#111827;">Get started in 3 steps</p>
+                            <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+                                <tr>
+                                    <td style="padding:10px 14px;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:8px;">
+                                        <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+                                            <tr>
+                                                <td width="32" valign="middle" style="font-size:18px;">&#127919;</td>
+                                                <td valign="middle" style="padding-left:10px;">
+                                                    <div style="font-size:13px;font-weight:700;color:#111827;">Set a goal</div>
+                                                    <div style="font-size:12px;color:#6b7280;margin-top:2px;">Tell Shadow what you want to achieve — career, health, or personal growth.</div>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                                <tr><td style="height:8px;"></td></tr>
+                                <tr>
+                                    <td style="padding:10px 14px;border:1px solid #e5e7eb;border-radius:8px;">
+                                        <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+                                            <tr>
+                                                <td width="32" valign="middle" style="font-size:18px;">&#128197;</td>
+                                                <td valign="middle" style="padding-left:10px;">
+                                                    <div style="font-size:13px;font-weight:700;color:#111827;">Build your plan</div>
+                                                    <div style="font-size:12px;color:#6b7280;margin-top:2px;">Shadow breaks your goal into milestones and a daily action plan.</div>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                                <tr><td style="height:8px;"></td></tr>
+                                <tr>
+                                    <td style="padding:10px 14px;border:1px solid #e5e7eb;border-radius:8px;">
+                                        <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+                                            <tr>
+                                                <td width="32" valign="middle" style="font-size:18px;">&#9889;</td>
+                                                <td valign="middle" style="padding-left:10px;">
+                                                    <div style="font-size:13px;font-weight:700;color:#111827;">Track and adapt</div>
+                                                    <div style="font-size:12px;color:#6b7280;margin-top:2px;">Log habits, complete tasks, and let Shadow keep you accountable.</div>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- CTA -->
+                    <tr>
+                        <td align="center" style="padding:28px 40px 0;">
+                            <a href="{{ safe_cta_url }}" style="display:inline-block;background:#5f4bff;border-radius:8px;color:#ffffff;text-decoration:none;padding:13px 36px;font-size:15px;font-weight:700;">Start with a goal &#8594;</a>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="padding:28px 20px 20px;">
+                            <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-top:1px solid #e5e7eb;">
+                                <tr><td align="center" style="padding-top:14px;font-size:12px;color:#4b5563;">Questions? Reach us at {{ safe_support_email }}</td></tr>
+                                <tr><td align="center" style="padding-top:6px;font-size:11px;color:#9ca3af;">{{ safe_footer }}</td></tr>
+                                <tr><td align="center" style="padding-top:4px;font-size:11px;color:#9ca3af;">You received this because you just created a Shadow account.</td></tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

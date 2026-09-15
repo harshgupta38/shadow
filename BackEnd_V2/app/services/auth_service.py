@@ -162,4 +162,10 @@ def register_user(db: Session, data: RegisterRequest) -> UserDBM:
         event_key=f"welcome:{user.id}",
     )
 
+    try:
+        from app.services import email_notification_service
+        email_notification_service.send_welcome_email(user)
+    except Exception:
+        pass
+
     return user

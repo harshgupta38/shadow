@@ -128,12 +128,14 @@ export const http = {
 export class ApiError extends Error implements ApiErrorShape {
     status?: number;
     fieldErrors?: Record<string, string>;
+    retryAfter?: number;
 
     constructor(shape: ApiErrorShape) {
         super(shape.message);
         this.name = "ApiError";
         this.status = shape.status;
         this.fieldErrors = shape.fieldErrors;
+        this.retryAfter = shape.retryAfter;
     }
 }
 
@@ -147,16 +149,21 @@ function normaliseError(error: unknown): ApiError {
     const status = axiosError.response?.status;
     const data = axiosError.response?.data as (FieldError & { detail?: string }) | undefined;
 
+    const rawRetryAfter = axiosError.response?.headers?.["retry-after"];
+    const retryAfter = rawRetryAfter !== undefined ? parseInt(String(rawRetryAfter), 10) : undefined;
+    const validRetryAfter = Number.isFinite(retryAfter) && retryAfter! > 0 ? retryAfter : undefined;
+
     if (typeof data?.message === "string") {
         return new ApiError({
             message: data.message,
             status,
             fieldErrors: data.errors,
+            retryAfter: validRetryAfter,
         });
     }
 
     if (typeof data?.detail === "string") {
-        return new ApiError({ message: data.detail, status });
+        return new ApiError({ message: data.detail, status, retryAfter: validRetryAfter });
     }
 
     const fallback = status && status >= 500

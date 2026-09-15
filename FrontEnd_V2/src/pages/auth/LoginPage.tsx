@@ -9,6 +9,12 @@ import { useToast } from "@/context/ToastContext";
 import { TextField } from "@/components/ui/TextField/TextField";
 import { ROUTES } from "@/routes/RoutePaths";
 
+function fmtCountdown(secs: number): string {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m}:${String(s).padStart(2, "0")}`;
+}
+
 export function LoginPage() {
     const { login } = useAuth();
     const { info } = useToast();
@@ -33,8 +39,34 @@ export function LoginPage() {
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const [submitting, setSubmitting] = useState(false);
 
+    // Rate-limit lockout: timestamp (ms) when the lockout expires, null when unlocked
+    const [lockedUntil, setLockedUntil] = useState<number | null>(null);
+    const [countdown, setCountdown] = useState(0);
+
+    useEffect(() => {
+        if (lockedUntil === null) return;
+
+        const tick = () => {
+            const remaining = Math.ceil((lockedUntil - Date.now()) / 1000);
+            if (remaining <= 0) {
+                setLockedUntil(null);
+                setCountdown(0);
+                setError(null);
+            } else {
+                setCountdown(remaining);
+            }
+        };
+
+        tick();
+        const id = setInterval(tick, 1000);
+        return () => clearInterval(id);
+    }, [lockedUntil]);
+
+    const isLocked = lockedUntil !== null;
+
     async function handleSubmit(event: FormEvent) {
         event.preventDefault();
+        if (isLocked) return;
         setError(null);
         setFieldErrors({});
         setSubmitting(true);
@@ -42,11 +74,13 @@ export function LoginPage() {
         try {
             await login({ email: email.trim(), password });
             navigate(from, { replace: true });
-        } catch (error) {
-            if (error instanceof ApiError) {
-                setError(error.message);
-                if (error.fieldErrors)
-                    setFieldErrors(error.fieldErrors);
+        } catch (err) {
+            if (err instanceof ApiError) {
+                setError(err.message);
+                if (err.fieldErrors) setFieldErrors(err.fieldErrors);
+                if (err.status === 429 && err.retryAfter && err.retryAfter > 0) {
+                    setLockedUntil(Date.now() + err.retryAfter * 1000);
+                }
             } else {
                 setError("Unable to sign in. Please try again.");
             }
@@ -134,9 +168,13 @@ export function LoginPage() {
                 <button
                     type="submit"
                     className="btn btn-brand btn-lg w-100 mt-2"
-                    disabled={submitting}
+                    disabled={submitting || isLocked}
                 >
-                    {submitting ? "Signing in…" : "Sign in"}
+                    {isLocked
+                        ? `Locked · ${fmtCountdown(countdown)}`
+                        : submitting
+                            ? "Signing in…"
+                            : "Sign in"}
                 </button>
             </form>
 

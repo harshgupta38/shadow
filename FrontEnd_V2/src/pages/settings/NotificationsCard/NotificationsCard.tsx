@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { BellFill } from "react-bootstrap-icons";
 import type { NotificationSettings } from "@/api";
 import { api } from "@/api";
-import { Card, FieldRow, ToggleRow } from "@/pages/settings/SettingsShared";
+import { Card, ToggleRow } from "@/pages/settings/SettingsShared";
 import "@/pages/settings/NotificationsCard/NotificationsCard.scss";
 
 type DeviceStatus = "idle" | "connecting" | "connected" | "failed" | "disconnecting";

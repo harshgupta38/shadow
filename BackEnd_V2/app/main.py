@@ -16,7 +16,7 @@ from app.core.config import settings
 
 from app.db.session import SessionLocal, engine
 from app.models.base import Base
-from app.core.exceptions import AppError
+from app.core.exceptions import AppError, TooManyRequestsError
 
 # These create the tables (if not present) when the server starts
 from app.models.user import UserDBM
@@ -36,6 +36,7 @@ from app.models.report import ReportDBM
 from app.models.notification import NotificationDBM
 from app.models.user_setting import UserSettingDBM
 from app.models.active_session import ActiveSessionDBM
+from app.models.ip_rate_limit import IpRateLimitDBM
 from app.services import planner_service, backup_service, notification_scheduler_service, report_scheduler_service, session_event_service
 from app.api.notifications import reset_shutdown as _reset_sse_shutdown
 from app.api.notifications import signal_shutdown as _signal_sse_shutdown
@@ -94,6 +95,12 @@ async def csrf_origin_check(request: Request, call_next: Callable) -> Response:
                 content={"message": "Request origin not permitted."},
             )
     return await call_next(request)
+
+
+@app.exception_handler(TooManyRequestsError)
+async def handle_too_many_requests(_request: Request, exc: TooManyRequestsError) -> JSONResponse:
+    headers = {"Retry-After": str(exc.retry_after)} if exc.retry_after is not None else {}
+    return JSONResponse(status_code=429, content={"message": exc.detail}, headers=headers)
 
 
 @app.exception_handler(AppError)

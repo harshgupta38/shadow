@@ -1068,33 +1068,30 @@ a {
 /* ----------------------------------------------------------------------------
    14. Auth / onboarding split layout
    -------------------------------------------------------------------------- */
+// Gradient lives on the shell so it spans both columns — no visual split.
 .auth-shell {
   min-height: 100vh;
   display: grid;
   grid-template-columns: 1.05fr 1fr;
   user-select: none;
   -webkit-user-select: none;
-}
-
-// Same neutral-surface-plus-glow treatment as the landing page hero — a
-// colored marketing gradient panel is a different (older) pattern, this is
-// meant to read as literally the same design system, not just re-tinted.
-.auth-aside {
   position: relative;
-  overflow: hidden;
-  color: var(--jv-text);
   background: var(--jv-bg);
-  padding: 2.65rem 2.35rem;
-  border-right: 1px solid var(--jv-border);
 
   &::before {
     content: "";
     position: absolute;
-    inset: -15%;
-    background: radial-gradient(ellipse 65% 55% at 78% 8%, color-mix(in srgb, var(--jv-brand-1) 20%, transparent), transparent 70%);
+    inset: 0;
+    background: radial-gradient(ellipse 70% 55% at 88% 0%, color-mix(in srgb, var(--jv-brand-1) 18%, transparent), transparent 65%);
     z-index: 0;
     pointer-events: none;
   }
+}
+
+.auth-aside {
+  position: relative;
+  color: var(--jv-text);
+  padding: 2.65rem 2.35rem;
 }
 
 .auth-aside-inner {
@@ -1208,6 +1205,64 @@ a {
 .auth-card {
   width: 100%;
   max-width: 428px;
+}
+
+.password-rules {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.28rem 0.75rem;
+  margin-top: 0.5rem;
+  margin-bottom: 0.1rem;
+}
+
+.password-rule {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.775rem;
+  color: var(--jv-faint);
+  transition: color var(--jv-transition);
+
+  &--met {
+    color: var(--jv-success);
+  }
+}
+
+.pw-strength {
+  margin-bottom: 0.1rem;
+
+  .password-rules {
+    margin-top: 0.45rem;
+    margin-bottom: 0;
+  }
+}
+
+.pw-strength-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.pw-strength-track {
+  flex: 1;
+  height: 4px;
+  background: var(--jv-border-strong);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.pw-strength-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 280ms var(--jv-ease), background 280ms var(--jv-ease);
+}
+
+.pw-strength-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  min-width: 3rem;
+  text-align: right;
+  transition: color 280ms var(--jv-ease);
 }
 
 .auth-aside-footer {

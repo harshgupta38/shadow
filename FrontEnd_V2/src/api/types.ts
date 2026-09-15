@@ -31,6 +31,7 @@ export interface ApiErrorShape {
   message: string;
   status?: number;
   fieldErrors?: Record<string, string>;
+  retryAfter?: number; // seconds until the rate-limit window reopens (from Retry-After header)
 }
 
 export interface FieldError {
@@ -693,7 +694,7 @@ export interface SimpleHabitData extends HabitBaseData {
 
 // ── Notifications ────────────────────────────────────────────────────────────
 
-export type NotificationType = "reminder" | "system" | "agent";
+export type NotificationType = "reminder" | "system" | "agent" | "security" | "warning" | "achievement";
 
 export interface Notification {
   id: number;

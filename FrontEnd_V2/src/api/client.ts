@@ -14,7 +14,9 @@ import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from "axios";
 import { ApiErrorShape, FieldError } from "@/api/types";
 import { ENDPOINTS } from "@/constant/shadow-endpoints";
 
-const REFRESH_URL = `${ENDPOINTS.AUTH.PREFIX}${ENDPOINTS.AUTH.REFRESH}`;
+const REFRESH_URL  = `${ENDPOINTS.AUTH.PREFIX}${ENDPOINTS.AUTH.REFRESH}`;
+const LOGIN_URL    = `${ENDPOINTS.AUTH.PREFIX}${ENDPOINTS.AUTH.LOGIN}`;
+const REGISTER_URL = `${ENDPOINTS.AUTH.PREFIX}${ENDPOINTS.AUTH.REGISTER}`;
 
 // One-time migration: remove pre-cookie legacy tokens from localStorage
 try {
@@ -76,9 +78,18 @@ function createClient(): AxiosInstance {
             }
 
             const original = error.config as AxiosRequestConfig & { _retry?: boolean };
+            const url = original?.url ?? "";
 
-            // Already retried once after a refresh — give up and log out
-            if (!original || original._retry || original.url === REFRESH_URL) {
+            // Public auth endpoints (login/register) return 401 for wrong credentials,
+            // not for an expired session. Propagate the error directly — no refresh
+            // attempt and no "unauthorized" dispatch, so login failures don't trigger logout.
+            if (url === LOGIN_URL || url === REGISTER_URL) {
+                return Promise.reject(normaliseError(error));
+            }
+
+            // Already retried after a refresh, or the refresh itself failed —
+            // the session is gone; trigger global logout.
+            if (!original || original._retry || url === REFRESH_URL) {
                 window.dispatchEvent(new Event("unauthorized"));
                 return Promise.reject(normaliseError(error));
             }
@@ -128,12 +139,14 @@ export const http = {
 export class ApiError extends Error implements ApiErrorShape {
     status?: number;
     fieldErrors?: Record<string, string>;
+    retryAfter?: number;
 
     constructor(shape: ApiErrorShape) {
         super(shape.message);
         this.name = "ApiError";
         this.status = shape.status;
         this.fieldErrors = shape.fieldErrors;
+        this.retryAfter = shape.retryAfter;
     }
 }
 
@@ -147,16 +160,21 @@ function normaliseError(error: unknown): ApiError {
     const status = axiosError.response?.status;
     const data = axiosError.response?.data as (FieldError & { detail?: string }) | undefined;
 
+    const rawRetryAfter = axiosError.response?.headers?.["retry-after"];
+    const retryAfter = rawRetryAfter !== undefined ? parseInt(String(rawRetryAfter), 10) : undefined;
+    const validRetryAfter = Number.isFinite(retryAfter) && retryAfter! > 0 ? retryAfter : undefined;
+
     if (typeof data?.message === "string") {
         return new ApiError({
             message: data.message,
             status,
             fieldErrors: data.errors,
+            retryAfter: validRetryAfter,
         });
     }
 
     if (typeof data?.detail === "string") {
-        return new ApiError({ message: data.detail, status });
+        return new ApiError({ message: data.detail, status, retryAfter: validRetryAfter });
     }
 
     const fallback = status && status >= 500

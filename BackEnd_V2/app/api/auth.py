@@ -6,6 +6,7 @@ from fastapi.responses import StreamingResponse
 from app.core.config import settings
 from app.core.endpoints import ENDPOINTS
 from app.core.exceptions import AuthError
+from app.services import rate_limit_service
 from app.schemas.session import SessionsListResponse
 from app.schemas.user import UserDataResponse
 from app.schemas.settings import AccessibilitySection, PlannerSection
@@ -93,7 +94,15 @@ def _build_token_response(db, user_id: int, request: Request, response: Response
 
 @router.post(ENDPOINTS.AUTH.LOGIN, response_model=TokenResponse)
 def login(data: LoginRequest, request: Request, response: Response, db=Depends(get_db)) -> TokenResponse:
-    user = auth_service.login_user(db, str(data.email), data.password)
+    ip = request.client.host if request.client else "unknown"
+    rate_limit_service.check_login_allowed(db, ip)
+    try:
+        user = auth_service.login_user(db, str(data.email), data.password)
+    except AuthError:
+        rate_limit_service.on_login_failure(db, ip)
+        db.commit()
+        raise
+    rate_limit_service.on_login_success(db, ip)
     return _build_token_response(db, user.id, request, response)
 
 
@@ -103,7 +112,10 @@ def login(data: LoginRequest, request: Request, response: Response, db=Depends(g
     status_code=status.HTTP_201_CREATED,
 )
 def register(data: RegisterRequest, request: Request, response: Response, db=Depends(get_db)) -> TokenResponse:
+    ip = request.client.host if request.client else "unknown"
+    rate_limit_service.check_registration_allowed(db, ip)
     user = auth_service.register_user(db, data)
+    rate_limit_service.on_registration(db, ip)
     return _build_token_response(db, user.id, request, response)
 
 

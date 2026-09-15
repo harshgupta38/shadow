@@ -1,5 +1,7 @@
 from datetime import datetime
 
+from pydantic import BaseModel
+
 from app.schemas.common import ORMModel
 
 
@@ -13,3 +15,20 @@ class NotificationResponse(ORMModel):
     read: bool
     url: str | None
     created_at: datetime
+
+
+# ─── Push notification schemas ────────────────────────────────────────────────
+
+class PushSubscriptionRequest(BaseModel):
+    endpoint: str
+    p256dh: str
+    auth: str
+    user_agent: str | None = None
+
+
+class PushPublicKeyResponse(BaseModel):
+    public_key: str
+
+
+class DeviceConnectedAlertRequest(BaseModel):
+    endpoint: str

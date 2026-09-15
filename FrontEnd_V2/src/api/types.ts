@@ -708,6 +708,19 @@ export interface Notification {
   url?: string;
 }
 
+// ── Push subscriptions ────────────────────────────────────────────────────────
+
+export interface PushSubscriptionPayload {
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  user_agent?: string;
+}
+
+export interface PushPublicKeyResponse {
+  public_key: string;
+}
+
 // ── Reports ───────────────────────────────────────────────────────────────────
 
 export interface DayReport {

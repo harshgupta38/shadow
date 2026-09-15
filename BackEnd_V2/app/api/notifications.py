@@ -1,7 +1,7 @@
 import asyncio
 import logging
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Header, Query, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -10,8 +10,13 @@ from app.api.deps import get_current_user
 from app.core.endpoints import ENDPOINTS
 from app.db.session import SessionLocal, get_db
 from app.models.user import UserDBM
-from app.schemas.notifications import NotificationResponse
-from app.services import notifications_service
+from app.schemas.notifications import (
+    DeviceConnectedAlertRequest,
+    NotificationResponse,
+    PushPublicKeyResponse,
+    PushSubscriptionRequest,
+)
+from app.services import notifications_service, push_service
 
 logger = logging.getLogger(__name__)
 
@@ -133,3 +138,59 @@ async def stream_notifications(
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+# ─── Web Push endpoints ───────────────────────────────────────────────────────
+
+@router.get(ENDPOINTS.NOTIFICATIONS.PUSH_PUBLIC_KEY, response_model=PushPublicKeyResponse)
+def get_push_public_key():
+    key = push_service.get_public_key()
+    if not key:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=503, detail="Push notifications are not configured on this server.")
+    return PushPublicKeyResponse(public_key=key)
+
+
+@router.post(ENDPOINTS.NOTIFICATIONS.PUSH_SUBSCRIBE, status_code=201)
+def subscribe_push(
+    body: PushSubscriptionRequest,
+    user_agent: str | None = Header(default=None),
+    current_user: UserDBM = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    push_service.save_subscription(
+        db,
+        current_user,
+        endpoint=body.endpoint,
+        p256dh=body.p256dh,
+        auth=body.auth,
+        user_agent=body.user_agent or user_agent,
+    )
+    return {"message": "Subscribed."}
+
+
+@router.delete(ENDPOINTS.NOTIFICATIONS.PUSH_UNSUBSCRIBE, status_code=204)
+def unsubscribe_push(
+    body: PushSubscriptionRequest,
+    current_user: UserDBM = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    push_service.remove_subscription(db, current_user, body.endpoint)
+
+
+@router.post(ENDPOINTS.NOTIFICATIONS.PUSH_DEVICE_CONNECTED_ALERT)
+def device_connected_alert(
+    body: DeviceConnectedAlertRequest,
+    current_user: UserDBM = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Send a push notification to all OTHER devices of this user to inform them a new device connected."""
+    push_service.send_push_to_user(
+        db,
+        user_id=current_user.id,
+        title="New device connected",
+        body="Push notifications are now active on another device.",
+        url="/settings",
+        exclude_endpoint=body.endpoint,
+    )
+    return {"message": "Alert sent."}

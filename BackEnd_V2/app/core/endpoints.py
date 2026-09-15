@@ -95,6 +95,10 @@ class Endpoints:
         MARK_READ_BATCH = "/mark-read-batch"
         MARK_ALL_READ = "/read-all"
         STREAM = "/stream"
+        PUSH_PUBLIC_KEY = "/push/public-key"
+        PUSH_SUBSCRIBE = "/push/subscriptions"
+        PUSH_UNSUBSCRIBE = "/push/subscriptions"
+        PUSH_DEVICE_CONNECTED_ALERT = "/push/device-connected-alert"
 
     class CHAT:
         PREFIX = "/chat"

@@ -40,6 +40,13 @@ class Settings(BaseSettings):
     report_daily_runtime: str = "2355"
     report_weekly_runtime: str = "2355"
 
+    # Web Push (VAPID). Generate keys with:
+    #   python -c "from py_vapid import Vapid; v=Vapid(); v.generate_keys(); print(v.public_key.public_bytes_raw().hex())"
+    # or use https://web-push-codelab.glitch.me/
+    vapid_public_key: str = ""
+    vapid_private_key: str = ""
+    vapid_subject: str = "mailto:admin@shadow.app"
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

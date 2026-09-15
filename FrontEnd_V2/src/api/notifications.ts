@@ -1,6 +1,6 @@
 import { ENDPOINTS } from "@/constant/shadow-endpoints";
 import { http, refreshAccessToken } from "@/api/client";
-import type { Notification } from "@/api/types";
+import type { Notification, PushPublicKeyResponse, PushSubscriptionPayload } from "@/api/types";
 
 const P = ENDPOINTS.NOTIFICATIONS.PREFIX;
 
@@ -74,6 +74,24 @@ export const notificationsApi = {
 
   async delete(id: number): Promise<void> {
     return http.delete<void>(`${P}${ENDPOINTS.NOTIFICATIONS.DETAIL(id)}`);
+  },
+
+  // ─── Push ─────────────────────────────────────────────────────────────────
+
+  async getPushPublicKey(): Promise<PushPublicKeyResponse> {
+    return http.get<PushPublicKeyResponse>(`${P}${ENDPOINTS.NOTIFICATIONS.PUSH_PUBLIC_KEY}`);
+  },
+
+  async subscribePush(payload: PushSubscriptionPayload): Promise<void> {
+    return http.post<void>(`${P}${ENDPOINTS.NOTIFICATIONS.PUSH_SUBSCRIBE}`, payload);
+  },
+
+  async unsubscribePush(payload: PushSubscriptionPayload): Promise<void> {
+    return http.delete<void>(`${P}${ENDPOINTS.NOTIFICATIONS.PUSH_UNSUBSCRIBE}`, payload);
+  },
+
+  async sendDeviceConnectedAlert(endpoint: string): Promise<void> {
+    return http.post<void>(`${P}${ENDPOINTS.NOTIFICATIONS.PUSH_DEVICE_CONNECTED_ALERT}`, { endpoint });
   },
 
   /**

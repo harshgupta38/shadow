@@ -34,6 +34,7 @@ from app.models.scheduled_task_proposal import ScheduledTaskProposalDBM
 from app.models.memory import UserMemoryDBM
 from app.models.report import ReportDBM
 from app.models.notification import NotificationDBM
+from app.models.push_subscription import PushSubscriptionDBM
 from app.models.user_setting import UserSettingDBM
 from app.models.active_session import ActiveSessionDBM
 from app.models.ip_rate_limit import IpRateLimitDBM

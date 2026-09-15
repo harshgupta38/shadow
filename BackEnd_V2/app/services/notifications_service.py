@@ -95,6 +95,20 @@ def create_notification(
     db.add(notif)
     db.commit()
     db.refresh(notif)
+
+    # Fire push to all active devices for this user (best-effort, non-blocking).
+    try:
+        from app.services import push_service
+        push_service.send_push_to_user(
+            db,
+            user_id=user.id,
+            title=title,
+            body=body or "",
+            url=url or "/",
+        )
+    except Exception:
+        pass
+
     return notif
 
 

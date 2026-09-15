@@ -1,3 +1,39 @@
+// ── Permission-denied modal (rendered outside the card) ───────────────────────
+.st-push-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1050;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(2px);
+}
+
+.st-push-modal {
+  background: var(--jv-surface);
+  border: 1px solid var(--jv-border);
+  border-radius: 12px;
+  padding: 1.5rem;
+  max-width: 360px;
+  width: calc(100% - 2rem);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+
+  .st-push-modal-title {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 0.6rem;
+    color: var(--jv-text);
+  }
+
+  .st-push-modal-body {
+    font-size: 0.85rem;
+    color: var(--jv-muted);
+    line-height: 1.6;
+    margin-bottom: 1.2rem;
+  }
+}
+
 .notifications-card {
 
   // ── Expand / collapse animation ───────────────────────────────────────────
@@ -104,6 +140,18 @@
         border-color: var(--jv-border);
       }
     }
+  }
+
+  // ── Connected pill — dark-mode green fix ─────────────────────────────────
+  @media (prefers-color-scheme: dark) {
+    .st-device-pill--connected {
+      color: #4ade80;
+      border-color: color-mix(in srgb, #4ade80 30%, transparent);
+    }
+  }
+  :root[data-theme="dark"] .st-device-pill--connected {
+    color: #4ade80;
+    border-color: color-mix(in srgb, #4ade80 30%, transparent);
   }
 
   // ── Quiet hours range ────────────────────────────────────────────────────

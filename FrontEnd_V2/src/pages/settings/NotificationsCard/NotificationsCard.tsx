@@ -254,12 +254,6 @@ export function NotificationsCard({
                 checked={data.daily_brief_enabled}
                 onChange={(v) => set("daily_brief_enabled", v)}
               />
-              <ToggleRow
-                label="Weekly summary"
-                description="A snapshot of your progress every Sunday"
-                checked={data.weekly_summary_enabled}
-                onChange={(v) => set("weekly_summary_enabled", v)}
-              />
             </div>
 
             <div className="st-toggle-group">

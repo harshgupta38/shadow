@@ -875,7 +875,6 @@ export interface NotificationSettings {
   email_notifications_enabled: boolean;
   reminder_notifications_enabled: boolean;
   daily_brief_enabled: boolean;
-  weekly_summary_enabled: boolean;
   quiet_hours_enabled: boolean;
   quiet_hours_start: string;
   quiet_hours_end: string;

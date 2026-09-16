@@ -105,6 +105,7 @@ def create_notification(
             title=title,
             body=body or "",
             url=url or "/",
+            is_urgent=(level == LEVEL_CRITICAL),
         )
     except Exception:
         pass

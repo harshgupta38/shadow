@@ -32,7 +32,6 @@ class NotificationsSection(BaseModel):
     email_notifications_enabled: bool = False
     reminder_notifications_enabled: bool = True
     daily_brief_enabled: bool = False
-    weekly_summary_enabled: bool = False
     quiet_hours_enabled: bool = False
     quiet_hours_start: str = "22:00"
     quiet_hours_end: str = "07:00"

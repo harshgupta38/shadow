@@ -161,6 +161,28 @@ def get_max_concurrent_devices(db: Session, user_id: int) -> int:
     return int((setting.privacy or {}).get("max_concurrent_devices", 2))
 
 
+def get_quiet_hours(db: Session, user_id: int) -> dict:
+    """Lightweight read of the quiet-hours prefs. Defaults applied if no row exists."""
+    setting = db.scalar(
+        select(UserSettingDBM).where(UserSettingDBM.user_id == user_id)
+    )
+    notifications = (setting.notifications if setting else None) or {}
+    return {
+        "enabled": bool(notifications.get(
+            "quiet_hours_enabled", _DEFAULT_NOTIFICATIONS["quiet_hours_enabled"]
+        )),
+        "start": str(notifications.get(
+            "quiet_hours_start", _DEFAULT_NOTIFICATIONS["quiet_hours_start"]
+        )),
+        "end": str(notifications.get(
+            "quiet_hours_end", _DEFAULT_NOTIFICATIONS["quiet_hours_end"]
+        )),
+        "allow_urgent": bool(notifications.get(
+            "quiet_hours_allow_urgent", _DEFAULT_NOTIFICATIONS["quiet_hours_allow_urgent"]
+        )),
+    }
+
+
 def get_ai_behavior(db: Session, user_id: int) -> dict:
     """Single read for all ai_behavior fields used by chat. Does NOT create a default row."""
     setting = db.scalar(

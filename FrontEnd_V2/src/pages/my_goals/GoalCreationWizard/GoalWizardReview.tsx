@@ -7,6 +7,7 @@ import type {
 } from "@/api/types";
 import { resizeTextareaToMaxLines } from "@/services/textarea-resize.service";
 import { todayDate } from "@/services/date.service";
+import { LIMITS } from "@/constant/tuning";
 
 const CATEGORY_OPTIONS: GoalCategory[] = [
     "Career",
@@ -21,9 +22,6 @@ const CATEGORY_OPTIONS: GoalCategory[] = [
     "Travel",
     "Other",
 ];
-
-const MAX_TEXTAREA_LINES = 8;
-const MAX_LIST_TEXTAREA_LINES = 4;
 
 type ListFieldKey = "challenges" | "strengths" | "success_metrics" | "insights";
 export type GoalReviewFieldKey = keyof RefineGoalFromLLMSchema;
@@ -181,7 +179,7 @@ export function GoalWizardReview({ goalData, saving, error, fieldErrors, hideBac
     useEffect(() => {
         Object.entries(textareaRefs.current).forEach(([key, textarea]) => {
             if (textarea) {
-                const maxLines = textareaMaxLinesRefs.current[key] ?? MAX_TEXTAREA_LINES;
+                const maxLines = textareaMaxLinesRefs.current[key] ?? LIMITS.TEXTAREA_MAX_LINES;
                 resizeTextareaToMaxLines(textarea, maxLines);
             }
         });
@@ -193,7 +191,7 @@ export function GoalWizardReview({ goalData, saving, error, fieldErrors, hideBac
         onValidationStateChange(Object.keys(nextClientErrors).length > 0);
     }, [editableGoal, onValidationStateChange]);
 
-    function registerTextareaRef(key: string, maxLines: number = MAX_TEXTAREA_LINES) {
+    function registerTextareaRef(key: string, maxLines: number = LIMITS.TEXTAREA_MAX_LINES) {
         return (textarea: HTMLTextAreaElement | null) => {
             textareaRefs.current[key] = textarea;
             textareaMaxLinesRefs.current[key] = maxLines;
@@ -426,9 +424,9 @@ export function GoalWizardReview({ goalData, saving, error, fieldErrors, hideBac
                                             value={item}
                                             onChange={(event) => {
                                                 updateListField(activeListConfig.key, index, event.target.value);
-                                                resizeTextareaToMaxLines(event.currentTarget, MAX_LIST_TEXTAREA_LINES);
+                                                resizeTextareaToMaxLines(event.currentTarget, LIMITS.TEXTAREA_MAX_LIST_LINES);
                                             }}
-                                            ref={registerTextareaRef(`${activeListConfig.key}-${index}`, MAX_LIST_TEXTAREA_LINES)}
+                                            ref={registerTextareaRef(`${activeListConfig.key}-${index}`, LIMITS.TEXTAREA_MAX_LIST_LINES)}
                                             title={getFieldErrorTitle(activeListConfig.key)}
                                             disabled={saving}
                                         />

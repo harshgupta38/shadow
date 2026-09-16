@@ -1,8 +1,10 @@
+import { SKELETON } from "@/constant/tuning";
+
 import "./DetailPageSkeleton.scss";
 
-const GHOST_MONTHS = 12;
-const GHOST_WEEKS = 5;
-const GHOST_ROWS = [62, 48, 75, 55];
+const GHOST_MONTHS = SKELETON.HABIT_GHOST_MONTHS;
+const GHOST_WEEKS = SKELETON.HABIT_GHOST_WEEKS;
+const GHOST_ROWS = SKELETON.HABIT_GHOST_HISTORY_ROW_WIDTHS;
 
 export function DetailPageSkeleton() {
   return (

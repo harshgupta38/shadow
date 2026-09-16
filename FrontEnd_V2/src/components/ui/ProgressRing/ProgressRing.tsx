@@ -1,11 +1,12 @@
+import { GEOMETRY } from "@/constant/tuning";
 import "@/components/ui/ProgressRing/ProgressRing.scss";
 
 interface ProgressRingProps {
   percentage: number;
 }
 
-const RING_SIZE = 104;
-const RING_STROKE = 10;
+const RING_SIZE = GEOMETRY.PROGRESS_RING_SIZE;
+const RING_STROKE = GEOMETRY.PROGRESS_RING_STROKE;
 const RING_RADIUS = (RING_SIZE - RING_STROKE) / 2;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 

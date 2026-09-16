@@ -12,6 +12,7 @@ import { api, LoginRequest, RegisterRequest, type AccessibilitySettings, type Pl
 import { refreshAccessToken } from "@/api/client";
 import { ENDPOINTS } from "@/constant/shadow-endpoints";
 import { clearSessionHint, markSessionKnown } from "@/services/session-hint.service";
+import { TIMING } from "@/constant/tuning";
 
 type AuthStatus = "loading" | "authenticated" | "unauthenticated";
 
@@ -144,7 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                         catch { break; }
                     }
                     if (!response.ok || !response.body) {
-                        await new Promise<void>((r) => setTimeout(r, 5000));
+                        await new Promise<void>((r) => setTimeout(r, TIMING.SSE_RETRY_DELAY_MS));
                         continue;
                     }
                     const reader = response.body.getReader();
@@ -173,7 +174,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     }
                 } catch {
                     if (signal.aborted) break;
-                    await new Promise<void>((r) => setTimeout(r, 5000));
+                    await new Promise<void>((r) => setTimeout(r, TIMING.SSE_RETRY_DELAY_MS));
                 }
             }
         };

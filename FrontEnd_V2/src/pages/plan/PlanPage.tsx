@@ -26,10 +26,11 @@ import { DayOverviewPanel } from "@/pages/plan/DayOverviewPanel/DayOverviewPanel
 import { YesterdayClosingPanel } from "@/pages/plan/YesterdayClosingPanel/YesterdayClosingPanel";
 import { useDateFormat } from "@/context/PlannerContext";
 import { useToast } from "@/context/ToastContext";
+import { ANIMATION, TIMING } from "@/constant/tuning";
 import "@/pages/plan/PlanPage.scss";
 
-const COMPLETE_ANIM_MS = 520;
-const TODAY_REFRESH_MS = 60_000;
+const COMPLETE_ANIM_MS = ANIMATION.PLAN_ITEM_COMPLETE_MS;
+const TODAY_REFRESH_MS = TIMING.PLAN_DAY_ROLLOVER_CHECK_MS;
 
 export function PlanPage() {
   const navigate = useNavigate();

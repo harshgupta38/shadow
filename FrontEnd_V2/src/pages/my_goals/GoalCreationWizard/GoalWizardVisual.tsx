@@ -4,6 +4,7 @@ import MAIN_MOUNTAIN from "@/assets/main_goal_mountain.png";
 import BOY_IMAGE from "@/assets/boy.png";
 import GOT_IT_IMAGE from "@/assets/got_it.png";
 import THINKING_IMAGE from "@/assets/thinking_it.png";
+import { ANIMATION } from "@/constant/tuning";
 
 type GoalWizardVisualPlacement = {
     x: number;
@@ -24,7 +25,6 @@ const MAIN_BACKGROUND = MAIN_MOUNTAIN;
 const BOY_FOREGROUND = BOY_IMAGE;
 const THINKING_FOREGROUND = THINKING_IMAGE;
 const GOT_IT_FOREGROUND = GOT_IT_IMAGE;
-const VISUAL_TRANSITION_MS = 420;
 
 const BOY_IMAGE_PLACEMENTS: GoalWizardVisualPlacement[] = [
     { x: 38, y: 71, isFlipped: false, scale: 1.0 },
@@ -49,7 +49,7 @@ export function GoalWizardVisual({ mode, boyStepIndex, isBoyVisible }: GoalWizar
 
         const timer = window.setTimeout(() => {
             setPreviousMode(null);
-        }, VISUAL_TRANSITION_MS);
+        }, ANIMATION.GOAL_WIZARD_VISUAL_TRANSITION_MS);
 
         return () => {
             window.clearTimeout(timer);

@@ -8,10 +8,11 @@ import { ExportDataModal } from "@/components/ui/ExportDataModal/ExportDataModal
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { Card, FieldRow, ToggleRow } from "@/pages/settings/SettingsShared";
+import { LIMITS } from "@/constant/tuning";
 import "@/pages/settings/PrivacyCard/PrivacyCard.scss";
 
-const MIN_DEVICES = 1;
-const MAX_DEVICES = 6;
+const MIN_DEVICES = LIMITS.MAX_CONCURRENT_DEVICES_MIN;
+const MAX_DEVICES = LIMITS.MAX_CONCURRENT_DEVICES_MAX;
 
 export function PrivacyCard({
   data,

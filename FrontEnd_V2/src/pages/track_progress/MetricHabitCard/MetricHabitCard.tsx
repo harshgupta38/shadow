@@ -1,15 +1,16 @@
 import type React from "react";
 import { CheckLg } from "react-bootstrap-icons";
 import type { MetricHabitData } from "@/api/types";
+import { GEOMETRY } from "@/constant/tuning";
 import "./MetricHabitCard.scss";
 
 // ── Sparkline SVG ─────────────────────────────────────────────────────────────
 
 function Sparkline({ values, habitId, color }: { values: number[]; habitId: number; color: string }) {
   const max = Math.max(...values, 0.01);
-  const W = 200;
-  const H = 50;
-  const padY = 4;
+  const W = GEOMETRY.SPARKLINE_WIDTH;
+  const H = GEOMETRY.SPARKLINE_HEIGHT;
+  const padY = GEOMETRY.SPARKLINE_PAD_Y;
   const step = W / Math.max(values.length - 1, 1);
 
   const pts = values.map((v, i) => ({

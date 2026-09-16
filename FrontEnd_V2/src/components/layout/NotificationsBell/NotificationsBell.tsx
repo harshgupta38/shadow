@@ -7,6 +7,7 @@ import { api, type Notification } from "@/api";
 import { ROUTES } from "@/routes/RoutePaths";
 import { relativeTime } from "@/services/date.service";
 import { TYPE_COLOR, TYPE_ICON } from "@/pages/notifications/NotificationsPage.constants";
+import { PAGE_SIZE, TIMING } from "@/constant/tuning";
 import "@/components/layout/NotificationsBell/NotificationsBell.scss";
 
 export function NotificationsBell() {
@@ -20,7 +21,7 @@ export function NotificationsBell() {
   useEffect(() => {
     const controller = new AbortController();
     const { signal } = controller;
-    const MAX_RETRIES = 8;
+    const MAX_RETRIES = TIMING.NOTIF_BELL_MAX_RETRIES;
 
     (async () => {
       let lastSeenId = 0;
@@ -56,7 +57,7 @@ export function NotificationsBell() {
         if (signal.aborted || retries > MAX_RETRIES) break;
 
         // Exponential backoff capped at 30 s: 1 s, 2 s, 4 s, 8 s, 16 s, 30 s …
-        const delayMs = Math.min(1_000 * 2 ** retries, 30_000);
+        const delayMs = Math.min(TIMING.NOTIF_BELL_BACKOFF_BASE_MS * 2 ** retries, TIMING.NOTIF_BELL_BACKOFF_CAP_MS);
         await new Promise<void>(resolve => {
           const t = setTimeout(resolve, delayMs);
           signal.addEventListener("abort", () => { clearTimeout(t); resolve(); }, { once: true });
@@ -82,7 +83,7 @@ export function NotificationsBell() {
     setOpen(nextShow);
     if (nextShow) {
       // Snapshot the current unread items before marking them read
-      const items = unread.slice(0, 10);
+      const items = unread.slice(0, PAGE_SIZE.NOTIF_BELL_SNAPSHOT);
       setSnapshot(items);
       if (items.length === 0) return;
       const ids = items.map(n => n.id);
@@ -111,7 +112,7 @@ export function NotificationsBell() {
             className="position-absolute translate-middle badge rounded-pill"
             style={{ top: 8, left: "72%", background: "var(--jv-danger)", fontSize: "0.62rem", padding: "0.2rem 0.35rem" }}
           >
-            {unreadCount > 9 ? "9+" : unreadCount}
+            {unreadCount > PAGE_SIZE.NOTIF_BELL_BADGE_CAP ? `${PAGE_SIZE.NOTIF_BELL_BADGE_CAP}+` : unreadCount}
           </span>
         )}
       </Dropdown.Toggle>

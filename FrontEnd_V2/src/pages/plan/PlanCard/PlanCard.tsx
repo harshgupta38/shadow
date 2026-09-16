@@ -21,6 +21,7 @@ import {
 import { NoteDialog } from "@/components/ui/NoteDialog/NoteDialog";
 import { useTimeFormat } from "@/context/PlannerContext";
 import { formatTime } from "@/services/date.service";
+import { HOLD_REPEAT } from "@/constant/tuning";
 
 import type { PlanDataResponse } from "@/api";
 import { ROUTES } from "@/routes/RoutePaths";
@@ -132,8 +133,8 @@ export function PlanCard({ item, onToggle, onSaveProgress, onSaveNote, onSaveNot
     stopProgressHold();
     changeProgress(delta);
     holdTimeoutRef.current = window.setTimeout(() => {
-      holdIntervalRef.current = window.setInterval(() => changeProgress(delta), 90);
-    }, 260);
+      holdIntervalRef.current = window.setInterval(() => changeProgress(delta), HOLD_REPEAT.REPEAT_INTERVAL_MS);
+    }, HOLD_REPEAT.INITIAL_DELAY_MS);
   }
 
   async function handleSaveNote(note: string) {

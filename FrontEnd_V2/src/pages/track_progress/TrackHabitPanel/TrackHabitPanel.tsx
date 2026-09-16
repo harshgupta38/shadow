@@ -9,6 +9,7 @@ import "./TrackHabitPanel.scss";
 import type { HabitPriority } from "@/api/types";
 import { PRIORITY_LABEL } from "@/pages/plan/PlanPage.constants";
 import { PriorityIcon } from "@/constant/priority";
+import { ANIMATION } from "@/constant/tuning";
 
 export interface HabitListItem {
   id: number;
@@ -34,8 +35,6 @@ interface TrackHabitPanelProps {
   onSave: (habitIds: Set<number>, taskIds: Set<number>) => void;
 }
 
-const SLIDE_OUT_DURATION_MS = 220;
-
 export function TrackHabitPanel({ habits, tasks, onClose, onSave }: TrackHabitPanelProps) {
   const [isClosing, setIsClosing] = useState(false);
   const [enabledHabits, setEnabledHabits] = useState<Set<number>>(
@@ -48,7 +47,7 @@ export function TrackHabitPanel({ habits, tasks, onClose, onSave }: TrackHabitPa
   function requestClose() {
     if (isClosing) return;
     setIsClosing(true);
-    window.setTimeout(onClose, SLIDE_OUT_DURATION_MS);
+    window.setTimeout(onClose, ANIMATION.PANEL_SLIDE_OUT_MS);
   }
 
   useEffect(() => {

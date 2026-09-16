@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 
 import { api, type ChildProps, type EffectiveTheme, type ThemePreference } from "@/api";
 import { DEFAULTS } from "@/constant/data";
+import { ANIMATION } from "@/constant/tuning";
 import { getUserLocation } from "@/services/location.service";
 import { hasKnownSession } from "@/services/session-hint.service";
 
@@ -16,7 +17,7 @@ function applyTheme(effectiveTheme: EffectiveTheme, skipTransition = false): voi
 	root.setAttribute("data-bs-theme", effectiveTheme);
 	root.style.colorScheme = effectiveTheme;
 	if (!skipTransition) {
-		window.setTimeout(() => root.classList.remove("theme-transitioning"), 350);
+		window.setTimeout(() => root.classList.remove("theme-transitioning"), ANIMATION.THEME_TRANSITION_MS);
 	}
 }
 

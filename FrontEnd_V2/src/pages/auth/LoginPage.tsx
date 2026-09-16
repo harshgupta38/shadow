@@ -8,6 +8,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { TextField } from "@/components/ui/TextField/TextField";
 import { ROUTES } from "@/routes/RoutePaths";
+import { TIMING } from "@/constant/tuning";
 
 function fmtCountdown(secs: number): string {
     const m = Math.floor(secs / 60);
@@ -58,7 +59,7 @@ export function LoginPage() {
         };
 
         tick();
-        const id = setInterval(tick, 1000);
+        const id = setInterval(tick, TIMING.LOCKOUT_COUNTDOWN_TICK_MS);
         return () => clearInterval(id);
     }, [lockedUntil]);
 

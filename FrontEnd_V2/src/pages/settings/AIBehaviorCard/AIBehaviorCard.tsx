@@ -3,6 +3,7 @@ import { ArrowRepeat, CheckCircleFill, CpuFill, Eye, EyeSlash } from "react-boot
 import { api } from "@/api";
 import type { AIBehaviorSettings, AIPersonality, AIProvider, AIResponseLength } from "@/api";
 import { Card, FieldRow, SegmentedControl, ToggleRow } from "@/pages/settings/SettingsShared";
+import { TIMING } from "@/constant/tuning";
 import "@/pages/settings/AIBehaviorCard/AIBehaviorCard.scss";
 
 const RESPONSE_LENGTH_OPTIONS: { value: AIResponseLength; label: string }[] = [
@@ -44,9 +45,6 @@ const PERSONALITY_OPTIONS: { value: AIPersonality; label: string }[] = [
   { value: "minimal",      label: "Minimal"      },
 ];
 
-// Fade constants for the model-health tick (key health tick never fades).
-const TICK_VISIBLE_MS = 5000;
-const TICK_FADE_MS    = 600;
 
 type HealthState =
   | { status: "idle" }
@@ -101,9 +99,9 @@ export const AIBehaviorCard = forwardRef<AIBehaviorCardRef, {
               setTickFading(true);
               fadeTimerRef.current = setTimeout(
                 () => setHealth({ status: "idle" }),
-                TICK_FADE_MS,
+                TIMING.AI_HEALTH_TICK_FADE_MS,
               );
-            }, TICK_VISIBLE_MS);
+            }, TIMING.AI_HEALTH_TICK_VISIBLE_MS);
           } else {
             setHealth({ status: "error", message: res.message });
           }
@@ -115,7 +113,7 @@ export const AIBehaviorCard = forwardRef<AIBehaviorCardRef, {
             message: err instanceof Error ? err.message : "Connection check failed.",
           });
         });
-    }, 600);
+    }, TIMING.AI_HEALTH_CHECK_DEBOUNCE_MS);
 
     return () => {
       if (timerRef.current)    clearTimeout(timerRef.current);

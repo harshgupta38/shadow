@@ -27,6 +27,7 @@ import { GoalCard } from "@/pages/my_goals/GoalCard/GoalCard";
 import { GoalCreationWizard } from "@/pages/my_goals/GoalCreationWizard/GoalCreationWizard";
 import { GoalLoadingSkeleton } from "@/pages/my_goals/GoalLoadingSkeleton/GoalLoadingSkeleton";
 import { useToast } from "@/context/ToastContext";
+import { LIMITS } from "@/constant/tuning";
 
 import "@/pages/my_goals/MyGoalsPage.scss";
 
@@ -97,7 +98,7 @@ export function MyGoalsPage() {
   const goalsSnapshot = useRef<GoalDataShortResponse[]>([]);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
+    useSensor(PointerSensor, { activationConstraint: { delay: LIMITS.DRAG_ACTIVATION_DELAY_MS, tolerance: LIMITS.DRAG_ACTIVATION_TOLERANCE_PX } }),
   );
 
   const loadGoals = useCallback(async (status: GoalFilterLabel) => {

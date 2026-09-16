@@ -9,11 +9,12 @@ import { useToast } from "@/context/ToastContext";
 import { IST_TIMEZONE, notifDateLabel, notifTime } from "@/services/date.service";
 import { useTimeFormat } from "@/context/PlannerContext";
 import { getNotificationVisual } from "@/pages/notifications/NotificationsPage.constants";
+import { PAGE_SIZE as PAGE_SIZE_CONFIG } from "@/constant/tuning";
 import "@/pages/notifications/NotificationsPage.scss";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const PAGE_SIZE = 30;
+const PAGE_SIZE = PAGE_SIZE_CONFIG.NOTIFICATIONS_LIST;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -96,7 +97,7 @@ export function NotificationsPage() {
     if (!el) return;
     const observer = new IntersectionObserver(
       ([entry]) => { if (entry.isIntersecting) loadMoreRef.current(); },
-      { threshold: 0.1 },
+      { threshold: PAGE_SIZE_CONFIG.NOTIFICATIONS_LOAD_MORE_THRESHOLD },
     );
     observer.observe(el);
     return () => observer.disconnect();

@@ -17,6 +17,7 @@ import { useToast } from "@/context/ToastContext";
 import { useDefaultTaskDuration, useTimeFormat } from "@/context/PlannerContext";
 import { ROUTES } from "@/routes/RoutePaths";
 import { GoalWizardVisual } from "@/pages/my_goals/GoalCreationWizard/GoalWizardVisual";
+import { ANIMATION } from "@/constant/tuning";
 
 import {
     answersFromDraft,
@@ -133,7 +134,7 @@ export function HabitWizardPage() {
         if (!loadingContext) { setLoaderIndex(0); return; }
         const interval = window.setInterval(() => {
             setLoaderIndex((cur) => Math.min(cur + 1, HABIT_LOADER_STEPS.length - 1));
-        }, 1100);
+        }, ANIMATION.WIZARD_LOADER_STEP_MS);
         return () => window.clearInterval(interval);
     }, [loadingContext]);
 

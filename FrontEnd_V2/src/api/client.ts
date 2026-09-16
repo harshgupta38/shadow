@@ -13,6 +13,7 @@
 import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from "axios";
 import { ApiErrorShape, FieldError } from "@/api/types";
 import { ENDPOINTS } from "@/constant/shadow-endpoints";
+import { TIMING } from "@/constant/tuning";
 
 const REFRESH_URL  = `${ENDPOINTS.AUTH.PREFIX}${ENDPOINTS.AUTH.REFRESH}`;
 const LOGIN_URL    = `${ENDPOINTS.AUTH.PREFIX}${ENDPOINTS.AUTH.LOGIN}`;
@@ -61,12 +62,12 @@ export async function refreshAccessToken(): Promise<void> {
 
 function createClient(): AxiosInstance {
     const baseURL = import.meta.env.VITE_API_BASE_URL ?? "/api";
-    const timeoutMs = Number(import.meta.env.VITE_API_TIMEOUT_SECONDS ?? 30) * 1000;
+    const timeoutMs = Number(import.meta.env.VITE_API_TIMEOUT_SECONDS ?? TIMING.API_DEFAULT_TIMEOUT_MS / 1000) * 1000;
 
     const instance = axios.create({
         baseURL,
         headers: { "Content-Type": "application/json", "X-Requested-With": "XMLHttpRequest" },
-        timeout: Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : 30_000,
+        timeout: Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : TIMING.API_DEFAULT_TIMEOUT_MS,
         withCredentials: true,
     });
 

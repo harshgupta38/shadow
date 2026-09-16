@@ -9,6 +9,7 @@ import { api } from "@/api";
 import { ApiError } from "@/api/client";
 import type { MilestoneDataResponse, MilestoneProposal, MilestoneProposalLLMSchema } from "@/api/types";
 import { resizeTextareaToMaxLines } from "@/services/textarea-resize.service";
+import { ANIMATION } from "@/constant/tuning";
 
 // LLM proposals arrive as Markdown; Quill needs HTML. This panel always shows fresh
 // LLM output (never a round-tripped Quill save), so sanitize either way before it's
@@ -105,8 +106,6 @@ interface MilestoneProposalReviewPanelProps {
     onSaved?: (milestone: MilestoneDataResponse) => void | Promise<void>;
 }
 
-const SLIDE_OUT_DURATION_MS = 220;
-
 export function MilestoneProposalReviewPanel({ proposal, onClose, onSaved }: MilestoneProposalReviewPanelProps) {
     const [title, setTitle] = useState(proposal.milestone.title);
     const [description, setDescription] = useState(() => descriptionToHtml(proposal.milestone.description));
@@ -125,7 +124,7 @@ export function MilestoneProposalReviewPanel({ proposal, onClose, onSaved }: Mil
     function requestClose() {
         if (isClosing) return;
         setIsClosing(true);
-        window.setTimeout(onClose, SLIDE_OUT_DURATION_MS);
+        window.setTimeout(onClose, ANIMATION.PANEL_SLIDE_OUT_MS);
     }
 
     useEffect(() => {

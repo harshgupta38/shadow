@@ -20,6 +20,7 @@ import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { useToast } from "@/context/ToastContext";
 import { CLOSING_EMOJI, fmtTime, ringColor } from "./ReportDetailPage.constants";
 import { useDateFormat, useTimeFormat } from "@/context/PlannerContext";
+import { GEOMETRY, PAGE_SIZE } from "@/constant/tuning";
 import "./ReportDetailPage.scss";
 
 // ── Progress Ring ─────────────────────────────────────────────────────────────
@@ -62,8 +63,8 @@ function AlignmentRing({ pct, size = 148, stroke = 12 }: { pct: number; size?: n
 // ── Goal Card ─────────────────────────────────────────────────────────────────
 
 function GoalCard({ goal }: { goal: GoalAlignment }) {
-  const SIZE = 58;
-  const STROKE = 5;
+  const SIZE = GEOMETRY.REPORT_MINI_RING_SIZE;
+  const STROKE = GEOMETRY.REPORT_MINI_RING_STROKE;
   const r = (SIZE - STROKE) / 2;
   const circ = 2 * Math.PI * r;
   const offset = circ * (1 - goal.alignment_pct / 100);
@@ -151,7 +152,7 @@ function ReportDatePicker({ date, reportType }: { date: string; reportType: stri
 // ── Pagination ────────────────────────────────────────────────────────────────
 
 function ReportPagination({ total, idx, onChange }: { total: number; idx: number; onChange: (i: number) => void }) {
-  const WINDOW = 5;
+  const WINDOW = PAGE_SIZE.REPORT_VERSION_DOTS_WINDOW;
   const [windowStart, setWindowStart] = useState(() => Math.max(0, idx - 2));
 
   useEffect(() => {

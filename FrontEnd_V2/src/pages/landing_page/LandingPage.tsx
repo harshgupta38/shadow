@@ -14,6 +14,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { ROUTES } from "@/routes/RoutePaths";
 import { SITE_INDO } from "@/constant/site-indo";
+import { ANIMATION } from "@/constant/tuning";
 
 import dashboardLight from "@/assets/landing/dashboard-light.png";
 import dashboardDark from "@/assets/landing/dashboard-dark.png";
@@ -243,7 +244,7 @@ export function LandingPage() {
           {STEPS.map((step, index) => {
             const Icon = step.icon;
             return (
-              <article key={step.title} className="landing-step-card reveal-up" style={{ animationDelay: `${index * 120}ms` }}>
+              <article key={step.title} className="landing-step-card reveal-up" style={{ animationDelay: `${index * ANIMATION.STAGGER_LANDING_CARD_MS}ms` }}>
                 <span className="landing-step-num" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
                 <span className="landing-step-icon">
                   <Icon size={20} />

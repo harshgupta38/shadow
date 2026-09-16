@@ -11,6 +11,7 @@ import { useToast } from "@/context/ToastContext";
 import { useDateFormat, useDefaultTaskDuration, useTimeFormat } from "@/context/PlannerContext";
 import { GoalWizardVisual } from "@/pages/my_goals/GoalCreationWizard/GoalWizardVisual";
 import { ROUTES } from "@/routes/RoutePaths";
+import { ANIMATION } from "@/constant/tuning";
 import { todayIso, formatDisplayDate } from "@/services/date.service";
 
 import {
@@ -129,7 +130,7 @@ export function ScheduleWizardPage() {
         if (!loadingContext) { setLoaderIndex(0); return; }
         const interval = window.setInterval(() => {
             setLoaderIndex((cur) => Math.min(cur + 1, SCHEDULE_LOADER_STEPS.length - 1));
-        }, 1100);
+        }, ANIMATION.WIZARD_LOADER_STEP_MS);
         return () => window.clearInterval(interval);
     }, [loadingContext]);
 

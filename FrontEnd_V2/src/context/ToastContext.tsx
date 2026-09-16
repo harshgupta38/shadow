@@ -13,6 +13,8 @@ import {
   XLg,
 } from "react-bootstrap-icons";
 
+import { ANIMATION } from "@/constant/tuning";
+
 type ToastKind = "success" | "error" | "info";
 
 interface Toast {
@@ -55,7 +57,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     (message: string, kind: ToastKind = "info") => {
       const id = ++toastSeq;
       setToasts((prev) => [...prev, { id, kind, message }]);
-      window.setTimeout(() => dismiss(id), 4200);
+      window.setTimeout(() => dismiss(id), ANIMATION.TOAST_AUTO_DISMISS_MS);
     },
     [dismiss],
   );

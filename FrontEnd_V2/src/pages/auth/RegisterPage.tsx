@@ -8,6 +8,7 @@ import { AuthLayout } from "@/components/layout/AuthLayout";
 import { TextField } from "@/components/ui/TextField/TextField";
 import { useAuth } from "@/context/AuthContext";
 import { ROUTES } from "@/routes/RoutePaths";
+import { TIMING } from "@/constant/tuning";
 
 const PASSWORD_RULES = [
     { label: "8+ characters",     test: (p: string) => p.length >= 8 },
@@ -90,7 +91,7 @@ export function RegisterPage() {
         };
 
         tick();
-        const id = setInterval(tick, 1000);
+        const id = setInterval(tick, TIMING.LOCKOUT_COUNTDOWN_TICK_MS);
         return () => clearInterval(id);
     }, [lockedUntil]);
 

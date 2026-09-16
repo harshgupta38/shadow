@@ -10,6 +10,7 @@ import { ThemeToggle } from "@/components/ui/ThemeToggle/ThemeToggle";
 import { useToast } from "@/context/ToastContext";
 import { useDefaultTaskDuration, useTimeFormat } from "@/context/PlannerContext";
 import { ROUTES } from "@/routes/RoutePaths";
+import { ANIMATION } from "@/constant/tuning";
 
 import { GoalWizardVisual } from "@/pages/my_goals/GoalCreationWizard/GoalWizardVisual";
 import {
@@ -335,7 +336,7 @@ export function GoalTaskWizardPage() {
 		if (!loadingContext) { setLoaderIndex(0); return; }
 		const interval = window.setInterval(() => {
 			setLoaderIndex((cur) => Math.min(cur + 1, GOAL_LOADER_STEPS.length - 1));
-		}, 1100);
+		}, ANIMATION.WIZARD_LOADER_STEP_MS);
 		return () => window.clearInterval(interval);
 	}, [loadingContext]);
 

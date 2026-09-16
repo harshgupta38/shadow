@@ -8,6 +8,7 @@ import { ApiError } from "@/api/client";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { checkAndConvertPluralWord } from "@/services/word-plurality.service";
 import { ROUTES } from "@/routes/RoutePaths";
+import { HOLD_REPEAT } from "@/constant/tuning";
 
 import "@/pages/my_goals/MilestoneTasksList/MilestoneTasksList.scss";
 
@@ -161,8 +162,8 @@ export function MilestoneTasksList({ goalId, milestoneId, milestoneStatus, onNee
 		holdTimeoutRef.current = window.setTimeout(() => {
 			holdIntervalRef.current = window.setInterval(() => {
 				changeProgress(task, delta);
-			}, 90);
-		}, 260);
+			}, HOLD_REPEAT.REPEAT_INTERVAL_MS);
+		}, HOLD_REPEAT.INITIAL_DELAY_MS);
 	}
 
 	async function saveProgress(task: TaskDataResponse) {

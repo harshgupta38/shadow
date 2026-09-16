@@ -19,6 +19,7 @@ import { FilterDropdown } from "@/components/ui/FilterDropdown/FilterDropdown";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { useToast } from "@/context/ToastContext";
+import { PAGE_SIZE } from "@/constant/tuning";
 import { ROUTES } from "@/routes/RoutePaths";
 import { todayIso } from "@/services/date.service";
 import { ScheduleCard } from "@/pages/schedule/ScheduleCard/ScheduleCard";
@@ -250,7 +251,7 @@ export function SchedulePage() {
                             {calCells.map((cell, i) => {
                                 const cellTasks = tasksByDate[cell.iso] ?? [];
                                 const isToday = cell.iso === currentTodayIso;
-                                const cellTaskLimit = 2;
+                                const cellTaskLimit = PAGE_SIZE.SCHEDULE_CELL_TASK_LIMIT;
                                 return (
                                     <div
                                         key={i}

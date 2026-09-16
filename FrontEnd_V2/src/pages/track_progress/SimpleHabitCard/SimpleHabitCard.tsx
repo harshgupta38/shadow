@@ -2,6 +2,7 @@ import type { SimpleHabitData } from "@/api/types";
 import { todayDate } from "@/services/date.service";
 import { useWeekStart } from "@/context/PlannerContext";
 import { dayToCol, weekDayLabels } from "@/utils/weekUtils";
+import { ANIMATION } from "@/constant/tuning";
 import "./SimpleHabitCard.scss";
 
 // ── Mini Heatmap ──────────────────────────────────────────────────────────────
@@ -30,7 +31,7 @@ function MiniHeatmap({ history, color }: { history: boolean[]; color: string }) 
               idx === todayCol ? "tp-heatmap-cell--today" : "",
               idx > todayCol ? "tp-heatmap-cell--future" : "",
             ].filter(Boolean).join(" ")}
-            style={{ animationDelay: `${idx * 18}ms` }}
+            style={{ animationDelay: `${idx * ANIMATION.STAGGER_HEATMAP_CELL_MS}ms` }}
             aria-label={done ? "completed" : "missed"}
           />
         ))}

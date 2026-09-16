@@ -12,6 +12,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { formatDisplayDate, todayDate } from "@/services/date.service";
 import { CLOSING_EMOJI } from "@/pages/reports/ReportDetailPage/ReportDetailPage.constants";
 import { buildCalCells, ringColor, type CalCell } from "./ReportsOverview.constants";
+import { GEOMETRY } from "@/constant/tuning";
 import "./ReportsOverview.scss";
 
 interface Props {
@@ -19,7 +20,7 @@ interface Props {
   latestReport: DailyReportDetail | null;
 }
 
-const CAL_RING_R = 13;
+const CAL_RING_R = GEOMETRY.CALENDAR_RING_RADIUS;
 const CAL_RING_CIRC = 2 * Math.PI * CAL_RING_R;
 
 // Score-tinted ring — mirrors AlignmentRing in ReportDetailPage, kept local since

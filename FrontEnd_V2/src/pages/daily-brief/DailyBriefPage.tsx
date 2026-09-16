@@ -6,6 +6,7 @@ import { api } from "@/api";
 import type { DailyBriefResponse } from "@/api/types";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { useAccessibility } from "@/context/AccessibilityContext";
+import { TYPEWRITER } from "@/constant/tuning";
 
 import "./DailyBriefPage.scss";
 
@@ -34,10 +35,6 @@ function todayISTString(): string {
 // written for you rather than dumped as a wall of text. Pauses briefly at
 // paragraph breaks for a natural rhythm. Skipped entirely when the user has
 // "reduce motion" on, and can be skipped mid-animation with a click/tap.
-
-const CHARS_PER_TICK = 1;
-const TICK_MS = 20;
-const PARAGRAPH_PAUSE_MS = 1000;
 
 function useTypewriter(text: string, enabled: boolean): { visible: string; done: boolean; skip: () => void } {
     const [visibleLength, setVisibleLength] = useState(enabled ? 0 : text.length);
@@ -68,17 +65,17 @@ function useTypewriter(text: string, enabled: boolean): { visible: string; done:
                 return;
             }
             const prev = i;
-            i = Math.min(i + CHARS_PER_TICK, text.length);
+            i = Math.min(i + TYPEWRITER.CHARS_PER_TICK, text.length);
             setVisibleLength(i);
             if (i >= text.length) {
                 setDone(true);
                 return;
             }
             const crossedParagraphBreak = text.slice(prev, i).includes("\n");
-            timer = setTimeout(tick, crossedParagraphBreak ? PARAGRAPH_PAUSE_MS : TICK_MS);
+            timer = setTimeout(tick, crossedParagraphBreak ? TYPEWRITER.PARAGRAPH_PAUSE_MS : TYPEWRITER.TICK_MS);
         }
 
-        timer = setTimeout(tick, TICK_MS);
+        timer = setTimeout(tick, TYPEWRITER.TICK_MS);
         return () => { cancelled = true; clearTimeout(timer); };
     }, [text, enabled]);
 

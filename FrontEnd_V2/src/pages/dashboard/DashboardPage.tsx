@@ -12,12 +12,13 @@ import { GoalsOverview } from "./GoalsOverview/GoalsOverview";
 import { UpcomingPanel } from "./UpcomingPanel/UpcomingPanel";
 import { ThisWeekPanel } from "./ThisWeekPanel/ThisWeekPanel";
 import { greeting } from "./DashboardPage.constants";
+import { SKELETON } from "@/constant/tuning";
 import "./DashboardPage.scss";
 
 // ── Ghost Shell (loading placeholder, shaped like Today's Snapshot) ──────────
 
-const GHOST_STATS = 4;
-const GHOST_ITEM_WIDTHS = [72, 58, 65];
+const GHOST_STATS = SKELETON.DASHBOARD_GHOST_STATS;
+const GHOST_ITEM_WIDTHS = SKELETON.DASHBOARD_GHOST_ITEM_WIDTHS;
 
 function DashboardGhostShell() {
   return (

@@ -8,6 +8,7 @@ import type { ScheduledTaskDataResponse } from "@/api/types";
 import { todayIso, formatDuration } from "@/services/date.service";
 import { formatDateDisplay, formatDateDisplayYearly, PRIORITY_LABEL, STATUS_LABEL } from "@/pages/schedule/ScheduleCard/ScheduleCard.constants";
 import { PriorityIcon } from "@/constant/priority";
+import { ANIMATION } from "@/constant/tuning";
 
 import "@/pages/my_goals/GoalCreationWizard/GoalCreationWizard.scss";
 import "@/pages/assistant/RefinedGoalReviewPanel/RefinedGoalReviewPanel.scss";
@@ -49,8 +50,6 @@ interface ScheduleTaskDetailPanelProps {
     onDelete: () => void;
 }
 
-const SLIDE_OUT_MS = 220;
-
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function ScheduleTaskDetailPanel({ task, onClose, onEdit, onDuplicate, onDelete }: ScheduleTaskDetailPanelProps) {
@@ -59,7 +58,7 @@ export function ScheduleTaskDetailPanel({ task, onClose, onEdit, onDuplicate, on
     function requestClose() {
         if (isClosing) return;
         setIsClosing(true);
-        window.setTimeout(onClose, SLIDE_OUT_MS);
+        window.setTimeout(onClose, ANIMATION.PANEL_SLIDE_OUT_MS);
     }
 
     useEffect(() => {

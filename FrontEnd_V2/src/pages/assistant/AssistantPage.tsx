@@ -15,6 +15,7 @@ import { TextFieldPromptDialog } from "@/components/ui/TextFieldPromptDialog/Tex
 import { AssistantMessageSkeleton } from "@/pages/assistant/AssistantMessageSkeleton";
 import { AssistantThinkingIndicator } from "@/pages/assistant/AssistantThinkingIndicator/AssistantThinkingIndicator";
 import { ASSISTANT_AGENTS, ASSISTANT_LOADER_STEPS, type AssistantAgent } from "@/pages/assistant/AssistantPage.constants";
+import { ANIMATION } from "@/constant/tuning";
 import { RefinedGoalReviewPanel } from "@/pages/assistant/RefinedGoalReviewPanel/RefinedGoalReviewPanel";
 import { MilestoneProposalReviewPanel } from "@/pages/assistant/MilestoneProposalReviewPanel/MilestoneProposalReviewPanel";
 import { TaskProposalReviewPanel } from "@/pages/assistant/TaskProposalReviewPanel/TaskProposalReviewPanel";
@@ -141,7 +142,7 @@ export function AssistantPage() {
     if (!isLoading) { setLoaderIndex(0); return; }
     const id = window.setInterval(() => {
       setLoaderIndex(i => Math.min(i + 1, ASSISTANT_LOADER_STEPS.length - 1));
-    }, 1100);
+    }, ANIMATION.WIZARD_LOADER_STEP_MS);
     return () => window.clearInterval(id);
   }, [isLoading]);
 
@@ -389,7 +390,7 @@ export function AssistantPage() {
   function copyMessage(content: string, key: string) {
     navigator.clipboard.writeText(content).then(() => {
       setCopiedMsgKey(key);
-      setTimeout(() => setCopiedMsgKey(null), 1500);
+      setTimeout(() => setCopiedMsgKey(null), ANIMATION.COPIED_FEEDBACK_MS);
     });
   }
 

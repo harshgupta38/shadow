@@ -1,6 +1,7 @@
 import { ENDPOINTS } from "@/constant/shadow-endpoints";
 import { http, refreshAccessToken } from "@/api/client";
 import type { DailyBriefResponse, Notification, PushPublicKeyResponse, PushSubscriptionPayload } from "@/api/types";
+import { PAGE_SIZE } from "@/constant/tuning";
 
 const P = ENDPOINTS.NOTIFICATIONS.PREFIX;
 
@@ -53,7 +54,7 @@ async function readSSEStream(
 // ─── API client ───────────────────────────────────────────────────────────────
 
 export const notificationsApi = {
-  async list(unreadOnly = false, limit = 50, beforeId?: number): Promise<Notification[]> {
+  async list(unreadOnly = false, limit: number = PAGE_SIZE.NOTIFICATIONS_API_DEFAULT, beforeId?: number): Promise<Notification[]> {
     const params: Record<string, unknown> = { limit };
     if (unreadOnly) params.unread_only = true;
     if (beforeId !== undefined) params.before_id = beforeId;

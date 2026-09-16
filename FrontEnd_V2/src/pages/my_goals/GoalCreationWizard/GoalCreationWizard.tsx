@@ -23,12 +23,10 @@ import {
 } from "@/pages/my_goals/GoalCreationWizard/GoalWizardReview";
 import { GoalWizardVisual } from "@/pages/my_goals/GoalCreationWizard/GoalWizardVisual";
 import { GoalWizardStepper } from "@/pages/my_goals/GoalCreationWizard/GoalWizardStepper";
+import { ANIMATION } from "@/constant/tuning";
 
 import "@/pages/my_goals/GoalCreationWizard/GoalCreationWizard.scss";
 
-// Visual animation tuning values for the right-side boy movement.
-const BOY_MULTI_STEP_INTERVAL_MS = 260;
-const BOY_BACKWARD_FADE_MS = 200;
 const ORDERED_STEP_KEYS = STEPS.map((step) => step.key);
 
 type WizardPhase = "questions" | "understanding" | "review";
@@ -209,7 +207,7 @@ export function GoalCreationWizard({ open, onClose, onSubmitted }: GoalCreationW
                 setBoyStepIndex(currentStepIndex);
                 setIsBoyVisible(true);
                 clearBoyFadeTimer();
-            }, BOY_BACKWARD_FADE_MS);
+            }, ANIMATION.BOY_BACKWARD_FADE_MS);
 
             return () => {
                 clearBoyFadeTimer();
@@ -235,7 +233,7 @@ export function GoalCreationWizard({ open, onClose, onSubmitted }: GoalCreationW
 
                 return next;
             });
-        }, BOY_MULTI_STEP_INTERVAL_MS);
+        }, ANIMATION.BOY_MULTI_STEP_INTERVAL_MS);
 
         return () => {
             clearBoyStepTimer();

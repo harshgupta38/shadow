@@ -706,6 +706,7 @@ export interface Notification {
   read: boolean;
   created_at: string;
   url?: string;
+  event_key: string | null;
 }
 
 // ── Daily brief ───────────────────────────────────────────────────────────────

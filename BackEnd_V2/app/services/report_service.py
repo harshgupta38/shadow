@@ -384,8 +384,12 @@ async def generate_report_background(
                 ).order_by(ReportDBM.generated_at.desc())
             )
             label = report_type.capitalize()
-            # Manual trigger (force=True) skips event_key dedup so the user
-            # always gets notified even if a previous notification already exists.
+            # Manual trigger (force=True) still needs a unique event_key to bypass
+            # dedup against a prior notification for the same report — but it must
+            # keep the "report:" prefix so the notification list can still recognise
+            # and icon it as a report (see NotificationsPage.constants.ts).
+            base_key = f"report:{user_id}:{report_date}:{report_type}"
+            event_key = f"{base_key}:{int(datetime.now(timezone.utc).timestamp())}" if force else base_key
             notifications_service.create_notification(
                 db, user,
                 title=f"Your {label} report for {report_date.strftime('%d %b')} is ready",
@@ -393,7 +397,7 @@ async def generate_report_background(
                 type="agent",
                 level=notifications_service.LEVEL_CRITICAL,
                 url=f"/reports/{report_date}",
-                event_key=None if force else f"report:{user_id}:{report_date}:{report_type}",
+                event_key=event_key,
             )
     except Exception:
         db.rollback()

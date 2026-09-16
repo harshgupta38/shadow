@@ -14,6 +14,7 @@ class NotificationResponse(ORMModel):
     level: int
     read: bool
     url: str | None
+    event_key: str | None
     created_at: datetime
 
 

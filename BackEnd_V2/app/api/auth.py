@@ -76,6 +76,7 @@ def _build_token_response(db, user_id: int, request: Request, response: Response
             body=f"A new session was started from {sess.device_name} ({sess.browser} on {sess.os_name}).",
             type="system",
             priority=1,
+            event_key=f"signin:{sess.id}",
         )
 
     max_devices = settings_service.get_max_concurrent_devices(db, user_id)

@@ -8,7 +8,7 @@ import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { useToast } from "@/context/ToastContext";
 import { IST_TIMEZONE, notifDateLabel, notifTime } from "@/services/date.service";
 import { useTimeFormat } from "@/context/PlannerContext";
-import { TYPE_COLOR, TYPE_ICON } from "@/pages/notifications/NotificationsPage.constants";
+import { getNotificationVisual } from "@/pages/notifications/NotificationsPage.constants";
 import "@/pages/notifications/NotificationsPage.scss";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -240,14 +240,14 @@ export function NotificationsPage() {
               <p className="notif-date-label">{group.label}</p>
               <div className="surface notif-list">
                 {group.items.map((n, idx) => {
-                  const Icon = TYPE_ICON[n.type];
+                  const { Icon, color } = getNotificationVisual(n);
                   return (
                     <div
                       key={n.id}
                       className={`notif-item ${idx > 0 ? "notif-item--bordered" : ""} ${!n.read ? "notif-item--unread" : ""} ${n.url ? "notif-item--clickable" : ""}`}
                       onClick={() => { if (n.url) navigate(n.url); }}
                     >
-                      <span className="notif-item-icon flex-shrink-0" style={{ background: `${TYPE_COLOR[n.type]}22`, color: TYPE_COLOR[n.type] }}>
+                      <span className="notif-item-icon flex-shrink-0" style={{ background: `${color}22`, color }}>
                         <Icon size={17} />
                       </span>
                       <div className="flex-grow-1 min-w-0">

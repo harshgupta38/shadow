@@ -872,7 +872,6 @@ export interface AppearanceSettings {
 
 export interface NotificationSettings {
   notifications_enabled: boolean;
-  push_notifications_enabled: boolean;
   email_notifications_enabled: boolean;
   reminder_notifications_enabled: boolean;
   daily_brief_enabled: boolean;

@@ -69,11 +69,13 @@ export function NotificationsCard({
   isDirty: boolean;
   onUpdate: (d: NotificationSettings) => void;
 }) {
+  // Push is per-device (a browser subscription), never a synced user preference —
+  // its checked state is derived entirely from this device's actual subscription,
+  // never from the backend-synced NotificationSettings object.
   const [deviceStatus, setDeviceStatus] = useState<DeviceStatus>("idle");
   const [showDeniedModal, setShowDeniedModal] = useState(false);
   // Track whether we're running a push operation so concurrent calls are ignored
   const busy = useRef(false);
-  const prevPushEnabled = useRef(data.push_notifications_enabled);
 
   function set<K extends keyof NotificationSettings>(key: K, value: NotificationSettings[K]) {
     onUpdate({ ...data, [key]: value });
@@ -85,18 +87,8 @@ export function NotificationsCard({
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
     navigator.serviceWorker.ready
       .then((reg) => reg.pushManager.getSubscription())
-      .then((sub) => {
-        if (!sub) return;
-        setDeviceStatus("connected");
-        // Pre-advance prevPushEnabled so the watch effect below doesn't see
-        // this programmatic change as a user toggle-on and re-run attemptConnect.
-        prevPushEnabled.current = true;
-        if (!data.push_notifications_enabled) {
-          onUpdate({ ...data, push_notifications_enabled: true });
-        }
-      })
+      .then((sub) => setDeviceStatus(sub ? "connected" : "idle"))
       .catch(() => {/* best-effort */});
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function attemptConnect() {
@@ -112,13 +104,11 @@ export function NotificationsCard({
     const permission = await Notification.requestPermission();
     if (permission === "denied") {
       setShowDeniedModal(true);
-      set("push_notifications_enabled", false);
       setDeviceStatus("idle");
       busy.current = false;
       return;
     }
     if (permission !== "granted") {
-      set("push_notifications_enabled", false);
       setDeviceStatus("idle");
       busy.current = false;
       return;
@@ -137,7 +127,6 @@ export function NotificationsCard({
       setDeviceStatus("connected");
     } catch (err) {
       console.warn("Push subscription failed:", err);
-      set("push_notifications_enabled", false);
       setDeviceStatus("failed");
     } finally {
       busy.current = false;
@@ -160,25 +149,12 @@ export function NotificationsCard({
       }
     } finally {
       setDeviceStatus("idle");
-      set("push_notifications_enabled", false);
       busy.current = false;
     }
   }
 
-  // Watch the toggle: when it flips ON, start the connect flow
-  useEffect(() => {
-    const wasOff = !prevPushEnabled.current;
-    prevPushEnabled.current = data.push_notifications_enabled;
-    if (data.push_notifications_enabled && wasOff) {
-      void attemptConnect();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data.push_notifications_enabled]);
-
-  const showStatusRow =
-    data.push_notifications_enabled ||
-    deviceStatus === "disconnecting" ||
-    deviceStatus === "connecting";
+  const pushChecked = deviceStatus === "connected" || deviceStatus === "connecting";
+  const showStatusRow = deviceStatus !== "idle";
 
   return (
     <>
@@ -207,14 +183,11 @@ export function NotificationsCard({
               <ToggleRow
                 label="Push notifications"
                 description="Instant alerts sent directly to this device."
-                checked={data.push_notifications_enabled}
+                checked={pushChecked}
                 className="pt-1 pb-2"
                 onChange={(v) => {
-                  if (!v && (deviceStatus === "connected" || deviceStatus === "connecting")) {
-                    void disconnect();
-                  } else if (v) {
-                    set("push_notifications_enabled", v);
-                  }
+                  if (v) void attemptConnect();
+                  else void disconnect();
                 }}
               />
 
@@ -250,9 +223,7 @@ export function NotificationsCard({
                       <button
                         type="button"
                         className="st-device-cta st-device-cta--primary"
-                        onClick={() => {
-                          set("push_notifications_enabled", true);
-                        }}
+                        onClick={() => void attemptConnect()}
                       >
                         Try again
                       </button>

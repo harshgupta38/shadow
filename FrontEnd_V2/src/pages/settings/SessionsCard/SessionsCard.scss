@@ -26,6 +26,10 @@
 
   @media (max-width: 540px) {
     flex-wrap: wrap;
+
+    .sc-actions {
+      flex-basis: 100%;
+    }
   }
 }
 
@@ -67,6 +71,7 @@
 .sc-meta {
   font-size: 0.75rem;
   color: var(--jv-muted);
+  overflow-wrap: anywhere;
 }
 
 .sc-time {

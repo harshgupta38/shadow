@@ -29,7 +29,6 @@ class AppearanceSection(BaseModel):
 
 class NotificationsSection(BaseModel):
     notifications_enabled: bool = True
-    push_notifications_enabled: bool = False
     email_notifications_enabled: bool = False
     reminder_notifications_enabled: bool = True
     daily_brief_enabled: bool = False

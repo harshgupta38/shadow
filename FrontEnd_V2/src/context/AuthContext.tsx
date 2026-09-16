@@ -11,6 +11,7 @@ import {
 import { api, LoginRequest, RegisterRequest, type AccessibilitySettings, type PlannerSettings, type ThemePreference, type UserDataResponse } from "@/api";
 import { refreshAccessToken } from "@/api/client";
 import { ENDPOINTS } from "@/constant/shadow-endpoints";
+import { clearSessionHint, markSessionKnown } from "@/services/session-hint.service";
 
 type AuthStatus = "loading" | "authenticated" | "unauthenticated";
 
@@ -48,6 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const login = useCallback(async (data: LoginRequest) => {
         await api.auth.login(data);
         const userData = await api.auth.me();
+        markSessionKnown();
         setSessionLimitExceeded(userData.session_limit_exceeded);
         setUser(userData);
         setStatus("authenticated");
@@ -59,6 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const logout = useCallback(() => {
         void api.auth.logout();
+        clearSessionHint();
         setUser(null);
         setStatus("unauthenticated");
         setSessionLimitExceeded(false);
@@ -67,6 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const register = useCallback(async (data: RegisterRequest) => {
         await api.auth.register(data);
         const userData = await api.auth.me();
+        markSessionKnown();
         setSessionLimitExceeded(userData.session_limit_exceeded);
         setUser(userData);
         setStatus("authenticated");
@@ -78,6 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const refreshUser = useCallback(async () => {
         const userData = await api.auth.me();
+        markSessionKnown();
         setSessionLimitExceeded(userData.session_limit_exceeded);
         setUser(userData);
         setStatus("authenticated");
@@ -95,6 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const restoreSession = async () => {
             try {
                 const userData = await api.auth.me();
+                markSessionKnown();
                 setSessionLimitExceeded(userData.session_limit_exceeded);
                 setUser(userData);
                 setStatus("authenticated");
@@ -102,6 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 dispatchPlannerSync(userData.planner);
                 dispatchAccessibilitySync(userData.accessibility);
             } catch {
+                clearSessionHint();
                 setStatus("unauthenticated");
             }
         };

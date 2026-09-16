@@ -3,6 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { api, type ChildProps, type EffectiveTheme, type ThemePreference } from "@/api";
 import { DEFAULTS } from "@/constant/data";
 import { getUserLocation } from "@/services/location.service";
+import { hasKnownSession } from "@/services/session-hint.service";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -147,12 +148,18 @@ export function ThemeProvider({ children }: ChildProps) {
 				// Cache is still valid — apply cached theme and wait for transition
 				setEffectiveTheme(cached.effectiveTheme);
 				nextTransitionAt = cached.nextTransitionAt;
+			} else if (!hasKnownSession()) {
+				// This browser has never had a session — the endpoint requires auth
+				// and would just 401. Skip the round trip (and the refresh/logout
+				// cascade it would trigger) and fall back to browser theme directly.
+				setEffectiveTheme(getBrowserTheme());
+				return;
 			} else {
 				// No cache or transition time has passed — fetch fresh data
 				try {
 					nextTransitionAt = await fetchAndCache();
 				} catch {
-					// Not signed in or server error — fall back to browser theme
+					// Session expired since we last checked, or server error — fall back
 					setEffectiveTheme(getBrowserTheme());
 					return;
 				}

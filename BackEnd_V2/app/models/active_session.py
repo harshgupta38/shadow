@@ -14,6 +14,7 @@ class ActiveSessionDBM(Base):
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
     device_name: Mapped[str] = mapped_column(String(200), default="Unknown Device")
+    custom_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
     browser: Mapped[str] = mapped_column(String(100), default="Unknown")
     os_name: Mapped[str] = mapped_column(String(100), default="Unknown")
     ip_address: Mapped[str | None] = mapped_column(String(45), nullable=True)

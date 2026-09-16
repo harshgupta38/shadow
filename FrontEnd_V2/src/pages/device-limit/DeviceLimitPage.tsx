@@ -16,6 +16,7 @@ import { useToast } from "@/context/ToastContext";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { ThemeToggle } from "@/components/ui/ThemeToggle/ThemeToggle";
 import { ROUTES } from "@/routes/RoutePaths";
+import { IST_TIMEZONE, parseServerDate } from "@/services/date.service";
 import "@/pages/device-limit/DeviceLimitPage.scss";
 
 function DeviceIcon({ deviceName }: { deviceName: string }) {
@@ -32,12 +33,13 @@ function DeviceIcon({ deviceName }: { deviceName: string }) {
 }
 
 function formatDate(iso: string): string {
-    return new Date(iso).toLocaleString(undefined, {
+    return parseServerDate(iso).toLocaleString("en-US", {
         month: "short",
         day: "numeric",
         year: "numeric",
         hour: "2-digit",
         minute: "2-digit",
+        timeZone: IST_TIMEZONE,
     });
 }
 

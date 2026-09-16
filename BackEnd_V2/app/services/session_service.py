@@ -123,6 +123,7 @@ def get_sessions(
         SessionInfoResponse(
             id=row.id,
             device_name=row.device_name,
+            custom_name=row.custom_name,
             browser=row.browser,
             os_name=row.os_name,
             ip_address=row.ip_address,
@@ -140,6 +141,25 @@ def get_session_count(db: Session, user_id: int) -> int:
         .filter(ActiveSessionDBM.user_id == user_id)
         .count()
     )
+
+
+def rename_session(db: Session, session_id: int, user_id: int, custom_name: str | None) -> bool:
+    """Sets (or clears) the user-chosen display name for a session.
+
+    An empty/whitespace-only name clears the override, so the UI falls back
+    to the auto-detected device_name.
+    """
+    row = (
+        db.query(ActiveSessionDBM)
+        .filter(ActiveSessionDBM.id == session_id, ActiveSessionDBM.user_id == user_id)
+        .first()
+    )
+    if not row:
+        return False
+    cleaned = (custom_name or "").strip()
+    row.custom_name = cleaned or None
+    db.commit()
+    return True
 
 
 def revoke_session(db: Session, session_id: int, user_id: int) -> bool:

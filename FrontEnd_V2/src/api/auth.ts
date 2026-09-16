@@ -44,4 +44,11 @@ export const authApi = {
             `${ENDPOINTS.AUTH.PREFIX}${ENDPOINTS.AUTH.SESSION_DETAIL(sessionId)}`,
         );
     },
+
+    async renameSession(sessionId: number, customName: string | null): Promise<void> {
+        await http.patch<void>(
+            `${ENDPOINTS.AUTH.PREFIX}${ENDPOINTS.AUTH.SESSION_DETAIL(sessionId)}`,
+            { custom_name: customName },
+        );
+    },
 };

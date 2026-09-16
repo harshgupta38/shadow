@@ -904,6 +904,7 @@ export interface PlannerSettings {
 export interface SessionInfo {
   id: number;
   device_name: string;
+  custom_name: string | null;
   browser: string;
   os_name: string;
   ip_address: string | null;

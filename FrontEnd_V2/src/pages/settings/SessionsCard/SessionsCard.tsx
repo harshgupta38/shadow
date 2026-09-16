@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
     Display,
     LaptopFill,
+    PencilFill,
     PhoneFill,
     ShieldLockFill,
     TabletFill,
@@ -13,7 +14,9 @@ import type { SessionInfo, SessionsListResponse } from "@/api";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
+import { TextFieldPromptDialog } from "@/components/ui/TextFieldPromptDialog/TextFieldPromptDialog";
 import { Card } from "@/pages/settings/SettingsShared";
+import { parseServerDate } from "@/services/date.service";
 import "@/pages/settings/SessionsCard/SessionsCard.scss";
 
 function DeviceIcon({ deviceName }: { deviceName: string }) {
@@ -25,7 +28,7 @@ function DeviceIcon({ deviceName }: { deviceName: string }) {
 }
 
 function timeAgo(iso: string): string {
-    const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+    const diff = Math.floor((Date.now() - parseServerDate(iso).getTime()) / 1000);
     if (diff < 60) return "just now";
     if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
     if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
@@ -40,6 +43,8 @@ export function SessionsCard() {
     const [loading, setLoading] = useState(true);
     const [confirming, setConfirming] = useState<SessionInfo | null>(null);
     const [revoking, setRevoking] = useState(false);
+    const [renaming, setRenaming] = useState<SessionInfo | null>(null);
+    const [savingName, setSavingName] = useState(false);
 
     const load = useCallback(async () => {
         try {
@@ -70,6 +75,20 @@ export function SessionsCard() {
         }
     }
 
+    async function handleRename(value: string) {
+        if (!renaming) return;
+        setSavingName(true);
+        try {
+            await api.auth.renameSession(renaming.id, value.trim() || null);
+            setRenaming(null);
+            await load();
+        } catch (err) {
+            toastError(err instanceof ApiError ? err.message : "Could not rename device.");
+        } finally {
+            setSavingName(false);
+        }
+    }
+
     const sessions = data?.sessions ?? [];
 
     return (
@@ -97,14 +116,21 @@ export function SessionsCard() {
                                 </span>
                                 <div className="sc-info">
                                     <span className="sc-name">
-                                        {sess.device_name}
+                                        {sess.custom_name || sess.device_name}
+                                        <button
+                                            type="button"
+                                            className="sc-rename-btn"
+                                            aria-label="Rename device"
+                                            onClick={() => setRenaming(sess)}
+                                        >
+                                            <PencilFill size={11} />
+                                        </button>
                                         {sess.is_current && (
                                             <span className="sc-badge">This device</span>
                                         )}
                                     </span>
                                     <span className="sc-meta">
                                         {sess.browser} · {sess.os_name}
-                                        {sess.ip_address && ` · ${sess.ip_address}`}
                                     </span>
                                     <span className="sc-time">
                                         Active {timeAgo(sess.last_seen_at)} · Signed in {timeAgo(sess.created_at)}
@@ -137,6 +163,21 @@ export function SessionsCard() {
                 busy={revoking}
                 onConfirm={() => void handleRevoke()}
                 onCancel={() => setConfirming(null)}
+            />
+
+            <TextFieldPromptDialog
+                show={renaming !== null}
+                title="Rename device"
+                message="Give this device a name you'll recognise. Clear it to use the default name again."
+                label="Device name"
+                initialValue={renaming?.custom_name ?? ""}
+                placeholder={renaming?.device_name}
+                confirmLabel="Save"
+                busy={savingName}
+                maxLength={60}
+                allowEmpty
+                onConfirm={(value) => void handleRename(value)}
+                onCancel={() => setRenaming(null)}
             />
         </>
     );

@@ -7,7 +7,7 @@ from app.core.config import settings
 from app.core.endpoints import ENDPOINTS
 from app.core.exceptions import AuthError
 from app.services import rate_limit_service
-from app.schemas.session import SessionsListResponse
+from app.schemas.session import RenameSessionRequest, SessionsListResponse
 from app.schemas.user import UserDataResponse
 from app.schemas.settings import AccessibilitySection, PlannerSection
 from app.api.deps import get_current_user
@@ -215,6 +215,19 @@ def list_sessions(
         max_concurrent_devices=max_devices,
         session_limit_exceeded=len(sessions) > max_devices,
     )
+
+
+@router.patch(ENDPOINTS.AUTH.SESSION_DETAIL, status_code=status.HTTP_204_NO_CONTENT)
+def rename_session(
+    session_id: int,
+    data: RenameSessionRequest,
+    current_user: UserDBM = Depends(get_current_user),
+    db=Depends(get_db),
+) -> None:
+    ok = session_service.rename_session(db, session_id, current_user.id, data.custom_name)
+    if not ok:
+        from app.core.exceptions import NotFoundError
+        raise NotFoundError("Session not found")
 
 
 @router.delete(ENDPOINTS.AUTH.SESSION_DETAIL, status_code=status.HTTP_204_NO_CONTENT)

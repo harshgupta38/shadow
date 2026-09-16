@@ -16,6 +16,9 @@ interface TextFieldPromptDialogProps {
   cancelLabel?: string;
   busy?: boolean;
   maxLength?: number;
+  /** Allow confirming with an empty value — e.g. to clear an override and
+   *  fall back to a default. Off by default (empty input disables confirm). */
+  allowEmpty?: boolean;
   onConfirm: (value: string) => void;
   onCancel: () => void;
 }
@@ -31,6 +34,7 @@ export function TextFieldPromptDialog({
   cancelLabel = "Cancel",
   busy = false,
   maxLength,
+  allowEmpty = false,
   onConfirm,
   onCancel,
 }: TextFieldPromptDialogProps) {
@@ -50,7 +54,7 @@ export function TextFieldPromptDialog({
   }, [show, initialValue]);
 
   const trimmedValue = value.trim();
-  const canConfirm = Boolean(trimmedValue);
+  const canConfirm = allowEmpty || Boolean(trimmedValue);
 
   return (
     <Modal show={show} onHide={onCancel} centered backdrop="static">
@@ -76,6 +80,7 @@ export function TextFieldPromptDialog({
           value={value}
           placeholder={placeholder}
           maxLength={maxLength}
+          autoComplete="off"
           onChange={(event) => setValue(event.target.value)}
           onKeyDown={(event) => {
             if (event.key === "Enter" && canConfirm && !busy) {

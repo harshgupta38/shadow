@@ -173,17 +173,26 @@ def refresh(request: Request, response: Response, db=Depends(get_db)) -> TokenRe
 @router.post(ENDPOINTS.AUTH.LOGOUT, status_code=status.HTTP_204_NO_CONTENT)
 def logout(request: Request, response: Response, db=Depends(get_db)) -> None:
     _clear_auth_cookies(response)
-    token = request.cookies.get("access_token")
-    if not token:
-        return
-    try:
-        payload = security.decode_access_token(token)
-        session_id = int(payload.get("sid", 0)) or None
-        user_id = int(payload.get("sub", 0))
-        if session_id:
-            session_service.revoke_session(db, session_id, user_id)
-    except Exception:
-        pass
+
+    # Prefer the access token, but it's short-lived and may already have expired
+    # by the time logout fires — fall back to the refresh token (same "sid"
+    # claim, ~30-day lifetime) so an expired access token doesn't leave the
+    # session row behind forever in Active Sessions.
+    for token, decode in (
+        (request.cookies.get("access_token"), security.decode_access_token),
+        (request.cookies.get("refresh_token"), security.decode_refresh_token),
+    ):
+        if not token:
+            continue
+        try:
+            payload = decode(token)
+            session_id = int(payload.get("sid", 0)) or None
+            user_id = int(payload.get("sub", 0))
+            if session_id:
+                session_service.revoke_session(db, session_id, user_id)
+                return
+        except Exception:
+            continue
 
 
 # ─── User data ────────────────────────────────────────────────────────────────

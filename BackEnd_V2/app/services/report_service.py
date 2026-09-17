@@ -402,7 +402,19 @@ async def generate_report_background(
                 level=notifications_service.LEVEL_CRITICAL,
                 url=f"/reports/{report_date}",
                 event_key=event_key,
+                # This sends its own full-snapshot report email below instead
+                # of create_notification's generic title+body template.
+                send_email=False,
             )
+            if report:
+                try:
+                    from app.services import email_notification_service
+                    email_notification_service.send_report_email(db, user, to_report_response(report))
+                except Exception:
+                    logger.warning(
+                        "Failed to send report-ready email for user=%d date=%s type=%s",
+                        user_id, report_date, report_type, exc_info=True,
+                    )
     except Exception:
         db.rollback()
         logger.exception(
@@ -427,4 +439,33 @@ async def generate_report_background(
             )
     finally:
         _in_progress.discard(key)
+        db.close()
+
+
+def send_report_email_background(user_id: int, report_date: date, report_type: str) -> None:
+    """Background task for the Report Details page's "Email report" button.
+    Opens its own session — same reasoning as generate_report_background: the
+    request-scoped session is already closed by the time a background task
+    actually runs."""
+    from app.services import email_notification_service
+
+    db = SessionLocal()
+    try:
+        user = db.get(UserDBM, user_id)
+        if user is None:
+            return
+        reports = [r for r in get_reports(db, user_id, report_date) if r.report_type == report_type]
+        if not reports:
+            logger.info(
+                "No report to email for user=%d date=%s type=%s — skipping",
+                user_id, report_date, report_type,
+            )
+            return
+        email_notification_service.send_report_email(db, user, to_report_response(reports[0]), force=True)
+    except Exception:
+        logger.exception(
+            "Failed to email report for user=%d date=%s type=%s",
+            user_id, report_date, report_type,
+        )
+    finally:
         db.close()

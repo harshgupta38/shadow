@@ -35,6 +35,14 @@
   color: var(--jv-text);
 }
 
+.pf-field-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
 .pf-verified-pill {
   padding: 0.1rem 0.45rem;
   font-size: 0.65rem;

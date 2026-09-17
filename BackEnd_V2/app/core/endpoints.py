@@ -28,6 +28,8 @@ class Endpoints:
         CHANGE_PASSWORD = "/change-password"
         RESEND_VERIFICATION = "/resend-verification"
         VERIFY_EMAIL = "/verify-email"
+        FORGOT_PASSWORD = "/forgot-password"
+        RESET_PASSWORD = "/reset-password"
         DEACTIVATE = "/deactivate"
         ACCOUNT = "/account"
 
@@ -98,6 +100,7 @@ class Endpoints:
         MONTHLY = "/monthly"
         REPORT_DETAIL = "/{report_date}"
         GENERATE_REPORT_REQUEST = "/{report_date}/request"
+        EMAIL_REPORT_REQUEST = "/{report_date}/email"
 
     class NOTIFICATIONS:
         PREFIX = "/notifications"

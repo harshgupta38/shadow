@@ -273,6 +273,17 @@ def _require_current_password(user: UserDBM, current_password: str) -> None:
         )
 
 
+def _notify_password_changed(db: Session, user: UserDBM) -> None:
+    notifications_service.create_notification(
+        db, user,
+        title="Password changed",
+        body="Your account password was just changed. If this wasn't you, contact support immediately.",
+        type="security",
+        level=notifications_service.LEVEL_CRITICAL,
+        url="/profile",
+    )
+
+
 def update_name(db: Session, user: UserDBM, name: str) -> UserDBM:
     user.name = name.strip()
     db.commit()
@@ -286,14 +297,7 @@ def change_password(db: Session, user: UserDBM, current_password: str, new_passw
     user.hashed_password = security.hash_password(new_password)
     db.commit()
 
-    notifications_service.create_notification(
-        db, user,
-        title="Password changed",
-        body="Your account password was just changed. If this wasn't you, contact support immediately.",
-        type="security",
-        level=notifications_service.LEVEL_CRITICAL,
-        url="/profile",
-    )
+    _notify_password_changed(db, user)
 
 
 def resend_verification_email(db: Session, user: UserDBM) -> None:
@@ -318,6 +322,24 @@ def resend_verification_email(db: Session, user: UserDBM) -> None:
         db.commit()
 
 
+def verify_email(db: Session, uid: int, token: str) -> UserDBM:
+    """Completes a /auth/verify-email click from VerifyEmailPage. Unlike the
+    reset-password token, this one never expires and stays valid even after
+    use (a user re-opening an old verification email should still work) — see
+    email_notification_service.verify_verification_token."""
+    from app.services import email_notification_service
+
+    user = db.get(UserDBM, uid)
+    if user is None or not email_notification_service.verify_verification_token(uid, user.email, token):
+        raise ValidationError("This verification link is invalid or has expired.")
+
+    if not user.email_verified:
+        user.email_verified = True
+        db.commit()
+
+    return user
+
+
 def deactivate_account(db: Session, user: UserDBM, current_password: str) -> None:
     """Pauses the account — see login_user for the matching reactivation.
     Re-verifies the password so a hijacked session can't pause/hide the
@@ -336,3 +358,48 @@ def delete_account(db: Session, user: UserDBM, current_password: str) -> None:
     _require_current_password(user, current_password)
     db.delete(user)
     db.commit()
+
+
+# ─── Forgot / reset password ────────────────────────────────────────────────────
+
+def request_password_reset(db: Session, email: str) -> None:
+    """Sends a reset link if an account with this email exists. Always
+    "succeeds" from the caller's point of view either way — never reveals
+    whether the address is registered (same account-enumeration reasoning as
+    login's generic AuthError)."""
+    email = _normalise_email(email)
+    user = _get_user_by_email(db, email)
+    if user is None:
+        return
+
+    from app.services import email_notification_service
+    token = email_notification_service.issue_reset_password_token(user)
+    try:
+        email_notification_service.send_reset_password_email(user, token)
+    except Exception:
+        logger.warning("Failed to send reset-password email to user %d", user.id, exc_info=True)
+
+
+def reset_password(db: Session, uid: int, token: str, new_password: str) -> UserDBM:
+    """Completes a /auth/forgot-password reset. No session/cookie is involved
+    on this path (the link may be opened on a device that was never signed
+    in), so identity is proven entirely by the token."""
+    from app.services import email_notification_service, session_service
+
+    user = db.get(UserDBM, uid)
+    if user is None or not email_notification_service.verify_reset_password_token(user, token):
+        raise ValidationError("This reset link is invalid or has expired. Please request a new one.")
+
+    user.hashed_password = security.hash_password(new_password)
+    # Clicking a link delivered to the inbox is itself proof the user controls
+    # that address — same trust level as the dedicated verify-email flow.
+    if not user.email_verified:
+        user.email_verified = True
+    db.commit()
+
+    # Unlike change_password (which preserves the session making the request),
+    # there is no session to preserve here — the user must sign back in
+    # everywhere, matching the product spec for this flow.
+    session_service.revoke_all_sessions(db, user.id)
+    _notify_password_changed(db, user)
+    return user

@@ -1,6 +1,7 @@
 import { ENDPOINTS } from "@/constant/shadow-endpoints";
 import { http } from "@/api/client";
 import {
+    AccountPasswordConfirmRequest,
     LoginRequest,
     TokenResponse,
     UserDataResponse,
@@ -8,7 +9,6 @@ import {
     SessionsListResponse,
     UpdateNameRequest,
     ChangePasswordRequest,
-    AccountPasswordConfirmRequest,
 } from "@/api/types";
 
 export const authApi = {
@@ -68,6 +68,22 @@ export const authApi = {
 
     async resendVerificationEmail(): Promise<void> {
         await http.post<void>(`${ENDPOINTS.AUTH.PREFIX}${ENDPOINTS.AUTH.RESEND_VERIFICATION}`, {});
+    },
+
+    async verifyEmail(uid: number, token: string): Promise<void> {
+        await http.post<void>(`${ENDPOINTS.AUTH.PREFIX}${ENDPOINTS.AUTH.VERIFY_EMAIL}`, { uid, token });
+    },
+
+    async forgotPassword(email: string): Promise<void> {
+        await http.post<void>(`${ENDPOINTS.AUTH.PREFIX}${ENDPOINTS.AUTH.FORGOT_PASSWORD}`, { email });
+    },
+
+    async resetPassword(uid: number, token: string, newPassword: string): Promise<void> {
+        await http.post<void>(`${ENDPOINTS.AUTH.PREFIX}${ENDPOINTS.AUTH.RESET_PASSWORD}`, {
+            uid,
+            token,
+            new_password: newPassword,
+        });
     },
 
     async deactivateAccount(data: AccountPasswordConfirmRequest): Promise<void> {

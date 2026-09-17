@@ -20,4 +20,10 @@ export const reportsApi = {
       params: { report_type: reportType },
     });
   },
+
+  async emailReportRequest(reportDate: string, reportType: "daily" | "weekly"): Promise<void> {
+    await http.post<void>(`${BASE}${ENDPOINTS.REPORTS.EMAIL_REPORT_REQUEST(reportDate)}`, undefined, {
+      params: { report_type: reportType },
+    });
+  },
 };

@@ -16,6 +16,9 @@ import { AppLayout } from "@/components/layout/AppLayout";
 const LandingPage = lazy(() => import("@/pages/landing_page/LandingPage").then(m => ({ default: m.LandingPage })));
 const LoginPage = lazy(() => import("@/pages/auth/LoginPage").then(m => ({ default: m.LoginPage })));
 const RegisterPage = lazy(() => import("@/pages/auth/RegisterPage").then(m => ({ default: m.RegisterPage })));
+const ForgotPasswordPage = lazy(() => import("@/pages/auth/ForgotPasswordPage").then(m => ({ default: m.ForgotPasswordPage })));
+const ResetPasswordPage = lazy(() => import("@/pages/auth/ResetPasswordPage").then(m => ({ default: m.ResetPasswordPage })));
+const VerifyEmailPage = lazy(() => import("@/pages/auth/VerifyEmailPage").then(m => ({ default: m.VerifyEmailPage })));
 const DashboardPage = lazy(() => import("@/pages/dashboard/DashboardPage").then(m => ({ default: m.DashboardPage })));
 const PlanPage = lazy(() => import("@/pages/plan/PlanPage").then(m => ({ default: m.PlanPage })));
 const SchedulePage = lazy(() => import("@/pages/schedule/SchedulePage").then(m => ({ default: m.SchedulePage })));
@@ -55,7 +58,14 @@ export function AppRoutes() {
 					<Route path={ROUTES.LANDING} element={<LandingPage />} />
 					<Route path={ROUTES.LOGIN} element={<LoginPage />} />
 					<Route path={ROUTES.REGISTER} element={<RegisterPage />} />
+					<Route path={ROUTES.FORGOT_PASSWORD} element={<ForgotPasswordPage />} />
 				</Route>
+
+				{/* Reachable regardless of auth state — the emailed link may be opened
+				    on a device that's still signed in, and PublicOnly would otherwise
+				    bounce it straight to /dashboard before the form/verification ever runs. */}
+				<Route path={ROUTES.RESET_PASSWORD} element={<ResetPasswordPage />} />
+				<Route path={ROUTES.VERIFY_EMAIL} element={<VerifyEmailPage />} />
 
 				<Route element={<RequireAuth />}>
 					{/* Device-limit wall — accessible only when signed in */}

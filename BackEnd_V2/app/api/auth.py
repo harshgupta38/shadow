@@ -21,14 +21,14 @@ router = APIRouter(prefix=ENDPOINTS.AUTH.PREFIX, tags=["Authentication"])
 
 # ─── Cookie helpers ───────────────────────────────────────────────────────────
 
-# Production runs over HTTPS and needs to allow cross-site callers (e.g. a
-# local dev frontend testing against the live API) — SameSite=None requires
-# Secure=True, which browsers refuse to send over plain HTTP, so dev keeps
-# Strict/insecure where the frontend and backend are same-site anyway.
-_COOKIE_OPTS: dict = (
-    dict(httponly=True, samesite="none", secure=True, path="/")
-    if settings.environment == "production"
-    else dict(httponly=True, samesite="strict", secure=False, path="/")
+# secure is derived from same_site: SameSite=None is only honored by browsers
+# when Secure=True, and there's no reason to want Secure without None (a
+# same-site cookie doesn't need Secure to reach the same origin over dev HTTP).
+_COOKIE_OPTS: dict = dict(
+    httponly=True,
+    samesite=settings.same_site,
+    secure=settings.same_site == "none",
+    path="/",
 )
 
 

@@ -7,11 +7,12 @@ class Settings(BaseSettings):
     app_version: str = "2.0.0"
     api_prefix: str = "/v2"
 
-    # "development" | "production". Controls auth-cookie SameSite/Secure policy
-    # (see _COOKIE_OPTS in app/api/auth.py) — production allows cross-site
-    # cookies (e.g. a local dev frontend calling the production API), dev
-    # stays same-site-only since Secure cookies aren't sent over plain HTTP.
-    environment: str = "development"
+    # Auth-cookie SameSite policy: "strict" | "lax" | "none".
+    # "none" allows cross-site clients (e.g. a local dev frontend calling this
+    # API) and requires HTTPS — browsers refuse SameSite=None cookies without
+    # Secure=True, so this only works when the backend is actually served over
+    # HTTPS. Leave as "strict" for normal same-site deployments.
+    same_site: str = "strict"
 
     database_url: str = "sqlite:///shadow.db"
     jwt_secret: str = "change-this-in-production"

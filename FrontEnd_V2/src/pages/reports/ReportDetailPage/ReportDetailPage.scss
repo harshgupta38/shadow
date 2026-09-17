@@ -111,6 +111,34 @@
   justify-content: space-between;
   gap: 1rem;
   margin-top: 1rem;
+  flex-wrap: wrap;
+}
+
+.rdp-bottom-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.rdp-email-btn {
+  display: inline-flex;
+  align-items: center;
+  height: stretch;
+  gap: 0.4rem;
+  padding: 0.3rem 1.1rem;
+  border: 1px solid var(--jv-border);
+  border-radius: 10px;
+  background: var(--jv-surface);
+  color: var(--jv-text);
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 140ms, border-color 140ms, color 140ms;
+
+  &:hover { background: var(--jv-surface-2); border-color: var(--jv-border-strong); }
+  &:disabled { color: var(--jv-muted); cursor: default; background: var(--jv-surface); }
 }
 
 .rdp-pagination {

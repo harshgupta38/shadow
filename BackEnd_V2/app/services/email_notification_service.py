@@ -23,6 +23,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models.user import UserDBM
+from app.schemas.daily_report import GoalAlignmentResponse, ReportHighlightsResponse, ReportResponse, ReportStatsResponse
 from app.services import email_service
 
 logger = logging.getLogger(__name__)
@@ -478,3 +479,192 @@ def _send_notification_alert(user: UserDBM, *, title: str, body: str | None, url
     html_body = _render("notification_alert.html", context)
     text_body = f"{title}\n\n{body or ''}\n\n{cta_url}\n\nUnsubscribe: {unsub}"
     return email_service.send_email(to_email=user.email, subject=title, text_body=text_body, html_body=html_body)
+
+
+# ─── Report-ready email ─────────────────────────────────────────────────────────
+# A full snapshot of the report, shaped to match ReportDetailPage.tsx as closely
+# as an HTML email allows: hero score + headline/summary, the 4-stat row, a card
+# per goal, the good/attention highlight lists, and the closing message. Colors
+# are the frontend's light-theme hex values, hardcoded — email clients don't
+# support CSS custom properties or color-mix(). SVG rings are skipped in favor of
+# a plain colored circle with the percentage as text (Outlook-safe); progress
+# bars use nested <div>s with inline widths (safe everywhere that matters here).
+
+_CLOSING_EMOJI = {"celebrate": "\U0001F389", "motivate": "\U0001F4AA", "guide": "\U0001F9ED"}
+
+
+def _alignment_colors(pct: int) -> tuple[str, str]:
+    """(solid, soft-background) hex pair — mirrors ringColor() in
+    ReportDetailPage.constants.ts."""
+    if pct >= 75:
+        return "#16a97a", "rgba(22,169,122,0.12)"   # --jv-success / --jv-success-soft
+    if pct >= 50:
+        return "#7c6cff", "rgba(124,108,255,0.12)"  # --jv-brand-1 / --jv-brand-soft
+    return "#e0913a", "rgba(224,145,58,0.14)"        # --jv-warn / --jv-warn-soft
+
+
+_STAT_TONES = {
+    "success": ("#16a97a", "rgba(22,169,122,0.12)"),
+    "info": ("#4f8bff", "rgba(79,139,255,0.12)"),
+    "brand": ("#7c6cff", "rgba(124,108,255,0.12)"),
+    "warn": ("#e0913a", "rgba(224,145,58,0.14)"),
+}
+
+
+def _stat_cell(value: str, name: str, hint: str, tone: str) -> str:
+    color, soft = _STAT_TONES[tone]
+    return (
+        '<td width="50%" style="padding:6px;">'
+        f'<div style="background:{soft};border:1px solid {color};border-radius:10px;padding:12px 14px;">'
+        f'<div style="font-size:21px;font-weight:800;color:{color};line-height:1;">{_e(value)}</div>'
+        f'<div style="margin-top:4px;font-size:12px;font-weight:700;color:#111827;">{_e(name)}</div>'
+        f'<div style="font-size:10.5px;color:#9ca3af;">{_e(hint)}</div>'
+        "</div></td>"
+    )
+
+
+def _build_stats_block(stats: ReportStatsResponse, goals: list[GoalAlignmentResponse], report_type: str) -> str:
+    goals_on_track = sum(1 for g in goals if g.alignment_pct >= 75)
+    tasks_hint = "daily targets" if report_type == "daily" else "weekly targets"
+    habits_hint = "tracked today" if report_type == "daily" else "tracked this week"
+    row1 = "<tr>" + _stat_cell(f"{stats.tasks_done}/{stats.tasks_total}", "Tasks Done", tasks_hint, "success") \
+        + _stat_cell(f"{stats.habits_done}/{stats.habits_total}", "Habits Done", habits_hint, "info") + "</tr>"
+    row2 = "<tr>" + _stat_cell(f"{goals_on_track}/{len(goals)}", "Goals on Track", "aligned ≥ 75%", "brand") \
+        + _stat_cell(f"\U0001F525 {stats.best_streak}", "Best Streak", "consecutive days", "warn") + "</tr>"
+    return f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0">{row1}{row2}</table>'
+
+
+def _goal_card(goal: GoalAlignmentResponse) -> str:
+    color, soft = _alignment_colors(goal.alignment_pct)
+    bar_pct = round(goal.tasks_done / goal.tasks_total * 100) if goal.tasks_total else 0
+    note_row = (
+        f'<div style="margin-top:6px;font-size:11.5px;color:#6b7280;line-height:1.5;">{_e(goal.note)}</div>'
+        if goal.note else ""
+    )
+    return (
+        '<tr><td style="padding:0 0 10px;">'
+        f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid {soft};border-radius:10px;">'
+        "<tr>"
+        '<td width="56" style="padding:12px 0 12px 12px;" valign="top">'
+        f'<div style="width:44px;height:44px;border-radius:50%;background:{soft};color:{color};'
+        f'font-size:12px;font-weight:800;text-align:center;line-height:44px;font-family:Verdana,Geneva,sans-serif;">{goal.alignment_pct}%</div>'
+        "</td>"
+        '<td style="padding:12px 14px 12px 4px;" valign="top">'
+        f'<div style="font-size:13.5px;font-weight:700;color:#111827;">{_e(goal.title)}</div>'
+        f'<div style="display:inline-block;margin-top:3px;padding:2px 8px;border-radius:999px;background:#f3f4f6;color:#6b7280;font-size:10.5px;">{_e(goal.milestone_title)}</div>'
+        f"{note_row}"
+        f'<div style="margin-top:8px;font-size:10.5px;color:#9ca3af;">{goal.tasks_done} / {goal.tasks_total} tasks</div>'
+        f'<div style="margin-top:3px;background:#f3f4f6;border-radius:3px;height:6px;line-height:6px;font-size:0;">'
+        f'<div style="background:{color};width:{bar_pct}%;height:6px;border-radius:3px;">&nbsp;</div></div>'
+        "</td></tr></table>"
+        "</td></tr>"
+    )
+
+
+def _build_goals_block(goals: list[GoalAlignmentResponse]) -> str:
+    if not goals:
+        return ""
+    rows = "".join(_goal_card(g) for g in goals)
+    return (
+        '<tr><td style="padding:26px 36px 4px;">'
+        f'<div style="font-size:11px;font-weight:700;color:#111827;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px;">Goal Alignment &middot; {len(goals)} goal{"s" if len(goals) != 1 else ""}</div>'
+        f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0">{rows}</table>'
+        "</td></tr>"
+    )
+
+
+def _highlight_row(text: str, color: str, soft: str) -> str:
+    return (
+        f'<div style="background:{soft};border-left:3px solid {color};border-radius:0 8px 8px 0;'
+        f'padding:7px 12px;margin-bottom:6px;font-size:12px;color:#374151;line-height:1.5;">{_e(text)}</div>'
+    )
+
+
+def _build_highlights_block(highlights: ReportHighlightsResponse, report_type: str) -> str:
+    if not highlights.good and not highlights.attention:
+        return ""
+    label = "Today's Highlights" if report_type == "daily" else "This Week's Highlights"
+    sections = ""
+    if highlights.good:
+        sections += (
+            '<div style="margin-bottom:12px;">'
+            '<div style="font-size:11px;font-weight:700;color:#16a97a;text-transform:uppercase;letter-spacing:.03em;margin-bottom:6px;">&#10003; Went well</div>'
+            + "".join(_highlight_row(t, "#16a97a", "rgba(22,169,122,0.12)") for t in highlights.good)
+            + "</div>"
+        )
+    if highlights.attention:
+        sections += (
+            '<div>'
+            '<div style="font-size:11px;font-weight:700;color:#e0913a;text-transform:uppercase;letter-spacing:.03em;margin-bottom:6px;">&#9888; Needs attention</div>'
+            + "".join(_highlight_row(t, "#e0913a", "rgba(224,145,58,0.14)") for t in highlights.attention)
+            + "</div>"
+        )
+    return (
+        '<tr><td style="padding:22px 36px 4px;">'
+        f'<div style="font-size:11px;font-weight:700;color:#111827;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px;">{_e(label)}</div>'
+        f"{sections}"
+        "</td></tr>"
+    )
+
+
+def send_report_email(db: Session, user: UserDBM, report: ReportResponse, *, force: bool = False) -> bool:
+    """Full report snapshot, shaped to match ReportDetailPage.tsx. Sent
+    automatically when a report finishes generating (respects the user's
+    email-notifications preference, same as any other type!="security" email)
+    and again on-demand from the "Email report" button on that page
+    (`force=True` — an explicit user action shouldn't be silently swallowed
+    by a passive preference toggle)."""
+    if not force and not _email_enabled(db, user.id):
+        return False
+
+    first_name = user.name.split()[0] if user.name else "there"
+    label = report.report_type.capitalize()
+    date_str = report.date.strftime("%d %b %Y")
+    score_color, score_soft = _alignment_colors(report.alignment_score)
+    cta_url = _frontend_url(f"/reports/{report.date.isoformat()}?report_type={report.report_type}")
+    unsub = _unsub_url(user)
+
+    context = {
+        "safe_subject": _e(f"Your {label} report for {report.date.strftime('%d %b')} is ready"),
+        "safe_first_name": _e(first_name),
+        "safe_label": _e(label),
+        "safe_date": _e(date_str),
+        "score_color": score_color,
+        "score_soft": score_soft,
+        "safe_score": _e(str(report.alignment_score)),
+        "safe_headline": _e(report.headline),
+        "safe_summary": _e(report.summary),
+        "stats_block": _build_stats_block(report.stats, report.goals, report.report_type),
+        "goals_block": _build_goals_block(report.goals),
+        "highlights_block": _build_highlights_block(report.highlights, report.report_type),
+        "safe_closing_emoji": _CLOSING_EMOJI.get(report.closing.tone, "\U0001F9ED"),
+        "safe_closing_message": _e(report.closing.message),
+        "safe_cta_url": _e(cta_url),
+        "safe_unsub_url": _e(unsub),
+        "safe_support_email": _e("support@shadow.app"),
+        "safe_footer": _e("© Shadow — Your AI-powered life and career assistant"),
+    }
+    html_body = _render("report_ready.html", context)
+
+    text_lines = [
+        f"Your {label} report for {date_str}",
+        f"Alignment: {report.alignment_score}%",
+        "",
+        report.headline,
+        report.summary,
+        "",
+        f"Tasks: {report.stats.tasks_done}/{report.stats.tasks_total}   Habits: {report.stats.habits_done}/{report.stats.habits_total}   Best streak: {report.stats.best_streak}",
+    ]
+    if report.highlights.good:
+        text_lines += ["", "Went well:"] + [f"  - {t}" for t in report.highlights.good]
+    if report.highlights.attention:
+        text_lines += ["", "Needs attention:"] + [f"  - {t}" for t in report.highlights.attention]
+    text_lines += ["", report.closing.message, "", f"View full report: {cta_url}", "", f"Unsubscribe: {unsub}"]
+    text_body = "\n".join(text_lines)
+
+    return email_service.send_email(
+        to_email=user.email,
+        subject=f"Your {label} report for {report.date.strftime('%d %b')} is ready",
+        text_body=text_body,
+        html_body=html_body,
+    )

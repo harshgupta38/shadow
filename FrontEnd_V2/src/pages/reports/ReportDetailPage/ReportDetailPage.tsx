@@ -7,6 +7,7 @@ import {
   CheckCircleFill,
   ChevronLeft,
   ChevronRight,
+  EnvelopeFill,
   ExclamationTriangleFill,
   FileEarmarkBarGraphFill,
 } from "react-bootstrap-icons";
@@ -258,6 +259,7 @@ export function ReportDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [requested, setRequested] = useState(false);
+  const [emailing, setEmailing] = useState(false);
   const toast = useToast();
 
   // Derived from active type
@@ -306,6 +308,15 @@ export function ReportDetailPage() {
         setRequested(true);
       })
       .catch((err) => toast.error(err instanceof ApiError ? err.message : "Failed to request report."));
+  }
+
+  function handleEmailReport() {
+    if (!historyDate || emailing) return;
+    setEmailing(true);
+    api.reports.emailReportRequest(historyDate, activeType)
+      .then(() => toast.success("Report sent to your email."))
+      .catch((err) => toast.error(err instanceof ApiError ? err.message : "Couldn't email the report. Please try again."))
+      .finally(() => setEmailing(false));
   }
 
   const datePicker = historyDate
@@ -476,30 +487,38 @@ export function ReportDetailPage() {
         <p className="rdp-closing-msg">{report.closing.message}</p>
       </div>
 
-      {/* ── Bottom bar: type switcher (left) + pagination (right) ────────── */}
-      {(hasBothTypes || total > 1) && (
-        <div className="rdp-bottom-bar">
-          {hasBothTypes ? (
-            <div className="rdp-type-switcher">
-              <button
-                type="button"
-                className={`rdp-type-btn${activeType === "daily" ? " rdp-type-btn--active" : ""}`}
-                onClick={() => switchType("daily")}
-              >
-                Daily
-              </button>
-              <button
-                type="button"
-                className={`rdp-type-btn${activeType === "weekly" ? " rdp-type-btn--active" : ""}`}
-                onClick={() => switchType("weekly")}
-              >
-                Weekly
-              </button>
-            </div>
-          ) : <span />}
+      {/* ── Bottom bar: email CTA + type switcher (left) + pagination (right) ── */}
+      <div className="rdp-bottom-bar">
+          <div className="rdp-bottom-bar-left">
+            <button
+              type="button"
+              className="rdp-email-btn"
+              disabled={emailing}
+              onClick={handleEmailReport}
+            >
+              <EnvelopeFill size={13} /> {emailing ? "Sending…" : "Email report"}
+            </button>
+            {hasBothTypes && (
+              <div className="rdp-type-switcher">
+                <button
+                  type="button"
+                  className={`rdp-type-btn${activeType === "daily" ? " rdp-type-btn--active" : ""}`}
+                  onClick={() => switchType("daily")}
+                >
+                  Daily
+                </button>
+                <button
+                  type="button"
+                  className={`rdp-type-btn${activeType === "weekly" ? " rdp-type-btn--active" : ""}`}
+                  onClick={() => switchType("weekly")}
+                >
+                  Weekly
+                </button>
+              </div>
+            )}
+          </div>
           {total > 1 && <ReportPagination total={total} idx={idx} onChange={setIdx} />}
         </div>
-      )}
 
     </div>
   );

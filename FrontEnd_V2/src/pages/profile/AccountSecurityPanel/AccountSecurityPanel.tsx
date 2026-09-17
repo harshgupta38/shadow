@@ -154,7 +154,7 @@ export function AccountSecurityPanel({ displayName, email, emailVerified, onEdit
                 disabled={forgotPwLockedUntil !== null}
                 onClick={() => void handleForgotPassword()}
               >
-                {forgotPwLockedUntil !== null ? `Sent · ${forgotPwCountdown}s` : "Forgot password?"}
+                {forgotPwLockedUntil !== null ? `Sent · ${forgotPwCountdown}s` : "Reset"}
               </button>
             </div>
           }

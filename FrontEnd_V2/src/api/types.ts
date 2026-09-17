@@ -17,6 +17,19 @@ export interface RegisterRequest extends LoginRequest {
   name: string;
 }
 
+export interface UpdateNameRequest {
+  name: string;
+}
+
+export interface ChangePasswordRequest {
+  current_password: string;
+  new_password: string;
+}
+
+export interface AccountPasswordConfirmRequest {
+  current_password: string;
+}
+
 // TokenResponse is defined below alongside SessionInfo
 
 export interface RefreshRequest {
@@ -829,6 +842,50 @@ export interface DashboardResponse {
   goals: GoalDataShortResponse[];
   upcoming: DashboardUpcomingItem[];
   week_habits: WeeklyMatrixRow[];
+}
+
+// ── Profile ────────────────────────────────────────────────────────────────────
+
+// A resolved, ready-to-render badge — the server decides which ones exist and
+// whether each is unlocked (system-wide rules or per-habit/goal thresholds);
+// the frontend only maps `icon` to a component and paints it. `icon` is a
+// bootstrap-icons component name (e.g. "Fire", "TrophyFill").
+export interface ProfileAchievement {
+  key: string;
+  label: string;
+  hint: string;
+  icon: string;
+  unlocked: boolean;
+  tone?: ColorKey;
+}
+
+// Single-endpoint contract for the Profile page — every card's data is a
+// slice of this one response, no per-card requests (same approach as
+// DashboardResponse above). Name/email stay sourced from AuthContext
+// (UserDataResponse) rather than duplicated here.
+export interface ProfileResponse {
+  bio: string | null;
+  joined_at: string; // "YYYY-MM-DD"
+  email_verified: boolean;
+
+  streak_days: number;
+  goals_completed: number;
+  habits_active: number;
+  tasks_completed_total: number;
+
+  month_alignment_percent: number;
+  month_goals_done: number;
+  month_goals_total: number;
+  month_habits_done: number;
+  month_habits_total: number;
+  month_tasks_done: number;
+  month_tasks_total: number;
+
+  achievements: ProfileAchievement[];
+}
+
+export interface UpdateBioRequest {
+  bio: string;
 }
 
 // ─── Settings ─────────────────────────────────────────────────────────────────

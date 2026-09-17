@@ -1,3 +1,4 @@
+import { type ReactNode } from "react";
 import { ExclamationTriangleFill } from "react-bootstrap-icons";
 
 import { ChoiceDialog } from "@/components/ui/ChoiceDialog/ChoiceDialog";
@@ -10,8 +11,10 @@ interface ConfirmDialogProps {
     cancelLabel?: string;
     destructive?: boolean;
     busy?: boolean;
+    confirmDisabled?: boolean;
     onConfirm: () => void;
     onCancel: () => void;
+    children?: ReactNode;
 }
 
 export function ConfirmDialog({
@@ -22,8 +25,10 @@ export function ConfirmDialog({
     cancelLabel = "Cancel",
     destructive = false,
     busy = false,
+    confirmDisabled = false,
     onConfirm,
     onCancel,
+    children,
 }: ConfirmDialogProps) {
     return (
         <ChoiceDialog
@@ -39,9 +44,11 @@ export function ConfirmDialog({
                     label: busy ? "Working…" : confirmLabel,
                     variant: destructive ? "danger" : "brand",
                     onClick: onConfirm,
-                    disabled: busy,
+                    disabled: busy || confirmDisabled,
                 },
             ]}
-        />
+        >
+            {children}
+        </ChoiceDialog>
     );
 }

@@ -6,6 +6,9 @@ import {
     UserDataResponse,
     RegisterRequest,
     SessionsListResponse,
+    UpdateNameRequest,
+    ChangePasswordRequest,
+    AccountPasswordConfirmRequest,
 } from "@/api/types";
 
 export const authApi = {
@@ -50,5 +53,28 @@ export const authApi = {
             `${ENDPOINTS.AUTH.PREFIX}${ENDPOINTS.AUTH.SESSION_DETAIL(sessionId)}`,
             { custom_name: customName },
         );
+    },
+
+    async updateName(data: UpdateNameRequest): Promise<UserDataResponse> {
+        return http.patch<UserDataResponse>(
+            `${ENDPOINTS.AUTH.PREFIX}${ENDPOINTS.AUTH.NAME}`,
+            data,
+        );
+    },
+
+    async changePassword(data: ChangePasswordRequest): Promise<void> {
+        await http.post<void>(`${ENDPOINTS.AUTH.PREFIX}${ENDPOINTS.AUTH.CHANGE_PASSWORD}`, data);
+    },
+
+    async resendVerificationEmail(): Promise<void> {
+        await http.post<void>(`${ENDPOINTS.AUTH.PREFIX}${ENDPOINTS.AUTH.RESEND_VERIFICATION}`, {});
+    },
+
+    async deactivateAccount(data: AccountPasswordConfirmRequest): Promise<void> {
+        await http.post<void>(`${ENDPOINTS.AUTH.PREFIX}${ENDPOINTS.AUTH.DEACTIVATE}`, data);
+    },
+
+    async deleteAccount(data: AccountPasswordConfirmRequest): Promise<void> {
+        await http.delete<void>(`${ENDPOINTS.AUTH.PREFIX}${ENDPOINTS.AUTH.ACCOUNT}`, data);
     },
 };

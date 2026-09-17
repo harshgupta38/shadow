@@ -88,7 +88,7 @@ def _build_token_response(db, user_id: int, request: Request, response: Response
         )
 
     max_devices = settings_service.get_max_concurrent_devices(db, user_id)
-    count = session_service.get_session_count(db, user_id)
+    count = session_service.get_session_count(db, user_id, include_session_id=sess.id)
     sessions = session_service.get_sessions(db, user_id, current_session_id=sess.id)
 
     return TokenResponse(

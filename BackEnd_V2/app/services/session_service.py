@@ -115,7 +115,13 @@ def get_sessions(
 ) -> list[SessionInfoResponse]:
     rows = (
         db.query(ActiveSessionDBM)
-        .filter(ActiveSessionDBM.user_id == user_id)
+        .filter(
+            ActiveSessionDBM.user_id == user_id,
+            or_(
+                ActiveSessionDBM.confirmed.is_(True),
+                ActiveSessionDBM.id == current_session_id,
+            ),
+        )
         .order_by(ActiveSessionDBM.created_at.desc())
         .all()
     )
@@ -135,10 +141,23 @@ def get_sessions(
     ]
 
 
-def get_session_count(db: Session, user_id: int) -> int:
+def get_session_count(db: Session, user_id: int, include_session_id: int | None = None) -> int:
+    """Counts confirmed sessions (real, used-at-least-once devices).
+
+    include_session_id lets a caller count a session that was just created in
+    this same request and hasn't had a chance to be confirmed yet (e.g. the
+    login response itself) — without it, unconfirmed "phantom" sessions from
+    failed logins are correctly excluded from the device-limit count.
+    """
     return (
         db.query(ActiveSessionDBM)
-        .filter(ActiveSessionDBM.user_id == user_id)
+        .filter(
+            ActiveSessionDBM.user_id == user_id,
+            or_(
+                ActiveSessionDBM.confirmed.is_(True),
+                ActiveSessionDBM.id == include_session_id,
+            ),
+        )
         .count()
     )
 
@@ -180,7 +199,16 @@ def update_last_seen(db: Session, session: ActiveSessionDBM) -> None:
     last = session.last_seen_at
     if last.tzinfo is None:
         last = last.replace(tzinfo=timezone.utc)
-    # Only write if stale by more than 5 minutes to reduce DB pressure
+
+    dirty = False
+    # First successful use of this session — see ActiveSessionDBM.confirmed.
+    if not session.confirmed:
+        session.confirmed = True
+        dirty = True
+    # Only write last_seen_at if stale by more than 5 minutes to reduce DB pressure
     if (now - last).total_seconds() > 300:
         session.last_seen_at = now
+        dirty = True
+
+    if dirty:
         db.commit()

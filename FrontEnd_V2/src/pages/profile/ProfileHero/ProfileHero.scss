@@ -1,0 +1,163 @@
+// ─── Profile Hero ───────────────────────────────────────────────────────────
+
+.pf-hero {
+  padding: 0;
+  overflow: hidden;
+}
+
+// Textured cover: a fine dot-grid + two soft highlight blobs on top of the
+// brand gradient, so a wide desktop card doesn't read as a flat color bar.
+.pf-hero-cover {
+  height: 76px;
+  background-repeat: repeat, no-repeat, no-repeat, no-repeat;
+  background-size: 15px 15px, 60% 60%, 55% 55%, 100% 100%;
+  background-position: 0 0, -10% -25%, 108% 118%, 0 0;
+  background-image:
+    radial-gradient(circle, rgba(255, 255, 255, 0.3) 1px, transparent 1.6px),
+    radial-gradient(circle, rgba(255, 255, 255, 0.32), transparent 70%),
+    radial-gradient(circle, rgba(255, 255, 255, 0.2), transparent 70%),
+    var(--jv-brand-gradient);
+}
+
+.pf-hero-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.1rem;
+  padding: 0 1.5rem 1.35rem;
+}
+
+// align-items:flex-start above is what makes this deterministic — the
+// avatar's top is pinned to the cover's bottom edge no matter how tall the
+// identity block next to it grows (bio wrapping, long names, etc). Pulling
+// it up by exactly half its own height then centers it on that boundary,
+// giving a true half-on-color/half-on-white split at any content height.
+.pf-avatar-block {
+  flex-shrink: 0;
+  margin-top: -54px;
+}
+
+.pf-avatar {
+  width: 108px;
+  height: 108px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--jv-brand-gradient);
+  color: #fff;
+  font-family: var(--jv-font-display);
+  font-weight: 800;
+  font-size: 1.95rem;
+  border: 5px solid var(--jv-surface);
+  box-shadow: var(--jv-shadow);
+  overflow: hidden;
+}
+
+.pf-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+  padding-top: 0.6rem;
+  flex: 1;
+}
+
+.pf-name-line {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.pf-name {
+  font-family: var(--jv-font-display);
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--jv-text);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.pf-edit-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 0;
+  background: transparent;
+  color: var(--jv-faint);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background var(--jv-transition), color var(--jv-transition);
+
+  &:hover {
+    background: var(--jv-surface-2);
+    color: var(--jv-brand-1);
+  }
+}
+
+.pf-meta-line {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+  color: var(--jv-muted);
+  font-size: 0.8rem;
+}
+
+.pf-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.pf-meta-dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--jv-faint);
+  flex-shrink: 0;
+}
+
+.pf-bio-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+}
+
+.pf-bio-text {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--jv-muted);
+  line-height: 1.45;
+}
+
+// Mobile keeps the original (approved) proportions verbatim — the bigger
+// avatar/cover and richer texture above are a desktop-only upgrade, since
+// flex-direction:column here already stacks avatar above identity in
+// document order, making the overlap deterministic without any of this.
+@media (max-width: 560px) {
+  .pf-hero-cover {
+    height: 84px;
+  }
+
+  .pf-hero-content {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .pf-avatar-block {
+    margin-top: -40px;
+  }
+
+  .pf-avatar {
+    width: 92px;
+    height: 92px;
+    font-size: 1.7rem;
+    border-width: 4px;
+  }
+
+  .pf-identity {
+    padding-top: 0.4rem;
+  }
+}

@@ -1,0 +1,89 @@
+// ─── Achievements Panel ─────────────────────────────────────────────────────
+
+.pf-badge-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+  gap: 0.65rem;
+}
+
+.pf-badge {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.35rem;
+  padding: 0.9rem 0.6rem 0.75rem;
+  background: var(--jv-surface-2);
+  border: 1px solid var(--jv-border);
+  border-radius: var(--jv-radius);
+  transition: transform var(--jv-transition), box-shadow var(--jv-transition);
+
+  &--unlocked {
+    &:hover { transform: translateY(-2px); box-shadow: var(--jv-shadow); }
+
+    .pf-badge-icon { background: var(--jv-brand-soft); color: var(--jv-brand-1); }
+    .pf-badge-label { color: var(--jv-text); }
+
+    // Personal (habit/goal-derived) achievements tint their icon with the
+    // underlying habit's own color instead of the fixed brand color above.
+    .pf-badge-icon--success { background: var(--jv-success-soft); color: var(--jv-success); }
+    .pf-badge-icon--info    { background: var(--jv-info-soft);    color: var(--jv-info); }
+    .pf-badge-icon--warn    { background: var(--jv-warn-soft);    color: var(--jv-warn); }
+    .pf-badge-icon--violet  { background: var(--jv-violet-soft);  color: var(--jv-violet); }
+  }
+
+  &--locked {
+    opacity: 0.55;
+
+    .pf-badge-icon { background: var(--jv-surface-2); color: var(--jv-faint); border: 1px dashed var(--jv-border-strong); }
+    .pf-badge-label { color: var(--jv-muted); }
+  }
+}
+
+.pf-badge-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+}
+
+.pf-badge-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.pf-badge-hint {
+  font-size: 0.66rem;
+  color: var(--jv-faint);
+  line-height: 1.3;
+}
+
+.pf-badge-lock {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--jv-surface);
+  color: var(--jv-faint);
+  box-shadow: var(--jv-shadow);
+}
+
+// 24 tiles is a lot to scroll the whole page for — on mobile the grid caps
+// at 2 columns x 4 rows (8 cards) and scrolls internally instead, so the
+// rest of the page stays reachable without an extra-long Achievements card.
+@media (max-width: 560px) {
+  .pf-badge-grid {
+    max-height: 490px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 0.3rem;
+    margin-right: -0.3rem;
+    -webkit-overflow-scrolling: touch;
+  }
+}

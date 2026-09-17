@@ -1,0 +1,73 @@
+// ─── Account & Security Panel ───────────────────────────────────────────────
+
+.pf-panel-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.pf-field-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.7rem 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--jv-border) 50%, transparent);
+
+  &:last-child { border-bottom: 0; }
+}
+
+.pf-field-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.pf-field-label {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--jv-muted);
+}
+
+.pf-field-value {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--jv-text);
+}
+
+.pf-verified-pill {
+  padding: 0.1rem 0.45rem;
+  font-size: 0.65rem;
+  gap: 0.25rem;
+}
+
+.pf-text-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: none;
+  border: 0;
+  padding: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--jv-brand-1);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: opacity var(--jv-transition);
+
+  &:hover {
+    opacity: 0.75;
+    text-decoration: underline;
+  }
+
+  &:disabled {
+    color: var(--jv-muted);
+    cursor: default;
+    font-variant-numeric: tabular-nums;
+
+    &:hover {
+      opacity: 1;
+      text-decoration: none;
+    }
+  }
+}

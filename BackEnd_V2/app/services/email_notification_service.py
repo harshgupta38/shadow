@@ -72,6 +72,26 @@ def _unsub_url(user: UserDBM) -> str:
     return f"{base}/api/v2/notifications/email/unsubscribe?uid={user.id}&token={token}"
 
 
+# ─── Email-verification token ─────────────────────────────────────────────────
+
+def make_verification_token(user_id: int, email: str) -> str:
+    """HMAC-SHA256 token tied to the user's id and email address."""
+    key = settings.jwt_secret.encode()
+    msg = f"verify-email:{user_id}:{email}".encode()
+    return hmac.new(key, msg, hashlib.sha256).hexdigest()
+
+
+def verify_verification_token(user_id: int, email: str, token: str) -> bool:
+    expected = make_verification_token(user_id, email)
+    return hmac.compare_digest(expected, token)
+
+
+def _verify_email_url(user: UserDBM) -> str:
+    token = make_verification_token(user.id, user.email)
+    base = settings.frontend_base_url.rstrip("/")
+    return f"{base}/api/v2/auth/verify-email?uid={user.id}&token={token}"
+
+
 # ─── Preference gate ──────────────────────────────────────────────────────────
 
 def _email_enabled(db: Session, user_id: int) -> bool:
@@ -156,6 +176,33 @@ def send_welcome_email(user: UserDBM) -> bool:
     return email_service.send_email(
         to_email=user.email,
         subject="Welcome to Shadow!",
+        text_body=text_body,
+        html_body=html_body,
+    )
+
+
+def send_verification_email(user: UserDBM) -> bool:
+    """Transactional email with a one-click verify link — sent on registration
+    and again from /auth/resend-verification. Not gated behind the user's
+    notification preferences, same reasoning as the welcome email."""
+    first_name = user.name.split()[0] if user.name else "there"
+    verify_url = _verify_email_url(user)
+    context = {
+        "safe_subject": _e("Verify your email address"),
+        "safe_first_name": _e(first_name),
+        "safe_verify_url": _e(verify_url),
+        "safe_support_email": _e("support@shadow.app"),
+        "safe_footer": _e("© Shadow — Your AI-powered life and career assistant"),
+    }
+    html_body = _render("verify_email.html", context)
+    text_body = (
+        f"Hi {first_name},\n\n"
+        "Please verify your email address to secure your Shadow account.\n\n"
+        f"Verify now: {verify_url}"
+    )
+    return email_service.send_email(
+        to_email=user.email,
+        subject="Verify your email address",
         text_body=text_body,
         html_body=html_body,
     )

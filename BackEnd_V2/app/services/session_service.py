@@ -194,6 +194,25 @@ def revoke_session(db: Session, session_id: int, user_id: int) -> bool:
     return True
 
 
+def revoke_all_sessions(db: Session, user_id: int) -> None:
+    """Signs the user out of every device — used by account deactivation."""
+    db.query(ActiveSessionDBM).filter(ActiveSessionDBM.user_id == user_id).delete()
+    db.commit()
+
+
+def revoke_other_sessions(db: Session, user_id: int, keep_session_id: int | None) -> None:
+    """Signs the user out of every device except the one making this request —
+    used after a password change so a session hijacked elsewhere is cut off
+    without logging the user out of the device they just used to change it.
+    Falls back to revoking everything if the current session couldn't be
+    identified (safer than leaving an unknown set of sessions alive)."""
+    query = db.query(ActiveSessionDBM).filter(ActiveSessionDBM.user_id == user_id)
+    if keep_session_id is not None:
+        query = query.filter(ActiveSessionDBM.id != keep_session_id)
+    query.delete()
+    db.commit()
+
+
 def update_last_seen(db: Session, session: ActiveSessionDBM) -> None:
     now = datetime.now(timezone.utc)
     last = session.last_seen_at

@@ -27,3 +27,23 @@ class RegisterRequest(LoginRequest):
 
     _validate_name     = field_validator("name")(validate_name)
     _validate_password = field_validator("password")(validate_password_strong)  # overrides parent
+
+
+class UpdateNameRequest(BaseModel):
+    name: str
+
+    _validate_name = field_validator("name")(validate_name)
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+    _validate_current_password = field_validator("current_password")(validate_password)
+    _validate_new_password     = field_validator("new_password")(validate_password_strong)
+
+
+class AccountPasswordConfirmRequest(BaseModel):
+    current_password: str
+
+    _validate_current_password = field_validator("current_password")(validate_password)

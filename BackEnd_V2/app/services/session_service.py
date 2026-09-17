@@ -49,7 +49,7 @@ def rotate_refresh_token_hash(
     return result.rowcount == 1
 
 
-def _parse_user_agent(ua: str) -> tuple[str, str, str]:
+def parse_user_agent(ua: str) -> tuple[str, str, str]:
     """Parses a User-Agent string into (device_name, browser, os_name)."""
     ua = ua or ""
 
@@ -96,7 +96,7 @@ def _parse_user_agent(ua: str) -> tuple[str, str, str]:
 def create_session(db: Session, user_id: int, request: Request) -> ActiveSessionDBM:
     ua = request.headers.get("user-agent", "")
     ip = request.client.host if request.client else None
-    device_name, browser, os_name = _parse_user_agent(ua)
+    device_name, browser, os_name = parse_user_agent(ua)
 
     session = ActiveSessionDBM(
         user_id=user_id,
@@ -201,10 +201,12 @@ def update_last_seen(db: Session, session: ActiveSessionDBM) -> None:
         last = last.replace(tzinfo=timezone.utc)
 
     dirty = False
+    just_confirmed = False
     # First successful use of this session — see ActiveSessionDBM.confirmed.
     if not session.confirmed:
         session.confirmed = True
         dirty = True
+        just_confirmed = True
     # Only write last_seen_at if stale by more than 5 minutes to reduce DB pressure
     if (now - last).total_seconds() > 300:
         session.last_seen_at = now
@@ -212,3 +214,23 @@ def update_last_seen(db: Session, session: ActiveSessionDBM) -> None:
 
     if dirty:
         db.commit()
+
+    if just_confirmed:
+        _notify_new_signin(db, session)
+
+
+def _notify_new_signin(db: Session, session: ActiveSessionDBM) -> None:
+    from app.models.user import UserDBM
+    from app.services import notifications_service
+
+    user = db.get(UserDBM, session.user_id)
+    if not user:
+        return
+    notifications_service.create_notification(
+        db, user,
+        title="New sign-in detected",
+        body=f"A new session was started from {session.device_name} ({session.browser} on {session.os_name}).",
+        type="system",
+        priority=1,
+        event_key=f"signin:{session.id}",
+    )

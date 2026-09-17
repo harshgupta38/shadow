@@ -56,6 +56,7 @@ def create_notification(
     url: str | None = None,
     event_key: str | None = None,
     priority: int = 2,
+    send_email: bool = True,
 ) -> NotificationDBM | None:
     """
     Create and persist a notification for a user.
@@ -67,6 +68,10 @@ def create_notification(
     If event_key is supplied the row is also skipped when an identical
     (user_id, event_key) pair already exists — deduplication for event-triggered
     notifications.  Commits immediately so SSE polling picks up the new row.
+
+    send_email=False skips this function's own generic email dispatch — for
+    callers (e.g. failed-login alerts) that send a purpose-built, structured
+    email themselves instead of the generic title+body template.
     """
     prefs = _get_notification_prefs(db, user.id)
     if not _should_notify(prefs, level):
@@ -112,7 +117,10 @@ def create_notification(
 
     # Send email for Level-1 (Critical) and security-type notifications.
     # Skip "welcome:*" events — auth_service sends a dedicated welcome email directly.
-    _skip_email = event_key is not None and event_key.startswith("welcome:")
+    _skip_email = (
+        not send_email
+        or (event_key is not None and event_key.startswith("welcome:"))
+    )
     if (level == LEVEL_CRITICAL or type == "security") and not _skip_email:
         try:
             from app.services import email_notification_service

@@ -14,7 +14,7 @@ from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.models.user import UserDBM
 from app.schemas.auth import LoginRequest, TokenResponse, RegisterRequest
-from app.services import auth_service, settings_service, session_service, notifications_service
+from app.services import auth_service, settings_service, session_service
 from app.core import security
 
 router = APIRouter(prefix=ENDPOINTS.AUTH.PREFIX, tags=["Authentication"])
@@ -66,7 +66,15 @@ def _session_id_from_token(request: Request) -> int | None:
 
 
 def _build_token_response(db, user_id: int, request: Request, response: Response) -> TokenResponse:
-    """Creates a session, issues tokens as httpOnly cookies, checks device limit."""
+    """Creates a session, issues tokens as httpOnly cookies, checks device limit.
+
+    The "New sign-in detected" notification is NOT sent here — a session
+    created here may never actually get used (e.g. cookies blocked cross-site),
+    which would be a misleading "you signed in" alert for a login that visibly
+    failed on the user's screen. It's sent instead from
+    session_service.update_last_seen() the first time this session is
+    confirmed by successfully authenticating a request.
+    """
     sess = session_service.create_session(db, user_id, request)
     access_token = security.create_access_token(subject=user_id, session_id=sess.id)
     refresh_token = security.create_refresh_token(subject=user_id, session_id=sess.id)
@@ -74,18 +82,6 @@ def _build_token_response(db, user_id: int, request: Request, response: Response
     db.commit()
 
     _set_auth_cookies(response, access_token, refresh_token)
-
-    user = db.get(UserDBM, user_id)
-    if user:
-        notifications_service.create_notification(
-            db,
-            user,
-            title="New sign-in detected",
-            body=f"A new session was started from {sess.device_name} ({sess.browser} on {sess.os_name}).",
-            type="system",
-            priority=1,
-            event_key=f"signin:{sess.id}",
-        )
 
     max_devices = settings_service.get_max_concurrent_devices(db, user_id)
     count = session_service.get_session_count(db, user_id, include_session_id=sess.id)
@@ -106,7 +102,7 @@ def login(data: LoginRequest, request: Request, response: Response, db=Depends(g
     ip = request.client.host if request.client else "unknown"
     rate_limit_service.check_login_allowed(db, ip)
     try:
-        user = auth_service.login_user(db, str(data.email), data.password)
+        user = auth_service.login_user(db, str(data.email), data.password, request)
     except AuthError:
         rate_limit_service.on_login_failure(db, ip)
         db.commit()

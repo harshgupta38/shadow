@@ -10,7 +10,7 @@ class NotificationDBM(Base):
     __tablename__ = "notifications"
     __table_args__ = (
         CheckConstraint(
-            "type IN ('reminder', 'system', 'agent')",
+            "type IN ('reminder', 'system', 'agent', 'security', 'achievement', 'warning')",
             name="ck_notifications_type",
         ),
         CheckConstraint(

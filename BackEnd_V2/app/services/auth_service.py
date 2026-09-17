@@ -19,9 +19,12 @@ read-modify-write race that was present when two concurrent workers could both
 read lockout_until=None before either committed.
 """
 
+import logging
 import math
+import threading
 from datetime import datetime, timedelta, timezone
 
+from fastapi import Request
 from sqlalchemy import case, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -31,6 +34,8 @@ from app.core import security
 from app.models.user import UserDBM
 from app.schemas.auth import RegisterRequest
 from app.services import notifications_service
+
+logger = logging.getLogger(__name__)
 
 _LOCKOUT_ATTEMPTS = 5
 _LOCKOUT_MINUTES = 15
@@ -52,11 +57,71 @@ def _get_user_by_email(db: Session, email: str) -> UserDBM | None:
     )
 
 
+def _notify_failed_login(user_id: int, ip_address: str | None, user_agent: str) -> None:
+    """Security alert for a wrong-password attempt: a short in-app/push
+    notification, plus a structured email (labeled device/location/IP/time,
+    with a map when we have coordinates) sent directly — always-on regardless
+    of the user's general email preference, see send_notification_email's
+    notif_type == "security" bypass.
+
+    Fully sync — safe to call from a daemon thread. Opens its own DB session.
+    The IP geolocation lookup is a real network call, which is exactly why this
+    runs off the request path instead of inline in login_user().
+    """
+    from app.common import now_ist
+    from app.db.session import SessionLocal
+    from app.services import email_notification_service, ip_geolocation_service, session_service
+
+    try:
+        with SessionLocal() as db:
+            user = db.get(UserDBM, user_id)
+            if not user:
+                return
+
+            device_name, browser, os_name = session_service.parse_user_agent(user_agent)
+            device = f"{device_name} ({browser} on {os_name})"
+            ip_display = ip_address or "Unknown"
+            when = now_ist().strftime("%d %b %Y, %I:%M %p IST")
+
+            geo = ip_geolocation_service.lookup_geo(ip_address)
+            location = geo.get("label") if geo else None
+            map_url = None
+            if geo and geo.get("latitude") is not None and geo.get("longitude") is not None:
+                map_url = ip_geolocation_service.static_map_url(geo["latitude"], geo["longitude"])
+
+            in_app_body = f"From {device}" + (f" near {location}" if location else "") + f" — {when}."
+
+            notif = notifications_service.create_notification(
+                db, user,
+                title="Failed sign-in attempt",
+                body=in_app_body,
+                type="security",
+                level=notifications_service.LEVEL_CRITICAL,
+                url="/settings",
+                send_email=False,
+            )
+            if notif is not None:
+                try:
+                    email_notification_service.send_failed_login_alert(
+                        db, user,
+                        device=device,
+                        ip_address=ip_display,
+                        location=location,
+                        map_url=map_url,
+                        when=when,
+                        notification_id=notif.id,
+                    )
+                except Exception:
+                    logger.warning("Failed-login email failed for user %d", user_id, exc_info=True)
+    except Exception:
+        logger.exception("Failed-login alert failed for user %d", user_id)
+
+
 def get_user_by_id(db: Session, user_id: int) -> UserDBM | None:
     return db.get(UserDBM, user_id)
 
 
-def login_user(db: Session, email: str, password: str) -> UserDBM:
+def login_user(db: Session, email: str, password: str, request: Request | None = None) -> UserDBM:
     # Normalise at the entry boundary so every downstream path sees the same value.
     email = _normalise_email(email)
     user = _get_user_by_email(db, email)
@@ -120,6 +185,18 @@ def login_user(db: Session, email: str, password: str) -> UserDBM:
                 )
 
         db.commit()  # persist failure — caller raises and session won't commit otherwise
+
+        # Every wrong-password attempt gets its own alert (in-app + email), not
+        # just the eventual lockout — IP geolocation makes this slow, so it runs
+        # off the request path in a background thread.
+        ip_address = request.client.host if request and request.client else None
+        user_agent = request.headers.get("user-agent", "") if request else ""
+        threading.Thread(
+            target=_notify_failed_login,
+            args=(user.id, ip_address, user_agent),
+            daemon=True,
+        ).start()
+
         raise AuthError()
 
     # ── Success — clear lockout state ────────────────────────────────────────

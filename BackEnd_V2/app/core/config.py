@@ -67,6 +67,13 @@ class Settings(BaseSettings):
     vapid_private_key: str = ""
     vapid_subject: str = "mailto:admin@shadow.app"
 
+    # Optional IP geolocation for security alert emails (failed login attempts).
+    # Used only for approximate city/region/country in the alert — never blocks
+    # the request path (looked up in a background thread) and fails silently.
+    ip_geolocation_enabled: bool = False
+    ip_geolocation_base_url: str = "http://ip-api.com/json/{ip}?fields=status,country,regionName,city,lat,lon"
+    ip_geolocation_timeout_seconds: float = 2.5
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

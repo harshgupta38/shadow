@@ -101,10 +101,12 @@ def send_notification_email(
 ) -> bool:
     """Send an email for a critical or security notification.
 
-    Checks the user's email preference, sends with retry, and marks the
-    notification row as emailed to prevent duplicates.
+    Security-type alerts (failed login, account locked, etc.) always send
+    regardless of the user's general email preference — an account-security
+    event isn't something a user should be able to accidentally silence.
+    Other critical notifications still respect the preference.
     """
-    if not _email_enabled(db, user.id):
+    if notif_type != "security" and not _email_enabled(db, user.id):
         return False
 
     # Guard: skip if this notification was already emailed (duplicate-send prevention).
@@ -182,6 +184,89 @@ def send_email_enabled_confirmation(user: UserDBM) -> bool:
         text_body=text_body,
         html_body=html_body,
     )
+
+
+def send_failed_login_alert(
+    db: Session,
+    user: UserDBM,
+    *,
+    device: str,
+    ip_address: str,
+    location: str | None,
+    map_url: str | None,
+    when: str,
+    notification_id: int | None = None,
+) -> bool:
+    """Structured security alert for a wrong-password login attempt — labeled
+    device/location/IP/time rows, plus a static map image when coordinates are
+    available. Always sends regardless of the user's email preference (see
+    send_notification_email's notif_type == "security" bypass) — deliberately
+    NOT routed through create_notification's generic email dispatch, since that
+    only supports a single title+body pair, not this structured layout.
+    """
+    subject = "Failed sign-in attempt"
+    cta_url = _frontend_url("/settings")
+    unsub = _unsub_url(user)
+
+    location_row = ""
+    if location:
+        location_row = (
+            '<tr>'
+            '<td style="padding:10px 14px;font-size:12px;color:#6b7280;font-weight:600;background:#fafafa;border-bottom:1px solid #e5e7eb;">Location</td>'
+            f'<td style="padding:10px 14px;font-size:12px;color:#111827;border-bottom:1px solid #e5e7eb;">{_e(location)}</td>'
+            '</tr>'
+        )
+
+    map_block = ""
+    if map_url:
+        map_block = (
+            '<tr><td align="center" style="padding:16px 40px 0;">'
+            f'<img src="{_e(map_url)}" width="320" height="320" alt="Approximate sign-in area" '
+            'style="width:320px;height:320px;border-radius:8px;border:1px solid #e5e7eb;display:inline-block;" />'
+            '<div style="margin-top:4px;font-size:10px;color:#9ca3af;">Map data © OpenStreetMap contributors</div>'
+            '</td></tr>'
+        )
+
+    context = {
+        "safe_subject": _e(subject),
+        "safe_title": _e(subject),
+        "safe_name": _e(user.name.split()[0] if user.name else "there"),
+        "safe_device": _e(device),
+        "safe_ip": _e(ip_address),
+        "safe_time": _e(when),
+        "location_row": location_row,
+        "map_block": map_block,
+        "safe_cta_url": _e(cta_url),
+        "safe_unsub_url": _e(unsub),
+        "safe_support_email": _e("support@shadow.app"),
+        "safe_footer": _e("© Shadow — Your AI-powered life and career assistant"),
+    }
+    html_body = _render("failed_login_alert.html", context)
+
+    text_lines = [subject, "", f"Device: {device}"]
+    if location:
+        text_lines.append(f"Location: {location}")
+    text_lines += [f"IP address: {ip_address}", f"Time: {when}", "", f"Review your account: {cta_url}", "", f"Unsubscribe: {unsub}"]
+    text_body = "\n".join(text_lines)
+
+    sent = email_service.send_email(
+        to_email=user.email,
+        subject=subject,
+        text_body=text_body,
+        html_body=html_body,
+    )
+
+    if sent and notification_id is not None:
+        try:
+            from app.models.notification import NotificationDBM
+            notif_row = db.get(NotificationDBM, notification_id)
+            if notif_row:
+                notif_row.emailed = True
+                db.commit()
+        except Exception:
+            logger.warning("Failed to mark notification %d as emailed", notification_id)
+
+    return sent
 
 
 def send_daily_brief_email(user: UserDBM, complete_brief: str, today: date) -> bool:

@@ -17,6 +17,7 @@ interface ChoiceDialogProps {
     iconColor?: string;
     buttons: ChoiceDialogButton[];
     onHide: () => void;
+    children?: ReactNode;
 }
 
 export function ChoiceDialog({
@@ -27,6 +28,7 @@ export function ChoiceDialog({
     iconColor,
     buttons,
     onHide,
+    children,
 }: ChoiceDialogProps) {
     return (
         <Modal show={show} onHide={onHide} centered backdrop="static">
@@ -38,6 +40,7 @@ export function ChoiceDialog({
                 )}
                 <h2 className="h5 fw-bold">{title}</h2>
                 {message && <p className="text-muted-2 mb-4">{message}</p>}
+                {children && <div className="mb-4 text-start">{children}</div>}
                 <div className="d-flex gap-2 justify-content-center flex-wrap">
                     {buttons.map((btn, i) => (
                         <button

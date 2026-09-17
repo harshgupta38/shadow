@@ -52,8 +52,12 @@ def _goal_id_for(
     return None
 
 
-def _compute_streak(db: Session, user_id: int, report_date: date) -> int:
-    """Count consecutive days ending on report_date where at least one item was done."""
+def compute_streak(db: Session, user_id: int, report_date: date) -> int:
+    """Count consecutive days ending on report_date where at least one item was done.
+
+    Public — also used by profile_service for the Profile page's "Current
+    Streak" stat and streak-gated achievements.
+    """
     start = report_date - timedelta(days=60)
     done_dates: set[date] = set(
         db.scalars(
@@ -217,7 +221,7 @@ def build_day_data(db: Session, user_id: int, report_date: date, report_type: st
             "tasks_total": len(task_recs),
             "habits_done": sum(1 for r in habit_recs if r.status == "done"),
             "habits_total": len(habit_recs),
-            "best_streak": _compute_streak(db, user_id, report_date),
+            "best_streak": compute_streak(db, user_id, report_date),
         },
         "goals": goals_payload,
         "all_records": [_record_to_dict(r) for r in today_records],

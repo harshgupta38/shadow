@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { ExclamationTriangleFill, PersonDashFill, PersonXFill } from "react-bootstrap-icons";
+import { Eye, EyeSlash, ExclamationTriangleFill, PersonDashFill, PersonXFill } from "react-bootstrap-icons";
 
 import { api, ApiError } from "@/api";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
+import { TextField } from "@/components/ui/TextField/TextField";
 import { Panel } from "@/pages/profile/Panel/Panel";
 import "@/pages/profile/DangerZonePanel/DangerZonePanel.scss";
 
@@ -12,16 +13,24 @@ export function DangerZonePanel() {
   const { logout } = useAuth();
   const { success, error: toastError } = useToast();
   const [confirming, setConfirming] = useState<"deactivate" | "delete" | null>(null);
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  function closeDialog() {
+    setConfirming(null);
+    setPassword("");
+    setShowPassword(false);
+  }
 
   async function handleConfirm() {
     const action = confirming;
     setSubmitting(true);
     try {
       if (action === "delete") {
-        await api.auth.deleteAccount();
+        await api.auth.deleteAccount(password);
       } else {
-        await api.auth.deactivateAccount();
+        await api.auth.deactivateAccount(password);
       }
       success(action === "delete" ? "Account deleted." : "Account deactivated.");
       logout();
@@ -29,7 +38,7 @@ export function DangerZonePanel() {
       toastError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
     } finally {
       setSubmitting(false);
-      setConfirming(null);
+      closeDialog();
     }
   }
 
@@ -73,9 +82,31 @@ export function DangerZonePanel() {
         confirmLabel={confirming === "delete" ? "Delete" : "Deactivate"}
         destructive
         busy={submitting}
+        confirmDisabled={password.trim().length === 0}
         onConfirm={() => void handleConfirm()}
-        onCancel={() => setConfirming(null)}
-      />
+        onCancel={closeDialog}
+      >
+        <TextField
+          label="Confirm your password"
+          name="danger-zone-password"
+          type={showPassword ? "text" : "password"}
+          autoComplete="current-password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          trailing={
+            <button
+              type="button"
+              className="btn btn-ghost btn-icon"
+              style={{ width: 34, height: 34 }}
+              onClick={() => setShowPassword((v) => !v)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              tabIndex={-1}
+            >
+              {showPassword ? <EyeSlash size={16} /> : <Eye size={16} />}
+            </button>
+          }
+        />
+      </ConfirmDialog>
     </Panel>
   );
 }

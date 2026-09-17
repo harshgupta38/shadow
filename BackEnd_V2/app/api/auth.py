@@ -13,7 +13,14 @@ from app.schemas.settings import AccessibilitySection, PlannerSection
 from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.models.user import UserDBM
-from app.schemas.auth import LoginRequest, TokenResponse, RegisterRequest
+from app.schemas.auth import (
+    AccountPasswordConfirmRequest,
+    ChangePasswordRequest,
+    LoginRequest,
+    RegisterRequest,
+    TokenResponse,
+    UpdateNameRequest,
+)
 from app.services import auth_service, settings_service, session_service
 from app.core import security
 
@@ -193,23 +200,117 @@ def logout(request: Request, response: Response, db=Depends(get_db)) -> None:
 
 # ─── User data ────────────────────────────────────────────────────────────────
 
-@router.get(ENDPOINTS.AUTH.USER_DATA, response_model=UserDataResponse)
-def me(
-    db=Depends(get_db),
-    current_user: UserDBM = Depends(get_current_user),
-) -> UserDataResponse:
-    startup = settings_service.get_startup_settings(db, current_user.id)
-    max_devices = settings_service.get_max_concurrent_devices(db, current_user.id)
-    session_count = session_service.get_session_count(db, current_user.id)
+def _build_user_data_response(db, user: UserDBM) -> UserDataResponse:
+    startup = settings_service.get_startup_settings(db, user.id)
+    max_devices = settings_service.get_max_concurrent_devices(db, user.id)
+    session_count = session_service.get_session_count(db, user.id)
     return UserDataResponse(
-        id=current_user.id,
-        name=current_user.name,
-        email=current_user.email,
+        id=user.id,
+        name=user.name,
+        email=user.email,
         theme_preference=startup["theme_preference"],
         planner=PlannerSection(**startup["planner"]),
         accessibility=AccessibilitySection(**startup["accessibility"]),
         session_limit_exceeded=session_count > max_devices,
     )
+
+
+@router.get(ENDPOINTS.AUTH.USER_DATA, response_model=UserDataResponse)
+def me(
+    db=Depends(get_db),
+    current_user: UserDBM = Depends(get_current_user),
+) -> UserDataResponse:
+    return _build_user_data_response(db, current_user)
+
+
+@router.patch(ENDPOINTS.AUTH.NAME, response_model=UserDataResponse)
+def update_name(
+    data: UpdateNameRequest,
+    db=Depends(get_db),
+    current_user: UserDBM = Depends(get_current_user),
+) -> UserDataResponse:
+    auth_service.update_name(db, current_user, data.name)
+    return _build_user_data_response(db, current_user)
+
+
+@router.post(ENDPOINTS.AUTH.CHANGE_PASSWORD, status_code=status.HTTP_204_NO_CONTENT)
+def change_password(
+    data: ChangePasswordRequest,
+    db=Depends(get_db),
+    current_user: UserDBM = Depends(get_current_user),
+    current_session_id: int | None = Depends(_session_id_from_token),
+) -> None:
+    auth_service.change_password(db, current_user, data.current_password, data.new_password)
+    # Cuts off any other signed-in device (e.g. one an attacker hijacked —
+    # the classic reason to force a password change) while leaving the
+    # device that just made this request logged in.
+    session_service.revoke_other_sessions(db, current_user.id, current_session_id)
+
+
+@router.post(ENDPOINTS.AUTH.RESEND_VERIFICATION, status_code=status.HTTP_204_NO_CONTENT)
+def resend_verification(
+    db=Depends(get_db),
+    current_user: UserDBM = Depends(get_current_user),
+) -> None:
+    auth_service.resend_verification_email(db, current_user)
+
+
+def _verify_email_page(message: str, success: bool = True) -> str:
+    color = "#22c55e" if success else "#ef4444"
+    icon = "&#10003;" if success else "&#9888;"
+    return f"""<!doctype html><html><head><meta charset="utf-8"><title>Shadow — Verify email</title>
+<style>body{{margin:0;background:#efeff7;font-family:Verdana,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh}}
+.box{{background:#fff;border-radius:12px;border:1px solid #e5e7eb;padding:40px 36px;max-width:420px;text-align:center}}
+.icon{{font-size:42px;color:{color}}}h2{{margin:16px 0 8px;color:#111827}}p{{color:#4b5563;font-size:14px;line-height:1.6}}</style></head>
+<body><div class="box"><div class="icon">{icon}</div><h2>Shadow</h2><p>{message}</p></div></body></html>"""
+
+
+@router.get(ENDPOINTS.AUTH.VERIFY_EMAIL, response_class=None)
+def verify_email(uid: int, token: str, db=Depends(get_db)):
+    """One-click verification link embedded in the verification email — no
+    auth cookie required, same pattern as notifications.email_unsubscribe."""
+    from fastapi.responses import HTMLResponse
+    from app.services.email_notification_service import verify_verification_token
+
+    user = db.get(UserDBM, uid)
+    if not user or not verify_verification_token(uid, user.email, token):
+        return HTMLResponse(
+            content=_verify_email_page("Invalid or expired verification link.", success=False),
+            status_code=400,
+        )
+
+    if not user.email_verified:
+        user.email_verified = True
+        db.commit()
+
+    return HTMLResponse(
+        content=_verify_email_page(f"Your email has been verified, {user.name.split()[0]}! You can close this tab and return to Shadow.")
+    )
+
+
+# ─── Danger zone ────────────────────────────────────────────────────────────────
+
+@router.post(ENDPOINTS.AUTH.DEACTIVATE, status_code=status.HTTP_204_NO_CONTENT)
+def deactivate_account(
+    data: AccountPasswordConfirmRequest,
+    response: Response,
+    db=Depends(get_db),
+    current_user: UserDBM = Depends(get_current_user),
+) -> None:
+    auth_service.deactivate_account(db, current_user, data.current_password)
+    session_service.revoke_all_sessions(db, current_user.id)
+    _clear_auth_cookies(response)
+
+
+@router.delete(ENDPOINTS.AUTH.ACCOUNT, status_code=status.HTTP_204_NO_CONTENT)
+def delete_account(
+    data: AccountPasswordConfirmRequest,
+    response: Response,
+    db=Depends(get_db),
+    current_user: UserDBM = Depends(get_current_user),
+) -> None:
+    auth_service.delete_account(db, current_user, data.current_password)
+    _clear_auth_cookies(response)
 
 
 # ─── Session management ───────────────────────────────────────────────────────

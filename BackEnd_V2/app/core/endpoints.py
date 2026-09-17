@@ -24,6 +24,17 @@ class Endpoints:
         SESSIONS = "/sessions"
         SESSION_DETAIL = "/sessions/{session_id}"
         SESSION_EVENTS = "/sessions/events"
+        NAME = "/name"
+        CHANGE_PASSWORD = "/change-password"
+        RESEND_VERIFICATION = "/resend-verification"
+        VERIFY_EMAIL = "/verify-email"
+        DEACTIVATE = "/deactivate"
+        ACCOUNT = "/account"
+
+    class PROFILE:
+        PREFIX = "/profile"
+        ROOT = ""
+        BIO = "/bio"
 
     class DASHBOARD:
         PREFIX = "/dashboard"

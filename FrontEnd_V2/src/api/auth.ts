@@ -1,6 +1,7 @@
 import { ENDPOINTS } from "@/constant/shadow-endpoints";
 import { http } from "@/api/client";
 import {
+    AccountPasswordConfirmRequest,
     LoginRequest,
     TokenResponse,
     UserDataResponse,
@@ -70,11 +71,13 @@ export const authApi = {
         await http.post<void>(`${ENDPOINTS.AUTH.PREFIX}${ENDPOINTS.AUTH.RESEND_VERIFICATION}`, {});
     },
 
-    async deactivateAccount(): Promise<void> {
-        await http.post<void>(`${ENDPOINTS.AUTH.PREFIX}${ENDPOINTS.AUTH.DEACTIVATE}`, {});
+    async deactivateAccount(currentPassword: string): Promise<void> {
+        const data: AccountPasswordConfirmRequest = { current_password: currentPassword };
+        await http.post<void>(`${ENDPOINTS.AUTH.PREFIX}${ENDPOINTS.AUTH.DEACTIVATE}`, data);
     },
 
-    async deleteAccount(): Promise<void> {
-        await http.delete<void>(`${ENDPOINTS.AUTH.PREFIX}${ENDPOINTS.AUTH.ACCOUNT}`);
+    async deleteAccount(currentPassword: string): Promise<void> {
+        const data: AccountPasswordConfirmRequest = { current_password: currentPassword };
+        await http.delete<void>(`${ENDPOINTS.AUTH.PREFIX}${ENDPOINTS.AUTH.ACCOUNT}`, data);
     },
 };

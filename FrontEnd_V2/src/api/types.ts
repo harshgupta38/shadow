@@ -26,6 +26,10 @@ export interface ChangePasswordRequest {
   new_password: string;
 }
 
+export interface AccountPasswordConfirmRequest {
+  current_password: string;
+}
+
 // TokenResponse is defined below alongside SessionInfo
 
 export interface RefreshRequest {

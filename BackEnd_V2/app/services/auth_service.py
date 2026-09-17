@@ -29,7 +29,7 @@ from sqlalchemy import case, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.core.exceptions import ConflictError, AuthError
+from app.core.exceptions import ConflictError, AuthError, ValidationError
 from app.core import security
 from app.models.user import UserDBM
 from app.schemas.auth import RegisterRequest
@@ -39,6 +39,12 @@ logger = logging.getLogger(__name__)
 
 _LOCKOUT_ATTEMPTS = 5
 _LOCKOUT_MINUTES = 15
+
+# Server-side floor on /auth/resend-verification, independent of whatever
+# cooldown the frontend button enforces on its own — matches the frontend's
+# own 30s cooldown (AccountSecurityPanel.tsx) so a repeat call inside the
+# window is a silent no-op rather than a confusing "failed to send" error.
+_VERIFICATION_RESEND_COOLDOWN_SECONDS = 30
 
 
 def _now_utc() -> datetime:
@@ -208,6 +214,12 @@ def login_user(db: Session, email: str, password: str, request: Request | None =
         )
         # Not committed here; _build_token_response commits the full session.
 
+    # A deactivated account (Profile page "Danger Zone") reactivates the
+    # moment its owner signs back in — deactivation is a pause, not a ban.
+    if not user.is_active:
+        db.execute(update(UserDBM).where(UserDBM.id == user.id).values(is_active=True))
+        user.is_active = True
+
     return user
 
 
@@ -242,7 +254,89 @@ def register_user(db: Session, data: RegisterRequest) -> UserDBM:
     try:
         from app.services import email_notification_service
         email_notification_service.send_welcome_email(user)
+        if email_notification_service.send_verification_email(user):
+            user.verification_email_sent_at = _now_utc()
+            db.commit()
     except Exception:
         pass
 
     return user
+
+
+# ─── Profile page account actions ──────────────────────────────────────────────
+
+def update_name(db: Session, user: UserDBM, name: str) -> UserDBM:
+    user.name = name.strip()
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def change_password(db: Session, user: UserDBM, current_password: str, new_password: str) -> None:
+    if not security.verify_password(current_password, user.hashed_password):
+        raise ValidationError(
+            "Current password is incorrect.",
+            errors={"current_password": "Current password is incorrect."},
+        )
+
+    user.hashed_password = security.hash_password(new_password)
+    db.commit()
+
+    notifications_service.create_notification(
+        db, user,
+        title="Password changed",
+        body="Your account password was just changed. If this wasn't you, contact support immediately.",
+        type="security",
+        level=notifications_service.LEVEL_CRITICAL,
+        url="/profile",
+    )
+
+
+def resend_verification_email(db: Session, user: UserDBM) -> None:
+    if user.email_verified:
+        return
+
+    now = _now_utc()
+    if user.verification_email_sent_at is not None:
+        elapsed = (now - user.verification_email_sent_at).total_seconds()
+        if elapsed < _VERIFICATION_RESEND_COOLDOWN_SECONDS:
+            return  # sent moments ago — silent no-op, not a failure
+
+    from app.services import email_notification_service
+    try:
+        sent = email_notification_service.send_verification_email(user)
+    except Exception:
+        logger.warning("Failed to send verification email to user %d", user.id, exc_info=True)
+        sent = False
+
+    if sent:
+        user.verification_email_sent_at = now
+        db.commit()
+
+
+def _require_current_password(user: UserDBM, current_password: str) -> None:
+    if not security.verify_password(current_password, user.hashed_password):
+        raise ValidationError(
+            "Current password is incorrect.",
+            errors={"current_password": "Current password is incorrect."},
+        )
+
+
+def deactivate_account(db: Session, user: UserDBM, current_password: str) -> None:
+    """Pauses the account — see login_user for the matching reactivation.
+    Re-verifies the password so a hijacked session can't pause/hide the
+    account without knowing the credential."""
+    _require_current_password(user, current_password)
+    user.is_active = False
+    db.commit()
+
+
+def delete_account(db: Session, user: UserDBM, current_password: str) -> None:
+    """Hard-deletes the user row. Every owned table (goals, habits, tasks,
+    sessions, settings, ...) cascades via its FK's ondelete="CASCADE",
+    enforced by SQLite's PRAGMA foreign_keys=ON (see db/session.py).
+    Re-verifies the password — this is irreversible, a session cookie alone
+    isn't enough authority to destroy the account."""
+    _require_current_password(user, current_password)
+    db.delete(user)
+    db.commit()

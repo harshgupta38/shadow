@@ -14,6 +14,7 @@ import hmac
 import html
 import logging
 import re
+import time
 from datetime import date
 from functools import lru_cache
 from pathlib import Path
@@ -90,6 +91,54 @@ def _verify_email_url(user: UserDBM) -> str:
     token = make_verification_token(user.id, user.email)
     base = settings.frontend_base_url.rstrip("/")
     return f"{base}/api/v2/auth/verify-email?uid={user.id}&token={token}"
+
+
+# ─── Password-reset token ──────────────────────────────────────────────────────
+# Unlike the unsub/verify-email tokens above (which never expire and are safe
+# to reuse indefinitely), a password-reset link grants control of the account
+# and must expire and become single-use:
+#   • expiry is embedded in the token itself (`{expires_at}.{signature}`), no
+#     DB row needed to track it.
+#   • "single-use" comes for free by signing over the user's CURRENT
+#     hashed_password — the moment the password actually changes (via this
+#     flow or any other), every previously-issued token's signature stops
+#     matching and verification fails.
+
+_RESET_PASSWORD_TTL_SECONDS = 600  # 10 minutes
+
+
+def make_reset_password_token(user_id: int, email: str, hashed_password: str, expires_at: int) -> str:
+    key = settings.jwt_secret.encode()
+    msg = f"reset-password:{user_id}:{email}:{hashed_password}:{expires_at}".encode()
+    signature = hmac.new(key, msg, hashlib.sha256).hexdigest()
+    return f"{expires_at}.{signature}"
+
+
+def issue_reset_password_token(user: UserDBM) -> str:
+    expires_at = int(time.time()) + _RESET_PASSWORD_TTL_SECONDS
+    return make_reset_password_token(user.id, user.email, user.hashed_password, expires_at)
+
+
+def verify_reset_password_token(user: UserDBM, token: str) -> bool:
+    expires_str, _, signature = token.partition(".")
+    if not signature:
+        return False
+    try:
+        expires_at = int(expires_str)
+    except ValueError:
+        return False
+    if time.time() > expires_at:
+        return False
+    expected = make_reset_password_token(user.id, user.email, user.hashed_password, expires_at)
+    return hmac.compare_digest(expected, token)
+
+
+def _reset_password_url(user: UserDBM, token: str) -> str:
+    # Points at the FRONTEND (not /api/v2/... like the unsub/verify-email
+    # links above) — this one needs an interactive form, not a static
+    # backend-rendered confirmation page.
+    base = settings.frontend_base_url.rstrip("/")
+    return f"{base}/reset-password?uid={user.id}&token={token}"
 
 
 # ─── Preference gate ──────────────────────────────────────────────────────────
@@ -203,6 +252,38 @@ def send_verification_email(user: UserDBM) -> bool:
     return email_service.send_email(
         to_email=user.email,
         subject="Verify your email address",
+        text_body=text_body,
+        html_body=html_body,
+    )
+
+
+def send_reset_password_email(user: UserDBM, token: str) -> bool:
+    """Transactional email with a one-click reset link — sent from
+    /auth/forgot-password. Not gated behind the user's notification
+    preferences: a security-critical, self-requested transactional email,
+    same reasoning as the welcome/verification emails."""
+    first_name = user.name.split()[0] if user.name else "there"
+    reset_url = _reset_password_url(user, token)
+    minutes = _RESET_PASSWORD_TTL_SECONDS // 60
+    context = {
+        "safe_subject": _e("Reset your password"),
+        "safe_first_name": _e(first_name),
+        "safe_reset_url": _e(reset_url),
+        "safe_minutes": _e(str(minutes)),
+        "safe_support_email": _e("support@shadow.app"),
+        "safe_footer": _e("© Shadow — Your AI-powered life and career assistant"),
+    }
+    html_body = _render("reset_password.html", context)
+    text_body = (
+        f"Hi {first_name},\n\n"
+        "We received a request to reset your Shadow account password.\n"
+        "If you didn't request this, you can safely ignore this email.\n\n"
+        f"Reset your password: {reset_url}\n\n"
+        f"This link expires in {minutes} minutes."
+    )
+    return email_service.send_email(
+        to_email=user.email,
+        subject="Reset your password",
         text_body=text_body,
         html_body=html_body,
     )

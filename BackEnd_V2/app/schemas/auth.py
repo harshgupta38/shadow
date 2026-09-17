@@ -47,3 +47,17 @@ class AccountPasswordConfirmRequest(BaseModel):
     current_password: str
 
     _validate_current_password = field_validator("current_password")(validate_password)
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+    _validate_email = field_validator("email")(validate_email_address)
+
+
+class ResetPasswordRequest(BaseModel):
+    uid: int
+    token: str
+    new_password: str
+
+    _validate_new_password = field_validator("new_password")(validate_password_strong)

@@ -16,6 +16,8 @@ export const ENDPOINTS = {
         NAME: "/name",
         CHANGE_PASSWORD: "/change-password",
         RESEND_VERIFICATION: "/resend-verification",
+        FORGOT_PASSWORD: "/forgot-password",
+        RESET_PASSWORD: "/reset-password",
         DEACTIVATE: "/deactivate",
         ACCOUNT: "/account",
     },

@@ -16,8 +16,10 @@ from app.models.user import UserDBM
 from app.schemas.auth import (
     AccountPasswordConfirmRequest,
     ChangePasswordRequest,
+    ForgotPasswordRequest,
     LoginRequest,
     RegisterRequest,
+    ResetPasswordRequest,
     TokenResponse,
     UpdateNameRequest,
 )
@@ -169,6 +171,23 @@ def refresh(request: Request, response: Response, db=Depends(get_db)) -> TokenRe
 
     _set_auth_cookies(response, new_access, new_refresh)
     return TokenResponse()
+
+
+# ─── Forgot / reset password ───────────────────────────────────────────────────
+# Both unauthenticated by design — the whole point is recovering access
+# without a valid session. Identity is proven by the emailed token instead.
+
+@router.post(ENDPOINTS.AUTH.FORGOT_PASSWORD, status_code=status.HTTP_204_NO_CONTENT)
+def forgot_password(data: ForgotPasswordRequest, request: Request, db=Depends(get_db)) -> None:
+    ip = request.client.host if request.client else "unknown"
+    rate_limit_service.check_forgot_password_allowed(db, ip)
+    auth_service.request_password_reset(db, data.email)
+    rate_limit_service.on_forgot_password_request(db, ip)
+
+
+@router.post(ENDPOINTS.AUTH.RESET_PASSWORD, status_code=status.HTTP_204_NO_CONTENT)
+def reset_password(data: ResetPasswordRequest, db=Depends(get_db)) -> None:
+    auth_service.reset_password(db, data.uid, data.token, data.new_password)
 
 
 # ─── Logout ───────────────────────────────────────────────────────────────────

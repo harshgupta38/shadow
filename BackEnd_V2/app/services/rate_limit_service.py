@@ -21,12 +21,16 @@ from app.models.ip_rate_limit import IpRateLimitDBM
 
 _LOGIN_KIND = "login"
 _REGISTER_KIND = "register"
+_FORGOT_PW_KIND = "forgot_pw"
 
 _MAX_ATTEMPTS = 5
 _LOCKOUT_MINUTES = 15
 
 _REG_MAX_PER_WINDOW = 5
 _REG_WINDOW_MINUTES = 60
+
+_FORGOT_PW_MAX_PER_WINDOW = 5
+_FORGOT_PW_WINDOW_MINUTES = 60
 
 
 def _now_utc() -> datetime:
@@ -114,6 +118,48 @@ def on_registration(db: Session, ip: str) -> None:
         db.add(row)
     else:
         if row.window_start and (now - row.window_start).total_seconds() >= _REG_WINDOW_MINUTES * 60:
+            row.attempts = 1
+            row.window_start = now
+        else:
+            row.attempts += 1
+    db.flush()
+
+
+# ─── Forgot-password rate limiting ─────────────────────────────────────────────
+# Same window-counter shape as registration — this endpoint is unauthenticated
+# and takes an arbitrary email, so it's an easy spam/harassment vector (flooding
+# someone else's inbox with reset links) without this.
+
+def check_forgot_password_allowed(db: Session, ip: str) -> None:
+    """Raise TooManyRequestsError if this IP has requested too many resets recently."""
+    from app.core.exceptions import TooManyRequestsError
+    row = db.get(IpRateLimitDBM, (ip, _FORGOT_PW_KIND))
+    if row is None or row.window_start is None:
+        return
+    now = _now_utc()
+    age = (now - row.window_start).total_seconds()
+    if age >= _FORGOT_PW_WINDOW_MINUTES * 60:
+        db.delete(row)
+        db.flush()
+        return
+    if row.attempts >= _FORGOT_PW_MAX_PER_WINDOW:
+        secs = math.ceil(_FORGOT_PW_WINDOW_MINUTES * 60 - age)
+        mins = math.ceil(secs / 60)
+        raise TooManyRequestsError(
+            f"Too many password reset requests. Try again in {mins} minute(s).",
+            retry_after=secs,
+        )
+
+
+def on_forgot_password_request(db: Session, ip: str) -> None:
+    """Increment the forgot-password counter for this IP in the current window."""
+    row = db.get(IpRateLimitDBM, (ip, _FORGOT_PW_KIND))
+    now = _now_utc()
+    if row is None:
+        row = IpRateLimitDBM(ip=ip, kind=_FORGOT_PW_KIND, attempts=1, window_start=now)
+        db.add(row)
+    else:
+        if row.window_start and (now - row.window_start).total_seconds() >= _FORGOT_PW_WINDOW_MINUTES * 60:
             row.attempts = 1
             row.window_start = now
         else:

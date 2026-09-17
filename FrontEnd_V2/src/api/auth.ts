@@ -71,6 +71,18 @@ export const authApi = {
         await http.post<void>(`${ENDPOINTS.AUTH.PREFIX}${ENDPOINTS.AUTH.RESEND_VERIFICATION}`, {});
     },
 
+    async forgotPassword(email: string): Promise<void> {
+        await http.post<void>(`${ENDPOINTS.AUTH.PREFIX}${ENDPOINTS.AUTH.FORGOT_PASSWORD}`, { email });
+    },
+
+    async resetPassword(uid: number, token: string, newPassword: string): Promise<void> {
+        await http.post<void>(`${ENDPOINTS.AUTH.PREFIX}${ENDPOINTS.AUTH.RESET_PASSWORD}`, {
+            uid,
+            token,
+            new_password: newPassword,
+        });
+    },
+
     async deactivateAccount(currentPassword: string): Promise<void> {
         const data: AccountPasswordConfirmRequest = { current_password: currentPassword };
         await http.post<void>(`${ENDPOINTS.AUTH.PREFIX}${ENDPOINTS.AUTH.DEACTIVATE}`, data);

@@ -30,6 +30,16 @@ export interface AccountPasswordConfirmRequest {
   current_password: string;
 }
 
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface ResetPasswordRequest {
+  uid: number;
+  token: string;
+  new_password: string;
+}
+
 // TokenResponse is defined below alongside SessionInfo
 
 export interface RefreshRequest {

@@ -137,6 +137,7 @@ export function LoginPage() {
                 <TextField
                     label="Password"
                     name="password"
+                    className="mb-1"
                     type={showPassword ? "text" : "password"}
                     autoComplete="current-password"
                     placeholder="Your password"
@@ -160,10 +161,10 @@ export function LoginPage() {
                     }
                 />
 
-                <div className="text-end d-md-none mb-2">
-                    <a href="#" className="small fw-semibold">
+                <div className="text-end mb-2">
+                    <Link to={ROUTES.FORGOT_PASSWORD} className="small fw-semibold">
                         Forgot password?
-                    </a>
+                    </Link>
                 </div>
 
                 <button

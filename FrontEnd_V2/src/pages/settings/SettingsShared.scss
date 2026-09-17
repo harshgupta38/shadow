@@ -189,6 +189,13 @@
         width: 100%;
         max-width: 100%;
       }
+
+      // .st-model-wrap (tick/spinner + select) is inline-flex, so it shrinks
+      // to its content by default — stretch it to the row so the nested
+      // .st-select's width:100% above actually has full width to fill.
+      .st-model-wrap {
+        width: 100%;
+      }
     }
   }
 

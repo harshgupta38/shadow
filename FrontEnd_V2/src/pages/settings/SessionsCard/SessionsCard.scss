@@ -24,7 +24,7 @@
     background: color-mix(in srgb, var(--jv-brand-1) 5%, var(--jv-surface));
   }
 
-  @media (max-width: 540px) {
+  @media (max-width: 370px) {
     flex-wrap: wrap;
 
     .sc-actions {

@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { ExclamationTriangleFill, PatchCheckFill, ShieldLockFill } from "react-bootstrap-icons";
 
+import { api } from "@/api";
 import { useToast } from "@/context/ToastContext";
 import { TIMING } from "@/constant/tuning";
 import { Panel } from "@/pages/profile/Panel/Panel";
@@ -29,7 +30,7 @@ function ProfileFieldRow({ label, value, action }: { label: string; value: React
 }
 
 export function AccountSecurityPanel({ displayName, email, emailVerified, onEditName }: AccountSecurityPanelProps) {
-  const { success } = useToast();
+  const { success, error: toastError } = useToast();
 
   const [changingPassword, setChangingPassword] = useState(false);
   const [resendLockedUntil, setResendLockedUntil] = useState<number | null>(null);
@@ -53,14 +54,14 @@ export function AccountSecurityPanel({ displayName, email, emailVerified, onEdit
     return () => clearInterval(id);
   }, [resendLockedUntil]);
 
-  function handleResendVerification() {
-    success("Verification email sent.");
-    setResendLockedUntil(Date.now() + RESEND_VERIFICATION_COOLDOWN_SECONDS * 1000);
-  }
-
-  function handlePasswordSaved() {
-    setChangingPassword(false);
-    success("Password updated.");
+  async function handleResendVerification() {
+    try {
+      await api.auth.resendVerificationEmail();
+      success("Verification email sent.");
+      setResendLockedUntil(Date.now() + RESEND_VERIFICATION_COOLDOWN_SECONDS * 1000);
+    } catch {
+      toastError("Couldn't send the verification email. Please try again.");
+    }
   }
 
   return (
@@ -121,7 +122,7 @@ export function AccountSecurityPanel({ displayName, email, emailVerified, onEdit
       <ChangePasswordDialog
         show={changingPassword}
         onCancel={() => setChangingPassword(false)}
-        onSaved={handlePasswordSaved}
+        onSaved={() => setChangingPassword(false)}
       />
     </Panel>
   );

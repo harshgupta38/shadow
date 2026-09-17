@@ -1,18 +1,36 @@
 import { useState } from "react";
 import { ExclamationTriangleFill, PersonDashFill, PersonXFill } from "react-bootstrap-icons";
 
+import { api, ApiError } from "@/api";
+import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { Panel } from "@/pages/profile/Panel/Panel";
 import "@/pages/profile/DangerZonePanel/DangerZonePanel.scss";
 
 export function DangerZonePanel() {
-  const { info } = useToast();
+  const { logout } = useAuth();
+  const { success, error: toastError } = useToast();
   const [confirming, setConfirming] = useState<"deactivate" | "delete" | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  function handleConfirm() {
-    setConfirming(null);
-    info("Account management isn't wired up yet — this will work once the backend supports it.");
+  async function handleConfirm() {
+    const action = confirming;
+    setSubmitting(true);
+    try {
+      if (action === "delete") {
+        await api.auth.deleteAccount();
+      } else {
+        await api.auth.deactivateAccount();
+      }
+      success(action === "delete" ? "Account deleted." : "Account deactivated.");
+      logout();
+    } catch (err) {
+      toastError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
+    } finally {
+      setSubmitting(false);
+      setConfirming(null);
+    }
   }
 
   return (
@@ -54,7 +72,8 @@ export function DangerZonePanel() {
         }
         confirmLabel={confirming === "delete" ? "Delete" : "Deactivate"}
         destructive
-        onConfirm={handleConfirm}
+        busy={submitting}
+        onConfirm={() => void handleConfirm()}
         onCancel={() => setConfirming(null)}
       />
     </Panel>

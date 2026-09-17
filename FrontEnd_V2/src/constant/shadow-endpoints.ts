@@ -13,6 +13,16 @@ export const ENDPOINTS = {
         SESSIONS: "/sessions",
         SESSION_DETAIL: (id: number) => `/sessions/${id}`,
         SESSION_EVENTS: "/sessions/events",
+        NAME: "/name",
+        CHANGE_PASSWORD: "/change-password",
+        RESEND_VERIFICATION: "/resend-verification",
+        DEACTIVATE: "/deactivate",
+        ACCOUNT: "/account",
+    },
+    PROFILE: {
+        PREFIX: "/profile",
+        ROOT: "",
+        BIO: "/bio",
     },
     GOALS: {
         PREFIX: "/goal",

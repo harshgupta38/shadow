@@ -1,0 +1,76 @@
+// ─── Profile Skeleton ───────────────────────────────────────────────────────
+// Same shimmer technique as SettingsSkeleton, shaped like the real
+// hero/stats/panels layout so the loading→loaded transition doesn't jump.
+
+.profile-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+
+  .pf-skel {
+    border-radius: var(--jv-radius-pill);
+    background: linear-gradient(
+      100deg,
+      color-mix(in srgb, var(--jv-border) 70%, var(--jv-surface) 30%) 20%,
+      color-mix(in srgb, var(--jv-brand-soft) 72%, var(--jv-surface) 28%) 40%,
+      color-mix(in srgb, var(--jv-border) 70%, var(--jv-surface) 30%) 60%
+    );
+    background-size: 300% 100%;
+    animation: pf-shimmer 1.4s ease-in-out infinite;
+  }
+
+  .pf-skel-hero {
+    display: flex;
+    align-items: center;
+    gap: 1.1rem;
+    padding: 1.5rem;
+  }
+
+  .pf-skel--avatar {
+    width: 92px;
+    height: 92px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .pf-skel-hero-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    flex: 1;
+  }
+
+  .pf-skel--name { height: 1.3rem; width: 40%; }
+  .pf-skel--meta { height: 0.85rem; width: 55%; }
+  .pf-skel--bio  { height: 0.85rem; width: 70%; }
+
+  .pf-skel-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  .pf-skel--stat {
+    flex: 1 1 calc(25% - 0.5625rem);
+    min-width: 140px;
+    height: 68px;
+    border-radius: var(--jv-radius);
+  }
+
+  .pf-skel-card {
+    padding: 1.25rem 1.35rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .pf-skel--title { height: 1.1rem; width: 40%; }
+  .pf-skel--desc  { height: 0.75rem; width: 75%; }
+  .pf-skel--row   { height: 3rem; width: 100%; border-radius: 10px; }
+  .pf-skel--grid  { height: 220px; width: 100%; border-radius: 10px; }
+
+  @keyframes pf-shimmer {
+    0%   { background-position: 100% 0; }
+    100% { background-position: 0 0; }
+  }
+}

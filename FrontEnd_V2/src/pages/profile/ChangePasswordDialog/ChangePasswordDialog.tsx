@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Modal } from "react-bootstrap";
 import { Eye, EyeSlash, ShieldLockFill } from "react-bootstrap-icons";
 
+import { api, ApiError } from "@/api";
+import { useToast } from "@/context/ToastContext";
 import { TextField } from "@/components/ui/TextField/TextField";
 import { PasswordStrength } from "@/components/ui/PasswordStrength/PasswordStrength";
 
@@ -12,12 +14,15 @@ export interface ChangePasswordDialogProps {
 }
 
 export function ChangePasswordDialog({ show, onCancel, onSaved }: ChangePasswordDialogProps) {
+  const { success, error: toastError } = useToast();
+
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [confirm, setConfirm] = useState("");
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNext, setShowNext] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   function reset() {
     setCurrent("");
@@ -26,6 +31,20 @@ export function ChangePasswordDialog({ show, onCancel, onSaved }: ChangePassword
     setShowCurrent(false);
     setShowNext(false);
     setShowConfirm(false);
+  }
+
+  async function handleSave() {
+    setSubmitting(true);
+    try {
+      await api.auth.changePassword(current, next);
+      success("Password updated.");
+      reset();
+      onSaved();
+    } catch (err) {
+      toastError(err instanceof ApiError ? err.message : "Couldn't update your password. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   function eyeToggle(shown: boolean, onToggle: () => void, hasError?: boolean) {
@@ -95,16 +114,21 @@ export function ChangePasswordDialog({ show, onCancel, onSaved }: ChangePassword
         <PasswordStrength password={next} />
 
         <div className="d-flex gap-2 justify-content-end mt-4">
-          <button type="button" className="btn btn-outline-secondary" onClick={() => { reset(); onCancel(); }}>
+          <button
+            type="button"
+            className="btn btn-outline-secondary"
+            disabled={submitting}
+            onClick={() => { reset(); onCancel(); }}
+          >
             Cancel
           </button>
           <button
             type="button"
             className="btn btn-brand"
-            disabled={!canSave}
-            onClick={() => { reset(); onSaved(); }}
+            disabled={!canSave || submitting}
+            onClick={() => void handleSave()}
           >
-            Save
+            {submitting ? "Saving…" : "Save"}
           </button>
         </div>
       </Modal.Body>

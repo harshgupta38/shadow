@@ -17,6 +17,15 @@ export interface RegisterRequest extends LoginRequest {
   name: string;
 }
 
+export interface UpdateNameRequest {
+  name: string;
+}
+
+export interface ChangePasswordRequest {
+  current_password: string;
+  new_password: string;
+}
+
 // TokenResponse is defined below alongside SessionInfo
 
 export interface RefreshRequest {
@@ -869,6 +878,10 @@ export interface ProfileResponse {
   month_tasks_total: number;
 
   achievements: ProfileAchievement[];
+}
+
+export interface UpdateBioRequest {
+  bio: string;
 }
 
 // ─── Settings ─────────────────────────────────────────────────────────────────

@@ -51,4 +51,30 @@ export const authApi = {
             { custom_name: customName },
         );
     },
+
+    async updateName(name: string): Promise<UserDataResponse> {
+        return http.patch<UserDataResponse>(
+            `${ENDPOINTS.AUTH.PREFIX}${ENDPOINTS.AUTH.NAME}`,
+            { name },
+        );
+    },
+
+    async changePassword(currentPassword: string, newPassword: string): Promise<void> {
+        await http.post<void>(`${ENDPOINTS.AUTH.PREFIX}${ENDPOINTS.AUTH.CHANGE_PASSWORD}`, {
+            current_password: currentPassword,
+            new_password: newPassword,
+        });
+    },
+
+    async resendVerificationEmail(): Promise<void> {
+        await http.post<void>(`${ENDPOINTS.AUTH.PREFIX}${ENDPOINTS.AUTH.RESEND_VERIFICATION}`, {});
+    },
+
+    async deactivateAccount(): Promise<void> {
+        await http.post<void>(`${ENDPOINTS.AUTH.PREFIX}${ENDPOINTS.AUTH.DEACTIVATE}`, {});
+    },
+
+    async deleteAccount(): Promise<void> {
+        await http.delete<void>(`${ENDPOINTS.AUTH.PREFIX}${ENDPOINTS.AUTH.ACCOUNT}`);
+    },
 };

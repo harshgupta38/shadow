@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
+import { api, type ProfileResponse } from "@/api";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { useDateFormat } from "@/context/PlannerContext";
 import { TextFieldPromptDialog } from "@/components/ui/TextFieldPromptDialog/TextFieldPromptDialog";
-import { MOCK_PROFILE } from "@/pages/profile/ProfilePage.mock";
+import { IllustratedErrorState } from "@/components/ui/IllustratedErrorState/IllustratedErrorState";
+import { ProfileSkeleton } from "@/pages/profile/ProfileSkeleton/ProfileSkeleton";
 import { ProfileHero } from "@/pages/profile/ProfileHero/ProfileHero";
 import { ProfileStats } from "@/pages/profile/ProfileStats/ProfileStats";
 import { AchievementsPanel } from "@/pages/profile/AchievementsPanel/AchievementsPanel";
@@ -16,30 +18,75 @@ import "@/pages/profile/ProfilePage.scss";
 
 export function ProfilePage() {
   const { user } = useAuth();
-  const { success } = useToast();
+  const { success, error: toastError } = useToast();
   const dateFormat = useDateFormat();
 
-  // Stand-in for the eventual `const [profile, setProfile] = useState(...)` +
-  // fetch — everything below reads from this one object, same as the real
-  // endpoint response will look, so swapping it out later is a one-line change.
-  const profile = MOCK_PROFILE;
+  const [profile, setProfile] = useState<ProfileResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   const [displayName, setDisplayName] = useState(user?.name ?? "You");
-  const [bio, setBio] = useState(profile.bio ?? "");
+  const [bio, setBio] = useState("");
 
   const [editingName, setEditingName] = useState(false);
   const [editingBio, setEditingBio] = useState(false);
 
-  function saveName(value: string) {
-    setDisplayName(value.trim());
-    setEditingName(false);
-    success("Profile updated.");
+  const load = useCallback(async () => {
+    setLoading(true);
+    setLoadFailed(false);
+    try {
+      const data = await api.profile.get();
+      setProfile(data);
+      setBio(data.bio ?? "");
+    } catch {
+      setLoadFailed(true);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function saveName(value: string) {
+    const trimmed = value.trim();
+    try {
+      const result = await api.auth.updateName(trimmed);
+      setDisplayName(result.name);
+      setEditingName(false);
+      success("Profile updated.");
+    } catch {
+      toastError("Couldn't update your name. Please try again.");
+    }
   }
 
-  function saveBio(value: string) {
-    setBio(value.trim());
-    setEditingBio(false);
-    success("Profile updated.");
+  async function saveBio(value: string) {
+    const trimmed = value.trim();
+    try {
+      const result = await api.profile.updateBio(trimmed);
+      setBio(result.bio ?? "");
+      setEditingBio(false);
+      success("Profile updated.");
+    } catch {
+      toastError("Couldn't update your bio. Please try again.");
+    }
+  }
+
+  if (loading) {
+    return (
+      <section className="profile-page">
+        <ProfileSkeleton />
+      </section>
+    );
+  }
+
+  if (loadFailed || !profile) {
+    return (
+      <section className="profile-page">
+        <IllustratedErrorState onRetry={load} />
+      </section>
+    );
   }
 
   return (

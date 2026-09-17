@@ -322,6 +322,24 @@ def resend_verification_email(db: Session, user: UserDBM) -> None:
         db.commit()
 
 
+def verify_email(db: Session, uid: int, token: str) -> UserDBM:
+    """Completes a /auth/verify-email click from VerifyEmailPage. Unlike the
+    reset-password token, this one never expires and stays valid even after
+    use (a user re-opening an old verification email should still work) — see
+    email_notification_service.verify_verification_token."""
+    from app.services import email_notification_service
+
+    user = db.get(UserDBM, uid)
+    if user is None or not email_notification_service.verify_verification_token(uid, user.email, token):
+        raise ValidationError("This verification link is invalid or has expired.")
+
+    if not user.email_verified:
+        user.email_verified = True
+        db.commit()
+
+    return user
+
+
 def deactivate_account(db: Session, user: UserDBM, current_password: str) -> None:
     """Pauses the account — see login_user for the matching reactivation.
     Re-verifies the password so a hijacked session can't pause/hide the

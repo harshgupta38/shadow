@@ -61,3 +61,8 @@ class ResetPasswordRequest(BaseModel):
     new_password: str
 
     _validate_new_password = field_validator("new_password")(validate_password_strong)
+
+
+class VerifyEmailRequest(BaseModel):
+    uid: int
+    token: str

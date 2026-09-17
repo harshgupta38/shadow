@@ -22,6 +22,7 @@ from app.schemas.auth import (
     ResetPasswordRequest,
     TokenResponse,
     UpdateNameRequest,
+    VerifyEmailRequest,
 )
 from app.services import auth_service, settings_service, session_service
 from app.core import security
@@ -285,9 +286,12 @@ def _verify_email_page(message: str, success: bool = True) -> str:
 
 
 @router.get(ENDPOINTS.AUTH.VERIFY_EMAIL, response_class=None)
-def verify_email(uid: int, token: str, db=Depends(get_db)):
-    """One-click verification link embedded in the verification email — no
-    auth cookie required, same pattern as notifications.email_unsubscribe."""
+def verify_email_link(uid: int, token: str, db=Depends(get_db)):
+    """Legacy path — kept so verification emails sent before VerifyEmailPage
+    existed still work. Every email sent from here on uses that page instead
+    (see email_notification_service._verify_email_url), which avoids a GET
+    request with side effects (email-client link prescanning can silently
+    consume a one-click GET link before the user ever opens it)."""
     from fastapi.responses import HTMLResponse
     from app.services.email_notification_service import verify_verification_token
 
@@ -305,6 +309,13 @@ def verify_email(uid: int, token: str, db=Depends(get_db)):
     return HTMLResponse(
         content=_verify_email_page(f"Your email has been verified, {user.name.split()[0]}! You can close this tab and return to Shadow.")
     )
+
+
+@router.post(ENDPOINTS.AUTH.VERIFY_EMAIL, status_code=status.HTTP_204_NO_CONTENT)
+def verify_email(data: VerifyEmailRequest, db=Depends(get_db)) -> None:
+    """Called from VerifyEmailPage — no auth cookie required, identity is
+    proven by the emailed token."""
+    auth_service.verify_email(db, data.uid, data.token)
 
 
 # ─── Danger zone ────────────────────────────────────────────────────────────────

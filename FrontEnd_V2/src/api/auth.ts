@@ -71,6 +71,10 @@ export const authApi = {
         await http.post<void>(`${ENDPOINTS.AUTH.PREFIX}${ENDPOINTS.AUTH.RESEND_VERIFICATION}`, {});
     },
 
+    async verifyEmail(uid: number, token: string): Promise<void> {
+        await http.post<void>(`${ENDPOINTS.AUTH.PREFIX}${ENDPOINTS.AUTH.VERIFY_EMAIL}`, { uid, token });
+    },
+
     async forgotPassword(email: string): Promise<void> {
         await http.post<void>(`${ENDPOINTS.AUTH.PREFIX}${ENDPOINTS.AUTH.FORGOT_PASSWORD}`, { email });
     },

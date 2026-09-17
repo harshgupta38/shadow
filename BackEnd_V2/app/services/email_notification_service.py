@@ -88,9 +88,16 @@ def verify_verification_token(user_id: int, email: str, token: str) -> bool:
 
 
 def _verify_email_url(user: UserDBM) -> str:
+    # Points at the FRONTEND page (VerifyEmailPage), not the legacy
+    # GET /api/v2/auth/verify-email backend route directly. A raw GET link
+    # that mutates state on load is also vulnerable to email-client link
+    # prescanning (Outlook/Gmail safe-links, corporate scanners) silently
+    # consuming the token before the user ever clicks it — routing through
+    # a page that calls the API from JS avoids that, same reasoning as
+    # _reset_password_url below.
     token = make_verification_token(user.id, user.email)
     base = settings.frontend_base_url.rstrip("/")
-    return f"{base}/api/v2/auth/verify-email?uid={user.id}&token={token}"
+    return f"{base}/verify-email?uid={user.id}&token={token}"
 
 
 # ─── Password-reset token ──────────────────────────────────────────────────────

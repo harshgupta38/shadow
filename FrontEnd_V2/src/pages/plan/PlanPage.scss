@@ -60,6 +60,23 @@
     color: var(--jv-text);
   }
 
+  .plan-header-icon-btn {
+    display: inline-flex;
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--jv-muted);
+    line-height: 0;
+    cursor: pointer;
+    flex-shrink: 0;
+
+    &:hover {
+      color: var(--jv-text);
+    }
+  }
+
   .date-field {
     position: relative;
     display: flex;

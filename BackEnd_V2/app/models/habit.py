@@ -152,6 +152,17 @@ class HabitDBM(Base):
         server_default=text("true"),
     )
 
+    # Whether today's occurrence of this habit may be skipped in the planner
+    # (an excused absence, e.g. rained out) instead of only due/done/missed.
+    # See planner_service.update_daily_record, which enforces this before
+    # allowing a DailyPlanRecordDBM.skipped flip.
+    can_skip: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default=text("false"),
+    )
+
     goal: Mapped["GoalDBM | None"] = relationship(  # type: ignore[name-defined]
         "GoalDBM",
         foreign_keys=[goal_id],

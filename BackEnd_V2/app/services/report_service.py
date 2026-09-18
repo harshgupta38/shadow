@@ -155,19 +155,19 @@ def build_day_data(db: Session, user_id: int, report_date: date, report_type: st
         if habit_ids else {}
     )
 
-    # Habits the user opted out of report accounting — drop their records
-    # entirely so they never factor into stats, highlights, history, or the
-    # LLM's input (everything below reads from today_records/history_records).
+    # Habits the user opted out of report accounting, and any record the user
+    # skipped (excused absence) — drop both entirely so they never factor into
+    # stats, highlights, history, or the LLM's input (everything below reads
+    # from today_records/history_records).
     excluded_habit_ids = {h.id for h in habit_map.values() if not h.include_in_report}
-    if excluded_habit_ids:
-        today_records = [
-            r for r in today_records
-            if not (r.source_type == "habit" and r.source_id in excluded_habit_ids)
-        ]
-        history_records = [
-            r for r in history_records
-            if not (r.source_type == "habit" and r.source_id in excluded_habit_ids)
-        ]
+
+    def _is_excluded(r: DailyPlanRecordDBM) -> bool:
+        if r.skipped:
+            return True
+        return r.source_type == "habit" and r.source_id in excluded_habit_ids
+
+    today_records = [r for r in today_records if not _is_excluded(r)]
+    history_records = [r for r in history_records if not _is_excluded(r)]
 
     # Active goals
     goals: list[GoalDBM] = db.scalars(

@@ -6,6 +6,8 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Eye,
+  EyeSlash,
   Plus,
 } from "react-bootstrap-icons";
 
@@ -46,6 +48,7 @@ export function PlanPage() {
   const [completingIds, setCompletingIds] = useState<Set<number>>(new Set());
   const [busyIds, setBusyIds] = useState<Set<number>>(new Set());
   const [completedOpen, setCompletedOpen] = useState(false);
+  const [skippedOpen, setSkippedOpen] = useState(false);
 
   useEffect(() => {
     function refreshToday() {
@@ -103,11 +106,19 @@ export function PlanPage() {
     [planItems],
   );
 
+  const skippedItems = useMemo(
+    () => planItems.filter((item) => item.saved_data?.skipped),
+    [planItems],
+  );
+  const skippedCount = skippedItems.length;
+
   const activeItems = useMemo(
     () => planItems.filter(
-      (item) => item.saved_data?.status !== "done" || completingIds.has(item.plan_id),
+      (item) =>
+        (item.saved_data?.status !== "done" || completingIds.has(item.plan_id)) &&
+        (!item.saved_data?.skipped || skippedOpen),
     ),
-    [planItems, completingIds],
+    [planItems, completingIds, skippedOpen],
   );
   const doneItems = useMemo(
     () => planItems.filter(
@@ -178,6 +189,27 @@ export function PlanPage() {
     setBusyIds((prev) => new Set([...prev, planId]));
     try {
       const savedData = await api.planItems.updateRecord(recordId, { status: "due" });
+      updateItemSavedData(recordId, savedData);
+    } catch {
+      toast.error("Couldn't update status. Please try again.");
+    } finally {
+      setBusyIds((prev) => {
+        const next = new Set(prev);
+        next.delete(planId);
+        return next;
+      });
+    }
+  }
+
+  async function handleToggleSkip(planId: number) {
+    const item = planData?.items.find((i) => i.plan_id === planId);
+    const recordId = item?.saved_data?.record_id;
+    if (!recordId) return;
+    const nextSkipped = !item?.saved_data?.skipped;
+
+    setBusyIds((prev) => new Set([...prev, planId]));
+    try {
+      const savedData = await api.planItems.updateRecord(recordId, { skipped: nextSkipped });
       updateItemSavedData(recordId, savedData);
     } catch {
       toast.error("Couldn't update status. Please try again.");
@@ -306,6 +338,18 @@ export function PlanPage() {
               <span style={{ fontSize: "0.9rem", fontWeight: 400, color: "var(--jv-muted)" }}>
                 {selectedDate.toLocaleDateString(undefined, { weekday: "long" })}
               </span>
+              {skippedCount > 0 && (
+                <button
+                  type="button"
+                  className="plan-header-icon-btn"
+                  style={{ marginLeft: "auto", alignSelf: "center" }}
+                  aria-label={skippedOpen ? "Hide skipped items" : `Show ${skippedCount} skipped item${skippedCount === 1 ? "" : "s"}`}
+                  title={skippedOpen ? "Hide skipped items" : "Show skipped items"}
+                  onClick={() => setSkippedOpen((o) => !o)}
+                >
+                  {skippedOpen ? <EyeSlash size={16} /> : <Eye size={16} />}
+                </button>
+              )}
             </h2>
 
             {loadingPlan ? (
@@ -345,6 +389,18 @@ export function PlanPage() {
                     : "You can add something manually or check another date."}
                 </p>
               </div>
+            ) : activeItems.length === 0 && doneItems.length === 0 && skippedCount > 0 ? (
+              <div className="empty-state">
+                <span className="empty-state-icon"><EyeSlash size={20} /></span>
+                <h3 className="text-normal">Nothing to do — {skippedCount} skipped</h3>
+                <p>
+                  {isToday ? "Everything left for today was skipped. " : "Everything left on this date was skipped. "}
+                  <button type="button" className="btn-link-inline" onClick={() => setSkippedOpen(true)}>
+                    Show skipped items
+                  </button>
+                  .
+                </p>
+              </div>
             ) : activeItems.length === 0 ? (
               <div className="empty-state">
                 <span className="empty-state-icon">🎉</span>
@@ -361,6 +417,7 @@ export function PlanPage() {
                     isCompleting={completingIds.has(item.plan_id)}
                     busy={busyIds.has(item.plan_id)}
                     onToggle={() => handleToggle(item.plan_id)}
+                    onToggleSkip={() => handleToggleSkip(item.plan_id)}
                     onSaveProgress={(value) => handleSaveProgress(item.plan_id, value)}
                     onSaveNote={(note) => handleSaveNote(item.plan_id, note)}
                     onSaveNoteAndDone={(note) => handleSaveNoteAndDone(item.plan_id, note)}

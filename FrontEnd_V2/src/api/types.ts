@@ -504,6 +504,7 @@ export interface HabitCreateRequest {
   specific_days: number[] | null;
   day_fallback: boolean;
   include_in_report: boolean;
+  can_skip: boolean;
 
   start_date: string | null;
   end_date: string | null;
@@ -581,6 +582,10 @@ export interface PlanDataResponse {
   // Goal-linked fields — populated when the source habit/task is linked to a goal
   goal?: GoalDataInPlan;
 
+  // Whether the source habit allows skipping today's occurrence. Always false
+  // for task/schedule sources.
+  can_skip: boolean;
+
   saved_data: DailyPlanSavedData | null;
 }
 
@@ -597,12 +602,16 @@ export interface DailyPlanSavedData {
   current_streak: number; // computed from recurrence + history, never stored
   max_streak: number;     // computed from recurrence + history, never stored
   note: string;
+  // Excused absence for today's occurrence — always false for synthesized
+  // missed occurrences (no DB record to skip).
+  skipped: boolean;
 }
 
 export interface UpdatePlanRequest {
   status?: PlanStatus;
   actual_value?: number;
   note?: string;
+  skipped?: boolean;
 }
 
 export interface PlanResponse {

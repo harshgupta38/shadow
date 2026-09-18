@@ -159,6 +159,7 @@ def _full_completion_streak(db: Session, user_id: int, today: date) -> int:
             DailyPlanRecordDBM.planner_type,
             DailyPlanRecordDBM.planner_target,
             DailyPlanRecordDBM.actual_value,
+            DailyPlanRecordDBM.skipped,
         ).where(
             DailyPlanRecordDBM.user_id == user_id,
             DailyPlanRecordDBM.scheduled_date >= start,
@@ -175,6 +176,8 @@ def _full_completion_streak(db: Session, user_id: int, today: date) -> int:
         if not records:
             return False
         for r in records:
+            if r.skipped:
+                continue
             if r.planner_type == "metric" and r.planner_target:
                 if (r.actual_value or 0) < r.planner_target:
                     return False

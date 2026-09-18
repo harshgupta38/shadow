@@ -83,6 +83,9 @@ def get_monthly_report(
                 DailyPlanRecordDBM.scheduled_date >= start,
                 DailyPlanRecordDBM.scheduled_date <= end,
                 DailyPlanRecordDBM.source_type.in_(["habit", "task", "schedule"]),
+                # Skipped occurrences (excused absences) never count toward
+                # score or totals, same reasoning as report_service.build_day_data.
+                DailyPlanRecordDBM.skipped.is_(False),
                 *(
                     [
                         ~and_(

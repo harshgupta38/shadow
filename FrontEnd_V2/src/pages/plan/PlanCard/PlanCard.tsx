@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
+  ArrowCounterclockwise,
   Bullseye,
   CalendarEvent,
   ChatSquareDots,
@@ -14,6 +15,7 @@ import {
   MoonStarsFill,
   PencilFill,
   PlusLg,
+  SkipForward,
   SunFill,
   TagFill,
 } from "react-bootstrap-icons";
@@ -32,6 +34,7 @@ import "./PlanCard.scss";
 interface PlanCardProps {
   item: PlanDataResponse;
   onToggle?: () => void;
+  onToggleSkip?: () => void;
   onSaveProgress?: (value: number) => Promise<void>;
   onSaveNote?: (note: string) => Promise<void>;
   onSaveNoteAndDone?: (note: string) => Promise<void>;
@@ -75,11 +78,12 @@ function TimeChip({ preferredTime, label }: { preferredTime: string; label: stri
   );
 }
 
-export function PlanCard({ item, onToggle, onSaveProgress, onSaveNote, onSaveNoteAndDone, busy = false, readOnly = false, isCompleting = false }: PlanCardProps) {
+export function PlanCard({ item, onToggle, onToggleSkip, onSaveProgress, onSaveNote, onSaveNoteAndDone, busy = false, readOnly = false, isCompleting = false }: PlanCardProps) {
   const navigate = useNavigate();
   const timeFormat = useTimeFormat();
   const isDone = item.saved_data?.status === "done";
   const isMissed = item.saved_data?.status === "missed";
+  const isSkipped = item.saved_data?.skipped ?? false;
   const target = item.planner_target ?? 0;
   const isMetric = item.planner_type === "metric" && target > 0;
 
@@ -184,7 +188,7 @@ export function PlanCard({ item, onToggle, onSaveProgress, onSaveNote, onSaveNot
 
   return (
     <article
-      className={`plan-card${isDone ? " plan-card--done" : ""}${isMissed ? " plan-card--missed" : ""}${isCompleting ? " plan-card--completing" : ""}`}
+      className={`plan-card${isDone ? " plan-card--done" : ""}${isMissed ? " plan-card--missed" : ""}${isSkipped ? " plan-card--skipped" : ""}${isCompleting ? " plan-card--completing" : ""}`}
     >
       {/* Row 1 — title · time · checkbox */}
       <div className="plan-card-row">
@@ -284,6 +288,30 @@ export function PlanCard({ item, onToggle, onSaveProgress, onSaveNote, onSaveNot
               <Clock size={11} />
               {formatDuration(item.duration_minutes!)}
             </span>
+          )}
+
+          {isSkipped ? (
+            <button
+              type="button"
+              className={`plan-card-pill plan-card-pill--skipped${!readOnly ? " plan-card-pill--clickable" : ""}`}
+              onClick={!readOnly ? onToggleSkip : undefined}
+              disabled={busy}
+            >
+              <ArrowCounterclockwise size={11} />
+              {readOnly ? "Skipped" : "Skipped · Restore"}
+            </button>
+          ) : (
+            !readOnly && item.can_skip && !isDone && (
+              <button
+                type="button"
+                className="plan-card-pill plan-card-pill--skip plan-card-pill--clickable"
+                onClick={onToggleSkip}
+                disabled={busy}
+              >
+                <SkipForward size={11} />
+                Skip
+              </button>
+            )
           )}
         </div>
 

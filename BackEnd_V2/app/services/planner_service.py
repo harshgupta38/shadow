@@ -253,6 +253,7 @@ def _record_to_saved_data(
         current_streak=current_streak,
         max_streak=max_streak,
         note=record.note or "",
+        skipped=record.skipped,
     )
 
 
@@ -355,6 +356,24 @@ def _enrich_goals(
     return result
 
 
+def _enrich_can_skip(
+    db: Session,
+    source_pairs: list[tuple[str | None, int | None]],
+) -> dict[int, bool]:
+    """Bulk-load Habit.can_skip for habit source ids — no N+1 queries.
+
+    Read live from the Habit rather than snapshotted onto the record, same
+    reasoning as include_in_report: it's a habit-level setting, not a
+    per-occurrence one, so it should reflect the habit's current value.
+    """
+    habit_ids = [sid for st, sid in source_pairs if st == "habit" and sid]
+    if not habit_ids:
+        return {}
+    return dict(
+        db.execute(select(HabitDBM.id, HabitDBM.can_skip).where(HabitDBM.id.in_(habit_ids))).all()
+    )
+
+
 # ── Today-record synchronisation ─────────────────────────────────────────────
 
 def _recompute_task_progress(db: Session, task_id: int) -> None:
@@ -391,6 +410,8 @@ def _apply_metric_status(record: DailyPlanRecordDBM) -> None:
         record.status = "done"
         if record.completed_at is None:
             record.completed_at = datetime.now(timezone.utc)
+        # Completing an occurrence supersedes a prior skip.
+        record.skipped = False
     else:
         record.status = "due"
         record.completed_at = None
@@ -798,6 +819,7 @@ def get_plans_for_date(
 
         source_pairs = [(r.source_type, r.source_id) for r in records]
         goal_by_source = _enrich_goals(db, source_pairs)
+        can_skip_by_habit = _enrich_can_skip(db, source_pairs)
 
         items = []
         for record in records:
@@ -815,6 +837,7 @@ def get_plans_for_date(
                 planner_target=record.planner_target,
                 value_unit=record.value_unit,
                 priority=record.priority,
+                can_skip=can_skip_by_habit.get(record.source_id, False) if record.source_type == "habit" else False,
                 preferred_time=record.preferred_time,
                 specific_time=record.specific_time,
                 duration_minutes=record.duration_minutes,
@@ -894,6 +917,7 @@ def get_plans_for_date(
             else:
                 source_pairs.append((plan.source_type, plan.source_id))
         goal_by_source = _enrich_goals(db, source_pairs)
+        can_skip_by_habit = _enrich_can_skip(db, source_pairs)
 
         items = []
         for plan, record in occurrences:
@@ -913,6 +937,7 @@ def get_plans_for_date(
                     planner_target=record.planner_target,
                     value_unit=record.value_unit,
                     priority=record.priority,
+                    can_skip=can_skip_by_habit.get(sid, False) if st == "habit" else False,
                     preferred_time=record.preferred_time,
                     specific_time=record.specific_time,
                     duration_minutes=record.duration_minutes,
@@ -935,6 +960,7 @@ def get_plans_for_date(
                     planner_target=norm_target,
                     value_unit=norm_unit,
                     priority=plan.priority,
+                    can_skip=can_skip_by_habit.get(sid, False) if st == "habit" else False,
                     preferred_time=plan.preferred_time,
                     specific_time=plan.specific_time,
                     duration_minutes=plan.duration_minutes,
@@ -963,6 +989,7 @@ def update_daily_record(
     actual_value: int | None,
     note: str | None,
     add_value: int | None = None,
+    skipped: bool | None = None,
 ) -> DailyPlanSavedData:
     record = db.scalar(
         select(DailyPlanRecordDBM).where(
@@ -987,6 +1014,8 @@ def update_daily_record(
             record.status = "done"
             if record.completed_at is None:
                 record.completed_at = datetime.now(timezone.utc)
+            # Completing an occurrence supersedes a prior skip.
+            record.skipped = False
         else:
             record.status = "due"
             record.completed_at = None
@@ -999,6 +1028,8 @@ def update_daily_record(
                 record.actual_value = 1
             if record.completed_at is None:
                 record.completed_at = datetime.now(timezone.utc)
+            # Completing an occurrence supersedes a prior skip.
+            record.skipped = False
         elif status == "due":
             if record.planner_type == "simple":
                 record.actual_value = 0
@@ -1006,6 +1037,17 @@ def update_daily_record(
 
     if note is not None:
         record.note = note.strip() or None
+
+    if skipped is not None:
+        if skipped:
+            if record.source_type != "habit" or record.source_id is None:
+                raise AppError("Only habits can be skipped.")
+            habit = db.get(HabitDBM, record.source_id)
+            if habit is None or not habit.can_skip:
+                raise AppError("This habit can't be skipped.")
+            if record.status == "done":
+                raise AppError("Completed items can't be skipped.")
+        record.skipped = skipped
 
     # For task plans: propagate cumulative progress back to the parent Task.
     # Flush first because autoflush=False — without it the sum query would

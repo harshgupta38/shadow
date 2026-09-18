@@ -35,4 +35,5 @@ def update_daily_record(
         status=body.status,
         actual_value=body.actual_value,
         note=body.note,
+        skipped=body.skipped,
     )

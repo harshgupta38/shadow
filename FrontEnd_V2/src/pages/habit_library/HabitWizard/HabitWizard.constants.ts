@@ -17,6 +17,7 @@ export type HabitWizardAnswers = {
     monthlyCount: number;
     specificDays: number[];
     dayFallback: boolean;
+    canSkip: boolean;
 
     // Step 3: Habit Timeline
     setStartDate: "yes" | "no";
@@ -81,6 +82,7 @@ export function makeEmptyAnswers(defaultDuration = 30): HabitWizardAnswers {
         monthlyCount: 1,
         specificDays: [],
         dayFallback: false,
+        canSkip: false,
         setStartDate: "no",
         startDate: todayIso(),
         setEndDate: false,
@@ -173,6 +175,7 @@ export function answersFromHabit(habit: HabitDataResponse): HabitWizardAnswers {
         monthlyCount: habit.monthly_count ?? 1,
         specificDays: habit.specific_days ?? [],
         dayFallback: habit.day_fallback,
+        canSkip: habit.can_skip ?? false,
         setStartDate: habit.start_date ? "yes" : "no",
         startDate: habit.start_date ?? todayIso(),
         setEndDate: habit.end_date !== null,
@@ -201,6 +204,7 @@ export function answersFromDraft(draft: Partial<HabitCreateRequest>): HabitWizar
         monthlyCount: draft.monthly_count ?? 1,
         specificDays: draft.specific_days ?? [],
         dayFallback: draft.day_fallback ?? false,
+        canSkip: draft.can_skip ?? false,
         setStartDate: draft.start_date ? "yes" : "no",
         startDate: draft.start_date ?? base.startDate,
         setEndDate: draft.end_date !== null && draft.end_date !== undefined,

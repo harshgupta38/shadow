@@ -246,6 +246,7 @@ export function HabitWizardPage() {
                 monthly_count: answers.frequencies.includes("monthly") ? answers.monthlyCount : null,
                 specific_days: answers.specificDays.length > 0 ? answers.specificDays : null,
                 day_fallback: answers.dayFallback,
+                can_skip: answers.canSkip,
                 start_date: answers.setStartDate === "yes" ? answers.startDate : null,
                 end_date: answers.setStartDate === "yes" && answers.setEndDate ? answers.endDate : null,
                 preferred_time: answers.preferredTime,
@@ -350,19 +351,42 @@ export function HabitWizardPage() {
                     </div>
                 )}
 
-                {/* Priority */}
-                <div className="mb-3">
-                    <label className="form-label">Priority</label>
-                    <select
-                        className="form-select"
-                        value={answers.priority}
-                        onChange={(e) => updateAnswer("priority", e.target.value as typeof answers.priority)}
-                        disabled={!isActive || submitting}
-                    >
-                        {PRIORITY_OPTIONS.map((opt) => (
-                            <option key={opt.value} value={opt.value}>{opt.label}</option>
-                        ))}
-                    </select>
+                {/* Priority + Can skip */}
+                <div className="row g-3 mb-3">
+                    <div className="col-md-6">
+                        <label className="form-label">Priority</label>
+                        <select
+                            className="form-select"
+                            value={answers.priority}
+                            onChange={(e) => updateAnswer("priority", e.target.value as typeof answers.priority)}
+                            disabled={!isActive || submitting}
+                        >
+                            {PRIORITY_OPTIONS.map((opt) => (
+                                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="col-md-6">
+                        <label className="form-label">Can skip</label>
+                        <div className="goal-task-type-toggle goal-task-type-toggle--compact mt-0">
+                            <button
+                                type="button"
+                                className={`goal-task-type-option ${answers.canSkip ? "is-active" : ""}`.trim()}
+                                onClick={() => updateAnswer("canSkip", true)}
+                                disabled={!isActive || submitting}
+                            >
+                                <span className="goal-task-type-option-title">Yes - Allow</span>
+                            </button>
+                            <button
+                                type="button"
+                                className={`goal-task-type-option ${!answers.canSkip ? "is-active" : ""}`.trim()}
+                                onClick={() => updateAnswer("canSkip", false)}
+                                disabled={!isActive || submitting}
+                            >
+                                <span className="goal-task-type-option-title">No - Required</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
                 {/* Frequency chips */}

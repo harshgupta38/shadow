@@ -1,6 +1,7 @@
 from datetime import date, datetime
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     Date,
     DateTime,
@@ -118,6 +119,17 @@ class DailyPlanRecordDBM(Base):
         nullable=False,
         default=0,
         server_default=text("0"),
+    )
+
+    # Excused absence for today's occurrence of a can_skip habit (e.g. rained
+    # out) — independent of `status`, which is left untouched. Only controls
+    # default visibility in the planner list; history/report/streak logic
+    # reads `status`, not this flag.
+    skipped: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default=text("false"),
     )
 
     # ── Per-occurrence note (does not touch the source Habit/Task note) ───────

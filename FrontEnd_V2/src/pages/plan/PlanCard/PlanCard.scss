@@ -25,6 +25,14 @@
     pointer-events: none;
     will-change: transform, opacity;
   }
+
+  &--skipped {
+    opacity: 0.7;
+    .plan-card-title {
+      color: var(--jv-muted);
+      text-decoration: line-through;
+    }
+  }
 }
 
 @keyframes plan-card-complete {
@@ -242,6 +250,28 @@
       color: var(--jv-text);
       border-color: var(--jv-text);
     }
+  }
+
+  // skip action
+  &--skip {
+    background: transparent;
+    color: var(--jv-muted);
+    border: 1px dashed var(--jv-border-strong);
+    flex-shrink: 0;
+    transition: border-color var(--jv-transition), color var(--jv-transition);
+
+    &:hover {
+      color: var(--jv-warn);
+      border-color: var(--jv-warn);
+    }
+  }
+
+  // skipped state badge
+  &--skipped {
+    background: color-mix(in srgb, var(--jv-muted) 14%, transparent);
+    color: var(--jv-muted);
+    border: none;
+    flex-shrink: 0;
   }
 }
 

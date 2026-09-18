@@ -20,6 +20,9 @@ class DailyPlanSavedData(BaseModel):
     current_streak: int  # computed from recurrence + history, never stored
     max_streak: int      # computed from recurrence + history, never stored
     note: str
+    # Excused absence for today's occurrence — see DailyPlanRecordDBM.skipped.
+    # Always False for synthesized missed occurrences (no DB record to skip).
+    skipped: bool = False
 
 
 class GoalDataInPlan(BaseModel):
@@ -44,6 +47,9 @@ class DailyPlanItemResponse(BaseModel):
     duration_minutes: int | None
     # Populated when the source habit/task is linked to a goal.
     goal: GoalDataInPlan | None
+    # Whether the source habit allows skipping today's occurrence (see
+    # HabitDBM.can_skip). Always False for task/schedule sources.
+    can_skip: bool = False
     # Additional field to indicate the status of the plan for the given date.
     saved_data: DailyPlanSavedData | None
 
@@ -60,3 +66,4 @@ class UpdatePlanRequest(BaseModel):
     status: PlanStatus | None = None
     actual_value: int | None = None
     note: str | None = None
+    skipped: bool | None = None

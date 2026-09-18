@@ -15,7 +15,7 @@ from app.api.system import router as system_router
 from app.api.shortcuts import router as shortcuts_router
 from app.core.config import settings
 
-from app.db.session import SessionLocal, engine, ensure_habit_columns, ensure_plan_record_columns
+from app.db.session import SessionLocal, engine
 from app.models.base import Base
 from app.core.exceptions import AppError, TooManyRequestsError
 
@@ -56,8 +56,6 @@ async def lifespan(_app: FastAPI):
             "Email notifications are disabled until these are set in the environment."
         )
     Base.metadata.create_all(bind=engine)
-    ensure_habit_columns()
-    ensure_plan_record_columns()
     with SessionLocal() as db:
         planner_service.sync_all_plans(db)
 

@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, ChevronUp } from "react-bootstrap-icons";
 
 import type { HabitActivityRecord } from "@/api";
+import { todayIso } from "@/services/date.service";
 
 import "./HabitHistory.scss";
 
@@ -38,25 +39,225 @@ function SimpleContent({ record }: { record: HabitActivityRecord }) {
   );
 }
 
-function MetricContent({ record, habit }: { record: HabitActivityRecord; habit: PlannerConfig }) {
-  const value = record.value ?? 0;
-  const target = habit.planner_target ?? 1;
-  const pct = Math.round(Math.min(100, (value / target) * 100));
+// ── Monthly metric chart — replaces the day-by-day list for metric habits/tasks:
+// a full month of daily values is easier to read as a trend than 28-31 rows.
+
+interface MonthlyMetricPoint {
+  day: number;
+  value: number;
+  streak: number;
+  note: string | null;
+}
+
+function buildMonthlyMetricPoints(
+  monthRecords: HabitActivityRecord[],
+  year: number,
+  month: number,
+  today: string,
+): MonthlyMetricPoint[] {
+  // monthRecords is already scoped to this {year, month} by the caller
+  // (HabitHistory's recordsByMonth map) — no need to re-check each date.
+  const recordByDay = new Map<number, HabitActivityRecord>();
+  for (const r of monthRecords) {
+    recordByDay.set(Number(r.date.slice(8, 10)), r);
+  }
+
+  const [ty, tm, td] = today.split("-").map(Number);
+  const isCurrentMonth = ty === year && tm - 1 === month;
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const lastDay = isCurrentMonth ? Math.min(td, daysInMonth) : daysInMonth;
+
+  const points: MonthlyMetricPoint[] = [];
+  for (let day = 1; day <= lastDay; day++) {
+    const r = recordByDay.get(day);
+    points.push({
+      day,
+      value: r?.value ?? 0,
+      streak: r?.streak ?? 0,
+      note: r?.note ?? null,
+    });
+  }
+  return points;
+}
+
+// Fixed, generous chart height in real pixels. The viewBox width tracks the
+// container's *measured* pixel width (via ResizeObserver) rather than a fixed
+// constant — with preserveAspectRatio="none", a viewBox narrower than the
+// actual render box stretches everything (bars, gridlines, text) horizontally
+// while leaving the vertical scale untouched, which is what was flattening
+// the chart. Matching the viewBox to the real box 1:1 removes that distortion.
+const CHART_H = 260;
+const CHART_PAD_TOP = 34; // room for the value label above the tallest bar
+const CHART_PAD_BOTTOM = 28; // room for the day-number axis row
+const GRID_LINES = [0, 0.33, 0.66, 1];
+const MIN_CHART_W = 320; // sane fallback before the first ResizeObserver measurement
+const MIN_DAY_PX = 46; // per-day slot width below which 4-digit value labels start overlapping
+
+function useMeasuredWidth(fallback: number) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(fallback);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect.width;
+      if (w && w > 0) setWidth(w);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  return { ref, width: Math.max(width, MIN_CHART_W) };
+}
+
+function MetricMonthChart({
+  monthRecords,
+  habit,
+  year,
+  month,
+  today,
+}: {
+  monthRecords: HabitActivityRecord[];
+  habit: PlannerConfig;
+  year: number;
+  month: number;
+  today: string;
+}) {
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+  const { ref: plotRef, width: chartW } = useMeasuredWidth(600);
+
+  const points = useMemo(
+    () => buildMonthlyMetricPoints(monthRecords, year, month, today),
+    [monthRecords, year, month, today],
+  );
+
+  const target = habit.planner_target ?? 0;
   const unit = habit.value_unit ?? "";
-  const valueLabel = `${value}${unit ? ` ${unit}` : ""}`;
+  const values = points.map((p) => p.value);
+  const max = Math.max(...values, target, 1);
+
+  const plotH = CHART_H - CHART_PAD_TOP - CHART_PAD_BOTTOM;
+  const baseY = CHART_H - CHART_PAD_BOTTOM;
+  const slot = chartW / points.length;
+  const gap = Math.min(10, slot * 0.32);
+  const barW = Math.max(2, slot - gap);
+
+  const bars = points.map((p, i) => {
+    const x = i * slot + gap / 2;
+    const h = max > 0 ? (p.value / max) * plotH : 0;
+    const y = baseY - h;
+    const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(p.day).padStart(2, "0")}`;
+    return { ...p, x, y, h, slotX: i * slot, isToday: dateStr === today };
+  });
+
+  const targetY = target > 0 ? baseY - (target / max) * plotH : null;
+  const hovered = hoverIdx != null ? bars[hoverIdx] : null;
+  const tooltipLeftPct = hovered
+    ? Math.min(94, Math.max(6, ((hovered.x + barW / 2) / chartW) * 100))
+    : 0;
+
+  const nonZero = values.filter((v) => v > 0);
+  const avg = nonZero.length > 0 ? nonZero.reduce((a, b) => a + b, 0) / nonZero.length : 0;
+  const best = Math.max(...values, 0);
+  const total = values.reduce((a, b) => a + b, 0);
 
   return (
-    <div className="hhs-content hhs-content--metric">
-      <p className="hhs-note">{record.note ?? "Progress"}</p>
-      <div className="hhs-metric-main">
-        <div className="hhs-progress-row">
-          <span className="hhs-progress-val">{valueLabel}</span>
-          <div className="hhs-progress-track">
-            <div className="hhs-progress-fill" style={{ width: `${pct}%` }} />
+    <div className="hhs-chart" onMouseLeave={() => setHoverIdx(null)}>
+      <div className="hhs-chart-scroll">
+        <div className="hhs-chart-plot" ref={plotRef} style={{ minWidth: points.length * MIN_DAY_PX }}>
+        <svg
+          viewBox={`0 0 ${chartW} ${CHART_H}`}
+          className="hhs-chart-svg"
+          preserveAspectRatio="none"
+          aria-label={`${MONTH_FULL[month]} daily values`}
+        >
+          <defs>
+            <linearGradient id={`hhs-bar-grad-${year}-${month}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="var(--jv-brand-1)" />
+              <stop offset="100%" stopColor="var(--jv-brand-2)" />
+            </linearGradient>
+          </defs>
+
+          {GRID_LINES.map((f) => {
+            const y = CHART_PAD_TOP + f * plotH;
+            return <line key={f} x1="0" y1={y} x2={chartW} y2={y} className="hhs-chart-grid" />;
+          })}
+
+          {targetY != null && (
+            <line x1="0" y1={targetY.toFixed(1)} x2={chartW} y2={targetY.toFixed(1)} className="hhs-chart-target" />
+          )}
+
+          {bars.map((b, i) => (
+            <g
+              key={b.day}
+              onMouseEnter={() => setHoverIdx(i)}
+              onFocus={() => setHoverIdx(i)}
+              tabIndex={0}
+              role="img"
+              aria-label={`${MONTH_FULL[month].slice(0, 3)} ${b.day} — ${b.value}${unit ? ` ${unit}` : ""}`}
+            >
+              {/* Full-height hit area — hovering anywhere in the day's slot highlights its bar */}
+              <rect x={b.slotX} y="0" width={slot} height={baseY} className={`hhs-chart-hit${hoverIdx === i ? " is-hover" : ""}`} />
+              <rect
+                x={b.x}
+                y={b.y}
+                width={barW}
+                height={Math.max(b.h, 3)}
+                rx="6"
+                fill={`url(#hhs-bar-grad-${year}-${month})`}
+                className={`hhs-bar${hoverIdx === i ? " is-hover" : ""}${b.isToday ? " is-today" : ""}`}
+              />
+              {b.value > 0 && (
+                <text x={b.x + barW / 2} y={b.y - 10} textAnchor="middle" className="hhs-bar-label">
+                  {b.value}
+                </text>
+              )}
+              <text x={b.x + barW / 2} y={CHART_H - 9} textAnchor="middle" className="hhs-bar-day">
+                {b.day}
+              </text>
+            </g>
+          ))}
+        </svg>
+
+        {hovered && (
+          <div className="hhs-chart-tooltip" style={{ left: `${tooltipLeftPct}%` }}>
+            <div className="hhs-chart-tooltip-title">
+              {MONTH_FULL[month].slice(0, 3)} {hovered.day}
+              {hovered.streak > 0 && (
+                <span className="hhs-chart-tooltip-streak">🔥 {hovered.streak}</span>
+              )}
+            </div>
+            <div className="hhs-chart-tooltip-row">
+              <span className="hhs-chart-tooltip-dot" />
+              {hovered.value}{unit ? ` ${unit}` : ""}
+            </div>
+            {target > 0 && (
+              <div className="hhs-chart-tooltip-sub">Target: {target}{unit ? ` ${unit}` : ""}</div>
+            )}
+            {hovered.note && (
+              <div className="hhs-chart-tooltip-note">{hovered.note}</div>
+            )}
           </div>
-          <span className="hhs-progress-pct">{pct}%</span>
+        )}
         </div>
-        <StreakPill streak={record.streak} />
+      </div>
+
+      <div className="hhs-chart-footer">
+        <div className="hhs-chart-fstat">
+          <span className="hhs-chart-fval">{avg.toFixed(1)}<em> {unit}</em></span>
+          <span className="hhs-chart-fkey">avg</span>
+        </div>
+        <div className="hhs-chart-fsep" />
+        <div className="hhs-chart-fstat">
+          <span className="hhs-chart-fval">{best}<em> {unit}</em></span>
+          <span className="hhs-chart-fkey">best</span>
+        </div>
+        <div className="hhs-chart-fsep" />
+        <div className="hhs-chart-fstat">
+          <span className="hhs-chart-fval">{total}<em> {unit}</em></span>
+          <span className="hhs-chart-fkey">total</span>
+        </div>
       </div>
     </div>
   );
@@ -67,11 +268,15 @@ function MetricContent({ record, habit }: { record: HabitActivityRecord; habit: 
 function MonthSection({
   group,
   habit,
+  monthRecords,
+  today,
   expanded,
   onToggle,
 }: {
   group: MonthGroup;
   habit: PlannerConfig;
+  monthRecords: HabitActivityRecord[];
+  today: string;
   expanded: boolean;
   onToggle: () => void;
 }) {
@@ -83,7 +288,7 @@ function MonthSection({
   if (entries.length === 0) return null;
 
   return (
-    <div className="hl-card hhs-month-group">
+    <div className={`hl-card hhs-month-group ${expanded ? "pb-3" : ""}`}>
       <button
         type="button"
         className="hhs-month-header"
@@ -100,17 +305,24 @@ function MonthSection({
 
       <div className={`hhs-collapse${expanded ? " is-expanded" : ""}`}>
         <div className={`hhs-collapse-inner${expanded ? "" : " is-collapsed"}`}>
-          <div className="hhs-timeline">
-            {entries.map((record) => (
-              <div key={record.date} className="hhs-item">
-                <div className="hhs-ball">{Number(record.date.slice(8, 10))}</div>
-                {plannerType === "simple"
-                  ? <SimpleContent record={record} />
-                  : <MetricContent record={record} habit={habit} />
-                }
-              </div>
-            ))}
-          </div>
+          {plannerType === "metric" ? (
+            <MetricMonthChart
+              monthRecords={monthRecords}
+              habit={habit}
+              year={group.year}
+              month={group.month}
+              today={today}
+            />
+          ) : (
+            <div className="hhs-timeline">
+              {entries.map((record) => (
+                <div key={record.date} className="hhs-item">
+                  <div className="hhs-ball">{Number(record.date.slice(8, 10))}</div>
+                  <SimpleContent record={record} />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -125,7 +337,7 @@ interface HabitHistoryProps {
 }
 
 export function HabitHistory({ habit, records }: HabitHistoryProps) {
-  const [openKey, setOpenKey] = useState<string>("");
+  const today = useMemo(() => todayIso(), []);
 
   const monthGroups = useMemo<MonthGroup[]>(() => {
     const map = new Map<string, MonthGroup>();
@@ -144,6 +356,30 @@ export function HabitHistory({ habit, records }: HabitHistoryProps) {
     return [...map.values()].sort((a, b) => b.year - a.year || b.month - a.month);
   }, [records]);
 
+  // Most recent month starts expanded — HabitHistory only mounts after the
+  // parent's data has already loaded, so monthGroups is populated by the
+  // time this runs. Plain state after that: the user's own toggles win.
+  const [openKey, setOpenKey] = useState<string>(
+    () => (monthGroups.length > 0 ? `${monthGroups[0].year}-${monthGroups[0].month}` : ""),
+  );
+
+  // Unfiltered per-month grouping (single O(n) pass) for MetricMonthChart —
+  // it needs every record, including zero-value/note-only days that
+  // monthGroups above deliberately drops, to zero-fill the chart correctly.
+  // Kept separate from monthGroups so each month section doesn't rescan the
+  // full record history on every render.
+  const recordsByMonth = useMemo(() => {
+    const map = new Map<string, HabitActivityRecord[]>();
+    for (const r of records) {
+      const [year, month] = r.date.split("-").map(Number);
+      const key = `${year}-${month - 1}`;
+      let arr = map.get(key);
+      if (!arr) { arr = []; map.set(key, arr); }
+      arr.push(r);
+    }
+    return map;
+  }, [records]);
+
   if (monthGroups.length === 0) return null;
 
   return (
@@ -156,6 +392,8 @@ export function HabitHistory({ habit, records }: HabitHistoryProps) {
               key={key}
               group={group}
               habit={habit}
+              monthRecords={recordsByMonth.get(key) ?? []}
+              today={today}
               expanded={openKey === key}
               onToggle={() => setOpenKey((prev) => (prev === key ? "" : key))}
             />

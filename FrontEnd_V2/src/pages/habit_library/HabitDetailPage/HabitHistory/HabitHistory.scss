@@ -61,6 +61,9 @@
 
   .hhs-collapse-inner {
     min-height: 0;
+    min-width: 0; // grid items default to min-width:auto — without this, a wide
+                  // child (the chart's horizontal scroller) grows the track instead
+                  // of being clipped/scrolled.
     padding-top: 0.75rem;
 
     &.is-collapsed {
@@ -150,58 +153,217 @@
     gap: 0.75rem;
   }
 
-  // ── Metric layout: note (row 1) / [progress | streak] (row 2) ───────────
-  .hhs-content--metric {
-    display: flex;
-    flex-direction: column;
-    gap: 0.15rem;
 
-    .hhs-note { margin: 0; }
+  // ── Monthly metric chart (replaces the day list for metric habits/tasks) ────
+  // Below MIN_DAY_PX-per-day, bars/labels start overlapping — the plot gets a
+  // JS-computed min-width instead of shrinking further, and this wrapper scrolls.
+  .hhs-chart-scroll {
+    overflow-x: auto;
+    padding-bottom: 2px; // keeps the scrollbar from hugging the bottom axis labels
   }
 
-  .hhs-metric-main {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    min-width: 0;
+  .hhs-chart-plot {
+    position: relative;
   }
 
-  .hhs-progress-row {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+  .hhs-chart-svg {
+    display: block;
+    width: 100%;
+    height: 260px;
+    overflow: visible;
   }
 
-  .hhs-progress-val {
-    font-size: 0.75rem;
+  .hhs-chart-grid {
+    stroke: var(--jv-border);
+    stroke-width: 1;
+    opacity: 0.7;
+  }
+
+  .hhs-chart-target {
+    stroke: var(--jv-faint);
+    stroke-width: 1.25;
+    stroke-dasharray: 5 4;
+  }
+
+  .hhs-chart-hit {
+    fill: transparent;
+    transition: fill 120ms ease;
+
+    &.is-hover {
+      fill: color-mix(in srgb, var(--jv-brand-1) 6%, transparent);
+    }
+  }
+
+  // fill comes from the per-month gradient set inline (see hhs-bar-grad-*) —
+  // emphasis states use `filter` so they never fight the gradient fill.
+  .hhs-bar {
+    transition: filter 140ms ease;
+
+    &.is-today {
+      filter: saturate(1.15);
+    }
+
+    &.is-hover {
+      filter: brightness(1.15) saturate(1.1) drop-shadow(0 3px 6px color-mix(in srgb, var(--jv-brand-1) 35%, transparent));
+    }
+  }
+
+  .hhs-bar-label {
+    font-size: 12px;
+    font-weight: 700;
+    fill: var(--jv-text);
+  }
+
+  .hhs-bar-day {
+    font-size: 11px;
     font-weight: 600;
+    fill: var(--jv-faint);
+  }
+
+  // ── Hover tooltip ─────────────────────────────────────────────────────────────
+  .hhs-chart-tooltip {
+    position: absolute;
+    // .hhs-chart-scroll clips on both axes once overflow-x:auto is set (per
+    // spec, an axis left "visible" is forced to "auto" when the other isn't),
+    // so a negative offset here got clipped instead of floating above the
+    // chart. Anchoring at a small positive top keeps the whole box in bounds.
+    top: 4px;
+    transform: translateX(-50%);
+    background: var(--jv-surface-2);
+    border: 1px solid var(--jv-border-strong);
+    border-radius: 10px;
+    box-shadow: var(--jv-shadow);
+    padding: 0.5rem 0.7rem;
+    min-width: 7rem;
+    max-width: 14rem;
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  .hhs-chart-tooltip-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.4rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--jv-text);
+    margin-bottom: 0.25rem;
+    white-space: nowrap;
+  }
+
+  .hhs-chart-tooltip-streak {
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: #ea6010;
+  }
+
+  .hhs-chart-tooltip-row {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.78rem;
+    font-weight: 700;
     color: var(--jv-text);
     white-space: nowrap;
+  }
+
+  .hhs-chart-tooltip-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--jv-brand-1);
     flex-shrink: 0;
   }
 
-  .hhs-progress-track {
-    flex: 1;
-    height: 6px;
-    border-radius: 999px;
+  .hhs-chart-tooltip-sub {
+    margin-top: 0.2rem;
+    font-size: 0.68rem;
+    color: var(--jv-faint);
+    white-space: nowrap;
+  }
+
+  .hhs-chart-tooltip-note {
+    margin-top: 0.35rem;
+    padding-top: 0.35rem;
+    border-top: 1px solid var(--jv-border);
+    font-size: 0.7rem;
+    color: var(--jv-muted);
+    white-space: normal;
+    line-height: 1.35;
+  }
+
+  .hhs-chart-footer {
+    display: flex;
+    align-items: center;
+    padding: 0.65rem 0.25rem 0 0.25rem;
+    margin-top: 0.5rem;
+    border-top: 1px solid var(--jv-border);
+    gap: 10px;
+  }
+
+  .hhs-chart-fstat {
+    flex-grow: 1;
+    flex-shrink: 1;
+    flex-basis: 0;
+    min-width: 0;
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 0.3rem;
+  }
+
+  .hhs-chart-fsep {
+    width: 1px;
+    height: 24px;
     background: var(--jv-border);
-    overflow: hidden;
   }
 
-  .hhs-progress-fill {
-    height: 100%;
-    border-radius: 999px;
-    background: var(--jv-brand-1);
-    transition: width 400ms ease;
+  // Below this width the three stats no longer fit side by side without
+  // truncating/overlapping — stack them into their own rows instead.
+  @media (max-width: 480px) {
+    .hhs-chart-footer {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0;
+    }
+
+    .hhs-chart-fstat {
+      justify-content: space-between;
+      padding: 0.5rem 0;
+
+      &:not(:last-child) {
+        border-bottom: 1px solid var(--jv-border);
+      }
+    }
+
+    .hhs-chart-fsep {
+      display: none;
+    }
   }
 
-  .hhs-progress-pct {
-    font-size: 0.75rem;
+  .hhs-chart-fval {
+    font-family: var(--jv-font-display);
+    font-size: 0.92rem;
     font-weight: 700;
     color: var(--jv-text);
-    min-width: 2.5rem;
-    text-align: right;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+
+    em {
+      font-style: normal;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--jv-muted);
+      margin-left: 0.1rem;
+    }
+  }
+
+  .hhs-chart-fkey {
+    font-size: 0.67rem;
+    color: var(--jv-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 600;
   }
 }

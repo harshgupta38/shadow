@@ -16,6 +16,10 @@ const DeployPage = lazy(() =>
   import("@/pages/deploy/DeployPage").then((m) => ({ default: m.DeployPage })),
 );
 
+const DatabasePage = lazy(() =>
+  import("@/pages/database/DatabasePage").then((m) => ({ default: m.DatabasePage })),
+);
+
 function RouteFallback() {
   return (
     <div
@@ -41,7 +45,7 @@ export function AppRoutes() {
           <Route element={<AppLayout />}>
             <Route path={ROUTES.HOME}     element={<DashboardPage />} />
             <Route path={ROUTES.DEPLOY}   element={<DeployPage />} />
-            <Route path={ROUTES.DATABASE} element={<ComingSoon label="Database" />} />
+            <Route path={ROUTES.DATABASE} element={<DatabasePage />} />
             <Route path={ROUTES.SERVER}   element={<ComingSoon label="Server" />} />
           </Route>
         </Route>

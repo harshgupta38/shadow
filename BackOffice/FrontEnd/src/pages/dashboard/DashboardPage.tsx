@@ -1,23 +1,5 @@
 import { useAuth } from "@/context/AuthContext";
-
-interface StatCardProps {
-  variant: "success" | "warn" | "info" | "brand";
-  value: string;
-  name: string;
-  hint: string;
-}
-
-function StatCard({ variant, value, name, hint }: StatCardProps) {
-  return (
-    <div className={`dp-stat dp-stat--${variant}`}>
-      <span className="dp-stat-val">{value}</span>
-      <div className="dp-stat-text">
-        <span className="dp-stat-name">{name}</span>
-        <span className="dp-stat-hint">{hint}</span>
-      </div>
-    </div>
-  );
-}
+import { StatCard } from "@/components/ui/StatCard/StatCard";
 
 const RECENT_DEPLOYMENTS = [
   { tag: "v2.4.1", target: "Both targets",     date: "18 Sep 2026", duration: "142s", status: "success" as const },

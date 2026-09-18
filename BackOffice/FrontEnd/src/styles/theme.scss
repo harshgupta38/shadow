@@ -220,6 +220,24 @@ h1, h2, h3, h4, h5, h6, .display-font {
   }
 }
 
+.btn-danger {
+  border: none;
+  color: #fff;
+  background: var(--jv-danger);
+  box-shadow: 0 6px 18px rgba(229, 72, 77, 0.28);
+
+  &:hover {
+    color: #fff;
+    filter: brightness(1.08);
+    box-shadow: 0 10px 24px rgba(229, 72, 77, 0.38);
+  }
+
+  &:disabled {
+    background: var(--jv-danger);
+    opacity: 0.55;
+  }
+}
+
 .btn-icon {
   display: inline-flex;
   align-items: center;
@@ -832,6 +850,11 @@ h1, h2, h3, h4, h5, h6, .display-font {
   &--warn {
     color: var(--jv-warn);
     &::before { background: var(--jv-warn); }
+  }
+
+  &--danger {
+    color: var(--jv-danger);
+    &::before { background: var(--jv-danger); }
   }
 }
 
@@ -1542,4 +1565,85 @@ h1, h2, h3, h4, h5, h6, .display-font {
   flex-shrink: 0;
   padding: 0.35rem 0.9rem;
   font-size: 0.8rem;
+}
+
+// ── Server page ──────────────────────────────────────────────────────────────────
+.server-grid-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin: 1.5rem 0;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.server-card {
+  background: var(--jv-surface);
+  border: 1px solid var(--jv-border);
+  border-radius: var(--jv-radius);
+  box-shadow: var(--jv-shadow);
+  padding: 1.1rem 1.25rem;
+}
+
+.server-card-title {
+  font-family: var(--jv-font-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--jv-text);
+  margin: 0 0 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.server-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.9rem 1rem;
+
+  @media (max-width: 420px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.server-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+  min-width: 0;
+}
+
+.server-info-label {
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--jv-faint);
+}
+
+.server-info-value {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--jv-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.server-section {
+  margin-bottom: 1.75rem;
+}
+
+.server-section-title {
+  font-family: var(--jv-font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--jv-text);
+  margin: 0 0 0.9rem;
+}
+
+.server-log-line--warn {
+  color: var(--jv-warn) !important;
 }

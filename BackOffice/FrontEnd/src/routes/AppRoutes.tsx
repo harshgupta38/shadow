@@ -20,6 +20,10 @@ const DatabasePage = lazy(() =>
   import("@/pages/database/DatabasePage").then((m) => ({ default: m.DatabasePage })),
 );
 
+const ServerPage = lazy(() =>
+  import("@/pages/server/ServerPage").then((m) => ({ default: m.ServerPage })),
+);
+
 function RouteFallback() {
   return (
     <div
@@ -46,23 +50,12 @@ export function AppRoutes() {
             <Route path={ROUTES.HOME}     element={<DashboardPage />} />
             <Route path={ROUTES.DEPLOY}   element={<DeployPage />} />
             <Route path={ROUTES.DATABASE} element={<DatabasePage />} />
-            <Route path={ROUTES.SERVER}   element={<ComingSoon label="Server" />} />
+            <Route path={ROUTES.SERVER}   element={<ServerPage />} />
           </Route>
         </Route>
 
         <Route path="*" element={<Navigate to={ROUTES.HOME} replace />} />
       </Routes>
     </Suspense>
-  );
-}
-
-function ComingSoon({ label }: { label: string }) {
-  return (
-    <div style={{ textAlign: "center", padding: "4rem 0", color: "var(--jv-muted)" }}>
-      <p style={{ fontFamily: "var(--jv-font-display)", fontSize: "1.5rem", fontWeight: 800, color: "var(--jv-text)", marginBottom: "0.5rem" }}>
-        {label}
-      </p>
-      <p style={{ fontSize: "0.9rem" }}>Coming in the next stage.</p>
-    </div>
   );
 }

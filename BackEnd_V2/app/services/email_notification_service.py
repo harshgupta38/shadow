@@ -164,6 +164,21 @@ def _email_enabled(db: Session, user_id: int) -> bool:
     return True  # Default: allow when preference cannot be read
 
 
+def _report_email_enabled(db: Session, user_id: int, report_type: str) -> bool:
+    """Returns False if the user has opted this specific report cadence
+    (daily/weekly) out of the auto-send email — see UserSettingDBM.reports."""
+    try:
+        from sqlalchemy import select
+        from app.models.user_setting import UserSettingDBM
+        row = db.scalar(select(UserSettingDBM).where(UserSettingDBM.user_id == user_id))
+        if row and row.reports:
+            section = dict(row.reports).get(report_type) or {}
+            return bool(section.get("email_enabled", True))
+    except Exception:
+        pass
+    return True  # Default: allow when preference cannot be read
+
+
 # ─── Public API ───────────────────────────────────────────────────────────────
 
 def send_notification_email(
@@ -609,12 +624,14 @@ def _build_highlights_block(highlights: ReportHighlightsResponse, report_type: s
 
 def send_report_email(db: Session, user: UserDBM, report: ReportResponse, *, force: bool = False) -> bool:
     """Full report snapshot, shaped to match ReportDetailPage.tsx. Sent
-    automatically when a report finishes generating (respects the user's
-    email-notifications preference, same as any other type!="security" email)
-    and again on-demand from the "Email report" button on that page
-    (`force=True` — an explicit user action shouldn't be silently swallowed
-    by a passive preference toggle)."""
-    if not force and not _email_enabled(db, user.id):
+    automatically when a report finishes generating — gated by BOTH the
+    general email-notifications preference (like any other type!="security"
+    email) AND the report-cadence-specific opt-out (UserSettingDBM.reports.
+    {daily,weekly}.email_enabled), since a user may want emails in general
+    but not for this particular cadence. Sent again on-demand from the
+    "Email report" button on that page (`force=True` — an explicit user
+    action shouldn't be silently swallowed by either passive preference)."""
+    if not force and not (_email_enabled(db, user.id) and _report_email_enabled(db, user.id, report.report_type)):
         return False
 
     first_name = user.name.split()[0] if user.name else "there"

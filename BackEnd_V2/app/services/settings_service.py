@@ -26,6 +26,7 @@ from app.schemas.settings import (
     NotificationsSection,
     PlannerSection,
     PrivacySection,
+    ReportsSection,
     SettingsDBS,
     SettingsResponse,
     UpdateSettingsRequest,
@@ -39,6 +40,7 @@ _DEFAULT_AI_BEHAVIOR = AIBehaviorSection().model_dump()
 _DEFAULT_PLANNER = PlannerSection().model_dump()
 _DEFAULT_PRIVACY = PrivacySection().model_dump()
 _DEFAULT_ACCESSIBILITY = AccessibilitySection().model_dump()
+_DEFAULT_REPORTS = ReportsSection().model_dump()
 
 # ─── AI Provider catalogue ────────────────────────────────────────────────────
 
@@ -84,6 +86,7 @@ def _get_or_create(db: Session, user_id: int) -> UserSettingDBM:
             planner=_DEFAULT_PLANNER,
             privacy=_DEFAULT_PRIVACY,
             accessibility=_DEFAULT_ACCESSIBILITY,
+            reports=_DEFAULT_REPORTS,
         )
         db.add(setting)
         db.commit()
@@ -183,6 +186,27 @@ def get_quiet_hours(db: Session, user_id: int) -> dict:
     }
 
 
+def get_reports_settings(db: Session, user_ids: list[int]) -> dict[int, dict]:
+    """Bulk read of the 'reports' section for the report scheduler — one query
+    for every candidate user per tick rather than N. Users without a settings
+    row (or without a populated 'reports' key) fall back to defaults."""
+    if not user_ids:
+        return {}
+    rows = db.execute(
+        select(UserSettingDBM.user_id, UserSettingDBM.reports)
+        .where(UserSettingDBM.user_id.in_(user_ids))
+    ).all()
+    raw_by_user = {uid: (reports or {}) for uid, reports in rows}
+    result: dict[int, dict] = {}
+    for uid in user_ids:
+        raw = raw_by_user.get(uid, {})
+        result[uid] = {
+            "daily": {**_DEFAULT_REPORTS["daily"], **(raw.get("daily") or {})},
+            "weekly": {**_DEFAULT_REPORTS["weekly"], **(raw.get("weekly") or {})},
+        }
+    return result
+
+
 def get_ai_behavior(db: Session, user_id: int) -> dict:
     """Single read for all ai_behavior fields used by chat. Does NOT create a default row."""
     setting = db.scalar(
@@ -225,6 +249,7 @@ def update_settings(
     setting.planner = data.planner.model_dump()
     setting.privacy = data.privacy.model_dump()
     setting.accessibility = data.accessibility.model_dump()
+    setting.reports = data.reports.model_dump()
 
     ai_dict = data.ai_behavior.model_dump(exclude={"custom_api_key_saved"})
     if not data.ai_behavior.custom_api_key_enabled:

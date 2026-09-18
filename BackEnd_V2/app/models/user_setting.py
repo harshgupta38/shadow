@@ -24,6 +24,7 @@ class UserSettingDBM(Base):
     planner: Mapped[dict] = mapped_column(JSON, nullable=False)
     privacy: Mapped[dict] = mapped_column(JSON, nullable=False)
     accessibility: Mapped[dict] = mapped_column(JSON, nullable=False)
+    reports: Mapped[dict] = mapped_column(JSON, nullable=False)
 
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

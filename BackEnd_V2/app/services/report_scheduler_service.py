@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import time
 from datetime import date, timedelta
 
 from sqlalchemy import select
@@ -9,8 +10,17 @@ from app.common.proc_lock import acquire_singleton_lock
 from app.core.config import settings
 from app.db.session import SessionLocal
 from app.services.report_service import generate_report_background
+from app.services.settings_service import get_reports_settings
 
 log = logging.getLogger("uvicorn.error")
+
+# Per-user scheduling means there's no longer a single global time to check
+# in-memory before touching the DB — _candidates_with_settings is 2 queries
+# (scan users with records + bulk settings fetch). Caching it means the loop's
+# 30s poll interval doesn't turn into 2 DB round-trips every 30s, all day
+# (2,880x/day) — the 2-minute fire window already tolerates this much staleness.
+_CANDIDATES_CACHE_TTL_SECONDS = 120
+_candidates_cache: dict[tuple[date, str], tuple[float, dict[int, dict]]] = {}
 
 
 def _parse_hhmm(raw: str) -> int | None:
@@ -45,27 +55,66 @@ def _users_with_records(report_date: date, report_type: str) -> list[int]:
         ).all())
 
 
-async def _run_for_all_users(report_date: date, report_type: str) -> None:
-    user_ids = await asyncio.to_thread(_users_with_records, report_date, report_type)
-
+def _candidates_with_settings(report_date: date, report_type: str) -> dict[int, dict]:
+    """Users with records in the period, joined with their per-user reports
+    schedule (defaults filled in for anyone without a settings row)."""
+    user_ids = _users_with_records(report_date, report_type)
     if not user_ids:
-        log.info(
-            "Report scheduler: no users with records for %s %s — skipping.",
-            report_type, report_date,
-        )
+        return {}
+    with SessionLocal() as db:
+        return get_reports_settings(db, user_ids)
+
+
+async def _cached_candidates_with_settings(report_date: date, report_type: str) -> dict[int, dict]:
+    key = (report_date, report_type)
+    now_ts = time.monotonic()
+    cached = _candidates_cache.get(key)
+    if cached is not None and now_ts - cached[0] < _CANDIDATES_CACHE_TTL_SECONDS:
+        return cached[1]
+    data = await asyncio.to_thread(_candidates_with_settings, report_date, report_type)
+    _candidates_cache[key] = (now_ts, data)
+    return data
+
+
+async def _check_and_fire(
+    report_date: date,
+    report_type: str,
+    current_minutes: int,
+    triggered_today: set[tuple[int, str]],
+) -> None:
+    """Per-user schedule check — each user has their own enabled flag and time
+    (see UserSettingDBM.reports), unlike the old single-global-time design."""
+    candidates = await _cached_candidates_with_settings(report_date, report_type)
+    if not candidates:
+        return
+
+    to_fire: list[int] = []
+    for uid, cfg_by_type in candidates.items():
+        if (uid, report_type) in triggered_today:
+            continue
+        cfg = cfg_by_type[report_type]
+        if not cfg["enabled"]:
+            continue
+        slot = _parse_hhmm(cfg["time"])
+        if slot is None or not (slot <= current_minutes < slot + 2):
+            continue
+        to_fire.append(uid)
+        triggered_today.add((uid, report_type))
+
+    if not to_fire:
         return
 
     log.info(
         "Report scheduler: firing %s report for %s — %d user(s)",
-        report_type, report_date, len(user_ids),
+        report_type, report_date, len(to_fire),
     )
 
     tasks = [
         asyncio.create_task(generate_report_background(uid, report_date, report_type, force=True))
-        for uid in user_ids
+        for uid in to_fire
     ]
     results = await asyncio.gather(*tasks, return_exceptions=True)
-    for uid, result in zip(user_ids, results):
+    for uid, result in zip(to_fire, results):
         if isinstance(result, BaseException):
             log.error(
                 "Report scheduler: generation failed user=%d type=%s date=%s — %s",
@@ -74,37 +123,27 @@ async def _run_for_all_users(report_date: date, report_type: str) -> None:
 
 
 async def report_scheduler_loop() -> None:
+    """Polls every 30s and fires each user's daily/weekly report at THEIR OWN
+    configured time (UserSettingDBM.reports — see settings_service.get_reports_settings),
+    defaulting to 23:55 IST for anyone who hasn't touched the setting. Users can
+    disable either cadence, change its time, or opt out of the auto-send email
+    independently — this loop only decides WHEN to generate; the email opt-out
+    is enforced downstream in email_notification_service.send_report_email.
+
+    REPORT_AUTO_GENERATE remains a global ops kill-switch on top of all of this —
+    when off, the loop doesn't start at all regardless of any user's preference.
+    """
     if not settings.report_auto_generate:
         log.info("Report scheduler: auto-generation disabled (REPORT_AUTO_GENERATE=false).")
-        return
-
-    daily_slot = _parse_hhmm(settings.report_daily_runtime)
-    weekly_slot = _parse_hhmm(settings.report_weekly_runtime)
-
-    if daily_slot is None:
-        log.warning(
-            "Report scheduler: invalid REPORT_DAILY_RUNTIME %r — expected HHMM. Skipping daily.",
-            settings.report_daily_runtime,
-        )
-    if weekly_slot is None:
-        log.warning(
-            "Report scheduler: invalid REPORT_WEEKLY_RUNTIME %r — expected HHMM. Skipping weekly.",
-            settings.report_weekly_runtime,
-        )
-
-    if daily_slot is None and weekly_slot is None:
         return
 
     if not acquire_singleton_lock("report_scheduler"):
         log.info("Report scheduler: another worker is already running it, skipping.")
         return
 
-    log.info(
-        "Report scheduler started. Daily=%s IST, Weekly=%s IST (Saturdays only).",
-        settings.report_daily_runtime, settings.report_weekly_runtime,
-    )
+    log.info("Report scheduler started (per-user schedule, default 23:55 IST).")
 
-    triggered_today: set[str] = set()
+    triggered_today: set[tuple[int, str]] = set()
     last_date: date = now_ist().date()
 
     while True:
@@ -114,33 +153,25 @@ async def report_scheduler_loop() -> None:
         today = now.date()
 
         # Reset triggers at midnight so each job fires exactly once per day.
+        # Also drop yesterday's cached candidates — keyed by date, so it would
+        # otherwise grow by 2 entries/day forever.
         if today != last_date:
             triggered_today.clear()
+            _candidates_cache.clear()
             last_date = today
 
         current_minutes = now.hour * 60 + now.minute
 
-        # Daily report — fires every day at REPORT_DAILY_RUNTIME.
-        if (
-            daily_slot is not None
-            and daily_slot <= current_minutes < daily_slot + 2
-            and "daily" not in triggered_today
-        ):
-            triggered_today.add("daily")
-            try:
-                await _run_for_all_users(today, "daily")
-            except Exception:
-                log.exception("Report scheduler: daily run error for %s", today)
+        try:
+            await _check_and_fire(today, "daily", current_minutes, triggered_today)
+        except Exception:
+            log.exception("Report scheduler: daily run error for %s", today)
 
-        # Weekly report — fires on Saturdays only at REPORT_WEEKLY_RUNTIME.
-        if (
-            weekly_slot is not None
-            and today.weekday() == 5  # Saturday
-            and weekly_slot <= current_minutes < weekly_slot + 2
-            and "weekly" not in triggered_today
-        ):
-            triggered_today.add("weekly")
+        # Weekly report window — checked daily but only meaningful on Saturdays,
+        # since that's the only day report_service.build_day_data treats as a
+        # week-ending date.
+        if today.weekday() == 5:  # Saturday
             try:
-                await _run_for_all_users(today, "weekly")
+                await _check_and_fire(today, "weekly", current_minutes, triggered_today)
             except Exception:
                 log.exception("Report scheduler: weekly run error for %s", today)

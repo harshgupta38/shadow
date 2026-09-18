@@ -12,6 +12,7 @@ import { AIBehaviorCard } from "@/pages/settings/AIBehaviorCard/AIBehaviorCard";
 import type { AIBehaviorCardRef } from "@/pages/settings/AIBehaviorCard/AIBehaviorCard";
 import { PlannerCard } from "@/pages/settings/PlannerCard/PlannerCard";
 import { AccessibilityCard } from "@/pages/settings/AccessibilityCard/AccessibilityCard";
+import { ReportsCard } from "@/pages/settings/ReportsCard/ReportsCard";
 import { SessionsCard } from "@/pages/settings/SessionsCard/SessionsCard";
 import { SettingsSkeleton } from "@/pages/settings/SettingsSkeleton/SettingsSkeleton";
 
@@ -235,6 +236,11 @@ export function SettingsPage() {
               data={settings.accessibility}
               isDirty={dirtySections.includes("accessibility")}
               onUpdate={(d) => patch("accessibility", d)}
+            />
+            <ReportsCard
+              data={settings.reports}
+              isDirty={dirtySections.includes("reports")}
+              onUpdate={(d) => patch("reports", d)}
             />
           </div>
         </div>

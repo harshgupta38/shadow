@@ -244,6 +244,7 @@ export function NotificationsCard({
               <span className="st-group-label">Alert types</span>
               <ToggleRow
                 label="Task reminders"
+                className="pt-1 pb-2"
                 description="Reminders before scheduled tasks"
                 checked={data.reminder_notifications_enabled}
                 onChange={(v) => set("reminder_notifications_enabled", v)}
@@ -260,6 +261,7 @@ export function NotificationsCard({
               <span className="st-group-label">Quiet Hours</span>
               <ToggleRow
                 label="Quiet hours"
+                className="pt-1"
                 description="Pause all notifications during a set time window."
                 checked={data.quiet_hours_enabled}
                 onChange={(v) => set("quiet_hours_enabled", v)}

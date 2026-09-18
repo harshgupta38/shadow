@@ -295,6 +295,7 @@ export const AIBehaviorCard = forwardRef<AIBehaviorCardRef, {
         <div className="st-memory-block">
           <ToggleRow
             label="Use my own API key"
+            className="pt-1"
             description={`Provide your own ${activeProvider?.name ?? data.ai_provider} API key instead of the shared one.`}
             checked={data.custom_api_key_enabled}
             onChange={(v) => {

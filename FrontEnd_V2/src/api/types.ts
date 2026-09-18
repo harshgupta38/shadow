@@ -1016,6 +1016,17 @@ export interface AccessibilitySettings {
   accessibility_font_scale_percent: number;
 }
 
+export interface ReportScheduleSettings {
+  enabled: boolean;
+  time: string; // "HHMM", 24h, IST — matches the backend scheduler's convention
+  email_enabled: boolean;
+}
+
+export interface ReportsSettings {
+  daily: ReportScheduleSettings;
+  weekly: ReportScheduleSettings;
+}
+
 export interface FullSettings {
   appearance: AppearanceSettings;
   notifications: NotificationSettings;
@@ -1023,4 +1034,5 @@ export interface FullSettings {
   planner: PlannerSettings;
   privacy: PrivacySettings;
   accessibility: AccessibilitySettings;
+  reports: ReportsSettings;
 }

@@ -94,7 +94,7 @@ export function PrivacyCard({
           <FieldRow
             label="Max logged-in devices"
             hint="How many devices can be signed in at the same time."
-            className="st-field-row--device-limit"
+            className="st-field-row--device-limit pt-1"
           >
             <div className="st-device-stepper">
               <button
@@ -122,7 +122,7 @@ export function PrivacyCard({
 
         <div className="st-toggle-group">
           <span className="st-group-label">Your data</span>
-          <div className="st-action-row pt-0">
+          <div className="st-action-row pt-1">
             <div>
               <p className="st-action-label">Export my data</p>
               <p className="st-action-desc">

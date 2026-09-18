@@ -78,6 +78,20 @@ class AccessibilitySection(BaseModel):
     accessibility_font_scale_percent: int = Field(default=100, ge=75, le=150)
 
 
+class ReportScheduleSection(BaseModel):
+    enabled: bool = True
+    # HHMM, 24h, IST — matches report_scheduler_service._parse_hhmm's format
+    # (the same convention as the REPORT_DAILY_RUNTIME/REPORT_WEEKLY_RUNTIME
+    # env vars it replaces on a per-user basis).
+    time: str = Field(default="2355", pattern=r"^([01]\d|2[0-3])[0-5]\d$")
+    email_enabled: bool = True
+
+
+class ReportsSection(BaseModel):
+    daily: ReportScheduleSection = ReportScheduleSection()
+    weekly: ReportScheduleSection = ReportScheduleSection()
+
+
 # ─── Request / Response ───────────────────────────────────────────────────────
 
 
@@ -88,6 +102,7 @@ class UpdateSettingsRequest(BaseModel):
     planner: PlannerSection
     privacy: PrivacySection
     accessibility: AccessibilitySection
+    reports: ReportsSection
 
 
 class SettingsDBS(ORMModel):
@@ -97,6 +112,7 @@ class SettingsDBS(ORMModel):
     planner: PlannerSection
     privacy: PrivacySection
     accessibility: AccessibilitySection
+    reports: ReportsSection
 
 
 class SettingsResponse(SettingsDBS):

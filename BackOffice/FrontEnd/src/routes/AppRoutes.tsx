@@ -12,6 +12,10 @@ const DashboardPage = lazy(() =>
   import("@/pages/dashboard/DashboardPage").then((m) => ({ default: m.DashboardPage })),
 );
 
+const DeployPage = lazy(() =>
+  import("@/pages/deploy/DeployPage").then((m) => ({ default: m.DeployPage })),
+);
+
 function RouteFallback() {
   return (
     <div
@@ -36,7 +40,7 @@ export function AppRoutes() {
         <Route element={<RequireAuth />}>
           <Route element={<AppLayout />}>
             <Route path={ROUTES.HOME}     element={<DashboardPage />} />
-            <Route path={ROUTES.DEPLOY}   element={<ComingSoon label="Deploy" />} />
+            <Route path={ROUTES.DEPLOY}   element={<DeployPage />} />
             <Route path={ROUTES.DATABASE} element={<ComingSoon label="Database" />} />
             <Route path={ROUTES.SERVER}   element={<ComingSoon label="Server" />} />
           </Route>

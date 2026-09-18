@@ -37,11 +37,9 @@ export function DashboardPage() {
   return (
     <>
       {/* Header */}
-      <div className="dp-header">
-        <div>
-          <h1 className="dp-heading">{greeting}, {user?.username ?? "Admin"}</h1>
-          <p className="dp-subheading">Here's your system overview for today.</p>
-        </div>
+      <div className="mb-4">
+        <h1 className="page-title">{greeting}, {user?.username ?? "Admin"}</h1>
+        <p className="page-subtitle text-muted-2 mb-0">Here's your system overview for today.</p>
       </div>
 
       {/* Stat cards */}
@@ -69,21 +67,7 @@ export function DashboardPage() {
             <tbody>
               {RECENT_DEPLOYMENTS.map((d) => (
                 <tr key={d.tag + d.date}>
-                  <td>
-                    <span
-                      style={{
-                        fontFamily: "var(--jv-font-display)",
-                        fontWeight: 700,
-                        fontSize: "0.82rem",
-                        background: "var(--jv-brand-soft)",
-                        color: "var(--jv-brand-1)",
-                        borderRadius: 6,
-                        padding: "0.15rem 0.5rem",
-                      }}
-                    >
-                      {d.tag}
-                    </span>
-                  </td>
+                  <td><span className="dp-tag">{d.tag}</span></td>
                   <td style={{ color: "var(--jv-muted)" }}>{d.target}</td>
                   <td style={{ color: "var(--jv-muted)" }}>{d.date}</td>
                   <td style={{ color: "var(--jv-muted)" }}>{d.duration}</td>

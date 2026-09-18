@@ -39,6 +39,62 @@ function SimpleContent({ record }: { record: HabitActivityRecord }) {
   );
 }
 
+// ── Shared month stats footer (done/missed/best-streak for simple habits,
+// avg/best/total for metric) — same visual language either way.
+
+function StatsFooter({ stats }: { stats: { value: string; unit?: string; key: string }[] }) {
+  return (
+    <div className="hhs-stats-footer">
+      {stats.map((s, i) => (
+        <div key={s.key} className="hhs-stat-group">
+          {i > 0 && <div className="hhs-stat-sep" />}
+          <div className="hhs-stat">
+            <span className="hhs-stat-val">{s.value}{s.unit && <em> {s.unit}</em>}</span>
+            <span className="hhs-stat-key">{s.key}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Simple-habit month view — the day list was mostly noise (a ball and a
+// flame with no real information; the heatmap above already shows the
+// done/missed pattern). Lead with month stats, then only list days that have
+// an actual note — the list becomes "why", the heatmap stays "what".
+
+function SimpleMonthTimeline({ records }: { records: HabitActivityRecord[] }) {
+  const notedEntries = useMemo(() => records.filter((r) => !!r.note), [records]);
+  const doneCount = useMemo(() => records.filter((r) => r.status === "done").length, [records]);
+  const missedCount = useMemo(() => records.filter((r) => r.status === "missed").length, [records]);
+  const bestStreak = useMemo(() => Math.max(0, ...records.map((r) => r.streak)), [records]);
+
+  return (
+    <div className="hhs-simple-month">
+      {notedEntries.length === 0 ? (
+        <p className="hhs-simple-empty">No notes logged this month.</p>
+      ) : (
+        <div className="hhs-timeline">
+          {notedEntries.map((record) => (
+            <div key={record.date} className="hhs-item">
+              <div className="hhs-ball">{Number(record.date.slice(8, 10))}</div>
+              <SimpleContent record={record} />
+            </div>
+          ))}
+        </div>
+      )}
+
+      <StatsFooter
+        stats={[
+          { value: String(doneCount), key: "done" },
+          { value: String(missedCount), key: "missed" },
+          { value: String(bestStreak), key: "best streak" },
+        ]}
+      />
+    </div>
+  );
+}
+
 // ── Monthly metric chart — replaces the day-by-day list for metric habits/tasks:
 // a full month of daily values is easier to read as a trend than 28-31 rows.
 
@@ -243,22 +299,13 @@ function MetricMonthChart({
         </div>
       </div>
 
-      <div className="hhs-chart-footer">
-        <div className="hhs-chart-fstat">
-          <span className="hhs-chart-fval">{avg.toFixed(1)}<em> {unit}</em></span>
-          <span className="hhs-chart-fkey">avg</span>
-        </div>
-        <div className="hhs-chart-fsep" />
-        <div className="hhs-chart-fstat">
-          <span className="hhs-chart-fval">{best}<em> {unit}</em></span>
-          <span className="hhs-chart-fkey">best</span>
-        </div>
-        <div className="hhs-chart-fsep" />
-        <div className="hhs-chart-fstat">
-          <span className="hhs-chart-fval">{total}<em> {unit}</em></span>
-          <span className="hhs-chart-fkey">total</span>
-        </div>
-      </div>
+      <StatsFooter
+        stats={[
+          { value: avg.toFixed(1), unit, key: "avg" },
+          { value: String(best), unit, key: "best" },
+          { value: String(total), unit, key: "total" },
+        ]}
+      />
     </div>
   );
 }
@@ -314,14 +361,7 @@ function MonthSection({
               today={today}
             />
           ) : (
-            <div className="hhs-timeline">
-              {entries.map((record) => (
-                <div key={record.date} className="hhs-item">
-                  <div className="hhs-ball">{Number(record.date.slice(8, 10))}</div>
-                  <SimpleContent record={record} />
-                </div>
-              ))}
-            </div>
+            <SimpleMonthTimeline records={group.records} />
           )}
         </div>
       </div>

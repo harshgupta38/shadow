@@ -293,19 +293,35 @@
     line-height: 1.35;
   }
 
-  .hhs-chart-footer {
+  // ── Shared stats footer — metric's avg/best/total and simple's
+  // done/missed/best-streak both render through the same StatsFooter component.
+  .hhs-stats-footer {
     display: flex;
     align-items: center;
     padding: 0.65rem 0.25rem 0 0.25rem;
     margin-top: 0.5rem;
     border-top: 1px solid var(--jv-border);
-    gap: 10px;
   }
 
-  .hhs-chart-fstat {
+  .hhs-stat-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
     flex-grow: 1;
     flex-shrink: 1;
     flex-basis: 0;
+    min-width: 0;
+  }
+
+  .hhs-stat-sep {
+    width: 1px;
+    height: 24px;
+    background: var(--jv-border);
+    flex-shrink: 0;
+  }
+
+  .hhs-stat {
+    flex: 1;
     min-width: 0;
     display: flex;
     align-items: baseline;
@@ -313,36 +329,35 @@
     gap: 0.3rem;
   }
 
-  .hhs-chart-fsep {
-    width: 1px;
-    height: 24px;
-    background: var(--jv-border);
-  }
-
   // Below this width the three stats no longer fit side by side without
   // truncating/overlapping — stack them into their own rows instead.
   @media (max-width: 480px) {
-    .hhs-chart-footer {
+    .hhs-stats-footer {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .hhs-stat-group {
       flex-direction: column;
       align-items: stretch;
       gap: 0;
-    }
 
-    .hhs-chart-fstat {
-      justify-content: space-between;
-      padding: 0.5rem 0;
-
-      &:not(:last-child) {
-        border-bottom: 1px solid var(--jv-border);
+      &:not(:first-child) {
+        border-top: 1px solid var(--jv-border);
       }
     }
 
-    .hhs-chart-fsep {
+    .hhs-stat-sep {
       display: none;
+    }
+
+    .hhs-stat {
+      justify-content: space-between;
+      padding: 0.5rem 0;
     }
   }
 
-  .hhs-chart-fval {
+  .hhs-stat-val {
     font-family: var(--jv-font-display);
     font-size: 0.92rem;
     font-weight: 700;
@@ -359,11 +374,19 @@
     }
   }
 
-  .hhs-chart-fkey {
+  .hhs-stat-key {
     font-size: 0.67rem;
     color: var(--jv-faint);
     text-transform: uppercase;
     letter-spacing: 0.04em;
     font-weight: 600;
+  }
+
+  // ── Simple-habit month view ──────────────────────────────────────────────────
+  .hhs-simple-empty {
+    margin: 0;
+    padding: 0.5rem 0 0.25rem;
+    font-size: 0.85rem;
+    color: var(--jv-muted);
   }
 }

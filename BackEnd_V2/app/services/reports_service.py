@@ -4,6 +4,7 @@ from datetime import date
 from sqlalchemy import and_, case, func, select
 from sqlalchemy.orm import Session
 
+from app.models.habit import HabitDBM
 from app.models.plan_record import DailyPlanRecordDBM
 from app.models.report import ReportDBM
 from app.models.user import UserDBM
@@ -18,6 +19,18 @@ def get_monthly_report(
 ) -> MonthlyReportResponse:
     start = date(year, month, 1)
     end = date(year, month, cal_module.monthrange(year, month)[1])
+
+    # Habits opted out of report accounting — excluded from every aggregate
+    # below (score, habits_total/done, and therefore month_alignment_percent
+    # downstream in profile_service), same reasoning as report_service.build_day_data.
+    excluded_habit_ids = set(
+        db.scalars(
+            select(HabitDBM.id).where(
+                HabitDBM.user_id == user.id,
+                HabitDBM.include_in_report.is_(False),
+            )
+        ).all()
+    )
 
     score_contribution = case(
         (
@@ -70,6 +83,15 @@ def get_monthly_report(
                 DailyPlanRecordDBM.scheduled_date >= start,
                 DailyPlanRecordDBM.scheduled_date <= end,
                 DailyPlanRecordDBM.source_type.in_(["habit", "task", "schedule"]),
+                *(
+                    [
+                        ~and_(
+                            DailyPlanRecordDBM.source_type == "habit",
+                            DailyPlanRecordDBM.source_id.in_(excluded_habit_ids),
+                        )
+                    ]
+                    if excluded_habit_ids else []
+                ),
             )
         )
         .group_by(DailyPlanRecordDBM.scheduled_date)

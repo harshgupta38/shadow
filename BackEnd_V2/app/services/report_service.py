@@ -52,22 +52,40 @@ def _goal_id_for(
     return None
 
 
-def compute_streak(db: Session, user_id: int, report_date: date) -> int:
+def compute_streak(
+    db: Session,
+    user_id: int,
+    report_date: date,
+    *,
+    excluded_habit_ids: set[int] | None = None,
+) -> int:
     """Count consecutive days ending on report_date where at least one item was done.
 
     Public — also used by profile_service for the Profile page's "Current
-    Streak" stat and streak-gated achievements.
+    Streak" stat and streak-gated achievements, which intentionally call this
+    with no exclusions: a habit opted out of *report* accounting should still
+    count toward the user's personal streak elsewhere in the app. Only
+    build_day_data (feeding the LLM's stats.best_streak) passes exclusions,
+    so a day whose only completed item was an excluded habit doesn't count.
     """
     start = report_date - timedelta(days=60)
+    conditions = [
+        DailyPlanRecordDBM.user_id == user_id,
+        DailyPlanRecordDBM.scheduled_date >= start,
+        DailyPlanRecordDBM.scheduled_date <= report_date,
+        DailyPlanRecordDBM.status == "done",
+    ]
+    if excluded_habit_ids:
+        conditions.append(
+            ~(
+                (DailyPlanRecordDBM.source_type == "habit")
+                & DailyPlanRecordDBM.source_id.in_(excluded_habit_ids)
+            )
+        )
     done_dates: set[date] = set(
         db.scalars(
             select(DailyPlanRecordDBM.scheduled_date)
-            .where(
-                DailyPlanRecordDBM.user_id == user_id,
-                DailyPlanRecordDBM.scheduled_date >= start,
-                DailyPlanRecordDBM.scheduled_date <= report_date,
-                DailyPlanRecordDBM.status == "done",
-            )
+            .where(*conditions)
             .distinct()
         ).all()
     )
@@ -136,6 +154,20 @@ def build_day_data(db: Session, user_id: int, report_date: date, report_type: st
         {h.id: h for h in db.scalars(select(HabitDBM).where(HabitDBM.id.in_(habit_ids))).all()}
         if habit_ids else {}
     )
+
+    # Habits the user opted out of report accounting — drop their records
+    # entirely so they never factor into stats, highlights, history, or the
+    # LLM's input (everything below reads from today_records/history_records).
+    excluded_habit_ids = {h.id for h in habit_map.values() if not h.include_in_report}
+    if excluded_habit_ids:
+        today_records = [
+            r for r in today_records
+            if not (r.source_type == "habit" and r.source_id in excluded_habit_ids)
+        ]
+        history_records = [
+            r for r in history_records
+            if not (r.source_type == "habit" and r.source_id in excluded_habit_ids)
+        ]
 
     # Active goals
     goals: list[GoalDBM] = db.scalars(
@@ -221,7 +253,7 @@ def build_day_data(db: Session, user_id: int, report_date: date, report_type: st
             "tasks_total": len(task_recs),
             "habits_done": sum(1 for r in habit_recs if r.status == "done"),
             "habits_total": len(habit_recs),
-            "best_streak": compute_streak(db, user_id, report_date),
+            "best_streak": compute_streak(db, user_id, report_date, excluded_habit_ids=excluded_habit_ids),
         },
         "goals": goals_payload,
         "all_records": [_record_to_dict(r) for r in today_records],

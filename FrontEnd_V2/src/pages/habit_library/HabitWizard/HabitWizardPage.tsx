@@ -251,6 +251,7 @@ export function HabitWizardPage() {
                 preferred_time: answers.preferredTime,
                 specific_time: specificTimeOut || null,
                 duration_minutes: parseOptionalPositiveInt(answers.durationMinutes),
+                include_in_report: answers.includeInReport,
                 goal_id: answers.goalId ? Number(answers.goalId) : null,
                 category: answers.category || null,
             };
@@ -822,21 +823,44 @@ export function HabitWizardPage() {
                                                             )}
                                                         </div>
 
-                                                        {/* Duration */}
-                                                        <div className="mb-3">
-                                                            <label className="form-label">
-                                                                How long does it take? <span className="text-muted fw-normal">(minutes, optional)</span>
-                                                            </label>
-                                                            <input
-                                                                type="number"
-                                                                className="form-control"
-                                                                value={answers.durationMinutes}
-                                                                onChange={(e) => updateAnswer("durationMinutes", e.target.value)}
-                                                                placeholder="e.g. 20"
-                                                                min={1}
-                                                                step={1}
-                                                                disabled={!isActive || submitting}
-                                                            />
+                                                        {/* Duration + Include in reports */}
+                                                        <div className="row g-3 mb-3">
+                                                            <div className="col-md-6">
+                                                                <label className="form-label">
+                                                                    Estimated duration <span className="text-muted fw-normal">(minutes, optional)</span>
+                                                                </label>
+                                                                <input
+                                                                    type="number"
+                                                                    className="form-control"
+                                                                    value={answers.durationMinutes}
+                                                                    onChange={(e) => updateAnswer("durationMinutes", e.target.value)}
+                                                                    placeholder="e.g. 20"
+                                                                    min={1}
+                                                                    step={1}
+                                                                    disabled={!isActive || submitting}
+                                                                />
+                                                            </div>
+                                                            <div className="col-md-6">
+                                                                <label className="form-label">Include in reports</label>
+                                                                <div className="goal-task-type-toggle goal-task-type-toggle--compact mt-0">
+                                                                    <button
+                                                                        type="button"
+                                                                        className={`goal-task-type-option ${answers.includeInReport ? "is-active" : ""}`.trim()}
+                                                                        onClick={() => updateAnswer("includeInReport", true)}
+                                                                        disabled={!isActive || submitting}
+                                                                    >
+                                                                        <span className="goal-task-type-option-title">Yes - Include</span>
+                                                                    </button>
+                                                                    <button
+                                                                        type="button"
+                                                                        className={`goal-task-type-option ${!answers.includeInReport ? "is-active" : ""}`.trim()}
+                                                                        onClick={() => updateAnswer("includeInReport", false)}
+                                                                        disabled={!isActive || submitting}
+                                                                    >
+                                                                        <span className="goal-task-type-option-title">No - Exclude</span>
+                                                                    </button>
+                                                                </div>
+                                                            </div>
                                                         </div>
 
                                                         {/* Note */}

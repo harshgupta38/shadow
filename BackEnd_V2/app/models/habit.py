@@ -142,6 +142,16 @@ class HabitDBM(Base):
         server_default=text("false"),
     )
 
+    # Whether this habit's records factor into daily/weekly report generation
+    # (stats, highlights, and the LLM's input data) — see report_service.build_day_data.
+    # Distinct from tracking_enabled (Track Progress page) and status (planner inclusion).
+    include_in_report: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+        server_default=text("true"),
+    )
+
     goal: Mapped["GoalDBM | None"] = relationship(  # type: ignore[name-defined]
         "GoalDBM",
         foreign_keys=[goal_id],

@@ -503,6 +503,7 @@ export interface HabitCreateRequest {
   monthly_count: number | null;
   specific_days: number[] | null;
   day_fallback: boolean;
+  include_in_report: boolean;
 
   start_date: string | null;
   end_date: string | null;

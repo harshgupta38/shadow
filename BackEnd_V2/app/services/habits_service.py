@@ -48,6 +48,7 @@ def _serialize(habit: HabitDBM, streaks: tuple[int, int] = (0, 0)) -> HabitDataR
         monthly_count=habit.monthly_count,
         specific_days=habit.specific_days,
         day_fallback=habit.day_fallback,
+        include_in_report=habit.include_in_report,
         start_date=habit.start_date,
         end_date=habit.end_date,
         preferred_time=habit.preferred_time,
@@ -162,6 +163,7 @@ def save_habit(
         monthly_count=data.monthly_count if "monthly" in data.frequencies else None,
         specific_days=specific_days,
         day_fallback=day_fallback,
+        include_in_report=data.include_in_report,
         planner_type=data.planner_type,
         planner_target=data.planner_target if is_metric else None,
         value_unit=data.value_unit.strip() if is_metric and data.value_unit and data.value_unit.strip() else None,
@@ -256,6 +258,8 @@ def update_habit(
     if "day_fallback" in fields and data.day_fallback is not None:
         current_days = habit.specific_days or []
         habit.day_fallback = data.day_fallback and any(d >= 29 for d in current_days)
+    if "include_in_report" in fields and data.include_in_report is not None:
+        habit.include_in_report = data.include_in_report
 
     if "planner_type" in fields and data.planner_type is not None:
         habit.planner_type = data.planner_type

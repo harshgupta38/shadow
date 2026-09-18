@@ -106,6 +106,7 @@ class HabitCreateRequest(BaseModel):
     monthly_count: int | None = Field(default=None, ge=1, le=27)
     specific_days: list[int] | None = None
     day_fallback: bool = False
+    include_in_report: bool = True
 
     @field_validator("title", mode="before")
     @classmethod
@@ -189,6 +190,7 @@ class HabitUpdateRequest(BaseModel):
     monthly_count: int | None = Field(default=None, ge=1, le=27)
     specific_days: list[int] | None = None
     day_fallback: bool | None = None
+    include_in_report: bool | None = None
 
     @field_validator("specific_days", mode="before")
     @classmethod
@@ -257,6 +259,7 @@ class HabitDataResponse(ORMModel):
     monthly_count: int | None
     specific_days: list[int] | None
     day_fallback: bool
+    include_in_report: bool
     start_date: date | None
     end_date: date | None
     preferred_time: HabitPreferredTime

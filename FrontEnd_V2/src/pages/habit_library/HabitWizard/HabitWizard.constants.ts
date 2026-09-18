@@ -28,6 +28,7 @@ export type HabitWizardAnswers = {
     preferredTime: HabitPreferredTime;
     specificTime: string;
     durationMinutes: string;
+    includeInReport: boolean;
     note: string;
     goalId: string; // "" means null
     category: GoalCategory | "";
@@ -87,6 +88,7 @@ export function makeEmptyAnswers(defaultDuration = 30): HabitWizardAnswers {
         preferredTime: "flexible",
         specificTime: "",
         durationMinutes: String(defaultDuration),
+        includeInReport: true,
         note: "",
         goalId: "",
         category: "",
@@ -178,6 +180,7 @@ export function answersFromHabit(habit: HabitDataResponse): HabitWizardAnswers {
         preferredTime: habit.preferred_time ?? "flexible",
         specificTime: habit.specific_time ?? "",
         durationMinutes: habit.duration_minutes !== null ? String(habit.duration_minutes) : "",
+        includeInReport: habit.include_in_report ?? true,
         note: habit.note ?? "",
         goalId: habit.goal?.id != null ? String(habit.goal.id) : "",
         category: (habit.category as GoalCategory | null) ?? "",
@@ -205,6 +208,7 @@ export function answersFromDraft(draft: Partial<HabitCreateRequest>): HabitWizar
         preferredTime: draft.preferred_time ?? "flexible",
         specificTime: draft.specific_time ?? "",
         durationMinutes: draft.duration_minutes != null ? String(draft.duration_minutes) : "",
+        includeInReport: draft.include_in_report ?? true,
         note: draft.note ?? "",
         goalId: draft.goal_id != null ? String(draft.goal_id) : "",
         category: (draft.category as GoalCategory | null | undefined) ?? "",

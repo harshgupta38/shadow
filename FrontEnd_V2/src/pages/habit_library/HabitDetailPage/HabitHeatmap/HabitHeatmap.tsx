@@ -94,7 +94,7 @@ export function HabitHeatmap({ habit, records }: HabitHeatmapProps) {
                     <div
                       key={i}
                       role={cell.day ? "gridcell" : "presentation"}
-                      className={getCellClass(cell, plannerType)}
+                      className={`${getCellClass(cell, plannerType)}${cell.dateStr === today ? " hh-cell--today" : ""}`}
                       style={getCellStyle(cell, plannerType)}
                       title={cell.day ? cellTitle(cell.dateStr, cell.status, cell.ratio) : undefined}
                       aria-label={cell.day ? cellTitle(cell.dateStr, cell.status, cell.ratio) : undefined}

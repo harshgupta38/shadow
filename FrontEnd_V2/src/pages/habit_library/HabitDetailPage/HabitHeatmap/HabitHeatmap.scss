@@ -60,5 +60,9 @@
     &--blank   { background: color-mix(in srgb, var(--jv-border) 60%, var(--jv-surface) 40%); }
     &--future  { background: color-mix(in srgb, var(--jv-border) 25%, var(--jv-surface) 75%); }
     &--empty   { background: transparent; pointer-events: none; }
+
+    // Marks the current date — an inset ring rather than a border so it
+    // never shifts the grid's fixed 13px cell sizing.
+    &--today   { box-shadow: inset 0 0 0 1.5px var(--jv-text); }
   }
 }

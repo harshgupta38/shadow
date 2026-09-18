@@ -1,8 +1,10 @@
+import { useNavigate } from "react-router-dom";
 import type { SimpleHabitData } from "@/api/types";
 import { todayDate } from "@/services/date.service";
 import { useWeekStart } from "@/context/PlannerContext";
 import { dayToCol, weekDayLabels } from "@/utils/weekUtils";
 import { ANIMATION } from "@/constant/tuning";
+import { ROUTES } from "@/routes/RoutePaths";
 import "./SimpleHabitCard.scss";
 
 // ── Mini Heatmap ──────────────────────────────────────────────────────────────
@@ -43,13 +45,28 @@ function MiniHeatmap({ history, color }: { history: boolean[]; color: string }) 
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function SimpleHabitCard({ habit: h }: { habit: SimpleHabitData }) {
+  const navigate = useNavigate();
   const done7 = h.history.filter(Boolean).length;
   const weekPct = Math.round((done7 / 7) * 100);
 
   const isPersonalBest = h.current_streak > 0 && h.current_streak >= h.max_streak;
 
+  function openDetail() {
+    const path = h.source_type === "habit"
+      ? ROUTES.HABIT_LIBRARY_DETAIL.replace(":habitId", String(h.id))
+      : ROUTES.TASK_DETAIL.replace(":taskId", String(h.id));
+    navigate(path);
+  }
+
   return (
-    <article className={`tp-simple-card tp-simple-card--${h.color}`}>
+    <article
+      className={`tp-simple-card tp-simple-card--${h.color}`}
+      role="button"
+      tabIndex={0}
+      onClick={openDetail}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openDetail(); } }}
+      aria-label={`Open details for ${h.title}`}
+    >
       <div className="tp-sc-inner">
 
         {/* ── Head ── */}

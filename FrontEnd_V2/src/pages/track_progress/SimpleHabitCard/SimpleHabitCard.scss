@@ -13,8 +13,14 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  cursor: pointer;
   transition: transform 180ms var(--jv-ease), box-shadow 180ms var(--jv-ease),
               border-color 180ms var(--jv-ease);
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: var(--jv-ring), 0 8px 24px color-mix(in srgb, var(--jv-brand-1) 10%, transparent);
+  }
 
   &:hover {
     transform: translateY(-3px);

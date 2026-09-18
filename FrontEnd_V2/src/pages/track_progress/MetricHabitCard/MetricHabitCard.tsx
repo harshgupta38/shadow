@@ -1,7 +1,9 @@
 import type React from "react";
+import { useNavigate } from "react-router-dom";
 import { CheckLg } from "react-bootstrap-icons";
 import type { MetricHabitData } from "@/api/types";
 import { GEOMETRY } from "@/constant/tuning";
+import { ROUTES } from "@/routes/RoutePaths";
 import "./MetricHabitCard.scss";
 
 // ── Sparkline SVG ─────────────────────────────────────────────────────────────
@@ -58,6 +60,7 @@ function Sparkline({ values, habitId, color }: { values: number[]; habitId: numb
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function MetricHabitCard({ habit: h }: { habit: MetricHabitData }) {
+  const navigate = useNavigate();
   const todayVal = h.current_value;
   const pct = Math.min(100, Math.round((todayVal / h.planner_target) * 100));
 
@@ -69,8 +72,22 @@ export function MetricHabitCard({ habit: h }: { habit: MetricHabitData }) {
   const weekTotal = h.history.reduce((a, b) => a + b, 0);
   const goalMet = pct >= 100;
 
+  function openDetail() {
+    const path = h.source_type === "habit"
+      ? ROUTES.HABIT_LIBRARY_DETAIL.replace(":habitId", String(h.id))
+      : ROUTES.TASK_DETAIL.replace(":taskId", String(h.id));
+    navigate(path);
+  }
+
   return (
-    <article className={`tp-metric-card tp-metric-card--${h.color}`}>
+    <article
+      className={`tp-metric-card tp-metric-card--${h.color}`}
+      role="button"
+      tabIndex={0}
+      onClick={openDetail}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openDetail(); } }}
+      aria-label={`Open details for ${h.title}`}
+    >
       <div className="tp-mc-inner">
 
         {/* ── Head ── */}

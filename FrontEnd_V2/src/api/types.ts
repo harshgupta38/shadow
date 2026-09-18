@@ -713,6 +713,7 @@ export interface TaskTrackItem {
 }
 
 export interface MetricHabitData extends HabitBaseData {
+  source_type: "habit" | "task";
   value_unit: string;
   planner_target: number;
   /** 7 entries ordered by week_starts_on (index 0 = first day of week) */
@@ -721,6 +722,7 @@ export interface MetricHabitData extends HabitBaseData {
 }
 
 export interface SimpleHabitData extends HabitBaseData {
+  source_type: "habit" | "task";
   /** 7 entries ordered by week_starts_on (index 0 = first day of week) */
   history: boolean[];
 }

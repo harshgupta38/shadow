@@ -17,7 +17,7 @@ interface BaseTrackSource {
     done_today: boolean;
 }
 
-function toBaseData(source: BaseTrackSource, category: GoalCategory | null) {
+function toBaseData(source: BaseTrackSource, category: GoalCategory | null, sourceType: "habit" | "task") {
     return {
         id: source.id,
         title: source.title,
@@ -27,12 +27,13 @@ function toBaseData(source: BaseTrackSource, category: GoalCategory | null) {
         history: source.history,
         color: source.color,
         done_today: source.done_today,
+        source_type: sourceType,
     };
 }
 
 export function toMetricData(h: HabitTrackItem): MetricHabitData {
     return {
-        ...toBaseData(h, h.category),
+        ...toBaseData(h, h.category, "habit"),
         value_unit: h.value_unit ?? "",
         planner_target: h.planner_target ?? 1,
         current_value: h.current_value,
@@ -40,12 +41,12 @@ export function toMetricData(h: HabitTrackItem): MetricHabitData {
 }
 
 export function toSimpleData(h: HabitTrackItem): SimpleHabitData {
-    return { ...toBaseData(h, h.category), history: h.history.map(v => v > 0) };
+    return { ...toBaseData(h, h.category, "habit"), history: h.history.map(v => v > 0) };
 }
 
 export function toMetricDataFromTask(t: TaskTrackItem): MetricHabitData {
     return {
-        ...toBaseData(t, null),
+        ...toBaseData(t, null, "task"),
         value_unit: t.value_unit ?? "",
         planner_target: t.planner_target ?? 1,
         current_value: t.current_value,
@@ -53,5 +54,5 @@ export function toMetricDataFromTask(t: TaskTrackItem): MetricHabitData {
 }
 
 export function toSimpleDataFromTask(t: TaskTrackItem): SimpleHabitData {
-    return { ...toBaseData(t, null), history: t.history.map(v => v > 0) };
+    return { ...toBaseData(t, null, "task"), history: t.history.map(v => v > 0) };
 }

@@ -4,6 +4,20 @@
   flex-direction: column;
 }
 
+// ── Top row (Back + Switch) ───────────────────────────────────────────────────
+.hd-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+
+  // margin now lives on the row itself, not the individual back-link
+  .goal-detail-back-link {
+    margin-bottom: 0;
+  }
+}
+
 // ── Loading / error states ────────────────────────────────────────────────────
 .hd-status-state {
   display: flex;

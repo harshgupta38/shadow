@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
+  ArrowLeftRight,
   BoxArrowUpRight,
   ChevronDown,
   ChevronUp,
@@ -9,7 +10,9 @@ import {
 
 import { api, ApiError } from "@/api";
 import type { HabitActivityRecord, TaskActivityResponse, TaskDataResponse } from "@/api";
+import { trackProgressApi } from "@/api/track_progress";
 import { useTimeFormat } from "@/context/PlannerContext";
+import { useToast } from "@/context/ToastContext";
 import { formatTime } from "@/services/date.service";
 import { ProgressRing } from "@/components/ui/ProgressRing/ProgressRing";
 import { ROUTES } from "@/routes/RoutePaths";
@@ -19,6 +22,11 @@ import { HabitHeatmap } from "@/pages/habit_library/HabitDetailPage/HabitHeatmap
 import { HabitHistory } from "@/pages/habit_library/HabitDetailPage/HabitHistory/HabitHistory";
 import { getSimpleFrequencyLabel } from "@/pages/habit_library/HabitCard/HabitCard.constants";
 import { DetailPageSkeleton } from "@/pages/habit_library/HabitDetailPage/DetailPageSkeleton/DetailPageSkeleton";
+import {
+  HabitTaskSwitcherPanel,
+  type HabitSwitchItem,
+  type TaskSwitchItem,
+} from "@/pages/habit_library/HabitDetailPage/HabitTaskSwitcherPanel/HabitTaskSwitcherPanel";
 
 import "@/pages/my_goals/GoalDetailPage/GoalDetailPage.scss";
 import "@/pages/habit_library/HabitDetailPage/HabitDetailPage.scss";
@@ -204,6 +212,34 @@ export function TaskDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [switcherOpen, setSwitcherOpen] = useState(false);
+  const [switcherHabits, setSwitcherHabits] = useState<HabitSwitchItem[]>([]);
+  const [switcherTasks, setSwitcherTasks] = useState<TaskSwitchItem[]>([]);
+  const toast = useToast();
+
+  function openSwitcher() {
+    Promise.all([trackProgressApi.getEligibleHabits(), trackProgressApi.getEligibleTasks()])
+      .then(([habitData, taskData]) => {
+        setSwitcherHabits(habitData.map((h) => ({
+          id: h.id,
+          title: h.title,
+          type: h.planner_type === "metric" ? "Metric" as const : "Simple" as const,
+          priority: h.priority,
+          category: h.category,
+        })));
+        setSwitcherTasks(taskData.map((t) => ({
+          id: t.id,
+          title: t.title,
+          type: t.planner_type === "metric" ? "Metric" as const : "Simple" as const,
+          priority: t.priority,
+        })));
+        setSwitcherOpen(true);
+      })
+      .catch((err) => {
+        toast.error(err instanceof ApiError ? err.message : "Couldn't load habits and tasks.");
+      });
+  }
+
   useEffect(() => {
     if (!taskId) return;
     let cancelled = false;
@@ -259,13 +295,29 @@ export function TaskDetailPage() {
 
   return (
     <div className="hd-page goal-detail-page habit-library-page">
-      <button onClick={() => navigate(-1)} className="goal-detail-back-link">
-        <ArrowLeft size={15} /> Back
-      </button>
+      <div className="hd-top-row">
+        <button onClick={() => navigate(-1)} className="goal-detail-back-link">
+          <ArrowLeft size={15} /> Back
+        </button>
+        <button onClick={openSwitcher} className="goal-detail-back-link">
+          <ArrowLeftRight size={15} /> Switch
+        </button>
+      </div>
 
-      <TaskHero task={task} goalTitle={goal_title} goalId={task.goal_id} />
-      <HabitHeatmap habit={plannerConfig} records={records} />
-      <HabitHistory habit={plannerConfig} records={records} />
+      <TaskHero key={`hero-${task.id}`} task={task} goalTitle={goal_title} goalId={task.goal_id} />
+      <HabitHeatmap key={`heatmap-${task.id}`} habit={plannerConfig} records={records} />
+      <HabitHistory key={`history-${task.id}`} habit={plannerConfig} records={records} />
+
+      {switcherOpen && (
+        <HabitTaskSwitcherPanel
+          habits={switcherHabits}
+          tasks={switcherTasks}
+          activeTaskId={task.id}
+          onClose={() => setSwitcherOpen(false)}
+          onSelectHabit={(id) => navigate(ROUTES.HABIT_LIBRARY_DETAIL.replace(":habitId", String(id)))}
+          onSelectTask={(id) => navigate(ROUTES.TASK_DETAIL.replace(":taskId", String(id)))}
+        />
+      )}
     </div>
   );
 }

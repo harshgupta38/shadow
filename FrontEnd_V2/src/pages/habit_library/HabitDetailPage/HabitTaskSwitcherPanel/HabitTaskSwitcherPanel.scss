@@ -1,0 +1,120 @@
+// ── Habit / Task Switcher Panel ─────────────────────────────────────────────────
+
+.htsp-panel {
+  width: min(600px, 100%);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; // panel itself no longer scrolls
+}
+
+.htsp-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.htsp-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.875rem 0.3rem;
+  border-bottom: 1px solid var(--jv-border);
+  margin-bottom: 0.15rem;
+
+  &:not(:first-child) {
+    margin-top: 0.5rem;
+  }
+}
+
+.htsp-section-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--jv-muted);
+}
+
+.htsp-section-chip {
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: var(--jv-surface-2);
+  color: var(--jv-muted);
+}
+
+.htsp-empty {
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--jv-muted);
+  font-size: 0.875rem;
+}
+
+.htsp-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem 0.875rem;
+  border-radius: var(--jv-radius);
+  cursor: pointer;
+  transition: background 140ms ease;
+  margin: 0;
+
+  &:hover {
+    background: var(--jv-surface-2);
+  }
+
+  &--active {
+    background: var(--jv-brand-soft);
+
+    &:hover {
+      background: var(--jv-brand-soft);
+    }
+  }
+}
+
+.htsp-row-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.75rem;
+}
+
+.htsp-name {
+  flex: 1;
+  min-width: 120px;
+  font-size: 0.9375rem;
+  color: var(--jv-text);
+  font-weight: 500;
+}
+
+.htsp-pills {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.htsp-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+
+  &--priority-highest { background: var(--jv-danger-soft); color: var(--jv-danger); }
+  &--priority-high    { background: var(--jv-warn-soft);   color: var(--jv-warn);   }
+  &--priority-medium  { background: var(--jv-info-soft);   color: var(--jv-info);   }
+  &--priority-low     { background: color-mix(in srgb, var(--jv-muted) 12%, transparent); color: var(--jv-muted); }
+  &--priority-lowest  { background: color-mix(in srgb, var(--jv-faint) 12%, transparent); color: var(--jv-faint); }
+}

@@ -1,0 +1,162 @@
+// ─── Card Stack Visual ────────────────────────────────────────────────────────
+.card-stack {
+  position: relative;
+  width: 260px;
+  height: 240px;
+}
+
+// ─── Shared card base ─────────────────────────────────────────────────────────
+.cs-card {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  border-radius: 14px;
+  padding: 0.875rem 1rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.22), 0 2px 8px rgba(0, 0, 0, 0.12);
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #fff;
+}
+
+// ─── Card — Deployment ────────────────────────────────────────────────────────
+.cs-card--deploy {
+  width: 206px;
+  transform: translate(-77px, -55px) rotate(-7deg);
+  animation:
+    cs-fade-in 0.6s var(--jv-ease, ease) both 0s,
+    cs-sway-deploy 5s ease-in-out infinite 0.6s;
+}
+
+// ─── Card — Server health ─────────────────────────────────────────────────────
+.cs-card--health {
+  width: 146px;
+  transform: translate(56px, -66px) rotate(5deg);
+  animation:
+    cs-fade-in 0.6s var(--jv-ease, ease) both 0.15s,
+    cs-sway-health 5s ease-in-out infinite 0.75s;
+}
+
+// ─── Card — DB backup ─────────────────────────────────────────────────────────
+.cs-card--backup {
+  width: 158px;
+  transform: translate(20px, 72px) rotate(-4deg);
+  animation:
+    cs-fade-in 0.6s var(--jv-ease, ease) both 0.3s,
+    cs-sway-backup 5s ease-in-out infinite 0.9s;
+}
+
+// ─── Sway animations (identical rhythm to Shadow V2) ─────────────────────────
+@keyframes cs-fade-in {
+  from { opacity: 0; transform: scale(0.88); }
+  to   { opacity: 1; }
+}
+
+@keyframes cs-sway-deploy {
+  0%, 100% { transform: translate(-77px, -55px) rotate(-7deg); }
+  50%       { transform: translate(-61px, -48px) rotate(-5.5deg); }
+}
+
+@keyframes cs-sway-health {
+  0%, 100% { transform: translate(56px, -66px) rotate(5deg); }
+  50%       { transform: translate(62px, -58px) rotate(6deg); }
+}
+
+@keyframes cs-sway-backup {
+  0%, 100% { transform: translate(20px, 72px) rotate(-4deg); }
+  50%       { transform: translate(26px, 66px) rotate(-3deg); }
+}
+
+// ─── Card internals ───────────────────────────────────────────────────────────
+.cs-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.cs-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.cs-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+
+  &--success { background: #35c793; box-shadow: 0 0 6px rgba(53, 199, 147, 0.7); }
+  &--warn    { background: #f0a94e; }
+  &--danger  { background: #ff6369; }
+}
+
+.cs-tag {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(124, 108, 255, 0.35);
+  border-radius: 6px;
+  padding: 0.15rem 0.5rem;
+  display: inline-block;
+  margin-bottom: 0.5rem;
+}
+
+.cs-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.cs-row {
+  font-size: 0.72rem;
+  font-weight: 500;
+
+  &--done { color: #35c793; }
+  &--muted { color: rgba(255,255,255,0.4); }
+}
+
+.cs-metric {
+  display: flex;
+  align-items: baseline;
+  gap: 0.25rem;
+  margin-bottom: 0.4rem;
+}
+
+.cs-metric-val {
+  font-family: "Sora", sans-serif;
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1;
+}
+
+.cs-metric-unit {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.6);
+}
+
+.cs-metric-label {
+  font-size: 0.72rem;
+  color: rgba(255,255,255,0.5);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.cs-pill {
+  font-size: 0.68rem;
+  font-weight: 600;
+  border-radius: 99px;
+  padding: 0.15rem 0.6rem;
+
+  &--online {
+    background: rgba(53, 199, 147, 0.18);
+    color: #35c793;
+  }
+}

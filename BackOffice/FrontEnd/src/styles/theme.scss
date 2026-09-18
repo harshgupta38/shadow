@@ -357,3 +357,377 @@ h1, h2, h3, h4, h5, h6, .display-font {
   text-align: center;
   line-height: 1.6;
 }
+
+// ─── App Shell Layout ─────────────────────────────────────────────────────────
+:root {
+  --jv-topbar-h:            64px;
+  --jv-sidebar-w:           256px;
+  --jv-sidebar-collapsed-w: 64px;
+}
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+// ── Topbar ────────────────────────────────────────────────────────────────────
+.topbar {
+  height: var(--jv-topbar-h);
+  display: flex;
+  align-items: center;
+  padding: 0 1.5rem;
+  gap: 0.75rem;
+  background: color-mix(in srgb, var(--jv-bg) 82%, transparent);
+  backdrop-filter: saturate(160%) blur(12px);
+  -webkit-backdrop-filter: saturate(160%) blur(12px);
+  border-bottom: 1px solid var(--jv-border);
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  flex-shrink: 0;
+}
+
+.topbar-menu-btn {
+  @media (min-width: 769px) {
+    display: none !important;
+  }
+}
+
+// ── App body (sidebar + content) ──────────────────────────────────────────────
+.app-body {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+// ── Sidebar ───────────────────────────────────────────────────────────────────
+.sidebar {
+  width: var(--jv-sidebar-w);
+  flex-shrink: 0;
+  height: calc(100vh - var(--jv-topbar-h));
+  position: sticky;
+  top: var(--jv-topbar-h);
+  background: var(--jv-surface);
+  border-right: 1px solid var(--jv-border);
+  padding: 1rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  transition: width 240ms var(--jv-ease);
+  overflow: hidden;
+}
+
+.sidebar--collapsed {
+  width: var(--jv-sidebar-collapsed-w);
+}
+
+.sidebar-desktop {
+  @media (max-width: 768px) {
+    display: none !important;
+  }
+}
+
+// ── Nav links ─────────────────────────────────────────────────────────────────
+.nav-section-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--jv-faint);
+  padding: 0.6rem 0.6rem 0.25rem;
+  white-space: nowrap;
+}
+
+.nav-link-jv {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: var(--jv-radius-sm);
+  color: var(--jv-muted);
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background var(--jv-transition), color var(--jv-transition);
+  position: relative;
+
+  &:hover {
+    background: var(--jv-surface-3);
+    color: var(--jv-text);
+  }
+
+  &.active {
+    background: var(--jv-brand-soft);
+    color: var(--jv-brand-1);
+    font-weight: 600;
+
+    &::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 20%;
+      bottom: 20%;
+      width: 3px;
+      border-radius: 0 2px 2px 0;
+      background: var(--jv-brand-1);
+    }
+  }
+}
+
+.nav-link-jv--icon {
+  justify-content: center;
+  padding: 0.6rem;
+}
+
+// ── Collapse button ───────────────────────────────────────────────────────────
+.sidebar-collapse-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  border: none;
+  background: transparent;
+  border-radius: var(--jv-radius-sm);
+  color: var(--jv-faint);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--jv-transition), color var(--jv-transition);
+  flex-shrink: 0;
+
+  &:hover {
+    background: var(--jv-surface-3);
+    color: var(--jv-text);
+  }
+}
+
+.sidebar-collapse-btn--collapsed {
+  justify-content: center;
+  padding: 0.6rem;
+}
+
+// ── Main content area ─────────────────────────────────────────────────────────
+.app-main {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  background: var(--jv-bg);
+}
+
+.app-content {
+  padding: 1.75rem 2rem 3rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+// ── Avatar ────────────────────────────────────────────────────────────────────
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--jv-brand-gradient);
+  color: #fff;
+  font-weight: 700;
+  font-family: var(--jv-font-display);
+  flex-shrink: 0;
+
+  &.avatar-sm { width: 32px; height: 32px; font-size: 0.8rem; }
+  &.avatar-md { width: 38px; height: 38px; font-size: 0.9rem; }
+}
+
+// ── Dashboard page ────────────────────────────────────────────────────────────
+.dp-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.75rem;
+}
+
+.dp-heading {
+  font-family: var(--jv-font-display);
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--jv-text);
+  margin: 0 0 0.2rem;
+  letter-spacing: -0.02em;
+}
+
+.dp-subheading {
+  font-size: 0.875rem;
+  color: var(--jv-muted);
+  margin: 0;
+}
+
+.dp-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+}
+
+.dp-stat {
+  flex: 1 1 calc(25% - 0.5625rem);
+  min-width: 0;
+  background: var(--jv-surface);
+  border: 1px solid var(--jv-border);
+  border-radius: var(--jv-radius);
+  box-shadow: var(--jv-shadow);
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  transition: transform 180ms var(--jv-ease), box-shadow 180ms var(--jv-ease), border-color 180ms var(--jv-ease);
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--jv-shadow-lg);
+  }
+
+  &--success {
+    border-color: color-mix(in srgb, var(--jv-success) 22%, var(--jv-border));
+    .dp-stat-val { color: var(--jv-success); }
+  }
+  &--brand {
+    border-color: color-mix(in srgb, var(--jv-brand-1) 22%, var(--jv-border));
+    .dp-stat-val { color: var(--jv-brand-1); }
+  }
+  &--warn {
+    border-color: color-mix(in srgb, var(--jv-warn) 22%, var(--jv-border));
+    .dp-stat-val { color: var(--jv-warn); }
+  }
+  &--info {
+    border-color: color-mix(in srgb, var(--jv-info) 22%, var(--jv-border));
+    .dp-stat-val { color: var(--jv-info); }
+  }
+
+  @media (max-width: 720px) {
+    flex: 1 1 calc(50% - 0.375rem);
+  }
+
+  @media (max-width: 420px) {
+    flex: 1 1 100%;
+  }
+}
+
+.dp-stat-val {
+  font-family: var(--jv-font-display);
+  font-size: 1.75rem;
+  font-weight: 800;
+  line-height: 1;
+  flex-shrink: 0;
+
+  @media (max-width: 720px) {
+    font-size: 1.35rem;
+  }
+}
+
+.dp-stat-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.dp-stat-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--jv-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dp-stat-hint {
+  font-size: 0.69rem;
+  color: var(--jv-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dp-section-title {
+  font-family: var(--jv-font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--jv-text);
+  margin: 0 0 0.9rem;
+}
+
+.dp-table-wrap {
+  background: var(--jv-surface);
+  border: 1px solid var(--jv-border);
+  border-radius: var(--jv-radius);
+  overflow: hidden;
+  box-shadow: var(--jv-shadow);
+}
+
+.dp-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+
+  thead tr {
+    background: var(--jv-surface-2);
+    border-bottom: 1px solid var(--jv-border);
+  }
+
+  th {
+    padding: 0.65rem 1.1rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--jv-faint);
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 0.75rem 1.1rem;
+    color: var(--jv-text);
+    border-bottom: 1px solid var(--jv-border);
+    vertical-align: middle;
+  }
+
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  tbody tr:hover td {
+    background: var(--jv-surface-2);
+  }
+}
+
+.dp-status-dot {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+
+  &::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  &--success {
+    color: var(--jv-success);
+    &::before { background: var(--jv-success); box-shadow: 0 0 5px var(--jv-success); }
+  }
+
+  &--warn {
+    color: var(--jv-warn);
+    &::before { background: var(--jv-warn); }
+  }
+}

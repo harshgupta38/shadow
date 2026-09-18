@@ -23,6 +23,10 @@ import { DetailPageSkeleton } from "@/pages/habit_library/HabitDetailPage/Detail
 import "@/pages/my_goals/GoalDetailPage/GoalDetailPage.scss";
 import "@/pages/habit_library/HabitDetailPage/HabitDetailPage.scss";
 import "@/pages/plan/PlanCard/PlanCard.scss";
+// .hl-card / .hl-card-header / .hl-card-body / .hl-title (used by HabitHeatmap
+// and HabitHistory below) are only defined here — see the same import in
+// HabitDetailPage.tsx for why this can't be skipped.
+import "@/pages/habit_library/HabitLibraryPage.scss";
 import "./TaskDetailPage.scss";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

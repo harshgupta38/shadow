@@ -32,6 +32,13 @@ import { DetailPageSkeleton } from "./DetailPageSkeleton/DetailPageSkeleton";
 import "@/pages/my_goals/GoalDetailPage/GoalDetailPage.scss";
 import "@/pages/plan/PlanCard/PlanCard.scss";
 import "@/pages/habit_library/HabitCard/HabitCard.scss";
+// .hl-card / .hl-card-header / .hl-card-body / .hl-title (used by HabitHeatmap
+// and HabitHistory below) are only DEFINED here — GoalDetailPage.scss just
+// layers page-specific overrides on top. Without this import, this page only
+// looked right when reached via the Habit Library list (whose own import of
+// this stylesheet happened to still be loaded from the prior route) and lost
+// its card padding when opened directly, e.g. from a PlanCard habit pill.
+import "@/pages/habit_library/HabitLibraryPage.scss";
 import "./HabitDetailPage.scss";
 
 // ── Inline time label — mirrors ScheduleTaskDetailPanel's TimeChip ────────────

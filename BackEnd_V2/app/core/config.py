@@ -40,12 +40,10 @@ class Settings(BaseSettings):
     def db_backup_runtime_list(self) -> list[str]:
         return [t.strip() for t in self.db_backup_runtimes.split(",") if t.strip()]
 
-    # Report auto-generation scheduler.
+    # Report auto-generation scheduler — global kill-switch on top of each
+    # user's own per-cadence schedule (UserSettingDBM.reports, default 23:55 IST).
     # REPORT_AUTO_GENERATE=false disables the scheduler entirely.
-    # Times are HHMM in IST (24h), e.g. "2355" = 11:55 PM.
     report_auto_generate: bool = False
-    report_daily_runtime: str = "2355"
-    report_weekly_runtime: str = "2355"
 
     # Frontend base URL — used to build links inside email notifications.
     frontend_base_url: str = "https://shadowassistant.in"

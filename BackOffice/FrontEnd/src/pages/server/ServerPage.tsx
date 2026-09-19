@@ -1,90 +1,21 @@
-import { Fragment, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Modal } from "react-bootstrap";
 import {
   CpuFill,
   ArrowClockwise,
-  ArrowRepeat,
   Terminal,
   XLg,
-  PhoneFill,
   ShieldFillCheck,
 } from "react-bootstrap-icons";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { StatCard } from "@/components/ui/StatCard/StatCard";
+import { api, ApiError } from "@/api";
+import type { RestartLog, ServerHealth } from "@/api";
+import { formatDateTime, statusLabel, statusVariant, formatUptime } from "@/lib/format";
 import { LiveLogTail } from "./LiveLogTail";
 
-interface Worker {
-  id: number;
-  pid: number;
-  cpu: number;
-  memoryMb: number;
-  requests: number;
-  uptime: string;
-}
-
-const INITIAL_WORKERS: Worker[] = [
-  { id: 1, pid: 18422, cpu: 12, memoryMb: 210, requests: 342, uptime: "6d 14h" },
-  { id: 2, pid: 18423, cpu: 9, memoryMb: 198, requests: 318, uptime: "6d 14h" },
-  { id: 3, pid: 18424, cpu: 15, memoryMb: 225, requests: 355, uptime: "6d 14h" },
-  { id: 4, pid: 18425, cpu: 11, memoryMb: 205, requests: 269, uptime: "6d 14h" },
-];
-
-interface RestartEvent {
-  id: number;
-  timestamp: string;
-  trigger: string;
-  initiatedBy: string;
-  duration: string;
-  result: "success" | "failed";
-}
-
-const INITIAL_HISTORY: RestartEvent[] = [
-  { id: 1, timestamp: "18 Sep 2026, 06:12 AM", trigger: "Webhook", initiatedBy: "GitHub Actions · deploy v2.4.1", duration: "8s", result: "success" },
-  { id: 2, timestamp: "15 Sep 2026, 09:40 AM", trigger: "Webhook", initiatedBy: "GitHub Actions · deploy v2.4.0", duration: "7s", result: "success" },
-  { id: 3, timestamp: "12 Sep 2026, 02:15 AM", trigger: "Auto-recovery", initiatedBy: "Watchdog · high memory usage", duration: "11s", result: "success" },
-  { id: 4, timestamp: "10 Sep 2026, 02:20 PM", trigger: "Manual", initiatedBy: "Harsh Gupta · BackOffice", duration: "6s", result: "success" },
-  { id: 5, timestamp: "04 Sep 2026, 08:05 AM", trigger: "Webhook", initiatedBy: "GitHub Actions · deploy v2.3.8", duration: "9s", result: "failed" },
-];
-
-interface ActiveJob {
-  scope: "all" | number;
-  label: string;
-}
-
-function buildRestartLog(scope: "all" | Worker, workers: Worker[]): string[] {
-  const lines: string[] = [];
-
-  if (scope === "all") {
-    lines.push(
-      "$ curl -X POST https://shadowassistant.in/_internal/restart-hook",
-      "",
-      "[server] Restart requested via webhook",
-      `[server] Draining connections… (${workers.length}/${workers.length} workers)`,
-    );
-    workers.forEach((w) => lines.push(`[server] Worker ${w.id} (pid ${w.pid}) stopped`));
-    lines.push("[server] Spawning new worker pool…");
-    workers.forEach((w) =>
-      lines.push(`[server] Worker ${w.id} started (pid ${Math.floor(Math.random() * 9000) + 10000})`),
-    );
-  } else {
-    lines.push(
-      `$ curl -X POST "https://shadowassistant.in/_internal/restart-hook?worker=${scope.id}"`,
-      "",
-      `[server] Restart requested for worker ${scope.id}`,
-      `[server] Draining connections on worker ${scope.id} (pid ${scope.pid})…`,
-      `[server] Worker ${scope.id} (pid ${scope.pid}) stopped`,
-      `[server] Worker ${scope.id} started (pid ${Math.floor(Math.random() * 9000) + 10000})`,
-    );
-  }
-
-  lines.push(
-    "[server] Health check → GET /health → 200 OK ✓",
-    "",
-    `[server] ✓ Restart complete (${(Math.random() * 5 + 3).toFixed(1)}s)`,
-  );
-
-  return lines;
-}
+const HEALTH_POLL_MS = 6000;
+const RESTART_POLL_MS = 1500;
 
 function InfoItem({ label, value }: { label: string; value: string }) {
   return (
@@ -95,71 +26,86 @@ function InfoItem({ label, value }: { label: string; value: string }) {
   );
 }
 
+function fmtPercent(n: number | null): string {
+  return n == null ? "Unavailable" : `${n.toFixed(0)}%`;
+}
+
 export function ServerPage() {
-  const [workers, setWorkers] = useState(INITIAL_WORKERS);
-  const [history, setHistory] = useState(INITIAL_HISTORY);
+  const [health, setHealth] = useState<ServerHealth | null>(null);
+  const [healthError, setHealthError] = useState<string | null>(null);
+  const [history, setHistory] = useState<RestartLog[]>([]);
   const [showRestartModal, setShowRestartModal] = useState(false);
-  const [confirmWorkerId, setConfirmWorkerId] = useState<number | null>(null);
 
-  const [activeJob, setActiveJob] = useState<ActiveJob | null>(null);
-  const [logLines, setLogLines] = useState<string[]>([]);
-  const [jobDone, setJobDone] = useState(false);
+  const [activeJob, setActiveJob] = useState<RestartLog | null>(null);
+  const restartPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const logBodyRef = useRef<HTMLDivElement>(null);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const jobRunning = activeJob !== null && activeJob.status === "running";
 
-  const jobRunning = activeJob !== null && !jobDone;
+  async function loadHealth() {
+    try {
+      const h = await api.server.health();
+      setHealth(h);
+      setHealthError(null);
+    } catch (err) {
+      setHealthError(err instanceof ApiError ? err.message : "Could not reach the BackOffice API.");
+    }
+  }
+
+  async function loadHistory() {
+    try {
+      const list = await api.server.restartHistory(1, 10);
+      setHistory(list);
+    } catch {
+      // the stat cards / health panel already surface a connectivity error
+    }
+  }
+
+  useEffect(() => {
+    loadHealth();
+    loadHistory();
+    const interval = setInterval(loadHealth, HEALTH_POLL_MS);
+    return () => {
+      clearInterval(interval);
+      if (restartPollRef.current) clearInterval(restartPollRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (logBodyRef.current) logBodyRef.current.scrollTop = logBodyRef.current.scrollHeight;
-  }, [logLines]);
+  }, [activeJob?.log_output]);
 
-  useEffect(() => () => { if (intervalRef.current) clearInterval(intervalRef.current); }, []);
-
-  function runRestart(scope: "all" | Worker) {
-    if (intervalRef.current) clearInterval(intervalRef.current);
-
-    const scopeId: "all" | number = scope === "all" ? "all" : scope.id;
-    const label = scope === "all" ? "Restarting all workers" : `Restarting worker-${scope.id}`;
-    const lines = buildRestartLog(scope, workers);
-
-    setActiveJob({ scope: scopeId, label });
-    setLogLines([]);
-    setJobDone(false);
-    setShowRestartModal(false);
-    setConfirmWorkerId(null);
-
-    let i = 0;
-    intervalRef.current = setInterval(() => {
-      setLogLines((prev) => [...prev, lines[i]]);
-      i++;
-      if (i >= lines.length) {
-        clearInterval(intervalRef.current!);
-        intervalRef.current = null;
-        setJobDone(true);
-
-        setWorkers((prev) =>
-          prev.map((w) =>
-            scopeId === "all" || w.id === scopeId
-              ? { ...w, pid: Math.floor(Math.random() * 9000) + 10000, cpu: Math.floor(Math.random() * 10) + 5, uptime: "0m" }
-              : w,
-          ),
-        );
-        setHistory((prev) => [
-          {
-            id: Date.now(),
-            timestamp: new Date().toLocaleString("en-US", {
-              day: "2-digit", month: "short", hour: "numeric", minute: "2-digit",
-            }),
-            trigger: "Manual",
-            initiatedBy: "Harsh Gupta · BackOffice",
-            duration: `${(Math.random() * 4 + 4).toFixed(0)}s`,
-            result: "success",
-          },
-          ...prev,
-        ]);
+  function pollRestart(id: number) {
+    if (restartPollRef.current) clearInterval(restartPollRef.current);
+    restartPollRef.current = setInterval(async () => {
+      try {
+        const record = await api.server.restartDetail(id);
+        setActiveJob(record);
+        if (record.status !== "running") {
+          clearInterval(restartPollRef.current!);
+          restartPollRef.current = null;
+          loadHealth();
+          loadHistory();
+        }
+      } catch {
+        // transient hiccup — the interval will retry
       }
-    }, 220);
+    }, RESTART_POLL_MS);
   }
+
+  async function handleRestart() {
+    setShowRestartModal(false);
+    try {
+      const record = await api.server.restart();
+      setActiveJob(record);
+      pollRestart(record.id);
+    } catch (err) {
+      setHealthError(err instanceof ApiError ? err.message : "Could not start the restart.");
+    }
+  }
+
+  const oldestWorkerUptime = health?.workers.length
+    ? Math.max(...health.workers.map((w) => w.uptime_seconds))
+    : null;
 
   return (
     <>
@@ -176,11 +122,37 @@ export function ServerPage() {
         }]}
       />
 
+      {healthError && (
+        <div className="alert alert-danger py-2 px-3 small mb-3" role="alert">{healthError}</div>
+      )}
+
       <div className="dp-stats">
-        <StatCard variant="brand" value="6d 14h" name="Server Uptime" hint="Since last restart" />
-        <StatCard variant="success" value="38%" name="CPU Load" hint="4 workers active" />
-        <StatCard variant="info" value="3.2/8 GB" name="Memory Used" hint="40% utilized" />
-        <StatCard variant="warn" value="76%" name="Battery" hint="Charging · Wi-Fi" />
+        <StatCard
+          variant={health?.reachable ? "success" : "warn"}
+          value={health ? (health.reachable ? "Online" : "Unreachable") : "…"}
+          name="Server Status"
+          hint={health?.message ?? "No data yet"}
+        />
+        <StatCard
+          variant="success"
+          value={fmtPercent(health?.cpu_percent ?? null)}
+          name="CPU Load"
+          hint={health ? `${health.workers.length} worker${health.workers.length === 1 ? "" : "s"} active` : "—"}
+        />
+        <StatCard
+          variant="info"
+          value={health?.memory_used_mb != null && health.memory_total_mb != null
+            ? `${(health.memory_used_mb / 1024).toFixed(1)}/${(health.memory_total_mb / 1024).toFixed(1)} GB`
+            : "Unavailable"}
+          name="Memory Used"
+          hint={fmtPercent(health?.memory_percent ?? null) + " utilized"}
+        />
+        <StatCard
+          variant="warn"
+          value={health?.battery_percent != null ? `${health.battery_percent}%` : "Unavailable"}
+          name="Battery"
+          hint={health?.battery_status ?? "termux-api not detected"}
+        />
       </div>
 
       {activeJob && (
@@ -188,22 +160,26 @@ export function ServerPage() {
           <div className="deploy-log-header">
             <div className="d-flex align-items-center gap-2">
               <Terminal size={13} />
-              <span>{activeJob.label}</span>
-              {jobDone
-                ? <span className="deploy-log-badge deploy-log-badge--ok">Done</span>
-                : <span className="deploy-log-badge deploy-log-badge--running">Running</span>}
+              <span>Restarting server</span>
+              {jobRunning
+                ? <span className="deploy-log-badge deploy-log-badge--running">Running</span>
+                : <span className="deploy-log-badge deploy-log-badge--ok">{statusLabel(activeJob.status)}</span>}
             </div>
-            {jobDone && (
+            {!jobRunning && (
               <button type="button" className="btn btn-ghost btn-icon" onClick={() => setActiveJob(null)}>
                 <XLg size={13} />
               </button>
             )}
           </div>
           <div className="deploy-log-body" ref={logBodyRef}>
-            {logLines.map((line, i) => (
-              <div key={i} className="deploy-log-line">{line || " "}</div>
-            ))}
-            {!jobDone && <span className="deploy-log-cursor" />}
+            {activeJob.log_output ? (
+              activeJob.log_output.split("\n").map((line, i) => (
+                <div key={i} className="deploy-log-line">{line || " "}</div>
+              ))
+            ) : (
+              <div className="deploy-log-line">Waiting for the restart to complete…</div>
+            )}
+            {jobRunning && <span className="deploy-log-cursor" />}
           </div>
         </div>
       )}
@@ -211,102 +187,60 @@ export function ServerPage() {
       <div className="server-grid-2col">
         <div className="server-card">
           <h3 className="server-card-title">
-            <PhoneFill size={16} />
-            Device &amp; Host
-          </h3>
-          <div className="server-info-grid">
-            <InfoItem label="Host" value="Termux · Android 14" />
-            <InfoItem label="Runtime" value="Python 3.12 · Uvicorn" />
-            <InfoItem label="App server" value="FastAPI (4 workers)" />
-            <InfoItem label="Public endpoint" value="shadowassistant.in" />
-            <InfoItem label="Tunnel" value="Cloudflare Tunnel" />
-            <InfoItem label="Auto-start" value="Termux:Boot enabled" />
-            <InfoItem label="Wake lock" value="Active" />
-            <InfoItem label="Last restart" value="18 Sep 2026, 06:12 AM" />
-          </div>
-        </div>
-
-        <div className="server-card">
-          <h3 className="server-card-title">
             <ShieldFillCheck size={16} />
-            Health &amp; Network
+            System
           </h3>
           <div className="server-info-grid">
-            <InfoItem label="Network" value="Wi-Fi · 92 Mbps" />
-            <InfoItem label="Signal" value="Strong" />
-            <InfoItem label="Thermal state" value="Normal (34°C)" />
-            <InfoItem label="Storage" value="42 / 128 GB (33%)" />
-            <InfoItem label="Requests (1h)" value="1,284" />
-            <InfoItem label="Avg response" value="142 ms" />
-            <InfoItem label="Error rate (5xx)" value="0.2%" />
-            <InfoItem label="Battery health" value="Good" />
+            <InfoItem label="Disk Used" value={health?.disk_used_gb != null && health.disk_total_gb != null
+              ? `${health.disk_used_gb} / ${health.disk_total_gb} GB`
+              : "Unavailable"} />
+            <InfoItem label="Disk Usage" value={fmtPercent(health?.disk_percent ?? null)} />
+            <InfoItem label="Battery Status" value={health?.battery_status ?? "Unavailable"} />
+            <InfoItem label="Battery Temp" value={health?.battery_temperature_c != null ? `${health.battery_temperature_c}°C` : "Unavailable"} />
+            <InfoItem label="Server Uptime" value={formatUptime(oldestWorkerUptime)} />
+            <InfoItem label="Workers Running" value={health ? String(health.workers.length) : "—"} />
           </div>
         </div>
       </div>
 
       <div className="server-section">
         <h2 className="server-section-title">Workers</h2>
+        <p className="page-subtitle text-muted-2" style={{ marginTop: "-0.5rem", marginBottom: "0.9rem" }}>
+          uvicorn's worker pool restarts as one unit — there's no way to restart a single worker independently.
+        </p>
         <div className="dp-table-wrap">
           <table className="dp-table">
             <thead>
               <tr>
-                <th>Worker</th>
                 <th>PID</th>
                 <th>Status</th>
                 <th>CPU</th>
                 <th>Memory</th>
-                <th>Requests</th>
                 <th>Uptime</th>
-                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {workers.map((w) => {
-                const isRestarting = jobRunning && (activeJob!.scope === "all" || activeJob!.scope === w.id);
-                return (
-                  <Fragment key={w.id}>
-                    <tr>
-                      <td style={{ fontWeight: 600 }}>worker-{w.id}</td>
-                      <td style={{ color: "var(--jv-muted)" }}>{w.pid}</td>
-                      <td>
-                        <span className={`dp-status-dot dp-status-dot--${isRestarting ? "warn" : "success"}`}>
-                          {isRestarting ? "Restarting" : "Running"}
-                        </span>
-                      </td>
-                      <td style={{ color: "var(--jv-muted)" }}>{w.cpu}%</td>
-                      <td style={{ color: "var(--jv-muted)" }}>{w.memoryMb} MB</td>
-                      <td style={{ color: "var(--jv-muted)" }}>{w.requests}</td>
-                      <td style={{ color: "var(--jv-muted)" }}>{w.uptime}</td>
-                      <td>
-                        <button
-                          type="button"
-                          className="btn-action btn-action--ghost"
-                          disabled={jobRunning}
-                          onClick={() => setConfirmWorkerId(confirmWorkerId === w.id ? null : w.id)}
-                        >
-                          <ArrowRepeat size={12} />
-                          Restart
-                        </button>
-                      </td>
-                    </tr>
-                    {confirmWorkerId === w.id && (
-                      <tr className="dp-confirm-row">
-                        <td colSpan={8}>
-                          <div className="dp-confirm-inner">
-                            <span>Restart <strong>worker-{w.id}</strong> (pid {w.pid})?</span>
-                            <button type="button" className="btn-action btn-action--danger" onClick={() => runRestart(w)}>
-                              Yes, restart
-                            </button>
-                            <button type="button" className="btn-action btn-action--ghost" onClick={() => setConfirmWorkerId(null)}>
-                              Cancel
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </Fragment>
-                );
-              })}
+              {!health || health.workers.length === 0 ? (
+                <tr>
+                  <td colSpan={5} style={{ textAlign: "center", color: "var(--jv-faint)", padding: "1.5rem" }}>
+                    {health ? "No workers detected — is the server running?" : "Loading…"}
+                  </td>
+                </tr>
+              ) : (
+                health.workers.map((w) => (
+                  <tr key={w.pid}>
+                    <td style={{ fontWeight: 600 }}>{w.pid}</td>
+                    <td>
+                      <span className={`dp-status-dot dp-status-dot--${jobRunning ? "warn" : "success"}`}>
+                        {jobRunning ? "Restarting" : "Running"}
+                      </span>
+                    </td>
+                    <td style={{ color: "var(--jv-muted)" }}>{w.cpu_percent}%</td>
+                    <td style={{ color: "var(--jv-muted)" }}>{w.memory_mb.toFixed(0)} MB</td>
+                    <td style={{ color: "var(--jv-muted)" }}>{formatUptime(w.uptime_seconds)}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -326,19 +260,27 @@ export function ServerPage() {
               </tr>
             </thead>
             <tbody>
-              {history.map((h) => (
-                <tr key={h.id}>
-                  <td style={{ color: "var(--jv-muted)", whiteSpace: "nowrap" }}>{h.timestamp}</td>
-                  <td>{h.trigger}</td>
-                  <td style={{ color: "var(--jv-muted)" }}>{h.initiatedBy}</td>
-                  <td style={{ color: "var(--jv-muted)" }}>{h.duration}</td>
-                  <td>
-                    <span className={`dp-status-dot dp-status-dot--${h.result === "success" ? "success" : "danger"}`}>
-                      {h.result === "success" ? "Success" : "Failed"}
-                    </span>
+              {history.length === 0 ? (
+                <tr>
+                  <td colSpan={5} style={{ textAlign: "center", color: "var(--jv-faint)", padding: "1.5rem" }}>
+                    No restarts logged yet.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                history.map((h) => (
+                  <tr key={h.id}>
+                    <td style={{ color: "var(--jv-muted)", whiteSpace: "nowrap" }}>{formatDateTime(h.started_at)}</td>
+                    <td style={{ textTransform: "capitalize" }}>{h.trigger}</td>
+                    <td style={{ color: "var(--jv-muted)" }}>{h.initiated_by}</td>
+                    <td style={{ color: "var(--jv-muted)" }}>{h.duration_seconds != null ? `${h.duration_seconds.toFixed(1)}s` : "—"}</td>
+                    <td>
+                      <span className={`dp-status-dot dp-status-dot--${statusVariant(h.status)}`}>
+                        {statusLabel(h.status)}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -351,24 +293,24 @@ export function ServerPage() {
 
       <Modal show={showRestartModal} onHide={() => setShowRestartModal(false)} centered className="deploy-modal">
         <Modal.Header>
-          <h5 className="deploy-modal-title">Restart all workers?</h5>
+          <h5 className="deploy-modal-title">Restart the server?</h5>
           <button type="button" className="btn btn-ghost btn-icon" onClick={() => setShowRestartModal(false)} aria-label="Close">
             <XLg size={14} />
           </button>
         </Modal.Header>
         <Modal.Body>
           <p className="mb-0" style={{ fontSize: "0.88rem", color: "var(--jv-muted)" }}>
-            This sends a restart signal to all 4 worker processes via the deploy webhook.
-            In-flight requests may be dropped for a few seconds while workers restart.
+            This runs restart_server.sh directly (no code changes are pulled). All worker
+            processes restart together — in-flight requests may be dropped for a few seconds.
           </p>
         </Modal.Body>
         <Modal.Footer>
           <button type="button" className="btn btn-ghost" onClick={() => setShowRestartModal(false)}>
             Cancel
           </button>
-          <button type="button" className="btn btn-danger d-flex align-items-center gap-2" onClick={() => runRestart("all")}>
+          <button type="button" className="btn btn-danger d-flex align-items-center gap-2" onClick={handleRestart}>
             <ArrowClockwise size={14} />
-            Restart all workers
+            Restart server
           </button>
         </Modal.Footer>
       </Modal>

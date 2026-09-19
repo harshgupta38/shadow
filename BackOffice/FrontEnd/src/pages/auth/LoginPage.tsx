@@ -3,10 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { PersonFill, LockFill, Eye, EyeSlash } from "react-bootstrap-icons";
 import { AuthLayout } from "@/components/layout/AuthLayout";
 import { TextField } from "@/components/ui/TextField/TextField";
+import { ApiError } from "@/api";
+import { useAuth } from "@/context/AuthContext";
 import { ROUTES } from "@/routes/RoutePaths";
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -31,10 +34,16 @@ export function LoginPage() {
     setFieldErrors({});
     setSubmitting(true);
 
-    // TODO: restore real login when backend is ready
     try {
-      await new Promise((r) => setTimeout(r, 400));
+      await login({ username: username.trim(), password });
       navigate(ROUTES.HOME, { replace: true });
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message);
+        if (err.fieldErrors) setFieldErrors(err.fieldErrors);
+      } else {
+        setError("Unable to sign in. Please try again.");
+      }
     } finally {
       setSubmitting(false);
     }

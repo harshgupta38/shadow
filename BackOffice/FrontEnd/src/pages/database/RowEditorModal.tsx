@@ -1,27 +1,49 @@
 import { useMemo, useState } from "react";
 import { Modal } from "react-bootstrap";
-import { pkColumns, rowLabel, type ColumnDef, type Row, type TableDef } from "./schema";
+import { api, ApiError } from "@/api";
+import type { ColumnInfo, Row, TableInfo } from "@/api";
+import { pkValues, rowLabel } from "./dbHelpers";
 
 const LONG_TEXT_HINTS = [
   "summary", "description", "note", "bio", "motivation", "reason",
   "context", "brief", "headline", "state", "definition",
 ];
 
-function isLongText(col: ColumnDef): boolean {
+function isLongText(col: ColumnInfo): boolean {
   return LONG_TEXT_HINTS.some((hint) => col.name.includes(hint));
 }
 
-function formatFieldValue(col: ColumnDef, value: unknown): string {
+function isBoolean(col: ColumnInfo): boolean {
+  return col.type.includes("BOOL");
+}
+
+function isJson(col: ColumnInfo): boolean {
+  return col.type.includes("JSON");
+}
+
+function isInteger(col: ColumnInfo): boolean {
+  return col.type.includes("INT");
+}
+
+function isDateOnly(col: ColumnInfo): boolean {
+  return col.type === "DATE";
+}
+
+function isDateTime(col: ColumnInfo): boolean {
+  return col.type.includes("DATETIME") || col.type.includes("TIMESTAMP");
+}
+
+function formatFieldValue(col: ColumnInfo, value: unknown): string {
   if (value === null || value === undefined) return "";
-  if (col.type === "json") return JSON.stringify(value, null, 2);
+  if (isJson(col)) return JSON.stringify(value, null, 2);
   return String(value);
 }
 
-function buildInitialForm(table: TableDef, row: Row | null): Record<string, string | boolean> {
+function buildInitialForm(table: TableInfo, row: Row | null): Record<string, string | boolean> {
   const form: Record<string, string | boolean> = {};
   for (const col of table.columns) {
     const value = row ? row[col.name] : undefined;
-    if (col.type === "boolean") {
+    if (isBoolean(col)) {
       form[col.name] = value === undefined ? false : Boolean(value);
     } else {
       form[col.name] = formatFieldValue(col, value ?? null);
@@ -31,16 +53,17 @@ function buildInitialForm(table: TableDef, row: Row | null): Record<string, stri
 }
 
 interface RowEditorModalProps {
-  table: TableDef;
+  table: TableInfo;
   row: Row | null;
   onClose: () => void;
-  onSave: (row: Row) => void;
+  onSave: () => void;
 }
 
 export function RowEditorModal({ table, row, onClose, onSave }: RowEditorModalProps) {
   const isCreate = row === null;
   const [form, setForm] = useState(() => buildInitialForm(table, row));
   const [jsonErrors, setJsonErrors] = useState<Record<string, string>>({});
+  const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const editableColumns = useMemo(
@@ -59,38 +82,36 @@ export function RowEditorModal({ table, row, onClose, onSave }: RowEditorModalPr
     }
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setFormError(null);
 
     const errors: Record<string, string> = {};
-    const result: Row = row ? { ...row } : {};
+    const data: Row = {};
 
-    for (const col of table.columns) {
-      if (isCreate && col.pk) continue;
+    for (const col of editableColumns) {
+      if (col.pk) continue; // identifies the row, isn't part of the change
       const raw = form[col.name];
 
-      if (col.type === "boolean") {
-        result[col.name] = Boolean(raw);
+      if (isBoolean(col)) {
+        data[col.name] = Boolean(raw);
         continue;
       }
 
       const text = String(raw ?? "").trim();
       if (text === "") {
-        result[col.name] = null;
+        data[col.name] = null;
         continue;
       }
 
-      if (col.type === "integer") {
-        const n = Number(text);
-        result[col.name] = Number.isFinite(n) ? n : text;
-      } else if (col.type === "json") {
+      if (isJson(col)) {
         try {
-          result[col.name] = JSON.parse(text);
+          data[col.name] = JSON.parse(text);
         } catch {
           errors[col.name] = "Invalid JSON";
         }
       } else {
-        result[col.name] = text;
+        data[col.name] = text;
       }
     }
 
@@ -101,17 +122,18 @@ export function RowEditorModal({ table, row, onClose, onSave }: RowEditorModalPr
 
     setJsonErrors({});
     setSubmitting(true);
-    setTimeout(() => {
+    try {
       if (isCreate) {
-        for (const pkCol of pkColumns(table)) {
-          result[pkCol.name] = pkCol.type === "integer"
-            ? Math.floor(Math.random() * 90000) + 10000
-            : `auto-${Math.random().toString(36).slice(2, 8)}`;
-        }
+        await api.database.insertRow(table.name, data);
+      } else {
+        await api.database.updateRow(table.name, pkValues(table, row), data);
       }
+      onSave();
+    } catch (err) {
+      setFormError(err instanceof ApiError ? err.message : "Could not save the row.");
+    } finally {
       setSubmitting(false);
-      onSave(result);
-    }, 400);
+    }
   }
 
   return (
@@ -126,11 +148,14 @@ export function RowEditorModal({ table, row, onClose, onSave }: RowEditorModalPr
       </Modal.Header>
       <form onSubmit={handleSubmit}>
         <Modal.Body className="db-row-modal-body">
+          {formError && (
+            <div className="alert alert-danger py-2 px-3 small mb-3" role="alert">{formError}</div>
+          )}
           <div className="db-row-form-grid">
             {editableColumns.map((col) => (
               <div
                 key={col.name}
-                className={`db-field${isLongText(col) || col.type === "json" ? " db-field--wide" : ""}`}
+                className={`db-field${isLongText(col) || isJson(col) ? " db-field--wide" : ""}`}
               >
                 <label className="form-label db-field-label">
                   {col.name}
@@ -145,7 +170,7 @@ export function RowEditorModal({ table, row, onClose, onSave }: RowEditorModalPr
                     value={formatFieldValue(col, row?.[col.name] ?? "auto")}
                     disabled
                   />
-                ) : col.type === "boolean" ? (
+                ) : isBoolean(col) ? (
                   <div className="form-check form-switch db-field-switch">
                     <input
                       className="form-check-input"
@@ -155,7 +180,7 @@ export function RowEditorModal({ table, row, onClose, onSave }: RowEditorModalPr
                       onChange={(e) => setField(col.name, e.target.checked)}
                     />
                   </div>
-                ) : col.type === "json" ? (
+                ) : isJson(col) ? (
                   <>
                     <textarea
                       className={`form-control db-field-mono${jsonErrors[col.name] ? " is-invalid" : ""}`}
@@ -177,10 +202,10 @@ export function RowEditorModal({ table, row, onClose, onSave }: RowEditorModalPr
                 ) : (
                   <input
                     className="form-control"
-                    type={col.type === "integer" ? "number" : col.type === "date" ? "date" : "text"}
+                    type={isInteger(col) ? "number" : isDateOnly(col) ? "date" : "text"}
                     value={String(form[col.name] ?? "")}
                     onChange={(e) => setField(col.name, e.target.value)}
-                    placeholder={col.type === "datetime" ? "YYYY-MM-DD HH:MM:SS" : undefined}
+                    placeholder={isDateTime(col) ? "YYYY-MM-DD HH:MM:SS" : undefined}
                   />
                 )}
               </div>

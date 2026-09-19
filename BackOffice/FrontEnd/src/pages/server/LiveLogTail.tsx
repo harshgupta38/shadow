@@ -1,38 +1,32 @@
 import { useEffect, useRef, useState } from "react";
 import { Terminal, PauseFill, PlayFill } from "react-bootstrap-icons";
+import { api, ApiError } from "@/api";
 
-const SAMPLE_LINES = [
-  'INFO: 10.0.0.4:51322 - "GET /api/goals HTTP/1.1" 200 OK',
-  'INFO: 10.0.0.7:44210 - "POST /api/plan-records HTTP/1.1" 201 Created',
-  'INFO: 10.0.0.4:51340 - "GET /api/dashboard HTTP/1.1" 200 OK',
-  "INFO: worker-3 handled request in 84ms",
-  'INFO: 10.0.0.9:38810 - "GET /api/habits HTTP/1.1" 200 OK',
-  'INFO: 10.0.0.4:51322 - "POST /api/chat/messages HTTP/1.1" 200 OK',
-  "WARNING: Slow query detected (612ms) on plan_records",
-  'INFO: 10.0.0.11:60021 - "GET /api/reports/latest HTTP/1.1" 200 OK',
-  "INFO: worker-1 handled request in 41ms",
-  'INFO: 10.0.0.7:44210 - "GET /api/notifications HTTP/1.1" 200 OK',
-  'INFO: 10.0.0.13:51229 - "PATCH /api/tasks/12 HTTP/1.1" 200 OK',
-  "INFO: worker-4 handled request in 63ms",
-];
-
-function randomLine(): string {
-  const ip = `10.0.0.${Math.floor(Math.random() * 20) + 2}`;
-  const base = SAMPLE_LINES[Math.floor(Math.random() * SAMPLE_LINES.length)];
-  return base.replace(/10\.0\.0\.\d+/, ip);
-}
+const POLL_MS = 4000;
+const TAIL_LINES = 200;
 
 export function LiveLogTail() {
-  const [lines, setLines] = useState<string[]>(() => Array.from({ length: 6 }, randomLine));
+  const [lines, setLines] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const [live, setLive] = useState(true);
   const bodyRef = useRef<HTMLDivElement>(null);
 
+  async function fetchLog() {
+    try {
+      const text = await api.server.log(TAIL_LINES);
+      setLines(text ? text.split("\n") : []);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not reach the server log.");
+    }
+  }
+
   useEffect(() => {
+    fetchLog();
     if (!live) return;
-    const interval = setInterval(() => {
-      setLines((prev) => [...prev.slice(-49), randomLine()]);
-    }, 2200);
+    const interval = setInterval(fetchLog, POLL_MS);
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [live]);
 
   useEffect(() => {
@@ -44,7 +38,7 @@ export function LiveLogTail() {
       <div className="deploy-log-header">
         <div className="d-flex align-items-center gap-2">
           <Terminal size={13} />
-          <span>uvicorn · stdout</span>
+          <span>server.log (BackEnd_V2)</span>
           {live && <span className="deploy-log-badge deploy-log-badge--running">Live</span>}
         </div>
         <button
@@ -57,15 +51,20 @@ export function LiveLogTail() {
         </button>
       </div>
       <div className="deploy-log-body server-live-log-body" ref={bodyRef}>
-        {lines.map((line, i) => (
-          <div
-            key={i}
-            className={`deploy-log-line${line.startsWith("WARNING") ? " server-log-line--warn" : ""}`}
-          >
-            {line}
-          </div>
-        ))}
-        {live && <span className="deploy-log-cursor" />}
+        {error ? (
+          <div className="deploy-log-line server-log-line--warn">{error}</div>
+        ) : lines.length === 0 ? (
+          <div className="deploy-log-line">No log output yet.</div>
+        ) : (
+          lines.map((line, i) => (
+            <div
+              key={i}
+              className={`deploy-log-line${/warn|error/i.test(line) ? " server-log-line--warn" : ""}`}
+            >
+              {line || " "}
+            </div>
+          ))
+        )}
       </div>
     </div>
   );

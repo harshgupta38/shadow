@@ -88,3 +88,11 @@ export const http = {
     return httpClient.delete<T>(url, { data: body, ...config }).then((r) => r.data);
   },
 };
+
+// GET returning a raw text body (e.g. a PlainTextResponse log tail) instead
+// of JSON — a normal http.get<string> would still try to parse JSON.
+export function httpText(url: string, config?: AxiosRequestConfig): Promise<string> {
+  return httpClient
+    .get<string>(url, { ...config, responseType: "text" })
+    .then((r) => r.data);
+}

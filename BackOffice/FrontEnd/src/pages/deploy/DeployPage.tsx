@@ -1,4 +1,4 @@
-import { Fragment, useState, useEffect, useRef } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { Modal } from "react-bootstrap";
 import {
   CloudArrowUpFill,
@@ -10,164 +10,138 @@ import {
   PlusLg,
 } from "react-bootstrap-icons";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
-
-interface Deployment {
-  id: number;
-  tag: string;
-  description: string;
-  target: "Frontend" | "Backend" | "Both";
-  date: string;
-  duration: string;
-  status: "success" | "warn";
-  isCurrent: boolean;
-}
-
-const INITIAL_DEPLOYMENTS: Deployment[] = [
-  { id: 1,  tag: "v2.4.1", description: "Hotfix: auth token refresh",  target: "Both",     date: "18 Sep 2026", duration: "142s", status: "success", isCurrent: true  },
-  { id: 2,  tag: "v2.4.0", description: "Profile page redesign",        target: "Frontend", date: "15 Sep 2026", duration: "98s",  status: "success", isCurrent: false },
-  { id: 3,  tag: "v2.3.9", description: "API rate limiting",            target: "Both",     date: "10 Sep 2026", duration: "155s", status: "success", isCurrent: false },
-  { id: 4,  tag: "v2.3.8", description: "DB index optimisation",        target: "Backend",  date: "04 Sep 2026", duration: "61s",  status: "success", isCurrent: false },
-  { id: 5,  tag: "v2.3.7", description: "Habit tracker beta",           target: "Both",     date: "28 Aug 2026", duration: "133s", status: "warn",    isCurrent: false },
-  { id: 6,  tag: "v2.3.6", description: "Email verification",           target: "Both",     date: "20 Aug 2026", duration: "118s", status: "success", isCurrent: false },
-  { id: 7,  tag: "v2.3.5", description: "Password reset flow",          target: "Frontend", date: "14 Aug 2026", duration: "89s",  status: "success", isCurrent: false },
-  { id: 8,  tag: "v2.3.4", description: "Push notifications",           target: "Backend",  date: "06 Aug 2026", duration: "75s",  status: "success", isCurrent: false },
-  { id: 9,  tag: "v2.3.3", description: "Dark mode improvements",       target: "Frontend", date: "30 Jul 2026", duration: "93s",  status: "success", isCurrent: false },
-  { id: 10, tag: "v2.3.2", description: "Analytics integration",        target: "Both",     date: "22 Jul 2026", duration: "161s", status: "warn",    isCurrent: false },
-  { id: 11, tag: "v2.3.1", description: "Onboarding flow",              target: "Frontend", date: "14 Jul 2026", duration: "82s",  status: "success", isCurrent: false },
-  { id: 12, tag: "v2.3.0", description: "Initial V2 launch",            target: "Both",     date: "01 Jul 2026", duration: "198s", status: "success", isCurrent: false },
-];
+import { api, ApiError } from "@/api";
+import type { CommitInfo, Deployment, DeployTarget } from "@/api";
+import { formatDateTime, formatRelative, statusLabel, statusVariant } from "@/lib/format";
 
 const PAGE_SIZE = 5;
-
-function buildLogLines(tag: string, target: string, type: "deploy" | "rollback"): string[] {
-  const lines: string[] = [
-    `$ shadow-cli ${type} --tag ${tag} --target ${target.toLowerCase()}`,
-    "",
-    `[deploy] Task: ${type} · tag ${tag} · target: ${target}`,
-    `[deploy] Connecting to deploy server…`,
-    `[deploy] Authenticated ✓`,
-    `[deploy] Resolving tag ${tag} in registry…`,
-    `[deploy] Tag ${tag} found ✓`,
-  ];
-
-  if (target !== "Backend") {
-    lines.push(
-      "[deploy] Building frontend…",
-      "[deploy] → vite build — 2508 modules transformed",
-      "[deploy] → Bundle: 325 kB  (gzip: 107 kB)",
-      "[deploy] Uploading frontend assets…",
-      "[deploy] Frontend deployed ✓",
-    );
-  }
-  if (target !== "Frontend") {
-    lines.push(
-      "[deploy] Pulling backend image…",
-      "[deploy] Running database migrations…",
-      "[deploy] → 0 pending migrations",
-      "[deploy] Starting backend container…",
-      "[deploy] Health check → GET /health → 200 OK ✓",
-    );
-  }
-
-  lines.push(
-    "",
-    `[deploy] ✓ ${type === "rollback" ? "Rollback" : "Deployment"} complete  (${Math.floor(Math.random() * 60 + 80)}s)`,
-  );
-
-  return lines;
-}
-
-interface ActiveJob {
-  type: "deploy" | "rollback";
-  tag: string;
-  target: string;
-}
+const POLL_INTERVAL_MS = 1500;
 
 export function DeployPage() {
-  const [deployments, setDeployments] = useState<Deployment[]>(INITIAL_DEPLOYMENTS);
+  const [commits, setCommits] = useState<CommitInfo[]>([]);
+  const [deployments, setDeployments] = useState<Deployment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
   const [page, setPage] = useState(1);
-  const [confirmId, setConfirmId] = useState<number | null>(null);
+  const [confirmSha, setConfirmSha] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
 
-  const [formTag, setFormTag] = useState("");
+  const [formLabel, setFormLabel] = useState("");
   const [formDesc, setFormDesc] = useState("");
-  const [formTarget, setFormTarget] = useState<"Frontend" | "Backend" | "Both">("Both");
+  const [formTarget, setFormTarget] = useState<DeployTarget>("Backend");
   const [formSubmitting, setFormSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
-  const [activeJob, setActiveJob] = useState<ActiveJob | null>(null);
-  const [logLines, setLogLines] = useState<string[]>([]);
-  const [jobDone, setJobDone] = useState(false);
+  const [activeJob, setActiveJob] = useState<Deployment | null>(null);
+  const [revealedLines, setRevealedLines] = useState<string[]>([]);
   const logBodyRef = useRef<HTMLDivElement>(null);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const revealRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const totalPages = Math.ceil(deployments.length / PAGE_SIZE);
-  const pageData = deployments.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil(deployments.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pageDeployments = deployments.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const jobRunning = activeJob !== null && activeJob.status === "running";
+
+  async function loadAll() {
+    setLoading(true);
+    const [commitsResult, deploysResult] = await Promise.allSettled([
+      api.deploy.commits(20),
+      api.deploy.history(1, 50),
+    ]);
+    if (commitsResult.status === "fulfilled") setCommits(commitsResult.value);
+    if (deploysResult.status === "fulfilled") setDeployments(deploysResult.value);
+    setLoadError(
+      commitsResult.status === "rejected" && deploysResult.status === "rejected"
+        ? "Could not reach the BackOffice API."
+        : null,
+    );
+    setLoading(false);
+  }
 
   useEffect(() => {
-    if (logBodyRef.current) {
-      logBodyRef.current.scrollTop = logBodyRef.current.scrollHeight;
-    }
-  }, [logLines]);
+    loadAll();
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+      if (revealRef.current) clearInterval(revealRef.current);
+    };
+  }, []);
 
-  useEffect(() => () => { if (intervalRef.current) clearInterval(intervalRef.current); }, []);
+  useEffect(() => {
+    if (logBodyRef.current) logBodyRef.current.scrollTop = logBodyRef.current.scrollHeight;
+  }, [revealedLines]);
 
-  function startJob(job: ActiveJob, onComplete?: () => void) {
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    const lines = buildLogLines(job.tag, job.target, job.type);
-    setActiveJob(job);
-    setLogLines([]);
-    setJobDone(false);
-    setConfirmId(null);
-
+  function revealLog(text: string) {
+    if (revealRef.current) clearInterval(revealRef.current);
+    const lines = text.split("\n");
+    setRevealedLines([]);
     let i = 0;
-    intervalRef.current = setInterval(() => {
-      setLogLines((prev) => [...prev, lines[i]]);
+    revealRef.current = setInterval(() => {
+      setRevealedLines((prev) => [...prev, lines[i]]);
       i++;
       if (i >= lines.length) {
-        clearInterval(intervalRef.current!);
-        intervalRef.current = null;
-        setJobDone(true);
-        onComplete?.();
+        clearInterval(revealRef.current!);
+        revealRef.current = null;
       }
-    }, 120);
+    }, 90);
   }
 
-  function handleRollback(d: Deployment) {
-    startJob({ type: "rollback", tag: d.tag, target: d.target }, () => {
-      setDeployments((prev) => prev.map((dep) => ({ ...dep, isCurrent: dep.id === d.id })));
-    });
+  function pollJob(id: number) {
+    if (pollRef.current) clearInterval(pollRef.current);
+    pollRef.current = setInterval(async () => {
+      try {
+        const record = await api.deploy.detail(id);
+        setActiveJob(record);
+        if (record.status !== "running") {
+          clearInterval(pollRef.current!);
+          pollRef.current = null;
+          revealLog(record.log_output || "(no output)");
+          loadAll(); // refresh history + commits (a rollback/deploy may have moved HEAD)
+        }
+      } catch {
+        // transient network hiccup — keep polling, the interval will retry
+      }
+    }, POLL_INTERVAL_MS);
   }
 
-  function handleModalSubmit(e: React.FormEvent) {
+  async function handleRollback(commit: CommitInfo) {
+    setConfirmSha(null);
+    try {
+      const record = await api.deploy.rollback({
+        commit_sha: commit.sha,
+        description: `Rollback to ${commit.short_sha} — ${commit.message}`,
+      });
+      setActiveJob(record);
+      setRevealedLines([]);
+      pollJob(record.id);
+    } catch (err) {
+      setLoadError(err instanceof ApiError ? err.message : "Could not start the rollback.");
+    }
+  }
+
+  async function handleModalSubmit(e: React.FormEvent) {
     e.preventDefault();
     setFormSubmitting(true);
-    setTimeout(() => {
-      const tag = formTag.trim() || "v2.4.2";
-      const description = formDesc.trim() || "Manual deployment via BackOffice";
-      const target = formTarget;
-      setShowModal(false);
-      setFormSubmitting(false);
-      setFormTag("");
-      setFormDesc("");
-      setFormTarget("Both");
-
-      startJob({ type: "deploy", tag, target }, () => {
-        setDeployments((prev) => [
-          {
-            id: Date.now(),
-            tag,
-            description,
-            target,
-            date: new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
-            duration: `${Math.floor(Math.random() * 60 + 80)}s`,
-            status: "success",
-            isCurrent: true,
-          },
-          ...prev.map((dep) => ({ ...dep, isCurrent: false })),
-        ]);
-        setPage(1);
+    setFormError(null);
+    try {
+      const record = await api.deploy.trigger({
+        label: formLabel.trim(),
+        description: formDesc.trim(),
+        target: formTarget,
       });
-    }, 400);
+      setShowModal(false);
+      setFormLabel("");
+      setFormDesc("");
+      setFormTarget("Backend");
+      setActiveJob(record);
+      setRevealedLines([]);
+      pollJob(record.id);
+    } catch (err) {
+      setFormError(err instanceof ApiError ? err.message : "Could not start the deployment.");
+    } finally {
+      setFormSubmitting(false);
+    }
   }
 
   return (
@@ -182,8 +156,15 @@ export function DeployPage() {
           label: "New Deployment",
           icon: <PlusLg size={15} />,
           onClick: () => setShowModal(true),
+          disabled: jobRunning,
         }]}
       />
+
+      {loadError && (
+        <div className="alert alert-danger py-2 px-3 small mb-3" role="alert">
+          {loadError}
+        </div>
+      )}
 
       {/* Log panel */}
       {activeJob && (
@@ -192,133 +173,185 @@ export function DeployPage() {
             <div className="d-flex align-items-center gap-2">
               <Terminal size={13} />
               <span>
-                {activeJob.type === "rollback"
-                  ? `Rolling back to ${activeJob.tag}`
-                  : `Deploying ${activeJob.tag}`}
+                {activeJob.kind === "rollback" ? `Rolling back to ${activeJob.git_ref.slice(0, 7)}` : `Deploying ${activeJob.label}`}
               </span>
-              {jobDone
-                ? <span className="deploy-log-badge deploy-log-badge--ok">Done</span>
-                : <span className="deploy-log-badge deploy-log-badge--running">Running</span>}
+              {jobRunning
+                ? <span className="deploy-log-badge deploy-log-badge--running">Running</span>
+                : <span className={`deploy-log-badge deploy-log-badge--${activeJob.status === "success" ? "ok" : "running"}`}>
+                    {statusLabel(activeJob.status)}
+                  </span>}
             </div>
-            {jobDone && (
+            {!jobRunning && (
               <button type="button" className="btn btn-ghost btn-icon" onClick={() => setActiveJob(null)}>
                 <XLg size={13} />
               </button>
             )}
           </div>
           <div className="deploy-log-body" ref={logBodyRef}>
-            {logLines.map((line, i) => (
-              <div key={i} className="deploy-log-line">{line || " "}</div>
-            ))}
-            {!jobDone && <span className="deploy-log-cursor" />}
+            {jobRunning && revealedLines.length === 0 ? (
+              <div className="deploy-log-line">Waiting for the deploy to complete…</div>
+            ) : (
+              revealedLines.map((line, i) => (
+                <div key={i} className="deploy-log-line">{line || " "}</div>
+              ))
+            )}
+            {jobRunning && <span className="deploy-log-cursor" />}
           </div>
         </div>
       )}
 
-      {/* Table */}
-      <div className="dp-table-wrap">
-        <table className="dp-table">
-          <thead>
-            <tr>
-              <th>Tag</th>
-              <th>Description</th>
-              <th>Target</th>
-              <th>Date</th>
-              <th>Duration</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {pageData.map((d) => (
-              <Fragment key={d.id}>
+      {/* Recent commits — rollback targets */}
+      <div className="mb-4">
+        <h2 className="dp-section-title">Recent Commits</h2>
+        <div className="dp-table-wrap">
+          <table className="dp-table">
+            <thead>
+              <tr>
+                <th>Commit</th>
+                <th>Message</th>
+                <th>Author</th>
+                <th>Date</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {commits.length === 0 ? (
                 <tr>
-                  <td>
-                    <div className="d-flex align-items-center gap-2 flex-wrap">
-                      <span className="dp-tag">{d.tag}</span>
-                      {d.isCurrent && <span className="dp-current-badge">Current</span>}
-                    </div>
-                  </td>
-                  <td className="deploy-desc">{d.description}</td>
-                  <td>
-                    <span className={`deploy-target-pill deploy-target-pill--${d.target.toLowerCase()}`}>
-                      {d.target}
-                    </span>
-                  </td>
-                  <td style={{ color: "var(--jv-muted)", whiteSpace: "nowrap" }}>{d.date}</td>
-                  <td style={{ color: "var(--jv-muted)" }}>{d.duration}</td>
-                  <td>
-                    <span className={`dp-status-dot dp-status-dot--${d.status}`}>
-                      {d.status === "success" ? "Success" : "Partial"}
-                    </span>
-                  </td>
-                  <td>
-                    {d.isCurrent ? (
-                      <span style={{ color: "var(--jv-faint)", fontSize: "0.8rem" }}>—</span>
-                    ) : (
-                      <button
-                        type="button"
-                        className="btn-action btn-action--ghost"
-                        onClick={() => setConfirmId(confirmId === d.id ? null : d.id)}
-                      >
-                        <ArrowCounterclockwise size={13} />
-                        Rollback
-                      </button>
-                    )}
+                  <td colSpan={5} style={{ textAlign: "center", color: "var(--jv-faint)", padding: "1.5rem" }}>
+                    {loading ? "Loading…" : "No commit history available."}
                   </td>
                 </tr>
-                {confirmId === d.id && (
-                  <tr className="dp-confirm-row">
-                    <td colSpan={7}>
-                      <div className="dp-confirm-inner">
-                        <span>Rollback to <strong>{d.tag}</strong>?</span>
-                        <button type="button" className="btn-action btn-action--danger" onClick={() => handleRollback(d)}>
-                          Yes, rollback
-                        </button>
-                        <button type="button" className="btn-action btn-action--ghost" onClick={() => setConfirmId(null)}>
-                          Cancel
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                )}
-              </Fragment>
-            ))}
-          </tbody>
-        </table>
+              ) : (
+                commits.map((c) => (
+                  <Fragment key={c.sha}>
+                    <tr>
+                      <td>
+                        <div className="d-flex align-items-center gap-2 flex-wrap">
+                          <span className="dp-tag">{c.short_sha}</span>
+                          {c.is_current && <span className="dp-current-badge">Current</span>}
+                        </div>
+                      </td>
+                      <td className="deploy-desc">{c.message}</td>
+                      <td style={{ color: "var(--jv-muted)" }}>{c.author}</td>
+                      <td style={{ color: "var(--jv-muted)", whiteSpace: "nowrap" }}>{formatDateTime(c.date)}</td>
+                      <td>
+                        {c.is_current ? (
+                          <span style={{ color: "var(--jv-faint)", fontSize: "0.8rem" }}>—</span>
+                        ) : (
+                          <button
+                            type="button"
+                            className="btn-action btn-action--ghost"
+                            disabled={jobRunning}
+                            onClick={() => setConfirmSha(confirmSha === c.sha ? null : c.sha)}
+                          >
+                            <ArrowCounterclockwise size={13} />
+                            Rollback
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                    {confirmSha === c.sha && (
+                      <tr className="dp-confirm-row">
+                        <td colSpan={5}>
+                          <div className="dp-confirm-inner">
+                            <span>Roll back to <strong>{c.short_sha}</strong> — {c.message}?</span>
+                            <button type="button" className="btn-action btn-action--danger" onClick={() => handleRollback(c)}>
+                              Yes, rollback
+                            </button>
+                            <button type="button" className="btn-action btn-action--ghost" onClick={() => setConfirmSha(null)}>
+                              Cancel
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="deploy-pagination">
-          <button
-            type="button"
-            className="btn btn-ghost btn-icon"
-            disabled={page === 1}
-            onClick={() => setPage((p) => p - 1)}
-          >
-            <ChevronLeft size={14} />
-          </button>
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-            <button
-              key={p}
-              type="button"
-              className={`deploy-page-btn${p === page ? " deploy-page-btn--active" : ""}`}
-              onClick={() => setPage(p)}
-            >
-              {p}
-            </button>
-          ))}
-          <button
-            type="button"
-            className="btn btn-ghost btn-icon"
-            disabled={page === totalPages}
-            onClick={() => setPage((p) => p + 1)}
-          >
-            <ChevronRight size={14} />
-          </button>
+      {/* Deployment log — actions actually taken through BackOffice */}
+      <div>
+        <h2 className="dp-section-title">Deployment Log</h2>
+        <div className="dp-table-wrap">
+          <table className="dp-table">
+            <thead>
+              <tr>
+                <th>Label</th>
+                <th>Target</th>
+                <th>Kind</th>
+                <th>Date</th>
+                <th>Triggered By</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pageDeployments.length === 0 ? (
+                <tr>
+                  <td colSpan={6} style={{ textAlign: "center", color: "var(--jv-faint)", padding: "1.5rem" }}>
+                    {loading ? "Loading…" : "No deployments logged yet."}
+                  </td>
+                </tr>
+              ) : (
+                pageDeployments.map((d) => (
+                  <tr key={d.id}>
+                    <td>
+                      <span className="dp-tag" title={d.description || undefined}>{d.label}</span>
+                    </td>
+                    <td>
+                      <span className={`deploy-target-pill deploy-target-pill--${d.target.toLowerCase()}`}>
+                        {d.target}
+                      </span>
+                    </td>
+                    <td style={{ color: "var(--jv-muted)", textTransform: "capitalize" }}>{d.kind}</td>
+                    <td style={{ color: "var(--jv-muted)", whiteSpace: "nowrap" }}>{formatRelative(d.started_at)}</td>
+                    <td style={{ color: "var(--jv-muted)" }}>{d.triggered_by}</td>
+                    <td>
+                      <span className={`dp-status-dot dp-status-dot--${statusVariant(d.status)}`}>
+                        {statusLabel(d.status)}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
-      )}
+
+        {totalPages > 1 && (
+          <div className="deploy-pagination">
+            <button
+              type="button"
+              className="btn btn-ghost btn-icon"
+              disabled={safePage === 1}
+              onClick={() => setPage(safePage - 1)}
+            >
+              <ChevronLeft size={14} />
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+              <button
+                key={p}
+                type="button"
+                className={`deploy-page-btn${p === safePage ? " deploy-page-btn--active" : ""}`}
+                onClick={() => setPage(p)}
+              >
+                {p}
+              </button>
+            ))}
+            <button
+              type="button"
+              className="btn btn-ghost btn-icon"
+              disabled={safePage === totalPages}
+              onClick={() => setPage(safePage + 1)}
+            >
+              <ChevronRight size={14} />
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* New Deployment Modal */}
       <Modal
@@ -341,17 +374,26 @@ export function DeployPage() {
         </Modal.Header>
         <form onSubmit={handleModalSubmit}>
           <Modal.Body>
+            {formError && (
+              <div className="alert alert-danger py-2 px-3 small mb-3" role="alert">
+                {formError}
+              </div>
+            )}
             <div className="mb-3">
-              <label className="form-label">Git Tag</label>
+              <label className="form-label">Label</label>
               <input
                 type="text"
                 className="form-control"
-                placeholder="e.g. v2.4.2"
-                value={formTag}
-                onChange={(e) => setFormTag(e.target.value)}
+                placeholder="e.g. Hotfix — auth token refresh"
+                value={formLabel}
+                onChange={(e) => setFormLabel(e.target.value)}
                 required
                 autoFocus
               />
+              <div className="form-text">
+                There are no git tags in this repo — this deploys the latest commit on the
+                tracked branch. The label is just for your own record-keeping.
+              </div>
             </div>
             <div className="mb-3">
               <label className="form-label">
@@ -381,6 +423,12 @@ export function DeployPage() {
                   </button>
                 ))}
               </div>
+              {formTarget !== "Backend" && (
+                <div className="form-text">
+                  Only the backend is redeployed automatically. Frontend changes are deployed
+                  separately (Firebase Hosting) and aren't triggered from here.
+                </div>
+              )}
             </div>
           </Modal.Body>
           <Modal.Footer>

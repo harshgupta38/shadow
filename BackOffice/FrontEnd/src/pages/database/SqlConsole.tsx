@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Terminal, Trash } from "react-bootstrap-icons";
-import { TABLES, type Row, type TableData } from "./schema";
+import { api, ApiError } from "@/api";
+import type { Row } from "@/api";
 
-interface RowsResult { kind: "rows"; columns: string[]; rows: Row[]; ms: number; }
-interface StatusResult { kind: "status"; message: string; }
+interface RowsResult { kind: "rows"; columns: string[]; rows: Row[]; rowcount: number; ms: number; }
 interface ErrorResult { kind: "error"; message: string; }
-type QueryResult = RowsResult | StatusResult | ErrorResult;
+type QueryResult = RowsResult | ErrorResult | null; // null while the request is in flight
 
 interface HistoryEntry {
   id: number;
@@ -20,55 +20,6 @@ const EXAMPLE_QUERIES = [
   "SELECT title, status FROM milestones;",
 ];
 
-const KNOWN_TABLES = new Set(TABLES.map((t) => t.name));
-
-function runQuery(raw: string, dataByTable: TableData): QueryResult {
-  const query = raw.trim().replace(/;$/, "");
-  if (!query) return { kind: "error", message: "Empty query." };
-
-  const ms = Math.round(Math.random() * 12 + 2);
-
-  const selectMatch = query.match(/^select\s+(.+?)\s+from\s+([a-z_][a-z0-9_]*)/i);
-  if (selectMatch) {
-    const [, projection, tableName] = selectMatch;
-    if (!KNOWN_TABLES.has(tableName)) {
-      return { kind: "error", message: `Error: no such table: ${tableName}` };
-    }
-
-    const allRows = dataByTable[tableName] ?? [];
-
-    if (/count\(\*\)/i.test(projection)) {
-      return { kind: "rows", columns: ["COUNT(*)"], rows: [{ "COUNT(*)": allRows.length }], ms };
-    }
-
-    const limitMatch = query.match(/limit\s+(\d+)/i);
-    const limit = limitMatch ? parseInt(limitMatch[1], 10) : allRows.length;
-    const limited = allRows.slice(0, limit);
-
-    const wantsAll = projection.trim() === "*";
-    const tableDef = TABLES.find((t) => t.name === tableName);
-    const columns = wantsAll
-      ? (limited[0] ? Object.keys(limited[0]) : (tableDef?.columns.map((c) => c.name) ?? []))
-      : projection.split(",").map((c) => c.trim());
-
-    const rows = wantsAll
-      ? limited
-      : limited.map((r) => Object.fromEntries(columns.map((c) => [c, r[c]])));
-
-    return { kind: "rows", columns, rows, ms };
-  }
-
-  if (/^(insert|update|delete)\b/i.test(query)) {
-    return { kind: "status", message: `Query OK, 1 row affected (${(ms / 1000).toFixed(3)} sec)` };
-  }
-
-  if (/^(create|drop|alter|pragma|begin|commit|rollback)\b/i.test(query)) {
-    return { kind: "status", message: `Query OK, 0 rows affected (${(ms / 1000).toFixed(3)} sec)` };
-  }
-
-  return { kind: "error", message: `Error: syntax error near "${query.split(/\s+/)[0]}"` };
-}
-
 function ResultTable({ result }: { result: RowsResult }) {
   return (
     <>
@@ -82,7 +33,7 @@ function ResultTable({ result }: { result: RowsResult }) {
           <tbody>
             {result.rows.length === 0 ? (
               <tr>
-                <td colSpan={result.columns.length} className="sql-console-empty-cell">
+                <td colSpan={result.columns.length || 1} className="sql-console-empty-cell">
                   (0 rows)
                 </td>
               </tr>
@@ -107,22 +58,21 @@ function ResultTable({ result }: { result: RowsResult }) {
         </table>
       </div>
       <div className="sql-console-status sql-console-status--ok">
-        {result.rows.length} row{result.rows.length === 1 ? "" : "s"} returned
+        {result.rows.length > 0
+          ? `${result.rows.length} row${result.rows.length === 1 ? "" : "s"} returned`
+          : `Query OK, ${result.rowcount} row${result.rowcount === 1 ? "" : "s"} affected`}
         {" "}({(result.ms / 1000).toFixed(3)} sec)
       </div>
     </>
   );
 }
 
-interface SqlConsoleProps {
-  dataByTable: TableData;
-}
-
-export function SqlConsole({ dataByTable }: SqlConsoleProps) {
+export function SqlConsole() {
   const [input, setInput] = useState("");
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [queryLog, setQueryLog] = useState<string[]>([]);
   const [logIndex, setLogIndex] = useState<number | null>(null);
+  const [running, setRunning] = useState(false);
   const bodyRef = useRef<HTMLDivElement>(null);
   const idRef = useRef(0);
 
@@ -130,14 +80,33 @@ export function SqlConsole({ dataByTable }: SqlConsoleProps) {
     if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
   }, [history]);
 
-  function execute(query: string) {
-    if (!query.trim()) return;
-    const result = runQuery(query, dataByTable);
+  async function execute(query: string) {
+    if (!query.trim() || running) return;
     idRef.current += 1;
-    setHistory((prev) => [...prev, { id: idRef.current, query, result }]);
+    const id = idRef.current;
+    setHistory((prev) => [...prev, { id, query, result: null }]);
     setQueryLog((prev) => [...prev, query]);
     setLogIndex(null);
     setInput("");
+    setRunning(true);
+
+    const start = performance.now();
+    try {
+      const res = await api.database.runQuery(query);
+      const ms = performance.now() - start;
+      setHistory((prev) => prev.map((e) => (
+        e.id === id
+          ? { ...e, result: { kind: "rows", columns: res.columns, rows: res.rows, rowcount: res.rowcount, ms } }
+          : e
+      )));
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : "Query failed.";
+      setHistory((prev) => prev.map((e) => (
+        e.id === id ? { ...e, result: { kind: "error", message } } : e
+      )));
+    } finally {
+      setRunning(false);
+    }
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -202,15 +171,13 @@ export function SqlConsole({ dataByTable }: SqlConsoleProps) {
               <span className="sql-console-prompt-char">db&gt;</span> {entry.query}
             </div>
 
-            {entry.result.kind === "error" && (
+            {entry.result === null && (
+              <div className="sql-console-status">Running…</div>
+            )}
+            {entry.result?.kind === "error" && (
               <div className="sql-console-status sql-console-status--error">{entry.result.message}</div>
             )}
-
-            {entry.result.kind === "status" && (
-              <div className="sql-console-status sql-console-status--ok">{entry.result.message}</div>
-            )}
-
-            {entry.result.kind === "rows" && <ResultTable result={entry.result} />}
+            {entry.result?.kind === "rows" && <ResultTable result={entry.result} />}
           </div>
         ))}
       </div>
@@ -225,14 +192,15 @@ export function SqlConsole({ dataByTable }: SqlConsoleProps) {
           placeholder="SELECT * FROM users;"
           spellCheck={false}
           autoFocus
+          disabled={running}
         />
         <button
           type="button"
           className="btn btn-brand sql-console-run-btn"
           onClick={() => execute(input)}
-          disabled={!input.trim()}
+          disabled={!input.trim() || running}
         >
-          Run
+          {running ? "Running…" : "Run"}
         </button>
       </div>
     </div>

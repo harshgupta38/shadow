@@ -1,20 +1,57 @@
+import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { StatCard } from "@/components/ui/StatCard/StatCard";
-
-const RECENT_DEPLOYMENTS = [
-  { tag: "v2.4.1", target: "Both targets",     date: "18 Sep 2026", duration: "142s", status: "success" as const },
-  { tag: "v2.4.0", target: "Frontend only",    date: "15 Sep 2026", duration: "98s",  status: "success" as const },
-  { tag: "v2.3.9", target: "Both targets",     date: "10 Sep 2026", duration: "155s", status: "success" as const },
-  { tag: "v2.3.8", target: "Backend only",     date: "04 Sep 2026", duration: "61s",  status: "success" as const },
-  { tag: "v2.3.7", target: "Both targets",     date: "28 Aug 2026", duration: "133s", status: "warn"    as const },
-];
+import { api } from "@/api";
+import type { Deployment, RestartLog, ServerHealth } from "@/api";
+import { formatDate, formatRelative, formatUptime, statusLabel, statusVariant } from "@/lib/format";
 
 export function DashboardPage() {
   const { user } = useAuth();
 
+  const [deployments, setDeployments] = useState<Deployment[]>([]);
+  const [health, setHealth] = useState<ServerHealth | null>(null);
+  const [lastRestart, setLastRestart] = useState<RestartLog | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      setLoading(true);
+      const [deploysResult, healthResult, restartResult] = await Promise.allSettled([
+        api.deploy.history(1, 5),
+        api.server.health(),
+        api.server.restartHistory(1, 1),
+      ]);
+
+      if (cancelled) return;
+
+      if (deploysResult.status === "fulfilled") setDeployments(deploysResult.value);
+      if (healthResult.status === "fulfilled") setHealth(healthResult.value);
+      if (restartResult.status === "fulfilled") setLastRestart(restartResult.value[0] ?? null);
+
+      if (deploysResult.status === "rejected" && healthResult.status === "rejected") {
+        setError("Could not reach the BackOffice API.");
+      } else {
+        setError(null);
+      }
+
+      setLoading(false);
+    }
+
+    load();
+    return () => { cancelled = true; };
+  }, []);
+
   const hour = new Date().getHours();
   const greeting =
     hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+
+  const lastDeployment = deployments[0];
+  const oldestWorkerUptime = health?.workers.length
+    ? Math.max(...health.workers.map((w) => w.uptime_seconds))
+    : null;
 
   return (
     <>
@@ -24,12 +61,38 @@ export function DashboardPage() {
         <p className="page-subtitle text-muted-2 mb-0">Here's your system overview for today.</p>
       </div>
 
+      {error && (
+        <div className="alert alert-danger py-2 px-3 small mb-3" role="alert">
+          {error}
+        </div>
+      )}
+
       {/* Stat cards */}
       <div className="dp-stats">
-        <StatCard variant="brand"   value="v2.4.1"   name="Last Deployment" hint="Both targets · 18 Sep" />
-        <StatCard variant="success" value="24%"       name="Server Health"   hint="Online · 10d uptime"  />
-        <StatCard variant="info"    value="14.2 MB"   name="Last DB Backup"  hint="Today · 02:00 AM"     />
-        <StatCard variant="warn"    value="10d 4h"    name="Server Uptime"   hint="Since 08 Sep 2026"    />
+        <StatCard
+          variant={lastDeployment ? statusVariant(lastDeployment.status) : "brand"}
+          value={lastDeployment ? lastDeployment.label : loading ? "…" : "—"}
+          name="Last Deployment"
+          hint={lastDeployment ? `${lastDeployment.target} · ${formatRelative(lastDeployment.started_at)}` : "No deployments yet"}
+        />
+        <StatCard
+          variant={health?.reachable ? "success" : "warn"}
+          value={health ? (health.reachable ? "Online" : "Unreachable") : loading ? "…" : "—"}
+          name="Server Status"
+          hint={health?.cpu_percent != null ? `CPU ${health.cpu_percent.toFixed(0)}%` : "No data"}
+        />
+        <StatCard
+          variant={lastRestart ? statusVariant(lastRestart.status) : "info"}
+          value={lastRestart ? statusLabel(lastRestart.status) : loading ? "…" : "None yet"}
+          name="Last Restart"
+          hint={lastRestart ? formatRelative(lastRestart.started_at) : "No restarts logged"}
+        />
+        <StatCard
+          variant="warn"
+          value={formatUptime(oldestWorkerUptime)}
+          name="Server Uptime"
+          hint={health?.workers.length ? `${health.workers.length} worker${health.workers.length === 1 ? "" : "s"} running` : "No workers detected"}
+        />
       </div>
 
       {/* Recent deployments */}
@@ -39,29 +102,35 @@ export function DashboardPage() {
           <table className="dp-table">
             <thead>
               <tr>
-                <th>Tag</th>
+                <th>Label</th>
                 <th>Target</th>
                 <th>Date</th>
-                <th>Duration</th>
+                <th>Triggered By</th>
                 <th>Status</th>
               </tr>
             </thead>
             <tbody>
-              {RECENT_DEPLOYMENTS.map((d) => (
-                <tr key={d.tag + d.date}>
-                  <td><span className="dp-tag">{d.tag}</span></td>
-                  <td style={{ color: "var(--jv-muted)" }}>{d.target}</td>
-                  <td style={{ color: "var(--jv-muted)" }}>{d.date}</td>
-                  <td style={{ color: "var(--jv-muted)" }}>{d.duration}</td>
-                  <td>
-                    <span
-                      className={`dp-status-dot dp-status-dot--${d.status}`}
-                    >
-                      {d.status === "success" ? "Success" : "Partial"}
-                    </span>
+              {deployments.length === 0 ? (
+                <tr>
+                  <td colSpan={5} style={{ textAlign: "center", color: "var(--jv-faint)", padding: "1.5rem" }}>
+                    {loading ? "Loading…" : "No deployments yet."}
                   </td>
                 </tr>
-              ))}
+              ) : (
+                deployments.map((d) => (
+                  <tr key={d.id}>
+                    <td><span className="dp-tag">{d.label}</span></td>
+                    <td style={{ color: "var(--jv-muted)" }}>{d.target}</td>
+                    <td style={{ color: "var(--jv-muted)" }}>{formatDate(d.started_at)}</td>
+                    <td style={{ color: "var(--jv-muted)" }}>{d.triggered_by}</td>
+                    <td>
+                      <span className={`dp-status-dot dp-status-dot--${statusVariant(d.status)}`}>
+                        {statusLabel(d.status)}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

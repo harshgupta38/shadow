@@ -727,6 +727,10 @@ h1, h2, h3, h4, h5, h6, .display-font {
     border-color: color-mix(in srgb, var(--jv-info) 22%, var(--jv-border));
     .dp-stat-val { color: var(--jv-info); }
   }
+  &--danger {
+    border-color: color-mix(in srgb, var(--jv-danger) 22%, var(--jv-border));
+    .dp-stat-val { color: var(--jv-danger); }
+  }
 
   @media (max-width: 720px) {
     flex: 1 1 calc(50% - 0.375rem);

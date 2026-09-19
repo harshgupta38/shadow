@@ -1,5 +1,5 @@
 interface StatCardProps {
-  variant: "success" | "warn" | "info" | "brand";
+  variant: "success" | "warn" | "info" | "brand" | "danger";
   value: string;
   name: string;
   hint: string;

@@ -21,8 +21,16 @@ fi
 
 # Fallback for a server started outside this script (or before this fix
 # existed), which has no pidfile to key off: match the arbiter's own cmdline
-# and the spawn workers' bootstrap cmdline directly.
-pkill -9 -f uvicorn 2>/dev/null
+# directly. Scoped to this port specifically — an earlier unscoped
+# `pkill -9 -f uvicorn` matched ANY uvicorn process on the device, including
+# BackOffice's (port 8100) and the Control Server's (port 9000), so every
+# restart here also killed them as collateral damage mid-request. Same
+# convention as restart_backoffice.sh's own port-scoped fallback.
+pkill -9 -f "uvicorn app.main:app.*--port 8000" 2>/dev/null
+# multiprocessing spawn workers' bootstrap cmdline carries no port/app info
+# to scope by — this one stays unscoped, but is harmless today since neither
+# BackOffice nor the Control Server run with --workers N (no spawn children
+# for it to accidentally match).
 pkill -9 -f "multiprocessing.spawn" 2>/dev/null
 
 # Wait for the port to actually be free before starting a new instance, otherwise

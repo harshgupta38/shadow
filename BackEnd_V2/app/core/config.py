@@ -72,6 +72,10 @@ class Settings(BaseSettings):
     ip_geolocation_base_url: str = "http://ip-api.com/json/{ip}?fields=status,country,regionName,city,lat,lon"
     ip_geolocation_timeout_seconds: float = 2.5
 
+    # Shared secret for the /admin/sql and /admin/database endpoints — must match
+    # SHADOW_ADMIN_SECRET in BackOffice's own .env.
+    admin_secret: str = "change-this-in-production"
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

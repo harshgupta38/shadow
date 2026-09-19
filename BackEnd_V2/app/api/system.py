@@ -14,8 +14,6 @@ from app.services import backup_service
 
 router = APIRouter()
 
-_ADMIN_SECRET = "admin@harsh_gupta-18042026-983652"
-
 
 class SqlRequest(BaseModel):
     query: str
@@ -98,7 +96,7 @@ async def get_server_log():
 
 @router.get(ENDPOINTS.SYSTEM.ADMIN_DATABASE, tags=["admin"]) # extra
 def download_database(x_admin_secret: str = Header(...)):
-    if x_admin_secret != _ADMIN_SECRET:
+    if x_admin_secret != settings.admin_secret:
         raise HTTPException(status_code=403, detail="Forbidden.")
 
     # Take a consistent snapshot via SQLite's online backup API instead of streaming
@@ -117,7 +115,7 @@ def download_database(x_admin_secret: str = Header(...)):
 
 @router.post(ENDPOINTS.SYSTEM.ADMIN_SQL, tags=["admin"])
 def run_sql(body: SqlRequest, x_admin_secret: str = Header(...)):
-    if x_admin_secret != _ADMIN_SECRET:
+    if x_admin_secret != settings.admin_secret:
         raise HTTPException(status_code=403, detail="Forbidden.")
 
     conn = sqlite3.connect("shadow.db")

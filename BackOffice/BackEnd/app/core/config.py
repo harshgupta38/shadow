@@ -38,6 +38,14 @@ class Settings(BaseSettings):
     # existing /admin/sql and /admin/database endpoints with this header.
     shadow_admin_secret: str = ""
 
+    # Shared secret for BackOffice's OWN /admin/sql and /admin/database.
+    admin_secret: str = "change-this-in-production"
+
+    # BackOffice's own repo/branch — checked by POST /restart (its own
+    # deploy webhook), same convention as shadow_git_ref/shadow_git_branch.
+    backoffice_git_ref: str = "refs/heads/R202609/backoffice"
+    backoffice_git_branch: str = "R202609/backoffice"
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

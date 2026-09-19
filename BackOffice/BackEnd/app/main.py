@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 
 from app.api.router import api_router
+from app.api.system import router as system_router
 from app.core.config import settings
 from app.core.exceptions import AppError
 from app.db.session import SessionLocal, engine
@@ -105,14 +106,5 @@ async def handle_validation_error(_request: Request, exc: RequestValidationError
     )
 
 
-@app.get("/")
-def root() -> dict:
-    return {"name": settings.app_name, "version": settings.app_version, "status": "ok"}
-
-
-@app.get("/health")
-def health() -> dict:
-    return {"status": "ok"}
-
-
+app.include_router(system_router)
 app.include_router(api_router, prefix=settings.api_prefix)

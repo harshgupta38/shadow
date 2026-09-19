@@ -1,29 +1,27 @@
 """Deploy/rollback orchestration.
 
 There are no git tags in this repo — releases are just commits merged into
-the tracked branch (see webhook_listener.py's hardcoded ref check). So:
+the tracked branch. Every git/restart action is delegated to the Control
+Server (Server/, port 9000) over HTTP — BackOffice holds no direct
+filesystem or subprocess access to BackEnd_V2's repo, it only calls:
 
-  * "Deploy" = trigger the exact same webhook_listener.py flow a real GitHub
-    push already triggers (git fetch/checkout/pull the tracked branch, then
-    restart_server.sh). BackOffice never re-implements that chain itself —
-    it POSTs the same payload a webhook would send.
-  * "Rollback" = check out a specific past commit directly (webhook_listener
-    only ever pulls the branch tip, it has no notion of "an older version").
-    This is the one place BackOffice runs git itself. It's a temporary,
-    detached-HEAD state by design: the next normal deploy moves the branch
-    back to its tip and supersedes it — this is meant for emergency
-    recovery, not a permanent revert.
+  * "Deploy" = POST /control/main/deploy on the Control Server, which runs
+    git fetch/checkout/pull (whatever branch is currently checked out,
+    unless a branch is explicitly given) then restart_server.sh.
+  * "Rollback" = POST /control/main/rollback with a commit SHA — checks out
+    that commit directly (detached HEAD). This is temporary by design: the
+    next normal deploy moves the branch back to its tip — it's for
+    emergency recovery, not a permanent revert.
+  * Commit history / "current commit" = POST /git/main with a whitelisted
+    `git log` / `git rev-parse` call — same Control Server, read-only.
 
-Both triggers are fire-and-forget from the OS's point of view (webhook.py
-backgrounds its shell command; restart_server.sh backgrounds the new uvicorn
-process), so neither gives a synchronous success signal. Confirmation comes
-from polling shadow_client.wait_for_restart() afterwards.
+All of these are synchronous HTTP calls (the Control Server itself runs the
+subprocess and returns the exit code + output), so unlike the old webhook
+flow there IS a direct success/failure signal — the extra health-poll below
+is just an additional sanity check that the process actually came back up.
 """
 
-import subprocess
-import time
 from datetime import datetime, timezone
-from pathlib import Path
 
 import httpx
 from sqlalchemy.orm import Session
@@ -33,9 +31,15 @@ from app.db.session import SessionLocal
 from app.models.deployment_log import DeploymentLogDBM
 from app.services import shadow_client
 
+_client = httpx.Client(timeout=90.0)
 
-def _backend_dir() -> Path:
-    return Path(settings.shadow_backend_dir).expanduser()
+
+def _headers() -> dict:
+    return {"X-Control-Secret": settings.control_secret}
+
+
+def _control_post(path: str, json: dict | None = None) -> httpx.Response:
+    return _client.post(f"{settings.control_server_url}{path}", json=json, headers=_headers())
 
 
 def _utcnow() -> datetime:
@@ -44,31 +48,28 @@ def _utcnow() -> datetime:
 
 def _current_commit_sha() -> str | None:
     try:
-        result = subprocess.run(
-            ["git", "rev-parse", "HEAD"],
-            cwd=_backend_dir(), capture_output=True, text=True, timeout=10,
-        )
-        return result.stdout.strip() if result.returncode == 0 else None
-    except Exception:
+        resp = _control_post("/git/main", {"args": ["rev-parse", "HEAD"]})
+    except httpx.RequestError:
         return None
+    if resp.status_code != 200:
+        return None
+    sha = resp.json().get("stdout", "").strip()
+    return sha or None
 
 
 def list_recent_commits(limit: int = 20) -> list[dict]:
     """Real deployment history — the tracked branch's commit log, standing
     in for the fictional version tags the UI used to show."""
     try:
-        result = subprocess.run(
-            ["git", "log", f"-{limit}", "--pretty=format:%H|%h|%an|%aI|%s"],
-            cwd=_backend_dir(), capture_output=True, text=True, timeout=10,
-        )
-    except Exception:
+        resp = _control_post("/git/main", {"args": ["log", f"-{limit}", "--pretty=format:%H|%h|%an|%aI|%s"]})
+    except httpx.RequestError:
         return []
-    if result.returncode != 0:
+    if resp.status_code != 200:
         return []
 
     current = _current_commit_sha()
     commits = []
-    for line in result.stdout.splitlines():
+    for line in resp.json().get("stdout", "").splitlines():
         parts = line.split("|", 4)
         if len(parts) != 5:
             continue
@@ -87,7 +88,7 @@ def list_recent_commits(limit: int = 20) -> list[dict]:
 def create_deployment_record(db: Session, label: str, description: str, target: str, triggered_by: str) -> DeploymentLogDBM:
     log = DeploymentLogDBM(
         label=label, description=description, target=target, kind="deploy",
-        git_ref=settings.shadow_git_ref, status="running", triggered_by=triggered_by,
+        git_ref="(current branch)", status="running", triggered_by=triggered_by,
     )
     db.add(log)
     db.commit()
@@ -124,16 +125,17 @@ def run_deploy_job(deployment_id: int, target: str) -> None:
         if log is None:
             return
 
-        lines = [f"$ POST {settings.shadow_webhook_url}/webhook  (ref={settings.shadow_git_ref})"]
+        lines = [f"$ POST {settings.control_server_url}/control/main/deploy"]
         try:
-            resp = httpx.post(
-                f"{settings.shadow_webhook_url}/webhook",
-                json={"ref": settings.shadow_git_ref},
-                timeout=10.0,
-            )
-            lines.append(f"webhook_listener responded: {resp.status_code} {resp.text}")
+            resp = _control_post("/control/main/deploy")
+            lines.append(f"control server responded: {resp.status_code}")
+            lines.append(resp.text)
         except httpx.RequestError as e:
-            lines.append(f"ERROR: could not reach webhook_listener: {e}")
+            lines.append(f"ERROR: could not reach control server: {e}")
+            _finish(db, log, "failed", lines)
+            return
+
+        if resp.status_code >= 400:
             _finish(db, log, "failed", lines)
             return
 
@@ -169,41 +171,26 @@ def run_rollback_job(deployment_id: int, commit_sha: str) -> None:
         if log is None:
             return
 
-        backend_dir = _backend_dir()
-        lines = [f"$ cd {backend_dir} && git fetch origin && git checkout {commit_sha} && ./restart_server.sh"]
-
+        lines = [f"$ POST {settings.control_server_url}/control/main/rollback  (commit_sha={commit_sha})"]
         try:
-            fetch = subprocess.run(
-                ["git", "fetch", "origin"], cwd=backend_dir,
-                capture_output=True, text=True, timeout=30,
-            )
-            lines.append((fetch.stdout + fetch.stderr).strip())
-
-            checkout = subprocess.run(
-                ["git", "checkout", commit_sha], cwd=backend_dir,
-                capture_output=True, text=True, timeout=15,
-            )
-            lines.append((checkout.stdout + checkout.stderr).strip())
-            if checkout.returncode != 0:
-                raise RuntimeError(f"git checkout failed: {checkout.stderr.strip()}")
-
-            lines.append(
-                "NOTE: this checks out a specific commit in a detached HEAD "
-                f"state. The next regular deploy (git push to "
-                f"{settings.shadow_git_branch}) will move the branch back to "
-                "its latest commit, so this rollback is temporary by design "
-                "— it's for emergency recovery, not a permanent revert."
-            )
-
-            restart = subprocess.run(
-                ["bash", "restart_server.sh"], cwd=backend_dir,
-                capture_output=True, text=True, timeout=30,
-            )
-            lines.append((restart.stdout + restart.stderr).strip())
-        except Exception as e:
-            lines.append(f"ERROR: {e}")
+            resp = _control_post("/control/main/rollback", {"commit_sha": commit_sha})
+            lines.append(f"control server responded: {resp.status_code}")
+            lines.append(resp.text)
+        except httpx.RequestError as e:
+            lines.append(f"ERROR: could not reach control server: {e}")
             _finish(db, log, "failed", lines)
             return
+
+        if resp.status_code >= 400:
+            _finish(db, log, "failed", lines)
+            return
+
+        lines.append(
+            "NOTE: this checks out a specific commit in a detached HEAD "
+            "state. The next regular deploy will move the branch back to "
+            "its latest commit, so this rollback is temporary by design "
+            "— it's for emergency recovery, not a permanent revert."
+        )
 
         healthy = shadow_client.wait_for_restart()
         lines.append(

@@ -1,11 +1,10 @@
 """BackOffice's own public system endpoints — mirrors BackEnd_V2's
-app/api/system.py (health, server log, admin database/sql), plus a
-restart-webhook endpoint since BackOffice has no separate exposed webhook
-listener process the way BackEnd_V2 does (its own webhook_listener.py runs
-on port 9001, which isn't publicly reachable).
+app/api/system.py (health, server log, admin database/sql).
+
+Deploys and restarts are handled by the Control Server (Server/) running on
+port 9000, not by endpoints inside this API.
 """
 
-import os
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
@@ -23,10 +22,6 @@ router = APIRouter()
 
 class SqlRequest(BaseModel):
     query: str
-
-
-class RestartRequest(BaseModel):
-    ref: str
 
 
 @router.get(ENDPOINTS.SYSTEM.ROOT, tags=["health"])
@@ -106,13 +101,3 @@ def run_sql(body: SqlRequest, x_admin_secret: str = Header(...)):
         conn.close()
 
 
-@router.post(ENDPOINTS.SYSTEM.RESTART, tags=["admin"])
-def restart(body: RestartRequest):
-    if body.ref != settings.backoffice_git_ref:
-        return {"message": f"Ignored: not {settings.backoffice_git_branch} branch"}
-
-    os.system(
-        f"git fetch origin && git checkout {settings.backoffice_git_branch} "
-        f"&& git pull origin {settings.backoffice_git_branch} && ./restart_backoffice.sh &"
-    )
-    return {"message": "Success"}

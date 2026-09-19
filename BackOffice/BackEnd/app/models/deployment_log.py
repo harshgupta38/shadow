@@ -10,7 +10,7 @@ class DeploymentLogDBM(Base):
     """A record of a deploy/rollback action triggered from BackOffice.
 
     This is genuinely new — BackEnd_V2 has no deploy/restart history of its
-    own (webhook_listener.py + restart_server.sh only ever leave behind
+    own (the control server + restart_server.sh only ever leave behind
     server.log, which is overwritten on every restart).
     """
 

@@ -79,10 +79,10 @@ def fetch_server_log(tail_lines: int = 200) -> str:
 
 def wait_for_restart(timeout: float = 60.0, interval: float = 2.0) -> bool:
     """Best-effort confirmation that a restart actually happened: polls
-    /health until it's seen going down and then coming back up. Both the
-    webhook (fire-and-forget) and a direct restart_server.sh invocation give
-    no synchronous success signal, so this is the only real confirmation
-    available without modifying BackEnd_V2 itself.
+    /health until it's seen going down and then coming back up. The Control
+    Server's response confirms the restart_server.sh invocation itself
+    exited cleanly, but not that uvicorn actually came back up — this is
+    the real confirmation of that, without modifying BackEnd_V2 itself.
     """
     deadline = time.monotonic() + timeout
     seen_down = False

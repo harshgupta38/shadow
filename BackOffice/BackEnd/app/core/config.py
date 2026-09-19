@@ -25,13 +25,12 @@ class Settings(BaseSettings):
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
 
     # ─── Shadow V2 integration ───────────────────────────────────────────────
-    # BackOffice runs co-located with BackEnd_V2 on the same Termux device, so
-    # it reaches it over localhost and can shell out to its scripts directly.
+    # BackOffice runs co-located with BackEnd_V2 on the same Termux device.
+    # shadow_backend_dir is used only for read-only host/process introspection
+    # (worker_service.py) — every git/restart/deploy action goes through the
+    # Control Server instead (see below), never a direct subprocess call.
     shadow_backend_dir: str = "~/shadow/BackEnd_V2"
     shadow_backend_url: str = "http://127.0.0.1:8000"
-    shadow_webhook_url: str = "http://127.0.0.1:9000"
-    shadow_git_ref: str = "refs/heads/R202609/develop"
-    shadow_git_branch: str = "R202609/develop"
 
     # Must match the _ADMIN_SECRET constant in BackEnd_V2/app/api/system.py —
     # BackOffice never introduces a new SQL-execution mechanism, it calls the
@@ -41,10 +40,14 @@ class Settings(BaseSettings):
     # Shared secret for BackOffice's OWN /admin/sql and /admin/database.
     admin_secret: str = "change-this-in-production"
 
-    # BackOffice's own repo/branch — checked by POST /restart (its own
-    # deploy webhook), same convention as shadow_git_ref/shadow_git_branch.
-    backoffice_git_ref: str = "refs/heads/R202609/backoffice"
-    backoffice_git_branch: str = "R202609/backoffice"
+    # ─── Control Server integration ──────────────────────────────────────────
+    # The Server/ control plane (port 9000) is what actually runs git
+    # fetch/checkout/pull and restart_server.sh / restart_backoffice.sh — for
+    # both Shadow V2 and BackOffice itself. No branch name lives in config
+    # anywhere; deploy always pulls whatever branch is currently checked out
+    # unless a caller explicitly requests a different one.
+    control_server_url: str = "http://127.0.0.1:9000"
+    control_secret: str = "change-this-in-production"
 
     model_config = SettingsConfigDict(
         env_file=".env",

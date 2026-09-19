@@ -1,6 +1,5 @@
-"""Plain worker restart — runs restart_server.sh directly (no git pull),
-distinct from a deploy. This is why BackOffice runs co-located with
-BackEnd_V2: it needs filesystem access to that script.
+"""Plain worker restart — delegates to the Control Server's
+POST /control/main/restart (no git pull), distinct from a deploy.
 
 Note on "restart worker N": uvicorn's --workers arbiter manages its forked
 workers as one unit — there is no supported way to restart a single worker
@@ -10,11 +9,10 @@ callers should treat "restart worker" and "restart server" as the same
 action against this backend.
 """
 
-import subprocess
 import time
 from datetime import datetime, timezone
-from pathlib import Path
 
+import httpx
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -22,9 +20,7 @@ from app.db.session import SessionLocal
 from app.models.restart_log import RestartLogDBM
 from app.services import shadow_client
 
-
-def _backend_dir() -> Path:
-    return Path(settings.shadow_backend_dir).expanduser()
+_client = httpx.Client(timeout=60.0)
 
 
 def create_restart_record(db: Session, initiated_by: str) -> RestartLogDBM:
@@ -45,16 +41,21 @@ def run_restart_job(restart_id: int) -> None:
         if log is None:
             return
 
-        backend_dir = _backend_dir()
         try:
-            result = subprocess.run(
-                ["bash", "restart_server.sh"],
-                cwd=backend_dir, capture_output=True, text=True, timeout=30,
+            resp = _client.post(
+                f"{settings.control_server_url}/control/main/restart",
+                headers={"X-Control-Secret": settings.control_secret},
             )
-            log.log_output = (result.stdout + result.stderr).strip()
-        except Exception as e:
+            log.log_output = f"control server responded: {resp.status_code}\n{resp.text}"
+            if resp.status_code >= 400:
+                log.status = "failed"
+                log.completed_at = datetime.now(timezone.utc)
+                log.duration_seconds = time.monotonic() - started
+                db.commit()
+                return
+        except httpx.RequestError as e:
             log.status = "failed"
-            log.log_output = f"ERROR: {e}"
+            log.log_output = f"ERROR: could not reach control server: {e}"
             log.completed_at = datetime.now(timezone.utc)
             log.duration_seconds = time.monotonic() - started
             db.commit()

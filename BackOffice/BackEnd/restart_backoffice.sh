@@ -40,10 +40,11 @@ for i in $(seq 1 15); do
 done
 
 export PYTHONUNBUFFERED=1
+export FORCE_COLOR=1
 
 setsid nohup bash -c '
   while true; do
-    uvicorn app.main:app --host 0.0.0.0 --port 8100
+    uvicorn app.main:app --host 0.0.0.0 --port 8100 --use-colors
     echo "[supervisor] uvicorn exited ($?) — relaunching in 2s…"
     sleep 2
   done

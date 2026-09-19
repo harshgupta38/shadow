@@ -100,6 +100,10 @@ export const notificationsApi = {
     return http.get<DailyBriefResponse>(`${P}${ENDPOINTS.NOTIFICATIONS.DAILY_BRIEF}`, { params });
   },
 
+  async generateDailyBrief(date: string): Promise<DailyBriefResponse> {
+    return http.post<DailyBriefResponse>(`${P}${ENDPOINTS.NOTIFICATIONS.DAILY_BRIEF_GENERATE}`, undefined, { params: { date } });
+  },
+
   /**
    * Opens a fetch-based SSE stream. Cookies are sent automatically via
    * credentials:include. Calls `onNotification` for each notification received.

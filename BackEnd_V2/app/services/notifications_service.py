@@ -57,6 +57,7 @@ def create_notification(
     event_key: str | None = None,
     priority: int = 2,
     send_email: bool = True,
+    force: bool = False,
 ) -> NotificationDBM | None:
     """
     Create and persist a notification for a user.
@@ -72,9 +73,13 @@ def create_notification(
     send_email=False skips this function's own generic email dispatch — for
     callers (e.g. failed-login alerts) that send a purpose-built, structured
     email themselves instead of the generic title+body template.
+
+    force=True skips the preference check — for user-initiated actions (e.g. a
+    manual "generate now" button) where the result must be delivered regardless
+    of the notifications_enabled toggle. Dedup via event_key still applies.
     """
     prefs = _get_notification_prefs(db, user.id)
-    if not _should_notify(prefs, level):
+    if not force and not _should_notify(prefs, level):
         return None
 
     if event_key is not None:

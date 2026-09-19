@@ -92,6 +92,7 @@ export const ENDPOINTS = {
         PUSH_UNSUBSCRIBE: "/push/subscriptions",
         PUSH_DEVICE_CONNECTED_ALERT: "/push/device-connected-alert",
         DAILY_BRIEF: "/daily-brief",
+        DAILY_BRIEF_GENERATE: "/daily-brief/generate",
     },
     REPORTS: {
         PREFIX: "/reports",

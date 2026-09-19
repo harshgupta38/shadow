@@ -119,6 +119,12 @@
     gap: 0.35rem;
     padding: 0 0.75rem 0 0.30rem;
   }
+
+  .plan-secondary-button:disabled,
+  .plan-primary-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
   
   .plan-secondary-button{
     padding: 0 0.75rem 0 0.75rem;

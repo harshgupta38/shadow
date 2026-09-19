@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
+  BrightnessHighFill,
   Calendar3,
   CalendarCheckFill,
   ChevronDown,
@@ -49,6 +50,8 @@ export function PlanPage() {
   const [busyIds, setBusyIds] = useState<Set<number>>(new Set());
   const [completedOpen, setCompletedOpen] = useState(false);
   const [skippedOpen, setSkippedOpen] = useState(false);
+  const [briefExists, setBriefExists] = useState(false);
+  const [generatingBrief, setGeneratingBrief] = useState(false);
 
   useEffect(() => {
     function refreshToday() {
@@ -82,6 +85,15 @@ export function PlanPage() {
   useEffect(() => {
     void loadPlan();
   }, [loadPlan]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setBriefExists(false);
+    api.notifications.getDailyBrief(toDateInputValue(selectedDate))
+      .then((res) => { if (!cancelled) setBriefExists(res.complete_brief !== null); })
+      .catch(() => { /* treat as no brief yet */ });
+    return () => { cancelled = true; };
+  }, [selectedDate]);
 
   const planItems = planData?.items ?? [];
 
@@ -276,6 +288,29 @@ export function PlanPage() {
     }
   }
 
+  async function handleBriefMe() {
+    const dateStr = toDateInputValue(selectedDate);
+
+    if (isToday && !briefExists) {
+      if (totalCount === 0) {
+        toast.info("No plan items yet — nothing to brief.");
+        return;
+      }
+      setGeneratingBrief(true);
+      try {
+        await api.notifications.generateDailyBrief(dateStr);
+        navigate(`${ROUTES.DAILY_BRIEF}?date=${dateStr}`);
+      } catch (err) {
+        toast.error(err instanceof ApiError ? err.message : "Couldn't generate the brief. Please try again.");
+      } finally {
+        setGeneratingBrief(false);
+      }
+      return;
+    }
+
+    navigate(`${ROUTES.DAILY_BRIEF}?date=${dateStr}`);
+  }
+
   const progressMessage =
     totalCount === 0
       ? "Plan a few tasks to get started."
@@ -322,6 +357,19 @@ export function PlanPage() {
           {!isToday && (
             <button type="button" className="plan-secondary-button" onClick={() => setSelectedDate(today)}>
               <CalendarCheckFill size={15} /> {"Today"}
+            </button>
+          )}
+          {(isToday || briefExists) && (
+            <button
+              type="button"
+              className="plan-secondary-button"
+              disabled={generatingBrief}
+              onClick={handleBriefMe}
+            >
+              {generatingBrief
+                ? <span className="spinner-border spinner-border-sm" aria-hidden="true" />
+                : <BrightnessHighFill size={15} />}
+              {generatingBrief ? "Generating…" : "Brief me"}
             </button>
           )}
           <button type="button" className="plan-primary-button" onClick={() => navigate(ROUTES.SCHEDULE)}>

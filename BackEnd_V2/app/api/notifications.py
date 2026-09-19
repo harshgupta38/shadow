@@ -245,6 +245,24 @@ def get_daily_brief(
     return get_brief_for_date(db, current_user.id, target)
 
 
+@router.post(ENDPOINTS.NOTIFICATIONS.DAILY_BRIEF_GENERATE, response_model=DailyBriefResponse)
+async def generate_daily_brief_now(
+    date: str = Query(description="YYYY-MM-DD — must be today (IST)"),
+    current_user: UserDBM = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    from datetime import date as date_type
+    from app.services.daily_brief_service import generate_brief_now
+
+    try:
+        target = date_type.fromisoformat(date)
+    except ValueError:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=422, detail="Invalid date format — expected YYYY-MM-DD.")
+
+    return await generate_brief_now(db, current_user, target)
+
+
 @router.post(ENDPOINTS.NOTIFICATIONS.PUSH_DEVICE_CONNECTED_ALERT)
 def device_connected_alert(
     body: DeviceConnectedAlertRequest,

@@ -17,8 +17,11 @@ import logging
 from datetime import date
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.common import today_ist
+from app.core.exceptions import AppError
 from app.db.session import SessionLocal
 from app.llm.models import GenerateBriefFromLLM
 from app.llm.service import LLMService
@@ -159,3 +162,84 @@ def get_brief_for_date(db: Session, user_id: int, target_date: date) -> dict:
         "date": target_date.isoformat(),
         "generated_at": brief.created_at.isoformat() if brief else None,
     }
+
+
+async def generate_brief_now(db: Session, user: UserDBM, target_date: date) -> dict:
+    """Generate today's brief on demand — triggered by the "Brief me" button.
+
+    Runs inline on the request's own event loop (unlike send_daily_brief, which
+    runs in a daemon thread). Bypasses daily_brief_enabled and the notifications
+    master toggle — an explicit click is intent enough — but still dedupes via
+    event_key so it can't double up with the automatic morning brief.
+    """
+    if target_date != today_ist():
+        raise AppError("Only today's brief can be generated on demand.")
+
+    existing = get_brief_for_date(db, user.id, target_date)
+    if existing["complete_brief"] is not None:
+        return existing
+
+    items = _get_plan_items(db, user.id, target_date)
+    if not items:
+        raise AppError("There's nothing in today's plan yet — nothing to brief.")
+
+    first_name = user.name.split()[0] if user.name else "there"
+    context = _build_context(items)
+    response = await _call_llm_service(user.id, first_name, target_date, context)
+    short_brief = response.brief_data.short_brief[:200]
+    complete_brief = response.brief_data.complete_brief[:2000]
+
+    title = f"Good morning, {first_name}! Here's your {target_date.strftime('%A')}"
+    event_key = f"daily_brief:{user.id}:{target_date}"
+    notif = notifications_service.create_notification(
+        db, user,
+        title=title,
+        body=short_brief,
+        type="system",
+        level=notifications_service.LEVEL_INFORMATIONAL,
+        url=f"/daily-brief?date={target_date}",
+        event_key=event_key,
+        force=True,
+    )
+    if notif is None:
+        # force=True still dedupes on event_key — a concurrent request (or an
+        # orphaned notification from an earlier failed attempt) already claims
+        # this key, so reuse its id.
+        from app.models.notification import NotificationDBM
+        notif = db.scalar(
+            select(NotificationDBM).where(
+                NotificationDBM.user_id == user.id,
+                NotificationDBM.event_key == event_key,
+            )
+        )
+
+        # That concurrent request may have already written the brief too —
+        # don't attempt a second insert against the (user_id, brief_date)
+        # unique index.
+        existing = get_brief_for_date(db, user.id, target_date)
+        if existing["complete_brief"] is not None:
+            return existing
+
+    db.add(DailyBriefDBM(
+        notification_id=notif.id,
+        user_id=user.id,
+        brief_date=target_date,
+        complete_brief=complete_brief,
+    ))
+    try:
+        db.commit()
+    except IntegrityError:
+        # Lost a last-instant race against another concurrent request.
+        db.rollback()
+        return get_brief_for_date(db, user.id, target_date)
+
+    prefs = _brief_prefs(db, user.id)
+    if prefs.get("email_notifications_enabled", False):
+        try:
+            from app.services import email_notification_service
+            email_notification_service.send_daily_brief_email(user, complete_brief, target_date)
+        except Exception:
+            logger.warning("Daily brief email failed for user %d", user.id, exc_info=True)
+
+    return get_brief_for_date(db, user.id, target_date)
+

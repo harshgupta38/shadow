@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     app_name: str = "Shadow BackOffice API"
     app_version: str = "1.0.0"
-    api_prefix: str = "/api"
+    api_prefix: str = "/v2"
 
     # Auth-cookie SameSite policy: "strict" | "lax" | "none".
     same_site: str = "strict"

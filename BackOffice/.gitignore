@@ -11,3 +11,4 @@ data.txt
 Structure.md
 .claude
 dist/
+*.log

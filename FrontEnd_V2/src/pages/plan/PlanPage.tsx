@@ -351,7 +351,7 @@ export function PlanPage() {
               <CalendarCheckFill size={15} /> {"Today"}
             </button>
           )}
-          {dailyBriefEnabled && (isToday || briefExists) && (
+          {dailyBriefEnabled && !loadingPlan && (isToday || briefExists) && (
             <button
               type="button"
               className="plan-secondary-button"

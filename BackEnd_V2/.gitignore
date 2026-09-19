@@ -11,9 +11,14 @@ dist/
 
 # ── Virtual environments ──────────────────────────────────────
 .venv/
+.venv_win/
 venv/
 env/
 logs/
+
+# ── Runtime artifacts (server.log/server.pid from restart_server.sh, etc.) ──
+*.log
+*.pid
 
 # ── Databases ─────────────────────────────────────────────────
 *.db

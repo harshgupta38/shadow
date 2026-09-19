@@ -50,7 +50,6 @@ export function PlanPage() {
   const [busyIds, setBusyIds] = useState<Set<number>>(new Set());
   const [completedOpen, setCompletedOpen] = useState(false);
   const [skippedOpen, setSkippedOpen] = useState(false);
-  const [briefExists, setBriefExists] = useState(false);
   const [generatingBrief, setGeneratingBrief] = useState(false);
 
   useEffect(() => {
@@ -67,6 +66,8 @@ export function PlanPage() {
   }, []);
 
   const isToday = selectedDate.toDateString() === today.toDateString();
+  const dailyBriefEnabled = planData?.daily_brief_enabled ?? false;
+  const briefExists = planData?.daily_brief_generated ?? false;
 
   const loadPlan = useCallback(async () => {
     setLoadingPlan(true);
@@ -85,15 +86,6 @@ export function PlanPage() {
   useEffect(() => {
     void loadPlan();
   }, [loadPlan]);
-
-  useEffect(() => {
-    let cancelled = false;
-    setBriefExists(false);
-    api.notifications.getDailyBrief(toDateInputValue(selectedDate))
-      .then((res) => { if (!cancelled) setBriefExists(res.complete_brief !== null); })
-      .catch(() => { /* treat as no brief yet */ });
-    return () => { cancelled = true; };
-  }, [selectedDate]);
 
   const planItems = planData?.items ?? [];
 
@@ -359,7 +351,7 @@ export function PlanPage() {
               <CalendarCheckFill size={15} /> {"Today"}
             </button>
           )}
-          {(isToday || briefExists) && (
+          {dailyBriefEnabled && (isToday || briefExists) && (
             <button
               type="button"
               className="plan-secondary-button"

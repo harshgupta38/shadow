@@ -60,6 +60,10 @@ class DailyPlanResponse(BaseModel):
     # generated — lets the frontend show it alongside today's plan without a second
     # request. None when no report exists yet for that date.
     previous_day_closing: ReportClosingResponse | None = None
+    # Lets the frontend gate the "Brief me" CTA without a separate settings call.
+    daily_brief_enabled: bool = False
+    # Whether a brief already exists for `date` — without a separate daily-brief call.
+    daily_brief_generated: bool = False
 
 
 class UpdatePlanRequest(BaseModel):

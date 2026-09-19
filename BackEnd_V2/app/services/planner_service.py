@@ -24,6 +24,7 @@ from sqlalchemy.orm import Session
 
 from app.common import today_ist, to_ist
 from app.core.exceptions import AppError, NotFoundError
+from app.models.daily_brief import DailyBriefDBM
 from app.models.plan_record import DailyPlanRecordDBM
 from app.models.goal import GoalDBM
 from app.models.habit import HabitDBM
@@ -32,6 +33,7 @@ from app.models.report import ReportDBM
 from app.models.schedule_task import ScheduledTaskDBM
 from app.models.task import TaskDBM
 from app.models.user import UserDBM
+from app.models.user_setting import UserSettingDBM
 from app.services import notifications_service
 from app.schemas.planner import (
     DailyPlanItemResponse,
@@ -975,9 +977,21 @@ def get_plans_for_date(
                     ),
                 ))
 
+    notifications = db.scalar(select(UserSettingDBM.notifications).where(UserSettingDBM.user_id == current_user.id))
+    daily_brief_enabled = bool(notifications.get("daily_brief_enabled", False)) if notifications else False
+
+    daily_brief_generated = db.scalar(
+        select(DailyBriefDBM.id).where(
+            DailyBriefDBM.user_id == current_user.id,
+            DailyBriefDBM.brief_date == target_date,
+        )
+    ) is not None
+
     return DailyPlanResponse(
         items=items,
         previous_day_closing=_previous_day_closing(db, current_user.id, target_date),
+        daily_brief_enabled=daily_brief_enabled,
+        daily_brief_generated=daily_brief_generated,
     )
 
 

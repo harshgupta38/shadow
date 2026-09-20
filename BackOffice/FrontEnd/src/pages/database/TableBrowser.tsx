@@ -212,7 +212,7 @@ export function TableBrowser() {
                   <Search size={14} />
                   <input
                     className="form-control"
-                    placeholder="Search rows…"
+                    placeholder="Search in rows…"
                     value={searchInput}
                     onChange={(e) => setSearchInput(e.target.value)}
                   />
@@ -268,7 +268,7 @@ export function TableBrowser() {
               </div>
             )}
 
-            {total > pageSize && (
+            {total > 10 && (
               <Pagination
                 page={page}
                 pageSize={pageSize}

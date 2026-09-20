@@ -26,7 +26,7 @@ export const databaseApi = {
   async deleteRow(tableName: string, pk: Row): Promise<unknown> {
     return http.delete(ENDPOINTS.DATABASE.rows(tableName), { pk });
   },
-  async runQuery(query: string): Promise<SqlQueryResponse> {
-    return http.post<SqlQueryResponse>(ENDPOINTS.DATABASE.QUERY, { query });
+  async runQuery(query: string, page = 1, pageSize = 15): Promise<SqlQueryResponse> {
+    return http.post<SqlQueryResponse>(ENDPOINTS.DATABASE.QUERY, { query, page, page_size: pageSize });
   },
 };

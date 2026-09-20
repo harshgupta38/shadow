@@ -62,4 +62,4 @@ def delete_row(table_name: str, body: DeleteRowRequest, db: DbSession, admin: Cu
 
 @router.post(ENDPOINTS.DATABASE.QUERY, response_model=SqlQueryResponse)
 def run_query(body: SqlQueryRequest, db: DbSession, admin: CurrentAdmin):
-    return database_service.run_raw_query(db, body.query, admin.email)
+    return database_service.run_raw_query(db, body.query, admin.email, body.page, body.page_size)

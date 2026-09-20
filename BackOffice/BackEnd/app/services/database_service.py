@@ -289,14 +289,65 @@ def delete_row(db: Session, table_name: str, pk: dict, admin_username: str) -> d
     return result
 
 
-def run_raw_query(db: Session, query: str, admin_username: str) -> dict:
+def run_raw_query(db: Session, query: str, admin_username: str, page: int = 1, page_size: int = 15) -> dict:
     """SQL Console — deliberately unrestricted, matching the power
-    /admin/sql already has. Every attempt is audited regardless of outcome.
+    /admin/sql already has. Every real attempt is audited regardless of
+    outcome (the pagination probe below is not — see _try_paginate).
     """
+    page = max(page, 1)
+    page_size = max(min(page_size, 200), 1)
+
+    paginated = _try_paginate(query, page, page_size)
+    if paginated is not None:
+        rows_query, total = paginated
+        try:
+            result = shadow_client.run_sql(rows_query)
+        except Exception as e:
+            _audit(db, admin_username, query, False, None, str(e))
+            raise
+        _audit(db, admin_username, query, True, total, None)
+        result["total"] = total
+        result["page"] = page
+        result["page_size"] = page_size
+        return result
+
     try:
         result = shadow_client.run_sql(query)
     except Exception as e:
         _audit(db, admin_username, query, False, None, str(e))
         raise
     _audit(db, admin_username, query, True, result.get("rowcount"), None)
+    result["total"] = None
+    result["page"] = 1
+    result["page_size"] = page_size
     return result
+
+
+def _try_paginate(query: str, page: int, page_size: int) -> tuple[str, int] | None:
+    """If `query` is SELECT-shaped (wrapping it as a subquery is valid SQL),
+    returns (a LIMIT/OFFSET-wrapped version of it, the total row count) —
+    otherwise (an INSERT/UPDATE/DELETE/DDL/... statement, or anything else
+    that doesn't nest as a subquery) returns None, meaning "run it exactly
+    as typed, there's nothing to page." SQLite's own parser decides this —
+    no keyword-sniffing — so it's automatically right about CTEs (`WITH`),
+    unusual whitespace/comments, and every other real-world SELECT shape.
+    A failure here is expected and silent, never audited: it just means
+    this particular query isn't a row-returning one, not that anything
+    went wrong."""
+    stripped = query.strip()
+    if stripped.endswith(";"):
+        stripped = stripped[:-1].strip()
+    if not stripped:
+        return None
+
+    try:
+        count_result = shadow_client.run_sql(
+            f"SELECT COUNT(*) AS __bo_count FROM ({stripped}) AS __bo_probe"
+        )
+        total = count_result["rows"][0]["__bo_count"]
+    except Exception:
+        return None
+
+    offset = (page - 1) * page_size
+    rows_query = f"SELECT * FROM ({stripped}) AS __bo_page LIMIT {page_size} OFFSET {offset}"
+    return rows_query, total

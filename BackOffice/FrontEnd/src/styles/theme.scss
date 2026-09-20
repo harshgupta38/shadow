@@ -1466,11 +1466,11 @@ h1, h2, h3, h4, h5, h6, .display-font {
   position: relative;
   transition: background var(--jv-transition), color var(--jv-transition);
 
-  &:hover { background: var(--jv-surface-3); color: var(--jv-text); }
+  &:hover { background: var(--jv-surface-3); color: var(--jv-brand-1); }
 
   &--active {
     background: var(--jv-surface);
-    color: var(--jv-text);
+    color: var(--jv-brand-1);
     border-bottom: 1px solid var(--jv-surface);
     margin-bottom: -1px;
 
@@ -2015,7 +2015,12 @@ h1, h2, h3, h4, h5, h6, .display-font {
   align-items: center;
   justify-content: space-between;
   padding: 0.55rem 1rem;
-  background: var(--jv-term-header);
+  height: 50px;
+  // Matches the active tab (.db-tab--active) instead of the terminal-style
+  // background the rest of the console uses — this header sits directly
+  // under the tab strip, so it reads as a continuation of it, not a
+  // separate grey band.
+  background: var(--jv-surface);
   border-bottom: 1px solid var(--jv-term-border);
   font-size: 0.8rem;
   font-weight: 600;
@@ -2028,7 +2033,12 @@ h1, h2, h3, h4, h5, h6, .display-font {
   flex-wrap: wrap;
   gap: 0.4rem;
   padding: 0.65rem 1rem;
-  border-bottom: 1px solid var(--jv-term-border);
+  // The bottom-most bar now that the live input line lives inside the
+  // scrollable body above (see .sql-console-input-row) — a persistent
+  // "quick fill" strip, kept on the footer-toned background so it still
+  // reads as a distinct control row rather than more terminal output.
+  background: var(--jv-term-header);
+  border-top: 1px solid var(--jv-term-border);
 }
 
 .sql-console-example-chip {
@@ -2088,6 +2098,42 @@ h1, h2, h3, h4, h5, h6, .display-font {
   &--error { color: var(--jv-danger); }
 }
 
+.sql-console-pager {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--jv-term-muted);
+  font-family: var(--jv-font-sans);
+
+  button {
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    color: var(--jv-term-muted);
+
+    &:not(:disabled):hover { color: var(--jv-term-text); }
+  }
+
+  .pagination-ellipsis {
+    font-size: 0.72rem;
+    padding: 0;
+  }
+}
+
+.sql-console-page-btn {
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  &--active {
+    background: var(--jv-brand-soft);
+    color: var(--jv-brand-1);
+  }
+}
+
 .sql-console-result-wrap {
   overflow-x: auto;
   margin-bottom: 0.35rem;
@@ -2101,6 +2147,7 @@ h1, h2, h3, h4, h5, h6, .display-font {
   border-collapse: collapse;
   width: 100%;
   font-size: 0.76rem;
+  background-color: var(--jv-surface);
 
   th, td {
     padding: 0.35rem 0.65rem;
@@ -2128,13 +2175,14 @@ h1, h2, h3, h4, h5, h6, .display-font {
   text-align: center !important;
 }
 
+// Lives inside .sql-console-body now, as its last child — the "live" line
+// right after the last executed entry, not a separate footer bar, so it
+// picks up the body's own padding/font instead of carrying its own.
 .sql-console-input-row {
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  padding: 0.7rem 1.1rem;
-  border-top: 1px solid var(--jv-term-border);
-  background: var(--jv-term-header);
+  margin-top: 0.4rem;
 }
 
 .sql-console-input {
@@ -2148,12 +2196,6 @@ h1, h2, h3, h4, h5, h6, .display-font {
   font-size: 0.85rem;
 
   &::placeholder { color: var(--jv-term-muted); }
-}
-
-.sql-console-run-btn {
-  flex-shrink: 0;
-  padding: 0.35rem 0.9rem;
-  font-size: 0.8rem;
 }
 
 // ── Database page — full-bleed shell ────────────────────────────────────────────
@@ -2256,7 +2298,7 @@ h1, h2, h3, h4, h5, h6, .display-font {
 
 .db-tab-panel .pagination-bar {
   flex-shrink: 0;
-  padding: 0.65rem 1.25rem;
+  padding: 0.25rem 1.25rem;
   margin-top: 0;
   border-top: 1px solid var(--jv-border);
 }

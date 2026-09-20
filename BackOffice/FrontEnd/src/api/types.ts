@@ -89,6 +89,12 @@ export interface SqlQueryResponse {
   columns: string[];
   rows: Row[];
   rowcount: number;
+  // null for a statement with no row set to page through (INSERT/UPDATE/
+  // DELETE/DDL/...); set whenever the query was SELECT-shaped, even if
+  // every row already fit in this one response.
+  total: number | null;
+  page: number;
+  page_size: number;
 }
 
 // ─── Server ─────────────────────────────────────────────────────────────────

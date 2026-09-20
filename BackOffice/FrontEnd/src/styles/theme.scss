@@ -463,6 +463,17 @@ h1, h2, h3, h4, h5, h6, .display-font {
   width: var(--jv-sidebar-collapsed-w);
 }
 
+// Scrolls when the nav tree overflows the viewport, but the scrollbar
+// itself stays hidden — still fully scrollable via wheel/touch/keyboard.
+.sidebar nav {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 .sidebar-desktop {
   @media (max-width: 768px) {
     display: none !important;
@@ -533,6 +544,98 @@ h1, h2, h3, h4, h5, h6, .display-font {
 .nav-link-jv--icon {
   justify-content: center;
   padding: 0.62rem;
+}
+
+// ── Nav tree (Controller — expandable Postman-style folders) ───────────────────
+.nav-tree-folder {
+  margin-bottom: 0.1rem;
+}
+
+.nav-tree-folder-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.5rem 0.8rem;
+  border: none;
+  background: transparent;
+  border-radius: var(--jv-radius-sm);
+  color: var(--jv-muted);
+  font-size: 0.87rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--jv-transition), color var(--jv-transition);
+
+  &:hover {
+    background: var(--jv-surface-2);
+    color: var(--jv-text);
+  }
+
+  span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+.nav-tree-chevron {
+  flex-shrink: 0;
+  transition: transform var(--jv-transition);
+}
+
+.nav-tree-chevron--open {
+  transform: rotate(90deg);
+}
+
+.nav-tree-children {
+  display: flex;
+  flex-direction: column;
+  padding-left: 0.35rem;
+  border-left: 1px solid var(--jv-border);
+  margin-left: 1.05rem;
+}
+
+.nav-tree-leaf {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: var(--jv-radius-sm);
+  color: var(--jv-muted);
+  font-size: 0.84rem;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: default;
+  transition: background var(--jv-transition), color var(--jv-transition);
+
+  &:hover {
+    background: var(--jv-surface-2);
+    color: var(--jv-text);
+  }
+
+  span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+.nav-tree-method {
+  flex-shrink: 0;
+  width: 34px;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.nav-tree-method--get {
+  color: var(--jv-success);
+}
+
+.nav-tree-method--post {
+  color: var(--jv-warn);
 }
 
 // ── Collapse button ───────────────────────────────────────────────────────────

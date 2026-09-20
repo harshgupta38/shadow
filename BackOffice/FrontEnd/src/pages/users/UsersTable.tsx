@@ -37,6 +37,10 @@ interface UsersTableProps {
   users: AppUser[];
   loading: boolean;
   error?: string | null;
+  // Rendered immediately before the search box (e.g. BackOffice's own
+  // "Add User" button) — omitted entirely by pages that don't need it, such
+  // as Shadow's read-only Users page.
+  headerActions?: ReactNode;
 }
 
 // Reusable across every "Users" page in BackOffice — Shadow V2's users and
@@ -44,7 +48,7 @@ interface UsersTableProps {
 // only supplying its own data (see ShadowUsersPage / BackOfficeUsersPage).
 // Owns its own header row (title + search) rather than using the generic
 // PageHeader, since the search box needs to live in that same row.
-export function UsersTable({ icon, title, subtitle, users, loading, error }: UsersTableProps) {
+export function UsersTable({ icon, title, subtitle, users, loading, error, headerActions }: UsersTableProps) {
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -80,14 +84,17 @@ export function UsersTable({ icon, title, subtitle, users, loading, error }: Use
           </div>
         </div>
 
-        <div className="db-search flex-shrink-0">
-          <Search size={14} />
-          <input
-            className="form-control"
-            placeholder="Search by name or email…"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-          />
+        <div className="db-toolbar-actions flex-shrink-0">
+          {headerActions}
+          <div className="db-search">
+            <Search size={14} />
+            <input
+              className="form-control"
+              placeholder="Search by name or email…"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+            />
+          </div>
         </div>
       </div>
 
@@ -147,7 +154,7 @@ export function UsersTable({ icon, title, subtitle, users, loading, error }: Use
         </div>
       )}
 
-      {filtered.length > 0 && (
+      {filtered.length > 10 && (
         <Pagination
           page={safePage}
           pageSize={pageSize}

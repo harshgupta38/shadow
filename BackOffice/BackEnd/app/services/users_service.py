@@ -22,8 +22,11 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 
+from app.core import security
+from app.core.config import settings
+from app.core.exceptions import ForbiddenError, ValidationError
 from app.models.admin_user import AdminUserDBM
-from app.schemas.users import UserStatus
+from app.schemas.users import CreateAdminRequest, UserStatus
 from app.services import shadow_client
 
 _AWAY_AFTER = timedelta(hours=1)
@@ -89,16 +92,55 @@ def list_shadow_users() -> list[dict]:
     return users
 
 
+def _admin_to_dict(admin: AdminUserDBM) -> dict:
+    return {
+        "id": admin.id,
+        "name": admin.name,
+        "email": admin.email,
+        "email_verified": None,
+        "created_at": admin.created_at,
+        "status": _compute_status(admin.is_active, admin.last_login_at),
+    }
+
+
 def list_backoffice_users(db: Session) -> list[dict]:
     admins = db.query(AdminUserDBM).order_by(AdminUserDBM.id).all()
-    return [
-        {
-            "id": a.id,
-            "name": a.name,
-            "email": a.email,
-            "email_verified": None,
-            "created_at": a.created_at,
-            "status": _compute_status(a.is_active, a.last_login_at),
-        }
-        for a in admins
-    ]
+    return [_admin_to_dict(a) for a in admins]
+
+
+def create_backoffice_admin(db: Session, actor: AdminUserDBM, data: CreateAdminRequest) -> dict:
+    """Creates a new BackOffice admin. Requires two independent checks beyond
+    the caller's own session cookie: their own current password (step-up
+    auth — a stolen session alone isn't enough) and the NEW_ADMIN_SECRET
+    (an out-of-band secret only someone with .env access can supply).
+
+    A wrong current_password is a form validation failure (400), not an
+    AuthError (401) — the caller's session is still perfectly valid, and a
+    401 here would trip the frontend's global "session died" interceptor
+    and boot them out of BackOffice over a typo in this dialog.
+    """
+    if data.secret_key != settings.new_admin_secret:
+        raise ForbiddenError("Invalid secret key.")
+
+    if not security.verify_password(data.current_password, actor.hashed_password):
+        raise ValidationError(
+            "Incorrect password.",
+            errors={"current_password": "Incorrect password."},
+        )
+
+    existing = db.query(AdminUserDBM).filter(AdminUserDBM.email == data.email).first()
+    if existing:
+        raise ValidationError(
+            "An admin with this email already exists.",
+            errors={"email": "An admin with this email already exists."},
+        )
+
+    admin = AdminUserDBM(
+        name=data.name,
+        email=data.email,
+        hashed_password=security.hash_password(data.password),
+    )
+    db.add(admin)
+    db.commit()
+    db.refresh(admin)
+    return _admin_to_dict(admin)

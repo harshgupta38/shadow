@@ -132,3 +132,11 @@ export interface AppUser {
   email_verified: boolean | null;
   created_at: string;
 }
+
+export interface CreateAdminRequest {
+  current_password: string;
+  name: string;
+  email: string;
+  password: string;
+  secret_key: string;
+}

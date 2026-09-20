@@ -1063,9 +1063,17 @@ h1, h2, h3, h4, h5, h6, .display-font {
   @media (max-width: 768px) {
     flex-wrap: wrap !important;
 
-    .db-search {
+    // The toolbar (headerActions button, e.g. "Add User", + search box)
+    // drops to its own full-width row; the search box then grows to fill
+    // whatever space the button leaves on that row.
+    .db-toolbar-actions {
       flex: 1 1 100%;
       width: 100%;
+    }
+
+    .db-search {
+      flex: 1 1 auto;
+      min-width: 0;
 
       .form-control {
         width: 100%;
@@ -1896,4 +1904,40 @@ h1, h2, h3, h4, h5, h6, .display-font {
 
 .server-log-line--warn {
   color: var(--jv-warn) !important;
+}
+
+// ── Toasts (ToastContext.tsx) ──────────────────────────────────────────────────
+.toast-viewport {
+  position: fixed;
+  bottom: 1.25rem;
+  right: 1.25rem;
+  z-index: 1300;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  max-width: 360px;
+}
+
+.toast-jv {
+  display: flex;
+  gap: 0.7rem;
+  align-items: flex-start;
+  padding: 0.85rem 1rem;
+  border-radius: var(--jv-radius-sm);
+  background: var(--jv-elevated);
+  border: 1px solid var(--jv-border);
+  box-shadow: var(--jv-shadow-lg);
+  animation: jv-slide-in 220ms var(--jv-ease);
+}
+
+.toast-jv-message {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+@keyframes jv-slide-in {
+  from { opacity: 0; transform: translateX(16px); }
+  to   { opacity: 1; transform: translateX(0); }
 }

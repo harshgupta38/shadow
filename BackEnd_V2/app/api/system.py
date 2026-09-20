@@ -113,6 +113,52 @@ def download_database(x_admin_secret: str = Header(...)):
     )
 
 
+@router.get(ENDPOINTS.SYSTEM.ADMIN_BACKUPS, tags=["admin"])
+def list_backups(x_admin_secret: str = Header(...)):
+    if x_admin_secret != settings.admin_secret:
+        raise HTTPException(status_code=403, detail="Forbidden.")
+    return backup_service.list_backups()
+
+
+@router.post(ENDPOINTS.SYSTEM.ADMIN_BACKUPS, tags=["admin"])
+def trigger_backup(x_admin_secret: str = Header(...)):
+    if x_admin_secret != settings.admin_secret:
+        raise HTTPException(status_code=403, detail="Forbidden.")
+
+    backup_path = backup_service.create_backup()
+    if backup_path is None:
+        raise HTTPException(status_code=500, detail="Backup failed — check server.log.")
+
+    return backup_service.describe_backup(backup_path)
+
+
+@router.get(ENDPOINTS.SYSTEM.ADMIN_BACKUP_FILE, tags=["admin"])
+def download_backup(filename: str, x_admin_secret: str = Header(...)):
+    if x_admin_secret != settings.admin_secret:
+        raise HTTPException(status_code=403, detail="Forbidden.")
+
+    path = backup_service.get_backup_path(filename)
+    if path is None:
+        raise HTTPException(status_code=404, detail="Backup not found.")
+
+    return FileResponse(path=path, media_type="application/x-sqlite3", filename=path.name)
+
+
+@router.post(ENDPOINTS.SYSTEM.ADMIN_BACKUP_RESTORE, tags=["admin"])
+def restore_backup(filename: str, x_admin_secret: str = Header(...)):
+    if x_admin_secret != settings.admin_secret:
+        raise HTTPException(status_code=403, detail="Forbidden.")
+
+    if backup_service.get_backup_path(filename) is None:
+        raise HTTPException(status_code=404, detail="Backup not found.")
+
+    result = backup_service.restore_backup(filename)
+    if result is None:
+        raise HTTPException(status_code=500, detail="Restore failed — check server.log.")
+
+    return result
+
+
 @router.post(ENDPOINTS.SYSTEM.ADMIN_SQL, tags=["admin"])
 def run_sql(body: SqlRequest, x_admin_secret: str = Header(...)):
     if x_admin_secret != settings.admin_secret:

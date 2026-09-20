@@ -351,3 +351,18 @@ def _try_paginate(query: str, page: int, page_size: int) -> tuple[str, int] | No
     offset = (page - 1) * page_size
     rows_query = f"SELECT * FROM ({stripped}) AS __bo_page LIMIT {page_size} OFFSET {offset}"
     return rows_query, total
+
+
+def restore_backup(db: Session, filename: str, admin_username: str) -> dict:
+    """Overwrites the live shadow.db with a backup — the single most
+    destructive action this whole admin panel exposes, so unlike the
+    simpler backup passthroughs (list/create/download) this one gets a
+    real audit trail entry, same as every row edit and raw query."""
+    pseudo_query = f"RESTORE BACKUP {filename}"
+    try:
+        result = shadow_client.restore_backup(filename)
+    except Exception as e:
+        _audit(db, admin_username, pseudo_query, False, None, str(e))
+        raise
+    _audit(db, admin_username, pseudo_query, True, None, None)
+    return result

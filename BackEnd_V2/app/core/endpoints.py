@@ -9,6 +9,9 @@ class Endpoints:
         SERVER_LOG = "/server/log"
         ADMIN_SQL = "/admin/sql"
         ADMIN_DATABASE = "/admin/database" # extra
+        ADMIN_BACKUPS = "/admin/backups"
+        ADMIN_BACKUP_FILE = "/admin/backups/{filename}"
+        ADMIN_BACKUP_RESTORE = "/admin/backups/{filename}/restore"
 
     class SHORTCUTS:
         PREFIX = "/shortcuts"

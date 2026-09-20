@@ -97,6 +97,17 @@ export interface SqlQueryResponse {
   page_size: number;
 }
 
+export interface BackupInfo {
+  name: string;
+  created_at: string;
+  size_bytes: number;
+}
+
+export interface RestoreBackupResponse {
+  restored_from: string;
+  pre_restore_backup: BackupInfo;
+}
+
 // ─── Server ─────────────────────────────────────────────────────────────────
 export interface WorkerInfo {
   pid: number;

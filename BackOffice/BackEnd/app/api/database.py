@@ -1,13 +1,15 @@
 import json
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Response
 
 from app.api.deps import CurrentAdmin, DbSession
 from app.core.endpoints import ENDPOINTS
 from app.core.exceptions import ValidationError
 from app.schemas.database import (
+    BackupInfo,
     DeleteRowRequest,
     InsertRowRequest,
+    RestoreBackupResponse,
     RowLookupResponse,
     RowsResponse,
     SqlQueryRequest,
@@ -15,7 +17,7 @@ from app.schemas.database import (
     TableInfo,
     UpdateRowRequest,
 )
-from app.services import database_service
+from app.services import database_service, shadow_client
 
 router = APIRouter(prefix=ENDPOINTS.DATABASE.PREFIX, tags=["Database"])
 
@@ -63,3 +65,28 @@ def delete_row(table_name: str, body: DeleteRowRequest, db: DbSession, admin: Cu
 @router.post(ENDPOINTS.DATABASE.QUERY, response_model=SqlQueryResponse)
 def run_query(body: SqlQueryRequest, db: DbSession, admin: CurrentAdmin):
     return database_service.run_raw_query(db, body.query, admin.email, body.page, body.page_size)
+
+
+@router.get(ENDPOINTS.DATABASE.BACKUPS, response_model=list[BackupInfo])
+def list_backups(_admin: CurrentAdmin):
+    return shadow_client.list_backups()
+
+
+@router.post(ENDPOINTS.DATABASE.BACKUPS, response_model=BackupInfo)
+def create_backup(_admin: CurrentAdmin):
+    return shadow_client.create_backup()
+
+
+@router.get(ENDPOINTS.DATABASE.BACKUP_FILE)
+def download_backup(filename: str, _admin: CurrentAdmin):
+    content = shadow_client.download_backup(filename)
+    return Response(
+        content=content,
+        media_type="application/x-sqlite3",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.post(ENDPOINTS.DATABASE.BACKUP_RESTORE, response_model=RestoreBackupResponse)
+def restore_backup(filename: str, db: DbSession, admin: CurrentAdmin):
+    return database_service.restore_backup(db, filename, admin.email)

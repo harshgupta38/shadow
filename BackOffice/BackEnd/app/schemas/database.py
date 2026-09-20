@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel
@@ -64,3 +65,14 @@ class UpdateRowRequest(BaseModel):
 
 class DeleteRowRequest(BaseModel):
     pk: dict[str, Any]
+
+
+class BackupInfo(BaseModel):
+    name: str
+    created_at: datetime
+    size_bytes: int
+
+
+class RestoreBackupResponse(BaseModel):
+    restored_from: str
+    pre_restore_backup: BackupInfo

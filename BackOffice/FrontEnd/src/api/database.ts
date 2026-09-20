@@ -1,6 +1,6 @@
-import { http } from "./client";
+import { http, httpBlob } from "./client";
 import { ENDPOINTS } from "@/constant/bo-endpoints";
-import type { Row, RowsResponse, SqlQueryResponse, TableInfo } from "./types";
+import type { BackupInfo, RestoreBackupResponse, Row, RowsResponse, SqlQueryResponse, TableInfo } from "./types";
 
 export const databaseApi = {
   async listTables(): Promise<TableInfo[]> {
@@ -28,5 +28,17 @@ export const databaseApi = {
   },
   async runQuery(query: string, page = 1, pageSize = 15): Promise<SqlQueryResponse> {
     return http.post<SqlQueryResponse>(ENDPOINTS.DATABASE.QUERY, { query, page, page_size: pageSize });
+  },
+  async listBackups(): Promise<BackupInfo[]> {
+    return http.get<BackupInfo[]>(ENDPOINTS.DATABASE.BACKUPS);
+  },
+  async createBackup(): Promise<BackupInfo> {
+    return http.post<BackupInfo>(ENDPOINTS.DATABASE.BACKUPS);
+  },
+  async downloadBackup(filename: string): Promise<Blob> {
+    return httpBlob(ENDPOINTS.DATABASE.backupFile(filename));
+  },
+  async restoreBackup(filename: string): Promise<RestoreBackupResponse> {
+    return http.post<RestoreBackupResponse>(ENDPOINTS.DATABASE.backupRestore(filename));
   },
 };

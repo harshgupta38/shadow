@@ -42,7 +42,7 @@ def new_deployment(
     db: DbSession,
     admin: CurrentAdmin,
 ):
-    log = deploy_service.create_deployment_record(db, body.label, body.description, body.target, admin.username)
+    log = deploy_service.create_deployment_record(db, body.label, body.description, body.target, admin.email)
     background_tasks.add_task(deploy_service.run_deploy_job, log.id, body.target)
     return log
 
@@ -54,6 +54,6 @@ def rollback(
     db: DbSession,
     admin: CurrentAdmin,
 ):
-    log = deploy_service.create_rollback_record(db, body.commit_sha, body.description, admin.username)
+    log = deploy_service.create_rollback_record(db, body.commit_sha, body.description, admin.email)
     background_tasks.add_task(deploy_service.run_rollback_job, log.id, body.commit_sha)
     return log

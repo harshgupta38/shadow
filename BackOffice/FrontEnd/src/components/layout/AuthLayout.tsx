@@ -36,6 +36,8 @@ export function AuthLayout({ children }: AuthLayoutProps) {
         </div>
         <p className="auth-footer-note mb-0">
           Shadow BackOffice · Internal tool · Restricted access
+          <br />
+          Made with ❤️ by Harsh
         </p>
       </footer>
     </div>

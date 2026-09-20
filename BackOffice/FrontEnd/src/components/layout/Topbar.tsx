@@ -13,7 +13,7 @@ export function Topbar({ onOpenMenu }: TopbarProps) {
   const { user, logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
 
-  const avatarLabel = (user?.username ?? "A")
+  const avatarLabel = (user?.name ?? "A")
     .trim()
     .slice(0, 2)
     .toUpperCase();
@@ -43,7 +43,7 @@ export function Topbar({ onOpenMenu }: TopbarProps) {
           >
             <span className="avatar avatar-sm">{avatarLabel}</span>
             <span className="d-none d-md-inline fw-semibold small">
-              {user?.username ?? "Admin"}
+              {user?.name ?? "Admin"}
             </span>
           </Dropdown.Toggle>
 
@@ -52,7 +52,7 @@ export function Topbar({ onOpenMenu }: TopbarProps) {
               <span className="avatar avatar-md">{avatarLabel}</span>
               <div className="min-w-0">
                 <div className="fw-semibold small text-truncate">
-                  {user?.username ?? "Admin"}
+                  {user?.name ?? "Admin"}
                 </div>
                 <div className="text-faint text-truncate" style={{ fontSize: "0.72rem" }}>
                   {user?.role ?? "Administrator"}

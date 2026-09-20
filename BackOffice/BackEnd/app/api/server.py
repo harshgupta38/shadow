@@ -53,7 +53,7 @@ def get_restart_history(db: DbSession, _admin: CurrentAdmin, page: int = 1, page
 
 @router.post(ENDPOINTS.SERVER.RESTART, response_model=RestartResponse)
 def restart(background_tasks: BackgroundTasks, db: DbSession, admin: CurrentAdmin):
-    log = restart_service.create_restart_record(db, admin.username)
+    log = restart_service.create_restart_record(db, admin.email)
     background_tasks.add_task(restart_service.run_restart_job, log.id)
     return log
 

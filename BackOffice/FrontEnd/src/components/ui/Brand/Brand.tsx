@@ -1,4 +1,4 @@
-import { ShieldLockFill } from "react-bootstrap-icons";
+import { Stars } from "react-bootstrap-icons";
 import { SITE_INFO } from "@/constant/site-info";
 
 interface BrandProps {
@@ -15,7 +15,7 @@ export function Brand({ size = "md" }: BrandProps) {
         className="brand-mark"
         style={{ width: dim, height: dim, borderRadius: dim / 3 }}
       >
-        <ShieldLockFill size={dim * 0.48} />
+        <Stars size={dim * 0.5} />
       </span>
       <span className="d-flex flex-column">
         <span className="brand-name" style={{ fontSize: size === "lg" ? "1.5rem" : undefined }}>

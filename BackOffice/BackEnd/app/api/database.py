@@ -34,19 +34,19 @@ def get_rows(
 
 @router.post(ENDPOINTS.DATABASE.ROWS)
 def create_row(table_name: str, body: InsertRowRequest, db: DbSession, admin: CurrentAdmin):
-    return database_service.insert_row(db, table_name, body.data, admin.username)
+    return database_service.insert_row(db, table_name, body.data, admin.email)
 
 
 @router.put(ENDPOINTS.DATABASE.ROWS)
 def update_row(table_name: str, body: UpdateRowRequest, db: DbSession, admin: CurrentAdmin):
-    return database_service.update_row(db, table_name, body.pk, body.data, admin.username)
+    return database_service.update_row(db, table_name, body.pk, body.data, admin.email)
 
 
 @router.delete(ENDPOINTS.DATABASE.ROWS)
 def delete_row(table_name: str, body: DeleteRowRequest, db: DbSession, admin: CurrentAdmin):
-    return database_service.delete_row(db, table_name, body.pk, admin.username)
+    return database_service.delete_row(db, table_name, body.pk, admin.email)
 
 
 @router.post(ENDPOINTS.DATABASE.QUERY, response_model=SqlQueryResponse)
 def run_query(body: SqlQueryRequest, db: DbSession, admin: CurrentAdmin):
-    return database_service.run_raw_query(db, body.query, admin.username)
+    return database_service.run_raw_query(db, body.query, admin.email)

@@ -3,7 +3,7 @@ There is no self-registration flow — this is a single-operator tool.
 
 Usage:
     python create_admin.py
-    (prompts interactively for name, username, and password)
+    (prompts interactively for name, email, and password)
 """
 
 import getpass
@@ -12,6 +12,7 @@ from app.core import security
 from app.db.session import SessionLocal, engine
 from app.models.admin_user import AdminUserDBM
 from app.models.base import Base
+from app.validators.email import validate_email_address
 
 
 def main() -> None:
@@ -20,9 +21,10 @@ def main() -> None:
         print("Name is required.")
         return
 
-    username = input("Username: ").strip()
-    if not username:
-        print("Username is required.")
+    try:
+        email = validate_email_address(input("Email: "))
+    except ValueError as exc:
+        print(str(exc))
         return
 
     password = getpass.getpass("Password: ")
@@ -33,17 +35,17 @@ def main() -> None:
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
-        existing = db.query(AdminUserDBM).filter(AdminUserDBM.username == username).first()
+        existing = db.query(AdminUserDBM).filter(AdminUserDBM.email == email).first()
         if existing:
             existing.name = name
             existing.hashed_password = security.hash_password(password)
             existing.is_active = True
             db.commit()
-            print(f"Updated admin '{username}'.")
+            print(f"Updated admin '{email}'.")
         else:
-            db.add(AdminUserDBM(name=name, username=username, hashed_password=security.hash_password(password)))
+            db.add(AdminUserDBM(name=name, email=email, hashed_password=security.hash_password(password)))
             db.commit()
-            print(f"Created admin user '{username}'.")
+            print(f"Created admin user '{email}'.")
     finally:
         db.close()
 

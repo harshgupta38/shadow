@@ -57,7 +57,7 @@ export function DashboardPage() {
     <>
       {/* Header */}
       <div className="mb-4">
-        <h1 className="page-title">{greeting}, {user?.username ?? "Admin"}</h1>
+        <h1 className="page-title">{greeting}, {user?.name ?? "Admin"}</h1>
         <p className="page-subtitle text-muted-2 mb-0">Here's your system overview for today.</p>
       </div>
 

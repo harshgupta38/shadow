@@ -4,11 +4,15 @@ export const ROUTES = {
 
   SHADOW_USERS:      "/shadow/users",
   SHADOW_DATABASE:   "/shadow/database",
-  SHADOW_HEALTH:     "/shadow/health",
+  SHADOW_DEPLOYMENT: "/shadow/deployment",
+  SHADOW_SERVER:     "/shadow/server",
+  SHADOW_LOGS:       "/shadow/logs",
 
-  BACKOFFICE_USERS:    "/backoffice/users",
-  BACKOFFICE_DATABASE: "/backoffice/database",
-  BACKOFFICE_HEALTH:   "/backoffice/health",
+  BACKOFFICE_USERS:      "/backoffice/users",
+  BACKOFFICE_DATABASE:   "/backoffice/database",
+  BACKOFFICE_DEPLOYMENT: "/backoffice/deployment",
+  BACKOFFICE_SERVER:     "/backoffice/server",
+  BACKOFFICE_LOGS:       "/backoffice/logs",
 
   // Pre-existing pages — no longer linked from the sidebar (superseded by the
   // Shadow/Controller/BackOffice reorganization) but left in place until

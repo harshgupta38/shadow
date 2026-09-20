@@ -53,7 +53,7 @@ export function Sidebar({ onNavigate, collapsed, onToggleCollapse }: SidebarProp
           ) : (
             <>
               <ArrowBarLeft size={16} />
-              <span>Collapse</span>
+              <span>Collapse sidebar</span>
             </>
           )}
         </button>

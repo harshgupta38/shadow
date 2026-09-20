@@ -401,15 +401,14 @@ h1, h2, h3, h4, h5, h6, .display-font {
 // ─── App Shell Layout ─────────────────────────────────────────────────────────
 :root {
   --jv-topbar-h:            68px;
-  --jv-sidebar-w:           256px;
-  --jv-sidebar-collapsed-w: 64px;
+  --jv-sidebar-w:           264px;
+  --jv-sidebar-collapsed-w: 68px;
 }
 
 .app-shell {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  overflow: hidden;
 }
 
 // ── Topbar ────────────────────────────────────────────────────────────────────
@@ -447,16 +446,17 @@ h1, h2, h3, h4, h5, h6, .display-font {
 .sidebar {
   width: var(--jv-sidebar-w);
   flex-shrink: 0;
-  height: calc(100vh - var(--jv-topbar-h));
   position: sticky;
-  top: var(--jv-topbar-h);
-  background: var(--jv-surface);
-  border-right: 1px solid var(--jv-border);
-  padding: 1rem 0.75rem;
+  top: 0;
+  height: calc(100vh - var(--jv-topbar-h));
   display: flex;
   flex-direction: column;
-  transition: width 240ms var(--jv-ease);
+  padding: 1.1rem 0.9rem;
+  gap: 0.4rem;
+  background: var(--jv-surface);
+  border-right: 1px solid var(--jv-border);
   overflow: hidden;
+  transition: width 240ms var(--jv-ease);
 }
 
 .sidebar--collapsed {
@@ -474,89 +474,105 @@ h1, h2, h3, h4, h5, h6, .display-font {
   font-size: 0.68rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.08em;
   color: var(--jv-faint);
-  padding: 0.6rem 0.6rem 0.25rem;
+  padding: 0.5rem 0.8rem 0.3rem;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .nav-link-jv {
   display: flex;
   align-items: center;
-  gap: 0.65rem;
-  padding: 0.55rem 0.75rem;
+  gap: 0.75rem;
+  padding: 0.62rem 0.8rem;
   border-radius: var(--jv-radius-sm);
   color: var(--jv-muted);
-  font-size: 0.875rem;
-  font-weight: 500;
+  font-size: 0.92rem;
+  font-weight: 600;
   text-decoration: none;
   white-space: nowrap;
   transition: background var(--jv-transition), color var(--jv-transition);
   position: relative;
 
   &:hover {
-    background: var(--jv-surface-3);
+    background: var(--jv-surface-2);
     color: var(--jv-text);
   }
 
   &.active {
     background: var(--jv-brand-soft);
     color: var(--jv-brand-1);
-    font-weight: 600;
 
     &::before {
       content: "";
       position: absolute;
-      left: 0;
-      top: 20%;
-      bottom: 20%;
-      width: 3px;
-      border-radius: 0 2px 2px 0;
-      background: var(--jv-brand-1);
+      left: -0.9rem;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 4px;
+      height: 22px;
+      border-radius: 4px;
+      background: var(--jv-brand-gradient);
     }
+  }
+
+  svg {
+    flex-shrink: 0;
+  }
+
+  span {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
   }
 }
 
 .nav-link-jv--icon {
   justify-content: center;
-  padding: 0.6rem;
+  padding: 0.62rem;
 }
 
 // ── Collapse button ───────────────────────────────────────────────────────────
 .sidebar-collapse-btn {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.55rem;
   width: 100%;
-  padding: 0.55rem 0.75rem;
+  padding: 0.55rem 0.8rem;
   border: none;
   background: transparent;
   border-radius: var(--jv-radius-sm);
   color: var(--jv-faint);
   font-size: 0.82rem;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
+  overflow: hidden;
   transition: background var(--jv-transition), color var(--jv-transition);
   flex-shrink: 0;
 
   &:hover {
-    background: var(--jv-surface-3);
+    background: var(--jv-surface-2);
     color: var(--jv-text);
   }
 }
 
 .sidebar-collapse-btn--collapsed {
   justify-content: center;
-  padding: 0.6rem;
+  padding: 0.55rem;
 }
 
 // ── Main content area ─────────────────────────────────────────────────────────
 .app-main {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
   overflow-y: auto;
-  background: var(--jv-bg);
+  max-height: calc(100vh - var(--jv-topbar-h));
 }
 
 .app-content {

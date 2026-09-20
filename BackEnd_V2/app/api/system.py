@@ -159,6 +159,38 @@ def restore_backup(filename: str, x_admin_secret: str = Header(...)):
     return result
 
 
+@router.post(ENDPOINTS.SYSTEM.ADMIN_BACKUP_QUERY, tags=["admin"])
+def query_backup(filename: str, body: SqlRequest, x_admin_secret: str = Header(...)):
+    if x_admin_secret != settings.admin_secret:
+        raise HTTPException(status_code=403, detail="Forbidden.")
+
+    path = backup_service.get_backup_path(filename)
+    if path is None:
+        raise HTTPException(status_code=404, detail="Backup not found.")
+
+    # Opened read-only at the SQLite level (mode=ro) — a write attempt fails
+    # here regardless of what the query text looks like, so this is safe
+    # for the admin panel's backup browser without needing to inspect or
+    # restrict the SQL itself the way /admin/sql (which edits the live
+    # database) has to.
+    conn = sqlite3.connect(f"file:{path.as_posix()}?mode=ro", uri=True)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+    try:
+        cur.execute(body.query)
+        columns = [d[0] for d in cur.description] if cur.description else []
+        rows = cur.fetchall()
+        return {
+            "rowcount": cur.rowcount,
+            "columns": columns,
+            "rows": [dict(r) for r in rows],
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        conn.close()
+
+
 @router.post(ENDPOINTS.SYSTEM.ADMIN_SQL, tags=["admin"])
 def run_sql(body: SqlRequest, x_admin_secret: str = Header(...)):
     if x_admin_secret != settings.admin_secret:

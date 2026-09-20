@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { Modal } from "react-bootstrap";
-import { ArrowCounterclockwise, CloudArrowDownFill, Inbox, PlusLg } from "react-bootstrap-icons";
+import { ArrowCounterclockwise, BoxArrowUpRight, CloudArrowDownFill, Inbox, PlusLg } from "react-bootstrap-icons";
 import { api, ApiError } from "@/api";
 import type { BackupInfo } from "@/api";
 import { downloadBlob } from "@/lib/download";
 import { formatDateTime, formatFileSize } from "@/lib/format";
 import { useToast } from "@/context/ToastContext";
 
-export function BackupsTab() {
+export function BackupsTab({ onOpenBackup }: { onOpenBackup: (filename: string) => void }) {
   const [backups, setBackups] = useState<BackupInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -131,6 +131,15 @@ export function BackupsTab() {
                   <td style={{ color: "var(--jv-muted)" }}>{formatFileSize(b.size_bytes)}</td>
                   <td>
                     <div className="d-flex gap-1">
+                      <button
+                        type="button"
+                        className="btn-action btn-action--ghost"
+                        onClick={() => onOpenBackup(b.name)}
+                        disabled={busy}
+                      >
+                        <BoxArrowUpRight size={12} />
+                        Open
+                      </button>
                       <button
                         type="button"
                         className="btn-action btn-action--ghost"

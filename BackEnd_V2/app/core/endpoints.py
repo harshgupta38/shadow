@@ -12,6 +12,7 @@ class Endpoints:
         ADMIN_BACKUPS = "/admin/backups"
         ADMIN_BACKUP_FILE = "/admin/backups/{filename}"
         ADMIN_BACKUP_RESTORE = "/admin/backups/{filename}/restore"
+        ADMIN_BACKUP_QUERY = "/admin/backups/{filename}/query"
 
     class SHORTCUTS:
         PREFIX = "/shortcuts"

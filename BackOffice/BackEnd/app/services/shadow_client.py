@@ -48,6 +48,38 @@ def run_sql(query: str) -> dict:
     return resp.json()  # {"rowcount": int, "columns": [str], "rows": [dict]}
 
 
+def run_backup_sql(filename: str, query: str) -> dict:
+    """Executes one read-only SQL statement against a specific backup file
+    via BackEnd_V2's POST /admin/backups/{filename}/query. BackEnd_V2 opens
+    that file in SQLite's own read-only mode, so a write attempt fails
+    there regardless of what's sent here — this client has nothing extra
+    to enforce, same trust boundary as run_sql().
+    """
+    try:
+        resp = _client.post(
+            f"{settings.shadow_backend_url}/admin/backups/{filename}/query",
+            json={"query": query},
+            headers={"X-Admin-Secret": settings.shadow_admin_secret},
+        )
+    except httpx.RequestError as e:
+        raise ServiceUnavailableError(f"Could not reach Shadow V2 backend: {e}")
+
+    if resp.status_code == 404:
+        raise NotFoundError(f"Backup '{filename}' not found.")
+    if resp.status_code == 403:
+        raise ServiceUnavailableError(
+            "Shadow V2 rejected the admin secret — check SHADOW_ADMIN_SECRET in BackOffice's .env."
+        )
+    if resp.status_code >= 400:
+        try:
+            detail = resp.json().get("detail", "Query failed.")
+        except ValueError:
+            detail = "Query failed."
+        raise AppError(detail)
+
+    return resp.json()  # {"rowcount": int, "columns": [str], "rows": [dict]}
+
+
 def list_backups() -> list[dict]:
     """Shadow V2's persistent backup archive (BackEnd_V2/backups/, written
     by its own daily-scheduled backup_service) via GET /admin/backups —

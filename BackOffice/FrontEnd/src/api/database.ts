@@ -41,4 +41,18 @@ export const databaseApi = {
   async restoreBackup(filename: string): Promise<RestoreBackupResponse> {
     return http.post<RestoreBackupResponse>(ENDPOINTS.DATABASE.backupRestore(filename));
   },
+  async listBackupTables(filename: string): Promise<TableInfo[]> {
+    return http.get<TableInfo[]>(ENDPOINTS.DATABASE.backupTables(filename));
+  },
+  async getBackupRows(filename: string, tableName: string, page: number, pageSize: number, search: string): Promise<RowsResponse> {
+    return http.get<RowsResponse>(ENDPOINTS.DATABASE.backupRows(filename, tableName), {
+      params: { page, page_size: pageSize, search },
+    });
+  },
+  async getBackupRow(filename: string, tableName: string, pk: Row): Promise<Row | null> {
+    const res = await http.get<{ row: Row | null }>(ENDPOINTS.DATABASE.backupRow(filename, tableName), {
+      params: { pk: JSON.stringify(pk) },
+    });
+    return res.row;
+  },
 };

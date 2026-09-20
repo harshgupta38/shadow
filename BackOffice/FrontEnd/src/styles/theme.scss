@@ -1448,6 +1448,10 @@ h1, h2, h3, h4, h5, h6, .display-font {
   margin-bottom: 1.25rem;
   background: var(--jv-bg);
   border-bottom: 1px solid var(--jv-border);
+  overflow-x: auto;
+  flex-wrap: nowrap;
+  scrollbar-width: thin;
+  scrollbar-color: var(--jv-border-strong) transparent;
 }
 
 .db-tab {
@@ -1464,6 +1468,7 @@ h1, h2, h3, h4, h5, h6, .display-font {
   font-weight: 600;
   cursor: pointer;
   position: relative;
+  flex-shrink: 0;
   transition: background var(--jv-transition), color var(--jv-transition);
 
   &:hover { background: var(--jv-surface-3); color: var(--jv-brand-1); }
@@ -1475,6 +1480,62 @@ h1, h2, h3, h4, h5, h6, .display-font {
     margin-bottom: -1px;
 
     &:hover { background: var(--jv-surface); }
+  }
+
+  // Opened via BackupsTab's "Open" action — a <div role="tab"> rather than
+  // a <button>, since it hosts its own real close <button> inside (a
+  // button can't nest another focusable button, so the outer element
+  // can't be one either). Same box styling as .db-tab, just taller to fit
+  // a title + filename subtitle instead of one line.
+  &--dynamic {
+    padding: 0.55rem 0.6rem 0.55rem 1rem;
+    gap: 0.55rem;
+  }
+}
+
+.db-tab-labels {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.db-tab-title {
+  font-size: 0.86rem;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.db-tab-subtitle {
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: var(--jv-faint);
+  font-family: "Menlo", "Consolas", monospace;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.1;
+}
+
+.db-tab-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--jv-faint);
+  cursor: pointer;
+  transition: background var(--jv-transition), color var(--jv-transition);
+
+  &:hover {
+    background: var(--jv-danger-soft);
+    color: var(--jv-danger);
   }
 }
 
@@ -1792,6 +1853,20 @@ h1, h2, h3, h4, h5, h6, .display-font {
   color: var(--jv-danger);
   font-size: 0.75rem;
   margin-top: 0.25rem;
+}
+
+// Plain display box for BackupRowViewer — looks like a disabled form
+// control (same box model, muted background) but is a <div>/<pre>, not an
+// input, so there's no widget underneath that editing could ever reattach to.
+.db-field-readonly {
+  background: var(--jv-surface-3);
+  color: var(--jv-text);
+  cursor: default;
+  white-space: pre-wrap;
+  word-break: break-word;
+  min-height: calc(1.5em + 0.75rem + 2px);
+
+  &:focus { box-shadow: none; }
 }
 
 // Structured editor for list[str] / list[int] JSON columns (see

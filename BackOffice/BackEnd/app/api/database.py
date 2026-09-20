@@ -90,3 +90,29 @@ def download_backup(filename: str, _admin: CurrentAdmin):
 @router.post(ENDPOINTS.DATABASE.BACKUP_RESTORE, response_model=RestoreBackupResponse)
 def restore_backup(filename: str, db: DbSession, admin: CurrentAdmin):
     return database_service.restore_backup(db, filename, admin.email)
+
+
+@router.get(ENDPOINTS.DATABASE.BACKUP_TABLES, response_model=list[TableInfo])
+def list_backup_tables(filename: str, _admin: CurrentAdmin):
+    return database_service.list_backup_tables(filename)
+
+
+@router.get(ENDPOINTS.DATABASE.BACKUP_ROWS, response_model=RowsResponse)
+def get_backup_rows(
+    filename: str,
+    table_name: str,
+    _admin: CurrentAdmin,
+    page: int = 1,
+    page_size: int = 20,
+    search: str = "",
+):
+    return database_service.get_backup_rows(filename, table_name, page, page_size, search)
+
+
+@router.get(ENDPOINTS.DATABASE.BACKUP_ROW, response_model=RowLookupResponse)
+def get_backup_row(filename: str, table_name: str, pk: str, _admin: CurrentAdmin):
+    try:
+        pk_dict = json.loads(pk)
+    except (json.JSONDecodeError, TypeError):
+        raise ValidationError("Invalid pk parameter — must be JSON.")
+    return {"row": database_service.get_backup_row(filename, table_name, pk_dict)}

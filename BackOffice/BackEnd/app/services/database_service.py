@@ -15,6 +15,7 @@ composed as text. That means two rules are non-negotiable everywhere below:
 """
 
 import json
+import logging
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -22,6 +23,8 @@ from sqlalchemy.orm import Session
 from app.core.exceptions import NotFoundError, ValidationError
 from app.models.sql_audit_log import SqlAuditLogDBM
 from app.services import model_constraints, shadow_client
+
+logger = logging.getLogger(__name__)
 
 
 def _quote_ident(name: str) -> str:
@@ -141,18 +144,44 @@ def _decode_json_columns(rows: list[dict], columns: list[dict]) -> list[dict]:
     mangled double-encoded text the row editor was showing. Decode each
     JSON-typed column's value once here, so the API response — and the
     list-shape editor, which needs a real array to render — get the actual
-    structure instead of its stringified form."""
-    json_cols = [c["name"] for c in columns if c["type"] == "JSON"]
+    structure instead of its stringified form.
+
+    A column counts as JSON-holding if either the live SQLite schema says so
+    (`type == "JSON"`) OR model_constraints' AST-derived json_shape says so —
+    the two can disagree when a column's declared SQL type has drifted from
+    its model (e.g. an old migration left it as TEXT while the model has
+    since moved to `Mapped[dict]`/JSON), and json_shape, read fresh from the
+    model source, is the one that reflects what the data actually is."""
+    json_cols = [c["name"] for c in columns if c["type"] == "JSON" or c.get("json_shape") is not None]
     if not json_cols:
         return rows
     for row in rows:
         for col in json_cols:
             value = row.get(col)
-            if isinstance(value, str):
+            if not isinstance(value, str):
+                continue
+            # A handful of rows were written by an older, buggy version of this
+            # editor that serialized an already-serialized value, so one pass
+            # can still leave a string (a JSON document whose top-level value
+            # is itself a JSON-encoded string). Unwrap up to a few layers —
+            # bounded so a value that's legitimately just a string forever
+            # (not valid JSON at all) can't spin — and never lose data: if a
+            # pass fails to parse, keep whatever the last successful pass
+            # produced instead of the raw text.
+            decoded = value
+            for _ in range(3):
+                if not isinstance(decoded, str):
+                    break
                 try:
-                    row[col] = json.loads(value)
+                    decoded = json.loads(decoded)
                 except ValueError:
-                    pass  # not valid JSON (legacy/corrupt data) — leave the raw text as-is
+                    break
+            if isinstance(decoded, str):
+                logger.warning(
+                    "database_service: column %r still isn't valid JSON after decoding — "
+                    "leaving it as raw text (row may have corrupt/legacy data).", col,
+                )
+            row[col] = decoded
     return rows
 
 

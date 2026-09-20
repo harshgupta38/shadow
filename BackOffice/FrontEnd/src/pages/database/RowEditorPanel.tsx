@@ -4,8 +4,9 @@ import { ArrowClockwise, ArrowCounterclockwise, ArrowLeft, PlusLg, SaveFill, Tra
 import { api, ApiError } from "@/api";
 import type { ColumnInfo, Row, TableInfo } from "@/api";
 import { pkValues, rowLabel } from "./dbHelpers";
+import { JsonTreeEditor, type JsonValue } from "./JsonTreeEditor";
 
-type FormValue = string | boolean | string[];
+type FormValue = string | boolean | string[] | JsonValue;
 
 const LONG_TEXT_HINTS = [
   "summary", "description", "note", "bio", "motivation", "reason",
@@ -20,16 +21,25 @@ function isBoolean(col: ColumnInfo): boolean {
   return col.type.includes("BOOL");
 }
 
+// A column's live SQL type can drift from its model (e.g. an old migration
+// left it as TEXT after the model moved to `Mapped[dict]`/JSON) — json_shape
+// is read fresh from the model source every startup, so it's the more
+// reliable signal whenever the two disagree.
 function isJson(col: ColumnInfo): boolean {
-  return col.type.includes("JSON");
+  return col.type.includes("JSON") || col.json_shape !== null;
 }
 
 // A JSON column whose model annotation is precise enough (list[str] /
-// list[int]) to edit as a real list of items instead of raw text. Anything
-// else JSON-typed (nested dicts, list[dict], or a JSON column with no
-// model info at all) falls back to the plain textarea further down.
+// list[int]) to edit as a flat list of items instead of a navigable tree.
 function isListShape(col: ColumnInfo): boolean {
   return col.json_shape === "list_str" || col.json_shape === "list_int";
+}
+
+// Everything else JSON-typed — nested dicts, list[dict], or a JSON column
+// with no model info at all — edits as a breadcrumb-navigable tree
+// (JsonTreeEditor) instead of raw text.
+function isTreeJsonShape(col: ColumnInfo): boolean {
+  return isJson(col) && !isListShape(col);
 }
 
 function computeListItemRows(value: string): number {
@@ -65,6 +75,8 @@ function buildInitialForm(table: TableInfo, row: Row | null): Record<string, For
       form[col.name] = value === undefined ? false : Boolean(value);
     } else if (isListShape(col)) {
       form[col.name] = Array.isArray(value) ? value.map(String) : [];
+    } else if (isTreeJsonShape(col)) {
+      form[col.name] = (value ?? (col.json_shape === "list" ? [] : {})) as JsonValue;
     } else {
       form[col.name] = formatFieldValue(col, value ?? null);
     }
@@ -86,6 +98,8 @@ interface ListFieldEditorProps {
 // with add/remove controls. The user only ever touches plain values, never
 // JSON syntax, so there's nothing here for them to break the format with.
 function ListFieldEditor({ items, itemType, onChange, disabled, invalid }: ListFieldEditorProps) {
+  const [pendingRemoveIndex, setPendingRemoveIndex] = useState<number | null>(null);
+
   function updateItem(i: number, value: string) {
     const next = items.slice();
     next[i] = value;
@@ -124,7 +138,7 @@ function ListFieldEditor({ items, itemType, onChange, disabled, invalid }: ListF
           <button
             type="button"
             className="btn btn-ghost btn-icon"
-            onClick={() => removeItem(i)}
+            onClick={() => setPendingRemoveIndex(i)}
             disabled={disabled}
             aria-label={`Remove item ${i + 1}`}
           >
@@ -141,6 +155,35 @@ function ListFieldEditor({ items, itemType, onChange, disabled, invalid }: ListF
         <PlusLg size={13} />
         Add item
       </button>
+
+      {pendingRemoveIndex !== null && (
+        <Modal show onHide={() => setPendingRemoveIndex(null)} centered className="deploy-modal">
+          <Modal.Header>
+            <h5 className="deploy-modal-title">Remove item?</h5>
+            <button type="button" className="btn btn-ghost btn-icon" onClick={() => setPendingRemoveIndex(null)} aria-label="Close">
+              ×
+            </button>
+          </Modal.Header>
+          <Modal.Body>
+            <p className="mb-0">Remove item {pendingRemoveIndex + 1}? This can't be undone.</p>
+          </Modal.Body>
+          <Modal.Footer>
+            <button type="button" className="btn btn-ghost" onClick={() => setPendingRemoveIndex(null)}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn btn-soft-danger"
+              onClick={() => {
+                removeItem(pendingRemoveIndex);
+                setPendingRemoveIndex(null);
+              }}
+            >
+              Remove
+            </button>
+          </Modal.Footer>
+        </Modal>
+      )}
     </div>
   );
 }
@@ -229,7 +272,7 @@ export const RowEditorPanel = forwardRef<RowEditorPanelHandle, RowEditorPanelPro
       }
 
       if (isListShape(col)) {
-        const items = Array.isArray(raw) ? raw : [];
+        const items = Array.isArray(raw) ? (raw as string[]) : [];
         if (col.json_shape === "list_int") {
           const numbers: number[] = [];
           let bad = false;
@@ -250,21 +293,18 @@ export const RowEditorPanel = forwardRef<RowEditorPanelHandle, RowEditorPanelPro
         continue;
       }
 
+      if (isTreeJsonShape(col)) {
+        data[col.name] = raw as JsonValue; // already a real value — JsonTreeEditor never produces raw text to parse
+        continue;
+      }
+
       const text = String(raw ?? "").trim();
       if (text === "") {
         data[col.name] = null;
         continue;
       }
 
-      if (isJson(col)) {
-        try {
-          data[col.name] = JSON.parse(text);
-        } catch {
-          parseErrors[col.name] = "Invalid JSON";
-        }
-      } else {
-        data[col.name] = text;
-      }
+      data[col.name] = text;
     }
 
     if (Object.keys(parseErrors).length > 0) {
@@ -441,7 +481,7 @@ export const RowEditorPanel = forwardRef<RowEditorPanelHandle, RowEditorPanelPro
               return (
                 <div
                   key={col.name}
-                  className={`db-field${isLongText(col) || isJson(col) || isListShape(col) ? " db-field--wide" : ""}`}
+                  className={`db-field${isLongText(col) || isJson(col) ? " db-field--wide" : ""}`}
                 >
                   <label className="form-label db-field-label">
                     {col.name}
@@ -474,12 +514,12 @@ export const RowEditorPanel = forwardRef<RowEditorPanelHandle, RowEditorPanelPro
                       disabled={busy}
                       invalid={Boolean(error)}
                     />
-                  ) : isJson(col) ? (
-                    <textarea
-                      className={`form-control db-field-mono${error ? " is-invalid" : ""}`}
-                      rows={4}
-                      value={String(form[col.name] ?? "")}
-                      onChange={(e) => setField(col.name, e.target.value)}
+                  ) : isTreeJsonShape(col) ? (
+                    <JsonTreeEditor
+                      value={(form[col.name] ?? (col.json_shape === "list" ? [] : {})) as JsonValue}
+                      onChange={(next) => setField(col.name, next)}
+                      disabled={busy}
+                      expectedShape={col.json_shape === "list" ? "list" : "dict"}
                     />
                   ) : isLongText(col) ? (
                     <textarea

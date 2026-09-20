@@ -1834,6 +1834,157 @@ h1, h2, h3, h4, h5, h6, .display-font {
   font-family: "Menlo", "Consolas", monospace;
 }
 
+// Firebase-RTDB-style navigable editor for dict/list JSON columns (see
+// JsonTreeEditor.tsx) — a breadcrumb tracks the current path, and each level
+// shows its own keys/items as an inline primitive editor or a "drill in" row.
+.db-json-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.6rem;
+  border: 1.5px solid var(--jv-border-strong);
+  border-radius: var(--jv-radius-sm);
+  background: var(--jv-surface);
+}
+
+.db-json-breadcrumb {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.1rem;
+  padding: 0.3rem 0.5rem;
+  background: var(--jv-surface-3);
+  border-radius: var(--jv-radius-sm);
+  font-family: "Menlo", "Consolas", monospace;
+  font-size: 0.78rem;
+
+  button {
+    border: none;
+    background: transparent;
+    color: var(--jv-brand-1);
+    padding: 0.15rem 0.4rem;
+    border-radius: 6px;
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+      background: var(--jv-brand-soft);
+    }
+
+    &:disabled {
+      color: var(--jv-text);
+      font-weight: 600;
+      cursor: default;
+    }
+  }
+}
+
+.db-json-breadcrumb-segment {
+  display: flex;
+  align-items: center;
+
+  &::before {
+    content: "/";
+    color: var(--jv-faint);
+    margin-right: 0.05rem;
+  }
+}
+
+.db-json-tree-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.db-json-tree-empty {
+  margin: 0.2rem 0;
+  color: var(--jv-faint);
+  font-size: 0.82rem;
+  font-style: italic;
+}
+
+.db-json-tree-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+
+  .form-control {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.db-json-tree-key {
+  flex: 0 0 auto;
+  // min-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: "Menlo", "Consolas", monospace;
+  font-size: 0.8rem;
+  color: var(--jv-muted);
+}
+
+.db-json-tree-drill {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--jv-border-strong);
+  background: var(--jv-brand-soft);
+  color: var(--jv-brand-1);
+  padding: 0.35rem 0.6rem;
+  border-radius: var(--jv-radius-sm);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    border-color: var(--jv-brand-1);
+  }
+}
+
+.db-json-tree-bool {
+  flex: 1;
+  padding-top: 0.15rem;
+}
+
+.db-json-tree-type {
+  flex: 0 0 auto;
+  width: auto;
+  font-size: 0.75rem;
+  padding: 0.3rem 1.6rem 0.3rem 0.5rem;
+}
+
+.db-json-tree-add {
+  display: flex;
+  gap: 0.5rem;
+
+  input {
+    flex: 1;
+  }
+}
+
+// Stored value doesn't match the column's expected dict/list shape (legacy
+// double-encoded data, or something genuinely non-JSON) — shown instead of
+// the normal tree so this never looks identical to a real empty container.
+.db-json-tree--malformed {
+  gap: 0.5rem;
+}
+
+.db-json-tree-warning {
+  margin: 0;
+  padding: 0.5rem 0.65rem;
+  background: var(--jv-warn-soft);
+  color: var(--jv-warn);
+  border-radius: var(--jv-radius-sm);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
 @media (max-width: 768px) {
   // The row panel is inside .db-main, which loses its fixed height at this
   // width (see the .db-tab-panel reset above) — without this, .db-row-panel

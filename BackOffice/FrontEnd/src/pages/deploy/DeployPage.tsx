@@ -335,7 +335,7 @@ export function DeployPage() {
               <button
                 key={p}
                 type="button"
-                className={`deploy-page-btn${p === safePage ? " deploy-page-btn--active" : ""}`}
+                className={`page-number-btn${p === safePage ? " page-number-btn--active" : ""}`}
                 onClick={() => setPage(p)}
               >
                 {p}

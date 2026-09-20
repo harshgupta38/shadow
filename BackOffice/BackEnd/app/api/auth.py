@@ -21,7 +21,7 @@ _COOKIE_OPTS: dict = dict(
 
 @router.post(ENDPOINTS.AUTH.LOGIN, response_model=AdminUserResponse)
 def login(body: LoginRequest, response: Response, db: DbSession):
-    admin = auth_service.authenticate(db, body.username, body.password)
+    admin = auth_service.authenticate(db, body.email, body.password)
     token = security.create_access_token(admin.id)
     response.set_cookie(
         key=COOKIE_NAME,

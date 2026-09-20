@@ -15,13 +15,16 @@ composed as text. That means two rules are non-negotiable everywhere below:
 """
 
 import json
+import logging
 from typing import Any
 
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import NotFoundError, ValidationError
 from app.models.sql_audit_log import SqlAuditLogDBM
-from app.services import shadow_client
+from app.services import model_constraints, shadow_client
+
+logger = logging.getLogger(__name__)
 
 
 def _quote_ident(name: str) -> str:
@@ -73,6 +76,7 @@ def get_table_columns(table_name: str) -> list[dict]:
             "nullable": row["notnull"] == 0,
             "pk": row["pk"] > 0,
             "fk": fk_by_column.get(row["name"]),
+            "json_shape": model_constraints.get_json_shape(table_name, row["name"]),
         })
     return columns
 
@@ -121,7 +125,7 @@ def get_rows(table_name: str, page: int, page_size: int, search: str) -> dict:
 
     return {
         "columns": columns,
-        "rows": rows_result["rows"],
+        "rows": _decode_json_columns(rows_result["rows"], columns),
         "total": total,
         "page": page,
         "page_size": page_size,
@@ -130,6 +134,76 @@ def get_rows(table_name: str, page: int, page_size: int, search: str) -> dict:
 
 def _pk_columns(columns: list[dict]) -> set[str]:
     return {c["name"] for c in columns if c["pk"]}
+
+
+def _decode_json_columns(rows: list[dict], columns: list[dict]) -> list[dict]:
+    """shadow_client.run_sql() (and SQLite itself) hands JSON columns back
+    as the raw TEXT they're stored as — never parsed. Left alone, that text
+    gets JSON-encoded a second time on the way out of this API (a string
+    wrapped in another layer of quotes/escapes), which is exactly the
+    mangled double-encoded text the row editor was showing. Decode each
+    JSON-typed column's value once here, so the API response — and the
+    list-shape editor, which needs a real array to render — get the actual
+    structure instead of its stringified form.
+
+    A column counts as JSON-holding if either the live SQLite schema says so
+    (`type == "JSON"`) OR model_constraints' AST-derived json_shape says so —
+    the two can disagree when a column's declared SQL type has drifted from
+    its model (e.g. an old migration left it as TEXT while the model has
+    since moved to `Mapped[dict]`/JSON), and json_shape, read fresh from the
+    model source, is the one that reflects what the data actually is."""
+    json_cols = [c["name"] for c in columns if c["type"] == "JSON" or c.get("json_shape") is not None]
+    if not json_cols:
+        return rows
+    for row in rows:
+        for col in json_cols:
+            value = row.get(col)
+            if not isinstance(value, str):
+                continue
+            # A handful of rows were written by an older, buggy version of this
+            # editor that serialized an already-serialized value, so one pass
+            # can still leave a string (a JSON document whose top-level value
+            # is itself a JSON-encoded string). Unwrap up to a few layers —
+            # bounded so a value that's legitimately just a string forever
+            # (not valid JSON at all) can't spin — and never lose data: if a
+            # pass fails to parse, keep whatever the last successful pass
+            # produced instead of the raw text.
+            decoded = value
+            for _ in range(3):
+                if not isinstance(decoded, str):
+                    break
+                try:
+                    decoded = json.loads(decoded)
+                except ValueError:
+                    break
+            if isinstance(decoded, str):
+                logger.warning(
+                    "database_service: column %r still isn't valid JSON after decoding — "
+                    "leaving it as raw text (row may have corrupt/legacy data).", col,
+                )
+            row[col] = decoded
+    return rows
+
+
+def get_row(table_name: str, pk: dict) -> dict | None:
+    """Re-fetches a single row by primary key — the row editor's "refresh"
+    action, for when the underlying data may have changed since it loaded.
+    """
+    _validate_table(table_name)
+    columns = get_table_columns(table_name)
+    pk_columns = _pk_columns(columns)
+
+    if not pk_columns:
+        raise ValidationError(f"Table '{table_name}' has no primary key — cannot look up a single row.")
+    if set(pk.keys()) != pk_columns:
+        raise ValidationError(f"Primary key value(s) required: {', '.join(sorted(pk_columns))}")
+
+    where_sql = " AND ".join(f"{_quote_ident(c)} = {_quote_literal(v)}" for c, v in pk.items())
+    query = f"SELECT * FROM {_quote_ident(table_name)} WHERE {where_sql} LIMIT 1"
+    result = shadow_client.run_sql(query)
+    if not result["rows"]:
+        return None
+    return _decode_json_columns(result["rows"], columns)[0]
 
 
 def insert_row(db: Session, table_name: str, data: dict, admin_username: str) -> dict:
@@ -141,6 +215,10 @@ def insert_row(db: Session, table_name: str, data: dict, admin_username: str) ->
         raise ValidationError(f"Unknown column(s): {', '.join(sorted(unknown))}")
     if not data:
         raise ValidationError("Provide at least one column to insert.")
+
+    schema_errors = model_constraints.validate_row(table_name, data)
+    if schema_errors:
+        raise ValidationError("Please correct the highlighted fields.", errors=schema_errors)
 
     col_names = list(data.keys())
     col_sql = ", ".join(_quote_ident(c) for c in col_names)
@@ -171,6 +249,10 @@ def update_row(db: Session, table_name: str, pk: dict, data: dict, admin_usernam
         raise ValidationError(f"Unknown column(s): {', '.join(sorted(unknown))}")
     if not data:
         raise ValidationError("No fields to update.")
+
+    schema_errors = model_constraints.validate_row(table_name, data)
+    if schema_errors:
+        raise ValidationError("Please correct the highlighted fields.", errors=schema_errors)
 
     set_sql = ", ".join(f"{_quote_ident(c)} = {_quote_literal(v)}" for c, v in data.items())
     where_sql = " AND ".join(f"{_quote_ident(c)} = {_quote_literal(v)}" for c, v in pk.items())

@@ -24,6 +24,7 @@ class Endpoints:
         PREFIX = "/database"
         TABLES = "/tables"
         ROWS = "/tables/{table_name}/rows"
+        ROW = "/tables/{table_name}/row"
         QUERY = "/query"
 
     class SERVER:
@@ -34,6 +35,11 @@ class Endpoints:
         RESTART = "/restart"
         RESTART_DETAIL = "/restart/{restart_id}"
         RESTART_HISTORY = "/restart-history"
+
+    class USERS:
+        PREFIX = "/users"
+        SHADOW = "/shadow"
+        BACKOFFICE = "/backoffice"
 
 
 ENDPOINTS = Endpoints()

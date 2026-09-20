@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { PersonFill, LockFill, Eye, EyeSlash } from "react-bootstrap-icons";
+import { EnvelopeFill, LockFill, Eye, EyeSlash } from "react-bootstrap-icons";
 import { AuthLayout } from "@/components/layout/AuthLayout";
 import { TextField } from "@/components/ui/TextField/TextField";
 import { ApiError } from "@/api";
@@ -11,7 +11,7 @@ export function LoginPage() {
   const navigate = useNavigate();
   const { login } = useAuth();
 
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,7 +35,7 @@ export function LoginPage() {
     setSubmitting(true);
 
     try {
-      await login({ username: username.trim(), password });
+      await login({ email: email.trim(), password });
       navigate(ROUTES.HOME, { replace: true });
     } catch (err) {
       if (err instanceof ApiError) {
@@ -52,7 +52,7 @@ export function LoginPage() {
   return (
     <AuthLayout>
       <h1 className="auth-form-heading">Welcome back</h1>
-      <p className="auth-form-sub">Sign in to access the Shadow BackOffice.</p>
+      <p className="auth-form-sub">Sign in to pick up where you left off.</p>
 
       {error && (
         <div className="alert alert-danger py-2 px-3 small mb-3" role="alert">
@@ -62,16 +62,16 @@ export function LoginPage() {
 
       <form onSubmit={handleSubmit} noValidate>
         <TextField
-          label="Username"
-          name="username"
-          type="text"
-          autoComplete="username"
-          placeholder="admin"
-          icon={<PersonFill size={15} />}
-          value={username}
-          error={fieldErrors["username"]}
-          onChange={(e) => setUsername(e.target.value)}
-          onClearError={() => clearFieldError("username")}
+          label="Email"
+          name="email"
+          type="email"
+          autoComplete="email"
+          placeholder="you@example.com"
+          icon={<EnvelopeFill size={15} />}
+          value={email}
+          error={fieldErrors["email"]}
+          onChange={(e) => setEmail(e.target.value)}
+          onClearError={() => clearFieldError("email")}
           required
           autoFocus
         />

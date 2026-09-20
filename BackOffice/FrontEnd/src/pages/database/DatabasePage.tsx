@@ -1,42 +1,52 @@
 import { useState } from "react";
-import { DatabaseFill, Grid3x3GapFill, Terminal } from "react-bootstrap-icons";
-import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
+import { CloudArrowDownFill, Grid3x3GapFill, Terminal } from "react-bootstrap-icons";
 import { TableBrowser } from "./TableBrowser";
 import { SqlConsole } from "./SqlConsole";
+import { BackupsTab } from "./BackupsTab";
 
-type DbTab = "browse" | "console";
+type DbTab = "main" | "query" | "backups";
 
+// No PageHeader and no shared .app-content padding/max-width here — the
+// database tools (row grid, SQL console) need the full viewport to be
+// usable, unlike every other page in the app. See .app-content-full /
+// .db-page-full in theme.scss and the route-based switch in AppLayout.
 export function DatabasePage() {
-  const [tab, setTab] = useState<DbTab>("browse");
+  const [tab, setTab] = useState<DbTab>("main");
 
   return (
-    <>
-      <PageHeader
-        icon={<DatabaseFill size={20} />}
-        title="Database"
-        subtitle="Browse Shadow V2 tables, edit records, or run raw SQL against shadow.db."
-      />
-
-      <div className="db-tabs">
+    <div className="db-page-full">
+      <div className="db-tabs db-tabs--full">
         <button
           type="button"
-          className={`db-tab${tab === "browse" ? " db-tab--active" : ""}`}
-          onClick={() => setTab("browse")}
+          className={`db-tab${tab === "main" ? " db-tab--active" : ""}`}
+          onClick={() => setTab("main")}
         >
           <Grid3x3GapFill size={14} />
-          Browse Tables
+          Main DB
         </button>
         <button
           type="button"
-          className={`db-tab${tab === "console" ? " db-tab--active" : ""}`}
-          onClick={() => setTab("console")}
+          className={`db-tab${tab === "query" ? " db-tab--active" : ""}`}
+          onClick={() => setTab("query")}
         >
           <Terminal size={14} />
-          SQL Console
+          Query
+        </button>
+        <button
+          type="button"
+          className={`db-tab${tab === "backups" ? " db-tab--active" : ""}`}
+          onClick={() => setTab("backups")}
+        >
+          <CloudArrowDownFill size={14} />
+          Backups
         </button>
       </div>
 
-      {tab === "browse" ? <TableBrowser /> : <SqlConsole />}
-    </>
+      <div className="db-tab-panel">
+        {tab === "main" && <TableBrowser />}
+        {tab === "query" && <SqlConsole />}
+        {tab === "backups" && <BackupsTab />}
+      </div>
+    </div>
   );
 }

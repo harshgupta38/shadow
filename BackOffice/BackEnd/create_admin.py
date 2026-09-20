@@ -2,40 +2,57 @@
 There is no self-registration flow — this is a single-operator tool.
 
 Usage:
-    python create_admin.py <username> <password>
+    python create_admin.py
+    (prompts interactively for name, email, and password)
 """
 
-import sys
+import getpass
 
 from app.core import security
 from app.db.session import SessionLocal, engine
 from app.models.admin_user import AdminUserDBM
 from app.models.base import Base
+from app.validators.email import validate_email_address
+from app.validators.password import validate_password
 
 
 def main() -> None:
-    if len(sys.argv) != 3:
-        print("Usage: python create_admin.py <username> <password>")
-        sys.exit(1)
+    name = input("Name: ").strip()
+    if not name:
+        print("Name is required.")
+        return
 
-    username, password = sys.argv[1], sys.argv[2]
-    if len(password) < 8:
-        print("Password must be at least 8 characters.")
-        sys.exit(1)
+    try:
+        # Lower-cased so this CLI can never create/update the same admin
+        # under two different casings of the same address — the API's
+        # auth_service/users_service normalise the same way at every
+        # lookup and write.
+        email = validate_email_address(input("Email: ")).lower()
+    except ValueError as exc:
+        print(str(exc))
+        return
+
+    password = getpass.getpass("Password: ")
+    try:
+        validate_password(password)
+    except ValueError as exc:
+        print(str(exc))
+        return
 
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
-        existing = db.query(AdminUserDBM).filter(AdminUserDBM.username == username).first()
+        existing = db.query(AdminUserDBM).filter(AdminUserDBM.email == email).first()
         if existing:
+            existing.name = name
             existing.hashed_password = security.hash_password(password)
             existing.is_active = True
             db.commit()
-            print(f"Updated password for existing admin '{username}'.")
+            print(f"Updated admin '{email}'.")
         else:
-            db.add(AdminUserDBM(username=username, hashed_password=security.hash_password(password)))
+            db.add(AdminUserDBM(name=name, email=email, hashed_password=security.hash_password(password)))
             db.commit()
-            print(f"Created admin user '{username}'.")
+            print(f"Created admin user '{email}'.")
     finally:
         db.close()
 

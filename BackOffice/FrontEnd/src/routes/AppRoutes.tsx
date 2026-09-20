@@ -24,6 +24,14 @@ const ServerPage = lazy(() =>
   import("@/pages/server/ServerPage").then((m) => ({ default: m.ServerPage })),
 );
 
+const ShadowUsersPage = lazy(() =>
+  import("@/pages/users/ShadowUsersPage").then((m) => ({ default: m.ShadowUsersPage })),
+);
+
+const BackOfficeUsersPage = lazy(() =>
+  import("@/pages/users/BackOfficeUsersPage").then((m) => ({ default: m.BackOfficeUsersPage })),
+);
+
 function RouteFallback() {
   return (
     <div
@@ -51,6 +59,13 @@ export function AppRoutes() {
             <Route path={ROUTES.DEPLOY}   element={<DeployPage />} />
             <Route path={ROUTES.DATABASE} element={<DatabasePage />} />
             <Route path={ROUTES.SERVER}   element={<ServerPage />} />
+
+            <Route path={ROUTES.SHADOW_USERS}      element={<ShadowUsersPage />} />
+            <Route path={ROUTES.SHADOW_DATABASE}   element={<DatabasePage />} />
+            <Route path={ROUTES.SHADOW_DEPLOYMENT} element={<DeployPage />} />
+            <Route path={ROUTES.SHADOW_SERVER}     element={<ServerPage />} />
+            <Route path={ROUTES.SHADOW_LOGS}       element={<ServerPage />} />
+            <Route path={ROUTES.BACKOFFICE_USERS}  element={<BackOfficeUsersPage />} />
           </Route>
         </Route>
 

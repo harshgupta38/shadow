@@ -1,11 +1,51 @@
+import { useState } from "react";
 import { NavLink } from "react-router-dom";
-import { ArrowBarLeft, ArrowBarRight } from "react-bootstrap-icons";
-import { NAV_SECTIONS } from "@/constant/nav";
+import { ArrowBarLeft, ArrowBarRight, ChevronRight } from "react-bootstrap-icons";
+import { NAV_SECTIONS, type HttpMethod, type NavTreeFolder } from "@/constant/nav";
 
 interface SidebarProps {
   onNavigate?: () => void;
   collapsed?: boolean;
   onToggleCollapse?: () => void;
+}
+
+function MethodBadge({ method }: { method: HttpMethod }) {
+  return (
+    <span className={`nav-tree-method nav-tree-method--${method.toLowerCase()}`}>
+      {method}
+    </span>
+  );
+}
+
+function TreeFolder({ folder }: { folder: NavTreeFolder }) {
+  const [open, setOpen] = useState(false);
+  const Icon = folder.icon;
+
+  return (
+    <div className="nav-tree-folder">
+      <button
+        type="button"
+        className="nav-tree-folder-row"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+      >
+        <ChevronRight size={12} className={`nav-tree-chevron${open ? " nav-tree-chevron--open" : ""}`} />
+        <Icon size={15} />
+        <span>{folder.label}</span>
+      </button>
+
+      {open && (
+        <div className="nav-tree-children">
+          {folder.children.map((leaf) => (
+            <div key={leaf.label} className="nav-tree-leaf">
+              <MethodBadge method={leaf.method} />
+              <span>{leaf.label}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function Sidebar({ onNavigate, collapsed, onToggleCollapse }: SidebarProps) {
@@ -17,7 +57,8 @@ export function Sidebar({ onNavigate, collapsed, onToggleCollapse }: SidebarProp
             {!collapsed && section.label && (
               <div className="nav-section-label">{section.label}</div>
             )}
-            {section.items.map((item) => {
+
+            {section.items?.map((item) => {
               const Icon = item.icon;
               return (
                 <NavLink
@@ -36,6 +77,11 @@ export function Sidebar({ onNavigate, collapsed, onToggleCollapse }: SidebarProp
                 </NavLink>
               );
             })}
+
+            {/* The Controller tree only renders expanded — a nested,
+                multi-level tree has no sensible icon-only collapsed form. */}
+            {!collapsed &&
+              section.tree?.map((folder) => <TreeFolder key={folder.label} folder={folder} />)}
           </div>
         ))}
       </nav>
@@ -53,7 +99,7 @@ export function Sidebar({ onNavigate, collapsed, onToggleCollapse }: SidebarProp
           ) : (
             <>
               <ArrowBarLeft size={16} />
-              <span>Collapse</span>
+              <span>Collapse sidebar</span>
             </>
           )}
         </button>

@@ -11,6 +11,12 @@ export const databaseApi = {
       params: { page, page_size: pageSize, search },
     });
   },
+  async getRow(tableName: string, pk: Row): Promise<Row | null> {
+    const res = await http.get<{ row: Row | null }>(ENDPOINTS.DATABASE.row(tableName), {
+      params: { pk: JSON.stringify(pk) },
+    });
+    return res.row;
+  },
   async insertRow(tableName: string, data: Row): Promise<unknown> {
     return http.post(ENDPOINTS.DATABASE.rows(tableName), { data });
   },

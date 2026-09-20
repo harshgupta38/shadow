@@ -15,6 +15,7 @@ export const ENDPOINTS = {
     TABLES: "/database/tables",
     QUERY:  "/database/query",
     rows:   (tableName: string) => `/database/tables/${encodeURIComponent(tableName)}/rows`,
+    row:    (tableName: string) => `/database/tables/${encodeURIComponent(tableName)}/row`,
   },
   SERVER: {
     HEALTH:          "/server/health",
@@ -23,5 +24,9 @@ export const ENDPOINTS = {
     RESTART:         "/server/restart",
     RESTART_HISTORY: "/server/restart-history",
     restartDetail:   (id: number) => `/server/restart/${id}`,
+  },
+  USERS: {
+    SHADOW:     "/users/shadow",
+    BACKOFFICE: "/users/backoffice",
   },
 } as const;

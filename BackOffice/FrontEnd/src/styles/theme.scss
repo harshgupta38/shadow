@@ -220,6 +220,41 @@ h1, h2, h3, h4, h5, h6, .display-font {
   }
 }
 
+.btn-soft {
+  background: var(--jv-brand-soft);
+  color: var(--jv-brand-1);
+  border: none;
+
+  &.outline {
+    border: 1px solid var(--jv-brand-1);
+  }
+
+  &:hover {
+    background: var(--jv-brand-soft);
+    color: var(--jv-brand-1);
+    filter: brightness(0.98);
+  }
+}
+
+// Same soft treatment as .btn-soft, but neutral gray instead of brand
+// purple — for secondary actions (Refresh/Restore) that shouldn't compete
+// visually with a primary brand-colored action next to them.
+.btn-soft-secondary {
+  background: var(--jv-surface-3);
+  color: var(--jv-text);
+  border: none;
+
+  &:hover {
+    background: var(--jv-surface-3);
+    color: var(--jv-text);
+    filter: brightness(0.96);
+  }
+
+  &:disabled {
+    opacity: 0.55;
+  }
+}
+
 .btn-danger {
   border: none;
   color: #fff;
@@ -234,6 +269,22 @@ h1, h2, h3, h4, h5, h6, .display-font {
 
   &:disabled {
     background: var(--jv-danger);
+    opacity: 0.55;
+  }
+}
+
+.btn-soft-danger {
+  background: var(--jv-danger-soft);
+  color: var(--jv-danger);
+  border: none;
+
+  &:hover {
+    background: var(--jv-danger-soft);
+    color: var(--jv-danger);
+    filter: brightness(0.98);
+  }
+
+  &:disabled {
     opacity: 0.55;
   }
 }
@@ -400,16 +451,15 @@ h1, h2, h3, h4, h5, h6, .display-font {
 
 // ─── App Shell Layout ─────────────────────────────────────────────────────────
 :root {
-  --jv-topbar-h:            64px;
-  --jv-sidebar-w:           256px;
-  --jv-sidebar-collapsed-w: 64px;
+  --jv-topbar-h:            68px;
+  --jv-sidebar-w:           264px;
+  --jv-sidebar-collapsed-w: 68px;
 }
 
 .app-shell {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  overflow: hidden;
 }
 
 // ── Topbar ────────────────────────────────────────────────────────────────────
@@ -417,7 +467,7 @@ h1, h2, h3, h4, h5, h6, .display-font {
   height: var(--jv-topbar-h);
   display: flex;
   align-items: center;
-  padding: 0 1.5rem;
+  padding: 0 1.25rem;
   gap: 0.75rem;
   background: color-mix(in srgb, var(--jv-bg) 82%, transparent);
   backdrop-filter: saturate(160%) blur(12px);
@@ -447,20 +497,32 @@ h1, h2, h3, h4, h5, h6, .display-font {
 .sidebar {
   width: var(--jv-sidebar-w);
   flex-shrink: 0;
-  height: calc(100vh - var(--jv-topbar-h));
   position: sticky;
-  top: var(--jv-topbar-h);
-  background: var(--jv-surface);
-  border-right: 1px solid var(--jv-border);
-  padding: 1rem 0.75rem;
+  top: 0;
+  height: calc(100vh - var(--jv-topbar-h));
   display: flex;
   flex-direction: column;
-  transition: width 240ms var(--jv-ease);
+  padding: 1.1rem 0.9rem;
+  gap: 0.4rem;
+  background: var(--jv-surface);
+  border-right: 1px solid var(--jv-border);
   overflow: hidden;
+  transition: width 240ms var(--jv-ease);
 }
 
 .sidebar--collapsed {
   width: var(--jv-sidebar-collapsed-w);
+}
+
+// Scrolls when the nav tree overflows the viewport, but the scrollbar
+// itself stays hidden — still fully scrollable via wheel/touch/keyboard.
+.sidebar nav {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 .sidebar-desktop {
@@ -474,102 +536,241 @@ h1, h2, h3, h4, h5, h6, .display-font {
   font-size: 0.68rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.08em;
   color: var(--jv-faint);
-  padding: 0.6rem 0.6rem 0.25rem;
+  padding: 0.5rem 0.8rem 0.3rem;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .nav-link-jv {
   display: flex;
   align-items: center;
-  gap: 0.65rem;
-  padding: 0.55rem 0.75rem;
+  gap: 0.75rem;
+  padding: 0.62rem 0.8rem;
   border-radius: var(--jv-radius-sm);
   color: var(--jv-muted);
-  font-size: 0.875rem;
-  font-weight: 500;
+  font-size: 0.92rem;
+  font-weight: 600;
   text-decoration: none;
   white-space: nowrap;
   transition: background var(--jv-transition), color var(--jv-transition);
   position: relative;
 
   &:hover {
-    background: var(--jv-surface-3);
+    background: var(--jv-surface-2);
     color: var(--jv-text);
   }
 
   &.active {
     background: var(--jv-brand-soft);
     color: var(--jv-brand-1);
-    font-weight: 600;
 
     &::before {
       content: "";
       position: absolute;
-      left: 0;
-      top: 20%;
-      bottom: 20%;
-      width: 3px;
-      border-radius: 0 2px 2px 0;
-      background: var(--jv-brand-1);
+      left: -0.9rem;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 4px;
+      height: 22px;
+      border-radius: 4px;
+      background: var(--jv-brand-gradient);
     }
+  }
+
+  svg {
+    flex-shrink: 0;
+  }
+
+  span {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
   }
 }
 
 .nav-link-jv--icon {
   justify-content: center;
-  padding: 0.6rem;
+  padding: 0.62rem;
+}
+
+// ── Nav tree (Controller — expandable Postman-style folders) ───────────────────
+.nav-tree-folder {
+  margin-bottom: 0.1rem;
+}
+
+.nav-tree-folder-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.5rem 0.8rem;
+  border: none;
+  background: transparent;
+  border-radius: var(--jv-radius-sm);
+  color: var(--jv-muted);
+  font-size: 0.87rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--jv-transition), color var(--jv-transition);
+
+  &:hover {
+    background: var(--jv-surface-2);
+    color: var(--jv-text);
+  }
+
+  span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+.nav-tree-chevron {
+  flex-shrink: 0;
+  transition: transform var(--jv-transition);
+}
+
+.nav-tree-chevron--open {
+  transform: rotate(90deg);
+}
+
+.nav-tree-children {
+  display: flex;
+  flex-direction: column;
+  padding-left: 0.35rem;
+  border-left: 1px solid var(--jv-border);
+  margin-left: 1.05rem;
+}
+
+.nav-tree-leaf {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: var(--jv-radius-sm);
+  color: var(--jv-muted);
+  font-size: 0.84rem;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: default;
+  transition: background var(--jv-transition), color var(--jv-transition);
+
+  &:hover {
+    background: var(--jv-surface-2);
+    color: var(--jv-text);
+  }
+
+  span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+.nav-tree-method {
+  flex-shrink: 0;
+  width: 34px;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.nav-tree-method--get {
+  color: var(--jv-success);
+}
+
+.nav-tree-method--post {
+  color: var(--jv-warn);
 }
 
 // ── Collapse button ───────────────────────────────────────────────────────────
 .sidebar-collapse-btn {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.55rem;
   width: 100%;
-  padding: 0.55rem 0.75rem;
+  padding: 0.55rem 0.8rem;
   border: none;
   background: transparent;
   border-radius: var(--jv-radius-sm);
   color: var(--jv-faint);
   font-size: 0.82rem;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
+  overflow: hidden;
   transition: background var(--jv-transition), color var(--jv-transition);
   flex-shrink: 0;
 
   &:hover {
-    background: var(--jv-surface-3);
+    background: var(--jv-surface-2);
     color: var(--jv-text);
   }
 }
 
 .sidebar-collapse-btn--collapsed {
   justify-content: center;
-  padding: 0.6rem;
+  padding: 0.55rem;
 }
 
 // ── Main content area ─────────────────────────────────────────────────────────
 .app-main {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
   overflow-y: auto;
-  background: var(--jv-bg);
+  max-height: calc(100vh - var(--jv-topbar-h));
 }
 
 .app-content {
-  padding: 1.75rem 2rem 3rem;
-  max-width: 1200px;
+  padding: 1.5rem 1.5rem 3rem;
+  width: 100%;
+  max-width: 1240px;
   margin: 0 auto;
+}
+
+// Full-bleed variant — no padding, no max-width, and it stretches to fill
+// .app-main's height instead of just sizing to its content (see AppLayout's
+// FULL_BLEED_ROUTES). Used by pages complex enough to need the whole
+// viewport, starting with the Database page.
+.app-content-full {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: none;
+  padding: 0;
+  margin: 0;
+}
+
+// ── Dropdown ──────────────────────────────────────────────────────────────────
+.dropdown-menu {
+  --bs-dropdown-bg: var(--jv-elevated);
+  --bs-dropdown-border-color: var(--jv-border);
+  --bs-dropdown-border-radius: var(--jv-radius-sm);
+  --bs-dropdown-link-hover-bg: var(--jv-surface-2);
+  --bs-dropdown-link-active-bg: var(--jv-brand-soft);
+  --bs-dropdown-link-active-color: var(--jv-brand-1);
+  box-shadow: var(--jv-shadow-lg);
+  padding: 0.4rem;
+}
+.dropdown-item {
+  border-radius: 8px;
+  font-weight: 500;
 }
 
 // ── Avatar ────────────────────────────────────────────────────────────────────
 .avatar {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  display: inline-grid;
+  place-items: center;
   border-radius: 50%;
   background: var(--jv-brand-gradient);
   color: #fff;
@@ -577,8 +778,9 @@ h1, h2, h3, h4, h5, h6, .display-font {
   font-family: var(--jv-font-display);
   flex-shrink: 0;
 
-  &.avatar-sm { width: 32px; height: 32px; font-size: 0.8rem; }
-  &.avatar-md { width: 38px; height: 38px; font-size: 0.9rem; }
+  &.avatar-sm { width: 34px; height: 34px; font-size: 0.8rem; }
+  &.avatar-md { width: 42px; height: 42px; font-size: 0.95rem; }
+  &.avatar-lg { width: 56px; height: 56px; font-size: 1.2rem; }
 }
 
 // ── Page header (matches Shadow V2 PageHeader component) ─────────────────────
@@ -686,6 +888,20 @@ h1, h2, h3, h4, h5, h6, .display-font {
 
 // ── Dashboard page ────────────────────────────────────────────────────────────
 
+.dp-welcome-title {
+  font-family: var(--jv-font-display);
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--jv-text);
+  margin: 0 0 0.3rem;
+}
+
+.dp-welcome-subtitle {
+  font-size: 0.9rem;
+  color: var(--jv-muted);
+  margin: 0;
+}
+
 .dp-stats {
   display: flex;
   flex-wrap: wrap;
@@ -790,8 +1006,10 @@ h1, h2, h3, h4, h5, h6, .display-font {
   background: var(--jv-surface);
   border: 1px solid var(--jv-border);
   border-radius: var(--jv-radius);
-  overflow: hidden;
+  overflow-x: auto;
   box-shadow: var(--jv-shadow);
+  scrollbar-width: thin;
+  scrollbar-color: var(--jv-border-strong) transparent;
 }
 
 .dp-table {
@@ -882,6 +1100,54 @@ h1, h2, h3, h4, h5, h6, .display-font {
   border-radius: var(--jv-radius-pill);
   padding: 0.1rem 0.55rem;
   white-space: nowrap;
+}
+
+.verified-pill {
+  font-size: 0.68rem;
+  font-weight: 600;
+  border-radius: var(--jv-radius-pill);
+  padding: 0.1rem 0.5rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+
+  &--yes {
+    background: var(--jv-success-soft);
+    color: var(--jv-success);
+  }
+
+  &--no {
+    background: var(--jv-warn-soft);
+    color: var(--jv-warn);
+  }
+}
+
+// UsersTable's header reuses .page-header-jv (icon + title), but puts a
+// search box where PageHeader normally puts button actions. That row's own
+// mobile rule forces flex-wrap: nowrap (its actions collapse into a
+// dropdown instead of wrapping) — this doesn't apply here, so override it
+// to let the search box drop to its own full-width row instead of being
+// squeezed onto the title's row.
+.users-table-header {
+  @media (max-width: 768px) {
+    flex-wrap: wrap !important;
+
+    // The toolbar (headerActions button, e.g. "Add User", + search box)
+    // drops to its own full-width row; the search box then grows to fill
+    // whatever space the button leaves on that row.
+    .db-toolbar-actions {
+      flex: 1 1 100%;
+      width: 100%;
+    }
+
+    .db-search {
+      flex: 1 1 auto;
+      min-width: 0;
+
+      .form-control {
+        width: 100%;
+      }
+    }
+  }
 }
 
 .btn-action {
@@ -1041,7 +1307,8 @@ h1, h2, h3, h4, h5, h6, .display-font {
   margin-top: 1rem;
 }
 
-.deploy-page-btn {
+// Shared by DeployPage's own pagination and the generic Pagination.tsx below.
+.page-number-btn {
   width: 32px;
   height: 32px;
   border: none;
@@ -1058,6 +1325,62 @@ h1, h2, h3, h4, h5, h6, .display-font {
   &--active {
     background: var(--jv-brand-soft);
     color: var(--jv-brand-1);
+  }
+}
+
+// ── Pagination bar (generic — Pagination.tsx) ──────────────────────────────────
+.pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+}
+
+.pagination-info {
+  font-size: 0.82rem;
+  color: var(--jv-muted);
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.pagination-ellipsis {
+  color: var(--jv-faint);
+  font-size: 0.82rem;
+  padding: 0 0.15rem;
+}
+
+.pagination-size-select {
+  height: 32px;
+  padding: 0 0.6rem;
+  margin-right: 0.4rem;
+  border: 1.5px solid var(--jv-border-strong);
+  border-radius: var(--jv-radius-sm);
+  background: var(--jv-surface);
+  color: var(--jv-text);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-align: center;
+  text-align-last: center;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+
+  &::-ms-expand {
+    display: none;
+  }
+  cursor: pointer;
+  transition: border-color var(--jv-transition), box-shadow var(--jv-transition);
+
+  &:focus {
+    outline: none;
+    border-color: var(--jv-brand-1);
+    box-shadow: var(--jv-ring);
   }
 }
 
@@ -1117,10 +1440,14 @@ h1, h2, h3, h4, h5, h6, .display-font {
 }
 
 // ── Database page — tabs ────────────────────────────────────────────────────────
+// Styled like browser tabs: the strip sits on the "sunken" page background,
+// and the active tab is filled with the same surface color as the panel
+// below it so the two visually merge into one continuous piece.
 .db-tabs {
   display: flex;
-  gap: 0.4rem;
+  gap: 0;
   margin-bottom: 1.25rem;
+  background: var(--jv-bg);
   border-bottom: 1px solid var(--jv-border);
 }
 
@@ -1128,31 +1455,27 @@ h1, h2, h3, h4, h5, h6, .display-font {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.6rem 0.9rem;
+  padding: 0.75rem 1.25rem;
   border: none;
+  border-right: 1px solid var(--jv-border);
+  border-radius: 0;
   background: transparent;
   color: var(--jv-muted);
   font-size: 0.86rem;
   font-weight: 600;
   cursor: pointer;
   position: relative;
-  transition: color var(--jv-transition);
+  transition: background var(--jv-transition), color var(--jv-transition);
 
-  &:hover { color: var(--jv-text); }
+  &:hover { background: var(--jv-surface-3); color: var(--jv-text); }
 
   &--active {
-    color: var(--jv-brand-1);
+    background: var(--jv-surface);
+    color: var(--jv-text);
+    border-bottom: 1px solid var(--jv-surface);
+    margin-bottom: -1px;
 
-    &::after {
-      content: "";
-      position: absolute;
-      left: 0.2rem;
-      right: 0.2rem;
-      bottom: -1px;
-      height: 2px;
-      background: var(--jv-brand-1);
-      border-radius: 2px 2px 0 0;
-    }
+    &:hover { background: var(--jv-surface); }
   }
 }
 
@@ -1164,7 +1487,7 @@ h1, h2, h3, h4, h5, h6, .display-font {
 }
 
 .db-sidebar {
-  width: 224px;
+  width: 222px;
   flex-shrink: 0;
   background: var(--jv-surface);
   border: 1px solid var(--jv-border);
@@ -1264,7 +1587,7 @@ h1, h2, h3, h4, h5, h6, .display-font {
 
 .db-toolbar-actions {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: 0.6rem;
   flex-wrap: wrap;
 }
@@ -1293,6 +1616,10 @@ h1, h2, h3, h4, h5, h6, .display-font {
 
 .db-grid {
   th { white-space: nowrap; }
+}
+
+.db-grid--clickable tbody tr {
+  cursor: pointer;
 }
 
 .db-col-badge {
@@ -1356,22 +1683,79 @@ h1, h2, h3, h4, h5, h6, .display-font {
   .db-layout { flex-direction: column; }
   .db-sidebar { width: 100%; position: static; max-height: 260px; }
   .db-search .form-control { width: 160px; }
+
+  // The fixed-height full-bleed shell doesn't make sense at this width —
+  // fall back to natural document flow (.app-main scrolls the whole page).
+  .db-tab-panel { overflow: visible; }
+  .db-tab-panel .db-layout { height: auto; }
+  .db-tab-panel .db-sidebar {
+    height: auto;
+    max-height: 260px;
+    border-right: none;
+    border-bottom: 1px solid var(--jv-border);
+  }
+  .db-tab-panel .db-main { height: auto; }
+  .db-tab-panel .dp-table-wrap,
+  .db-tab-panel .db-empty-state {
+    flex: none;
+    overflow-y: visible;
+  }
 }
 
-// ── Database page — row editor modal ────────────────────────────────────────────
-.db-row-modal .modal-dialog {
-  max-width: 720px;
+// ── Database page — row editor panel ────────────────────────────────────────────
+// Opens in place of the table grid inside .db-main (never a modal/popup) —
+// same list-to-detail pattern as SAP's table editors.
+.db-row-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
 }
 
-.db-row-modal-body {
-  max-height: 65vh;
+.db-row-panel-header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.57rem 1.25rem;
+  border-bottom: 1px solid var(--jv-border);
+}
+
+.db-row-panel-actions {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.db-row-panel-form {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.db-row-panel-body {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
+  padding: 1.1rem 1.25rem;
+  scrollbar-width: thin;
+  scrollbar-color: var(--jv-border-strong) transparent;
 }
 
+// Capped at 5 columns — steps down as the panel narrows (mobile-first: the
+// base case below is 1 column, wider breakpoints add more).
 .db-row-form-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: 1fr;
   gap: 0.9rem 1rem;
+
+  @media (min-width: 560px)  { grid-template-columns: repeat(2, 1fr); }
+  @media (min-width: 900px)  { grid-template-columns: repeat(3, 1fr); }
+  @media (min-width: 1200px) { grid-template-columns: repeat(4, 1fr); }
+  @media (min-width: 1500px) { grid-template-columns: repeat(5, 1fr); }
 }
 
 .db-field {
@@ -1411,9 +1795,209 @@ h1, h2, h3, h4, h5, h6, .display-font {
   margin-top: 0.25rem;
 }
 
-@media (max-width: 560px) {
-  .db-row-form-grid { grid-template-columns: 1fr; }
-  .db-field--wide { grid-column: auto; }
+// Structured editor for list[str] / list[int] JSON columns (see
+// ListFieldEditor in RowEditorPanel.tsx) — one row per array item, so the
+// user only ever edits plain values, never raw JSON syntax.
+.db-list-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.6rem;
+  border: 1.5px solid var(--jv-border-strong);
+  border-radius: var(--jv-radius-sm);
+  background: var(--jv-surface);
+
+  &--invalid {
+    border-color: var(--jv-danger);
+  }
+}
+
+.db-list-editor-empty {
+  margin: 0.2rem 0;
+  color: var(--jv-faint);
+  font-size: 0.82rem;
+  font-style: italic;
+}
+
+.db-list-editor-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.db-list-editor-index {
+  flex-shrink: 0;
+  width: 20px;
+  padding-top: 0.55rem;
+  text-align: right;
+  font-size: 0.72rem;
+  color: var(--jv-faint);
+  font-family: "Menlo", "Consolas", monospace;
+}
+
+// Firebase-RTDB-style navigable editor for dict/list JSON columns (see
+// JsonTreeEditor.tsx) — a breadcrumb tracks the current path, and each level
+// shows its own keys/items as an inline primitive editor or a "drill in" row.
+.db-json-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.6rem;
+  border: 1.5px solid var(--jv-border-strong);
+  border-radius: var(--jv-radius-sm);
+  background: var(--jv-surface);
+}
+
+.db-json-breadcrumb {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.1rem;
+  padding: 0.3rem 0.5rem;
+  background: var(--jv-surface-3);
+  border-radius: var(--jv-radius-sm);
+  font-family: "Menlo", "Consolas", monospace;
+  font-size: 0.78rem;
+
+  button {
+    border: none;
+    background: transparent;
+    color: var(--jv-brand-1);
+    padding: 0.15rem 0.4rem;
+    border-radius: 6px;
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+      background: var(--jv-brand-soft);
+    }
+
+    &:disabled {
+      color: var(--jv-text);
+      font-weight: 600;
+      cursor: default;
+    }
+  }
+}
+
+.db-json-breadcrumb-segment {
+  display: flex;
+  align-items: center;
+
+  &::before {
+    content: "/";
+    color: var(--jv-faint);
+    margin-right: 0.05rem;
+  }
+}
+
+.db-json-tree-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.db-json-tree-empty {
+  margin: 0.2rem 0;
+  color: var(--jv-faint);
+  font-size: 0.82rem;
+  font-style: italic;
+}
+
+.db-json-tree-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+
+  .form-control {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.db-json-tree-key {
+  flex: 0 0 auto;
+  // min-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: "Menlo", "Consolas", monospace;
+  font-size: 0.8rem;
+  color: var(--jv-muted);
+}
+
+.db-json-tree-drill {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--jv-border-strong);
+  background: var(--jv-brand-soft);
+  color: var(--jv-brand-1);
+  padding: 0.35rem 0.6rem;
+  border-radius: var(--jv-radius-sm);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    border-color: var(--jv-brand-1);
+  }
+}
+
+.db-json-tree-bool {
+  flex: 1;
+  padding-top: 0.15rem;
+}
+
+.db-json-tree-type {
+  flex: 0 0 auto;
+  width: auto;
+  font-size: 0.75rem;
+  padding: 0.3rem 1.6rem 0.3rem 0.5rem;
+}
+
+.db-json-tree-add {
+  display: flex;
+  gap: 0.5rem;
+
+  input {
+    flex: 1;
+  }
+}
+
+// Stored value doesn't match the column's expected dict/list shape (legacy
+// double-encoded data, or something genuinely non-JSON) — shown instead of
+// the normal tree so this never looks identical to a real empty container.
+.db-json-tree--malformed {
+  gap: 0.5rem;
+}
+
+.db-json-tree-warning {
+  margin: 0;
+  padding: 0.5rem 0.65rem;
+  background: var(--jv-warn-soft);
+  color: var(--jv-warn);
+  border-radius: var(--jv-radius-sm);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+@media (max-width: 768px) {
+  // The row panel is inside .db-main, which loses its fixed height at this
+  // width (see the .db-tab-panel reset above) — without this, .db-row-panel
+  // and its children inherit that same "no fixed height to grow into"
+  // problem, and .db-row-panel-body collapses to ~0px (flex:1 with nothing
+  // to grow into), clipping the whole field grid into an unusable sliver.
+  .db-row-panel { height: auto; }
+  .db-row-panel-form { flex: none; }
+  .db-row-panel-body {
+    flex: none;
+    overflow-y: visible;
+  }
 }
 
 // ── SQL Console ──────────────────────────────────────────────────────────────────
@@ -1510,6 +2094,8 @@ h1, h2, h3, h4, h5, h6, .display-font {
   margin-bottom: 0.35rem;
   border: 1px solid var(--jv-term-border);
   border-radius: var(--jv-radius-sm);
+  scrollbar-width: thin;
+  scrollbar-color: var(--jv-term-scrollbar) transparent;
 }
 
 .sql-console-result-table {
@@ -1569,6 +2155,137 @@ h1, h2, h3, h4, h5, h6, .display-font {
   flex-shrink: 0;
   padding: 0.35rem 0.9rem;
   font-size: 0.8rem;
+}
+
+// ── Database page — full-bleed shell ────────────────────────────────────────────
+// DatabasePage renders inside .app-content-full instead of the normal padded
+// .app-content, and everything below chains flex:1/min-height:0 down so the
+// tab body fills the rest of the viewport and scrolls internally, rather
+// than the whole page growing/scrolling like every other page does.
+.db-page-full {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.db-tabs--full {
+  flex-shrink: 0;
+  margin-bottom: 0;
+  padding: 0;
+}
+
+// No padding anywhere in here — the grid/sidebar/console fill the panel
+// edge-to-edge, flush against the tab strip and each other, all sharing one
+// continuous --jv-surface plane instead of looking like separate cards.
+.db-tab-panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  background: var(--jv-surface);
+  overflow: hidden;
+}
+
+.db-tab-panel .db-layout {
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 0;
+  align-items: stretch;
+}
+
+.db-tab-panel .db-sidebar {
+  height: 100%;
+  max-height: none;
+  position: static;
+  top: auto;
+  border: none;
+  border-right: 1px solid var(--jv-border);
+  border-radius: 0;
+  box-shadow: none;
+  background: var(--jv-surface);
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+
+.db-sidebar-search {
+  flex-shrink: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 0.65rem;
+  border-bottom: 1px solid var(--jv-border);
+
+  svg {
+    position: absolute;
+    left: 1.15rem;
+    color: var(--jv-faint);
+    pointer-events: none;
+  }
+
+  .form-control {
+    padding-left: 1.9rem;
+    font-size: 0.82rem;
+  }
+}
+
+.db-sidebar-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0.65rem;
+  scrollbar-width: thin;
+  scrollbar-color: var(--jv-border-strong) transparent;
+}
+
+.db-tab-panel .db-main {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+.db-tab-panel .db-toolbar {
+  flex-shrink: 0;
+  padding: 0.57rem 1.25rem;
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--jv-border);
+}
+
+.db-tab-panel .pagination-bar {
+  flex-shrink: 0;
+  padding: 0.65rem 1.25rem;
+  margin-top: 0;
+  border-top: 1px solid var(--jv-border);
+}
+
+.db-tab-panel .dp-table-wrap,
+.db-tab-panel .db-empty-state {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  background: var(--jv-surface);
+}
+
+.db-tab-panel .sql-console-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.db-tab-panel .sql-console-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
 }
 
 // ── Server page ──────────────────────────────────────────────────────────────────
@@ -1650,4 +2367,40 @@ h1, h2, h3, h4, h5, h6, .display-font {
 
 .server-log-line--warn {
   color: var(--jv-warn) !important;
+}
+
+// ── Toasts (ToastContext.tsx) ──────────────────────────────────────────────────
+.toast-viewport {
+  position: fixed;
+  bottom: 1.25rem;
+  right: 1.25rem;
+  z-index: 1300;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  max-width: 360px;
+}
+
+.toast-jv {
+  display: flex;
+  gap: 0.7rem;
+  align-items: flex-start;
+  padding: 0.85rem 1rem;
+  border-radius: var(--jv-radius-sm);
+  background: var(--jv-elevated);
+  border: 1px solid var(--jv-border);
+  box-shadow: var(--jv-shadow-lg);
+  animation: jv-slide-in 220ms var(--jv-ease);
+}
+
+.toast-jv-message {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+@keyframes jv-slide-in {
+  from { opacity: 0; transform: translateX(16px); }
+  to   { opacity: 1; transform: translateX(0); }
 }

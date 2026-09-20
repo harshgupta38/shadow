@@ -1,4 +1,7 @@
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_INSECURE_ADMIN_SECRET = "change-this-in-production"
 
 
 class Settings(BaseSettings):
@@ -38,7 +41,35 @@ class Settings(BaseSettings):
     shadow_admin_secret: str = ""
 
     # Shared secret for BackOffice's OWN /admin/sql and /admin/database.
-    admin_secret: str = "change-this-in-production"
+    admin_secret: str = _INSECURE_ADMIN_SECRET
+
+    @field_validator("admin_secret")
+    @classmethod
+    def _require_real_admin_secret(cls, value: str) -> str:
+        if not value or value == _INSECURE_ADMIN_SECRET:
+            raise ValueError(
+                "ADMIN_SECRET is not set (or still the placeholder default) in .env — "
+                "refusing to start. This guards /admin/sql and /admin/database, which "
+                "can run arbitrary SQL against backoffice.db or download the whole "
+                "file; it must never be left at its code default."
+            )
+        return value
+
+    # Required alongside an existing admin's own password to create a new
+    # BackOffice admin account (see POST /users/backoffice) — a second factor
+    # so a compromised admin session cookie alone can't mint new admins.
+    new_admin_secret: str = _INSECURE_ADMIN_SECRET
+
+    @field_validator("new_admin_secret")
+    @classmethod
+    def _require_real_new_admin_secret(cls, value: str) -> str:
+        if not value or value == _INSECURE_ADMIN_SECRET:
+            raise ValueError(
+                "NEW_ADMIN_SECRET is not set (or still the placeholder default) in "
+                ".env — refusing to start. This gates creation of new BackOffice "
+                "admin accounts; it must never be left at its code default."
+            )
+        return value
 
     # ─── Control Server integration ──────────────────────────────────────────
     # The Server/ control plane (port 9000) is what actually runs git

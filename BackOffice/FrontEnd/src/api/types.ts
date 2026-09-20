@@ -1,11 +1,12 @@
 export interface AuthUser {
   id: number;
-  username: string;
+  name: string;
+  email: string;
   role: string;
 }
 
 export interface LoginRequest {
-  username: string;
+  email: string;
   password: string;
 }
 
@@ -52,12 +53,20 @@ export interface CommitInfo {
 // ─── Database ───────────────────────────────────────────────────────────────
 export type ColumnType = string; // backend reports SQLite's own type text (e.g. "INTEGER", "TEXT", "JSON")
 
+// Only set for JSON columns where BackEnd_V2's own model declares a
+// specific shape — lets the row editor pick the right structured widget:
+// "list_str"/"list_int" get a flat list editor, "list"/"dict" (or a JSON
+// column with no resolvable shape) get a breadcrumb-navigable tree editor.
+// Either way, the admin never edits raw JSON text.
+export type JsonShape = "list_str" | "list_int" | "list" | "dict";
+
 export interface ColumnInfo {
   name: string;
   type: ColumnType;
   nullable: boolean;
   pk: boolean;
   fk: string | null;
+  json_shape: JsonShape | null;
 }
 
 export interface TableInfo {
@@ -117,4 +126,25 @@ export interface RestartLog {
   started_at: string;
   completed_at: string | null;
   duration_seconds: number | null;
+}
+
+// ─── Users ──────────────────────────────────────────────────────────────────
+export type UserStatus = "active" | "away" | "inactive";
+
+export interface AppUser {
+  id: number;
+  name: string;
+  email: string;
+  status: UserStatus;
+  // Shadow V2's users have this; BackOffice's admins don't track it.
+  email_verified: boolean | null;
+  created_at: string;
+}
+
+export interface CreateAdminRequest {
+  current_password: string;
+  name: string;
+  email: string;
+  password: string;
+  secret_key: string;
 }

@@ -10,7 +10,7 @@ class AppError(Exception):
 
 class AuthError(AppError):
     status_code = 401
-    detail = "Invalid username or password."
+    detail = "Invalid email or password."
 
 
 class ForbiddenError(AppError):

@@ -220,6 +220,41 @@ h1, h2, h3, h4, h5, h6, .display-font {
   }
 }
 
+.btn-soft {
+  background: var(--jv-brand-soft);
+  color: var(--jv-brand-1);
+  border: none;
+
+  &.outline {
+    border: 1px solid var(--jv-brand-1);
+  }
+
+  &:hover {
+    background: var(--jv-brand-soft);
+    color: var(--jv-brand-1);
+    filter: brightness(0.98);
+  }
+}
+
+// Same soft treatment as .btn-soft, but neutral gray instead of brand
+// purple — for secondary actions (Refresh/Restore) that shouldn't compete
+// visually with a primary brand-colored action next to them.
+.btn-soft-secondary {
+  background: var(--jv-surface-3);
+  color: var(--jv-text);
+  border: none;
+
+  &:hover {
+    background: var(--jv-surface-3);
+    color: var(--jv-text);
+    filter: brightness(0.96);
+  }
+
+  &:disabled {
+    opacity: 0.55;
+  }
+}
+
 .btn-danger {
   border: none;
   color: #fff;
@@ -234,6 +269,22 @@ h1, h2, h3, h4, h5, h6, .display-font {
 
   &:disabled {
     background: var(--jv-danger);
+    opacity: 0.55;
+  }
+}
+
+.btn-soft-danger {
+  background: var(--jv-danger-soft);
+  color: var(--jv-danger);
+  border: none;
+
+  &:hover {
+    background: var(--jv-danger-soft);
+    color: var(--jv-danger);
+    filter: brightness(0.98);
+  }
+
+  &:disabled {
     opacity: 0.55;
   }
 }
@@ -1535,7 +1586,7 @@ h1, h2, h3, h4, h5, h6, .display-font {
 
 .db-toolbar-actions {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: 0.6rem;
   flex-wrap: wrap;
 }
@@ -1650,20 +1701,60 @@ h1, h2, h3, h4, h5, h6, .display-font {
   }
 }
 
-// ── Database page — row editor modal ────────────────────────────────────────────
-.db-row-modal .modal-dialog {
-  max-width: 720px;
+// ── Database page — row editor panel ────────────────────────────────────────────
+// Opens in place of the table grid inside .db-main (never a modal/popup) —
+// same list-to-detail pattern as SAP's table editors.
+.db-row-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
 }
 
-.db-row-modal-body {
-  max-height: 65vh;
+.db-row-panel-header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.57rem 1.25rem;
+  border-bottom: 1px solid var(--jv-border);
+}
+
+.db-row-panel-actions {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.db-row-panel-form {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.db-row-panel-body {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
+  padding: 1.1rem 1.25rem;
+  scrollbar-width: thin;
+  scrollbar-color: var(--jv-border-strong) transparent;
 }
 
+// Capped at 5 columns — steps down as the panel narrows (mobile-first: the
+// base case below is 1 column, wider breakpoints add more).
 .db-row-form-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: 1fr;
   gap: 0.9rem 1rem;
+
+  @media (min-width: 560px)  { grid-template-columns: repeat(2, 1fr); }
+  @media (min-width: 900px)  { grid-template-columns: repeat(3, 1fr); }
+  @media (min-width: 1200px) { grid-template-columns: repeat(4, 1fr); }
+  @media (min-width: 1500px) { grid-template-columns: repeat(5, 1fr); }
 }
 
 .db-field {
@@ -1703,9 +1794,18 @@ h1, h2, h3, h4, h5, h6, .display-font {
   margin-top: 0.25rem;
 }
 
-@media (max-width: 560px) {
-  .db-row-form-grid { grid-template-columns: 1fr; }
-  .db-field--wide { grid-column: auto; }
+@media (max-width: 768px) {
+  // The row panel is inside .db-main, which loses its fixed height at this
+  // width (see the .db-tab-panel reset above) — without this, .db-row-panel
+  // and its children inherit that same "no fixed height to grow into"
+  // problem, and .db-row-panel-body collapses to ~0px (flex:1 with nothing
+  // to grow into), clipping the whole field grid into an unusable sliver.
+  .db-row-panel { height: auto; }
+  .db-row-panel-form { flex: none; }
+  .db-row-panel-body {
+    flex: none;
+    overflow-y: visible;
+  }
 }
 
 // ── SQL Console ──────────────────────────────────────────────────────────────────

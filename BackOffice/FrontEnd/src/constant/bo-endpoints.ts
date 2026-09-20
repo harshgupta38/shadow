@@ -15,6 +15,7 @@ export const ENDPOINTS = {
     TABLES: "/database/tables",
     QUERY:  "/database/query",
     rows:   (tableName: string) => `/database/tables/${encodeURIComponent(tableName)}/rows`,
+    row:    (tableName: string) => `/database/tables/${encodeURIComponent(tableName)}/row`,
   },
   SERVER: {
     HEALTH:          "/server/health",

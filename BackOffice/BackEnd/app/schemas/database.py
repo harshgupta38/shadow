@@ -25,6 +25,10 @@ class RowsResponse(BaseModel):
     page_size: int
 
 
+class RowLookupResponse(BaseModel):
+    row: dict[str, Any] | None
+
+
 class SqlQueryRequest(BaseModel):
     query: str
 

@@ -132,6 +132,25 @@ def _pk_columns(columns: list[dict]) -> set[str]:
     return {c["name"] for c in columns if c["pk"]}
 
 
+def get_row(table_name: str, pk: dict) -> dict | None:
+    """Re-fetches a single row by primary key — the row editor's "refresh"
+    action, for when the underlying data may have changed since it loaded.
+    """
+    _validate_table(table_name)
+    columns = get_table_columns(table_name)
+    pk_columns = _pk_columns(columns)
+
+    if not pk_columns:
+        raise ValidationError(f"Table '{table_name}' has no primary key — cannot look up a single row.")
+    if set(pk.keys()) != pk_columns:
+        raise ValidationError(f"Primary key value(s) required: {', '.join(sorted(pk_columns))}")
+
+    where_sql = " AND ".join(f"{_quote_ident(c)} = {_quote_literal(v)}" for c, v in pk.items())
+    query = f"SELECT * FROM {_quote_ident(table_name)} WHERE {where_sql} LIMIT 1"
+    result = shadow_client.run_sql(query)
+    return result["rows"][0] if result["rows"] else None
+
+
 def insert_row(db: Session, table_name: str, data: dict, admin_username: str) -> dict:
     _validate_table(table_name)
     columns = get_table_columns(table_name)

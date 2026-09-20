@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Search, PlusLg, Inbox } from "react-bootstrap-icons";
 import { api, ApiError } from "@/api";
 import type { ColumnInfo, Row, TableInfo } from "@/api";
 import { Pagination } from "@/components/ui/Pagination/Pagination";
 import { rowKey } from "./dbHelpers";
-import { RowEditorModal } from "./RowEditorModal";
+import { RowEditorPanel, type RowEditorPanelHandle } from "./RowEditorPanel";
 
 const DEFAULT_PAGE_SIZE = 25;
 const SEARCH_DEBOUNCE_MS = 350;
@@ -44,6 +44,7 @@ export function TableBrowser() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [editingRow, setEditingRow] = useState<Row | "create" | null>(null);
+  const rowEditorRef = useRef<RowEditorPanelHandle>(null);
 
   const table = tables.find((t) => t.name === selectedTableName) ?? null;
   const filteredTables = useMemo(() => {
@@ -106,10 +107,21 @@ export function TableBrowser() {
   }, [selectedTableName, page, pageSize, search]);
 
   function selectTable(name: string) {
-    setSelectedTableName(name);
-    setSearchInput("");
-    setSearch("");
-    setPage(1);
+    if (name === selectedTableName) return;
+
+    function proceed() {
+      setSelectedTableName(name);
+      setSearchInput("");
+      setSearch("");
+      setPage(1);
+      setEditingRow(null);
+    }
+
+    if (editingRow !== null && rowEditorRef.current) {
+      rowEditorRef.current.confirmNavigateAway(proceed);
+    } else {
+      proceed();
+    }
   }
 
   async function refreshAfterMutation() {
@@ -170,6 +182,15 @@ export function TableBrowser() {
             <Inbox size={30} />
             <p>{tablesLoading ? "Loading…" : "No tables found."}</p>
           </div>
+        ) : editingRow !== null ? (
+          <RowEditorPanel
+            ref={rowEditorRef}
+            table={table}
+            row={editingRow === "create" ? null : editingRow}
+            onClose={() => setEditingRow(null)}
+            onSave={handleRowMutated}
+            onDelete={handleRowMutated}
+          />
         ) : (
           <>
             <div className="db-toolbar">
@@ -191,7 +212,7 @@ export function TableBrowser() {
                 </div>
                 <button
                   type="button"
-                  className="btn btn-brand text-nowrap d-flex align-items-center gap-2"
+                  className="btn btn-soft text-nowrap d-flex align-items-center gap-2"
                   onClick={() => setEditingRow("create")}
                 >
                   <PlusLg size={14} />
@@ -255,16 +276,6 @@ export function TableBrowser() {
           </>
         )}
       </div>
-
-      {editingRow !== null && table && (
-        <RowEditorModal
-          table={table}
-          row={editingRow === "create" ? null : editingRow}
-          onClose={() => setEditingRow(null)}
-          onSave={handleRowMutated}
-          onDelete={handleRowMutated}
-        />
-      )}
     </div>
   );
 }

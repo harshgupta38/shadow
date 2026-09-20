@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session
 
 from app.core.exceptions import NotFoundError, ValidationError
 from app.models.sql_audit_log import SqlAuditLogDBM
-from app.services import shadow_client
+from app.services import model_constraints, shadow_client
 
 
 def _quote_ident(name: str) -> str:
@@ -161,6 +161,10 @@ def insert_row(db: Session, table_name: str, data: dict, admin_username: str) ->
     if not data:
         raise ValidationError("Provide at least one column to insert.")
 
+    schema_errors = model_constraints.validate_row(table_name, data)
+    if schema_errors:
+        raise ValidationError("Please correct the highlighted fields.", errors=schema_errors)
+
     col_names = list(data.keys())
     col_sql = ", ".join(_quote_ident(c) for c in col_names)
     val_sql = ", ".join(_quote_literal(data[c]) for c in col_names)
@@ -190,6 +194,10 @@ def update_row(db: Session, table_name: str, pk: dict, data: dict, admin_usernam
         raise ValidationError(f"Unknown column(s): {', '.join(sorted(unknown))}")
     if not data:
         raise ValidationError("No fields to update.")
+
+    schema_errors = model_constraints.validate_row(table_name, data)
+    if schema_errors:
+        raise ValidationError("Please correct the highlighted fields.", errors=schema_errors)
 
     set_sql = ", ".join(f"{_quote_ident(c)} = {_quote_literal(v)}" for c, v in data.items())
     where_sql = " AND ".join(f"{_quote_ident(c)} = {_quote_literal(v)}" for c, v in pk.items())

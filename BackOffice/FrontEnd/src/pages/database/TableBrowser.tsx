@@ -115,6 +115,13 @@ export function TableBrowser() {
       setSearch("");
       setPage(1);
       setEditingRow(null);
+      // Clear immediately, don't wait for the new table's fetch to resolve —
+      // otherwise the old table's rows stay visible and clickable for that
+      // gap, and clicking one opens the editor with the new table's schema
+      // paired with the old table's row data.
+      setRows([]);
+      setColumns([]);
+      setTotal(0);
     }
 
     if (editingRow !== null && rowEditorRef.current) {

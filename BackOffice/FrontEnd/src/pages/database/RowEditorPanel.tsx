@@ -76,7 +76,7 @@ export const RowEditorPanel = forwardRef<RowEditorPanelHandle, RowEditorPanelPro
   const isCreate = row === null;
   const [initialForm, setInitialForm] = useState(() => buildInitialForm(table, row));
   const [form, setForm] = useState(initialForm);
-  const [jsonErrors, setJsonErrors] = useState<Record<string, string>>({});
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -110,8 +110,8 @@ export const RowEditorPanel = forwardRef<RowEditorPanelHandle, RowEditorPanelPro
 
   function setField(name: string, value: string | boolean) {
     setForm((prev) => ({ ...prev, [name]: value }));
-    if (jsonErrors[name]) {
-      setJsonErrors((prev) => {
+    if (fieldErrors[name]) {
+      setFieldErrors((prev) => {
         const next = { ...prev };
         delete next[name];
         return next;
@@ -124,7 +124,7 @@ export const RowEditorPanel = forwardRef<RowEditorPanelHandle, RowEditorPanelPro
   async function saveNow(): Promise<boolean> {
     setFormError(null);
 
-    const errors: Record<string, string> = {};
+    const parseErrors: Record<string, string> = {};
     const data: Row = {};
 
     for (const col of editableColumns) {
@@ -146,19 +146,19 @@ export const RowEditorPanel = forwardRef<RowEditorPanelHandle, RowEditorPanelPro
         try {
           data[col.name] = JSON.parse(text);
         } catch {
-          errors[col.name] = "Invalid JSON";
+          parseErrors[col.name] = "Invalid JSON";
         }
       } else {
         data[col.name] = text;
       }
     }
 
-    if (Object.keys(errors).length > 0) {
-      setJsonErrors(errors);
+    if (Object.keys(parseErrors).length > 0) {
+      setFieldErrors(parseErrors);
       return false;
     }
 
-    setJsonErrors({});
+    setFieldErrors({});
     setSubmitting(true);
     try {
       if (isCreate) {
@@ -169,7 +169,12 @@ export const RowEditorPanel = forwardRef<RowEditorPanelHandle, RowEditorPanelPro
       onSave();
       return true;
     } catch (err) {
-      setFormError(err instanceof ApiError ? err.message : "Could not save the row.");
+      if (err instanceof ApiError) {
+        setFormError(err.message);
+        setFieldErrors(err.fieldErrors ?? {});
+      } else {
+        setFormError("Could not save the row.");
+      }
       return false;
     } finally {
       setSubmitting(false);
@@ -196,7 +201,7 @@ export const RowEditorPanel = forwardRef<RowEditorPanelHandle, RowEditorPanelPro
       const nextForm = buildInitialForm(table, fresh);
       setInitialForm(nextForm);
       setForm(nextForm);
-      setJsonErrors({});
+      setFieldErrors({});
     } catch (err) {
       setFormError(err instanceof ApiError ? err.message : "Could not refresh this row.");
     } finally {
@@ -207,7 +212,7 @@ export const RowEditorPanel = forwardRef<RowEditorPanelHandle, RowEditorPanelPro
   // Reverts in-progress edits back to what was loaded when this panel opened.
   function handleRestore() {
     setForm(initialForm);
-    setJsonErrors({});
+    setFieldErrors({});
     setFormError(null);
   }
 
@@ -317,64 +322,63 @@ export const RowEditorPanel = forwardRef<RowEditorPanelHandle, RowEditorPanelPro
             <div className="alert alert-danger py-2 px-3 small mb-3" role="alert">{formError}</div>
           )}
           <div className="db-row-form-grid">
-            {editableColumns.map((col) => (
-              <div
-                key={col.name}
-                className={`db-field${isLongText(col) || isJson(col) ? " db-field--wide" : ""}`}
-              >
-                <label className="form-label db-field-label">
-                  {col.name}
-                  {col.pk && <span className="db-col-badge db-col-badge--pk">PK</span>}
-                  {col.fk && <span className="db-col-badge db-col-badge--fk">FK</span>}
-                  {!col.nullable && !col.pk && <span className="db-field-required">*</span>}
-                </label>
+            {editableColumns.map((col) => {
+              const error = fieldErrors[col.name];
+              return (
+                <div
+                  key={col.name}
+                  className={`db-field${isLongText(col) || isJson(col) ? " db-field--wide" : ""}`}
+                >
+                  <label className="form-label db-field-label">
+                    {col.name}
+                    {col.pk && <span className="db-col-badge db-col-badge--pk">PK</span>}
+                    {col.fk && <span className="db-col-badge db-col-badge--fk">FK</span>}
+                    {!col.nullable && !col.pk && <span className="db-field-required">*</span>}
+                  </label>
 
-                {col.pk ? (
-                  <input
-                    className="form-control"
-                    value={formatFieldValue(col, row?.[col.name] ?? "auto")}
-                    disabled
-                  />
-                ) : isBoolean(col) ? (
-                  <div className="form-check form-switch db-field-switch">
+                  {col.pk ? (
                     <input
-                      className="form-check-input"
-                      type="checkbox"
-                      role="switch"
-                      checked={Boolean(form[col.name])}
-                      onChange={(e) => setField(col.name, e.target.checked)}
+                      className="form-control"
+                      value={formatFieldValue(col, row?.[col.name] ?? "auto")}
+                      disabled
                     />
-                  </div>
-                ) : isJson(col) ? (
-                  <>
+                  ) : isBoolean(col) ? (
+                    <div className="form-check form-switch db-field-switch">
+                      <input
+                        className="form-check-input"
+                        type="checkbox"
+                        role="switch"
+                        checked={Boolean(form[col.name])}
+                        onChange={(e) => setField(col.name, e.target.checked)}
+                      />
+                    </div>
+                  ) : isJson(col) ? (
                     <textarea
-                      className={`form-control db-field-mono${jsonErrors[col.name] ? " is-invalid" : ""}`}
+                      className={`form-control db-field-mono${error ? " is-invalid" : ""}`}
                       rows={4}
                       value={String(form[col.name] ?? "")}
                       onChange={(e) => setField(col.name, e.target.value)}
                     />
-                    {jsonErrors[col.name] && (
-                      <div className="db-field-error">{jsonErrors[col.name]}</div>
-                    )}
-                  </>
-                ) : isLongText(col) ? (
-                  <textarea
-                    className="form-control"
-                    rows={2}
-                    value={String(form[col.name] ?? "")}
-                    onChange={(e) => setField(col.name, e.target.value)}
-                  />
-                ) : (
-                  <input
-                    className="form-control"
-                    type={isInteger(col) ? "number" : isDateOnly(col) ? "date" : "text"}
-                    value={String(form[col.name] ?? "")}
-                    onChange={(e) => setField(col.name, e.target.value)}
-                    placeholder={isDateTime(col) ? "YYYY-MM-DD HH:MM:SS" : undefined}
-                  />
-                )}
-              </div>
-            ))}
+                  ) : isLongText(col) ? (
+                    <textarea
+                      className={`form-control${error ? " is-invalid" : ""}`}
+                      rows={2}
+                      value={String(form[col.name] ?? "")}
+                      onChange={(e) => setField(col.name, e.target.value)}
+                    />
+                  ) : (
+                    <input
+                      className={`form-control${error ? " is-invalid" : ""}`}
+                      type={isInteger(col) ? "number" : isDateOnly(col) ? "date" : "text"}
+                      value={String(form[col.name] ?? "")}
+                      onChange={(e) => setField(col.name, e.target.value)}
+                      placeholder={isDateTime(col) ? "YYYY-MM-DD HH:MM:SS" : undefined}
+                    />
+                  )}
+                  {error && <div className="db-field-error">{error}</div>}
+                </div>
+              );
+            })}
           </div>
         </div>
       </form>

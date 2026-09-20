@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Callable
 
 from fastapi import FastAPI, Request
@@ -13,6 +14,7 @@ from app.core.config import settings
 from app.core.exceptions import AppError
 from app.db.session import SessionLocal, engine
 from app.models.base import Base
+from app.services import model_constraints
 
 # Imported so Base.metadata.create_all sees every table on startup.
 from app.models.admin_user import AdminUserDBM
@@ -50,6 +52,9 @@ async def lifespan(_app: FastAPI):
     # BackOffice's own database — separate file from Shadow V2's shadow.db.
     Base.metadata.create_all(bind=engine)
     _reconcile_interrupted_jobs()
+    # Re-read (never import/copy) BackEnd_V2's own model files so row edits
+    # can be checked against its real constraints — see model_constraints.py.
+    model_constraints.load_registry(Path(settings.shadow_backend_dir).expanduser() / "app" / "models")
     yield
 
 

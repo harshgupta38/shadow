@@ -1,13 +1,20 @@
 import { useEffect, useState } from "react";
 import { Offcanvas } from "react-bootstrap";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import { Brand } from "@/components/ui/Brand/Brand";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Topbar } from "@/components/layout/Topbar";
+import { ROUTES } from "@/routes/RoutePaths";
 
 const COLLAPSE_BREAKPOINT = "(max-width: 1024px)";
 
+// Pages too complex for the normal padded/max-width page shell — they get
+// the full viewport below the topbar instead (see .app-content-full).
+const FULL_BLEED_ROUTES: readonly string[] = [ROUTES.SHADOW_DATABASE];
+
 export function AppLayout() {
+  const location = useLocation();
+  const isFullBleed = FULL_BLEED_ROUTES.includes(location.pathname);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(
     () => window.innerWidth <= 1024,
@@ -56,7 +63,7 @@ export function AppLayout() {
         </Offcanvas>
 
         <div className="app-main">
-          <main className="app-content fade-in">
+          <main className={isFullBleed ? "app-content-full fade-in" : "app-content fade-in"}>
             <Outlet />
           </main>
         </div>

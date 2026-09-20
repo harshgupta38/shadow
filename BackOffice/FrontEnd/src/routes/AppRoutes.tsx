@@ -61,6 +61,7 @@ export function AppRoutes() {
             <Route path={ROUTES.SERVER}   element={<ServerPage />} />
 
             <Route path={ROUTES.SHADOW_USERS}      element={<ShadowUsersPage />} />
+            <Route path={ROUTES.SHADOW_DATABASE}   element={<DatabasePage />} />
             <Route path={ROUTES.BACKOFFICE_USERS}  element={<BackOfficeUsersPage />} />
           </Route>
         </Route>

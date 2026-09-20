@@ -685,6 +685,21 @@ h1, h2, h3, h4, h5, h6, .display-font {
   margin: 0 auto;
 }
 
+// Full-bleed variant — no padding, no max-width, and it stretches to fill
+// .app-main's height instead of just sizing to its content (see AppLayout's
+// FULL_BLEED_ROUTES). Used by pages complex enough to need the whole
+// viewport, starting with the Database page.
+.app-content-full {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: none;
+  padding: 0;
+  margin: 0;
+}
+
 // ── Dropdown ──────────────────────────────────────────────────────────────────
 .dropdown-menu {
   --bs-dropdown-bg: var(--jv-elevated);
@@ -942,6 +957,8 @@ h1, h2, h3, h4, h5, h6, .display-font {
   border-radius: var(--jv-radius);
   overflow-x: auto;
   box-shadow: var(--jv-shadow);
+  scrollbar-width: thin;
+  scrollbar-color: var(--jv-border-strong) transparent;
 }
 
 .dp-table {
@@ -1371,10 +1388,14 @@ h1, h2, h3, h4, h5, h6, .display-font {
 }
 
 // ── Database page — tabs ────────────────────────────────────────────────────────
+// Styled like browser tabs: the strip sits on the "sunken" page background,
+// and the active tab is filled with the same surface color as the panel
+// below it so the two visually merge into one continuous piece.
 .db-tabs {
   display: flex;
-  gap: 0.4rem;
+  gap: 0;
   margin-bottom: 1.25rem;
+  background: var(--jv-bg);
   border-bottom: 1px solid var(--jv-border);
 }
 
@@ -1382,31 +1403,27 @@ h1, h2, h3, h4, h5, h6, .display-font {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.6rem 0.9rem;
+  padding: 0.75rem 1.25rem;
   border: none;
+  border-right: 1px solid var(--jv-border);
+  border-radius: 0;
   background: transparent;
   color: var(--jv-muted);
   font-size: 0.86rem;
   font-weight: 600;
   cursor: pointer;
   position: relative;
-  transition: color var(--jv-transition);
+  transition: background var(--jv-transition), color var(--jv-transition);
 
-  &:hover { color: var(--jv-text); }
+  &:hover { background: var(--jv-surface-3); color: var(--jv-text); }
 
   &--active {
-    color: var(--jv-brand-1);
+    background: var(--jv-surface);
+    color: var(--jv-text);
+    border-bottom: 1px solid var(--jv-surface);
+    margin-bottom: -1px;
 
-    &::after {
-      content: "";
-      position: absolute;
-      left: 0.2rem;
-      right: 0.2rem;
-      bottom: -1px;
-      height: 2px;
-      background: var(--jv-brand-1);
-      border-radius: 2px 2px 0 0;
-    }
+    &:hover { background: var(--jv-surface); }
   }
 }
 
@@ -1418,7 +1435,7 @@ h1, h2, h3, h4, h5, h6, .display-font {
 }
 
 .db-sidebar {
-  width: 224px;
+  width: 222px;
   flex-shrink: 0;
   background: var(--jv-surface);
   border: 1px solid var(--jv-border);
@@ -1549,6 +1566,10 @@ h1, h2, h3, h4, h5, h6, .display-font {
   th { white-space: nowrap; }
 }
 
+.db-grid--clickable tbody tr {
+  cursor: pointer;
+}
+
 .db-col-badge {
   font-size: 0.6rem;
   font-weight: 700;
@@ -1610,6 +1631,23 @@ h1, h2, h3, h4, h5, h6, .display-font {
   .db-layout { flex-direction: column; }
   .db-sidebar { width: 100%; position: static; max-height: 260px; }
   .db-search .form-control { width: 160px; }
+
+  // The fixed-height full-bleed shell doesn't make sense at this width —
+  // fall back to natural document flow (.app-main scrolls the whole page).
+  .db-tab-panel { overflow: visible; }
+  .db-tab-panel .db-layout { height: auto; }
+  .db-tab-panel .db-sidebar {
+    height: auto;
+    max-height: 260px;
+    border-right: none;
+    border-bottom: 1px solid var(--jv-border);
+  }
+  .db-tab-panel .db-main { height: auto; }
+  .db-tab-panel .dp-table-wrap,
+  .db-tab-panel .db-empty-state {
+    flex: none;
+    overflow-y: visible;
+  }
 }
 
 // ── Database page — row editor modal ────────────────────────────────────────────
@@ -1764,6 +1802,8 @@ h1, h2, h3, h4, h5, h6, .display-font {
   margin-bottom: 0.35rem;
   border: 1px solid var(--jv-term-border);
   border-radius: var(--jv-radius-sm);
+  scrollbar-width: thin;
+  scrollbar-color: var(--jv-term-scrollbar) transparent;
 }
 
 .sql-console-result-table {
@@ -1823,6 +1863,137 @@ h1, h2, h3, h4, h5, h6, .display-font {
   flex-shrink: 0;
   padding: 0.35rem 0.9rem;
   font-size: 0.8rem;
+}
+
+// ── Database page — full-bleed shell ────────────────────────────────────────────
+// DatabasePage renders inside .app-content-full instead of the normal padded
+// .app-content, and everything below chains flex:1/min-height:0 down so the
+// tab body fills the rest of the viewport and scrolls internally, rather
+// than the whole page growing/scrolling like every other page does.
+.db-page-full {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.db-tabs--full {
+  flex-shrink: 0;
+  margin-bottom: 0;
+  padding: 0;
+}
+
+// No padding anywhere in here — the grid/sidebar/console fill the panel
+// edge-to-edge, flush against the tab strip and each other, all sharing one
+// continuous --jv-surface plane instead of looking like separate cards.
+.db-tab-panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  background: var(--jv-surface);
+  overflow: hidden;
+}
+
+.db-tab-panel .db-layout {
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 0;
+  align-items: stretch;
+}
+
+.db-tab-panel .db-sidebar {
+  height: 100%;
+  max-height: none;
+  position: static;
+  top: auto;
+  border: none;
+  border-right: 1px solid var(--jv-border);
+  border-radius: 0;
+  box-shadow: none;
+  background: var(--jv-surface);
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+
+.db-sidebar-search {
+  flex-shrink: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 0.65rem;
+  border-bottom: 1px solid var(--jv-border);
+
+  svg {
+    position: absolute;
+    left: 1.15rem;
+    color: var(--jv-faint);
+    pointer-events: none;
+  }
+
+  .form-control {
+    padding-left: 1.9rem;
+    font-size: 0.82rem;
+  }
+}
+
+.db-sidebar-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0.65rem;
+  scrollbar-width: thin;
+  scrollbar-color: var(--jv-border-strong) transparent;
+}
+
+.db-tab-panel .db-main {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+.db-tab-panel .db-toolbar {
+  flex-shrink: 0;
+  padding: 0.57rem 1.25rem;
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--jv-border);
+}
+
+.db-tab-panel .pagination-bar {
+  flex-shrink: 0;
+  padding: 0.65rem 1.25rem;
+  margin-top: 0;
+  border-top: 1px solid var(--jv-border);
+}
+
+.db-tab-panel .dp-table-wrap,
+.db-tab-panel .db-empty-state {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  background: var(--jv-surface);
+}
+
+.db-tab-panel .sql-console-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.db-tab-panel .sql-console-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
 }
 
 // ── Server page ──────────────────────────────────────────────────────────────────

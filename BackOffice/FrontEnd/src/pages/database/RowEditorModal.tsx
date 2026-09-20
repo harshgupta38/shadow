@@ -57,14 +57,17 @@ interface RowEditorModalProps {
   row: Row | null;
   onClose: () => void;
   onSave: () => void;
+  onDelete: () => void;
 }
 
-export function RowEditorModal({ table, row, onClose, onSave }: RowEditorModalProps) {
+export function RowEditorModal({ table, row, onClose, onSave, onDelete }: RowEditorModalProps) {
   const isCreate = row === null;
   const [form, setForm] = useState(() => buildInitialForm(table, row));
   const [jsonErrors, setJsonErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const editableColumns = useMemo(
     () => table.columns.filter((c) => !(isCreate && c.pk)),
@@ -136,13 +139,28 @@ export function RowEditorModal({ table, row, onClose, onSave }: RowEditorModalPr
     }
   }
 
+  async function handleDelete() {
+    if (!row) return;
+    setDeleting(true);
+    setFormError(null);
+    try {
+      await api.database.deleteRow(table.name, pkValues(table, row));
+      onDelete();
+    } catch (err) {
+      setFormError(err instanceof ApiError ? err.message : "Could not delete the row.");
+      setConfirmingDelete(false);
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   return (
-    <Modal show onHide={() => !submitting && onClose()} centered size="lg" className="deploy-modal db-row-modal">
+    <Modal show onHide={() => !submitting && !deleting && onClose()} centered size="lg" className="deploy-modal db-row-modal">
       <Modal.Header>
         <h5 className="deploy-modal-title">
           {isCreate ? `New row in ${table.name}` : `Edit ${table.name} · ${row ? rowLabel(table, row) : ""}`}
         </h5>
-        <button type="button" className="btn btn-ghost btn-icon" onClick={onClose} disabled={submitting} aria-label="Close">
+        <button type="button" className="btn btn-ghost btn-icon" onClick={onClose} disabled={submitting || deleting} aria-label="Close">
           ×
         </button>
       </Modal.Header>
@@ -213,13 +231,42 @@ export function RowEditorModal({ table, row, onClose, onSave }: RowEditorModalPr
           </div>
         </Modal.Body>
         <Modal.Footer>
-          <button type="button" className="btn btn-ghost" onClick={onClose} disabled={submitting}>
-            Cancel
-          </button>
-          <button type="submit" className="btn btn-brand d-flex align-items-center gap-2" disabled={submitting}>
-            {submitting && <span className="spinner-border spinner-border-sm" />}
-            {submitting ? "Saving…" : isCreate ? "Create row" : "Save changes"}
-          </button>
+          {confirmingDelete ? (
+            <div className="d-flex align-items-center justify-content-between w-100 gap-3">
+              <span className="small text-muted-2">
+                Delete this row from <strong>{table.name}</strong>? This can't be undone.
+              </span>
+              <div className="d-flex gap-2 flex-shrink-0">
+                <button type="button" className="btn btn-ghost" onClick={() => setConfirmingDelete(false)} disabled={deleting}>
+                  Cancel
+                </button>
+                <button type="button" className="btn btn-danger d-flex align-items-center gap-2" onClick={handleDelete} disabled={deleting}>
+                  {deleting && <span className="spinner-border spinner-border-sm" />}
+                  {deleting ? "Deleting…" : "Yes, delete"}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              {!isCreate && (
+                <button
+                  type="button"
+                  className="btn btn-danger me-auto"
+                  onClick={() => setConfirmingDelete(true)}
+                  disabled={submitting}
+                >
+                  Delete
+                </button>
+              )}
+              <button type="button" className="btn btn-ghost" onClick={onClose} disabled={submitting}>
+                Cancel
+              </button>
+              <button type="submit" className="btn btn-brand d-flex align-items-center gap-2" disabled={submitting}>
+                {submitting && <span className="spinner-border spinner-border-sm" />}
+                {submitting ? "Saving…" : isCreate ? "Create row" : "Save changes"}
+              </button>
+            </>
+          )}
         </Modal.Footer>
       </form>
     </Modal>

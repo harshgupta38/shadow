@@ -1,11 +1,12 @@
-import { Fragment, useEffect, useState } from "react";
-import { Search, PlusLg, PencilFill, TrashFill, Inbox } from "react-bootstrap-icons";
+import { useEffect, useMemo, useState } from "react";
+import { Search, PlusLg, Inbox } from "react-bootstrap-icons";
 import { api, ApiError } from "@/api";
 import type { ColumnInfo, Row, TableInfo } from "@/api";
-import { pkValues, rowKey, rowLabel } from "./dbHelpers";
+import { Pagination } from "@/components/ui/Pagination/Pagination";
+import { rowKey } from "./dbHelpers";
 import { RowEditorModal } from "./RowEditorModal";
 
-const PAGE_SIZE = 8;
+const DEFAULT_PAGE_SIZE = 25;
 const SEARCH_DEBOUNCE_MS = 350;
 
 function renderCell(col: ColumnInfo, value: unknown) {
@@ -30,6 +31,7 @@ export function TableBrowser() {
   const [tablesLoading, setTablesLoading] = useState(true);
   const [tablesError, setTablesError] = useState<string | null>(null);
   const [selectedTableName, setSelectedTableName] = useState<string | null>(null);
+  const [tableFilter, setTableFilter] = useState("");
 
   const [columns, setColumns] = useState<ColumnInfo[]>([]);
   const [rows, setRows] = useState<Row[]>([]);
@@ -40,11 +42,15 @@ export function TableBrowser() {
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [editingRow, setEditingRow] = useState<Row | "create" | null>(null);
-  const [confirmDeleteKey, setConfirmDeleteKey] = useState<string | null>(null);
 
   const table = tables.find((t) => t.name === selectedTableName) ?? null;
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const filteredTables = useMemo(() => {
+    const term = tableFilter.trim().toLowerCase();
+    if (!term) return tables;
+    return tables.filter((t) => t.name.toLowerCase().includes(term));
+  }, [tables, tableFilter]);
 
   // Load the table list once.
   useEffect(() => {
@@ -80,7 +86,7 @@ export function TableBrowser() {
     if (!selectedTableName) return;
     setRowsLoading(true);
     try {
-      const result = await api.database.getRows(selectedTableName, page, PAGE_SIZE, search);
+      const result = await api.database.getRows(selectedTableName, page, pageSize, search);
       setColumns(result.columns);
       setRows(result.rows);
       setTotal(result.total);
@@ -97,14 +103,13 @@ export function TableBrowser() {
   useEffect(() => {
     loadRows();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTableName, page, search]);
+  }, [selectedTableName, page, pageSize, search]);
 
   function selectTable(name: string) {
     setSelectedTableName(name);
     setSearchInput("");
     setSearch("");
     setPage(1);
-    setConfirmDeleteKey(null);
   }
 
   async function refreshAfterMutation() {
@@ -117,43 +122,46 @@ export function TableBrowser() {
     }
   }
 
-  async function handleSaveRow() {
+  async function handleRowMutated() {
     setEditingRow(null);
     await refreshAfterMutation();
-  }
-
-  async function handleDelete(row: Row) {
-    if (!table) return;
-    try {
-      await api.database.deleteRow(table.name, pkValues(table, row));
-      setConfirmDeleteKey(null);
-      await refreshAfterMutation();
-    } catch (err) {
-      setRowsError(err instanceof ApiError ? err.message : "Could not delete the row.");
-    }
   }
 
   return (
     <div className="db-layout">
       <aside className="db-sidebar">
-        {tablesError && (
-          <div className="alert alert-danger py-2 px-3 small mb-2" role="alert">{tablesError}</div>
-        )}
-        {tablesLoading ? (
-          <div className="db-table-group-label">Loading tables…</div>
-        ) : (
-          tables.map((t) => (
-            <button
-              key={t.name}
-              type="button"
-              className={`db-table-item${t.name === selectedTableName ? " db-table-item--active" : ""}`}
-              onClick={() => selectTable(t.name)}
-            >
-              <span className="db-table-item-name">{t.name}</span>
-              <span className="db-table-item-count">{t.row_count}</span>
-            </button>
-          ))
-        )}
+        <div className="db-sidebar-search">
+          <Search size={13} />
+          <input
+            className="form-control"
+            placeholder="Search tables…"
+            value={tableFilter}
+            onChange={(e) => setTableFilter(e.target.value)}
+          />
+        </div>
+
+        <div className="db-sidebar-list">
+          {tablesError && (
+            <div className="alert alert-danger py-2 px-3 small mb-2" role="alert">{tablesError}</div>
+          )}
+          {tablesLoading ? (
+            <div className="db-table-group-label">Loading tables…</div>
+          ) : filteredTables.length === 0 ? (
+            <div className="db-table-group-label">No tables match.</div>
+          ) : (
+            filteredTables.map((t) => (
+              <button
+                key={t.name}
+                type="button"
+                className={`db-table-item${t.name === selectedTableName ? " db-table-item--active" : ""}`}
+                onClick={() => selectTable(t.name)}
+              >
+                <span className="db-table-item-name">{t.name}</span>
+                <span className="db-table-item-count">{t.row_count}</span>
+              </button>
+            ))
+          )}
+        </div>
       </aside>
 
       <div className="db-main">
@@ -203,7 +211,7 @@ export function TableBrowser() {
               </div>
             ) : (
               <div className="dp-table-wrap db-grid-wrap">
-                <table className="dp-table db-grid">
+                <table className="dp-table db-grid db-grid--clickable">
                   <thead>
                     <tr>
                       {columns.map((col) => (
@@ -215,91 +223,34 @@ export function TableBrowser() {
                           </span>
                         </th>
                       ))}
-                      <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {rows.map((r) => {
-                      const key = rowKey(table, r);
-                      return (
-                        <Fragment key={key}>
-                          <tr>
-                            {columns.map((col) => (
-                              <td key={col.name} className="db-cell">
-                                {renderCell(col, r[col.name])}
-                              </td>
-                            ))}
-                            <td>
-                              <div className="d-flex gap-1">
-                                <button type="button" className="btn-action btn-action--ghost" onClick={() => setEditingRow(r)}>
-                                  <PencilFill size={12} />
-                                  Edit
-                                </button>
-                                <button
-                                  type="button"
-                                  className="btn-action btn-action--danger"
-                                  onClick={() => setConfirmDeleteKey(confirmDeleteKey === key ? null : key)}
-                                >
-                                  <TrashFill size={12} />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                          {confirmDeleteKey === key && (
-                            <tr className="dp-confirm-row">
-                              <td colSpan={columns.length + 1}>
-                                <div className="dp-confirm-inner">
-                                  <span>
-                                    Delete row <strong>{rowLabel(table, r)}</strong> from{" "}
-                                    <strong>{table.name}</strong>? This can't be undone.
-                                  </span>
-                                  <button type="button" className="btn-action btn-action--danger" onClick={() => handleDelete(r)}>
-                                    Yes, delete
-                                  </button>
-                                  <button type="button" className="btn-action btn-action--ghost" onClick={() => setConfirmDeleteKey(null)}>
-                                    Cancel
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          )}
-                        </Fragment>
-                      );
-                    })}
+                    {rows.map((r) => (
+                      <tr key={rowKey(table, r)} onClick={() => setEditingRow(r)}>
+                        {columns.map((col) => (
+                          <td key={col.name} className="db-cell">
+                            {renderCell(col, r[col.name])}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
             )}
 
-            {totalPages > 1 && (
-              <div className="deploy-pagination">
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-icon"
-                  disabled={page === 1}
-                  onClick={() => setPage(page - 1)}
-                >
-                  ‹
-                </button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                  <button
-                    key={p}
-                    type="button"
-                    className={`deploy-page-btn${p === page ? " deploy-page-btn--active" : ""}`}
-                    onClick={() => setPage(p)}
-                  >
-                    {p}
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-icon"
-                  disabled={page === totalPages}
-                  onClick={() => setPage(page + 1)}
-                >
-                  ›
-                </button>
-              </div>
+            {total > pageSize && (
+              <Pagination
+                page={page}
+                pageSize={pageSize}
+                totalItems={total}
+                onPageChange={setPage}
+                onPageSizeChange={(size) => {
+                  setPageSize(size);
+                  setPage(1);
+                }}
+              />
             )}
           </>
         )}
@@ -310,7 +261,8 @@ export function TableBrowser() {
           table={table}
           row={editingRow === "create" ? null : editingRow}
           onClose={() => setEditingRow(null)}
-          onSave={handleSaveRow}
+          onSave={handleRowMutated}
+          onDelete={handleRowMutated}
         />
       )}
     </div>

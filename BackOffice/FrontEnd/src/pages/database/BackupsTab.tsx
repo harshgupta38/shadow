@@ -1,6 +1,15 @@
-import { useEffect, useState } from "react";
-import { Modal } from "react-bootstrap";
-import { ArrowCounterclockwise, BoxArrowUpRight, CloudArrowDownFill, Inbox, PlusLg } from "react-bootstrap-icons";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { Dropdown, Modal } from "react-bootstrap";
+import {
+  ArrowCounterclockwise,
+  BoxArrowUpRight,
+  CloudArrowDownFill,
+  Inbox,
+  PlusLg,
+  ThreeDotsVertical,
+  TrashFill,
+} from "react-bootstrap-icons";
 import { api, ApiError } from "@/api";
 import type { BackupInfo } from "@/api";
 import { downloadBlob } from "@/lib/download";
@@ -14,13 +23,61 @@ export function BackupsTab({ onOpenBackup }: { onOpenBackup: (filename: string) 
   const [creating, setCreating] = useState(false);
   const [downloadingName, setDownloadingName] = useState<string | null>(null);
   const [restoringName, setRestoringName] = useState<string | null>(null);
+  const [deletingName, setDeletingName] = useState<string | null>(null);
   const [confirmingRestore, setConfirmingRestore] = useState<BackupInfo | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState<BackupInfo | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; backup: BackupInfo } | null>(null);
+  const [contextMenuPos, setContextMenuPos] = useState<{ top: number; left: number } | null>(null);
+  const contextMenuRef = useRef<HTMLDivElement | null>(null);
   const { success, error: toastError } = useToast();
 
-  // One restore/create/download at a time — overlapping two operations that
-  // both touch the live database file is exactly the kind of thing this
-  // page needs to avoid, not just allow to race.
-  const busy = creating || downloadingName !== null || restoringName !== null;
+  // Desktop drops the per-row "⋮" in favor of right-clicking the row — the
+  // same four actions, just reached the way a file browser's context menu
+  // works instead of an always-visible trigger. Closes on an outside click,
+  // Escape, or scroll (a stale fixed-position menu left behind mid-scroll
+  // would float over the wrong row).
+  useEffect(() => {
+    if (!contextMenu) return;
+    function handleMouseDown(e: MouseEvent) {
+      if (contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) {
+        setContextMenu(null);
+      }
+    }
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setContextMenu(null);
+    }
+    function handleScroll() {
+      setContextMenu(null);
+    }
+    document.addEventListener("mousedown", handleMouseDown);
+    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("scroll", handleScroll, true);
+    return () => {
+      document.removeEventListener("mousedown", handleMouseDown);
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("scroll", handleScroll, true);
+    };
+  }, [contextMenu]);
+
+  // Keeps the menu on-screen — a row right-clicked near the bottom/right
+  // edge would otherwise render partly off the viewport. Renders once at
+  // the raw cursor position (needed to measure it), then this corrects the
+  // position before paint, so there's no visible jump.
+  useLayoutEffect(() => {
+    if (!contextMenu || !contextMenuRef.current) {
+      setContextMenuPos(null);
+      return;
+    }
+    const rect = contextMenuRef.current.getBoundingClientRect();
+    const top = Math.max(8, Math.min(contextMenu.y, window.innerHeight - rect.height - 8));
+    const left = Math.max(8, Math.min(contextMenu.x, window.innerWidth - rect.width - 8));
+    setContextMenuPos({ top, left });
+  }, [contextMenu]);
+
+  // One restore/create/download/delete at a time — overlapping two operations
+  // that both touch the live database file (or the backup archive) is
+  // exactly the kind of thing this page needs to avoid, not just allow to race.
+  const busy = creating || downloadingName !== null || restoringName !== null || deletingName !== null;
 
   async function loadBackups() {
     setLoading(true);
@@ -83,6 +140,22 @@ export function BackupsTab({ onOpenBackup }: { onOpenBackup: (filename: string) 
     }
   }
 
+  async function handleConfirmDelete() {
+    if (!confirmingDelete) return;
+    const name = confirmingDelete.name;
+    setConfirmingDelete(null);
+    setDeletingName(name);
+    try {
+      await api.database.deleteBackup(name);
+      success(`Deleted ${name}.`);
+      await loadBackups();
+    } catch (err) {
+      toastError(err instanceof ApiError ? err.message : "Could not delete this backup.");
+    } finally {
+      setDeletingName(null);
+    }
+  }
+
   return (
     <>
       <div className="db-toolbar">
@@ -114,51 +187,61 @@ export function BackupsTab({ onOpenBackup }: { onOpenBackup: (filename: string) 
         </div>
       ) : (
         <div className="dp-table-wrap">
-          <table className="dp-table">
+          <table className="dp-table db-grid--clickable">
             <thead>
               <tr>
-                <th>Name</th>
                 <th>Created</th>
+                <th>Name</th>
                 <th>Size</th>
-                <th>Actions</th>
+                <th className="dp-table-th-actions" />
               </tr>
             </thead>
             <tbody>
               {backups.map((b) => (
-                <tr key={b.name}>
+                <tr
+                  key={b.name}
+                  onClick={() => onOpenBackup(b.name)}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    setContextMenu({ x: e.clientX, y: e.clientY, backup: b });
+                  }}
+                >
+                  <td style={{ color: "var(--jv-muted)", whiteSpace: "nowrap", width: "1%" }}>{formatDateTime(b.created_at)}</td>
                   <td style={{ fontFamily: "Menlo, Consolas, monospace", fontSize: "0.82rem" }}>{b.name}</td>
-                  <td style={{ color: "var(--jv-muted)", whiteSpace: "nowrap" }}>{formatDateTime(b.created_at)}</td>
-                  <td style={{ color: "var(--jv-muted)" }}>{formatFileSize(b.size_bytes)}</td>
-                  <td>
-                    <div className="d-flex gap-1">
-                      <button
-                        type="button"
-                        className="btn-action btn-action--ghost"
-                        onClick={() => onOpenBackup(b.name)}
+                  <td style={{ color: "var(--jv-muted)", whiteSpace: "nowrap", width: "1%" }}>{formatFileSize(b.size_bytes)}</td>
+                  <td className="dp-table-td-actions" onClick={(e) => e.stopPropagation()}>
+                    {/* Mobile only — desktop uses the row's right-click context menu instead. */}
+                    <Dropdown align="end" className="d-md-none">
+                      <Dropdown.Toggle
+                        as="button"
+                        className="btn-action btn-action--icon"
+                        id={`backup-actions-${b.name}`}
                         disabled={busy}
                       >
-                        <BoxArrowUpRight size={12} />
-                        Open
-                      </button>
-                      <button
-                        type="button"
-                        className="btn-action btn-action--ghost"
-                        onClick={() => handleDownload(b.name)}
-                        disabled={busy}
-                      >
-                        <CloudArrowDownFill size={12} />
-                        {downloadingName === b.name ? "Downloading…" : "Download"}
-                      </button>
-                      <button
-                        type="button"
-                        className="btn-action btn-action--ghost"
-                        onClick={() => setConfirmingRestore(b)}
-                        disabled={busy}
-                      >
-                        <ArrowCounterclockwise size={12} />
-                        {restoringName === b.name ? "Restoring…" : "Restore"}
-                      </button>
-                    </div>
+                        <ThreeDotsVertical size={14} />
+                      </Dropdown.Toggle>
+                      <Dropdown.Menu popperConfig={{ strategy: "fixed" }}>
+                        <Dropdown.Item className="d-flex align-items-center gap-2" onClick={() => onOpenBackup(b.name)}>
+                          <BoxArrowUpRight size={14} /> Open
+                        </Dropdown.Item>
+                        <Dropdown.Item className="d-flex align-items-center gap-2" onClick={() => handleDownload(b.name)}>
+                          <CloudArrowDownFill size={14} />
+                          {downloadingName === b.name ? "Downloading…" : "Download"}
+                        </Dropdown.Item>
+                        <Dropdown.Item className="d-flex align-items-center gap-2" onClick={() => setConfirmingRestore(b)}>
+                          <ArrowCounterclockwise size={14} />
+                          {restoringName === b.name ? "Restoring…" : "Restore"}
+                        </Dropdown.Item>
+                        <Dropdown.Divider />
+                        <Dropdown.Item
+                          className="d-flex align-items-center gap-2 text-danger"
+                          onClick={() => setConfirmingDelete(b)}
+                        >
+                          <TrashFill size={14} />
+                          {deletingName === b.name ? "Deleting…" : "Delete"}
+                        </Dropdown.Item>
+                      </Dropdown.Menu>
+                    </Dropdown>
                   </td>
                 </tr>
               ))}
@@ -200,6 +283,95 @@ export function BackupsTab({ onOpenBackup }: { onOpenBackup: (filename: string) 
             </button>
           </Modal.Footer>
         </Modal>
+      )}
+
+      {confirmingDelete && (
+        <Modal show onHide={() => setConfirmingDelete(null)} centered className="deploy-modal">
+          <Modal.Header>
+            <h5 className="deploy-modal-title">Delete this backup?</h5>
+            <button
+              type="button"
+              className="btn btn-ghost btn-icon"
+              onClick={() => setConfirmingDelete(null)}
+              aria-label="Close"
+            >
+              ×
+            </button>
+          </Modal.Header>
+          <Modal.Body>
+            <p className="mb-0">
+              <strong>{confirmingDelete.name}</strong> ({formatFileSize(confirmingDelete.size_bytes)}, created{" "}
+              {formatDateTime(confirmingDelete.created_at)}) will be permanently deleted. This can't be undone.
+            </p>
+          </Modal.Body>
+          <Modal.Footer>
+            <button type="button" className="btn btn-ghost" onClick={() => setConfirmingDelete(null)}>
+              Cancel
+            </button>
+            <button type="button" className="btn btn-danger" onClick={handleConfirmDelete}>
+              Yes, delete
+            </button>
+          </Modal.Footer>
+        </Modal>
+      )}
+
+      {contextMenu && createPortal(
+        <div
+          ref={contextMenuRef}
+          className="dropdown-menu show"
+          style={{
+            position: "fixed",
+            top: contextMenuPos?.top ?? contextMenu.y,
+            left: contextMenuPos?.left ?? contextMenu.x,
+            visibility: contextMenuPos ? "visible" : "hidden",
+          }}
+        >
+          <button
+            type="button"
+            className="dropdown-item d-flex align-items-center gap-2"
+            onClick={() => {
+              setContextMenu(null);
+              onOpenBackup(contextMenu.backup.name);
+            }}
+          >
+            <BoxArrowUpRight size={14} /> Open
+          </button>
+          <button
+            type="button"
+            className="dropdown-item d-flex align-items-center gap-2"
+            onClick={() => {
+              setContextMenu(null);
+              handleDownload(contextMenu.backup.name);
+            }}
+          >
+            <CloudArrowDownFill size={14} />
+            {downloadingName === contextMenu.backup.name ? "Downloading…" : "Download"}
+          </button>
+          <button
+            type="button"
+            className="dropdown-item d-flex align-items-center gap-2"
+            onClick={() => {
+              setContextMenu(null);
+              setConfirmingRestore(contextMenu.backup);
+            }}
+          >
+            <ArrowCounterclockwise size={14} />
+            {restoringName === contextMenu.backup.name ? "Restoring…" : "Restore"}
+          </button>
+          <div className="dropdown-divider" />
+          <button
+            type="button"
+            className="dropdown-item d-flex align-items-center gap-2 text-danger"
+            onClick={() => {
+              setContextMenu(null);
+              setConfirmingDelete(contextMenu.backup);
+            }}
+          >
+            <TrashFill size={14} />
+            {deletingName === contextMenu.backup.name ? "Deleting…" : "Delete"}
+          </button>
+        </div>,
+        document.body,
       )}
     </>
   );

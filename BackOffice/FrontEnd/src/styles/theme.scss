@@ -1017,11 +1017,9 @@ h1, h2, h3, h4, h5, h6, .display-font {
   border-collapse: collapse;
   font-size: 0.875rem;
 
-  thead tr {
-    background: var(--jv-surface-2);
-    border-bottom: 1px solid var(--jv-border);
-  }
-
+  // Sticky on th itself, not thead/tr — the background has to live here
+  // too, since a stuck row's own background would scroll away with it,
+  // leaving the pinned header see-through over whatever row sits beneath it.
   th {
     padding: 0.65rem 1.1rem;
     font-size: 0.72rem;
@@ -1031,6 +1029,11 @@ h1, h2, h3, h4, h5, h6, .display-font {
     color: var(--jv-faint);
     text-align: left;
     white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--jv-surface-2);
+    border-bottom: 1px solid var(--jv-border);
   }
 
   td {
@@ -1047,6 +1050,17 @@ h1, h2, h3, h4, h5, h6, .display-font {
   tbody tr:hover td {
     background: var(--jv-surface-2);
   }
+}
+
+// A trailing "⋮" actions cell with no header label of its own — width: 1%
+// forces the browser to shrink it to its content (the kebab button) and
+// hand the freed space to the real columns, instead of it sitting in a
+// wide labeled column of its own.
+.dp-table-th-actions,
+.dp-table-td-actions {
+  width: 1%;
+  white-space: nowrap;
+  text-align: right;
 }
 
 .dp-status-dot {
@@ -1172,6 +1186,19 @@ h1, h2, h3, h4, h5, h6, .display-font {
     background: var(--jv-danger-soft);
     color: var(--jv-danger);
     &:hover { background: var(--jv-danger); color: #fff; }
+  }
+
+  // Icon-only trigger (e.g. a per-row "⋮" actions dropdown) — bare, no
+  // background at all (not even on hover), just the icon and a pointer
+  // cursor; there's no Bootstrap caret since the icon itself already
+  // signals "opens a menu."
+  &--icon {
+    padding: 0.35rem 0.5rem;
+    background: transparent;
+    color: var(--jv-muted);
+    cursor: pointer;
+    &:hover { color: var(--jv-text); }
+    &.dropdown-toggle::after { display: none; }
   }
 }
 

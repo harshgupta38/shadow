@@ -92,6 +92,11 @@ def restore_backup(filename: str, db: DbSession, admin: CurrentAdmin):
     return database_service.restore_backup(db, filename, admin.email)
 
 
+@router.delete(ENDPOINTS.DATABASE.BACKUP_FILE)
+def delete_backup(filename: str, db: DbSession, admin: CurrentAdmin):
+    return database_service.delete_backup(db, filename, admin.email)
+
+
 @router.get(ENDPOINTS.DATABASE.BACKUP_TABLES, response_model=list[TableInfo])
 def list_backup_tables(filename: str, _admin: CurrentAdmin):
     return database_service.list_backup_tables(filename)

@@ -159,6 +159,17 @@ def restore_backup(filename: str, x_admin_secret: str = Header(...)):
     return result
 
 
+@router.delete(ENDPOINTS.SYSTEM.ADMIN_BACKUP_FILE, tags=["admin"])
+def delete_backup(filename: str, x_admin_secret: str = Header(...)):
+    if x_admin_secret != settings.admin_secret:
+        raise HTTPException(status_code=403, detail="Forbidden.")
+
+    if not backup_service.delete_backup(filename):
+        raise HTTPException(status_code=404, detail="Backup not found.")
+
+    return {"deleted": filename}
+
+
 @router.post(ENDPOINTS.SYSTEM.ADMIN_BACKUP_QUERY, tags=["admin"])
 def query_backup(filename: str, body: SqlRequest, x_admin_secret: str = Header(...)):
     if x_admin_secret != settings.admin_secret:

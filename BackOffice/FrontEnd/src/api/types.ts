@@ -108,6 +108,10 @@ export interface RestoreBackupResponse {
   pre_restore_backup: BackupInfo;
 }
 
+export interface DeleteBackupResponse {
+  deleted: string;
+}
+
 // ─── Server ─────────────────────────────────────────────────────────────────
 export interface WorkerInfo {
   pid: number;

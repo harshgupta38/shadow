@@ -401,3 +401,17 @@ def restore_backup(db: Session, filename: str, admin_username: str) -> dict:
         raise
     _audit(db, admin_username, pseudo_query, True, None, None)
     return result
+
+
+def delete_backup(db: Session, filename: str, admin_username: str) -> dict:
+    """Permanently removes a backup file — irreversible, so it's audited
+    the same as restore, unlike the simpler list/create/download
+    passthroughs."""
+    pseudo_query = f"DELETE BACKUP {filename}"
+    try:
+        result = shadow_client.delete_backup(filename)
+    except Exception as e:
+        _audit(db, admin_username, pseudo_query, False, None, str(e))
+        raise
+    _audit(db, admin_username, pseudo_query, True, None, None)
+    return result

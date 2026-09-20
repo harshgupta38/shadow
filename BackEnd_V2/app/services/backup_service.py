@@ -168,6 +168,20 @@ def restore_backup(filename: str) -> dict | None:
     return {"restored_from": filename, "pre_restore_backup": describe_backup(pre_restore)}
 
 
+def delete_backup(filename: str) -> bool:
+    """Permanently removes a backup file. Returns False if `filename` isn't
+    a real backup (same path-traversal-safe resolution as every other
+    lookup here), True once the file is gone. Irreversible — there's no
+    pre-delete snapshot the way restore_backup() takes one, since deleting
+    a backup doesn't touch the live database at all."""
+    path = get_backup_path(filename)
+    if path is None:
+        return False
+    path.unlink()
+    log.warning("Backup deleted: %s", filename)
+    return True
+
+
 def _is_valid_slot(slot: str) -> bool:
     """Return True if slot is a 4-digit HHMM string with a valid hour and minute."""
     if len(slot) != 4 or not slot.isdigit():

@@ -138,11 +138,10 @@ export function BackupTableBrowser({ filename }: { filename: string }) {
         </div>
 
         <div className="db-sidebar-list">
-          {tablesError && (
-            <div className="alert alert-danger py-2 px-3 small mb-2" role="alert">{tablesError}</div>
-          )}
           {tablesLoading ? (
             <div className="db-table-group-label">Loading tables…</div>
+          ) : tablesError ? (
+            <div className="db-table-group-label">Couldn't load tables.</div>
           ) : filteredTables.length === 0 ? (
             <div className="db-table-group-label">No tables match.</div>
           ) : (
@@ -162,7 +161,11 @@ export function BackupTableBrowser({ filename }: { filename: string }) {
       </aside>
 
       <div className="db-main">
-        {!table ? (
+        {tablesError ? (
+          <div className="db-empty-state">
+            <div className="alert alert-danger py-2 px-3 small mb-0" role="alert">{tablesError}</div>
+          </div>
+        ) : !table ? (
           <div className="db-empty-state">
             <Inbox size={30} />
             <p>{tablesLoading ? "Loading…" : "No tables found."}</p>

@@ -191,6 +191,36 @@ def restore_backup(filename: str) -> dict:
     return resp.json()  # {"restored_from": str, "pre_restore_backup": {...}}
 
 
+def delete_backup(filename: str) -> dict:
+    """Permanently removes one backup file via DELETE
+    /admin/backups/{filename} — irreversible on BackEnd_V2's side, so this
+    client adds no confirmation of its own; that already happened before
+    this call was made."""
+    try:
+        resp = _client.delete(
+            f"{settings.shadow_backend_url}/admin/backups/{filename}",
+            headers={"X-Admin-Secret": settings.shadow_admin_secret},
+            timeout=15.0,
+        )
+    except httpx.RequestError as e:
+        raise ServiceUnavailableError(f"Could not reach Shadow V2 backend: {e}")
+
+    if resp.status_code == 404:
+        raise NotFoundError(f"Backup '{filename}' not found.")
+    if resp.status_code == 403:
+        raise ServiceUnavailableError(
+            "Shadow V2 rejected the admin secret — check SHADOW_ADMIN_SECRET in BackOffice's .env."
+        )
+    if resp.status_code >= 400:
+        try:
+            detail = resp.json().get("detail", "Delete failed.")
+        except ValueError:
+            detail = "Delete failed."
+        raise AppError(detail)
+
+    return resp.json()  # {"deleted": str}
+
+
 def check_health() -> dict | None:
     """Returns BackEnd_V2's /health payload, or None if unreachable — used
     both to show live status and to detect a restart completing (the process

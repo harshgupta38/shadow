@@ -24,4 +24,8 @@ export const ENDPOINTS = {
     RESTART_HISTORY: "/server/restart-history",
     restartDetail:   (id: number) => `/server/restart/${id}`,
   },
+  USERS: {
+    SHADOW:     "/users/shadow",
+    BACKOFFICE: "/users/backoffice",
+  },
 } as const;

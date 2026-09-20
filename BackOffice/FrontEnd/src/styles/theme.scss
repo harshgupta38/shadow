@@ -940,7 +940,7 @@ h1, h2, h3, h4, h5, h6, .display-font {
   background: var(--jv-surface);
   border: 1px solid var(--jv-border);
   border-radius: var(--jv-radius);
-  overflow: hidden;
+  overflow-x: auto;
   box-shadow: var(--jv-shadow);
 }
 
@@ -1032,6 +1032,46 @@ h1, h2, h3, h4, h5, h6, .display-font {
   border-radius: var(--jv-radius-pill);
   padding: 0.1rem 0.55rem;
   white-space: nowrap;
+}
+
+.verified-pill {
+  font-size: 0.68rem;
+  font-weight: 600;
+  border-radius: var(--jv-radius-pill);
+  padding: 0.1rem 0.5rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+
+  &--yes {
+    background: var(--jv-success-soft);
+    color: var(--jv-success);
+  }
+
+  &--no {
+    background: var(--jv-warn-soft);
+    color: var(--jv-warn);
+  }
+}
+
+// UsersTable's header reuses .page-header-jv (icon + title), but puts a
+// search box where PageHeader normally puts button actions. That row's own
+// mobile rule forces flex-wrap: nowrap (its actions collapse into a
+// dropdown instead of wrapping) — this doesn't apply here, so override it
+// to let the search box drop to its own full-width row instead of being
+// squeezed onto the title's row.
+.users-table-header {
+  @media (max-width: 768px) {
+    flex-wrap: wrap !important;
+
+    .db-search {
+      flex: 1 1 100%;
+      width: 100%;
+
+      .form-control {
+        width: 100%;
+      }
+    }
+  }
 }
 
 .btn-action {
@@ -1208,6 +1248,62 @@ h1, h2, h3, h4, h5, h6, .display-font {
   &--active {
     background: var(--jv-brand-soft);
     color: var(--jv-brand-1);
+  }
+}
+
+// ── Pagination bar (generic — Pagination.tsx) ──────────────────────────────────
+.pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+}
+
+.pagination-info {
+  font-size: 0.82rem;
+  color: var(--jv-muted);
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.pagination-ellipsis {
+  color: var(--jv-faint);
+  font-size: 0.82rem;
+  padding: 0 0.15rem;
+}
+
+.pagination-size-select {
+  height: 32px;
+  padding: 0 0.6rem;
+  margin-right: 0.4rem;
+  border: 1.5px solid var(--jv-border-strong);
+  border-radius: var(--jv-radius-sm);
+  background: var(--jv-surface);
+  color: var(--jv-text);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-align: center;
+  text-align-last: center;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+
+  &::-ms-expand {
+    display: none;
+  }
+  cursor: pointer;
+  transition: border-color var(--jv-transition), box-shadow var(--jv-transition);
+
+  &:focus {
+    outline: none;
+    border-color: var(--jv-brand-1);
+    box-shadow: var(--jv-ring);
   }
 }
 

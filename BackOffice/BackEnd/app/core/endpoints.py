@@ -35,5 +35,10 @@ class Endpoints:
         RESTART_DETAIL = "/restart/{restart_id}"
         RESTART_HISTORY = "/restart-history"
 
+    class USERS:
+        PREFIX = "/users"
+        SHADOW = "/shadow"
+        BACKOFFICE = "/backoffice"
+
 
 ENDPOINTS = Endpoints()

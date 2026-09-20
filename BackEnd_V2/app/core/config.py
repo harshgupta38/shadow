@@ -1,5 +1,7 @@
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_INSECURE_ADMIN_SECRET = "change-this-in-production"
 
 
 class Settings(BaseSettings):
@@ -74,7 +76,19 @@ class Settings(BaseSettings):
 
     # Shared secret for the /admin/sql and /admin/database endpoints — must match
     # SHADOW_ADMIN_SECRET in BackOffice's own .env.
-    admin_secret: str = "change-this-in-production"
+    admin_secret: str = _INSECURE_ADMIN_SECRET
+
+    @field_validator("admin_secret")
+    @classmethod
+    def _require_real_admin_secret(cls, value: str) -> str:
+        if not value or value == _INSECURE_ADMIN_SECRET:
+            raise ValueError(
+                "ADMIN_SECRET is not set (or still the placeholder default) in .env — "
+                "refusing to start. This guards /admin/sql and /admin/database, which "
+                "can run arbitrary SQL against shadow.db or download the whole file; "
+                "it must never be left at its code default."
+            )
+        return value
 
     model_config = SettingsConfigDict(
         env_file=".env",

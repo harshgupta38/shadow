@@ -119,3 +119,16 @@ export interface RestartLog {
   completed_at: string | null;
   duration_seconds: number | null;
 }
+
+// ─── Users ──────────────────────────────────────────────────────────────────
+export type UserStatus = "active" | "away" | "inactive";
+
+export interface AppUser {
+  id: number;
+  name: string;
+  email: string;
+  status: UserStatus;
+  // Shadow V2's users have this; BackOffice's admins don't track it.
+  email_verified: boolean | null;
+  created_at: string;
+}

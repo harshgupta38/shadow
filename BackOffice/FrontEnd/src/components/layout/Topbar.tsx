@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Dropdown } from "react-bootstrap";
-import { List, BoxArrowRight, PersonFill } from "react-bootstrap-icons";
+import { BoxArrowRight, GearFill, List, PersonCircle } from "react-bootstrap-icons";
 import { Brand } from "@/components/ui/Brand/Brand";
 import { ThemeToggle } from "@/components/ui/ThemeToggle/ThemeToggle";
 import { useAuth } from "@/context/AuthContext";
@@ -13,10 +13,12 @@ export function Topbar({ onOpenMenu }: TopbarProps) {
   const { user, logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
 
-  const avatarLabel = (user?.name ?? "A")
+  const avatarLabel = (user?.name ?? "Admin")
     .trim()
+    .split(/\s+/)
     .slice(0, 2)
-    .toUpperCase();
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("") || "A";
 
   return (
     <header className="topbar">
@@ -29,7 +31,12 @@ export function Topbar({ onOpenMenu }: TopbarProps) {
         <List size={22} />
       </button>
 
-      <Brand size="md" />
+      <div className="d-md-none">
+        <Brand withName={false} size="sm" />
+      </div>
+      <div className="d-none d-md-block mt-1">
+        <Brand size="md" />
+      </div>
 
       <div className="ms-auto d-flex align-items-center gap-1">
         <ThemeToggle />
@@ -42,33 +49,32 @@ export function Topbar({ onOpenMenu }: TopbarProps) {
             style={{ borderRadius: "var(--jv-radius-pill)" }}
           >
             <span className="avatar avatar-sm">{avatarLabel}</span>
-            <span className="d-none d-md-inline fw-semibold small">
-              {user?.name ?? "Admin"}
-            </span>
+            <span className="d-none d-md-inline fw-semibold small">{user?.name ?? "Admin"}</span>
           </Dropdown.Toggle>
 
-          <Dropdown.Menu style={{ minWidth: 220 }}>
-            <div className="px-3 py-2 d-flex align-items-center gap-2">
+          <Dropdown.Menu style={{ minWidth: 230 }}>
+            <div className="px-2 py-2 d-flex align-items-center gap-2">
               <span className="avatar avatar-md">{avatarLabel}</span>
               <div className="min-w-0">
-                <div className="fw-semibold small text-truncate">
-                  {user?.name ?? "Admin"}
-                </div>
+                <div className="fw-semibold small text-truncate">{user?.name ?? "Admin"}</div>
                 <div className="text-faint text-truncate" style={{ fontSize: "0.72rem" }}>
-                  {user?.role ?? "Administrator"}
+                  {user?.email ?? ""}
                 </div>
               </div>
             </div>
             <Dropdown.Divider />
-            <Dropdown.Item className="d-flex align-items-center gap-2" disabled>
-              <PersonFill size={15} /> Profile
+            <Dropdown.Item className="d-flex align-items-center gap-2">
+              <PersonCircle size={16} /> Profile
+            </Dropdown.Item>
+            <Dropdown.Item className="d-flex align-items-center gap-2">
+              <GearFill size={16} /> Settings
             </Dropdown.Item>
             <Dropdown.Divider />
             <Dropdown.Item
               className="d-flex align-items-center gap-2 text-danger"
               onClick={logout}
             >
-              <BoxArrowRight size={15} /> Sign out
+              <BoxArrowRight size={16} /> Sign out
             </Dropdown.Item>
           </Dropdown.Menu>
         </Dropdown>

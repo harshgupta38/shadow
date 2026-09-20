@@ -9,6 +9,10 @@ class ColumnInfo(BaseModel):
     nullable: bool
     pk: bool
     fk: str | None = None
+    # Only set for JSON columns where BackEnd_V2's own model annotation
+    # declares a specific shape (see model_constraints.py) — lets the
+    # frontend offer a structured editor instead of a raw-text box.
+    json_shape: str | None = None
 
 
 class TableInfo(BaseModel):

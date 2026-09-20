@@ -53,12 +53,20 @@ export interface CommitInfo {
 // ─── Database ───────────────────────────────────────────────────────────────
 export type ColumnType = string; // backend reports SQLite's own type text (e.g. "INTEGER", "TEXT", "JSON")
 
+// Only set for JSON columns where BackEnd_V2's own model declares a
+// specific shape — lets the row editor offer a structured list editor
+// instead of a raw-text box for the shapes well-defined enough to build
+// one for. Anything else (nested dicts, list[dict], etc.) stays a
+// hardened-but-still-textual JSON editor.
+export type JsonShape = "list_str" | "list_int" | "list" | "dict";
+
 export interface ColumnInfo {
   name: string;
   type: ColumnType;
   nullable: boolean;
   pk: boolean;
   fk: string | null;
+  json_shape: JsonShape | null;
 }
 
 export interface TableInfo {

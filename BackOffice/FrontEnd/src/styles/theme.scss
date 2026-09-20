@@ -1794,6 +1794,46 @@ h1, h2, h3, h4, h5, h6, .display-font {
   margin-top: 0.25rem;
 }
 
+// Structured editor for list[str] / list[int] JSON columns (see
+// ListFieldEditor in RowEditorPanel.tsx) — one row per array item, so the
+// user only ever edits plain values, never raw JSON syntax.
+.db-list-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.6rem;
+  border: 1.5px solid var(--jv-border-strong);
+  border-radius: var(--jv-radius-sm);
+  background: var(--jv-surface);
+
+  &--invalid {
+    border-color: var(--jv-danger);
+  }
+}
+
+.db-list-editor-empty {
+  margin: 0.2rem 0;
+  color: var(--jv-faint);
+  font-size: 0.82rem;
+  font-style: italic;
+}
+
+.db-list-editor-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.db-list-editor-index {
+  flex-shrink: 0;
+  width: 20px;
+  padding-top: 0.55rem;
+  text-align: right;
+  font-size: 0.72rem;
+  color: var(--jv-faint);
+  font-family: "Menlo", "Consolas", monospace;
+}
+
 @media (max-width: 768px) {
   // The row panel is inside .db-main, which loses its fixed height at this
   // width (see the .db-tab-panel reset above) — without this, .db-row-panel

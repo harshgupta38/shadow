@@ -66,6 +66,11 @@ class ColumnConstraint:
     allowed_values: frozenset[str] | None = None
     min_value: float | None = None
     max_value: float | None = None
+    # Only set when py_type == "json" — which flavor of JSON this column's
+    # own Mapped[...] annotation declares, so the frontend can offer a
+    # structured editor instead of a raw-text box for the shapes that are
+    # well-defined enough to build one for.
+    json_shape: str | None = None  # "list_str" | "list_int" | "list" | "dict" | None
 
 
 @dataclass
@@ -96,6 +101,18 @@ def registry_status() -> dict:
         "table_count": len(_registry),
         "error": _load_error,
     }
+
+
+def get_json_shape(table_name: str, column_name: str) -> str | None:
+    """Lets the frontend ask "what kind of JSON is this?" so it can offer a
+    structured list editor for the well-defined shapes instead of raw text."""
+    table = _registry.get(table_name)
+    if table is None:
+        return None
+    constraint = table.columns.get(column_name)
+    if constraint is None:
+        return None
+    return constraint.json_shape
 
 
 def validate_row(table_name: str, data: dict) -> dict[str, str]:
@@ -160,7 +177,7 @@ def _check_value(col: str, value, c: ColumnConstraint) -> str | None:
         return None
 
     if c.py_type == "json":
-        return None  # already-parsed JSON from the client; any shape satisfies a JSON column
+        return _check_json_shape(col, value, c.json_shape)
 
     # str / Text
     if not isinstance(value, str):
@@ -171,6 +188,22 @@ def _check_value(col: str, value, c: ColumnConstraint) -> str | None:
         allowed = ", ".join(sorted(c.allowed_values))
         return f"{col} must be one of: {allowed}."
     return None
+
+
+def _check_json_shape(col: str, value, shape: str | None) -> str | None:
+    if shape == "dict":
+        if not isinstance(value, dict):
+            return f"{col} must be an object."
+        return None
+    if shape in ("list", "list_str", "list_int"):
+        if not isinstance(value, list):
+            return f"{col} must be a list."
+        if shape == "list_str" and not all(isinstance(x, str) for x in value):
+            return f"{col} must be a list of text values."
+        if shape == "list_int" and not all(isinstance(x, int) and not isinstance(x, bool) for x in value):
+            return f"{col} must be a list of whole numbers."
+        return None
+    return None  # unknown/unparsed shape — any JSON value satisfies it
 
 
 def _check_cross_column(check: CrossColumnCheck, left, right) -> str | None:
@@ -310,7 +343,7 @@ def _parse_column(stmt: ast.AnnAssign, type_aliases: dict[str, str]) -> ColumnCo
     if not (isinstance(stmt.value, ast.Call) and _call_name(stmt.value) == "mapped_column"):
         return None  # relationship(), plain class attribute, etc. — not a real column
 
-    annotation_nullable, annotation_type = _resolve_annotation(stmt.annotation, type_aliases)
+    annotation_nullable, annotation_type, json_shape = _resolve_annotation(stmt.annotation, type_aliases)
 
     py_type = annotation_type
     max_length: int | None = None
@@ -334,33 +367,49 @@ def _parse_column(stmt: ast.AnnAssign, type_aliases: dict[str, str]) -> ColumnCo
         elif kw.arg == "primary_key" and isinstance(kw.value, ast.Constant) and kw.value.value is True:
             nullable = True  # PK columns are never present in edit payloads; don't require them
 
-    return ColumnConstraint(py_type=py_type, nullable=nullable, max_length=max_length)
+    return ColumnConstraint(
+        py_type=py_type, nullable=nullable, max_length=max_length,
+        json_shape=json_shape if py_type == "json" else None,
+    )
 
 
-def _resolve_annotation(node: ast.expr, type_aliases: dict[str, str]) -> tuple[bool, str | None]:
-    """Mapped[X] / Mapped[X | None] -> (is_nullable, canonical_type)."""
+def _resolve_annotation(node: ast.expr, type_aliases: dict[str, str]) -> tuple[bool, str | None, str | None]:
+    """Mapped[X] / Mapped[X | None] -> (is_nullable, canonical_type, json_shape)."""
     if not (isinstance(node, ast.Subscript) and _name_of(node.value) == "Mapped"):
-        return False, None
+        return False, None, None
     return _resolve_type_expr(node.slice, type_aliases)
 
 
-def _resolve_type_expr(node: ast.expr, type_aliases: dict[str, str]) -> tuple[bool, str | None]:
+def _resolve_type_expr(node: ast.expr, type_aliases: dict[str, str]) -> tuple[bool, str | None, str | None]:
     if isinstance(node, ast.BinOp) and isinstance(node.op, ast.BitOr):
-        left_null, left_type = _resolve_type_expr(node.left, type_aliases)
-        right_null, right_type = _resolve_type_expr(node.right, type_aliases)
-        return (left_null or right_null), (left_type or right_type)
+        left_null, left_type, left_shape = _resolve_type_expr(node.left, type_aliases)
+        right_null, right_type, right_shape = _resolve_type_expr(node.right, type_aliases)
+        return (left_null or right_null), (left_type or right_type), (left_shape or right_shape)
     if isinstance(node, ast.Constant) and node.value is None:
-        return True, None
+        return True, None, None
     if isinstance(node, ast.Constant) and isinstance(node.value, str):
-        return False, None  # forward-ref string, e.g. relationship()'s Mapped["GoalDBM | None"] — not a real column type
+        return False, None, None  # forward-ref string, e.g. relationship()'s Mapped["GoalDBM | None"] — not a real column type
     if isinstance(node, ast.Subscript):
-        # list[str], list[int], etc. -> JSON
+        # list[str], list[int], dict[str, Any], etc. -> JSON, with the item
+        # type remembered as the shape (only list[...] item types matter for
+        # the editor; dict[...]'s key/value types don't change how it's shown).
         base = _name_of(node.value)
-        return False, _ANNOTATION_TYPE_MAP.get(base or "")
+        py_type = _ANNOTATION_TYPE_MAP.get(base or "")
+        if py_type != "json":
+            return False, py_type, None
+        if base == "list":
+            item_name = _name_of(node.slice)
+            item_type = type_aliases.get(item_name or "") or _ANNOTATION_TYPE_MAP.get(item_name or "")
+            shape = {"str": "list_str", "int": "list_int"}.get(item_type or "", "list")
+        else:
+            shape = "dict"
+        return False, py_type, shape
     name = _name_of(node)
     if name:
-        return False, type_aliases.get(name) or _ANNOTATION_TYPE_MAP.get(name)
-    return False, None
+        py_type = type_aliases.get(name) or _ANNOTATION_TYPE_MAP.get(name)
+        shape = {"dict": "dict", "list": "list"}.get(name) if py_type == "json" else None
+        return False, py_type, shape
+    return False, None, None
 
 
 def _name_of(node: ast.expr) -> str | None:

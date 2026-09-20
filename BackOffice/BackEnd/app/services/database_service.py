@@ -73,6 +73,7 @@ def get_table_columns(table_name: str) -> list[dict]:
             "nullable": row["notnull"] == 0,
             "pk": row["pk"] > 0,
             "fk": fk_by_column.get(row["name"]),
+            "json_shape": model_constraints.get_json_shape(table_name, row["name"]),
         })
     return columns
 
@@ -121,7 +122,7 @@ def get_rows(table_name: str, page: int, page_size: int, search: str) -> dict:
 
     return {
         "columns": columns,
-        "rows": rows_result["rows"],
+        "rows": _decode_json_columns(rows_result["rows"], columns),
         "total": total,
         "page": page,
         "page_size": page_size,
@@ -130,6 +131,29 @@ def get_rows(table_name: str, page: int, page_size: int, search: str) -> dict:
 
 def _pk_columns(columns: list[dict]) -> set[str]:
     return {c["name"] for c in columns if c["pk"]}
+
+
+def _decode_json_columns(rows: list[dict], columns: list[dict]) -> list[dict]:
+    """shadow_client.run_sql() (and SQLite itself) hands JSON columns back
+    as the raw TEXT they're stored as — never parsed. Left alone, that text
+    gets JSON-encoded a second time on the way out of this API (a string
+    wrapped in another layer of quotes/escapes), which is exactly the
+    mangled double-encoded text the row editor was showing. Decode each
+    JSON-typed column's value once here, so the API response — and the
+    list-shape editor, which needs a real array to render — get the actual
+    structure instead of its stringified form."""
+    json_cols = [c["name"] for c in columns if c["type"] == "JSON"]
+    if not json_cols:
+        return rows
+    for row in rows:
+        for col in json_cols:
+            value = row.get(col)
+            if isinstance(value, str):
+                try:
+                    row[col] = json.loads(value)
+                except ValueError:
+                    pass  # not valid JSON (legacy/corrupt data) — leave the raw text as-is
+    return rows
 
 
 def get_row(table_name: str, pk: dict) -> dict | None:
@@ -148,7 +172,9 @@ def get_row(table_name: str, pk: dict) -> dict | None:
     where_sql = " AND ".join(f"{_quote_ident(c)} = {_quote_literal(v)}" for c, v in pk.items())
     query = f"SELECT * FROM {_quote_ident(table_name)} WHERE {where_sql} LIMIT 1"
     result = shadow_client.run_sql(query)
-    return result["rows"][0] if result["rows"] else None
+    if not result["rows"]:
+        return None
+    return _decode_json_columns(result["rows"], columns)[0]
 
 
 def insert_row(db: Session, table_name: str, data: dict, admin_username: str) -> dict:

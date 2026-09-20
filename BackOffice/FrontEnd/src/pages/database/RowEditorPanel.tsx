@@ -1,9 +1,11 @@
 import { forwardRef, useImperativeHandle, useMemo, useState } from "react";
 import { Modal } from "react-bootstrap";
-import { ArrowClockwise, ArrowCounterclockwise, ArrowLeft, SaveFill, TrashFill } from "react-bootstrap-icons";
+import { ArrowClockwise, ArrowCounterclockwise, ArrowLeft, PlusLg, SaveFill, TrashFill } from "react-bootstrap-icons";
 import { api, ApiError } from "@/api";
 import type { ColumnInfo, Row, TableInfo } from "@/api";
 import { pkValues, rowLabel } from "./dbHelpers";
+
+type FormValue = string | boolean | string[];
 
 const LONG_TEXT_HINTS = [
   "summary", "description", "note", "bio", "motivation", "reason",
@@ -20,6 +22,21 @@ function isBoolean(col: ColumnInfo): boolean {
 
 function isJson(col: ColumnInfo): boolean {
   return col.type.includes("JSON");
+}
+
+// A JSON column whose model annotation is precise enough (list[str] /
+// list[int]) to edit as a real list of items instead of raw text. Anything
+// else JSON-typed (nested dicts, list[dict], or a JSON column with no
+// model info at all) falls back to the plain textarea further down.
+function isListShape(col: ColumnInfo): boolean {
+  return col.json_shape === "list_str" || col.json_shape === "list_int";
+}
+
+function computeListItemRows(value: string): number {
+  if (!value) return 1;
+  const lines = value.split("\n");
+  const wrapped = lines.reduce((sum, line) => sum + Math.max(1, Math.ceil(line.length / 60)), 0);
+  return Math.min(Math.max(1, wrapped), 6);
 }
 
 function isInteger(col: ColumnInfo): boolean {
@@ -40,17 +57,92 @@ function formatFieldValue(col: ColumnInfo, value: unknown): string {
   return String(value);
 }
 
-function buildInitialForm(table: TableInfo, row: Row | null): Record<string, string | boolean> {
-  const form: Record<string, string | boolean> = {};
+function buildInitialForm(table: TableInfo, row: Row | null): Record<string, FormValue> {
+  const form: Record<string, FormValue> = {};
   for (const col of table.columns) {
     const value = row ? row[col.name] : undefined;
     if (isBoolean(col)) {
       form[col.name] = value === undefined ? false : Boolean(value);
+    } else if (isListShape(col)) {
+      form[col.name] = Array.isArray(value) ? value.map(String) : [];
     } else {
       form[col.name] = formatFieldValue(col, value ?? null);
     }
   }
   return form;
+}
+
+interface ListFieldEditorProps {
+  items: string[];
+  itemType: "list_str" | "list_int";
+  onChange: (items: string[]) => void;
+  disabled?: boolean;
+  invalid?: boolean;
+}
+
+// The structured editor for list[str] / list[int] columns — each array
+// item gets its own row (a growing textarea for strings, so a long
+// sentence never gets crushed into one line; a number input for ints),
+// with add/remove controls. The user only ever touches plain values, never
+// JSON syntax, so there's nothing here for them to break the format with.
+function ListFieldEditor({ items, itemType, onChange, disabled, invalid }: ListFieldEditorProps) {
+  function updateItem(i: number, value: string) {
+    const next = items.slice();
+    next[i] = value;
+    onChange(next);
+  }
+  function removeItem(i: number) {
+    onChange(items.filter((_, idx) => idx !== i));
+  }
+  function addItem() {
+    onChange([...items, ""]);
+  }
+
+  return (
+    <div className={`db-list-editor${invalid ? " db-list-editor--invalid" : ""}`}>
+      {items.length === 0 && <p className="db-list-editor-empty">No items yet.</p>}
+      {items.map((item, i) => (
+        <div key={i} className="db-list-editor-row">
+          <span className="db-list-editor-index">{i + 1}</span>
+          {itemType === "list_int" ? (
+            <input
+              type="number"
+              className="form-control"
+              value={item}
+              onChange={(e) => updateItem(i, e.target.value)}
+              disabled={disabled}
+            />
+          ) : (
+            <textarea
+              className="form-control"
+              rows={computeListItemRows(item)}
+              value={item}
+              onChange={(e) => updateItem(i, e.target.value)}
+              disabled={disabled}
+            />
+          )}
+          <button
+            type="button"
+            className="btn btn-ghost btn-icon"
+            onClick={() => removeItem(i)}
+            disabled={disabled}
+            aria-label={`Remove item ${i + 1}`}
+          >
+            <TrashFill size={13} />
+          </button>
+        </div>
+      ))}
+      <button
+        type="button"
+        className="btn btn-soft-secondary btn-sm d-flex align-items-center gap-2"
+        onClick={addItem}
+        disabled={disabled}
+      >
+        <PlusLg size={13} />
+        Add item
+      </button>
+    </div>
+  );
 }
 
 interface RowEditorPanelProps {
@@ -108,7 +200,7 @@ export const RowEditorPanel = forwardRef<RowEditorPanelHandle, RowEditorPanelPro
     guardedLeave(onClose);
   }
 
-  function setField(name: string, value: string | boolean) {
+  function setField(name: string, value: FormValue) {
     setForm((prev) => ({ ...prev, [name]: value }));
     if (fieldErrors[name]) {
       setFieldErrors((prev) => {
@@ -133,6 +225,28 @@ export const RowEditorPanel = forwardRef<RowEditorPanelHandle, RowEditorPanelPro
 
       if (isBoolean(col)) {
         data[col.name] = Boolean(raw);
+        continue;
+      }
+
+      if (isListShape(col)) {
+        const items = Array.isArray(raw) ? raw : [];
+        if (col.json_shape === "list_int") {
+          const numbers: number[] = [];
+          let bad = false;
+          for (const item of items) {
+            const trimmed = item.trim();
+            if (trimmed === "") continue; // a blank row just isn't a number yet — drop it, don't error
+            if (!/^-?\d+$/.test(trimmed)) { bad = true; break; }
+            numbers.push(Number(trimmed));
+          }
+          if (bad) {
+            parseErrors[col.name] = "Every item must be a whole number.";
+            continue;
+          }
+          data[col.name] = numbers;
+        } else {
+          data[col.name] = items; // list_str: sent as-is, blanks included — that's the user's own call to make
+        }
         continue;
       }
 
@@ -327,7 +441,7 @@ export const RowEditorPanel = forwardRef<RowEditorPanelHandle, RowEditorPanelPro
               return (
                 <div
                   key={col.name}
-                  className={`db-field${isLongText(col) || isJson(col) ? " db-field--wide" : ""}`}
+                  className={`db-field${isLongText(col) || isJson(col) || isListShape(col) ? " db-field--wide" : ""}`}
                 >
                   <label className="form-label db-field-label">
                     {col.name}
@@ -352,6 +466,14 @@ export const RowEditorPanel = forwardRef<RowEditorPanelHandle, RowEditorPanelPro
                         onChange={(e) => setField(col.name, e.target.checked)}
                       />
                     </div>
+                  ) : isListShape(col) ? (
+                    <ListFieldEditor
+                      items={Array.isArray(form[col.name]) ? (form[col.name] as string[]) : []}
+                      itemType={col.json_shape as "list_str" | "list_int"}
+                      onChange={(items) => setField(col.name, items)}
+                      disabled={busy}
+                      invalid={Boolean(error)}
+                    />
                   ) : isJson(col) ? (
                     <textarea
                       className={`form-control db-field-mono${error ? " is-invalid" : ""}`}

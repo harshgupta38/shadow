@@ -42,6 +42,15 @@ class Settings(BaseSettings):
     def db_backup_runtime_list(self) -> list[str]:
         return [t.strip() for t in self.db_backup_runtimes.split(",") if t.strip()]
 
+    # How many uvicorn workers restart_server.sh starts (its own --workers
+    # flag) — not read by that script, just declared here so /health can
+    # report the *intended* worker count. BackOffice compares this against
+    # the *actual* running count (psutil, from its own process) — a
+    # mismatch (e.g. 3 of 4) means a worker died without the group
+    # restarting, which BackOffice's own process introspection alone can't
+    # tell apart from "this server is only ever meant to run 3."
+    workers: int = Field(default=4, ge=1)
+
     # Report auto-generation scheduler — global kill-switch on top of each
     # user's own per-cadence schedule (UserSettingDBM.reports, default 23:55 IST).
     # REPORT_AUTO_GENERATE=false disables the scheduler entirely.

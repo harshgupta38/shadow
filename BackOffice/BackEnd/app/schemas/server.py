@@ -25,8 +25,21 @@ class ServerHealthResponse(BaseModel):
     battery_percent: int | None = None
     battery_status: str | None = None
     battery_temperature_c: float | None = None
+    battery_plugged: str | None = None
+
+    # None for any of these means "no WiFi" (mobile data, or disconnected) —
+    # not an error, just nothing to show. See worker_service.get_wifi_info.
+    wifi_ssid: str | None = None
+    wifi_ip: str | None = None
+    wifi_rssi: int | None = None
+    wifi_link_speed_mbps: int | None = None
 
     workers: list[WorkerInfo] = []
+    # The uvicorn arbiter's own --workers flag (BackEnd_V2's config, via
+    # /health) — compared against len(workers) above (this process's own
+    # psutil count) to tell "fewer workers than intended" apart from
+    # "this server only ever runs N."
+    expected_workers: int | None = None
 
 
 class RestartResponse(BaseModel):

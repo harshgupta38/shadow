@@ -89,7 +89,7 @@ async def health() -> dict:
     if battery != "Unknown":
         message = message + " " + battery
 
-    return {"status": "ok", "message": message}
+    return {"status": "ok", "message": message, "expected_workers": settings.workers}
 
 
 @router.get(ENDPOINTS.SYSTEM.SERVER_LOG, tags=["admin"], response_class=PlainTextResponse)

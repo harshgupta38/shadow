@@ -16,6 +16,7 @@ def get_health(_admin: CurrentAdmin):
     shadow_health = shadow_client.check_health()
     host = worker_service.get_host_stats()
     battery = worker_service.get_battery() or {}
+    wifi = worker_service.get_wifi_info() or {}
     workers = worker_service.get_workers()
 
     return ServerHealthResponse(
@@ -24,7 +25,13 @@ def get_health(_admin: CurrentAdmin):
         battery_percent=battery.get("percentage"),
         battery_status=battery.get("status"),
         battery_temperature_c=battery.get("temperature"),
+        battery_plugged=battery.get("plugged"),
+        wifi_ssid=wifi.get("ssid"),
+        wifi_ip=wifi.get("ip"),
+        wifi_rssi=wifi.get("rssi"),
+        wifi_link_speed_mbps=wifi.get("link_speed_mbps"),
         workers=workers,
+        expected_workers=(shadow_health or {}).get("expected_workers"),
         **host,
     )
 

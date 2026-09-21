@@ -127,3 +127,26 @@ def get_battery() -> dict | None:
         return json.loads(data)
     except Exception:
         return None
+
+
+def get_wifi_info() -> dict | None:
+    """Real WiFi connection info via Termux:API — a server that runs on a
+    phone can go offline because it lost its network, not just because a
+    process died, so this is a genuinely different failure mode from
+    everything else on this page. Deliberately called directly here
+    (not through BackEnd_V2's own API) for the same reason get_battery()
+    is: if BackEnd_V2 itself is unreachable, this is exactly the kind of
+    thing that might tell you why, so it can't depend on BackEnd_V2 being
+    up to report it. Returns None if termux-api isn't installed, the call
+    fails, or the device isn't on WiFi at all (mobile data / no
+    connection) — the response's own supplicant_state would say
+    "DISCONNECTED" rather than the call failing outright, so the caller
+    checks that too.
+    """
+    try:
+        data = json.loads(subprocess.check_output(["termux-wifi-connectioninfo"], timeout=5))
+    except Exception:
+        return None
+    if data.get("supplicant_state") != "COMPLETED":
+        return None
+    return data

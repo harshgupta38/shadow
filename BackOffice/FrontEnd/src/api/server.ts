@@ -1,6 +1,16 @@
 import { http, BASE_URL } from "./client";
 import { ENDPOINTS } from "@/constant/bo-endpoints";
+import { getToken } from "@/lib/auth-token";
 import type { RestartLog, ServerHealth, WorkerInfo } from "./types";
+
+// A native browser WebSocket can't set an Authorization header on its
+// handshake the way axios does for normal requests, so the auth token
+// travels as a query param instead — the backend's _authenticate_ws reads
+// it from there. Same token, just a different place to carry it.
+function withToken(url: string): string {
+  const token = getToken();
+  return token ? `${url}?token=${encodeURIComponent(token)}` : url;
+}
 
 export const serverApi = {
   // One-time snapshot — used by the Dashboard, which just wants "what's
@@ -16,7 +26,7 @@ export const serverApi = {
   // so this just builds the URL, converting http(s) to ws(s) since
   // that's the scheme WebSocket actually needs.
   healthWsUrl(): string {
-    return `${BASE_URL}${ENDPOINTS.SERVER.HEALTH_WS}`.replace(/^http/, "ws");
+    return withToken(`${BASE_URL}${ENDPOINTS.SERVER.HEALTH_WS}`.replace(/^http/, "ws"));
   },
   async workers(): Promise<WorkerInfo[]> {
     return http.get<WorkerInfo[]>(ENDPOINTS.SERVER.WORKERS);
@@ -26,7 +36,7 @@ export const serverApi = {
   // snapshot. Paused by default: the Logs page only opens this
   // WebSocket once the user clicks play, never on page load.
   logWsUrl(): string {
-    return `${BASE_URL}${ENDPOINTS.SERVER.LOG_WS}`.replace(/^http/, "ws");
+    return withToken(`${BASE_URL}${ENDPOINTS.SERVER.LOG_WS}`.replace(/^http/, "ws"));
   },
   async restart(): Promise<RestartLog> {
     return http.post<RestartLog>(ENDPOINTS.SERVER.RESTART);

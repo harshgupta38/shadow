@@ -9,9 +9,6 @@ class Settings(BaseSettings):
     app_version: str = "1.0.0"
     api_prefix: str = "/v2"
 
-    # Auth-cookie SameSite policy: "strict" | "lax" | "none".
-    same_site: str = "strict"
-
     # BackOffice's OWN database — deployment/restart/audit logs and the admin
     # login. Never the same file as Shadow V2's shadow.db.
     database_url: str = "sqlite:///./backoffice.db"

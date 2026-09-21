@@ -8,8 +8,6 @@ from app.db.session import get_db
 from app.models.admin_user import AdminUserDBM
 from app.services import auth_service
 
-COOKIE_NAME = "bo_access_token"
-
 _CREDENTIALS_EXC = HTTPException(
     status_code=status.HTTP_401_UNAUTHORIZED,
     detail="Could not validate credentials",
@@ -20,9 +18,17 @@ def get_current_admin(
     request: Request,
     db: Annotated[Session, Depends(get_db)],
 ) -> AdminUserDBM:
-    token = request.cookies.get(COOKIE_NAME)
-    if not token:
+    # Bearer header, not a cookie — the frontend (Firebase Hosting) and this
+    # API are on different origins, and a cookie set by the API is a
+    # third-party cookie from the browser's perspective. SameSite=None
+    # makes it *eligible* to be sent cross-site, but Chrome Incognito and
+    # mobile Safari (ITP) block third-party cookies outright regardless of
+    # SameSite, which is exactly what broke login there. A header the
+    # frontend attaches itself has no such policy to run into.
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
         raise _CREDENTIALS_EXC
+    token = auth_header.removeprefix("Bearer ")
 
     try:
         payload = security.decode_access_token(token)

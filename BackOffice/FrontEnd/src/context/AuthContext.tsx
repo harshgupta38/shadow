@@ -9,6 +9,7 @@ import {
 } from "react";
 import { api } from "@/api";
 import type { AuthUser, LoginRequest } from "@/api";
+import { clearToken, setToken } from "@/lib/auth-token";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export type AuthStatus = "loading" | "authenticated" | "unauthenticated";
@@ -53,14 +54,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(async (data: LoginRequest): Promise<AuthUser> => {
-    const u = await api.auth.login(data);
-    setUser(u);
+    const { admin, access_token } = await api.auth.login(data);
+    setToken(access_token);
+    setUser(admin);
     setStatus("authenticated");
-    return u;
+    return admin;
   }, []);
 
   const logout = useCallback(() => {
     api.auth.logout().catch(() => {});
+    clearToken();
     setUser(null);
     setStatus("unauthenticated");
   }, []);

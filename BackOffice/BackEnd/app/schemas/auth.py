@@ -19,3 +19,8 @@ class AdminUserResponse(BaseModel):
     name: str
     email: str
     role: str = "Administrator"
+
+
+class LoginResponse(BaseModel):
+    admin: AdminUserResponse
+    access_token: str

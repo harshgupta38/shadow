@@ -5,7 +5,7 @@ import logging
 import websockets
 from fastapi import APIRouter, BackgroundTasks, WebSocket, WebSocketDisconnect
 
-from app.api.deps import COOKIE_NAME, CurrentAdmin, DbSession
+from app.api.deps import CurrentAdmin, DbSession
 from app.core import security
 from app.core.config import settings
 from app.core.endpoints import ENDPOINTS
@@ -59,12 +59,12 @@ def get_health(_admin: CurrentAdmin):
 
 
 def _authenticate_ws(websocket: WebSocket) -> bool:
-    """Same cookie/JWT check as CurrentAdmin (app.api.deps.get_current_admin)
-    — that dependency is typed against a plain HTTP Request, which a
-    websocket connection doesn't have, so this re-implements the same
-    check against WebSocket.cookies instead of trying to make one
-    dependency serve both kinds of route."""
-    token = websocket.cookies.get(COOKIE_NAME)
+    """Same Bearer/JWT check as CurrentAdmin (app.api.deps.get_current_admin)
+    — that dependency reads an Authorization header off a plain HTTP
+    Request, but a browser's native WebSocket API can't set custom headers
+    on the handshake, so the frontend passes the token as a query param
+    instead (see healthWsUrl/logWsUrl) and this reads it from there."""
+    token = websocket.query_params.get("token")
     if not token:
         return False
     try:

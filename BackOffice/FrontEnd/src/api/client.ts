@@ -1,5 +1,6 @@
 import axios, { type AxiosRequestConfig } from "axios";
 import { ENDPOINTS } from "@/constant/bo-endpoints";
+import { clearToken, getToken } from "@/lib/auth-token";
 
 // ─── ApiError ────────────────────────────────────────────────────────────────
 export class ApiError extends Error {
@@ -55,11 +56,22 @@ const PUBLIC_PATHS = [ENDPOINTS.AUTH.LOGIN];
 const httpClient = axios.create({
   baseURL: BASE_URL,
   timeout: TIMEOUT,
-  withCredentials: true,
   headers: {
     "Content-Type": "application/json",
     "X-Requested-With": "XMLHttpRequest",
   },
+});
+
+// Bearer header, not a cookie — see auth-token.ts for why. Attached here
+// rather than per-call so every existing api.* call keeps working
+// unchanged; a request made before login (or after the token's cleared)
+// just goes out without the header and gets the usual 401.
+httpClient.interceptors.request.use((config) => {
+  const token = getToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
 });
 
 httpClient.interceptors.response.use(
@@ -68,6 +80,7 @@ httpClient.interceptors.response.use(
     const url: string = (err.config?.url as string) ?? "";
     const isPublic = PUBLIC_PATHS.some((p) => url.includes(p));
     if (err.response?.status === 401 && !isPublic) {
+      clearToken();
       window.dispatchEvent(new Event("unauthorized"));
     }
     return Promise.reject(normaliseError(err));

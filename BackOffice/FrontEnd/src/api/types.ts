@@ -10,6 +10,11 @@ export interface LoginRequest {
   password: string;
 }
 
+export interface LoginResponse {
+  admin: AuthUser;
+  access_token: string;
+}
+
 // ─── Deploy ─────────────────────────────────────────────────────────────────
 export type DeployTarget = "Frontend" | "Backend" | "Both";
 export type DeploymentKind = "deploy" | "rollback";

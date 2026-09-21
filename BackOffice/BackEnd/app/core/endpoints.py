@@ -38,7 +38,7 @@ class Endpoints:
         PREFIX = "/server"
         HEALTH = "/health"
         WORKERS = "/workers"
-        LOG = "/log"
+        LOG_STREAM = "/log/stream"
         RESTART = "/restart"
         RESTART_DETAIL = "/restart/{restart_id}"
         RESTART_HISTORY = "/restart-history"

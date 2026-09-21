@@ -15,6 +15,9 @@ class ServerHealthResponse(BaseModel):
     message: str | None = None
 
     cpu_percent: float | None = None
+    # [1min, 5min, 15min] load average — a second, independent CPU signal
+    # (reads /proc/loadavg directly) alongside cpu_percent above.
+    load_average: list[float] | None = None
     memory_used_mb: float | None = None
     memory_total_mb: float | None = None
     memory_percent: float | None = None

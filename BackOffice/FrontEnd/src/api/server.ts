@@ -1,4 +1,4 @@
-import { http, httpText } from "./client";
+import { http, BASE_URL } from "./client";
 import { ENDPOINTS } from "@/constant/bo-endpoints";
 import type { RestartLog, ServerHealth, WorkerInfo } from "./types";
 
@@ -9,8 +9,10 @@ export const serverApi = {
   async workers(): Promise<WorkerInfo[]> {
     return http.get<WorkerInfo[]>(ENDPOINTS.SERVER.WORKERS);
   },
-  async log(lines = 200): Promise<string> {
-    return httpText(ENDPOINTS.SERVER.LOG, { params: { lines } });
+  // Not a normal request — EventSource opens this itself (LiveLogTail),
+  // only once the person clicks play, so this just builds the URL.
+  logStreamUrl(): string {
+    return `${BASE_URL}${ENDPOINTS.SERVER.LOG_STREAM}`;
   },
   async restart(): Promise<RestartLog> {
     return http.post<RestartLog>(ENDPOINTS.SERVER.RESTART);

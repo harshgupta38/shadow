@@ -43,7 +43,10 @@ function normaliseError(err: unknown): ApiError {
 }
 
 // ─── Axios instance ───────────────────────────────────────────────────────────
-const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/api";
+// Exported for EventSource-based streaming endpoints (LiveLogTail) — axios's
+// own baseURL config isn't usable there, since EventSource is a plain
+// browser API that just takes a URL string, not an axios request config.
+export const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/api";
 const TIMEOUT = Number(import.meta.env.VITE_API_TIMEOUT_SECONDS ?? 30) * 1000;
 
 const PUBLIC_PATHS = [ENDPOINTS.AUTH.LOGIN];

@@ -174,16 +174,30 @@ def check_health() -> dict | None:
         return None
 
 
-def fetch_server_log(tail_lines: int = 200) -> str:
-    """Tails BackEnd_V2's server.log via its existing GET /server/log."""
+def stream_server_log():
+    """Proxies BackEnd_V2's real-time log stream (Server-Sent Events, via
+    GET /admin/logs/stream) — BackOffice never lets the frontend talk to
+    BackEnd_V2 directly, same rule as every other call here. Yields raw
+    bytes exactly as received; the SSE framing (data: lines, heartbeat
+    comments) already comes correctly formed from BackEnd_V2, nothing to
+    reinterpret on this side. No timeout: this is a long-lived stream by
+    design, bounded on BackEnd_V2's own side (a capped session duration,
+    see stream_log() there), not by how long a normal request should take.
+    """
     try:
-        resp = _client.get(f"{settings.shadow_backend_url}/server/log", timeout=10.0)
+        with _client.stream(
+            "GET",
+            f"{settings.shadow_backend_url}/admin/logs/stream",
+            headers={"X-Admin-Secret": settings.shadow_admin_secret},
+            timeout=None,
+        ) as resp:
+            if resp.status_code != 200:
+                yield b"data: Could not reach Shadow V2's log stream.\n\n"
+                return
+            for chunk in resp.iter_bytes():
+                yield chunk
     except httpx.RequestError:
-        return ""
-    if resp.status_code != 200:
-        return ""
-    lines = resp.text.splitlines()
-    return "\n".join(lines[-tail_lines:])
+        yield b"data: Could not reach Shadow V2's log stream.\n\n"
 
 
 def wait_for_restart(timeout: float = 60.0, interval: float = 2.0) -> bool:

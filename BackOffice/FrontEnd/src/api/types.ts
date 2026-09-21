@@ -136,6 +136,9 @@ export interface ServerHealth {
   reachable: boolean;
   message: string | null;
   cpu_percent: number | null;
+  // [1min, 5min, 15min] load average — a second, independent CPU signal
+  // alongside cpu_percent above.
+  load_average: number[] | null;
   memory_used_mb: number | null;
   memory_total_mb: number | null;
   memory_percent: number | null;

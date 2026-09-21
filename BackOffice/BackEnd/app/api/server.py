@@ -1,5 +1,5 @@
 from fastapi import APIRouter, BackgroundTasks
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import StreamingResponse
 
 from app.api.deps import CurrentAdmin, DbSession
 from app.core.endpoints import ENDPOINTS
@@ -41,9 +41,13 @@ def get_workers(_admin: CurrentAdmin):
     return worker_service.get_workers()
 
 
-@router.get(ENDPOINTS.SERVER.LOG, response_class=PlainTextResponse)
-def get_log(_admin: CurrentAdmin, lines: int = 200):
-    return shadow_client.fetch_server_log(lines)
+@router.get(ENDPOINTS.SERVER.LOG_STREAM)
+def stream_log(_admin: CurrentAdmin):
+    """Proxies BackEnd_V2's real-time log stream — connections are opened
+    deliberately by the frontend (the play button on LiveLogTail), never
+    polled on a timer, so this only ever costs anything while an admin is
+    actually watching."""
+    return StreamingResponse(shadow_client.stream_server_log(), media_type="text/event-stream")
 
 
 @router.get(ENDPOINTS.SERVER.RESTART_HISTORY, response_model=list[RestartResponse])

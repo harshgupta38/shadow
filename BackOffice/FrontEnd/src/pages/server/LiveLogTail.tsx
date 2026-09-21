@@ -1,37 +1,52 @@
 import { useEffect, useRef, useState } from "react";
 import { Terminal, PauseFill, PlayFill } from "react-bootstrap-icons";
-import { api, ApiError } from "@/api";
+import { api } from "@/api";
 
-const POLL_MS = 4000;
-const TAIL_LINES = 200;
+// Caps how many lines this keeps in memory/DOM — a log left open for a
+// long watch session shouldn't grow the page's memory unbounded.
+const MAX_LINES = 500;
 
 export function LiveLogTail() {
   const [lines, setLines] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [live, setLive] = useState(true);
+  // Off by default — no connection to BackEnd_V2 at all, not even a
+  // first request, until the person explicitly clicks play. Watching
+  // this is now something an admin opts into, not something every page
+  // load quietly costs the live server.
+  const [live, setLive] = useState(false);
   const bodyRef = useRef<HTMLDivElement>(null);
 
-  async function fetchLog() {
-    try {
-      const text = await api.server.log(TAIL_LINES);
-      setLines(text ? text.split("\n") : []);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not reach the server log.");
-    }
-  }
-
   useEffect(() => {
-    fetchLog();
     if (!live) return;
-    const interval = setInterval(fetchLog, POLL_MS);
-    return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
+    const es = new EventSource(api.server.logStreamUrl(), { withCredentials: true });
+    es.onopen = () => setError(null);
+    es.onmessage = (e) => {
+      setLines((prev) => [...prev, e.data].slice(-MAX_LINES));
+    };
+    es.onerror = () => {
+      // EventSource auto-reconnects on its own (also relied on by the
+      // existing notifications stream) — this only distinguishes "still
+      // trying" from a connection that's given up.
+      setError(es.readyState === EventSource.CONNECTING ? "Reconnecting…" : "Lost connection to the log stream.");
+    };
+
+    return () => es.close();
   }, [live]);
 
   useEffect(() => {
     if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
   }, [lines]);
+
+  function handleToggle() {
+    if (live) {
+      setLive(false);
+    } else {
+      setLines([]);
+      setError(null);
+      setLive(true);
+    }
+  }
 
   return (
     <div className="deploy-log-wrap">
@@ -44,17 +59,18 @@ export function LiveLogTail() {
         <button
           type="button"
           className="btn btn-ghost btn-icon"
-          onClick={() => setLive((v) => !v)}
-          aria-label={live ? "Pause log" : "Resume log"}
+          onClick={handleToggle}
+          aria-label={live ? "Stop watching the log" : "Watch the log live"}
         >
           {live ? <PauseFill size={13} /> : <PlayFill size={13} />}
         </button>
       </div>
       <div className="deploy-log-body server-live-log-body" ref={bodyRef}>
-        {error ? (
-          <div className="deploy-log-line server-log-line--warn">{error}</div>
-        ) : lines.length === 0 ? (
-          <div className="deploy-log-line">No log output yet.</div>
+        {error && <div className="deploy-log-line server-log-line--warn">{error}</div>}
+        {!live ? (
+          <div className="deploy-log-line">Click play to start watching the live log.</div>
+        ) : lines.length === 0 && !error ? (
+          <div className="deploy-log-line">Connecting…</div>
         ) : (
           lines.map((line, i) => (
             <div

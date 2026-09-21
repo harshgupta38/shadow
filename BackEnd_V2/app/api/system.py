@@ -1,13 +1,15 @@
+import asyncio
 import json
 import sqlite3
 import subprocess
 
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, Header, HTTPException
-from fastapi.responses import FileResponse, PlainTextResponse
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 
+from app.api.notifications import _shutdown as _sse_shutdown
 from app.core.config import settings
 from app.core.endpoints import ENDPOINTS
 from app.services import backup_service
@@ -92,14 +94,82 @@ async def health() -> dict:
     return {"status": "ok", "message": message, "expected_workers": settings.workers}
 
 
-@router.get(ENDPOINTS.SYSTEM.SERVER_LOG, tags=["admin"], response_class=PlainTextResponse)
-async def get_server_log():
-    log_file = Path("server.log")
+_LOG_PATH = Path("server.log")
+_LOG_SEED_LINES = 50
 
-    if not log_file.exists():
-        raise HTTPException(status_code=404, detail="server.log not found.")
 
-    return log_file.read_text(encoding="utf-8")
+def _read_tail_lines(path: Path, n: int) -> list[str]:
+    """Approximates `tail -n N` by reading backward in fixed-size chunks
+    until at least N newlines are seen (or the start of the file) —
+    reading the whole file into memory just to keep its last few lines
+    is exactly the "spamming the server" cost this whole endpoint exists
+    to avoid, and it only gets worse as the file grows."""
+    chunk_size = 8192
+    block = b""
+    with path.open("rb") as f:
+        f.seek(0, 2)
+        remaining = f.tell()
+        while remaining > 0 and block.count(b"\n") <= n:
+            read_size = min(chunk_size, remaining)
+            remaining -= read_size
+            f.seek(remaining)
+            block = f.read(read_size) + block
+    text = block.decode("utf-8", errors="replace")
+    return text.splitlines()[-n:]
+
+
+@router.get(ENDPOINTS.SYSTEM.ADMIN_LOG_STREAM, tags=["admin"], dependencies=[Depends(require_admin)])
+async def stream_log(request: Request):
+    """Server-Sent Events tail of server.log — seeds with the last 50
+    lines, then only ever reads bytes newly appended since the last
+    check (never re-reads the whole file), so watching this indefinitely
+    costs nothing proportional to the file's total size. Same SSE
+    conventions as /notifications/stream: a capped session duration so a
+    stalled client can't pin resources forever (the frontend
+    reconnects), a heartbeat so a dead connection is noticed quickly, and
+    the same proxy-buffering-safe response headers.
+    """
+    async def generator():
+        if not _LOG_PATH.exists():
+            yield "data: server.log not found.\n\n"
+            return
+
+        for line in _read_tail_lines(_LOG_PATH, _LOG_SEED_LINES):
+            yield f"data: {line}\n\n"
+        position = _LOG_PATH.stat().st_size
+
+        elapsed_s = 0
+        max_duration_s = 20 * 60
+        while elapsed_s < max_duration_s:
+            try:
+                await asyncio.wait_for(_sse_shutdown.wait(), timeout=1)
+                break  # server is shutting down
+            except asyncio.TimeoutError:
+                pass  # normal tick
+            elapsed_s += 1
+            if await request.is_disconnected():
+                break
+
+            try:
+                size = _LOG_PATH.stat().st_size
+            except OSError:
+                continue
+            if size < position:
+                position = 0  # truncated/rotated — restart_server.sh overwrites this file on every restart
+            if size > position:
+                with _LOG_PATH.open("r", encoding="utf-8", errors="replace") as f:
+                    f.seek(position)
+                    new_text = f.read()
+                    position = f.tell()
+                for line in new_text.splitlines():
+                    yield f"data: {line}\n\n"
+            yield ": heartbeat\n\n"
+
+    return StreamingResponse(
+        generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @router.get(ENDPOINTS.SYSTEM.ADMIN_DATABASE, tags=["admin"], dependencies=[Depends(require_admin)]) # extra

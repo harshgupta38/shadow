@@ -3,58 +3,84 @@ machine BackEnd_V2 runs on (BackOffice is co-located), so these are actual
 measurements, not simulated data.
 
 Every function here degrades gracefully instead of raising: a misconfigured
-SHADOW_BACKEND_DIR, a platform without os.getpgid, or termux-api not being
+SHADOW_BACKEND_DIR, a missing arbiter process, or termux-api not being
 installed should each only blank out their own piece of the health response,
-never take down the whole /server/health endpoint.
+never take down the whole /server/health endpoint. Failures are logged
+rather than swallowed silently, though — a metric quietly going blank in
+production with no trace of why is its own kind of bug.
 """
 
 import json
+import logging
 import os
 import subprocess
 import time
 from pathlib import Path
+from urllib.parse import urlparse
 
 import psutil
 
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 def _backend_dir() -> Path:
     return Path(settings.shadow_backend_dir).expanduser()
 
 
-def _pid_file() -> Path:
-    return _backend_dir() / "server.pid"
+def _backend_port() -> int:
+    return urlparse(settings.shadow_backend_url).port or 8000
 
 
-def get_process_group_id() -> int | None:
-    """restart_server.sh stores the uvicorn arbiter's PGID here (see its
-    comment on why process-group kill is required for --workers N)."""
-    pid_file = _pid_file()
-    if not pid_file.exists():
-        return None
-    try:
-        return int(pid_file.read_text().strip())
-    except (ValueError, OSError):
-        return None
+def _find_arbiter() -> psutil.Process | None:
+    """Finds BackEnd_V2's uvicorn arbiter by matching its actual command
+    line — the same information restart_server.sh uses to launch it in
+    the first place, so there's nothing else (a pidfile path, or
+    process-group inheritance surviving setsid/nohup/multiprocessing's
+    spawn intact) that needs to independently agree for this to work.
+    Matched on port specifically: BackOffice's own arbiter is also
+    "uvicorn app.main:app", co-located on the same device — the port is
+    what actually tells the two apart.
+    """
+    port_marker = f"--port {_backend_port()}"
+    for proc in psutil.process_iter(["pid", "cmdline"]):
+        try:
+            cmdline = " ".join(proc.info["cmdline"] or [])
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            continue
+        if "uvicorn" in cmdline and "app.main:app" in cmdline and port_marker in cmdline:
+            try:
+                return psutil.Process(proc.info["pid"])
+            except psutil.NoSuchProcess:
+                return None
+    return None
 
 
 def get_workers() -> list[dict]:
-    """Every process sharing BackEnd_V2's process group — the arbiter plus
-    its forked workers. Returns [] if server.pid is missing/stale, or if
-    process-group lookups aren't supported on this platform (os.getpgid is
-    POSIX-only; production is Termux/Linux, but this shouldn't crash a local
-    Windows/macOS dev run either).
+    """The uvicorn arbiter plus every worker it forked — found via
+    psutil's own process tree (arbiter.children()), which works
+    identically on every platform, rather than process-group membership.
+    The group-based approach this replaced depended on a pidfile pointing
+    at a real running arbiter AND on setsid/nohup/multiprocessing's spawn
+    preserving process-group inheritance exactly as expected; if either
+    broke, it silently reported zero workers with no way to tell why.
+    Parent/child is a far more direct relationship with nothing else that
+    needs to independently agree.
     """
-    pgid = get_process_group_id()
-    if pgid is None or not hasattr(os, "getpgid"):
+    arbiter = _find_arbiter()
+    if arbiter is None:
+        logger.warning("worker_service: no BackEnd_V2 uvicorn arbiter found on port %s.", _backend_port())
+        return []
+
+    try:
+        children = arbiter.children(recursive=True)
+    except psutil.NoSuchProcess:
         return []
 
     workers: list[dict] = []
-    for proc in psutil.process_iter(["pid"]):
+    for proc in [arbiter, *children]:
         try:
-            if os.getpgid(proc.pid) != pgid:
-                continue
             cpu = proc.cpu_percent(interval=0.1)
             mem_mb = proc.memory_info().rss / (1024 * 1024)
             uptime = time.time() - proc.create_time()
@@ -75,6 +101,19 @@ def _cpu_percent() -> float | None:
     try:
         return psutil.cpu_percent(interval=0.3)
     except Exception:
+        logger.exception("worker_service: psutil.cpu_percent() failed.")
+        return None
+
+
+def _load_average() -> list[float] | None:
+    """1/5/15-minute load average — a second, independent "how busy is
+    this host" signal alongside cpu_percent (reads /proc/loadavg
+    directly rather than psutil's own sampling), so a device where one
+    of the two doesn't work for some platform-specific reason isn't left
+    with no CPU signal at all."""
+    try:
+        return [round(x, 2) for x in os.getloadavg()]
+    except (OSError, AttributeError):
         return None
 
 
@@ -112,6 +151,7 @@ def get_host_stats() -> dict:
     BackEnd_V2 runs on. Each metric fails independently."""
     return {
         "cpu_percent": _cpu_percent(),
+        "load_average": _load_average(),
         **_memory_stats(),
         **_disk_stats(),
     }

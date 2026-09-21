@@ -16,7 +16,10 @@ import type { RestartLog, ServerHealth } from "@/api";
 import { formatDateTime, statusLabel, statusVariant, formatUptime } from "@/lib/format";
 import { LiveLogTail } from "./LiveLogTail";
 
-const HEALTH_POLL_MS = 6000;
+// Every poll runs psutil process/CPU sampling on BackOffice's side plus a
+// request to BackEnd_V2 — 6s was hammering a server running on a phone for
+// data that doesn't meaningfully change that often.
+const HEALTH_POLL_MS = 15000;
 const RESTART_POLL_MS = 1500;
 
 function InfoItem({ label, value }: { label: string; value: string }) {
@@ -137,9 +140,17 @@ export function ServerPage() {
         />
         <StatCard
           variant="success"
-          value={fmtPercent(health?.cpu_percent ?? null)}
+          value={
+            health?.cpu_percent != null ? fmtPercent(health.cpu_percent)
+            : health?.load_average?.[0] != null ? `${health.load_average[0].toFixed(2)} load`
+            : "Unavailable"
+          }
           name="CPU Load"
-          hint={health ? `${health.workers.length} worker${health.workers.length === 1 ? "" : "s"} active` : "—"}
+          hint={
+            !health ? "—"
+            : `${health.workers.length} worker${health.workers.length === 1 ? "" : "s"} active` +
+              (health.load_average ? ` · load avg ${health.load_average.join(" / ")}` : "")
+          }
         />
         <StatCard
           variant="info"

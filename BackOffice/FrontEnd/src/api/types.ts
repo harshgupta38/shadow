@@ -89,6 +89,27 @@ export interface SqlQueryResponse {
   columns: string[];
   rows: Row[];
   rowcount: number;
+  // null for a statement with no row set to page through (INSERT/UPDATE/
+  // DELETE/DDL/...); set whenever the query was SELECT-shaped, even if
+  // every row already fit in this one response.
+  total: number | null;
+  page: number;
+  page_size: number;
+}
+
+export interface BackupInfo {
+  name: string;
+  created_at: string;
+  size_bytes: number;
+}
+
+export interface RestoreBackupResponse {
+  restored_from: string;
+  pre_restore_backup: BackupInfo;
+}
+
+export interface DeleteBackupResponse {
+  deleted: string;
 }
 
 // ─── Server ─────────────────────────────────────────────────────────────────

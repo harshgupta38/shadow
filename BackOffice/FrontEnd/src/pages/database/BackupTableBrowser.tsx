@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Search, PlusLg, Inbox } from "react-bootstrap-icons";
+import { useEffect, useMemo, useState } from "react";
+import { Search, Inbox } from "react-bootstrap-icons";
 import { api, ApiError } from "@/api";
 import type { ColumnInfo, Row, TableInfo } from "@/api";
 import { Pagination } from "@/components/ui/Pagination/Pagination";
 import { rowKey } from "./dbHelpers";
-import { RowEditorPanel, type RowEditorPanelHandle } from "./RowEditorPanel";
+import { BackupRowViewer } from "./BackupRowViewer";
 
 const DEFAULT_PAGE_SIZE = 25;
 const SEARCH_DEBOUNCE_MS = 350;
@@ -26,7 +26,12 @@ function renderCell(col: ColumnInfo, value: unknown) {
   return <span className="db-cell-text">{String(value)}</span>;
 }
 
-export function TableBrowser() {
+// Read-only twin of TableBrowser — same sidebar/grid layout, but browsing a
+// specific backup file instead of the live database. There's nothing here
+// that can mutate anything (no "Add row", no RowEditorPanel, no dirty-state
+// guard on switching tables), so it's a good deal simpler than the live
+// version: viewing a row is just a lookup, never something you could lose.
+export function BackupTableBrowser({ filename }: { filename: string }) {
   const [tables, setTables] = useState<TableInfo[]>([]);
   const [tablesLoading, setTablesLoading] = useState(true);
   const [tablesError, setTablesError] = useState<string | null>(null);
@@ -43,8 +48,7 @@ export function TableBrowser() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
-  const [editingRow, setEditingRow] = useState<Row | "create" | null>(null);
-  const rowEditorRef = useRef<RowEditorPanelHandle>(null);
+  const [viewingRow, setViewingRow] = useState<Row | null>(null);
 
   const table = tables.find((t) => t.name === selectedTableName) ?? null;
   const filteredTables = useMemo(() => {
@@ -53,13 +57,12 @@ export function TableBrowser() {
     return tables.filter((t) => t.name.toLowerCase().includes(term));
   }, [tables, tableFilter]);
 
-  // Load the table list once.
   useEffect(() => {
     let cancelled = false;
     async function load() {
       setTablesLoading(true);
       try {
-        const list = await api.database.listTables();
+        const list = await api.database.listBackupTables(filename);
         if (cancelled) return;
         setTables(list);
         setTablesError(null);
@@ -72,9 +75,9 @@ export function TableBrowser() {
     }
     load();
     return () => { cancelled = true; };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filename]);
 
-  // Debounce the search box before it drives a fetch.
   useEffect(() => {
     const t = setTimeout(() => {
       setSearch(searchInput);
@@ -87,7 +90,7 @@ export function TableBrowser() {
     if (!selectedTableName) return;
     setRowsLoading(true);
     try {
-      const result = await api.database.getRows(selectedTableName, page, pageSize, search);
+      const result = await api.database.getBackupRows(filename, selectedTableName, page, pageSize, search);
       setColumns(result.columns);
       setRows(result.rows);
       setTotal(result.total);
@@ -108,42 +111,17 @@ export function TableBrowser() {
 
   function selectTable(name: string) {
     if (name === selectedTableName) return;
-
-    function proceed() {
-      setSelectedTableName(name);
-      setSearchInput("");
-      setSearch("");
-      setPage(1);
-      setEditingRow(null);
-      // Clear immediately, don't wait for the new table's fetch to resolve —
-      // otherwise the old table's rows stay visible and clickable for that
-      // gap, and clicking one opens the editor with the new table's schema
-      // paired with the old table's row data.
-      setRows([]);
-      setColumns([]);
-      setTotal(0);
-    }
-
-    if (editingRow !== null && rowEditorRef.current) {
-      rowEditorRef.current.confirmNavigateAway(proceed);
-    } else {
-      proceed();
-    }
-  }
-
-  async function refreshAfterMutation() {
-    await loadRows();
-    try {
-      const list = await api.database.listTables();
-      setTables(list);
-    } catch {
-      // row counts in the sidebar just stay stale until the next successful refresh
-    }
-  }
-
-  async function handleRowMutated() {
-    setEditingRow(null);
-    await refreshAfterMutation();
+    setSelectedTableName(name);
+    setSearchInput("");
+    setSearch("");
+    setPage(1);
+    setViewingRow(null);
+    // Clear immediately, same reasoning as the live browser — otherwise the
+    // old table's rows stay visible/clickable for the gap before the new
+    // table's fetch resolves.
+    setRows([]);
+    setColumns([]);
+    setTotal(0);
   }
 
   return (
@@ -160,11 +138,10 @@ export function TableBrowser() {
         </div>
 
         <div className="db-sidebar-list">
-          {tablesError && (
-            <div className="alert alert-danger py-2 px-3 small mb-2" role="alert">{tablesError}</div>
-          )}
           {tablesLoading ? (
             <div className="db-table-group-label">Loading tables…</div>
+          ) : tablesError ? (
+            <div className="db-table-group-label">Couldn't load tables.</div>
           ) : filteredTables.length === 0 ? (
             <div className="db-table-group-label">No tables match.</div>
           ) : (
@@ -184,27 +161,24 @@ export function TableBrowser() {
       </aside>
 
       <div className="db-main">
-        {!table ? (
+        {tablesError ? (
+          <div className="db-empty-state">
+            <div className="alert alert-danger py-2 px-3 small mb-0" role="alert">{tablesError}</div>
+          </div>
+        ) : !table ? (
           <div className="db-empty-state">
             <Inbox size={30} />
             <p>{tablesLoading ? "Loading…" : "No tables found."}</p>
           </div>
-        ) : editingRow !== null ? (
-          <RowEditorPanel
-            ref={rowEditorRef}
-            table={table}
-            row={editingRow === "create" ? null : editingRow}
-            onClose={() => setEditingRow(null)}
-            onSave={handleRowMutated}
-            onDelete={handleRowMutated}
-          />
+        ) : viewingRow !== null ? (
+          <BackupRowViewer table={table} row={viewingRow} onClose={() => setViewingRow(null)} />
         ) : (
           <>
             <div className="db-toolbar">
               <div className="min-w-0">
                 <h2 className="db-table-title">{table.name}</h2>
                 <p className="db-table-meta">
-                  {table.columns.length} columns · {total} row{total === 1 ? "" : "s"}
+                  {table.columns.length} columns · {total} row{total === 1 ? "" : "s"} · read-only
                 </p>
               </div>
               <div className="db-toolbar-actions">
@@ -217,14 +191,6 @@ export function TableBrowser() {
                     onChange={(e) => setSearchInput(e.target.value)}
                   />
                 </div>
-                <button
-                  type="button"
-                  className="btn btn-soft text-nowrap d-flex align-items-center gap-2"
-                  onClick={() => setEditingRow("create")}
-                >
-                  <PlusLg size={14} />
-                  Add row
-                </button>
               </div>
             </div>
 
@@ -235,7 +201,7 @@ export function TableBrowser() {
             {rows.length === 0 ? (
               <div className="db-empty-state">
                 <Inbox size={30} />
-                <p>{rowsLoading ? "Loading…" : search ? "No rows match your search." : "No rows in this table yet."}</p>
+                <p>{rowsLoading ? "Loading…" : search ? "No rows match your search." : "No rows in this table."}</p>
               </div>
             ) : (
               <div className="dp-table-wrap db-grid-wrap">
@@ -255,7 +221,7 @@ export function TableBrowser() {
                   </thead>
                   <tbody>
                     {rows.map((r) => (
-                      <tr key={rowKey(table, r)} onClick={() => setEditingRow(r)}>
+                      <tr key={rowKey(table, r)} onClick={() => setViewingRow(r)}>
                         {columns.map((col) => (
                           <td key={col.name} className="db-cell">
                             {renderCell(col, r[col.name])}
@@ -268,7 +234,7 @@ export function TableBrowser() {
               </div>
             )}
 
-            {total > 10 && (
+            {total > 0 && (
               <Pagination
                 page={page}
                 pageSize={pageSize}

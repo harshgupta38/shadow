@@ -26,6 +26,12 @@ class Endpoints:
         ROWS = "/tables/{table_name}/rows"
         ROW = "/tables/{table_name}/row"
         QUERY = "/query"
+        BACKUPS = "/backups"
+        BACKUP_FILE = "/backups/{filename}"
+        BACKUP_RESTORE = "/backups/{filename}/restore"
+        BACKUP_TABLES = "/backups/{filename}/tables"
+        BACKUP_ROWS = "/backups/{filename}/tables/{table_name}/rows"
+        BACKUP_ROW = "/backups/{filename}/tables/{table_name}/row"
 
     class SERVER:
         PREFIX = "/server"

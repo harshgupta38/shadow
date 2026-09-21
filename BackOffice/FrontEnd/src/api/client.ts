@@ -96,3 +96,12 @@ export function httpText(url: string, config?: AxiosRequestConfig): Promise<stri
     .get<string>(url, { ...config, responseType: "text" })
     .then((r) => r.data);
 }
+
+// GET returning a binary file body (e.g. a database backup) for the caller
+// to save — see downloadBlob() in lib/download.ts for triggering the
+// browser's save dialog from the result.
+export function httpBlob(url: string, config?: AxiosRequestConfig): Promise<Blob> {
+  return httpClient
+    .get<Blob>(url, { ...config, responseType: "blob" })
+    .then((r) => r.data);
+}

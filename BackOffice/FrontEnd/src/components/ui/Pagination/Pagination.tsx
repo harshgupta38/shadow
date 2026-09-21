@@ -12,6 +12,28 @@ interface PaginationProps {
   pageSizeOptions?: number[];
 }
 
+// Which page-number buttons to show around the current page (e.g. "3 4 5 6"
+// with an ellipsis-then-last-page after) — shared with anywhere else that
+// wants the same windowed-numbers behavior without the rest of this
+// component's rows-per-page/info-text UI (see SqlConsole.tsx).
+export function computePageWindow(page: number, totalPages: number, windowSize = WINDOW_SIZE) {
+  const safePage = Math.min(Math.max(1, page), totalPages);
+  const windowStart = Math.max(1, Math.min(safePage - 2, totalPages - windowSize + 1));
+  let windowEnd = Math.min(totalPages, windowStart + windowSize - 1);
+
+  // A "…" only earns its place if it's actually hiding more than one page —
+  // collapsing a single page takes as much space as just showing it, so
+  // fold it into the window instead of ellipsis-ing it away.
+  const hiddenBeforeLastPage = totalPages - windowEnd - 1;
+  const showEllipsis = hiddenBeforeLastPage >= 2;
+  if (!showEllipsis) {
+    windowEnd = totalPages;
+  }
+
+  const pages = Array.from({ length: windowEnd - windowStart + 1 }, (_, i) => windowStart + i);
+  return { pages, showEllipsis };
+}
+
 // Generic "Showing X - Y of Z" + rows-per-page + windowed page numbers
 // (e.g. "‹ 3 4 5 6 … 10 ›") — reusable anywhere a list needs paging, not
 // just Users. Fully controlled: the parent owns page/pageSize state.
@@ -29,19 +51,7 @@ export function Pagination({
   const start = totalItems === 0 ? 0 : (safePage - 1) * pageSize + 1;
   const end = Math.min(safePage * pageSize, totalItems);
 
-  const windowStart = Math.max(1, Math.min(safePage - 2, totalPages - WINDOW_SIZE + 1));
-  let windowEnd = Math.min(totalPages, windowStart + WINDOW_SIZE - 1);
-
-  // A "…" only earns its place if it's actually hiding more than one page —
-  // collapsing a single page takes as much space as just showing it, so
-  // fold it into the window instead of ellipsis-ing it away.
-  const hiddenBeforeLastPage = totalPages - windowEnd - 1;
-  const showEllipsis = hiddenBeforeLastPage >= 2;
-  if (!showEllipsis) {
-    windowEnd = totalPages;
-  }
-
-  const windowPages = Array.from({ length: windowEnd - windowStart + 1 }, (_, i) => windowStart + i);
+  const { pages: windowPages, showEllipsis } = computePageWindow(safePage, totalPages);
 
   // Everything fits on one page — the rows-per-page control (and the info
   // text) still earns its place, but prev/next + page numbers have nothing

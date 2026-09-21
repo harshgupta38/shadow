@@ -12,10 +12,18 @@ export const ENDPOINTS = {
     detail:   (id: number) => `/deploy/${id}`,
   },
   DATABASE: {
-    TABLES: "/database/tables",
-    QUERY:  "/database/query",
-    rows:   (tableName: string) => `/database/tables/${encodeURIComponent(tableName)}/rows`,
-    row:    (tableName: string) => `/database/tables/${encodeURIComponent(tableName)}/row`,
+    TABLES:  "/database/tables",
+    QUERY:   "/database/query",
+    BACKUPS: "/database/backups",
+    rows:          (tableName: string) => `/database/tables/${encodeURIComponent(tableName)}/rows`,
+    row:           (tableName: string) => `/database/tables/${encodeURIComponent(tableName)}/row`,
+    backupFile:    (filename: string) => `/database/backups/${encodeURIComponent(filename)}`,
+    backupRestore: (filename: string) => `/database/backups/${encodeURIComponent(filename)}/restore`,
+    backupTables:  (filename: string) => `/database/backups/${encodeURIComponent(filename)}/tables`,
+    backupRows:    (filename: string, tableName: string) =>
+      `/database/backups/${encodeURIComponent(filename)}/tables/${encodeURIComponent(tableName)}/rows`,
+    backupRow:     (filename: string, tableName: string) =>
+      `/database/backups/${encodeURIComponent(filename)}/tables/${encodeURIComponent(tableName)}/row`,
   },
   SERVER: {
     HEALTH:          "/server/health",

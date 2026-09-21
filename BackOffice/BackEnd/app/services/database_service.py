@@ -16,7 +16,7 @@ composed as text. That means two rules are non-negotiable everywhere below:
 
 import json
 import logging
-from typing import Any
+from typing import Any, Callable
 
 from sqlalchemy.orm import Session
 
@@ -25,6 +25,17 @@ from app.models.sql_audit_log import SqlAuditLogDBM
 from app.services import model_constraints, shadow_client
 
 logger = logging.getLogger(__name__)
+
+# Every read function below takes an optional `run_sql` — the function that
+# actually executes a query string and returns {"rowcount", "columns",
+# "rows"}. Defaulting to shadow_client.run_sql (the live database) means
+# every existing call site keeps working unchanged; passing a closure over
+# shadow_client.run_backup_sql(filename, ...) instead makes the exact same
+# schema-introspection/search/pagination/JSON-decoding logic browse a
+# specific backup file, read-only, with no duplicated code. Never used for
+# the write path (insert/update/delete/run_raw_query) — those only ever
+# make sense against the live database.
+RunSql = Callable[[str], dict]
 
 
 def _quote_ident(name: str) -> str:
@@ -55,17 +66,19 @@ def _audit(db: Session, admin_username: str, query: str, success: bool, row_coun
     db.commit()
 
 
-def list_table_names() -> list[str]:
-    result = shadow_client.run_sql(
+def list_table_names(run_sql: RunSql | None = None) -> list[str]:
+    run_sql = run_sql or shadow_client.run_sql
+    result = run_sql(
         "SELECT name FROM sqlite_master WHERE type='table' "
         "AND name NOT LIKE 'sqlite\\_%' ESCAPE '\\' ORDER BY name"
     )
     return [row["name"] for row in result["rows"]]
 
 
-def get_table_columns(table_name: str) -> list[dict]:
-    result = shadow_client.run_sql(f"PRAGMA table_info({_quote_ident(table_name)})")
-    fk_result = shadow_client.run_sql(f"PRAGMA foreign_key_list({_quote_ident(table_name)})")
+def get_table_columns(table_name: str, run_sql: RunSql | None = None) -> list[dict]:
+    run_sql = run_sql or shadow_client.run_sql
+    result = run_sql(f"PRAGMA table_info({_quote_ident(table_name)})")
+    fk_result = run_sql(f"PRAGMA foreign_key_list({_quote_ident(table_name)})")
     fk_by_column = {row["from"]: f"{row['table']}.{row['to']}" for row in fk_result["rows"]}
 
     columns = []
@@ -81,24 +94,26 @@ def get_table_columns(table_name: str) -> list[dict]:
     return columns
 
 
-def _validate_table(table_name: str) -> None:
-    if table_name not in list_table_names():
+def _validate_table(table_name: str, run_sql: RunSql | None = None) -> None:
+    if table_name not in list_table_names(run_sql):
         raise NotFoundError(f"Table '{table_name}' does not exist.")
 
 
-def list_tables() -> list[dict]:
+def list_tables(run_sql: RunSql | None = None) -> list[dict]:
+    run_sql = run_sql or shadow_client.run_sql
     tables = []
-    for name in list_table_names():
-        columns = get_table_columns(name)
-        count_result = shadow_client.run_sql(f"SELECT COUNT(*) AS c FROM {_quote_ident(name)}")
+    for name in list_table_names(run_sql):
+        columns = get_table_columns(name, run_sql)
+        count_result = run_sql(f"SELECT COUNT(*) AS c FROM {_quote_ident(name)}")
         row_count = count_result["rows"][0]["c"] if count_result["rows"] else 0
         tables.append({"name": name, "row_count": row_count, "columns": columns})
     return tables
 
 
-def get_rows(table_name: str, page: int, page_size: int, search: str) -> dict:
-    _validate_table(table_name)
-    columns = get_table_columns(table_name)
+def get_rows(table_name: str, page: int, page_size: int, search: str, run_sql: RunSql | None = None) -> dict:
+    run_sql = run_sql or shadow_client.run_sql
+    _validate_table(table_name, run_sql)
+    columns = get_table_columns(table_name, run_sql)
     column_names = [c["name"] for c in columns]
 
     where_clause = ""
@@ -111,7 +126,7 @@ def get_rows(table_name: str, page: int, page_size: int, search: str) -> dict:
         where_clause = " WHERE " + " OR ".join(conditions)
 
     count_sql = f"SELECT COUNT(*) AS c FROM {_quote_ident(table_name)}{where_clause}"
-    count_result = shadow_client.run_sql(count_sql)
+    count_result = run_sql(count_sql)
     total = count_result["rows"][0]["c"] if count_result["rows"] else 0
 
     page = max(page, 1)
@@ -121,7 +136,7 @@ def get_rows(table_name: str, page: int, page_size: int, search: str) -> dict:
         f"SELECT * FROM {_quote_ident(table_name)}{where_clause} "
         f"LIMIT {page_size} OFFSET {offset}"
     )
-    rows_result = shadow_client.run_sql(rows_sql)
+    rows_result = run_sql(rows_sql)
 
     return {
         "columns": columns,
@@ -185,12 +200,13 @@ def _decode_json_columns(rows: list[dict], columns: list[dict]) -> list[dict]:
     return rows
 
 
-def get_row(table_name: str, pk: dict) -> dict | None:
+def get_row(table_name: str, pk: dict, run_sql: RunSql | None = None) -> dict | None:
     """Re-fetches a single row by primary key — the row editor's "refresh"
     action, for when the underlying data may have changed since it loaded.
     """
-    _validate_table(table_name)
-    columns = get_table_columns(table_name)
+    run_sql = run_sql or shadow_client.run_sql
+    _validate_table(table_name, run_sql)
+    columns = get_table_columns(table_name, run_sql)
     pk_columns = _pk_columns(columns)
 
     if not pk_columns:
@@ -200,7 +216,7 @@ def get_row(table_name: str, pk: dict) -> dict | None:
 
     where_sql = " AND ".join(f"{_quote_ident(c)} = {_quote_literal(v)}" for c, v in pk.items())
     query = f"SELECT * FROM {_quote_ident(table_name)} WHERE {where_sql} LIMIT 1"
-    result = shadow_client.run_sql(query)
+    result = run_sql(query)
     if not result["rows"]:
         return None
     return _decode_json_columns(result["rows"], columns)[0]
@@ -289,14 +305,113 @@ def delete_row(db: Session, table_name: str, pk: dict, admin_username: str) -> d
     return result
 
 
-def run_raw_query(db: Session, query: str, admin_username: str) -> dict:
+def run_raw_query(db: Session, query: str, admin_username: str, page: int = 1, page_size: int = 15) -> dict:
     """SQL Console — deliberately unrestricted, matching the power
-    /admin/sql already has. Every attempt is audited regardless of outcome.
+    /admin/sql already has. Every real attempt is audited regardless of
+    outcome (the pagination probe below is not — see _try_paginate).
     """
+    page = max(page, 1)
+    page_size = max(min(page_size, 200), 1)
+
+    paginated = _try_paginate(query, page, page_size)
+    if paginated is not None:
+        rows_query, total = paginated
+        try:
+            result = shadow_client.run_sql(rows_query)
+        except Exception as e:
+            _audit(db, admin_username, query, False, None, str(e))
+            raise
+        _audit(db, admin_username, query, True, total, None)
+        result["total"] = total
+        result["page"] = page
+        result["page_size"] = page_size
+        return result
+
     try:
         result = shadow_client.run_sql(query)
     except Exception as e:
         _audit(db, admin_username, query, False, None, str(e))
         raise
     _audit(db, admin_username, query, True, result.get("rowcount"), None)
+    result["total"] = None
+    result["page"] = 1
+    result["page_size"] = page_size
+    return result
+
+
+def _try_paginate(query: str, page: int, page_size: int) -> tuple[str, int] | None:
+    """If `query` is SELECT-shaped (wrapping it as a subquery is valid SQL),
+    returns (a LIMIT/OFFSET-wrapped version of it, the total row count) —
+    otherwise (an INSERT/UPDATE/DELETE/DDL/... statement, or anything else
+    that doesn't nest as a subquery) returns None, meaning "run it exactly
+    as typed, there's nothing to page." SQLite's own parser decides this —
+    no keyword-sniffing — so it's automatically right about CTEs (`WITH`),
+    unusual whitespace/comments, and every other real-world SELECT shape.
+    A failure here is expected and silent, never audited: it just means
+    this particular query isn't a row-returning one, not that anything
+    went wrong."""
+    stripped = query.strip()
+    if stripped.endswith(";"):
+        stripped = stripped[:-1].strip()
+    if not stripped:
+        return None
+
+    try:
+        count_result = shadow_client.run_sql(
+            f"SELECT COUNT(*) AS __bo_count FROM ({stripped}) AS __bo_probe"
+        )
+        total = count_result["rows"][0]["__bo_count"]
+    except Exception:
+        return None
+
+    offset = (page - 1) * page_size
+    rows_query = f"SELECT * FROM ({stripped}) AS __bo_page LIMIT {page_size} OFFSET {offset}"
+    return rows_query, total
+
+
+def _backup_run_sql(filename: str) -> RunSql:
+    return lambda query: shadow_client.run_backup_sql(filename, query)
+
+
+def list_backup_tables(filename: str) -> list[dict]:
+    """Browse a specific backup file, read-only — reuses list_tables()'s
+    exact schema/row-count logic, just pointed at the backup via a closure
+    instead of the live database."""
+    return list_tables(_backup_run_sql(filename))
+
+
+def get_backup_rows(filename: str, table_name: str, page: int, page_size: int, search: str) -> dict:
+    return get_rows(table_name, page, page_size, search, _backup_run_sql(filename))
+
+
+def get_backup_row(filename: str, table_name: str, pk: dict) -> dict | None:
+    return get_row(table_name, pk, _backup_run_sql(filename))
+
+
+def restore_backup(db: Session, filename: str, admin_username: str) -> dict:
+    """Overwrites the live shadow.db with a backup — the single most
+    destructive action this whole admin panel exposes, so unlike the
+    simpler backup passthroughs (list/create/download) this one gets a
+    real audit trail entry, same as every row edit and raw query."""
+    pseudo_query = f"RESTORE BACKUP {filename}"
+    try:
+        result = shadow_client.restore_backup(filename)
+    except Exception as e:
+        _audit(db, admin_username, pseudo_query, False, None, str(e))
+        raise
+    _audit(db, admin_username, pseudo_query, True, None, None)
+    return result
+
+
+def delete_backup(db: Session, filename: str, admin_username: str) -> dict:
+    """Permanently removes a backup file — irreversible, so it's audited
+    the same as restore, unlike the simpler list/create/download
+    passthroughs."""
+    pseudo_query = f"DELETE BACKUP {filename}"
+    try:
+        result = shadow_client.delete_backup(filename)
+    except Exception as e:
+        _audit(db, admin_username, pseudo_query, False, None, str(e))
+        raise
+    _audit(db, admin_username, pseudo_query, True, None, None)
     return result

@@ -4,7 +4,7 @@ import subprocess
 
 from pathlib import Path
 
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 from fastapi.responses import FileResponse, PlainTextResponse
 from pydantic import BaseModel
 
@@ -17,6 +17,14 @@ router = APIRouter()
 
 class SqlRequest(BaseModel):
     query: str
+
+
+def require_admin(x_admin_secret: str = Header(...)) -> None:
+    """Shared gate for every /admin/* route below — each one previously
+    repeated this exact same check inline; putting it in one dependency
+    means there's a single place to get it right instead of eight."""
+    if x_admin_secret != settings.admin_secret:
+        raise HTTPException(status_code=403, detail="Forbidden.")
 
 
 @router.get(ENDPOINTS.SYSTEM.ROOT, tags=["health"])
@@ -94,11 +102,8 @@ async def get_server_log():
     return log_file.read_text(encoding="utf-8")
 
 
-@router.get(ENDPOINTS.SYSTEM.ADMIN_DATABASE, tags=["admin"]) # extra
-def download_database(x_admin_secret: str = Header(...)):
-    if x_admin_secret != settings.admin_secret:
-        raise HTTPException(status_code=403, detail="Forbidden.")
-
+@router.get(ENDPOINTS.SYSTEM.ADMIN_DATABASE, tags=["admin"], dependencies=[Depends(require_admin)]) # extra
+def download_database():
     # Take a consistent snapshot via SQLite's online backup API instead of streaming
     # the live file — the server may be writing to it (WAL mode keeps recent commits
     # in a separate -wal file), so reading it directly can hand back a torn copy.
@@ -113,11 +118,80 @@ def download_database(x_admin_secret: str = Header(...)):
     )
 
 
-@router.post(ENDPOINTS.SYSTEM.ADMIN_SQL, tags=["admin"])
-def run_sql(body: SqlRequest, x_admin_secret: str = Header(...)):
-    if x_admin_secret != settings.admin_secret:
-        raise HTTPException(status_code=403, detail="Forbidden.")
+@router.get(ENDPOINTS.SYSTEM.ADMIN_BACKUPS, tags=["admin"], dependencies=[Depends(require_admin)])
+def list_backups():
+    return backup_service.list_backups()
 
+
+@router.post(ENDPOINTS.SYSTEM.ADMIN_BACKUPS, tags=["admin"], dependencies=[Depends(require_admin)])
+def trigger_backup():
+    backup_path = backup_service.create_backup()
+    if backup_path is None:
+        raise HTTPException(status_code=500, detail="Backup failed — check server.log.")
+
+    return backup_service.describe_backup(backup_path)
+
+
+@router.get(ENDPOINTS.SYSTEM.ADMIN_BACKUP_FILE, tags=["admin"], dependencies=[Depends(require_admin)])
+def download_backup(filename: str):
+    path = backup_service.get_backup_path(filename)
+    if path is None:
+        raise HTTPException(status_code=404, detail="Backup not found.")
+
+    return FileResponse(path=path, media_type="application/x-sqlite3", filename=path.name)
+
+
+@router.post(ENDPOINTS.SYSTEM.ADMIN_BACKUP_RESTORE, tags=["admin"], dependencies=[Depends(require_admin)])
+def restore_backup(filename: str):
+    if backup_service.get_backup_path(filename) is None:
+        raise HTTPException(status_code=404, detail="Backup not found.")
+
+    result = backup_service.restore_backup(filename)
+    if result is None:
+        raise HTTPException(status_code=500, detail="Restore failed — check server.log.")
+
+    return result
+
+
+@router.delete(ENDPOINTS.SYSTEM.ADMIN_BACKUP_FILE, tags=["admin"], dependencies=[Depends(require_admin)])
+def delete_backup(filename: str):
+    if not backup_service.delete_backup(filename):
+        raise HTTPException(status_code=404, detail="Backup not found.")
+
+    return {"deleted": filename}
+
+
+@router.post(ENDPOINTS.SYSTEM.ADMIN_BACKUP_QUERY, tags=["admin"], dependencies=[Depends(require_admin)])
+def query_backup(filename: str, body: SqlRequest):
+    path = backup_service.get_backup_path(filename)
+    if path is None:
+        raise HTTPException(status_code=404, detail="Backup not found.")
+
+    # Opened read-only at the SQLite level (mode=ro) — a write attempt fails
+    # here regardless of what the query text looks like, so this is safe
+    # for the admin panel's backup browser without needing to inspect or
+    # restrict the SQL itself the way /admin/sql (which edits the live
+    # database) has to.
+    conn = sqlite3.connect(f"file:{path.as_posix()}?mode=ro", uri=True)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+    try:
+        cur.execute(body.query)
+        columns = [d[0] for d in cur.description] if cur.description else []
+        rows = cur.fetchall()
+        return {
+            "rowcount": cur.rowcount,
+            "columns": columns,
+            "rows": [dict(r) for r in rows],
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        conn.close()
+
+
+@router.post(ENDPOINTS.SYSTEM.ADMIN_SQL, tags=["admin"], dependencies=[Depends(require_admin)])
+def run_sql(body: SqlRequest):
     conn = sqlite3.connect("shadow.db")
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()

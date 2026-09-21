@@ -1017,11 +1017,9 @@ h1, h2, h3, h4, h5, h6, .display-font {
   border-collapse: collapse;
   font-size: 0.875rem;
 
-  thead tr {
-    background: var(--jv-surface-2);
-    border-bottom: 1px solid var(--jv-border);
-  }
-
+  // Sticky on th itself, not thead/tr — the background has to live here
+  // too, since a stuck row's own background would scroll away with it,
+  // leaving the pinned header see-through over whatever row sits beneath it.
   th {
     padding: 0.65rem 1.1rem;
     font-size: 0.72rem;
@@ -1031,6 +1029,11 @@ h1, h2, h3, h4, h5, h6, .display-font {
     color: var(--jv-faint);
     text-align: left;
     white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--jv-surface-2);
+    border-bottom: 1px solid var(--jv-border);
   }
 
   td {
@@ -1047,6 +1050,17 @@ h1, h2, h3, h4, h5, h6, .display-font {
   tbody tr:hover td {
     background: var(--jv-surface-2);
   }
+}
+
+// A trailing "⋮" actions cell with no header label of its own — width: 1%
+// forces the browser to shrink it to its content (the kebab button) and
+// hand the freed space to the real columns, instead of it sitting in a
+// wide labeled column of its own.
+.dp-table-th-actions,
+.dp-table-td-actions {
+  width: 1%;
+  white-space: nowrap;
+  text-align: right;
 }
 
 .dp-status-dot {
@@ -1172,6 +1186,19 @@ h1, h2, h3, h4, h5, h6, .display-font {
     background: var(--jv-danger-soft);
     color: var(--jv-danger);
     &:hover { background: var(--jv-danger); color: #fff; }
+  }
+
+  // Icon-only trigger (e.g. a per-row "⋮" actions dropdown) — bare, no
+  // background at all (not even on hover), just the icon and a pointer
+  // cursor; there's no Bootstrap caret since the icon itself already
+  // signals "opens a menu."
+  &--icon {
+    padding: 0.35rem 0.5rem;
+    background: transparent;
+    color: var(--jv-muted);
+    cursor: pointer;
+    &:hover { color: var(--jv-text); }
+    &.dropdown-toggle::after { display: none; }
   }
 }
 
@@ -1449,6 +1476,10 @@ h1, h2, h3, h4, h5, h6, .display-font {
   margin-bottom: 1.25rem;
   background: var(--jv-bg);
   border-bottom: 1px solid var(--jv-border);
+  overflow-x: auto;
+  flex-wrap: nowrap;
+  scrollbar-width: thin;
+  scrollbar-color: var(--jv-border-strong) transparent;
 }
 
 .db-tab {
@@ -1465,17 +1496,74 @@ h1, h2, h3, h4, h5, h6, .display-font {
   font-weight: 600;
   cursor: pointer;
   position: relative;
+  flex-shrink: 0;
   transition: background var(--jv-transition), color var(--jv-transition);
 
-  &:hover { background: var(--jv-surface-3); color: var(--jv-text); }
+  &:hover { background: var(--jv-surface-3); color: var(--jv-brand-1); }
 
   &--active {
     background: var(--jv-surface);
-    color: var(--jv-text);
+    color: var(--jv-brand-1);
     border-bottom: 1px solid var(--jv-surface);
     margin-bottom: -1px;
 
     &:hover { background: var(--jv-surface); }
+  }
+
+  // Opened via BackupsTab's "Open" action — a <div role="tab"> rather than
+  // a <button>, since it hosts its own real close <button> inside (a
+  // button can't nest another focusable button, so the outer element
+  // can't be one either). Same box styling as .db-tab, just taller to fit
+  // a title + filename subtitle instead of one line.
+  &--dynamic {
+    padding: 0.55rem 0.6rem 0.55rem 1rem;
+    gap: 0.55rem;
+  }
+}
+
+.db-tab-labels {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.db-tab-title {
+  font-size: 0.86rem;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.db-tab-subtitle {
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: var(--jv-faint);
+  font-family: "Menlo", "Consolas", monospace;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.1;
+}
+
+.db-tab-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--jv-faint);
+  cursor: pointer;
+  transition: background var(--jv-transition), color var(--jv-transition);
+
+  &:hover {
+    background: var(--jv-danger-soft);
+    color: var(--jv-danger);
   }
 }
 
@@ -1795,6 +1883,20 @@ h1, h2, h3, h4, h5, h6, .display-font {
   margin-top: 0.25rem;
 }
 
+// Plain display box for BackupRowViewer — looks like a disabled form
+// control (same box model, muted background) but is a <div>/<pre>, not an
+// input, so there's no widget underneath that editing could ever reattach to.
+.db-field-readonly {
+  background: var(--jv-surface-3);
+  color: var(--jv-text);
+  cursor: default;
+  white-space: pre-wrap;
+  word-break: break-word;
+  min-height: calc(1.5em + 0.75rem + 2px);
+
+  &:focus { box-shadow: none; }
+}
+
 // Structured editor for list[str] / list[int] JSON columns (see
 // ListFieldEditor in RowEditorPanel.tsx) — one row per array item, so the
 // user only ever edits plain values, never raw JSON syntax.
@@ -2016,7 +2118,12 @@ h1, h2, h3, h4, h5, h6, .display-font {
   align-items: center;
   justify-content: space-between;
   padding: 0.55rem 1rem;
-  background: var(--jv-term-header);
+  height: 50px;
+  // Matches the active tab (.db-tab--active) instead of the terminal-style
+  // background the rest of the console uses — this header sits directly
+  // under the tab strip, so it reads as a continuation of it, not a
+  // separate grey band.
+  background: var(--jv-surface);
   border-bottom: 1px solid var(--jv-term-border);
   font-size: 0.8rem;
   font-weight: 600;
@@ -2029,7 +2136,12 @@ h1, h2, h3, h4, h5, h6, .display-font {
   flex-wrap: wrap;
   gap: 0.4rem;
   padding: 0.65rem 1rem;
-  border-bottom: 1px solid var(--jv-term-border);
+  // The bottom-most bar now that the live input line lives inside the
+  // scrollable body above (see .sql-console-input-row) — a persistent
+  // "quick fill" strip, kept on the footer-toned background so it still
+  // reads as a distinct control row rather than more terminal output.
+  background: var(--jv-term-header);
+  border-top: 1px solid var(--jv-term-border);
 }
 
 .sql-console-example-chip {
@@ -2089,6 +2201,42 @@ h1, h2, h3, h4, h5, h6, .display-font {
   &--error { color: var(--jv-danger); }
 }
 
+.sql-console-pager {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--jv-term-muted);
+  font-family: var(--jv-font-sans);
+
+  button {
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    color: var(--jv-term-muted);
+
+    &:not(:disabled):hover { color: var(--jv-term-text); }
+  }
+
+  .pagination-ellipsis {
+    font-size: 0.72rem;
+    padding: 0;
+  }
+}
+
+.sql-console-page-btn {
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  &--active {
+    background: var(--jv-brand-soft);
+    color: var(--jv-brand-1);
+  }
+}
+
 .sql-console-result-wrap {
   overflow-x: auto;
   margin-bottom: 0.35rem;
@@ -2102,6 +2250,7 @@ h1, h2, h3, h4, h5, h6, .display-font {
   border-collapse: collapse;
   width: 100%;
   font-size: 0.76rem;
+  background-color: var(--jv-surface);
 
   th, td {
     padding: 0.35rem 0.65rem;
@@ -2129,13 +2278,14 @@ h1, h2, h3, h4, h5, h6, .display-font {
   text-align: center !important;
 }
 
+// Lives inside .sql-console-body now, as its last child — the "live" line
+// right after the last executed entry, not a separate footer bar, so it
+// picks up the body's own padding/font instead of carrying its own.
 .sql-console-input-row {
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  padding: 0.7rem 1.1rem;
-  border-top: 1px solid var(--jv-term-border);
-  background: var(--jv-term-header);
+  margin-top: 0.4rem;
 }
 
 .sql-console-input {
@@ -2149,12 +2299,6 @@ h1, h2, h3, h4, h5, h6, .display-font {
   font-size: 0.85rem;
 
   &::placeholder { color: var(--jv-term-muted); }
-}
-
-.sql-console-run-btn {
-  flex-shrink: 0;
-  padding: 0.35rem 0.9rem;
-  font-size: 0.8rem;
 }
 
 // ── Database page — full-bleed shell ────────────────────────────────────────────
@@ -2257,7 +2401,7 @@ h1, h2, h3, h4, h5, h6, .display-font {
 
 .db-tab-panel .pagination-bar {
   flex-shrink: 0;
-  padding: 0.65rem 1.25rem;
+  padding: 0.25rem 1.25rem;
   margin-top: 0;
   border-top: 1px solid var(--jv-border);
 }

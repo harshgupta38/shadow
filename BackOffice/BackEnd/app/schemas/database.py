@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel
@@ -35,12 +36,22 @@ class RowLookupResponse(BaseModel):
 
 class SqlQueryRequest(BaseModel):
     query: str
+    page: int = 1
+    page_size: int = 15
 
 
 class SqlQueryResponse(BaseModel):
     columns: list[str]
     rows: list[dict[str, Any]]
     rowcount: int
+    # None for a statement that doesn't return a row set (INSERT/UPDATE/
+    # DELETE/DDL/...) — there's nothing to page through, so the frontend
+    # shows rowcount as-is with no pager. Set whenever the query could be
+    # wrapped as a subquery (any SELECT-shaped statement), even if every row
+    # already fit in this one response.
+    total: int | None = None
+    page: int = 1
+    page_size: int = 15
 
 
 class InsertRowRequest(BaseModel):
@@ -54,3 +65,18 @@ class UpdateRowRequest(BaseModel):
 
 class DeleteRowRequest(BaseModel):
     pk: dict[str, Any]
+
+
+class BackupInfo(BaseModel):
+    name: str
+    created_at: datetime
+    size_bytes: int
+
+
+class RestoreBackupResponse(BaseModel):
+    restored_from: str
+    pre_restore_backup: BackupInfo
+
+
+class DeleteBackupResponse(BaseModel):
+    deleted: str

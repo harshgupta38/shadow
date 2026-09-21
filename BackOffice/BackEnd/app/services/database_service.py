@@ -100,14 +100,70 @@ def _validate_table(table_name: str, run_sql: RunSql | None = None) -> None:
 
 
 def list_tables(run_sql: RunSql | None = None) -> list[dict]:
+    """Every table's name, columns, and row count in a fixed number of
+    queries regardless of how many tables exist — get_table_columns() is
+    fine for the single-table callers below, but calling it once per table
+    here made every listing cost 1 + 3*N queries. For the backup browser
+    each one is a full HTTP round-trip to BackEnd_V2 that opens a fresh
+    read-only connection, so at 20 tables that's ~60 requests just to open
+    a backup. This makes 3, using SQLite's pragma table-valued functions
+    (pragma_table_info / pragma_foreign_key_list) joined against
+    sqlite_master to fetch every table's schema at once, plus one UNION ALL
+    for every table's row count.
+    """
     run_sql = run_sql or shadow_client.run_sql
-    tables = []
-    for name in list_table_names(run_sql):
-        columns = get_table_columns(name, run_sql)
-        count_result = run_sql(f"SELECT COUNT(*) AS c FROM {_quote_ident(name)}")
-        row_count = count_result["rows"][0]["c"] if count_result["rows"] else 0
-        tables.append({"name": name, "row_count": row_count, "columns": columns})
-    return tables
+    names = list_table_names(run_sql)
+    if not names:
+        return []
+
+    columns_by_table = _all_table_columns(names, run_sql)
+    counts_by_table = _all_table_row_counts(names, run_sql)
+
+    return [
+        {"name": name, "row_count": counts_by_table.get(name, 0), "columns": columns_by_table.get(name, [])}
+        for name in names
+    ]
+
+
+def _all_table_columns(names: list[str], run_sql: RunSql) -> dict[str, list[dict]]:
+    columns_result = run_sql(
+        "SELECT m.name AS __bo_table, p.* FROM sqlite_master m "
+        "JOIN pragma_table_info(m.name) p "
+        "WHERE m.type='table' AND m.name NOT LIKE 'sqlite\\_%' ESCAPE '\\'"
+    )
+    fk_result = run_sql(
+        "SELECT m.name AS __bo_table, fk.* FROM sqlite_master m "
+        "JOIN pragma_foreign_key_list(m.name) fk "
+        "WHERE m.type='table' AND m.name NOT LIKE 'sqlite\\_%' ESCAPE '\\'"
+    )
+
+    fk_by_table: dict[str, dict[str, str]] = {}
+    for row in fk_result["rows"]:
+        fk_by_table.setdefault(row["__bo_table"], {})[row["from"]] = f"{row['table']}.{row['to']}"
+
+    columns_by_table: dict[str, list[dict]] = {name: [] for name in names}
+    for row in columns_result["rows"]:
+        table_name = row["__bo_table"]
+        if table_name not in columns_by_table:
+            continue
+        columns_by_table[table_name].append({
+            "name": row["name"],
+            "type": (row["type"] or "TEXT").upper(),
+            "nullable": row["notnull"] == 0,
+            "pk": row["pk"] > 0,
+            "fk": fk_by_table.get(table_name, {}).get(row["name"]),
+            "json_shape": model_constraints.get_json_shape(table_name, row["name"]),
+        })
+    return columns_by_table
+
+
+def _all_table_row_counts(names: list[str], run_sql: RunSql) -> dict[str, int]:
+    query = " UNION ALL ".join(
+        f"SELECT {_quote_literal(name)} AS __bo_table, COUNT(*) AS c FROM {_quote_ident(name)}"
+        for name in names
+    )
+    result = run_sql(query)
+    return {row["__bo_table"]: row["c"] for row in result["rows"]}
 
 
 def get_rows(table_name: str, page: int, page_size: int, search: str, run_sql: RunSql | None = None) -> dict:

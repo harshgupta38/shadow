@@ -6,10 +6,10 @@ import {
   DatabaseFill,
   CloudArrowUpFill,
   CpuFill,
-  HeartPulseFill,
-  Sliders,
+  // HeartPulseFill,
+  // Sliders,
   Terminal,
-  Git,
+  // Git,
 } from "react-bootstrap-icons";
 import { ROUTES } from "@/routes/RoutePaths";
 

@@ -31,7 +31,12 @@ export interface Deployment {
 }
 
 export interface NewDeploymentRequest {
-  label: string;
+  // Branch name, tag, or commit SHA — required; the backend resolves
+  // which one it is to decide whether to pull (branch) or just check it
+  // out directly (tag/SHA).
+  git_ref: string;
+  // Blank defaults to git_ref on the backend.
+  label?: string;
   description?: string;
   target: DeployTarget;
 }
@@ -48,6 +53,13 @@ export interface CommitInfo {
   date: string;
   message: string;
   is_current: boolean;
+}
+
+export interface BranchesResponse {
+  branches: string[];
+  // null when HEAD is detached (right after a rollback, or after
+  // deploying a tag/commit SHA) — there simply isn't a current branch.
+  current: string | null;
 }
 
 // ─── Database ───────────────────────────────────────────────────────────────

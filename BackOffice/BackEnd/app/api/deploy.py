@@ -4,7 +4,7 @@ from app.api.deps import CurrentAdmin, DbSession
 from app.core.endpoints import ENDPOINTS
 from app.core.exceptions import NotFoundError
 from app.models.deployment_log import DeploymentLogDBM
-from app.schemas.deploy import CommitInfo, DeploymentResponse, NewDeploymentRequest, RollbackRequest
+from app.schemas.deploy import BranchesResponse, CommitInfo, DeploymentResponse, NewDeploymentRequest, RollbackRequest
 from app.services import deploy_service
 
 router = APIRouter(prefix=ENDPOINTS.DEPLOY.PREFIX, tags=["Deploy"])
@@ -23,8 +23,13 @@ def get_history(db: DbSession, _admin: CurrentAdmin, page: int = 1, page_size: i
 
 
 @router.get(ENDPOINTS.DEPLOY.COMMITS, response_model=list[CommitInfo])
-def get_commits(_admin: CurrentAdmin, limit: int = 20):
-    return deploy_service.list_recent_commits(limit)
+def get_commits(_admin: CurrentAdmin, limit: int = 10, branch: str | None = None):
+    return deploy_service.list_recent_commits(limit, branch)
+
+
+@router.get(ENDPOINTS.DEPLOY.BRANCHES, response_model=BranchesResponse)
+def get_branches(_admin: CurrentAdmin):
+    return deploy_service.list_branches()
 
 
 @router.get(ENDPOINTS.DEPLOY.DETAIL, response_model=DeploymentResponse)
@@ -42,8 +47,10 @@ def new_deployment(
     db: DbSession,
     admin: CurrentAdmin,
 ):
-    log = deploy_service.create_deployment_record(db, body.label, body.description, body.target, admin.email)
-    background_tasks.add_task(deploy_service.run_deploy_job, log.id, body.target)
+    git_ref = body.git_ref.strip()
+    label = body.label.strip() or git_ref
+    log = deploy_service.create_deployment_record(db, git_ref, label, body.description, body.target, admin.email)
+    background_tasks.add_task(deploy_service.run_deploy_job, log.id, git_ref, body.target)
     return log
 
 

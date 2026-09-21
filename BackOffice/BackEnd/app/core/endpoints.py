@@ -18,6 +18,7 @@ class Endpoints:
         NEW = "/new"
         ROLLBACK = "/rollback"
         COMMITS = "/commits"
+        BRANCHES = "/branches"
         DETAIL = "/{deployment_id}"
 
     class DATABASE:

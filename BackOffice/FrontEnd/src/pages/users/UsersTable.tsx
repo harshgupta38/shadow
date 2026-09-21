@@ -154,7 +154,7 @@ export function UsersTable({ icon, title, subtitle, users, loading, error, heade
         </div>
       )}
 
-      {filtered.length > 0 && (
+      {filtered.length > 10 && (
         <Pagination
           page={safePage}
           pageSize={pageSize}

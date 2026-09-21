@@ -49,9 +49,10 @@ export function DashboardPage() {
     hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
   const lastDeployment = deployments[0];
-  const oldestWorkerUptime = health?.workers.length
-    ? Math.max(...health.workers.map((w) => w.uptime_seconds))
-    : null;
+  const knownWorkerUptimes = health?.workers
+    .map((w) => w.uptime_seconds)
+    .filter((s): s is number => s != null) ?? [];
+  const oldestWorkerUptime = knownWorkerUptimes.length ? Math.max(...knownWorkerUptimes) : null;
 
   return (
     <>

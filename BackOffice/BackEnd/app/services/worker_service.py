@@ -57,43 +57,89 @@ def _find_arbiter() -> psutil.Process | None:
     return None
 
 
+def _ppid_map() -> dict[int, int]:
+    """pid -> ppid for every process on the system, read directly rather
+    than through psutil.Process.children() — confirmed in production
+    that call raises psutil.AccessDenied here, because it internally
+    verifies each candidate via create_time(), which needs boot_time()
+    (a *system-wide* read of /proc/stat). /proc/stat is permission-denied
+    on this Termux/Android setup, even though the per-process files this
+    function itself relies on (each pid's own /proc/<pid>/stat) still
+    work fine."""
+    mapping: dict[int, int] = {}
+    for proc in psutil.process_iter(["pid", "ppid"]):
+        try:
+            mapping[proc.info["pid"]] = proc.info["ppid"]
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            continue
+    return mapping
+
+
+def _descendant_pids(root_pid: int, ppid_map: dict[int, int]) -> set[int]:
+    """Every pid whose ppid chain eventually leads back to root_pid — a
+    plain fixed-point search over the ppid map, equivalent to
+    Process.children(recursive=True) but without its internal
+    create_time()-based verification step."""
+    result = {root_pid}
+    changed = True
+    while changed:
+        changed = False
+        for pid, ppid in ppid_map.items():
+            if ppid in result and pid not in result:
+                result.add(pid)
+                changed = True
+    return result
+
+
+def _safe_metric(fn):
+    """Runs one single metric lookup, never letting it take the others
+    down with it — confirmed necessary in production: create_time() (and
+    therefore uptime_seconds) can fail with AccessDenied on a device
+    where cpu_percent() or memory_info() still work fine, or vice versa,
+    depending on exactly which /proc file that device restricts."""
+    try:
+        return fn()
+    except (psutil.NoSuchProcess, psutil.AccessDenied, ProcessLookupError, OSError):
+        return None
+
+
 def get_workers() -> list[dict]:
-    """The uvicorn arbiter plus every worker it forked — found via
-    psutil's own process tree (arbiter.children()), which works
-    identically on every platform, rather than process-group membership.
-    The group-based approach this replaced depended on a pidfile pointing
-    at a real running arbiter AND on setsid/nohup/multiprocessing's spawn
-    preserving process-group inheritance exactly as expected; if either
-    broke, it silently reported zero workers with no way to tell why.
-    Parent/child is a far more direct relationship with nothing else that
-    needs to independently agree.
+    """The uvicorn arbiter plus every worker it forked — found via a
+    manual pid/ppid walk (see _descendant_pids), not psutil's own
+    Process.children(), and not process-group membership either. Both of
+    those alternatives depended on something that turned out to be
+    unreliable in practice: process groups needed a pidfile pointing at a
+    real running arbiter *and* setsid/nohup/multiprocessing's spawn
+    preserving group inheritance exactly right; children() needs
+    create_time(), which 500'd this whole endpoint in production because
+    it needs a /proc/stat read this device denies. Every metric below
+    fails independently for the same reason — a worker whose CPU% can't
+    be read should still show up with its PID and whatever else worked.
     """
     arbiter = _find_arbiter()
     if arbiter is None:
         logger.warning("worker_service: no BackEnd_V2 uvicorn arbiter found on port %s.", _backend_port())
         return []
 
-    try:
-        children = arbiter.children(recursive=True)
-    except psutil.NoSuchProcess:
-        return []
+    pids = _descendant_pids(arbiter.pid, _ppid_map())
 
     workers: list[dict] = []
-    for proc in [arbiter, *children]:
+    for pid in pids:
         try:
-            cpu = proc.cpu_percent(interval=0.1)
-            mem_mb = proc.memory_info().rss / (1024 * 1024)
-            uptime = time.time() - proc.create_time()
-            workers.append({
-                "pid": proc.pid,
-                "cpu_percent": round(cpu, 1),
-                "memory_mb": round(mem_mb, 1),
-                "uptime_seconds": int(uptime),
-            })
-        except (psutil.NoSuchProcess, psutil.AccessDenied, ProcessLookupError, OSError):
+            proc = psutil.Process(pid)
+        except psutil.NoSuchProcess:
             continue
+        cpu = _safe_metric(lambda p=proc: round(p.cpu_percent(interval=0.1), 1))
+        mem_mb = _safe_metric(lambda p=proc: round(p.memory_info().rss / (1024 * 1024), 1))
+        uptime = _safe_metric(lambda p=proc: int(time.time() - p.create_time()))
+        workers.append({
+            "pid": pid,
+            "cpu_percent": cpu,
+            "memory_mb": mem_mb,
+            "uptime_seconds": uptime,
+        })
 
-    workers.sort(key=lambda w: w["uptime_seconds"], reverse=True)
+    workers.sort(key=lambda w: (w["uptime_seconds"] is None, -(w["uptime_seconds"] or 0)))
     return workers
 
 

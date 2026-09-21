@@ -108,9 +108,10 @@ export function ServerPage() {
     }
   }
 
-  const oldestWorkerUptime = health?.workers.length
-    ? Math.max(...health.workers.map((w) => w.uptime_seconds))
-    : null;
+  const knownWorkerUptimes = health?.workers
+    .map((w) => w.uptime_seconds)
+    .filter((s): s is number => s != null) ?? [];
+  const oldestWorkerUptime = knownWorkerUptimes.length ? Math.max(...knownWorkerUptimes) : null;
 
   return (
     <>
@@ -274,8 +275,8 @@ export function ServerPage() {
                         {jobRunning ? "Restarting" : "Running"}
                       </span>
                     </td>
-                    <td style={{ color: "var(--jv-muted)" }}>{w.cpu_percent}%</td>
-                    <td style={{ color: "var(--jv-muted)" }}>{w.memory_mb.toFixed(0)} MB</td>
+                    <td style={{ color: "var(--jv-muted)" }}>{w.cpu_percent != null ? `${w.cpu_percent}%` : "—"}</td>
+                    <td style={{ color: "var(--jv-muted)" }}>{w.memory_mb != null ? `${w.memory_mb.toFixed(0)} MB` : "—"}</td>
                     <td style={{ color: "var(--jv-muted)" }}>{formatUptime(w.uptime_seconds)}</td>
                   </tr>
                 ))

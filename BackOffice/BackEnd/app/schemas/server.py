@@ -5,9 +5,13 @@ from pydantic import BaseModel, ConfigDict
 
 class WorkerInfo(BaseModel):
     pid: int
-    cpu_percent: float
-    memory_mb: float
-    uptime_seconds: int
+    # Each of these can fail independently (confirmed in production —
+    # some /proc reads are permission-denied on some Termux/Android
+    # setups) — a worker still shows up with its PID even if none of its
+    # other metrics could be read.
+    cpu_percent: float | None
+    memory_mb: float | None
+    uptime_seconds: int | None
 
 
 class ServerHealthResponse(BaseModel):

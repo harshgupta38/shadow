@@ -127,9 +127,12 @@ export interface DeleteBackupResponse {
 // ─── Server ─────────────────────────────────────────────────────────────────
 export interface WorkerInfo {
   pid: number;
-  cpu_percent: number;
-  memory_mb: number;
-  uptime_seconds: number;
+  // Each can fail independently (some /proc reads are permission-denied
+  // on some Termux/Android setups) — a worker still shows up with its
+  // PID even if none of its other metrics could be read.
+  cpu_percent: number | null;
+  memory_mb: number | null;
+  uptime_seconds: number | null;
 }
 
 export interface ServerHealth {

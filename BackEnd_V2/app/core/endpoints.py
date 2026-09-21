@@ -6,13 +6,23 @@ class Endpoints:
     class SYSTEM:
         ROOT = "/"
         HEALTH = "/health"
-        SERVER_LOG = "/server/log"
-        ADMIN_SQL = "/admin/sql"
-        ADMIN_DATABASE = "/admin/database" # extra
-        ADMIN_BACKUPS = "/admin/backups"
-        ADMIN_BACKUP_FILE = "/admin/backups/{filename}"
-        ADMIN_BACKUP_RESTORE = "/admin/backups/{filename}/restore"
-        ADMIN_BACKUP_QUERY = "/admin/backups/{filename}/query"
+
+    # Every route under this prefix (app/api/admin.py) is gated by
+    # X-Admin-Secret and exists solely for BackOffice — Shadow's own admin
+    # panel — to call; BackEnd_V2 itself and its real end users never hit
+    # these. Kept in its own class (not SYSTEM above, which the Control
+    # Server and BackOffice both call) so the BackOffice-only surface area
+    # reads as one deliberate group, same PREFIX + relative-path shape
+    # every other feature module here already uses.
+    class ADMIN:
+        PREFIX = "/admin"
+        LOG_WS = "/logs/ws"
+        SQL = "/sql"
+        DATABASE = "/database"
+        BACKUPS = "/backups"
+        BACKUP_FILE = "/backups/{filename}"
+        BACKUP_RESTORE = "/backups/{filename}/restore"
+        BACKUP_QUERY = "/backups/{filename}/query"
 
     class SHORTCUTS:
         PREFIX = "/shortcuts"

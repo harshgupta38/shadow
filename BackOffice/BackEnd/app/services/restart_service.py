@@ -9,6 +9,7 @@ callers should treat "restart worker" and "restart server" as the same
 action against this backend.
 """
 
+import json
 import time
 from datetime import datetime, timezone
 
@@ -21,6 +22,52 @@ from app.models.restart_log import RestartLogDBM
 from app.services import shadow_client
 
 _client = httpx.Client(timeout=60.0)
+
+
+def _control_response_text(resp: httpx.Response) -> str:
+    """Unwraps the Control Server's {"returncode", "output"} JSON body into
+    the restart transcript it actually contains, the same way
+    deploy_service._append_control_response does — resp.text alone shows
+    the raw JSON with the transcript's own newlines escaped as literal
+    backslash-n instead of real line breaks."""
+    try:
+        data = resp.json()
+    except ValueError:
+        return resp.text
+    if isinstance(data, dict) and "output" in data:
+        suffix = f"\n(exit code {data['returncode']})" if "returncode" in data else ""
+        return data["output"] + suffix
+    if isinstance(data, dict) and "detail" in data:
+        return str(data["detail"])
+    return json.dumps(data, indent=2)
+
+
+def get_server_uptime_seconds(db: Session) -> int | None:
+    """How long BackEnd_V2 has likely been running, computed from
+    BackOffice's own restart history rather than measured directly —
+    psutil.Process.create_time() is confirmed permission-denied on at
+    least one real device (needs a /proc/stat read that device refuses),
+    so this exists as the fallback. Only as accurate as BackOffice's own
+    record of restarts it triggered: a restart from anywhere else (a
+    deploy, something manual on the device, Android killing the process)
+    isn't reflected here, so this can overstate the real uptime. Only
+    "success"/"unknown" restarts count — "failed" means the request to
+    the control server itself errored, which doesn't necessarily mean
+    anything actually restarted.
+    """
+    log = (
+        db.query(RestartLogDBM)
+        .filter(RestartLogDBM.status.in_(["success", "unknown"]), RestartLogDBM.completed_at.isnot(None))
+        .order_by(RestartLogDBM.completed_at.desc())
+        .first()
+    )
+    if log is None or log.completed_at is None:
+        return None
+    # SQLite round-trips DateTime columns as naive — completed_at was
+    # written as datetime.now(timezone.utc), so it's UTC even though the
+    # tzinfo itself didn't survive the round trip.
+    completed_at = log.completed_at.replace(tzinfo=timezone.utc)
+    return max(0, int((datetime.now(timezone.utc) - completed_at).total_seconds()))
 
 
 def create_restart_record(db: Session, initiated_by: str) -> RestartLogDBM:
@@ -46,7 +93,7 @@ def run_restart_job(restart_id: int) -> None:
                 f"{settings.control_server_url}/control/main/restart",
                 headers={"X-Control-Secret": settings.control_secret},
             )
-            log.log_output = f"control server responded: {resp.status_code}\n{resp.text}"
+            log.log_output = f"control server responded: {resp.status_code}\n{_control_response_text(resp)}"
             if resp.status_code >= 400:
                 log.status = "failed"
                 log.completed_at = datetime.now(timezone.utc)

@@ -10,7 +10,7 @@ const COLLAPSE_BREAKPOINT = "(max-width: 1024px)";
 
 // Pages too complex for the normal padded/max-width page shell — they get
 // the full viewport below the topbar instead (see .app-content-full).
-const FULL_BLEED_ROUTES: readonly string[] = [ROUTES.SHADOW_DATABASE];
+const FULL_BLEED_ROUTES: readonly string[] = [ROUTES.SHADOW_DATABASE, ROUTES.SHADOW_LOGS];
 
 export function AppLayout() {
   const location = useLocation();

@@ -1,10 +1,10 @@
 import { http } from "./client";
 import { ENDPOINTS } from "@/constant/bo-endpoints";
-import type { AuthUser, LoginRequest } from "./types";
+import type { AuthUser, LoginRequest, LoginResponse } from "./types";
 
 export const authApi = {
-  async login(data: LoginRequest): Promise<AuthUser> {
-    return http.post<AuthUser>(ENDPOINTS.AUTH.LOGIN, data);
+  async login(data: LoginRequest): Promise<LoginResponse> {
+    return http.post<LoginResponse>(ENDPOINTS.AUTH.LOGIN, data);
   },
   async me(): Promise<AuthUser> {
     return http.get<AuthUser>(ENDPOINTS.AUTH.ME);

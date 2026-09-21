@@ -5,9 +5,13 @@ from pydantic import BaseModel, ConfigDict
 
 class WorkerInfo(BaseModel):
     pid: int
-    cpu_percent: float
-    memory_mb: float
-    uptime_seconds: int
+    # Each of these can fail independently (confirmed in production —
+    # some /proc reads are permission-denied on some Termux/Android
+    # setups) — a worker still shows up with its PID even if none of its
+    # other metrics could be read.
+    cpu_percent: float | None
+    memory_mb: float | None
+    uptime_seconds: int | None
 
 
 class ServerHealthResponse(BaseModel):
@@ -15,6 +19,9 @@ class ServerHealthResponse(BaseModel):
     message: str | None = None
 
     cpu_percent: float | None = None
+    # [1min, 5min, 15min] load average — a second, independent CPU signal
+    # (reads /proc/loadavg directly) alongside cpu_percent above.
+    load_average: list[float] | None = None
     memory_used_mb: float | None = None
     memory_total_mb: float | None = None
     memory_percent: float | None = None
@@ -25,8 +32,19 @@ class ServerHealthResponse(BaseModel):
     battery_percent: int | None = None
     battery_status: str | None = None
     battery_temperature_c: float | None = None
+    battery_plugged: str | None = None
 
     workers: list[WorkerInfo] = []
+    # The uvicorn arbiter's own --workers flag (BackEnd_V2's config, via
+    # /health) — compared against len(workers) above (this process's own
+    # psutil count) to tell "fewer workers than intended" apart from
+    # "this server only ever runs N."
+    expected_workers: int | None = None
+    # Computed from BackOffice's own restart history, not measured
+    # directly — see restart_service.get_server_uptime_seconds for why
+    # (psutil.Process.create_time() is confirmed permission-denied on at
+    # least one real device).
+    server_uptime_seconds: int | None = None
 
 
 class RestartResponse(BaseModel):

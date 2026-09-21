@@ -12,10 +12,10 @@ import { StatCard } from "@/components/ui/StatCard/StatCard";
 import { api, ApiError } from "@/api";
 import type { RestartLog, ServerHealth } from "@/api";
 import { formatDateTime, statusLabel, statusVariant, formatUptime } from "@/lib/format";
-import { LiveLogTail } from "./LiveLogTail";
 
-const HEALTH_POLL_MS = 6000;
 const RESTART_POLL_MS = 1500;
+const HEALTH_WS_BASE_RECONNECT_MS = 3000;
+const HEALTH_WS_MAX_RECONNECT_MS = 30000;
 
 function InfoItem({ label, value }: { label: string; value: string }) {
   return (
@@ -41,13 +41,58 @@ export function ServerPage() {
   const logBodyRef = useRef<HTMLDivElement>(null);
   const jobRunning = activeJob !== null && activeJob.status === "running";
 
-  async function loadHealth() {
-    try {
-      const h = await api.server.health();
-      setHealth(h);
-      setHealthError(null);
-    } catch (err) {
-      setHealthError(err instanceof ApiError ? err.message : "Could not reach the BackOffice API.");
+  // The live health feed — the backend pushes a fresh snapshot every few
+  // seconds over this instead of the page polling GET /server/health on a
+  // timer (each poll ran real psutil process-scanning plus a request to
+  // BackEnd_V2, whether or not anything had actually changed). Unlike
+  // EventSource, plain WebSocket doesn't reconnect on its own, so that's
+  // handled explicitly below — with backoff, since retrying instantly
+  // forever during a real outage would just be a different flavor of the
+  // same "spamming the server" problem this replaced.
+  const healthWsRef = useRef<WebSocket | null>(null);
+  const healthReconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const healthReconnectAttemptRef = useRef(0);
+  // ws.onclose fires asynchronously — after the unmount cleanup below has
+  // already called .close() and returned, the component is already gone.
+  // Without this flag, onclose would still schedule a reconnect into a
+  // socket nothing is left to ever close again, leaving it (and the
+  // /health polling it drives) running forever after navigating away.
+  const healthWsStoppedRef = useRef(false);
+
+  function connectHealthWs() {
+    const ws = new WebSocket(api.server.healthWsUrl(), api.server.healthWsProtocols());
+    healthWsRef.current = ws;
+
+    ws.onopen = () => {
+      healthReconnectAttemptRef.current = 0;
+    };
+    ws.onmessage = (e) => {
+      try {
+        setHealth(JSON.parse(e.data));
+        setHealthError(null);
+      } catch {
+        // malformed frame — the next push a few seconds from now corrects it
+      }
+    };
+    ws.onerror = () => {
+      setHealthError("Lost connection to the live health feed — reconnecting…");
+    };
+    ws.onclose = () => {
+      healthWsRef.current = null;
+      if (healthWsStoppedRef.current) return;
+      const attempt = healthReconnectAttemptRef.current;
+      const delay = Math.min(HEALTH_WS_BASE_RECONNECT_MS * 2 ** attempt, HEALTH_WS_MAX_RECONNECT_MS);
+      healthReconnectAttemptRef.current = attempt + 1;
+      healthReconnectTimerRef.current = setTimeout(connectHealthWs, delay);
+    };
+  }
+
+  // Nudges the feed to push a fresh snapshot right away instead of
+  // waiting for its next scheduled tick — sending anything at all makes
+  // the backend's wait-for-the-next-tick timeout resolve immediately.
+  function requestHealthRefresh() {
+    if (healthWsRef.current?.readyState === WebSocket.OPEN) {
+      healthWsRef.current.send("refresh");
     }
   }
 
@@ -61,11 +106,12 @@ export function ServerPage() {
   }
 
   useEffect(() => {
-    loadHealth();
+    connectHealthWs();
     loadHistory();
-    const interval = setInterval(loadHealth, HEALTH_POLL_MS);
     return () => {
-      clearInterval(interval);
+      healthWsStoppedRef.current = true;
+      if (healthReconnectTimerRef.current) clearTimeout(healthReconnectTimerRef.current);
+      healthWsRef.current?.close();
       if (restartPollRef.current) clearInterval(restartPollRef.current);
     };
   }, []);
@@ -83,7 +129,7 @@ export function ServerPage() {
         if (record.status !== "running") {
           clearInterval(restartPollRef.current!);
           restartPollRef.current = null;
-          loadHealth();
+          requestHealthRefresh();
           loadHistory();
         }
       } catch {
@@ -103,10 +149,6 @@ export function ServerPage() {
     }
   }
 
-  const oldestWorkerUptime = health?.workers.length
-    ? Math.max(...health.workers.map((w) => w.uptime_seconds))
-    : null;
-
   return (
     <>
       <PageHeader
@@ -119,6 +161,7 @@ export function ServerPage() {
           icon: <ArrowClockwise size={15} />,
           onClick: () => setShowRestartModal(true),
           disabled: jobRunning,
+          variant: "soft",
         }]}
       />
 
@@ -135,9 +178,17 @@ export function ServerPage() {
         />
         <StatCard
           variant="success"
-          value={fmtPercent(health?.cpu_percent ?? null)}
+          value={
+            health?.cpu_percent != null ? fmtPercent(health.cpu_percent)
+            : health?.load_average?.[0] != null ? `${health.load_average[0].toFixed(2)} load`
+            : "Unavailable"
+          }
           name="CPU Load"
-          hint={health ? `${health.workers.length} worker${health.workers.length === 1 ? "" : "s"} active` : "—"}
+          hint={
+            !health ? "—"
+            : `${health.workers.length} worker${health.workers.length === 1 ? "" : "s"} active` +
+              (health.load_average ? ` · load avg ${health.load_average.join(" / ")}` : "")
+          }
         />
         <StatCard
           variant="info"
@@ -197,8 +248,16 @@ export function ServerPage() {
             <InfoItem label="Disk Usage" value={fmtPercent(health?.disk_percent ?? null)} />
             <InfoItem label="Battery Status" value={health?.battery_status ?? "Unavailable"} />
             <InfoItem label="Battery Temp" value={health?.battery_temperature_c != null ? `${health.battery_temperature_c}°C` : "Unavailable"} />
-            <InfoItem label="Server Uptime" value={formatUptime(oldestWorkerUptime)} />
-            <InfoItem label="Workers Running" value={health ? String(health.workers.length) : "—"} />
+            <InfoItem label="Power Source" value={health?.battery_plugged ?? "Unavailable"} />
+            <InfoItem label="Server Uptime" value={formatUptime(health?.server_uptime_seconds ?? null)} />
+            <InfoItem
+              label="Workers Running"
+              value={
+                !health ? "—"
+                : health.expected_workers != null ? `${health.workers.length} of ${health.expected_workers}`
+                : String(health.workers.length)
+              }
+            />
           </div>
         </div>
       </div>
@@ -235,8 +294,8 @@ export function ServerPage() {
                         {jobRunning ? "Restarting" : "Running"}
                       </span>
                     </td>
-                    <td style={{ color: "var(--jv-muted)" }}>{w.cpu_percent}%</td>
-                    <td style={{ color: "var(--jv-muted)" }}>{w.memory_mb.toFixed(0)} MB</td>
+                    <td style={{ color: "var(--jv-muted)" }}>{w.cpu_percent != null ? `${w.cpu_percent}%` : "—"}</td>
+                    <td style={{ color: "var(--jv-muted)" }}>{w.memory_mb != null ? `${w.memory_mb.toFixed(0)} MB` : "—"}</td>
                     <td style={{ color: "var(--jv-muted)" }}>{formatUptime(w.uptime_seconds)}</td>
                   </tr>
                 ))
@@ -284,11 +343,6 @@ export function ServerPage() {
             </tbody>
           </table>
         </div>
-      </div>
-
-      <div className="server-section">
-        <h2 className="server-section-title">Live Log Tail</h2>
-        <LiveLogTail />
       </div>
 
       <Modal show={showRestartModal} onHide={() => setShowRestartModal(false)} centered className="deploy-modal">

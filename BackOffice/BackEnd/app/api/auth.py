@@ -1,40 +1,31 @@
-from fastapi import APIRouter, Response
+from fastapi import APIRouter
 
-from app.api.deps import COOKIE_NAME, CurrentAdmin, DbSession
+from app.api.deps import CurrentAdmin, DbSession
 from app.core import security
-from app.core.config import settings
 from app.core.endpoints import ENDPOINTS
-from app.schemas.auth import AdminUserResponse, LoginRequest
+from app.schemas.auth import AdminUserResponse, LoginRequest, LoginResponse
 from app.services import auth_service
 
 router = APIRouter(prefix=ENDPOINTS.AUTH.PREFIX, tags=["Authentication"])
 
-# secure is derived from same_site, matching BackEnd_V2's own convention:
-# SameSite=None is only honored by browsers when Secure=True.
-_COOKIE_OPTS: dict = dict(
-    httponly=True,
-    samesite=settings.same_site,
-    secure=settings.same_site == "none",
-    path="/",
-)
 
-
-@router.post(ENDPOINTS.AUTH.LOGIN, response_model=AdminUserResponse)
-def login(body: LoginRequest, response: Response, db: DbSession):
+@router.post(ENDPOINTS.AUTH.LOGIN, response_model=LoginResponse)
+def login(body: LoginRequest, db: DbSession):
     admin = auth_service.authenticate(db, body.email, body.password)
     token = security.create_access_token(admin.id)
-    response.set_cookie(
-        key=COOKIE_NAME,
-        value=token,
-        max_age=settings.access_token_expire_minutes * 60,
-        **_COOKIE_OPTS,
-    )
-    return admin
+    # Handed back in the body, not a Set-Cookie — the frontend (Firebase
+    # Hosting) and this API are different origins, so a cookie here is a
+    # third-party cookie that Chrome Incognito and mobile Safari block
+    # outright regardless of SameSite. The frontend stores this itself and
+    # attaches it as a Bearer header, which has no such policy to run into.
+    return LoginResponse(admin=admin, access_token=token)
 
 
 @router.post(ENDPOINTS.AUTH.LOGOUT)
-def logout(response: Response):
-    response.delete_cookie(key=COOKIE_NAME, path="/")
+def logout():
+    # Stateless JWTs — there's no server-side session to invalidate, this
+    # just gives the frontend a symmetrical endpoint to call; it's the
+    # frontend discarding its own stored token that actually logs out.
     return {"message": "Logged out."}
 
 

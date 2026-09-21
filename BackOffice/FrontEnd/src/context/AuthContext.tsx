@@ -9,6 +9,7 @@ import {
 } from "react";
 import { api } from "@/api";
 import type { AuthUser, LoginRequest } from "@/api";
+import { clearToken, getToken, setToken } from "@/lib/auth-token";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export type AuthStatus = "loading" | "authenticated" | "unauthenticated";
@@ -29,8 +30,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [status, setStatus] = useState<AuthStatus>("loading");
 
-  // Restore session on mount
+  // Restore session on mount — skipped entirely with no stored token
+  // (first visit, or after a logout) rather than firing /auth/me just to
+  // watch it 401: one less pointless round trip, and one less in-flight
+  // request that could theoretically still straddle a fast login even
+  // with client.ts's own race guard already covering that case.
   useEffect(() => {
+    if (!getToken()) {
+      setStatus("unauthenticated");
+      return;
+    }
     api.auth
       .me()
       .then((u) => {
@@ -53,14 +62,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(async (data: LoginRequest): Promise<AuthUser> => {
-    const u = await api.auth.login(data);
-    setUser(u);
+    const { admin, access_token } = await api.auth.login(data);
+    setToken(access_token);
+    setUser(admin);
     setStatus("authenticated");
-    return u;
+    return admin;
   }, []);
 
   const logout = useCallback(() => {
     api.auth.logout().catch(() => {});
+    clearToken();
     setUser(null);
     setStatus("unauthenticated");
   }, []);

@@ -1,5 +1,6 @@
-import axios, { type AxiosRequestConfig } from "axios";
+import axios, { type AxiosRequestConfig, type InternalAxiosRequestConfig } from "axios";
 import { ENDPOINTS } from "@/constant/bo-endpoints";
+import { clearToken, getToken } from "@/lib/auth-token";
 
 // ─── ApiError ────────────────────────────────────────────────────────────────
 export class ApiError extends Error {
@@ -43,19 +44,51 @@ function normaliseError(err: unknown): ApiError {
 }
 
 // ─── Axios instance ───────────────────────────────────────────────────────────
-const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/api";
+// Exported for WebSocket-based streaming endpoints (e.g. server.ts's
+// healthWsUrl/logWsUrl) — axios's own baseURL config isn't usable there,
+// since WebSocket is a plain browser API that just takes a URL string,
+// not an axios request config.
+export const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/api";
 const TIMEOUT = Number(import.meta.env.VITE_API_TIMEOUT_SECONDS ?? 30) * 1000;
 
 const PUBLIC_PATHS = [ENDPOINTS.AUTH.LOGIN];
 
+// A request carries the token it was *sent* with here, so the 401 handler
+// below can tell "this exact session died" apart from "a newer session
+// started while this old request was still in flight." Without that
+// distinction: AuthContext fires a no-token /auth/me on every app load to
+// check for an existing session, which is *expected* to 401 when there
+// isn't one — if that request is slow (real network latency to a
+// Termux-hosted backend, not the near-zero latency of local testing) and
+// a login completes before it resolves, its stale 401 arrives after the
+// brand new token has already been stored, and would otherwise wipe out
+// that valid token moments before the freshly-loaded dashboard's own
+// requests go out — exactly "login returns a token, then every request
+// right after has none."
+interface RequestConfigWithTokenSnapshot extends InternalAxiosRequestConfig {
+  _tokenAtRequestTime?: string | null;
+}
+
 const httpClient = axios.create({
   baseURL: BASE_URL,
   timeout: TIMEOUT,
-  withCredentials: true,
   headers: {
     "Content-Type": "application/json",
     "X-Requested-With": "XMLHttpRequest",
   },
+});
+
+// Bearer header, not a cookie — see auth-token.ts for why. Attached here
+// rather than per-call so every existing api.* call keeps working
+// unchanged; a request made before login (or after the token's cleared)
+// just goes out without the header and gets the usual 401.
+httpClient.interceptors.request.use((config: RequestConfigWithTokenSnapshot) => {
+  const token = getToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  config._tokenAtRequestTime = token;
+  return config;
 });
 
 httpClient.interceptors.response.use(
@@ -63,7 +96,10 @@ httpClient.interceptors.response.use(
   (err) => {
     const url: string = (err.config?.url as string) ?? "";
     const isPublic = PUBLIC_PATHS.some((p) => url.includes(p));
-    if (err.response?.status === 401 && !isPublic) {
+    const tokenAtRequestTime = (err.config as RequestConfigWithTokenSnapshot | undefined)?._tokenAtRequestTime;
+    const sessionUnchangedSinceThisRequest = tokenAtRequestTime === getToken();
+    if (err.response?.status === 401 && !isPublic && sessionUnchangedSinceThisRequest) {
+      clearToken();
       window.dispatchEvent(new Event("unauthorized"));
     }
     return Promise.reject(normaliseError(err));

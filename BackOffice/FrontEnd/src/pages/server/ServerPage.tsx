@@ -14,13 +14,10 @@ import { StatCard } from "@/components/ui/StatCard/StatCard";
 import { api, ApiError } from "@/api";
 import type { RestartLog, ServerHealth } from "@/api";
 import { formatDateTime, statusLabel, statusVariant, formatUptime } from "@/lib/format";
-import { LiveLogTail } from "./LiveLogTail";
 
-// Every poll runs psutil process/CPU sampling on BackOffice's side plus a
-// request to BackEnd_V2 — 6s was hammering a server running on a phone for
-// data that doesn't meaningfully change that often.
-const HEALTH_POLL_MS = 15000;
 const RESTART_POLL_MS = 1500;
+const HEALTH_WS_BASE_RECONNECT_MS = 3000;
+const HEALTH_WS_MAX_RECONNECT_MS = 30000;
 
 function InfoItem({ label, value }: { label: string; value: string }) {
   return (
@@ -46,13 +43,51 @@ export function ServerPage() {
   const logBodyRef = useRef<HTMLDivElement>(null);
   const jobRunning = activeJob !== null && activeJob.status === "running";
 
-  async function loadHealth() {
-    try {
-      const h = await api.server.health();
-      setHealth(h);
-      setHealthError(null);
-    } catch (err) {
-      setHealthError(err instanceof ApiError ? err.message : "Could not reach the BackOffice API.");
+  // The live health feed — the backend pushes a fresh snapshot every few
+  // seconds over this instead of the page polling GET /server/health on a
+  // timer (each poll ran real psutil process-scanning plus a request to
+  // BackEnd_V2, whether or not anything had actually changed). Unlike
+  // EventSource, plain WebSocket doesn't reconnect on its own, so that's
+  // handled explicitly below — with backoff, since retrying instantly
+  // forever during a real outage would just be a different flavor of the
+  // same "spamming the server" problem this replaced.
+  const healthWsRef = useRef<WebSocket | null>(null);
+  const healthReconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const healthReconnectAttemptRef = useRef(0);
+
+  function connectHealthWs() {
+    const ws = new WebSocket(api.server.healthWsUrl());
+    healthWsRef.current = ws;
+
+    ws.onopen = () => {
+      healthReconnectAttemptRef.current = 0;
+    };
+    ws.onmessage = (e) => {
+      try {
+        setHealth(JSON.parse(e.data));
+        setHealthError(null);
+      } catch {
+        // malformed frame — the next push a few seconds from now corrects it
+      }
+    };
+    ws.onerror = () => {
+      setHealthError("Lost connection to the live health feed — reconnecting…");
+    };
+    ws.onclose = () => {
+      healthWsRef.current = null;
+      const attempt = healthReconnectAttemptRef.current;
+      const delay = Math.min(HEALTH_WS_BASE_RECONNECT_MS * 2 ** attempt, HEALTH_WS_MAX_RECONNECT_MS);
+      healthReconnectAttemptRef.current = attempt + 1;
+      healthReconnectTimerRef.current = setTimeout(connectHealthWs, delay);
+    };
+  }
+
+  // Nudges the feed to push a fresh snapshot right away instead of
+  // waiting for its next scheduled tick — sending anything at all makes
+  // the backend's wait-for-the-next-tick timeout resolve immediately.
+  function requestHealthRefresh() {
+    if (healthWsRef.current?.readyState === WebSocket.OPEN) {
+      healthWsRef.current.send("refresh");
     }
   }
 
@@ -66,11 +101,11 @@ export function ServerPage() {
   }
 
   useEffect(() => {
-    loadHealth();
+    connectHealthWs();
     loadHistory();
-    const interval = setInterval(loadHealth, HEALTH_POLL_MS);
     return () => {
-      clearInterval(interval);
+      if (healthReconnectTimerRef.current) clearTimeout(healthReconnectTimerRef.current);
+      healthWsRef.current?.close();
       if (restartPollRef.current) clearInterval(restartPollRef.current);
     };
   }, []);
@@ -88,7 +123,7 @@ export function ServerPage() {
         if (record.status !== "running") {
           clearInterval(restartPollRef.current!);
           restartPollRef.current = null;
-          loadHealth();
+          requestHealthRefresh();
           loadHistory();
         }
       } catch {
@@ -324,11 +359,6 @@ export function ServerPage() {
             </tbody>
           </table>
         </div>
-      </div>
-
-      <div className="server-section">
-        <h2 className="server-section-title">Live Log Tail</h2>
-        <LiveLogTail />
       </div>
 
       <Modal show={showRestartModal} onHide={() => setShowRestartModal(false)} centered className="deploy-modal">

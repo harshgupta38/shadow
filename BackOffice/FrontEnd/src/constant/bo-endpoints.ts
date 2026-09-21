@@ -28,6 +28,7 @@ export const ENDPOINTS = {
   },
   SERVER: {
     HEALTH:          "/server/health",
+    HEALTH_WS:       "/server/health/ws",
     WORKERS:         "/server/workers",
     LOG_STREAM:      "/server/log/stream",
     RESTART:         "/server/restart",

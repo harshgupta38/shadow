@@ -2509,10 +2509,6 @@ h1, h2, h3, h4, h5, h6, .display-font {
   margin: 0 0 0.9rem;
 }
 
-.server-log-line--warn {
-  color: var(--jv-warn) !important;
-}
-
 // ── Toasts (ToastContext.tsx) ──────────────────────────────────────────────────
 .toast-viewport {
   position: fixed;

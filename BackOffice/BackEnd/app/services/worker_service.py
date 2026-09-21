@@ -212,6 +212,7 @@ def get_battery() -> dict | None:
         data = subprocess.check_output(["termux-battery-status"], timeout=5)
         return json.loads(data)
     except Exception:
+        logger.exception("worker_service: termux-battery-status failed.")
         return None
 
 
@@ -228,11 +229,28 @@ def get_wifi_info() -> dict | None:
     connection) — the response's own supplicant_state would say
     "DISCONNECTED" rather than the call failing outright, so the caller
     checks that too.
+
+    Note: termux-wifi-connectioninfo needs Termux:API's own Android app
+    to hold the location permission (Android requires it to read WiFi
+    SSID/BSSID on modern versions) — without it, this call has been
+    observed to hang until it times out rather than failing immediately,
+    since the permission prompt it's waiting on never gets answered
+    headless. If this keeps timing out, check that permission on the
+    device directly; there's nothing this process can do about an
+    Android permission dialog from here.
     """
     try:
-        data = json.loads(subprocess.check_output(["termux-wifi-connectioninfo"], timeout=5))
+        raw = subprocess.check_output(["termux-wifi-connectioninfo"], timeout=5)
     except Exception:
+        logger.exception("worker_service: termux-wifi-connectioninfo failed.")
         return None
-    if data.get("supplicant_state") != "COMPLETED":
+    try:
+        data = json.loads(raw)
+    except ValueError:
+        logger.error("worker_service: termux-wifi-connectioninfo returned non-JSON output: %r", raw[:200])
+        return None
+    state = data.get("supplicant_state")
+    if state != "COMPLETED":
+        logger.info("worker_service: not on WiFi (supplicant_state=%r).", state)
         return None
     return data

@@ -37,6 +37,7 @@ class Endpoints:
     class SERVER:
         PREFIX = "/server"
         HEALTH = "/health"
+        HEALTH_WS = "/health/ws"
         WORKERS = "/workers"
         LOG_STREAM = "/log/stream"
         RESTART = "/restart"

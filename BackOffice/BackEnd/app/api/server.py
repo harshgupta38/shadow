@@ -1,18 +1,35 @@
-from fastapi import APIRouter, BackgroundTasks
+import asyncio
+import logging
+
+from fastapi import APIRouter, BackgroundTasks, WebSocket, WebSocketDisconnect
 from fastapi.responses import StreamingResponse
 
-from app.api.deps import CurrentAdmin, DbSession
+from app.api.deps import COOKIE_NAME, CurrentAdmin, DbSession
+from app.core import security
 from app.core.endpoints import ENDPOINTS
 from app.core.exceptions import NotFoundError
+from app.db.session import SessionLocal
 from app.models.restart_log import RestartLogDBM
 from app.schemas.server import RestartResponse, ServerHealthResponse
-from app.services import restart_service, shadow_client, worker_service
+from app.services import auth_service, restart_service, shadow_client, worker_service
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix=ENDPOINTS.SERVER.PREFIX, tags=["Server"])
 
+# How often health_ws pushes a snapshot, and how long one connection is
+# allowed to stay open before the server closes it (the frontend
+# reconnects) — same capped-session convention BackEnd_V2's own SSE
+# streams already use, so a stalled/orphaned client can't pin resources
+# on a phone indefinitely.
+_HEALTH_PUSH_INTERVAL_S = 5.0
+_HEALTH_WS_MAX_DURATION_S = 20 * 60
 
-@router.get(ENDPOINTS.SERVER.HEALTH, response_model=ServerHealthResponse)
-def get_health(_admin: CurrentAdmin):
+
+def _build_health_response() -> ServerHealthResponse:
+    """The full health snapshot — shared by the plain GET (Dashboard's
+    one-time fetch on load) and the websocket push below (the Server
+    page's live view), so there's exactly one place assembling this."""
     shadow_health = shadow_client.check_health()
     host = worker_service.get_host_stats()
     battery = worker_service.get_battery() or {}
@@ -34,6 +51,62 @@ def get_health(_admin: CurrentAdmin):
         expected_workers=(shadow_health or {}).get("expected_workers"),
         **host,
     )
+
+
+@router.get(ENDPOINTS.SERVER.HEALTH, response_model=ServerHealthResponse)
+def get_health(_admin: CurrentAdmin):
+    return _build_health_response()
+
+
+def _authenticate_ws(websocket: WebSocket) -> bool:
+    """Same cookie/JWT check as CurrentAdmin (app.api.deps.get_current_admin)
+    — that dependency is typed against a plain HTTP Request, which a
+    websocket connection doesn't have, so this re-implements the same
+    check against WebSocket.cookies instead of trying to make one
+    dependency serve both kinds of route."""
+    token = websocket.cookies.get(COOKIE_NAME)
+    if not token:
+        return False
+    try:
+        payload = security.decode_access_token(token)
+        admin_id = int(payload.get("sub", ""))
+    except (security.JWTError, TypeError, ValueError):
+        return False
+    with SessionLocal() as db:
+        admin = auth_service.get_admin_by_id(db, admin_id)
+        return admin is not None and admin.is_active
+
+
+@router.websocket(ENDPOINTS.SERVER.HEALTH_WS)
+async def health_ws(websocket: WebSocket):
+    """Pushes a health snapshot every few seconds instead of the Server
+    page polling GET /server/health on a timer — every poll ran real
+    psutil process-scanning plus a request to BackEnd_V2 regardless of
+    whether anything had actually changed, which on a phone-hosted
+    server is cost worth avoiding.
+    """
+    await websocket.accept()
+    if not _authenticate_ws(websocket):
+        await websocket.close(code=4401, reason="Not authenticated")
+        return
+
+    elapsed = 0.0
+    try:
+        while elapsed < _HEALTH_WS_MAX_DURATION_S:
+            # _build_health_response() is a blocking call (psutil, subprocess) —
+            # run it off the event loop so it can't stall every other request
+            # this process is handling while it waits on a slow/hanging one.
+            snapshot = await asyncio.to_thread(_build_health_response)
+            await websocket.send_text(snapshot.model_dump_json())
+            try:
+                await asyncio.wait_for(websocket.receive_text(), timeout=_HEALTH_PUSH_INTERVAL_S)
+            except asyncio.TimeoutError:
+                pass  # normal tick — no message expected, just using the timeout as our clock
+            elapsed += _HEALTH_PUSH_INTERVAL_S
+    except WebSocketDisconnect:
+        pass
+    except Exception:
+        logger.exception("health_ws: unexpected error, closing connection.")
 
 
 @router.get(ENDPOINTS.SERVER.WORKERS)

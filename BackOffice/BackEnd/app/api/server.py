@@ -91,6 +91,17 @@ async def health_ws(websocket: WebSocket):
         return
 
     elapsed = 0.0
+    # A single long-lived receive_text() task, reused across ticks instead of
+    # re-wrapped in a fresh asyncio.wait_for() each time: wait_for cancels its
+    # inner coroutine the instant its timeout fires, and if the client's
+    # disconnect happens to arrive right at that boundary, the cancellation
+    # can win the race and the one-shot ASGI disconnect message is lost —
+    # confirmed in practice as an extra full tick of pushes (a real request
+    # to BackEnd_V2) still going out after the browser had already left, only
+    # noticed on the *next* tick's receive call. asyncio.wait below never
+    # cancels recv_task, so a disconnect arriving mid-tick is caught the
+    # moment it happens instead of being delayed to the next tick boundary.
+    recv_task = asyncio.ensure_future(websocket.receive_text())
     try:
         while elapsed < _HEALTH_WS_MAX_DURATION_S:
             # _build_health_response() is a blocking call (psutil, subprocess) —
@@ -98,15 +109,20 @@ async def health_ws(websocket: WebSocket):
             # this process is handling while it waits on a slow/hanging one.
             snapshot = await asyncio.to_thread(_build_health_response)
             await websocket.send_text(snapshot.model_dump_json())
-            try:
-                await asyncio.wait_for(websocket.receive_text(), timeout=_HEALTH_PUSH_INTERVAL_S)
-            except asyncio.TimeoutError:
-                pass  # normal tick — no message expected, just using the timeout as our clock
+
+            done, _ = await asyncio.wait({recv_task}, timeout=_HEALTH_PUSH_INTERVAL_S)
+            if recv_task in done:
+                recv_task.result()  # raises WebSocketDisconnect if that's what happened
+                recv_task = asyncio.ensure_future(websocket.receive_text())  # a real "refresh" nudge — listen again
             elapsed += _HEALTH_PUSH_INTERVAL_S
     except WebSocketDisconnect:
         pass
     except Exception:
         logger.exception("health_ws: unexpected error, closing connection.")
+    finally:
+        recv_task.cancel()
+        with contextlib.suppress(Exception, asyncio.CancelledError):
+            await recv_task
 
 
 @router.get(ENDPOINTS.SERVER.WORKERS)

@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import json
 import logging
 import sqlite3
@@ -135,9 +136,11 @@ async def log_ws(websocket: WebSocket):
     own log_ws (app.api.server, BackEnd_V2's only real client) connects
     here with the same X-Admin-Secret header every other /admin/* call
     uses. Same capped-session convention as health_ws over on
-    BackOffice's side, and the same disconnect-detection trick: awaiting
-    receive_text() with a timeout doubles as both our tick clock and an
-    immediate signal if the client actually hangs up.
+    BackOffice's side — including reusing one long-lived receive_text()
+    task across ticks (see the comment on recv_task there) rather than
+    re-wrapping receive_text() in a fresh asyncio.wait_for() every tick,
+    which can lose the client's one-shot disconnect notification to a
+    cancellation race and delay noticing it by a full extra tick.
     """
     await websocket.accept()
     if websocket.headers.get("x-admin-secret") != settings.admin_secret:
@@ -149,6 +152,7 @@ async def log_ws(websocket: WebSocket):
         await websocket.close()
         return
 
+    recv_task = asyncio.ensure_future(websocket.receive_text())
     try:
         for line in _read_tail_lines(_LOG_PATH, _LOG_SEED_LINES):
             await websocket.send_text(line)
@@ -158,10 +162,11 @@ async def log_ws(websocket: WebSocket):
         while elapsed_s < _LOG_WS_MAX_DURATION_S:
             if _shutdown_event.is_set():
                 break
-            try:
-                await asyncio.wait_for(websocket.receive_text(), timeout=_LOG_WS_TICK_S)
-            except asyncio.TimeoutError:
-                pass  # normal tick — no message expected, just using the timeout as our clock
+
+            done, _ = await asyncio.wait({recv_task}, timeout=_LOG_WS_TICK_S)
+            if recv_task in done:
+                recv_task.result()  # raises WebSocketDisconnect if that's what happened
+                recv_task = asyncio.ensure_future(websocket.receive_text())
             elapsed_s += _LOG_WS_TICK_S
 
             try:
@@ -181,6 +186,10 @@ async def log_ws(websocket: WebSocket):
         pass
     except Exception:
         logger.exception("log_ws: unexpected error while streaming server.log.")
+    finally:
+        recv_task.cancel()
+        with contextlib.suppress(Exception, asyncio.CancelledError):
+            await recv_task
 
 
 @router.get(ENDPOINTS.SYSTEM.ADMIN_DATABASE, tags=["admin"], dependencies=[Depends(require_admin)]) # extra

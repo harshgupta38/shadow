@@ -30,6 +30,11 @@ export function LogsPage() {
   // whichever render triggered that connection.
   const playingRef = useRef(playing);
   playingRef.current = playing;
+  // ws.onclose fires asynchronously — by the time it runs after an unmount,
+  // the component is already gone and nothing re-renders to flip playingRef
+  // to false, so onclose would otherwise still see the last "true" it had
+  // and reconnect into a socket nothing is left to ever close again.
+  const unmountedRef = useRef(false);
 
   useEffect(() => {
     if (!playing) {
@@ -40,6 +45,12 @@ export function LogsPage() {
     return disconnect;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playing]);
+
+  useEffect(() => {
+    return () => {
+      unmountedRef.current = true;
+    };
+  }, []);
 
   function connect() {
     const ws = new WebSocket(api.server.logWsUrl());
@@ -63,7 +74,7 @@ export function LogsPage() {
       // at connect()-time) — reading the ref that useEffect keeps current
       // is what tells a real disconnect apart from our own disconnect()
       // tearing the socket down on pause/unmount.
-      if (playingRef.current) scheduleReconnect();
+      if (!unmountedRef.current && playingRef.current) scheduleReconnect();
     };
     ws.onerror = () => {
       setError("Lost connection to the log stream.");

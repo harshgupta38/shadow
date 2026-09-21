@@ -52,6 +52,12 @@ export function ServerPage() {
   const healthWsRef = useRef<WebSocket | null>(null);
   const healthReconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const healthReconnectAttemptRef = useRef(0);
+  // ws.onclose fires asynchronously — after the unmount cleanup below has
+  // already called .close() and returned, the component is already gone.
+  // Without this flag, onclose would still schedule a reconnect into a
+  // socket nothing is left to ever close again, leaving it (and the
+  // /health polling it drives) running forever after navigating away.
+  const healthWsStoppedRef = useRef(false);
 
   function connectHealthWs() {
     const ws = new WebSocket(api.server.healthWsUrl());
@@ -73,6 +79,7 @@ export function ServerPage() {
     };
     ws.onclose = () => {
       healthWsRef.current = null;
+      if (healthWsStoppedRef.current) return;
       const attempt = healthReconnectAttemptRef.current;
       const delay = Math.min(HEALTH_WS_BASE_RECONNECT_MS * 2 ** attempt, HEALTH_WS_MAX_RECONNECT_MS);
       healthReconnectAttemptRef.current = attempt + 1;
@@ -102,6 +109,7 @@ export function ServerPage() {
     connectHealthWs();
     loadHistory();
     return () => {
+      healthWsStoppedRef.current = true;
       if (healthReconnectTimerRef.current) clearTimeout(healthReconnectTimerRef.current);
       healthWsRef.current?.close();
       if (restartPollRef.current) clearInterval(restartPollRef.current);

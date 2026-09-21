@@ -49,10 +49,6 @@ export function DashboardPage() {
     hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
   const lastDeployment = deployments[0];
-  const knownWorkerUptimes = health?.workers
-    .map((w) => w.uptime_seconds)
-    .filter((s): s is number => s != null) ?? [];
-  const oldestWorkerUptime = knownWorkerUptimes.length ? Math.max(...knownWorkerUptimes) : null;
 
   return (
     <>
@@ -90,7 +86,7 @@ export function DashboardPage() {
         />
         <StatCard
           variant="warn"
-          value={formatUptime(oldestWorkerUptime)}
+          value={formatUptime(health?.server_uptime_seconds ?? null)}
           name="Server Uptime"
           hint={health?.workers.length ? `${health.workers.length} worker${health.workers.length === 1 ? "" : "s"} running` : "No workers detected"}
         />

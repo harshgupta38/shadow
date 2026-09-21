@@ -33,8 +33,9 @@ def _build_health_response() -> ServerHealthResponse:
     shadow_health = shadow_client.check_health()
     host = worker_service.get_host_stats()
     battery = worker_service.get_battery() or {}
-    wifi = worker_service.get_wifi_info() or {}
     workers = worker_service.get_workers()
+    with SessionLocal() as db:
+        server_uptime_seconds = restart_service.get_server_uptime_seconds(db)
 
     return ServerHealthResponse(
         reachable=shadow_health is not None,
@@ -43,12 +44,9 @@ def _build_health_response() -> ServerHealthResponse:
         battery_status=battery.get("status"),
         battery_temperature_c=battery.get("temperature"),
         battery_plugged=battery.get("plugged"),
-        wifi_ssid=wifi.get("ssid"),
-        wifi_ip=wifi.get("ip"),
-        wifi_rssi=wifi.get("rssi"),
-        wifi_link_speed_mbps=wifi.get("link_speed_mbps"),
         workers=workers,
         expected_workers=(shadow_health or {}).get("expected_workers"),
+        server_uptime_seconds=server_uptime_seconds,
         **host,
     )
 

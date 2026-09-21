@@ -4,8 +4,6 @@ import {
   CpuFill,
   ArrowClockwise,
   Terminal,
-  Wifi,
-  WifiOff,
   XLg,
   ShieldFillCheck,
 } from "react-bootstrap-icons";
@@ -143,11 +141,6 @@ export function ServerPage() {
     }
   }
 
-  const knownWorkerUptimes = health?.workers
-    .map((w) => w.uptime_seconds)
-    .filter((s): s is number => s != null) ?? [];
-  const oldestWorkerUptime = knownWorkerUptimes.length ? Math.max(...knownWorkerUptimes) : null;
-
   return (
     <>
       <PageHeader
@@ -247,7 +240,7 @@ export function ServerPage() {
             <InfoItem label="Battery Status" value={health?.battery_status ?? "Unavailable"} />
             <InfoItem label="Battery Temp" value={health?.battery_temperature_c != null ? `${health.battery_temperature_c}°C` : "Unavailable"} />
             <InfoItem label="Power Source" value={health?.battery_plugged ?? "Unavailable"} />
-            <InfoItem label="Server Uptime" value={formatUptime(oldestWorkerUptime)} />
+            <InfoItem label="Server Uptime" value={formatUptime(health?.server_uptime_seconds ?? null)} />
             <InfoItem
               label="Workers Running"
               value={
@@ -257,24 +250,6 @@ export function ServerPage() {
               }
             />
           </div>
-        </div>
-
-        <div className="server-card">
-          <h3 className="server-card-title">
-            {health?.wifi_ssid ? <Wifi size={16} /> : <WifiOff size={16} />}
-            Network
-          </h3>
-          <div className="server-info-grid">
-            <InfoItem label="WiFi Network" value={health?.wifi_ssid ?? "Not connected"} />
-            <InfoItem label="Signal Strength" value={health?.wifi_rssi != null ? `${health.wifi_rssi} dBm` : "Unavailable"} />
-            <InfoItem label="Link Speed" value={health?.wifi_link_speed_mbps != null ? `${health.wifi_link_speed_mbps} Mbps` : "Unavailable"} />
-            <InfoItem label="IP Address" value={health?.wifi_ip ?? "Unavailable"} />
-          </div>
-          {health && !health.wifi_ssid && (
-            <p className="page-subtitle text-muted-2" style={{ marginTop: "0.75rem", marginBottom: 0, fontSize: "0.78rem" }}>
-              Not on WiFi — either on mobile data, or Termux:API isn't installed on the device.
-            </p>
-          )}
         </div>
       </div>
 

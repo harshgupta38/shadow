@@ -312,41 +312,9 @@ def get_battery() -> dict | None:
         return None
 
 
-def get_wifi_info() -> dict | None:
-    """Real WiFi connection info via Termux:API — a server that runs on a
-    phone can go offline because it lost its network, not just because a
-    process died, so this is a genuinely different failure mode from
-    everything else on this page. Deliberately called directly here
-    (not through BackEnd_V2's own API) for the same reason get_battery()
-    is: if BackEnd_V2 itself is unreachable, this is exactly the kind of
-    thing that might tell you why, so it can't depend on BackEnd_V2 being
-    up to report it. Returns None if termux-api isn't installed, the call
-    fails, or the device isn't on WiFi at all (mobile data / no
-    connection) — the response's own supplicant_state would say
-    "DISCONNECTED" rather than the call failing outright, so the caller
-    checks that too.
-
-    Note: termux-wifi-connectioninfo needs Termux:API's own Android app
-    to hold the location permission (Android requires it to read WiFi
-    SSID/BSSID on modern versions) — without it, this call has been
-    observed to hang until it times out rather than failing immediately,
-    since the permission prompt it's waiting on never gets answered
-    headless. If this keeps timing out, check that permission on the
-    device directly; there's nothing this process can do about an
-    Android permission dialog from here.
-    """
-    try:
-        raw = subprocess.check_output(["termux-wifi-connectioninfo"], timeout=5)
-    except Exception:
-        logger.exception("worker_service: termux-wifi-connectioninfo failed.")
-        return None
-    try:
-        data = json.loads(raw)
-    except ValueError:
-        logger.error("worker_service: termux-wifi-connectioninfo returned non-JSON output: %r", raw[:200])
-        return None
-    state = data.get("supplicant_state")
-    if state != "COMPLETED":
-        logger.info("worker_service: not on WiFi (supplicant_state=%r).", state)
-        return None
-    return data
+# WiFi info was removed — termux-wifi-connectioninfo returns an empty
+# JSON object on the actual device, with no supplicant_state or any
+# other usable field, so there was nothing real to show. Likely the
+# Termux:API app is missing the location permission Android requires
+# for this specific call (a different restriction from the /proc/stat
+# denial above); either way, confirmed not obtainable here.

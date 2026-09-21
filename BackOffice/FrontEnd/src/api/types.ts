@@ -152,18 +152,16 @@ export interface ServerHealth {
   battery_status: string | null;
   battery_temperature_c: number | null;
   battery_plugged: string | null;
-  // null for any of these means no WiFi (mobile data, or disconnected) —
-  // not an error, just nothing to show.
-  wifi_ssid: string | null;
-  wifi_ip: string | null;
-  wifi_rssi: number | null;
-  wifi_link_speed_mbps: number | null;
   workers: WorkerInfo[];
   // The uvicorn arbiter's configured --workers count, reported by
   // BackEnd_V2 itself — compare against workers.length (this process's
   // own count) to tell "fewer workers than intended" apart from "this
   // server only ever runs N."
   expected_workers: number | null;
+  // Computed from BackOffice's own restart history, not measured
+  // directly — per-worker uptime_seconds is unreliable on devices that
+  // deny /proc/stat, so this is a separate, more robust source.
+  server_uptime_seconds: number | null;
 }
 
 export type RestartStatus = "running" | "success" | "failed" | "unknown";

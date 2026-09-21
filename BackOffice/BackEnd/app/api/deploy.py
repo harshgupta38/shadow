@@ -42,8 +42,10 @@ def new_deployment(
     db: DbSession,
     admin: CurrentAdmin,
 ):
-    log = deploy_service.create_deployment_record(db, body.label, body.description, body.target, admin.email)
-    background_tasks.add_task(deploy_service.run_deploy_job, log.id, body.target)
+    git_ref = body.git_ref.strip()
+    label = body.label.strip() or git_ref
+    log = deploy_service.create_deployment_record(db, git_ref, label, body.description, body.target, admin.email)
+    background_tasks.add_task(deploy_service.run_deploy_job, log.id, git_ref, body.target)
     return log
 
 

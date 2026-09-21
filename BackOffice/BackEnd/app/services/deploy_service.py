@@ -85,15 +85,35 @@ def list_recent_commits(limit: int = 20) -> list[dict]:
     return commits
 
 
-def create_deployment_record(db: Session, label: str, description: str, target: str, triggered_by: str) -> DeploymentLogDBM:
+def create_deployment_record(
+    db: Session, git_ref: str, label: str, description: str, target: str, triggered_by: str,
+) -> DeploymentLogDBM:
     log = DeploymentLogDBM(
         label=label, description=description, target=target, kind="deploy",
-        git_ref="(current branch)", status="running", triggered_by=triggered_by,
+        git_ref=git_ref, status="running", triggered_by=triggered_by,
     )
     db.add(log)
     db.commit()
     db.refresh(log)
     return log
+
+
+def _is_branch_ref(ref: str) -> bool:
+    """True if `ref` names a real branch on origin — checked fresh (fetch
+    first) since a branch just pushed moments ago wouldn't be in this
+    clone's remote-tracking refs yet. False for anything else (a tag, a
+    commit SHA, or a typo); the caller then treats it as a fixed ref to
+    check out directly instead of a moving one to pull, which is exactly
+    what a tag or SHA needs anyway."""
+    try:
+        _control_post("/git/main", {"args": ["fetch", "origin"]})
+        resp = _control_post("/git/main", {"args": ["rev-parse", "--verify", "--quiet", f"refs/remotes/origin/{ref}"]})
+    except httpx.RequestError:
+        return False
+    if resp.status_code != 200:
+        return False
+    data = resp.json()
+    return data.get("returncode") == 0 and bool(data.get("stdout", "").strip())
 
 
 def create_rollback_record(db: Session, commit_sha: str, description: str, triggered_by: str) -> DeploymentLogDBM:
@@ -115,9 +135,18 @@ def _finish(db: Session, log: DeploymentLogDBM, status: str, lines: list[str]) -
     db.commit()
 
 
-def run_deploy_job(deployment_id: int, target: str) -> None:
+def run_deploy_job(deployment_id: int, git_ref: str, target: str) -> None:
     """Runs as a FastAPI BackgroundTask — opens its own DB session since the
-    request-scoped one is already closed by the time this executes."""
+    request-scoped one is already closed by the time this executes.
+
+    `git_ref` can be a branch, a tag, or a commit SHA — resolved here (not
+    by the caller) since deciding which control-server call to make needs
+    a fresh fetch either way. A branch is a moving ref, so it goes through
+    /control/main/deploy (checkout + pull); a tag or SHA is fixed, so it
+    goes through /control/main/rollback (checkout only, detached HEAD) —
+    same mechanics rollback already uses, just recorded here as kind
+    "deploy" since that's what the admin actually asked for.
+    """
     db = SessionLocal()
     log: DeploymentLogDBM | None = None
     try:
@@ -125,9 +154,19 @@ def run_deploy_job(deployment_id: int, target: str) -> None:
         if log is None:
             return
 
-        lines = [f"$ POST {settings.control_server_url}/control/main/deploy"]
+        if _is_branch_ref(git_ref):
+            lines = [f"$ POST {settings.control_server_url}/control/main/deploy  (branch={git_ref})"]
+            endpoint, body = "/control/main/deploy", {"branch": git_ref}
+        else:
+            lines = [
+                f"$ POST {settings.control_server_url}/control/main/rollback  (commit_sha={git_ref})",
+                f"'{git_ref}' did not resolve to a branch on origin — checking it out directly "
+                "(detached HEAD), the same way a tag or a specific commit SHA is deployed.",
+            ]
+            endpoint, body = "/control/main/rollback", {"commit_sha": git_ref}
+
         try:
-            resp = _control_post("/control/main/deploy")
+            resp = _control_post(endpoint, body)
             lines.append(f"control server responded: {resp.status_code}")
             lines.append(resp.text)
         except httpx.RequestError as e:

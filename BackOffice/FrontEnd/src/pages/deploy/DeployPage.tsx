@@ -27,11 +27,26 @@ export function DeployPage() {
   const [confirmSha, setConfirmSha] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
 
+  const [formRef, setFormRef] = useState("");
   const [formLabel, setFormLabel] = useState("");
+  const [labelTouched, setLabelTouched] = useState(false);
   const [formDesc, setFormDesc] = useState("");
   const [formTarget, setFormTarget] = useState<DeployTarget>("Backend");
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  // The label defaults to whatever ref you're deploying — but only until
+  // you actually type your own label; after that, editing the ref doesn't
+  // overwrite it anymore.
+  function handleRefChange(value: string) {
+    setFormRef(value);
+    if (!labelTouched) setFormLabel(value);
+  }
+
+  function handleLabelChange(value: string) {
+    setFormLabel(value);
+    setLabelTouched(true);
+  }
 
   const [activeJob, setActiveJob] = useState<Deployment | null>(null);
   const [revealedLines, setRevealedLines] = useState<string[]>([]);
@@ -126,12 +141,15 @@ export function DeployPage() {
     setFormError(null);
     try {
       const record = await api.deploy.trigger({
+        git_ref: formRef.trim(),
         label: formLabel.trim(),
         description: formDesc.trim(),
         target: formTarget,
       });
       setShowModal(false);
+      setFormRef("");
       setFormLabel("");
+      setLabelTouched(false);
       setFormDesc("");
       setFormTarget("Backend");
       setActiveJob(record);
@@ -380,19 +398,32 @@ export function DeployPage() {
               </div>
             )}
             <div className="mb-3">
-              <label className="form-label">Label</label>
+              <label className="form-label">Branch, tag, or commit SHA</label>
               <input
                 type="text"
                 className="form-control"
-                placeholder="e.g. Hotfix — auth token refresh"
-                value={formLabel}
-                onChange={(e) => setFormLabel(e.target.value)}
+                placeholder="e.g. main, v1.2.3, or a4f9c2e"
+                value={formRef}
+                onChange={(e) => handleRefChange(e.target.value)}
                 required
                 autoFocus
               />
               <div className="form-text">
-                There are no git tags in this repo — this deploys the latest commit on the
-                tracked branch. The label is just for your own record-keeping.
+                A branch is fetched and pulled to its latest commit before deploying; a tag or
+                commit SHA is checked out exactly as given.
+              </div>
+            </div>
+            <div className="mb-3">
+              <label className="form-label">Label</label>
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Defaults to the ref above"
+                value={formLabel}
+                onChange={(e) => handleLabelChange(e.target.value)}
+              />
+              <div className="form-text">
+                Just for your own record-keeping — doesn't affect what's actually deployed.
               </div>
             </div>
             <div className="mb-3">

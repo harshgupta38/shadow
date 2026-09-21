@@ -4,7 +4,12 @@ from pydantic import BaseModel, ConfigDict
 
 
 class NewDeploymentRequest(BaseModel):
-    label: str
+    # Branch name, tag, or commit SHA to deploy — required, resolved
+    # against origin by deploy_service to decide whether it's a moving
+    # ref (pull) or a fixed one (checkout only). See _is_branch_ref.
+    git_ref: str
+    # Blank defaults to git_ref itself — see new_deployment() in api/deploy.py.
+    label: str = ""
     description: str = ""
     target: str = "Backend"  # Frontend | Backend | Both — informational; see deploy_service
 

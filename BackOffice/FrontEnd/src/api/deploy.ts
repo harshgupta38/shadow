@@ -8,8 +8,11 @@ export const deployApi = {
       params: { page, page_size: pageSize },
     });
   },
-  async commits(limit = 20): Promise<CommitInfo[]> {
-    return http.get<CommitInfo[]>(ENDPOINTS.DEPLOY.COMMITS, { params: { limit } });
+  async commits(limit = 10, branch?: string): Promise<CommitInfo[]> {
+    return http.get<CommitInfo[]>(ENDPOINTS.DEPLOY.COMMITS, { params: { limit, branch } });
+  },
+  async branches(): Promise<string[]> {
+    return http.get<string[]>(ENDPOINTS.DEPLOY.BRANCHES);
   },
   async detail(id: number): Promise<Deployment> {
     return http.get<Deployment>(ENDPOINTS.DEPLOY.detail(id));

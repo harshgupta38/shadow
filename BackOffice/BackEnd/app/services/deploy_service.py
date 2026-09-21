@@ -21,6 +21,7 @@ flow there IS a direct success/failure signal — the extra health-poll below
 is just an additional sanity check that the process actually came back up.
 """
 
+import json
 from datetime import datetime, timezone
 
 import httpx
@@ -57,11 +58,39 @@ def _current_commit_sha() -> str | None:
     return sha or None
 
 
-def list_recent_commits(limit: int = 20) -> list[dict]:
-    """Real deployment history — the tracked branch's commit log, standing
-    in for the fictional version tags the UI used to show."""
+def list_branches() -> list[str]:
+    """Every branch that exists on origin, fetched fresh so one pushed
+    moments ago shows up immediately. `git branch -r --format=...` also
+    lists the origin/HEAD symbolic ref, but it renders as the bare word
+    "origin" (no slash) with this format string rather than "origin/HEAD"
+    — filtering on the "origin/" prefix excludes it correctly either way.
+    """
     try:
-        resp = _control_post("/git/main", {"args": ["log", f"-{limit}", "--pretty=format:%H|%h|%an|%aI|%s"]})
+        _control_post("/git/main", {"args": ["fetch", "origin"]})
+        resp = _control_post("/git/main", {"args": ["branch", "-r", "--format=%(refname:short)"]})
+    except httpx.RequestError:
+        return []
+    if resp.status_code != 200:
+        return []
+
+    names = []
+    for line in resp.json().get("stdout", "").splitlines():
+        line = line.strip()
+        if line.startswith("origin/"):
+            names.append(line[len("origin/"):])
+    return names
+
+
+def list_recent_commits(limit: int = 10, branch: str | None = None) -> list[dict]:
+    """A branch's commit log — the tracked branch's by default, standing in
+    for the fictional version tags the UI used to show. `branch` names any
+    branch on origin, not just the checked-out one; fetched fresh first so
+    switching to a just-pushed branch doesn't show stale history."""
+    ref = f"origin/{branch}" if branch else "HEAD"
+    try:
+        if branch:
+            _control_post("/git/main", {"args": ["fetch", "origin"]})
+        resp = _control_post("/git/main", {"args": ["log", ref, f"-{limit}", "--pretty=format:%H|%h|%an|%aI|%s"]})
     except httpx.RequestError:
         return []
     if resp.status_code != 200:
@@ -127,6 +156,31 @@ def create_rollback_record(db: Session, commit_sha: str, description: str, trigg
     return log
 
 
+def _append_control_response(lines: list[str], resp: httpx.Response) -> None:
+    """Unwraps the Control Server's {"returncode", "output"} JSON body into
+    the git/restart transcript it actually contains. Appending resp.text
+    directly (the old behavior) showed the raw JSON, with the transcript's
+    own newlines escaped as literal backslash-n instead of real line
+    breaks — readable as JSON, not as the terminal output it's supposed to
+    look like. On a non-2xx response there's no "output" key at all (just
+    FastAPI's own {"detail": ...}), which is handled the same way."""
+    lines.append(f"control server responded: {resp.status_code}")
+    try:
+        data = resp.json()
+    except ValueError:
+        lines.append(resp.text)
+        return
+
+    if isinstance(data, dict) and "output" in data:
+        lines.append(data["output"])
+        if "returncode" in data:
+            lines.append(f"(exit code {data['returncode']})")
+    elif isinstance(data, dict) and "detail" in data:
+        lines.append(str(data["detail"]))
+    else:
+        lines.append(json.dumps(data, indent=2))
+
+
 def _finish(db: Session, log: DeploymentLogDBM, status: str, lines: list[str]) -> None:
     log.status = status
     log.commit_sha = _current_commit_sha()
@@ -167,12 +221,11 @@ def run_deploy_job(deployment_id: int, git_ref: str, target: str) -> None:
 
         try:
             resp = _control_post(endpoint, body)
-            lines.append(f"control server responded: {resp.status_code}")
-            lines.append(resp.text)
         except httpx.RequestError as e:
             lines.append(f"ERROR: could not reach control server: {e}")
             _finish(db, log, "failed", lines)
             return
+        _append_control_response(lines, resp)
 
         if resp.status_code >= 400:
             _finish(db, log, "failed", lines)
@@ -213,12 +266,11 @@ def run_rollback_job(deployment_id: int, commit_sha: str) -> None:
         lines = [f"$ POST {settings.control_server_url}/control/main/rollback  (commit_sha={commit_sha})"]
         try:
             resp = _control_post("/control/main/rollback", {"commit_sha": commit_sha})
-            lines.append(f"control server responded: {resp.status_code}")
-            lines.append(resp.text)
         except httpx.RequestError as e:
             lines.append(f"ERROR: could not reach control server: {e}")
             _finish(db, log, "failed", lines)
             return
+        _append_control_response(lines, resp)
 
         if resp.status_code >= 400:
             _finish(db, log, "failed", lines)

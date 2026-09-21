@@ -23,8 +23,13 @@ def get_history(db: DbSession, _admin: CurrentAdmin, page: int = 1, page_size: i
 
 
 @router.get(ENDPOINTS.DEPLOY.COMMITS, response_model=list[CommitInfo])
-def get_commits(_admin: CurrentAdmin, limit: int = 20):
-    return deploy_service.list_recent_commits(limit)
+def get_commits(_admin: CurrentAdmin, limit: int = 10, branch: str | None = None):
+    return deploy_service.list_recent_commits(limit, branch)
+
+
+@router.get(ENDPOINTS.DEPLOY.BRANCHES, response_model=list[str])
+def get_branches(_admin: CurrentAdmin):
+    return deploy_service.list_branches()
 
 
 @router.get(ENDPOINTS.DEPLOY.DETAIL, response_model=DeploymentResponse)

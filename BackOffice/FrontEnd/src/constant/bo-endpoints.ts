@@ -9,6 +9,7 @@ export const ENDPOINTS = {
     NEW:      "/deploy/new",
     ROLLBACK: "/deploy/rollback",
     COMMITS:  "/deploy/commits",
+    BRANCHES: "/deploy/branches",
     detail:   (id: number) => `/deploy/${id}`,
   },
   DATABASE: {

@@ -1,6 +1,6 @@
 import { http } from "./client";
 import { ENDPOINTS } from "@/constant/bo-endpoints";
-import type { CommitInfo, Deployment, NewDeploymentRequest, RollbackRequest } from "./types";
+import type { BranchesResponse, CommitInfo, Deployment, NewDeploymentRequest, RollbackRequest } from "./types";
 
 export const deployApi = {
   async history(page: number, pageSize: number): Promise<Deployment[]> {
@@ -11,8 +11,8 @@ export const deployApi = {
   async commits(limit = 10, branch?: string): Promise<CommitInfo[]> {
     return http.get<CommitInfo[]>(ENDPOINTS.DEPLOY.COMMITS, { params: { limit, branch } });
   },
-  async branches(): Promise<string[]> {
-    return http.get<string[]>(ENDPOINTS.DEPLOY.BRANCHES);
+  async branches(): Promise<BranchesResponse> {
+    return http.get<BranchesResponse>(ENDPOINTS.DEPLOY.BRANCHES);
   },
   async detail(id: number): Promise<Deployment> {
     return http.get<Deployment>(ENDPOINTS.DEPLOY.detail(id));

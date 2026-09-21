@@ -58,27 +58,46 @@ def _current_commit_sha() -> str | None:
     return sha or None
 
 
-def list_branches() -> list[str]:
+def _current_branch_name() -> str | None:
+    """None in a detached HEAD state (right after a rollback, or after
+    deploying a tag/commit SHA directly) — `rev-parse --abbrev-ref HEAD`
+    then literally returns the string "HEAD", not a real branch, which
+    the caller must not show as if it were one."""
+    try:
+        resp = _control_post("/git/main", {"args": ["rev-parse", "--abbrev-ref", "HEAD"]})
+    except httpx.RequestError:
+        return None
+    if resp.status_code != 200:
+        return None
+    branch = resp.json().get("stdout", "").strip()
+    return branch if branch and branch != "HEAD" else None
+
+
+def list_branches() -> dict:
     """Every branch that exists on origin, fetched fresh so one pushed
-    moments ago shows up immediately. `git branch -r --format=...` also
-    lists the origin/HEAD symbolic ref, but it renders as the bare word
-    "origin" (no slash) with this format string rather than "origin/HEAD"
-    — filtering on the "origin/" prefix excludes it correctly either way.
+    moments ago shows up immediately, plus which one (if any) is actually
+    checked out right now — the caller shouldn't have to guess or show a
+    vague "current branch" placeholder when it can show the real name (or
+    a real blank if HEAD is detached and there simply isn't one). `git
+    branch -r --format=...` also lists the origin/HEAD symbolic ref, but
+    it renders as the bare word "origin" (no slash) with this format
+    string rather than "origin/HEAD" — filtering on the "origin/" prefix
+    excludes it correctly either way.
     """
     try:
         _control_post("/git/main", {"args": ["fetch", "origin"]})
         resp = _control_post("/git/main", {"args": ["branch", "-r", "--format=%(refname:short)"]})
     except httpx.RequestError:
-        return []
+        return {"branches": [], "current": None}
     if resp.status_code != 200:
-        return []
+        return {"branches": [], "current": None}
 
     names = []
     for line in resp.json().get("stdout", "").splitlines():
         line = line.strip()
         if line.startswith("origin/"):
             names.append(line[len("origin/"):])
-    return names
+    return {"branches": names, "current": _current_branch_name()}
 
 
 def list_recent_commits(limit: int = 10, branch: str | None = None) -> list[dict]:

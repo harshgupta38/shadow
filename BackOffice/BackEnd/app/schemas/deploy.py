@@ -43,3 +43,10 @@ class CommitInfo(BaseModel):
     date: str
     message: str
     is_current: bool
+
+
+class BranchesResponse(BaseModel):
+    branches: list[str]
+    # None when HEAD is detached (right after a rollback, or after
+    # deploying a tag/commit SHA) — there simply isn't a current branch.
+    current: str | None

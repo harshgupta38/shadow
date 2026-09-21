@@ -4,7 +4,7 @@ from app.api.deps import CurrentAdmin, DbSession
 from app.core.endpoints import ENDPOINTS
 from app.core.exceptions import NotFoundError
 from app.models.deployment_log import DeploymentLogDBM
-from app.schemas.deploy import CommitInfo, DeploymentResponse, NewDeploymentRequest, RollbackRequest
+from app.schemas.deploy import BranchesResponse, CommitInfo, DeploymentResponse, NewDeploymentRequest, RollbackRequest
 from app.services import deploy_service
 
 router = APIRouter(prefix=ENDPOINTS.DEPLOY.PREFIX, tags=["Deploy"])
@@ -27,7 +27,7 @@ def get_commits(_admin: CurrentAdmin, limit: int = 10, branch: str | None = None
     return deploy_service.list_recent_commits(limit, branch)
 
 
-@router.get(ENDPOINTS.DEPLOY.BRANCHES, response_model=list[str])
+@router.get(ENDPOINTS.DEPLOY.BRANCHES, response_model=BranchesResponse)
 def get_branches(_admin: CurrentAdmin):
     return deploy_service.list_branches()
 

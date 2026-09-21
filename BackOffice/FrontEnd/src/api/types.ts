@@ -55,6 +55,13 @@ export interface CommitInfo {
   is_current: boolean;
 }
 
+export interface BranchesResponse {
+  branches: string[];
+  // null when HEAD is detached (right after a rollback, or after
+  // deploying a tag/commit SHA) — there simply isn't a current branch.
+  current: string | null;
+}
+
 // ─── Database ───────────────────────────────────────────────────────────────
 export type ColumnType = string; // backend reports SQLite's own type text (e.g. "INTEGER", "TEXT", "JSON")
 

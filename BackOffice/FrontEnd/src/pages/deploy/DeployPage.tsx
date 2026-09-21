@@ -19,6 +19,12 @@ const PAGE_SIZE = 5;
 const COMMIT_LIMIT = 10;
 const POLL_INTERVAL_MS = 1500;
 
+// What every deployment record made before ref-tracking existed has
+// stored as its git_ref — the real ref that was actually deployed was
+// never captured for these, so "Redeploy" must not prefill this literal
+// placeholder text as if it were a real, resubmittable ref.
+const UNKNOWN_GIT_REF = "(current branch)";
+
 // What a deploy dialog opens pre-filled with — used by "New Deployment"
 // (nothing), "Redeploy" (a past deployment's own ref/label/description/
 // target), and "Deploy" on a commit (just its SHA).
@@ -31,6 +37,9 @@ interface DeployPrefill {
 
 export function DeployPage() {
   const [branches, setBranches] = useState<string[]>([]);
+  // Empty means "not resolved (yet)" — shown as a genuinely blank
+  // selection, never a placeholder like "current branch", since the
+  // person looking at this has no way to know what that actually is.
   const [selectedBranch, setSelectedBranch] = useState("");
   const [commits, setCommits] = useState<CommitInfo[]>([]);
   const [deployments, setDeployments] = useState<Deployment[]>([]);
@@ -92,7 +101,16 @@ export function DeployPage() {
       api.deploy.branches(),
       api.deploy.history(1, 50),
     ]);
-    if (branchesResult.status === "fulfilled") setBranches(branchesResult.value);
+    if (branchesResult.status === "fulfilled") {
+      setBranches(branchesResult.value.branches);
+      // Only fills in the selection if nothing's been picked yet — never
+      // overwrites a branch the person already chose (this can re-run
+      // after a job finishes). If HEAD is detached there's no real
+      // current branch, so this correctly leaves it blank instead of
+      // guessing one.
+      const current = branchesResult.value.current;
+      setSelectedBranch((prev) => prev || current || "");
+    }
     if (deploysResult.status === "fulfilled") setDeployments(deploysResult.value);
     setLoadError(
       branchesResult.status === "rejected" && deploysResult.status === "rejected"
@@ -103,8 +121,14 @@ export function DeployPage() {
   }
 
   async function loadCommits() {
+    // No branch resolved (yet, or HEAD is detached) — nothing to query,
+    // and the table's own empty state already reads fine as "blank".
+    if (!selectedBranch) {
+      setCommits([]);
+      return;
+    }
     try {
-      setCommits(await api.deploy.commits(COMMIT_LIMIT, selectedBranch || undefined));
+      setCommits(await api.deploy.commits(COMMIT_LIMIT, selectedBranch));
     } catch {
       // The section just shows "no commit history available" — the
       // top-level loadError already covers a fully unreachable API.
@@ -340,7 +364,12 @@ export function DeployPage() {
                           <Dropdown.Item
                             className="d-flex align-items-center gap-2"
                             onClick={() => openDeployModal({
-                              git_ref: d.git_ref,
+                              // Deployments logged before ref-tracking existed
+                              // stored this literal placeholder — there's no
+                              // real ref to redeploy, so leave it blank rather
+                              // than resubmitting a string that was never a
+                              // real branch/tag/SHA in the first place.
+                              git_ref: d.git_ref === UNKNOWN_GIT_REF ? "" : d.git_ref,
                               label: d.label,
                               description: d.description,
                               target: d.target as DeployTarget,
@@ -403,7 +432,9 @@ export function DeployPage() {
             value={selectedBranch}
             onChange={(e) => setSelectedBranch(e.target.value)}
           >
-            <option value="">Current branch</option>
+            {/* Genuinely blank, not a "current branch" placeholder — shown only
+                when selectedBranch is "" (HEAD detached, or still loading). */}
+            <option value="" />
             {branches.map((b) => (
               <option key={b} value={b}>{b}</option>
             ))}

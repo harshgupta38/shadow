@@ -37,8 +37,9 @@ class Endpoints:
     class SERVER:
         PREFIX = "/server"
         HEALTH = "/health"
+        HEALTH_WS = "/health/ws"
         WORKERS = "/workers"
-        LOG = "/log"
+        LOG_WS = "/log/ws"
         RESTART = "/restart"
         RESTART_DETAIL = "/restart/{restart_id}"
         RESTART_HISTORY = "/restart-history"

@@ -174,16 +174,16 @@ def check_health() -> dict | None:
         return None
 
 
-def fetch_server_log(tail_lines: int = 200) -> str:
-    """Tails BackEnd_V2's server.log via its existing GET /server/log."""
-    try:
-        resp = _client.get(f"{settings.shadow_backend_url}/server/log", timeout=10.0)
-    except httpx.RequestError:
-        return ""
-    if resp.status_code != 200:
-        return ""
-    lines = resp.text.splitlines()
-    return "\n".join(lines[-tail_lines:])
+def log_ws_url() -> str:
+    """ws(s):// URL for BackEnd_V2's real-time log-stream websocket
+    (/admin/logs/ws) — BackOffice's own log_ws (app.api.server) connects
+    here directly with the `websockets` library and the same
+    X-Admin-Secret header every other call in this module uses over
+    plain HTTP. httpx (this module's shared client, used everywhere
+    else here) doesn't speak websockets, so this just builds the URL
+    rather than reusing _admin_request.
+    """
+    return settings.shadow_backend_url.replace("http", "ws", 1) + "/admin/logs/ws"
 
 
 def wait_for_restart(timeout: float = 60.0, interval: float = 2.0) -> bool:

@@ -6,7 +6,7 @@ class Endpoints:
     class SYSTEM:
         ROOT = "/"
         HEALTH = "/health"
-        SERVER_LOG = "/server/log"
+        ADMIN_LOG_WS = "/admin/logs/ws"
         ADMIN_SQL = "/admin/sql"
         ADMIN_DATABASE = "/admin/database" # extra
         ADMIN_BACKUPS = "/admin/backups"

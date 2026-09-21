@@ -1,16 +1,22 @@
+import asyncio
+import contextlib
 import json
+import logging
 import sqlite3
 import subprocess
 
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, Header, HTTPException
-from fastapi.responses import FileResponse, PlainTextResponse
+from fastapi import APIRouter, Depends, Header, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
+from app.api.notifications import _shutdown as _shutdown_event
 from app.core.config import settings
 from app.core.endpoints import ENDPOINTS
 from app.services import backup_service
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -89,17 +95,101 @@ async def health() -> dict:
     if battery != "Unknown":
         message = message + " " + battery
 
-    return {"status": "ok", "message": message}
+    return {"status": "ok", "message": message, "expected_workers": settings.workers}
 
 
-@router.get(ENDPOINTS.SYSTEM.SERVER_LOG, tags=["admin"], response_class=PlainTextResponse)
-async def get_server_log():
-    log_file = Path("server.log")
+_LOG_PATH = Path("server.log")
+_LOG_SEED_LINES = 50
 
-    if not log_file.exists():
-        raise HTTPException(status_code=404, detail="server.log not found.")
 
-    return log_file.read_text(encoding="utf-8")
+def _read_tail_lines(path: Path, n: int) -> list[str]:
+    """Approximates `tail -n N` by reading backward in fixed-size chunks
+    until at least N newlines are seen (or the start of the file) —
+    reading the whole file into memory just to keep its last few lines
+    is exactly the "spamming the server" cost this whole endpoint exists
+    to avoid, and it only gets worse as the file grows."""
+    chunk_size = 8192
+    block = b""
+    with path.open("rb") as f:
+        f.seek(0, 2)
+        remaining = f.tell()
+        while remaining > 0 and block.count(b"\n") <= n:
+            read_size = min(chunk_size, remaining)
+            remaining -= read_size
+            f.seek(remaining)
+            block = f.read(read_size) + block
+    text = block.decode("utf-8", errors="replace")
+    return text.splitlines()[-n:]
+
+
+_LOG_WS_TICK_S = 1.0
+_LOG_WS_MAX_DURATION_S = 20 * 60
+
+
+@router.websocket(ENDPOINTS.SYSTEM.ADMIN_LOG_WS)
+async def log_ws(websocket: WebSocket):
+    """Websocket tail of server.log — seeds with the last 50 lines, then
+    only ever reads bytes newly appended since the last check (never
+    re-reads the whole file), so watching this indefinitely costs
+    nothing proportional to the file's total size. Header-based auth
+    (not cookies): this is a server-to-server connection — BackOffice's
+    own log_ws (app.api.server, BackEnd_V2's only real client) connects
+    here with the same X-Admin-Secret header every other /admin/* call
+    uses. Same capped-session convention as health_ws over on
+    BackOffice's side — including reusing one long-lived receive_text()
+    task across ticks (see the comment on recv_task there) rather than
+    re-wrapping receive_text() in a fresh asyncio.wait_for() every tick,
+    which can lose the client's one-shot disconnect notification to a
+    cancellation race and delay noticing it by a full extra tick.
+    """
+    await websocket.accept()
+    if websocket.headers.get("x-admin-secret") != settings.admin_secret:
+        await websocket.close(code=4401, reason="Not authenticated")
+        return
+
+    if not _LOG_PATH.exists():
+        await websocket.send_text("server.log not found.")
+        await websocket.close()
+        return
+
+    recv_task = asyncio.ensure_future(websocket.receive_text())
+    try:
+        for line in _read_tail_lines(_LOG_PATH, _LOG_SEED_LINES):
+            await websocket.send_text(line)
+        position = _LOG_PATH.stat().st_size
+
+        elapsed_s = 0.0
+        while elapsed_s < _LOG_WS_MAX_DURATION_S:
+            if _shutdown_event.is_set():
+                break
+
+            done, _ = await asyncio.wait({recv_task}, timeout=_LOG_WS_TICK_S)
+            if recv_task in done:
+                recv_task.result()  # raises WebSocketDisconnect if that's what happened
+                recv_task = asyncio.ensure_future(websocket.receive_text())
+            elapsed_s += _LOG_WS_TICK_S
+
+            try:
+                size = _LOG_PATH.stat().st_size
+            except OSError:
+                continue
+            if size < position:
+                position = 0  # truncated/rotated — restart_server.sh overwrites this file on every restart
+            if size > position:
+                with _LOG_PATH.open("r", encoding="utf-8", errors="replace") as f:
+                    f.seek(position)
+                    new_text = f.read()
+                    position = f.tell()
+                for line in new_text.splitlines():
+                    await websocket.send_text(line)
+    except WebSocketDisconnect:
+        pass
+    except Exception:
+        logger.exception("log_ws: unexpected error while streaming server.log.")
+    finally:
+        recv_task.cancel()
+        with contextlib.suppress(Exception, asyncio.CancelledError):
+            await recv_task
 
 
 @router.get(ENDPOINTS.SYSTEM.ADMIN_DATABASE, tags=["admin"], dependencies=[Depends(require_admin)]) # extra

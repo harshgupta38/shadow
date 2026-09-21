@@ -24,6 +24,10 @@ const ServerPage = lazy(() =>
   import("@/pages/server/ServerPage").then((m) => ({ default: m.ServerPage })),
 );
 
+const LogsPage = lazy(() =>
+  import("@/pages/logs/LogsPage").then((m) => ({ default: m.LogsPage })),
+);
+
 const ShadowUsersPage = lazy(() =>
   import("@/pages/users/ShadowUsersPage").then((m) => ({ default: m.ShadowUsersPage })),
 );
@@ -64,7 +68,7 @@ export function AppRoutes() {
             <Route path={ROUTES.SHADOW_DATABASE}   element={<DatabasePage />} />
             <Route path={ROUTES.SHADOW_DEPLOYMENT} element={<DeployPage />} />
             <Route path={ROUTES.SHADOW_SERVER}     element={<ServerPage />} />
-            <Route path={ROUTES.SHADOW_LOGS}       element={<ServerPage />} />
+            <Route path={ROUTES.SHADOW_LOGS}       element={<LogsPage />} />
             <Route path={ROUTES.BACKOFFICE_USERS}  element={<BackOfficeUsersPage />} />
           </Route>
         </Route>

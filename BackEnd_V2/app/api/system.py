@@ -1,18 +1,21 @@
 import asyncio
 import json
+import logging
 import sqlite3
 import subprocess
 
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi import APIRouter, Depends, Header, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from app.api.notifications import _shutdown as _sse_shutdown
+from app.api.notifications import _shutdown as _shutdown_event
 from app.core.config import settings
 from app.core.endpoints import ENDPOINTS
 from app.services import backup_service
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -118,37 +121,48 @@ def _read_tail_lines(path: Path, n: int) -> list[str]:
     return text.splitlines()[-n:]
 
 
-@router.get(ENDPOINTS.SYSTEM.ADMIN_LOG_STREAM, tags=["admin"], dependencies=[Depends(require_admin)])
-async def stream_log(request: Request):
-    """Server-Sent Events tail of server.log — seeds with the last 50
-    lines, then only ever reads bytes newly appended since the last
-    check (never re-reads the whole file), so watching this indefinitely
-    costs nothing proportional to the file's total size. Same SSE
-    conventions as /notifications/stream: a capped session duration so a
-    stalled client can't pin resources forever (the frontend
-    reconnects), a heartbeat so a dead connection is noticed quickly, and
-    the same proxy-buffering-safe response headers.
-    """
-    async def generator():
-        if not _LOG_PATH.exists():
-            yield "data: server.log not found.\n\n"
-            return
+_LOG_WS_TICK_S = 1.0
+_LOG_WS_MAX_DURATION_S = 20 * 60
 
+
+@router.websocket(ENDPOINTS.SYSTEM.ADMIN_LOG_WS)
+async def log_ws(websocket: WebSocket):
+    """Websocket tail of server.log — seeds with the last 50 lines, then
+    only ever reads bytes newly appended since the last check (never
+    re-reads the whole file), so watching this indefinitely costs
+    nothing proportional to the file's total size. Header-based auth
+    (not cookies): this is a server-to-server connection — BackOffice's
+    own log_ws (app.api.server, BackEnd_V2's only real client) connects
+    here with the same X-Admin-Secret header every other /admin/* call
+    uses. Same capped-session convention as health_ws over on
+    BackOffice's side, and the same disconnect-detection trick: awaiting
+    receive_text() with a timeout doubles as both our tick clock and an
+    immediate signal if the client actually hangs up.
+    """
+    await websocket.accept()
+    if websocket.headers.get("x-admin-secret") != settings.admin_secret:
+        await websocket.close(code=4401, reason="Not authenticated")
+        return
+
+    if not _LOG_PATH.exists():
+        await websocket.send_text("server.log not found.")
+        await websocket.close()
+        return
+
+    try:
         for line in _read_tail_lines(_LOG_PATH, _LOG_SEED_LINES):
-            yield f"data: {line}\n\n"
+            await websocket.send_text(line)
         position = _LOG_PATH.stat().st_size
 
-        elapsed_s = 0
-        max_duration_s = 20 * 60
-        while elapsed_s < max_duration_s:
-            try:
-                await asyncio.wait_for(_sse_shutdown.wait(), timeout=1)
-                break  # server is shutting down
-            except asyncio.TimeoutError:
-                pass  # normal tick
-            elapsed_s += 1
-            if await request.is_disconnected():
+        elapsed_s = 0.0
+        while elapsed_s < _LOG_WS_MAX_DURATION_S:
+            if _shutdown_event.is_set():
                 break
+            try:
+                await asyncio.wait_for(websocket.receive_text(), timeout=_LOG_WS_TICK_S)
+            except asyncio.TimeoutError:
+                pass  # normal tick — no message expected, just using the timeout as our clock
+            elapsed_s += _LOG_WS_TICK_S
 
             try:
                 size = _LOG_PATH.stat().st_size
@@ -162,14 +176,11 @@ async def stream_log(request: Request):
                     new_text = f.read()
                     position = f.tell()
                 for line in new_text.splitlines():
-                    yield f"data: {line}\n\n"
-            yield ": heartbeat\n\n"
-
-    return StreamingResponse(
-        generator(),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-    )
+                    await websocket.send_text(line)
+    except WebSocketDisconnect:
+        pass
+    except Exception:
+        logger.exception("log_ws: unexpected error while streaming server.log.")
 
 
 @router.get(ENDPOINTS.SYSTEM.ADMIN_DATABASE, tags=["admin"], dependencies=[Depends(require_admin)]) # extra

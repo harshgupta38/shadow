@@ -7,6 +7,10 @@ export interface PageAction {
   icon: React.ReactNode;
   onClick: () => void;
   disabled?: boolean;
+  // Defaults to "brand" (the original, only style this ever had) — "soft"
+  // is for an action that shouldn't visually compete with the page's main
+  // CTA when there's more than one (e.g. a destructive/secondary action).
+  variant?: "brand" | "soft";
 }
 
 interface PageHeaderProps {
@@ -54,7 +58,7 @@ export function PageHeader({ icon, title, subtitle, actions }: PageHeaderProps) 
               <button
                 key={a.key}
                 type="button"
-                className="btn btn-brand text-nowrap flex-shrink-0"
+                className={`btn ${a.variant === "soft" ? "btn-soft" : "btn-brand"} text-nowrap flex-shrink-0`}
                 onClick={a.onClick}
                 disabled={a.disabled}
               >
@@ -75,7 +79,7 @@ export function PageHeader({ icon, title, subtitle, actions }: PageHeaderProps) 
                   key={a.key}
                   type="button"
                   role="menuitem"
-                  className="page-header-mobile-action-item is-brand"
+                  className={`page-header-mobile-action-item${a.variant === "soft" ? "" : " is-brand"}`}
                   onClick={() => {
                     a.onClick();
                     closeMobileMenu();

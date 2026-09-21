@@ -153,6 +153,7 @@ export function ServerPage() {
           icon: <ArrowClockwise size={15} />,
           onClick: () => setShowRestartModal(true),
           disabled: jobRunning,
+          variant: "soft",
         }]}
       />
 

@@ -51,6 +51,27 @@
   --jv-term-header:    #eaecf2;
   --jv-term-border:    #d8dbe8;
   --jv-term-text:      #1f2328;
+
+  // ANSI SGR palette (light) — the Logs page's real terminal colors, tuned
+  // darker/more saturated than a typical dark-terminal palette so uvicorn's
+  // colorized output (green INFO, yellow WARNING, red ERROR, ...) still
+  // reads clearly against --jv-term-bg's light background.
+  --jv-term-ansi-black:          #383a42;
+  --jv-term-ansi-red:            #e45649;
+  --jv-term-ansi-green:          #50a14f;
+  --jv-term-ansi-yellow:         #c18401;
+  --jv-term-ansi-blue:           #4078f2;
+  --jv-term-ansi-magenta:        #a626a4;
+  --jv-term-ansi-cyan:           #0184bc;
+  --jv-term-ansi-white:          #a0a1a7;
+  --jv-term-ansi-bright-black:   #696c77;
+  --jv-term-ansi-bright-red:     #ca1243;
+  --jv-term-ansi-bright-green:   #50a14f;
+  --jv-term-ansi-bright-yellow:  #986801;
+  --jv-term-ansi-bright-blue:    #4078f2;
+  --jv-term-ansi-bright-magenta: #a626a4;
+  --jv-term-ansi-bright-cyan:    #0184bc;
+  --jv-term-ansi-bright-white:   #1e2024;
   --jv-term-muted:     #57606a;
   --jv-term-scrollbar: #c8cbd6;
 
@@ -95,6 +116,25 @@
   --jv-term-text:      #c9d1d9;
   --jv-term-muted:     #9aa2b4;
   --jv-term-scrollbar: #333a4e;
+
+  // ANSI SGR palette (dark) — a standard bright terminal palette; reads
+  // clearly straight against --jv-term-bg's near-black background.
+  --jv-term-ansi-black:          #4b5263;
+  --jv-term-ansi-red:            #e06c75;
+  --jv-term-ansi-green:          #98c379;
+  --jv-term-ansi-yellow:         #e5c07b;
+  --jv-term-ansi-blue:           #61afef;
+  --jv-term-ansi-magenta:        #c678dd;
+  --jv-term-ansi-cyan:           #56b6c2;
+  --jv-term-ansi-white:          #d7dae0;
+  --jv-term-ansi-bright-black:   #6b7280;
+  --jv-term-ansi-bright-red:     #ff7b86;
+  --jv-term-ansi-bright-green:   #a8e08f;
+  --jv-term-ansi-bright-yellow:  #f0d090;
+  --jv-term-ansi-bright-blue:    #7dc4ff;
+  --jv-term-ansi-bright-magenta: #d9a6ea;
+  --jv-term-ansi-bright-cyan:    #6fd3e0;
+  --jv-term-ansi-bright-white:   #f5f6fa;
 
   --bs-body-bg:        var(--jv-bg);
   --bs-body-color:     var(--jv-text);
@@ -1255,6 +1295,11 @@ h1, h2, h3, h4, h5, h6, .display-font {
     background: color-mix(in srgb, var(--jv-success) 18%, transparent);
     color: var(--jv-success);
   }
+
+  &--paused {
+    background: color-mix(in srgb, var(--jv-muted) 18%, transparent);
+    color: var(--jv-muted);
+  }
 }
 
 @keyframes pulse-opacity {
@@ -2311,6 +2356,64 @@ h1, h2, h3, h4, h5, h6, .display-font {
   min-height: 0;
   display: flex;
   flex-direction: column;
+}
+
+// ── Logs page — full-bleed terminal ─────────────────────────────────────────
+// Same full-bleed shell as the database page above (see FULL_BLEED_ROUTES in
+// AppLayout) — a thin toolbar for the play/pause control, then the log body
+// fills the rest of the viewport and scrolls internally.
+.logs-page-full {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.logs-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  padding: 0.55rem 1rem;
+  background: var(--jv-term-header);
+  border-bottom: 1px solid var(--jv-term-border);
+}
+
+.logs-toolbar-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--jv-term-muted);
+  font-family: var(--jv-font-display);
+}
+
+.logs-terminal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--jv-term-bg);
+  padding: 0.85rem 1.1rem;
+  font-family: "Menlo", "Consolas", "Courier New", monospace;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  color: var(--jv-term-text);
+  scrollbar-width: thin;
+  scrollbar-color: var(--jv-term-scrollbar) transparent;
+}
+
+// min-height (rather than relying on an empty line's own content) keeps a
+// blank log line's vertical gap visible instead of collapsing to nothing.
+.logs-terminal-line {
+  white-space: pre-wrap;
+  word-break: break-all;
+  min-height: 1.55em;
+}
+
+.logs-terminal-empty {
+  color: var(--jv-term-muted);
+  font-style: italic;
 }
 
 .db-tabs--full {

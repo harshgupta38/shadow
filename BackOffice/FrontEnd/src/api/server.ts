@@ -21,12 +21,12 @@ export const serverApi = {
   async workers(): Promise<WorkerInfo[]> {
     return http.get<WorkerInfo[]>(ENDPOINTS.SERVER.WORKERS);
   },
-  // Not a normal request — a log viewer opens this itself via
-  // EventSource, so this just builds the URL. Not called from the
-  // Server page anymore (logs are moving to their own page); kept here
-  // since the backend stream itself is already built and ready for it.
-  logStreamUrl(): string {
-    return `${BASE_URL}${ENDPOINTS.SERVER.LOG_STREAM}`;
+  // The Logs page's live feed — same "the caller opens this itself"
+  // shape as healthWsUrl above, just for server.log instead of a health
+  // snapshot. Paused by default: the Logs page only opens this
+  // WebSocket once the user clicks play, never on page load.
+  logWsUrl(): string {
+    return `${BASE_URL}${ENDPOINTS.SERVER.LOG_WS}`.replace(/^http/, "ws");
   },
   async restart(): Promise<RestartLog> {
     return http.post<RestartLog>(ENDPOINTS.SERVER.RESTART);

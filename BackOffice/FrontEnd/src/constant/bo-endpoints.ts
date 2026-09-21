@@ -30,7 +30,7 @@ export const ENDPOINTS = {
     HEALTH:          "/server/health",
     HEALTH_WS:       "/server/health/ws",
     WORKERS:         "/server/workers",
-    LOG_STREAM:      "/server/log/stream",
+    LOG_WS:          "/server/log/ws",
     RESTART:         "/server/restart",
     RESTART_HISTORY: "/server/restart-history",
     restartDetail:   (id: number) => `/server/restart/${id}`,

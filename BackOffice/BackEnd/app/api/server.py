@@ -1,11 +1,13 @@
 import asyncio
+import contextlib
 import logging
 
+import websockets
 from fastapi import APIRouter, BackgroundTasks, WebSocket, WebSocketDisconnect
-from fastapi.responses import StreamingResponse
 
 from app.api.deps import COOKIE_NAME, CurrentAdmin, DbSession
 from app.core import security
+from app.core.config import settings
 from app.core.endpoints import ENDPOINTS
 from app.core.exceptions import NotFoundError
 from app.db.session import SessionLocal
@@ -112,13 +114,55 @@ def get_workers(_admin: CurrentAdmin):
     return worker_service.get_workers()
 
 
-@router.get(ENDPOINTS.SERVER.LOG_STREAM)
-def stream_log(_admin: CurrentAdmin):
-    """Proxies BackEnd_V2's real-time log stream — connections are opened
-    deliberately by the frontend (the play button on LiveLogTail), never
-    polled on a timer, so this only ever costs anything while an admin is
-    actually watching."""
-    return StreamingResponse(shadow_client.stream_server_log(), media_type="text/event-stream")
+async def _relay_upstream_log(upstream, websocket: WebSocket) -> None:
+    """Forwards every line BackEnd_V2 sends straight through to the
+    browser, unmodified — the ANSI escape codes already in server.log
+    are exactly what let the frontend render this like a real terminal,
+    so nothing here should touch the text itself."""
+    async for message in upstream:
+        text = message if isinstance(message, str) else message.decode("utf-8", "replace")
+        await websocket.send_text(text)
+
+
+@router.websocket(ENDPOINTS.SERVER.LOG_WS)
+async def log_ws(websocket: WebSocket):
+    """Relays BackEnd_V2's real-time server.log websocket through to the
+    browser — connections are opened deliberately by the frontend (the
+    Logs page's play button), never on a timer, so this only ever costs
+    anything while an admin is actually watching. BackOffice never lets
+    the browser talk to BackEnd_V2 directly (same rule as every other
+    call in shadow_client), so this acts as a websocket client to
+    BackEnd_V2 and a websocket server to the browser at the same time:
+    one task relays upstream lines through, while this coroutine just
+    waits on the browser's own socket to detect it hanging up (the
+    browser never sends anything meaningful, so any receive here other
+    than a disconnect just means we keep waiting).
+    """
+    await websocket.accept()
+    if not _authenticate_ws(websocket):
+        await websocket.close(code=4401, reason="Not authenticated")
+        return
+
+    try:
+        async with websockets.connect(
+            shadow_client.log_ws_url(),
+            additional_headers={"X-Admin-Secret": settings.shadow_admin_secret},
+            open_timeout=10,
+        ) as upstream:
+            relay_task = asyncio.create_task(_relay_upstream_log(upstream, websocket))
+            try:
+                while True:
+                    await websocket.receive_text()
+            finally:
+                relay_task.cancel()
+                with contextlib.suppress(Exception):
+                    await relay_task
+    except WebSocketDisconnect:
+        pass
+    except Exception:
+        logger.exception("log_ws: could not reach BackEnd_V2's log stream.")
+        with contextlib.suppress(Exception):
+            await websocket.send_text("Could not reach Shadow V2's log stream.")
 
 
 @router.get(ENDPOINTS.SERVER.RESTART_HISTORY, response_model=list[RestartResponse])

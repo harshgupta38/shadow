@@ -1,5 +1,8 @@
 # ─── Logs ────────────────────────────────────────────────────────────────────
-logs
+# No bare "logs" entry here on purpose — it previously matched any directory
+# named "logs" anywhere under this app, including src/pages/logs (the Logs
+# page's source folder), not just runtime log output. *.log below already
+# covers every actual log file.
 *.log
 npm-debug.log*
 yarn-debug.log*

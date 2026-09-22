@@ -4,6 +4,7 @@ import { monthFirstDow, weekDayLabels } from "@/utils/weekUtils";
 import { BarChartFill, CalendarEvent, ChevronLeft, ChevronRight, LightbulbFill, Stars } from "react-bootstrap-icons";
 import { useLocation, useNavigate } from "react-router-dom";
 import { api, ApiError } from "@/api";
+import type { Notification } from "@/api";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { ROUTES } from "@/routes/RoutePaths";
 import { useMonthParam } from "@/hooks/useUrlAnchor";
@@ -101,6 +102,26 @@ export function ReportsPage() {
 
   useEffect(() => { loadReport(); }, [loadReport]);
 
+  // Live-updates the calendar the moment a "report ready" notification arrives for the
+  // month currently on screen — so a report generated while this page is open is
+  // reflected immediately, instead of requiring a reload before it stops asking to
+  // generate a report the user already generated.
+  useEffect(() => {
+    function onNotification(e: Event) {
+      const notif = (e as CustomEvent<Notification>).detail;
+      if (!notif.event_key?.startsWith("report:")) return;
+      const [, , reportDateStr] = notif.event_key.split(":");
+      const [reportYear, reportMonth] = reportDateStr.split("-").map(Number);
+      if (reportYear === year && reportMonth - 1 === month) {
+        void api.reports.getMonthly(year, month + 1)
+          .then(res => setMonthData(buildMonthData(year, month, res.days)))
+          .catch(() => { /* next manual refresh will pick it up */ });
+      }
+    }
+    window.addEventListener("shadow:notification", onNotification);
+    return () => window.removeEventListener("shadow:notification", onNotification);
+  }, [year, month]);
+
   const stats = useMemo(() => computeStats(monthData, year, month), [monthData, year, month]);
 
   const weekStart = useWeekStart();
@@ -136,7 +157,7 @@ export function ReportsPage() {
       await api.reports.generateReportRequest(confirmDate, "daily");
       setConfirmDate(null);
       toast.info("Report requested — we'll notify you when it's ready.");
-      loadReport();
+      // loadReport();
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message : "Failed to request report. Please try again.");
     } finally {

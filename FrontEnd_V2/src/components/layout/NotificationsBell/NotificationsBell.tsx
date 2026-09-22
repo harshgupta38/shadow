@@ -47,6 +47,9 @@ export function NotificationsBell() {
           await api.notifications.stream(lastSeenId, (notif) => {
             lastSeenId = Math.max(lastSeenId, notif.id);
             setNotifications(prev => prev.some(n => n.id === notif.id) ? prev : [notif, ...prev]);
+            // Broadcast so any mounted page (e.g. Reports, waiting on a report it just
+            // requested) can react live instead of only learning about it on next load.
+            window.dispatchEvent(new CustomEvent<Notification>("shadow:notification", { detail: notif }));
           }, signal);
           retries = 0; // clean server-side close — reset before reconnecting
         } catch (e) {

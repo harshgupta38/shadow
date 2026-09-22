@@ -32,6 +32,7 @@ const HabitLibraryPage = lazy(() => import("@/pages/habit_library/HabitLibraryPa
 const HabitDetailPage = lazy(() => import("@/pages/habit_library/HabitDetailPage/HabitDetailPage").then(m => ({ default: m.HabitDetailPage })));
 const HabitWizardPage = lazy(() => import("@/pages/habit_library/HabitWizard/HabitWizardPage").then(m => ({ default: m.HabitWizardPage })));
 const TrackProgressPage = lazy(() => import("@/pages/track_progress/TrackProgressPage").then(m => ({ default: m.TrackProgressPage })));
+const JournalPage = lazy(() => import("@/pages/journal/JournalPage").then(m => ({ default: m.JournalPage })));
 const ReportsPage = lazy(() => import("@/pages/reports/ReportsPage").then(m => ({ default: m.ReportsPage })));
 const ReportDetailPage = lazy(() => import("@/pages/reports/ReportDetailPage/ReportDetailPage").then(m => ({ default: m.ReportDetailPage })));
 const AssistantPage = lazy(() => import("@/pages/assistant/AssistantPage").then(m => ({ default: m.AssistantPage })));
@@ -96,6 +97,7 @@ export function AppRoutes() {
 						<Route path={ROUTES.HABIT_LIBRARY_EDIT} element={<HabitWizardPage />} />
 
 						<Route path={ROUTES.TRACK_PROGRESS} element={<TrackProgressPage />} />
+						<Route path={ROUTES.JOURNAL} element={<JournalPage />} />
 						<Route path={ROUTES.REPORTS} element={<ReportsPage />} />
 						<Route path={ROUTES.REPORTS_DETAIL} element={<ReportDetailPage />} />
 						<Route path={ROUTES.ASSISTANT} element={<AssistantPage />} />

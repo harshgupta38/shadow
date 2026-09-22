@@ -10,6 +10,7 @@ import {
     Grid1x2Fill,
     GraphUpArrow,
     HeartPulseFill,
+    JournalRichtext,
     PersonBadgeFill,
     GearFill,
     type IconProps,
@@ -54,6 +55,7 @@ export const NAV_SECTIONS: NavSection[] = [
         label: "Reflect",
         items: [
             { to: ROUTES.TRACK_PROGRESS, label: "Track Progress", icon: GraphUpArrow },
+            { to: ROUTES.JOURNAL, label: "Journal", icon: JournalRichtext },
             { to: ROUTES.REPORTS, label: "Reports", icon: FileEarmarkBarGraphFill },
             { to: ROUTES.ASSISTANT, label: "Assistant", icon: ChatDotsFill },
         ],

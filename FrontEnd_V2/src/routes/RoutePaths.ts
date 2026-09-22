@@ -27,6 +27,7 @@ export const ROUTES = {
     HABIT_LIBRARY_EDIT: "/habit-library/:habitId/edit",
     
     TRACK_PROGRESS: "/track-progress",
+    JOURNAL: "/journal",
     REPORTS: "/reports",
     REPORTS_DETAIL: "/reports/:historyDate",
     ASSISTANT: "/assistant",

@@ -255,7 +255,7 @@ export function ReportsPage() {
             if (cell.type === "filler") return <div key={`f${i}`} className="rp-filler" />;
 
             const { date, key, data, isToday, isFuture } = cell;
-            const displayedScore = data.alignmentScore ?? data.score;
+            const displayedScore = data?.alignmentScore ?? data?.score;
             const t: ScoreTier = isFuture ? "empty" : tierOf(displayedScore);
             const cls = [
               "rp-day", `rp-day--${t}`,

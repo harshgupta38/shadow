@@ -23,6 +23,13 @@ export function todayDate(): Date {
     return new Date(y, m - 1, d);
 }
 
+/** Current hour (0-23) in IST, regardless of the viewer's own local timezone. */
+export function currentIstHour(): number {
+    return Number(
+        new Intl.DateTimeFormat("en-GB", { hour: "2-digit", hourCycle: "h23", timeZone: IST_TIMEZONE }).format(new Date())
+    );
+}
+
 const MONTH_NAMES = [
     "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December",

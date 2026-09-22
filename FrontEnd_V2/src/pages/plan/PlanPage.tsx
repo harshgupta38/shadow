@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  BrightnessHighFill,
   Calendar3,
   CalendarCheckFill,
   ChevronDown,
@@ -9,7 +9,10 @@ import {
   ChevronRight,
   Eye,
   EyeSlash,
+  MoonFill,
+  MoonStarsFill,
   Plus,
+  SunFill,
 } from "react-bootstrap-icons";
 
 import { api, ApiError } from "@/api";
@@ -23,7 +26,7 @@ import {
   formatDisplayDate,
   shiftDate,
 } from "@/pages/plan/PlanPage.constants";
-import { todayDate } from "@/services/date.service";
+import { currentIstHour, todayDate } from "@/services/date.service";
 import { PlanCard } from "@/pages/plan/PlanCard/PlanCard";
 import { DayOverviewPanel } from "@/pages/plan/DayOverviewPanel/DayOverviewPanel";
 import { YesterdayClosingPanel } from "@/pages/plan/YesterdayClosingPanel/YesterdayClosingPanel";
@@ -34,6 +37,16 @@ import "@/pages/plan/PlanPage.scss";
 
 const COMPLETE_ANIM_MS = ANIMATION.PLAN_ITEM_COMPLETE_MS;
 const TODAY_REFRESH_MS = TIMING.PLAN_DAY_ROLLOVER_CHECK_MS;
+
+// Same morning/afternoon -> sun, evening/night -> moon mapping as PlanCard's TimeChip,
+// but driven by the current IST clock instead of a task's stored preferred time.
+function briefMeIcon(): ReactNode {
+  const hour = currentIstHour();
+
+  if (hour >= 17 && hour < 21) return <MoonFill size={15} />;
+  if (hour >= 21 || hour < 5) return <MoonStarsFill size={14} />;
+  return <SunFill size={15} />;
+}
 
 export function PlanPage() {
   const navigate = useNavigate();
@@ -360,7 +373,7 @@ export function PlanPage() {
             >
               {generatingBrief
                 ? <span className="spinner-border spinner-border-sm" aria-hidden="true" />
-                : <BrightnessHighFill size={15} />}
+                : briefMeIcon()}
               {generatingBrief ? "Generating…" : "Brief me"}
             </button>
           )}

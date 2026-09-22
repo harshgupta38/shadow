@@ -54,7 +54,8 @@ class OllamaModel(StrEnum):
 
 
 class OpenAIModel(StrEnum):
-    GPT_6_ASTRA = "gpt-6-astra" # Cost: approx. INR 0.96 input / INR 4.79 output per 1K tokens
+    # GPT-6 is not ready for our system
+    # GPT_6_ASTRA = "gpt-6-astra" # Cost: approx. INR 0.96 input / INR 4.79 output per 1K tokens 
 
     GPT_5 = "gpt-5"  # Cost: approx. INR 0.11 input / INR 0.88 output per 1K tokens
     GPT_5_MINI = "gpt-5-mini"  # Cost: approx. INR 0.022 input / INR 0.176 output per 1K tokens

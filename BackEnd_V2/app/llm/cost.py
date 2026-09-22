@@ -21,7 +21,7 @@ MODEL_COSTS: dict[ModelKey, ModelCost] = {
     OllamaModel.DEEPSEEK_R1_8B: ModelCost(0.0, 0.0),
     OllamaModel.MISTRAL_7B: ModelCost(0.0, 0.0),
     # OpenAI
-    OpenAIModel.GPT_6_ASTRA: ModelCost(0.96, 4.79),
+    # OpenAIModel.GPT_6_ASTRA: ModelCost(0.96, 4.79),  # disabled — member commented out in enums.py
     OpenAIModel.GPT_5: ModelCost(0.11, 0.88),
     OpenAIModel.GPT_5_MINI: ModelCost(0.022, 0.176),
     OpenAIModel.GPT_5_NANO: ModelCost(0.0044, 0.035),

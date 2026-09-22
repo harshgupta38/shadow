@@ -1,4 +1,8 @@
-.stdp-panel {
+// Compound selector (not just `.stdp-panel`) so this reliably outranks
+// `.goal-refined-review-panel`'s own `width` rule regardless of which
+// stylesheet's CSS ends up ordered later in the production bundle — in dev,
+// Vite's per-module style injection order happened to favor this file.
+.goal-refined-review-panel.stdp-panel {
     width: min(460px, 100%);
     padding: 2rem 1.75rem 0;
     display: flex;

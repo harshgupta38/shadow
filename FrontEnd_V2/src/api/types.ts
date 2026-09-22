@@ -798,6 +798,7 @@ export interface GoalAlignment {
 }
 
 export interface DailyReportDetail {
+  id: number;
   date: string;
   report_type: "daily" | "weekly";
   generated_at: string;

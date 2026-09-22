@@ -13,6 +13,7 @@ from app.schemas.daily_report import ReportResponse
 from app.schemas.reports import MonthlyReportResponse
 from app.services import reports_service
 from app.services.report_service import (
+    delete_report,
     generate_report_background,
     get_reports,
     has_planned_items,
@@ -73,3 +74,12 @@ def email_report(
     if not reports:
         raise NotFoundError("No report found for this date.")
     background_tasks.add_task(send_report_email_background, current_user.id, report_date, report_type)
+
+
+@router.delete(ENDPOINTS.REPORTS.DELETE_REPORT, status_code=status.HTTP_204_NO_CONTENT)
+def remove_report(
+    report_id: int,
+    db=Depends(get_db),
+    current_user: UserDBM = Depends(get_current_user),
+) -> None:
+    delete_report(db, current_user.id, report_id)

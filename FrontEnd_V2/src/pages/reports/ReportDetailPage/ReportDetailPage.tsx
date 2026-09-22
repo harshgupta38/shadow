@@ -9,6 +9,7 @@ import {
   EnvelopeFill,
   ExclamationTriangleFill,
   FileEarmarkBarGraphFill,
+  Trash3Fill,
 } from "react-bootstrap-icons";
 
 import { formatDisplayDate, todayIso } from "@/services/date.service";
@@ -17,6 +18,7 @@ import { api, ApiError } from "@/api";
 import { ROUTES } from "@/routes/RoutePaths";
 import type { DailyReportDetail, GoalAlignment } from "@/api/types";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { useToast } from "@/context/ToastContext";
 import { CLOSING_EMOJI, fmtTime, ringColor } from "./ReportDetailPage.constants";
 import { useDateFormat, useTimeFormat } from "@/context/PlannerContext";
@@ -263,6 +265,8 @@ export function ReportDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [requested, setRequested] = useState(false);
   const [emailing, setEmailing] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const toast = useToast();
 
   // Derived from active type
@@ -320,6 +324,43 @@ export function ReportDetailPage() {
       .then(() => toast.success("Report sent to your email."))
       .catch((err) => toast.error(err instanceof ApiError ? err.message : "Couldn't email the report. Please try again."))
       .finally(() => setEmailing(false));
+  }
+
+  function handleDeleteReport() {
+    const target = reports[idx];
+    if (!target || deleting) return;
+    setDeleting(true);
+    api.reports.deleteReport(target.id)
+      .then(() => {
+        toast.success("Report deleted.");
+        setDeleteConfirmOpen(false);
+
+        const remainingDaily = activeType === "daily" ? dailyReports.filter(r => r.id !== target.id) : dailyReports;
+        const remainingWeekly = activeType === "weekly" ? weeklyReports.filter(r => r.id !== target.id) : weeklyReports;
+        if (activeType === "daily") setDailyReports(remainingDaily);
+        else setWeeklyReports(remainingWeekly);
+
+        if (remainingDaily.length === 0 && remainingWeekly.length === 0) {
+          // Nothing left for this date at all — this page has nothing to show.
+          navigate(backPath);
+          return;
+        }
+
+        if (activeType === "daily" && remainingDaily.length === 0) {
+          switchType("weekly");
+          setIdxByType(prev => ({ ...prev, weekly: 0 }));
+        } else if (activeType === "weekly" && remainingWeekly.length === 0) {
+          switchType("daily");
+          setIdxByType(prev => ({ ...prev, daily: 0 }));
+        } else {
+          // Same type still has versions left — land on the one now at this
+          // position (or the new last one, if we deleted the last item).
+          const remaining = activeType === "daily" ? remainingDaily : remainingWeekly;
+          setIdxByType(prev => ({ ...prev, [activeType]: Math.min(idx, remaining.length - 1) }));
+        }
+      })
+      .catch((err) => toast.error(err instanceof ApiError ? err.message : "Couldn't delete the report. Please try again."))
+      .finally(() => setDeleting(false));
   }
 
   const datePicker = historyDate
@@ -490,7 +531,15 @@ export function ReportDetailPage() {
               disabled={emailing}
               onClick={handleEmailReport}
             >
-              <EnvelopeFill size={13} /> {emailing ? "Sending…" : "Email report"}
+              <EnvelopeFill size={13} /> {emailing ? "Sending…" : "Email"}
+            </button>
+            <button
+              type="button"
+              className="rdp-delete-btn"
+              disabled={deleting}
+              onClick={() => setDeleteConfirmOpen(true)}
+            >
+              <Trash3Fill size={13} /> Delete
             </button>
             {hasBothTypes && (
               <div className="rdp-type-switcher">
@@ -513,6 +562,17 @@ export function ReportDetailPage() {
           </div>
           {total > 1 && <ReportPagination total={total} idx={idx} onChange={setIdx} />}
         </div>
+
+      <ConfirmDialog
+        show={deleteConfirmOpen}
+        title="Delete this report?"
+        message="This report version will be permanently deleted. This can't be undone."
+        confirmLabel="Delete"
+        destructive
+        busy={deleting}
+        onConfirm={handleDeleteReport}
+        onCancel={() => setDeleteConfirmOpen(false)}
+      />
 
     </div>
   );

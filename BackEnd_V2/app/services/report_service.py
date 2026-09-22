@@ -6,6 +6,7 @@ from sqlalchemy import select, desc
 from sqlalchemy.orm import Session
 
 from app.db.session import SessionLocal
+from app.core.exceptions import NotFoundError
 from app.llm.models import GenerateReportFromLLM
 from app.llm.service import get_llm_service_for_ai_behavior
 from app.models.goal import GoalDBM
@@ -274,6 +275,16 @@ def get_reports(db: Session, user_id: int, report_date: date) -> list[ReportDBM]
     ).all())
 
 
+def delete_report(db: Session, user_id: int, report_id: int) -> None:
+    report = db.scalar(
+        select(ReportDBM).where(ReportDBM.id == report_id, ReportDBM.user_id == user_id)
+    )
+    if report is None:
+        raise NotFoundError("Report not found.")
+    db.delete(report)
+    db.commit()
+
+
 def has_planned_items(db: Session, user_id: int, report_date: date, report_type: str) -> bool:
     """Cheap existence check — mirrors build_day_data's date range without loading full day data."""
     if report_type == "weekly":
@@ -305,6 +316,7 @@ def get_latest_report(db: Session, user_id: int) -> ReportDBM | None:
 
 def to_report_response(report: ReportDBM) -> ReportResponse:
     return ReportResponse.model_validate({
+        "id": report.id,
         "date": report.report_date,
         "report_type": report.report_type,
         "generated_at": report.generated_at,

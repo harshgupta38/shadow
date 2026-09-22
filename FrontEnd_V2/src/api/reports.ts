@@ -26,4 +26,8 @@ export const reportsApi = {
       params: { report_type: reportType },
     });
   },
+
+  async deleteReport(reportId: number): Promise<void> {
+    await http.delete<void>(`${BASE}${ENDPOINTS.REPORTS.DELETE_REPORT(reportId)}`);
+  },
 };

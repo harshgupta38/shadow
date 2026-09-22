@@ -55,6 +55,7 @@ class ReportClosingResponse(BaseModel):
 
 
 class ReportResponse(ORMModel):
+    id: int
     date: date
     report_type: str
     generated_at: datetime

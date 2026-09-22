@@ -115,6 +115,7 @@ class Endpoints:
         REPORT_DETAIL = "/{report_date}"
         GENERATE_REPORT_REQUEST = "/{report_date}/request"
         EMAIL_REPORT_REQUEST = "/{report_date}/email"
+        DELETE_REPORT = "/entry/{report_id}/delete"
 
     class NOTIFICATIONS:
         PREFIX = "/notifications"

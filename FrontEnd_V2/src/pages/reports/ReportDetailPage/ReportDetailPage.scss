@@ -112,6 +112,11 @@
   gap: 1rem;
   margin-top: 1rem;
   flex-wrap: wrap;
+
+  @media (max-width: 767px) {
+    flex-direction: column;
+    align-items: start;
+  }
 }
 
 .rdp-bottom-bar-left {
@@ -139,6 +144,26 @@
 
   &:hover { background: var(--jv-surface-2); border-color: var(--jv-border-strong); }
   &:disabled { color: var(--jv-muted); cursor: default; background: var(--jv-surface); }
+}
+
+.rdp-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  height: stretch;
+  gap: 0.4rem;
+  padding: 0.3rem 1.1rem;
+  border: 1px solid var(--jv-danger-soft);
+  border-radius: 10px;
+  background: var(--jv-surface);
+  color: var(--jv-danger);
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 140ms, border-color 140ms, color 140ms;
+
+  &:hover { background: var(--jv-danger-soft); border-color: var(--jv-danger); }
+  &:disabled { color: var(--jv-muted); cursor: default; background: var(--jv-surface); border-color: var(--jv-border); }
 }
 
 .rdp-pagination {

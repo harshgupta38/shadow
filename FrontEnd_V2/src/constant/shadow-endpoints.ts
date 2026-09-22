@@ -100,6 +100,7 @@ export const ENDPOINTS = {
         REPORT_DETAIL: (reportDate: string) => `/${reportDate}`,
         GENERATE_REPORT_REQUEST: (reportDate: string) => `/${reportDate}/request`,
         EMAIL_REPORT_REQUEST: (reportDate: string) => `/${reportDate}/email`,
+        DELETE_REPORT: (reportId: number) => `/entry/${reportId}/delete`,
     },
     CHAT: {
         PREFIX: "/chat",

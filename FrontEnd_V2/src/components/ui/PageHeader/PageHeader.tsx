@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { ReactNode } from "react";
-import { ThreeDotsVertical } from "react-bootstrap-icons";
+import { ArrowLeft, ThreeDotsVertical } from "react-bootstrap-icons";
 
 import "@/components/ui/PageHeader/PageHeader.scss";
 
@@ -25,6 +25,8 @@ interface PageHeaderProps {
     icon?: ReactNode;
     actions?: PageHeaderAction[];
     rightSlot?: ReactNode;
+    /** Shows a "Back" link above the title when provided. */
+    onBack?: () => void;
 }
 
 const DESKTOP_TONE_CLASS: Record<PageHeaderActionTone, string> = {
@@ -41,7 +43,7 @@ const MOBILE_TONE_CLASS: Record<PageHeaderActionTone, string> = {
     none: "is-none",
 };
 
-export function PageHeader({ title, subtitle, icon, actions, rightSlot }: PageHeaderProps) {
+export function PageHeader({ title, subtitle, icon, actions, rightSlot, onBack }: PageHeaderProps) {
     const mobileMenuRef = useRef<HTMLDetailsElement>(null);
 
     const closeMobileMenu = () => {
@@ -68,69 +70,76 @@ export function PageHeader({ title, subtitle, icon, actions, rightSlot }: PageHe
     }, []);
 
     return (
-        <div className="page-header-jv d-flex flex-nowrap align-items-center justify-content-between gap-3 mb-3">
-            <div className="page-header-jv-main d-flex align-items-center gap-3 min-w-0">
-                {icon && <div className="stat-icon">{icon}</div>}
-                <div className="min-w-0">
-                    <h1 className="page-title h3 mb-1 fw-bold">{title}</h1>
-                    {subtitle && <p className="page-subtitle text-muted-2 mb-0">{subtitle}</p>}
-                </div>
-            </div>
-
-            {rightSlot && (
-                <div className="page-header-right-slot flex-shrink-0 ms-auto align-self-end">{rightSlot}</div>
+        <>
+            {onBack && (
+                <button type="button" className="page-header-back-link" onClick={onBack}>
+                    <ArrowLeft size={16} /> Back
+                </button>
             )}
-
-            {!!actions?.length && (
-                <div className="d-none d-lg-flex align-items-center gap-2 flex-nowrap flex-shrink-0">
-                    {actions.map((action) => {
-                        const desktopTone = action.desktopTone ?? action.tone ?? "soft";
-
-                        return (
-                            <button
-                                key={action.key}
-                                type="button"
-                                className={`btn text-nowrap flex-shrink-0 ${DESKTOP_TONE_CLASS[desktopTone]} ${action.className ?? ""}`.trim()}
-                                onClick={action.onClick}
-                                disabled={action.disabled}
-                                aria-label={action.iconOnly ? action.label : undefined}
-                            >
-                                {action.icon && <span className={action.iconOnly ? "" : "me-1 mt-1 d-inline-flex"}>{action.icon}</span>}
-                                {!action.iconOnly && action.label}
-                            </button>
-                        );
-                    })}
+            <div className="page-header-jv d-flex flex-nowrap align-items-center justify-content-between gap-3 mb-3">
+                <div className="page-header-jv-main d-flex align-items-center gap-3 min-w-0">
+                    {icon && <div className="stat-icon">{icon}</div>}
+                    <div className="min-w-0">
+                        <h1 className="page-title h3 mb-1 fw-bold">{title}</h1>
+                        {subtitle && <p className="page-subtitle text-muted-2 mb-0">{subtitle}</p>}
+                    </div>
                 </div>
-            )}
 
-            {!!actions?.length && (
-                <details ref={mobileMenuRef} className="page-header-mobile-menu d-lg-none">
-                    <summary className="btn btn-ghost btn-icon" aria-label="Open page actions">
-                        <ThreeDotsVertical size={18} />
-                    </summary>
-                    <div className="page-header-mobile-actions" role="menu" aria-label="Page actions">
+                {rightSlot && (
+                    <div className="page-header-right-slot flex-shrink-0 ms-auto align-self-end">{rightSlot}</div>
+                )}
+
+                {!!actions?.length && (
+                    <div className="d-none d-lg-flex align-items-center gap-2 flex-nowrap flex-shrink-0">
                         {actions.map((action) => {
-                            const mobileTone = action.mobileTone ?? action.tone ?? "soft";
+                            const desktopTone = action.desktopTone ?? action.tone ?? "soft";
 
                             return (
                                 <button
                                     key={action.key}
                                     type="button"
-                                    role="menuitem"
-                                    className={`page-header-mobile-action-item p-0 ${MOBILE_TONE_CLASS[mobileTone]}`.trim()}
-                                    onClick={() => {
-                                        action.onClick?.();
-                                        closeMobileMenu();
-                                    }}
+                                    className={`btn text-nowrap flex-shrink-0 ${DESKTOP_TONE_CLASS[desktopTone]} ${action.className ?? ""}`.trim()}
+                                    onClick={action.onClick}
+                                    disabled={action.disabled}
+                                    aria-label={action.iconOnly ? action.label : undefined}
                                 >
-                                    {action.icon && <span className="page-header-mobile-action-icon">{action.icon}</span>}
-                                    <span>{action.label}</span>
+                                    {action.icon && <span className={action.iconOnly ? "" : "me-1 mt-1 d-inline-flex"}>{action.icon}</span>}
+                                    {!action.iconOnly && action.label}
                                 </button>
                             );
                         })}
                     </div>
-                </details>
-            )}
-        </div>
+                )}
+
+                {!!actions?.length && (
+                    <details ref={mobileMenuRef} className="page-header-mobile-menu d-lg-none">
+                        <summary className="btn btn-ghost btn-icon" aria-label="Open page actions">
+                            <ThreeDotsVertical size={18} />
+                        </summary>
+                        <div className="page-header-mobile-actions" role="menu" aria-label="Page actions">
+                            {actions.map((action) => {
+                                const mobileTone = action.mobileTone ?? action.tone ?? "soft";
+
+                                return (
+                                    <button
+                                        key={action.key}
+                                        type="button"
+                                        role="menuitem"
+                                        className={`page-header-mobile-action-item p-0 ${MOBILE_TONE_CLASS[mobileTone]}`.trim()}
+                                        onClick={() => {
+                                            action.onClick?.();
+                                            closeMobileMenu();
+                                        }}
+                                    >
+                                        {action.icon && <span className="page-header-mobile-action-icon">{action.icon}</span>}
+                                        <span>{action.label}</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </details>
+                )}
+            </div>
+        </>
     );
 }

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { BrightnessHighFill } from "react-bootstrap-icons";
 
 import { api } from "@/api";
@@ -103,6 +103,7 @@ function Skeleton() {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export function DailyBriefPage() {
+    const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const dateParam = searchParams.get("date") ?? undefined;
     const displayDate = dateParam ?? todayISTString();
@@ -136,6 +137,7 @@ export function DailyBriefPage() {
                 icon={<BrightnessHighFill size={20} />}
                 title="Daily Brief"
                 subtitle={subtitle}
+                onBack={() => navigate(-1)}
             />
 
             {loading && <Skeleton />}

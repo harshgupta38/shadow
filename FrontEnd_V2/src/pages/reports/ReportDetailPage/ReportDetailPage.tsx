@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
-  ArrowLeft,
   BarChartFill,
   Calendar3,
   CheckCircleFill,
@@ -332,10 +331,7 @@ export function ReportDetailPage() {
   if (loading) {
     return (
       <div className="rdp-page">
-        <button type="button" className="rdp-back-link" onClick={() => navigate(backPath)}>
-          <ArrowLeft size={16} /> Back
-        </button>
-        <PageHeader icon={<BarChartFill size={20} />} title={pageTitle} subtitle="Loading…" rightSlot={datePicker} />
+        <PageHeader icon={<BarChartFill size={20} />} title={pageTitle} subtitle="Loading…" rightSlot={datePicker} onBack={() => navigate(backPath)} />
         <RdpGhostShell />
       </div>
     );
@@ -345,10 +341,7 @@ export function ReportDetailPage() {
     const isError = !!error;
     return (
       <div className="rdp-page">
-        <button type="button" className="rdp-back-link" onClick={() => navigate(backPath)}>
-          <ArrowLeft size={16} /> Back
-        </button>
-        <PageHeader icon={<BarChartFill size={20} />} title={pageTitle} rightSlot={datePicker} />
+        <PageHeader icon={<BarChartFill size={20} />} title={pageTitle} rightSlot={datePicker} onBack={() => navigate(backPath)} />
         <div className="rdp-empty-state">
           <div className="rdp-empty-icon rdp-empty-icon--warn">
             <FileEarmarkBarGraphFill size={36} />
@@ -390,16 +383,13 @@ export function ReportDetailPage() {
   return (
     <div className="rdp-page">
 
-      <button type="button" className="rdp-back-link" onClick={() => navigate(backPath)}>
-        <ArrowLeft size={16} /> Back
-      </button>
-
-      {/* ── Page Header ──────────────────────────────────────────────────── */}
+      {/* ── Page Header ──────────────────────────────────────────────── */}
       <PageHeader
         icon={<BarChartFill size={20} />}
         title={activeType === "weekly" ? "Weekly Report" : "Daily Report"}
         subtitle={`${dateLabel} · ${fmtTime(report.generated_at, timeFormat)}${total > 1 ? ` · ${idx + 1} of ${total}` : ""}`}
         rightSlot={datePicker}
+        onBack={() => navigate(backPath)}
       />
 
       {/* ── Hero ─────────────────────────────────────────────────────────── */}

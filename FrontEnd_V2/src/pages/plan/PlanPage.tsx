@@ -482,21 +482,23 @@ export function PlanPage() {
                   size={15}
                 />
               </button>
-              {completedOpen && (
-                <div className="plan-task-list mt-0">
-                  {doneItems.map((item) => (
-                    <PlanCard
-                      key={item.saved_data?.record_id ?? item.plan_id}
-                      item={item}
-                      readOnly={!isToday}
-                      busy={busyIds.has(item.plan_id)}
-                      onToggle={() => handleToggle(item.plan_id)}
-                      onSaveProgress={(value) => handleSaveProgress(item.plan_id, value)}
-                      onSaveNote={(note) => handleSaveNote(item.plan_id, note)}
-                    />
-                  ))}
+              <div className={`completed-panel-collapse${completedOpen ? " is-open" : ""}`}>
+                <div className="completed-panel-collapse-inner">
+                  <div className="plan-task-list mt-0">
+                    {doneItems.map((item) => (
+                      <PlanCard
+                        key={item.saved_data?.record_id ?? item.plan_id}
+                        item={item}
+                        readOnly={!isToday}
+                        busy={busyIds.has(item.plan_id)}
+                        onToggle={() => handleToggle(item.plan_id)}
+                        onSaveProgress={(value) => handleSaveProgress(item.plan_id, value)}
+                        onSaveNote={(note) => handleSaveNote(item.plan_id, note)}
+                      />
+                    ))}
+                  </div>
                 </div>
-              )}
+              </div>
             </section>
           )}
         </div>

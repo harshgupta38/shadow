@@ -145,6 +145,11 @@
   .plan-columns {
     display: grid;
     grid-template-columns: minmax(0, 2.06fr) minmax(280px, 1fr);
+    // Grid items stretch to the row's height by default, which makes the shorter
+    // column's box exactly as tall as the taller one — leaving no room for its
+    // sticky child to actually "stick" as you scroll. Sizing it to its own
+    // content instead lets sticky use the (taller) grid area as its bound.
+    align-items: start;
     gap: var(--plan-gap);
   }
 
@@ -153,6 +158,11 @@
     min-width: 0;
     flex-direction: column;
     gap: var(--plan-gap);
+  }
+
+  .plan-column:nth-child(2) {
+    position: sticky;
+    top: 1rem;
   }
 
   .plan-panel {
@@ -307,6 +317,23 @@
     }
   }
 
+  // Pure-CSS collapse: animating grid-template-rows (0fr -> 1fr) lets the
+  // inner content's natural height be transitioned without measuring it in JS.
+  .completed-panel-collapse {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 260ms var(--jv-ease);
+
+    &.is-open {
+      grid-template-rows: 1fr;
+    }
+  }
+
+  .completed-panel-collapse-inner {
+    min-height: 0;
+    overflow: hidden;
+  }
+
   .completed-panel .plan-task-list {
     padding: 0 1.1rem 1rem;
   }
@@ -365,6 +392,10 @@
   @media (max-width: 800px) {
     .plan-columns {
       grid-template-columns: 1fr;
+    }
+
+    .plan-column:nth-child(2) {
+      position: static;
     }
   }
 

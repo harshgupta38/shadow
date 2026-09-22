@@ -2,10 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useWeekStart } from "@/context/PlannerContext";
 import { monthFirstDow, weekDayLabels } from "@/utils/weekUtils";
 import { BarChartFill, CalendarEvent, ChevronLeft, ChevronRight, LightbulbFill, Stars } from "react-bootstrap-icons";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { api, ApiError } from "@/api";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { ROUTES } from "@/routes/RoutePaths";
+import { useMonthParam } from "@/hooks/useUrlAnchor";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { ChoiceDialog } from "@/components/ui/ChoiceDialog/ChoiceDialog";
 import { useToast } from "@/context/ToastContext";
@@ -69,23 +70,23 @@ function ReportGhostShell() {
 
 export function ReportsPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const toast = useToast();
   const [showGenerateDialog, setShowGenerateDialog] = useState(false);
   const [confirmDate, setConfirmDate] = useState<string | null>(null);
   const [noDataDate, setNoDataDate] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
-  const [activeMonth, setActiveMonth] = useState(
-    () => new Date(TODAY.getFullYear(), TODAY.getMonth(), 1),
-  );
+  const { year, month, setMonth } = useMonthParam();
+  // Passed to the detail page so its back links return to this exact month
+  // instead of always resetting to the current one.
+  const returnPath = `${location.pathname}${location.search}`;
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
   const [monthData, setMonthData] = useState<Map<string, DayData>>(() => new Map());
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const reqId = useRef(0);
 
-  const year = activeMonth.getFullYear();
-  const month = activeMonth.getMonth();
-  const canNext = activeMonth < new Date(TODAY.getFullYear(), TODAY.getMonth(), 1);
+  const canNext = new Date(year, month, 1) < new Date(TODAY.getFullYear(), TODAY.getMonth(), 1);
 
   const loadReport = useCallback(() => {
     const id = ++reqId.current;
@@ -125,8 +126,8 @@ export function ReportsPage() {
     ? (cells.find(c => c.type === "day" && c.key === hoveredKey) as CalDay | undefined) ?? null
     : null;
 
-  function goPrev() { setActiveMonth(m => new Date(m.getFullYear(), m.getMonth() - 1, 1)); setHoveredKey(null); }
-  function goNext() { if (!canNext) return; setActiveMonth(m => new Date(m.getFullYear(), m.getMonth() + 1, 1)); setHoveredKey(null); }
+  function goPrev() { setMonth(month === 0 ? year - 1 : year, month === 0 ? 11 : month - 1); setHoveredKey(null); }
+  function goNext() { if (!canNext) return; setMonth(month === 11 ? year + 1 : year, month === 11 ? 0 : month + 1); setHoveredKey(null); }
 
   async function handleGenerateForDate() {
     if (!confirmDate) return;
@@ -273,7 +274,7 @@ export function ReportsPage() {
                 onClick={() => {
                   if (isFuture) return;
                   const reportType = data.hasDailyReport ? "daily" : data.hasWeeklyReport ? "weekly" : null;
-                  if (reportType) navigate(`${ROUTES.REPORTS_DETAIL.replace(":historyDate", key)}?report_type=${reportType}`);
+                  if (reportType) navigate(`${ROUTES.REPORTS_DETAIL.replace(":historyDate", key)}?report_type=${reportType}`, { state: { returnPath } });
                   else if (data.score !== null) setConfirmDate(key);
                   else setNoDataDate(key);
                 }}
@@ -281,7 +282,7 @@ export function ReportsPage() {
                   if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();
                     const reportType = data.hasDailyReport ? "daily" : data.hasWeeklyReport ? "weekly" : null;
-                    if (reportType) navigate(`${ROUTES.REPORTS_DETAIL.replace(":historyDate", key)}?report_type=${reportType}`);
+                    if (reportType) navigate(`${ROUTES.REPORTS_DETAIL.replace(":historyDate", key)}?report_type=${reportType}`, { state: { returnPath } });
                     else if (data.score !== null) setConfirmDate(key);
                     else setNoDataDate(key);
                   }

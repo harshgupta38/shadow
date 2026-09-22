@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft,
   BarChartFill,
@@ -109,7 +109,7 @@ function GoalCard({ goal }: { goal: GoalAlignment }) {
 
 // ── Date Picker ───────────────────────────────────────────────────────────────
 
-function ReportDatePicker({ date, reportType }: { date: string; reportType: string }) {
+function ReportDatePicker({ date, reportType, returnPath }: { date: string; reportType: string; returnPath: string }) {
   const navigate = useNavigate();
   const dateFormat = useDateFormat();
   const today = todayIso();
@@ -118,11 +118,11 @@ function ReportDatePicker({ date, reportType }: { date: string; reportType: stri
   function shift(days: number) {
     const [y, m, d] = date.split("-").map(Number);
     const shifted = new Date(Date.UTC(y, m - 1, d + days, 12));
-    navigate(`/reports/${shifted.toISOString().slice(0, 10)}?report_type=${reportType}`);
+    navigate(`/reports/${shifted.toISOString().slice(0, 10)}?report_type=${reportType}`, { state: { returnPath } });
   }
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
-    if (e.target.value) navigate(`/reports/${e.target.value}?report_type=${reportType}`);
+    if (e.target.value) navigate(`/reports/${e.target.value}?report_type=${reportType}`, { state: { returnPath } });
   }
 
   return (
@@ -245,10 +245,14 @@ function RdpGhostShell() {
 
 export function ReportDetailPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const timeFormat = useTimeFormat();
   const dateFormat = useDateFormat();
   const { historyDate } = useParams<{ historyDate: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
+
+  // Set by ReportsPage so "Back" returns to the exact month the user was viewing.
+  const backPath = (location.state as { returnPath?: string } | null)?.returnPath ?? ROUTES.REPORTS;
 
   const [activeType, setActiveType] = useState<"daily" | "weekly">(
     () => searchParams.get("report_type") === "weekly" ? "weekly" : "daily",
@@ -320,7 +324,7 @@ export function ReportDetailPage() {
   }
 
   const datePicker = historyDate
-    ? <ReportDatePicker date={historyDate} reportType={activeType} />
+    ? <ReportDatePicker date={historyDate} reportType={activeType} returnPath={backPath} />
     : undefined;
 
   const pageTitle = activeType === "weekly" ? "Weekly Report" : "Daily Report";
@@ -328,7 +332,7 @@ export function ReportDetailPage() {
   if (loading) {
     return (
       <div className="rdp-page">
-        <button type="button" className="rdp-back-link" onClick={() => navigate(ROUTES.REPORTS)}>
+        <button type="button" className="rdp-back-link" onClick={() => navigate(backPath)}>
           <ArrowLeft size={16} /> Back
         </button>
         <PageHeader icon={<BarChartFill size={20} />} title={pageTitle} subtitle="Loading…" rightSlot={datePicker} />
@@ -341,7 +345,7 @@ export function ReportDetailPage() {
     const isError = !!error;
     return (
       <div className="rdp-page">
-        <button type="button" className="rdp-back-link" onClick={() => navigate(ROUTES.REPORTS)}>
+        <button type="button" className="rdp-back-link" onClick={() => navigate(backPath)}>
           <ArrowLeft size={16} /> Back
         </button>
         <PageHeader icon={<BarChartFill size={20} />} title={pageTitle} rightSlot={datePicker} />
@@ -358,7 +362,7 @@ export function ReportDetailPage() {
               : "No report has been generated for this date yet. Generate one to see your performance breakdown."}
           </p>
           <div className="rdp-empty-actions">
-            <button type="button" className="btn btn-outline-secondary px-4" onClick={() => navigate(ROUTES.REPORTS)}>
+            <button type="button" className="btn btn-outline-secondary px-4" onClick={() => navigate(backPath)}>
               Go Back
             </button>
             {requested
@@ -386,7 +390,7 @@ export function ReportDetailPage() {
   return (
     <div className="rdp-page">
 
-      <button type="button" className="rdp-back-link" onClick={() => navigate(ROUTES.REPORTS)}>
+      <button type="button" className="rdp-back-link" onClick={() => navigate(backPath)}>
         <ArrowLeft size={16} /> Back
       </button>
 

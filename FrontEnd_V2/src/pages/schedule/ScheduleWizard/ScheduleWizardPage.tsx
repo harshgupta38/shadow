@@ -218,7 +218,7 @@ export function ScheduleWizardPage() {
             if (isEditMode) {
                 await api.schedule.updateScheduleTask(numericTaskId, payload, originalRepeatYearly);
                 toast.success("Task updated successfully.");
-                navigate(ROUTES.SCHEDULE);
+                navigate(stateReturnPath ?? ROUTES.SCHEDULE);
             } else if (stateProposalId) {
                 await api.schedule.saveFromProposal({ proposal_id: stateProposalId, task: payload });
                 toast.success("Task scheduled successfully.");
@@ -228,7 +228,7 @@ export function ScheduleWizardPage() {
             } else {
                 await api.schedule.save(payload);
                 toast.success("Task scheduled successfully.");
-                navigate(ROUTES.SCHEDULE);
+                navigate(stateReturnPath ?? ROUTES.SCHEDULE);
             }
         } catch (submitError) {
             if (submitError instanceof ApiError) {

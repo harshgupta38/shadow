@@ -27,6 +27,7 @@ import {
   shiftDate,
 } from "@/pages/plan/PlanPage.constants";
 import { currentIstHour, todayDate } from "@/services/date.service";
+import { useDateParam } from "@/hooks/useUrlAnchor";
 import { PlanCard } from "@/pages/plan/PlanCard/PlanCard";
 import { DayOverviewPanel } from "@/pages/plan/DayOverviewPanel/DayOverviewPanel";
 import { YesterdayClosingPanel } from "@/pages/plan/YesterdayClosingPanel/YesterdayClosingPanel";
@@ -55,7 +56,14 @@ export function PlanPage() {
 
   // IST-anchored "today", refreshed periodically so a tab left open past midnight doesn't get stuck.
   const [today, setToday] = useState(() => todayDate());
-  const [selectedDate, setSelectedDate] = useState(() => todayDate());
+  // Selected date is mirrored in the URL (?date=) so navigating away (e.g. to
+  // Schedule) and back, or refreshing the tab, keeps the date the user was on.
+  const { iso: selectedDateIso, setDate: setSelectedDateIso } = useDateParam();
+  const selectedDate = useMemo(() => new Date(`${selectedDateIso}T00:00:00`), [selectedDateIso]);
+  function setSelectedDate(next: Date | ((date: Date) => Date)) {
+    const nextDate = typeof next === "function" ? next(selectedDate) : next;
+    setSelectedDateIso(toDateInputValue(nextDate));
+  }
   const [planData, setPlanData] = useState<PlanResponse | null>(null);
   const [loadingPlan, setLoadingPlan] = useState(false);
   const [planError, setPlanError] = useState<string | null>(null);

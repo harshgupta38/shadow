@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useWeekStart } from "@/context/PlannerContext";
 import { weekDayLabels } from "@/utils/weekUtils";
 import { CalendarWeek, ChevronDoubleLeft, ChevronDoubleRight, ChevronLeft, ChevronRight, PlusLg } from "react-bootstrap-icons";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import { api } from "@/api";
 import type { ScheduledTaskDataResponse, ScheduledTaskPreferredTime, ScheduledTaskPriority, ScheduledTaskStatus } from "@/api/types";
@@ -22,6 +22,7 @@ import { useToast } from "@/context/ToastContext";
 import { PAGE_SIZE } from "@/constant/tuning";
 import { ROUTES } from "@/routes/RoutePaths";
 import { todayIso } from "@/services/date.service";
+import { useMonthParam } from "@/hooks/useUrlAnchor";
 import { ScheduleCard } from "@/pages/schedule/ScheduleCard/ScheduleCard";
 import { PRIORITY_COLOR } from "@/pages/schedule/ScheduleCard/ScheduleCard.constants";
 import { ScheduleTaskDetailPanel } from "@/pages/schedule/ScheduleTaskDetailPanel/ScheduleTaskDetailPanel";
@@ -52,6 +53,7 @@ function ScheduleCardSkeleton() {
 
 export function SchedulePage() {
     const navigate = useNavigate();
+    const location = useLocation();
     const toast = useToast();
 
     const [loading, setLoading] = useState(true);
@@ -60,14 +62,11 @@ export function SchedulePage() {
     const [deleteTarget, setDeleteTarget] = useState<ScheduledTaskDataResponse | null>(null);
     const [deleting, setDeleting] = useState(false);
     const [filters, setFilters] = useState<ScheduleFilterState>(DEFAULT_FILTERS);
-    const [calYear, setCalYear] = useState(() => {
-        const [y] = todayIso().split("-").map(Number);
-        return y;
-    });
-    const [calMonth, setCalMonth] = useState(() => {
-        const [, m] = todayIso().split("-").map(Number);
-        return m - 1;
-    });
+    const { year: calYear, month: calMonth, setMonth: setCalMonth } = useMonthParam();
+    // `location.pathname + location.search` captures the month the user is currently
+    // viewing; handed to the wizard so save/cancel can return to this exact view
+    // instead of always resetting to the current month.
+    const returnPath = `${location.pathname}${location.search}`;
 
     useEffect(() => {
         setLoading(true);
@@ -79,7 +78,7 @@ export function SchedulePage() {
     }, [calYear, calMonth]); // eslint-disable-line react-hooks/exhaustive-deps
 
     function handleDuplicate(task: ScheduledTaskDataResponse) {
-        navigate(ROUTES.SCHEDULE_CREATE, { state: { draft: task } });
+        navigate(ROUTES.SCHEDULE_CREATE, { state: { draft: task, returnPath } });
     }
 
     async function handleDelete() {
@@ -117,15 +116,15 @@ export function SchedulePage() {
     const calCells = useMemo(() => buildCalendarCells(calYear, calMonth, weekStart), [calYear, calMonth, weekStart]);
 
     function prevMonth() {
-        if (calMonth === 0) { setCalYear(y => y - 1); setCalMonth(11); }
-        else setCalMonth(m => m - 1);
+        if (calMonth === 0) setCalMonth(calYear - 1, 11);
+        else setCalMonth(calYear, calMonth - 1);
     }
     function nextMonth() {
-        if (calMonth === 11) { setCalYear(y => y + 1); setCalMonth(0); }
-        else setCalMonth(m => m + 1);
+        if (calMonth === 11) setCalMonth(calYear + 1, 0);
+        else setCalMonth(calYear, calMonth + 1);
     }
-    function prevYear() { setCalYear(y => y - 1); }
-    function nextYear() { setCalYear(y => y + 1); }
+    function prevYear() { setCalMonth(calYear - 1, calMonth); }
+    function nextYear() { setCalMonth(calYear + 1, calMonth); }
 
     return (
         <section className="schedule-page-container">
@@ -139,7 +138,7 @@ export function SchedulePage() {
                         label: "New Task",
                         icon: <PlusLg size={14} />,
                         tone: "brand",
-                        onClick: () => navigate(ROUTES.SCHEDULE_CREATE),
+                        onClick: () => navigate(ROUTES.SCHEDULE_CREATE, { state: { returnPath } }),
                     },
                 ]}
             />
@@ -212,7 +211,7 @@ export function SchedulePage() {
                                 key={`${task.repeat_yearly ? "y" : "n"}-${task.id}`}
                                 task={task}
                                 onSelect={() => setSelectedTask(task)}
-                                onEdit={() => navigate(ROUTES.SCHEDULE_EDIT.replace(":taskId", String(task.id)) + (task.repeat_yearly ? "?yearly=1" : ""), { state: { task } })}
+                                onEdit={() => navigate(ROUTES.SCHEDULE_EDIT.replace(":taskId", String(task.id)) + (task.repeat_yearly ? "?yearly=1" : ""), { state: { task, returnPath } })}
                                 onDuplicate={() => handleDuplicate(task)}
                                 onDelete={() => setDeleteTarget(task)}
                             />
@@ -263,8 +262,8 @@ export function SchedulePage() {
                                         ].filter(Boolean).join(" ")}
                                         role={cell.iso >= currentTodayIso ? "button" : undefined}
                                         tabIndex={cell.iso >= currentTodayIso ? 0 : undefined}
-                                        onClick={cell.iso >= currentTodayIso ? () => navigate(ROUTES.SCHEDULE_CREATE, { state: { date: cell.iso } }) : undefined}
-                                        onKeyDown={cell.iso >= currentTodayIso ? (e) => { if (e.key === "Enter" || e.key === " ") navigate(ROUTES.SCHEDULE_CREATE, { state: { date: cell.iso } }); } : undefined}
+                                        onClick={cell.iso >= currentTodayIso ? () => navigate(ROUTES.SCHEDULE_CREATE, { state: { date: cell.iso, returnPath } }) : undefined}
+                                        onKeyDown={cell.iso >= currentTodayIso ? (e) => { if (e.key === "Enter" || e.key === " ") navigate(ROUTES.SCHEDULE_CREATE, { state: { date: cell.iso, returnPath } }); } : undefined}
                                     >
                                         <div className={`schedule-cal-day-num${isToday ? " is-today" : ""}`}>
                                             {cell.day}
@@ -302,7 +301,7 @@ export function SchedulePage() {
                         setSelectedTask(null);
                         navigate(
                             ROUTES.SCHEDULE_EDIT.replace(":taskId", String(selectedTask.id)) + (selectedTask.repeat_yearly ? "?yearly=1" : ""),
-                            { state: { task: selectedTask } },
+                            { state: { task: selectedTask, returnPath } },
                         );
                     }}
                     onDuplicate={() => {

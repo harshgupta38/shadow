@@ -43,7 +43,7 @@ const NotificationsPage = lazy(() => import("@/pages/notifications/Notifications
 const DailyBriefPage = lazy(() => import("@/pages/daily-brief/DailyBriefPage").then(m => ({ default: m.DailyBriefPage })));
 const WorkoutPage = lazy(() => import("@/pages/workout/WorkoutPage").then(m => ({ default: m.WorkoutPage })));
 const DietPage = lazy(() => import("@/pages/diet/DietPage").then(m => ({ default: m.DietPage })));
-const NotFoundPage = lazy(() => import("@/pages/NotFoundPage").then(m => ({ default: m.NotFoundPage })));
+const NotFoundPage = lazy(() => import("@/pages/not-found/NotFoundPage").then(m => ({ default: m.NotFoundPage })));
 const DeviceLimitPage = lazy(() => import("@/pages/device-limit/DeviceLimitPage").then(m => ({ default: m.DeviceLimitPage })));
 
 export function AppRoutes() {

@@ -3,7 +3,7 @@ import { ArrowLeft, HouseDoorFill } from "react-bootstrap-icons";
 
 import { ThemeToggle } from "@/components/ui/ThemeToggle/ThemeToggle";
 import { ROUTES } from "@/routes/RoutePaths";
-import "@/pages/NotFoundPage.scss";
+import "@/pages/not-found/NotFoundPage.scss";
 
 function LostCompassIllustration() {
   return (

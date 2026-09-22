@@ -5,7 +5,7 @@ import { ComingSoonState } from "@/components/ui/ComingSoonState/ComingSoonState
 export function JournalPage() {
   return (
     <div>
-      <PageHeader title="Journal" subtitle="Coming soon" icon={<JournalRichtext />} />
+      <PageHeader title="Journal" subtitle="Sometimes writing is how you figure things out." icon={<JournalRichtext />} />
       <ComingSoonState
         title="Journal is on its way"
         text="We're building a space for you to reflect and jot down your thoughts. Check back soon!"

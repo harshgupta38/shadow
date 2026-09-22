@@ -10,7 +10,7 @@ from app.analysis.service import get_analysis_service
 # do not import LLMSettings directly from app.llm, as it will create a circular import
 from app.llm.config import LLMSettings
 from app.llm.enums import LLMProvider
-from app.llm.cost import calculate_token_cost
+from app.llm.cost import calculate_token_cost, calculate_tts_cost
 
 logger = logging.getLogger(__name__)
 
@@ -187,6 +187,40 @@ async def log_claude_completion_usage_async(
         )
     except Exception:
         logger.exception("Failed to persist immediate Claude completion usage logging.")
+
+
+async def log_openai_audio_usage_async(
+    *,
+    settings: LLMSettings,
+    model: str,
+    text: str,
+    latency_ms: int,
+    operation: str,
+    user_id: int,
+) -> None:
+    """Persist usage metadata for an OpenAI text-to-speech call. TTS is priced per
+    input character, not per token, so cost is estimated separately from cost.py's
+    token-based MODEL_COSTS."""
+    try:
+        char_count = len(text)
+        cost = calculate_tts_cost(model, char_count)
+
+        await _write_provider_usage_log(
+            settings=settings,
+            provider=LLMProvider.OPENAI,
+            model=model,
+            model_str=model,
+            request_id=None,
+            latency_ms=latency_ms,
+            input_tokens=char_count,
+            output_tokens=0,
+            total_tokens=char_count,
+            cost=cost,
+            operation=operation,
+            user_id=user_id,
+        )
+    except Exception:
+        logger.exception("Failed to persist immediate OpenAI TTS usage logging.")
 
 
 async def _write_provider_usage_log(

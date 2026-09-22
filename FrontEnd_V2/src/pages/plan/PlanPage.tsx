@@ -311,7 +311,7 @@ export function PlanPage() {
       }
       setGeneratingBrief(true);
       try {
-        await api.notifications.generateDailyBrief(dateStr);
+        await api.dailyBrief.generate(dateStr);
         navigate(`${ROUTES.DAILY_BRIEF}?date=${dateStr}`);
       } catch (err) {
         toast.error(err instanceof ApiError ? err.message : "Couldn't generate the brief. Please try again.");

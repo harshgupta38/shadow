@@ -11,7 +11,6 @@ from app.core.endpoints import ENDPOINTS
 from app.db.session import SessionLocal, get_db
 from app.models.user import UserDBM
 from app.schemas.notifications import (
-    DailyBriefResponse,
     DeviceConnectedAlertRequest,
     NotificationResponse,
     PushPublicKeyResponse,
@@ -221,46 +220,6 @@ def _unsub_page(message: str, success: bool = True) -> str:
 .box{{background:#fff;border-radius:12px;border:1px solid #e5e7eb;padding:40px 36px;max-width:420px;text-align:center}}
 .icon{{font-size:42px;color:{color}}}h2{{margin:16px 0 8px;color:#111827}}p{{color:#4b5563;font-size:14px;line-height:1.6}}</style></head>
 <body><div class="box"><div class="icon">{icon}</div><h2>Shadow Notifications</h2><p>{message}</p></div></body></html>"""
-
-
-@router.get(ENDPOINTS.NOTIFICATIONS.DAILY_BRIEF, response_model=DailyBriefResponse)
-def get_daily_brief(
-    date: str | None = Query(default=None, description="YYYY-MM-DD — defaults to today (IST)"),
-    current_user: UserDBM = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    from datetime import date as date_type
-    from app.common import today_ist
-    from app.services.daily_brief_service import get_brief_for_date
-
-    if date:
-        try:
-            target = date_type.fromisoformat(date)
-        except ValueError:
-            from fastapi import HTTPException
-            raise HTTPException(status_code=422, detail="Invalid date format — expected YYYY-MM-DD.")
-    else:
-        target = today_ist()
-
-    return get_brief_for_date(db, current_user.id, target)
-
-
-@router.post(ENDPOINTS.NOTIFICATIONS.DAILY_BRIEF_GENERATE, response_model=DailyBriefResponse)
-async def generate_daily_brief_now(
-    date: str = Query(description="YYYY-MM-DD — must be today (IST)"),
-    current_user: UserDBM = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    from datetime import date as date_type
-    from app.services.daily_brief_service import generate_brief_now
-
-    try:
-        target = date_type.fromisoformat(date)
-    except ValueError:
-        from fastapi import HTTPException
-        raise HTTPException(status_code=422, detail="Invalid date format — expected YYYY-MM-DD.")
-
-    return await generate_brief_now(db, current_user, target)
 
 
 @router.post(ENDPOINTS.NOTIFICATIONS.PUSH_DEVICE_CONNECTED_ALERT)

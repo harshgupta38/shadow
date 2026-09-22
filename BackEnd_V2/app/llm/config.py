@@ -1,7 +1,7 @@
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from app.llm.enums import ClaudeModel, GeminiModel, LLMProvider, LLMModel, OpenAIModel
+from app.llm.enums import ClaudeModel, GeminiModel, LLMProvider, LLMModel, OpenAIModel, OpenAITTSModel
 
 
 class LLMSettings(BaseSettings):
@@ -131,6 +131,16 @@ Rules:
     claude_model: ClaudeModel = Field(
         default=LLMModel.CLAUDE.CLAUDE_SONNET_3_7,
         alias="CLAUDE_MODEL",
+    )
+
+    tts_model: OpenAITTSModel = Field(
+        default=LLMModel.OPENAI_TTS.GPT_4O_MINI_TTS,
+        alias="TTS_MODEL",
+    )
+
+    tts_voice: str = Field(
+        default="cedar", # cedar, martin, nova
+        alias="TTS_VOICE",
     )
 
 

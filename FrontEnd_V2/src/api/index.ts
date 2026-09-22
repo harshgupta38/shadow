@@ -9,6 +9,7 @@ export { ApiError } from "@/api/client";
 
 import { authApi } from "@/api/auth";
 import { notificationsApi } from "@/api/notifications";
+import { dailyBriefApi } from "@/api/daily-brief";
 import { appearanceApi } from "@/api/appearance";
 import { reportsApi } from "@/api/reports";
 import { chatApi } from "@/api/chat";
@@ -25,6 +26,7 @@ import { settingsApi } from "@/api/settings";
 export const api = {
   auth: authApi,
   notifications: notificationsApi,
+  dailyBrief: dailyBriefApi,
   theme: appearanceApi,
   chat: chatApi,
   dashboard: dashboardApi,

@@ -10,3 +10,12 @@ class DailyBriefSchema(BaseModel):
     complete_brief: str = Field(
         description="3-4 warm paragraphs for the /daily-brief page and email, under 1600 characters."
     )
+
+
+# ── API response schema ────────────────────────────────────────────────────────
+
+class DailyBriefResponse(BaseModel):
+    complete_brief: str | None
+    date: str
+    generated_at: str | None
+    has_audio: bool = False

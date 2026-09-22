@@ -91,8 +91,12 @@ export const ENDPOINTS = {
         PUSH_SUBSCRIBE: "/push/subscriptions",
         PUSH_UNSUBSCRIBE: "/push/subscriptions",
         PUSH_DEVICE_CONNECTED_ALERT: "/push/device-connected-alert",
-        DAILY_BRIEF: "/daily-brief",
-        DAILY_BRIEF_GENERATE: "/daily-brief/generate",
+    },
+    DAILY_BRIEF: {
+        PREFIX: "/daily-brief",
+        DETAIL: "",
+        GENERATE: "/generate",
+        AUDIO: "/audio",
     },
     REPORTS: {
         PREFIX: "/reports",

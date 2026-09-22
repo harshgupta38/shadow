@@ -1,5 +1,5 @@
 from app.llm.models import ModelCost, TokenCostBreakdown
-from app.llm.enums import OllamaModel, OpenAIModel, GeminiModel, ClaudeModel
+from app.llm.enums import OllamaModel, OpenAIModel, OpenAITTSModel, GeminiModel, ClaudeModel
 
 ModelKey = OllamaModel | OpenAIModel | GeminiModel | ClaudeModel
 
@@ -108,4 +108,27 @@ def calculate_token_cost(
         input_token_cost=input_token_cost,
         output_token_cost=output_token_cost,
         total_cost=total_cost,
+    )
+
+
+# TTS is priced per input character, not per token, so it's kept separate from
+# MODEL_COSTS/calculate_token_cost above.
+TTS_COSTS: dict[OpenAITTSModel, float] = {
+    OpenAITTSModel.GPT_4O_MINI_TTS: 1.32,
+    OpenAITTSModel.TTS_1: 1.32,
+    OpenAITTSModel.TTS_1_HD: 2.64,
+}
+
+
+def calculate_tts_cost(model_key: OpenAITTSModel, char_count: int) -> TokenCostBreakdown:
+    if char_count < 0:
+        raise ValueError("char_count must be greater than or equal to 0.")
+
+    rate = TTS_COSTS.get(model_key, 0.0)
+    input_token_cost = (char_count / 1000) * rate
+
+    return TokenCostBreakdown(
+        input_token_cost=input_token_cost,
+        output_token_cost=0.0,
+        total_cost=input_token_cost,
     )

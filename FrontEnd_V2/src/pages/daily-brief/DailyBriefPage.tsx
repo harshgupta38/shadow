@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { BrightnessHighFill } from "react-bootstrap-icons";
+import { BrightnessHighFill, PauseFill, PlayFill } from "react-bootstrap-icons";
 
 import { api } from "@/api";
 import type { DailyBriefResponse } from "@/api/types";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { useAccessibility } from "@/context/AccessibilityContext";
+import { useToast } from "@/context/ToastContext";
+import { useLazyAudio } from "@/hooks/useLazyAudio";
+import type { LazyAudioState } from "@/hooks/useLazyAudio";
 import { TYPEWRITER } from "@/constant/tuning";
 
 import "./DailyBriefPage.scss";
@@ -100,6 +103,93 @@ function Skeleton() {
     );
 }
 
+// ── Audio player bar ──────────────────────────────────────────────────────────
+// Spotify-style: play/pause + scrubbable seek bar. Before any audio has been
+// generated (or if it failed), the bar is shown blurred/disabled with a
+// "Listen"/"Retry" CTA overlaid on top instead of a separate header button.
+
+function formatDuration(seconds: number): string {
+    if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+interface AudioPlayerBarProps {
+    state: LazyAudioState;
+    currentTime: number;
+    duration: number;
+    hasAudio: boolean;
+    /** Past days with no cached audio can no longer generate one — show a plain message instead of a CTA. */
+    canGenerate: boolean;
+    onToggle: () => void;
+    onSeek: (time: number) => void;
+    onBeginScrub: () => void;
+    onEndScrub: () => void;
+}
+
+function AudioPlayerBar({ state, currentTime, duration, hasAudio, canGenerate, onToggle, onSeek, onBeginScrub, onEndScrub }: AudioPlayerBarProps) {
+    const unlocked = hasAudio;
+    const isLoading = state === "loading";
+    const overlayLabel = isLoading ? "Loading…" : state === "error" ? "Retry" : "Listen";
+
+    return (
+        <div className={`brief-audio-bar${unlocked ? "" : " brief-audio-bar--locked"}`}>
+            <div className="brief-audio-bar-inner" aria-hidden={!unlocked}>
+                <button
+                    type="button"
+                    className="brief-audio-play-btn"
+                    onClick={onToggle}
+                    disabled={!unlocked || isLoading}
+                    aria-label={state === "playing" ? "Pause" : "Play"}
+                >
+                    {isLoading
+                        ? <span className="spinner-border spinner-border-sm" aria-hidden="true" />
+                        : state === "playing" ? <PauseFill size={18} /> : <PlayFill size={18} />}
+                </button>
+                <span className="brief-audio-time">{formatDuration(currentTime)}</span>
+                <input
+                    type="range"
+                    className="brief-audio-seek"
+                    min={0}
+                    max={duration || 0}
+                    step={0.1}
+                    value={currentTime}
+                    disabled={!unlocked || isLoading}
+                    onChange={(e) => onSeek(Number(e.target.value))}
+                    onMouseDown={onBeginScrub}
+                    onTouchStart={onBeginScrub}
+                    onMouseUp={onEndScrub}
+                    onTouchEnd={onEndScrub}
+                    onBlur={onEndScrub}
+                    aria-label="Seek"
+                />
+                <span className="brief-audio-time">{formatDuration(duration)}</span>
+            </div>
+
+            {!unlocked && (
+                <div className="brief-audio-lock-overlay">
+                    {canGenerate ? (
+                        <button
+                            type="button"
+                            className="btn btn-brand brief-audio-listen-cta"
+                            onClick={onToggle}
+                            disabled={isLoading}
+                        >
+                            {isLoading
+                                ? <span className="spinner-border spinner-border-sm" aria-hidden="true" />
+                                : <PlayFill size={14} />}
+                            {overlayLabel}
+                        </button>
+                    ) : (
+                        <span className="brief-audio-unavailable-msg">No audio available for this day</span>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export function DailyBriefPage() {
@@ -112,13 +202,14 @@ export function DailyBriefPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const { accessibility_reduced_motion } = useAccessibility();
+    const toast = useToast();
 
     useEffect(() => {
         setLoading(true);
         setError(null);
         setBrief(null);
 
-        api.notifications.getDailyBrief(dateParam)
+        api.dailyBrief.get(dateParam)
             .then(setBrief)
             .catch(() => setError("Could not load the brief. Please try again."))
             .finally(() => setLoading(false));
@@ -129,7 +220,21 @@ export function DailyBriefPage() {
     const fullText = brief?.complete_brief ?? "";
     const { visible, done, skip } = useTypewriter(fullText, !accessibility_reduced_motion);
 
+    // Real natural-sounding voice only (OpenAI TTS, cached server-side) — no browser
+    // speechSynthesis fallback; if generation fails, "Listen" just becomes unavailable.
+    const audio = useLazyAudio(() => api.dailyBrief.getAudio(displayDate), displayDate);
+
+    useEffect(() => {
+        if (audio.state === "error") toast.error("Couldn't generate audio for this brief. Please try again later.");
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [audio.state]);
+
     const paragraphs = visible.split("\n\n").map(p => p.trim()).filter(Boolean);
+
+    function handleAudioToggle() {
+        if (audio.state === "idle" || audio.state === "error") skip(); // reveal full text so it's readable alongside the audio
+        void audio.toggle();
+    }
 
     return (
         <section className="brief-page">
@@ -147,20 +252,34 @@ export function DailyBriefPage() {
             )}
 
             {!loading && !error && paragraphs.length > 0 && (
-                <div
-                    className={`brief-content${done ? "" : " brief-content--typing"}`}
-                    onClick={done ? undefined : skip}
-                >
-                    {paragraphs.map((p, i) => (
-                        <p key={i} className="brief-paragraph">
-                            {p}
-                            {!done && i === paragraphs.length - 1 && (
-                                <span className="brief-cursor" aria-hidden="true" />
-                            )}
-                        </p>
-                    ))}
-                    {!done && <span className="brief-skip-hint">Tap to show full brief</span>}
-                </div>
+                <>
+                    <div
+                        className={`brief-content${done ? "" : " brief-content--typing"}`}
+                        onClick={done ? undefined : skip}
+                    >
+                        {paragraphs.map((p, i) => (
+                            <p key={i} className="brief-paragraph">
+                                {p}
+                                {!done && i === paragraphs.length - 1 && (
+                                    <span className="brief-cursor" aria-hidden="true" />
+                                )}
+                            </p>
+                        ))}
+                        {!done && <span className="brief-skip-hint">Tap to show full brief</span>}
+                    </div>
+
+                    <AudioPlayerBar
+                        state={audio.state}
+                        currentTime={audio.currentTime}
+                        duration={audio.duration}
+                        hasAudio={(brief?.has_audio ?? false) || audio.loaded}
+                        canGenerate={displayDate >= todayISTString()}
+                        onToggle={handleAudioToggle}
+                        onSeek={audio.seek}
+                        onBeginScrub={audio.beginScrub}
+                        onEndScrub={audio.endScrub}
+                    />
+                </>
             )}
 
             {!loading && !error && paragraphs.length === 0 && (

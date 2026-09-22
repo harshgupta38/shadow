@@ -129,8 +129,12 @@ class Endpoints:
         PUSH_UNSUBSCRIBE = "/push/subscriptions"
         PUSH_DEVICE_CONNECTED_ALERT = "/push/device-connected-alert"
         EMAIL_UNSUBSCRIBE = "/email/unsubscribe"
-        DAILY_BRIEF = "/daily-brief"
-        DAILY_BRIEF_GENERATE = "/daily-brief/generate"
+
+    class DAILY_BRIEF:
+        PREFIX = "/daily-brief"
+        DETAIL = ""
+        GENERATE = "/generate"
+        AUDIO = "/audio"
 
     class CHAT:
         PREFIX = "/chat"

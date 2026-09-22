@@ -72,6 +72,12 @@ class OpenAIModel(StrEnum):
     GPT_5_6_LUNA = "gpt-5.6-luna"  # Cost: approx. INR 0.019 input / INR 0.113 output per 1K tokens
 
 
+class OpenAITTSModel(StrEnum):
+    GPT_4O_MINI_TTS = "gpt-4o-mini-tts"  # Cost: approx. INR 1.32 per 1K input characters
+    TTS_1 = "tts-1"  # Cost: approx. INR 1.32 per 1K input characters
+    TTS_1_HD = "tts-1-hd"  # Cost: approx. INR 2.64 per 1K input characters
+
+
 class GeminiModel(StrEnum):
     # ===== Gemini 3.6 =====
     GEMINI_3_6_FLASH = "gemini-3.6-flash"  # Cost: approx. INR 0.026 input / INR 0.21 output per 1K tokens
@@ -131,6 +137,7 @@ class LLMModel:
     OPENAI = OpenAIModel
     GEMINI = GeminiModel
     CLAUDE = ClaudeModel
+    OPENAI_TTS = OpenAITTSModel
 
 
 ModelKey = OllamaModel | OpenAIModel | GeminiModel | ClaudeModel

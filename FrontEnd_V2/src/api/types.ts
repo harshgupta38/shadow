@@ -752,6 +752,7 @@ export interface DailyBriefResponse {
   complete_brief: string | null;
   date: string;
   generated_at: string | null;
+  has_audio: boolean;
 }
 
 // ── Push subscriptions ────────────────────────────────────────────────────────

@@ -21,7 +21,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.common import today_ist
-from app.core.exceptions import AppError
+from app.core.exceptions import AppError, NotFoundError
 from app.db.session import SessionLocal
 from app.llm.models import GenerateBriefFromLLM
 from app.llm.service import get_llm_service_for_ai_behavior
@@ -156,17 +156,69 @@ def send_daily_brief(user_id: int, today: date) -> None:
 
 def get_brief_for_date(db: Session, user_id: int, target_date: date) -> dict:
     """Return the brief for a given date. complete_brief is None if not yet generated."""
+    from app.models.daily_brief_audio import DailyBriefAudioDBM
+
     brief = db.scalar(
         select(DailyBriefDBM).where(
             DailyBriefDBM.user_id == user_id,
             DailyBriefDBM.brief_date == target_date,
         )
     )
+    has_audio = db.scalar(
+        select(DailyBriefAudioDBM.id).where(
+            DailyBriefAudioDBM.user_id == user_id,
+            DailyBriefAudioDBM.brief_date == target_date,
+        )
+    ) is not None
     return {
         "complete_brief": brief.complete_brief if brief else None,
         "date": target_date.isoformat(),
         "generated_at": brief.created_at.isoformat() if brief else None,
+        "has_audio": has_audio,
     }
+
+
+async def get_or_generate_brief_audio(db: Session, user_id: int, target_date: date) -> bytes:
+    """Returns cached TTS audio for this brief, generating (and caching) it on first request."""
+    from app.models.daily_brief_audio import DailyBriefAudioDBM
+    from app.llm.tts import synthesize_speech
+
+    cached = db.scalar(
+        select(DailyBriefAudioDBM).where(
+            DailyBriefAudioDBM.user_id == user_id,
+            DailyBriefAudioDBM.brief_date == target_date,
+        )
+    )
+    if cached:
+        return cached.audio_data
+
+    brief = db.scalar(
+        select(DailyBriefDBM).where(
+            DailyBriefDBM.user_id == user_id,
+            DailyBriefDBM.brief_date == target_date,
+        )
+    )
+    if not brief or not brief.complete_brief:
+        raise NotFoundError("No brief has been generated for this date yet.")
+
+    audio_data = await synthesize_speech(brief.complete_brief, user_id=user_id)
+
+    db.add(DailyBriefAudioDBM(user_id=user_id, brief_date=target_date, audio_data=audio_data))
+    try:
+        db.commit()
+    except IntegrityError:
+        # Concurrent request already cached it first — use that row instead.
+        db.rollback()
+        cached = db.scalar(
+            select(DailyBriefAudioDBM).where(
+                DailyBriefAudioDBM.user_id == user_id,
+                DailyBriefAudioDBM.brief_date == target_date,
+            )
+        )
+        if cached:
+            return cached.audio_data
+
+    return audio_data
 
 
 async def generate_brief_now(db: Session, user: UserDBM, target_date: date) -> dict:

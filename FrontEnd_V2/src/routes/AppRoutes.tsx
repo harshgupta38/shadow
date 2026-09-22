@@ -9,6 +9,7 @@ import { ROUTES } from "@/routes/RoutePaths";
 
 //layout
 import { AppLayout } from "@/components/layout/AppLayout";
+import { RouteFallback } from "@/components/ui/RouteFallback/RouteFallback";
 
 // Pages — lazy-loaded so each route ships in its own chunk instead of one monolithic
 // bundle (e.g. the goal/task wizards' react-quill no longer loads for every visitor
@@ -44,14 +45,6 @@ const WorkoutPage = lazy(() => import("@/pages/workout/WorkoutPage").then(m => (
 const DietPage = lazy(() => import("@/pages/diet/DietPage").then(m => ({ default: m.DietPage })));
 const NotFoundPage = lazy(() => import("@/pages/NotFoundPage").then(m => ({ default: m.NotFoundPage })));
 const DeviceLimitPage = lazy(() => import("@/pages/device-limit/DeviceLimitPage").then(m => ({ default: m.DeviceLimitPage })));
-
-function RouteFallback() {
-	return (
-		<div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
-			<span className="spinner-border" role="status" aria-label="Loading" />
-		</div>
-	);
-}
 
 export function AppRoutes() {
 	return (

@@ -30,6 +30,8 @@ async def refine_goal(
     data: RefineGoalRequest,
     current_user: UserDBM,
 ) -> RefineGoalFromLLM:
+    # uses the env-default model — refine_goal()/RefineGoalToLLM don't accept a
+    # model override yet, so this ignores the user's ai_provider/ai_default_model setting.
     llm_service = get_llm_service()
 
     try:

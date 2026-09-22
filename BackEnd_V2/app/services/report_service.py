@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.db.session import SessionLocal
 from app.llm.models import GenerateReportFromLLM
-from app.llm.service import get_llm_service
+from app.llm.service import get_llm_service_for_ai_behavior
 from app.models.goal import GoalDBM
 from app.models.habit import HabitDBM
 from app.models.milestone import MilestoneDBM
@@ -17,6 +17,7 @@ from app.models.task import TaskDBM
 from app.models.user import UserDBM
 from app.schemas.daily_report import ReportResponse
 from app.services import notifications_service
+from app.services import settings_service
 
 logger = logging.getLogger(__name__)
 
@@ -403,11 +404,14 @@ async def generate_report_background(
             )
             return
         day_data = build_day_data(db, user_id, report_date, report_type)
-        llm_result = await get_llm_service().generate_report(
+        ai_behavior = settings_service.get_ai_behavior(db, user_id)
+        llm_service = get_llm_service_for_ai_behavior(ai_behavior)
+        llm_result = await llm_service.generate_report(
             user_id=user_id,
             report_date=str(report_date),
             report_type=report_type,
             day_data=day_data,
+            model=ai_behavior["ai_default_model"],
         )
         save_report(db, user_id, report_date, report_type, llm_result, day_data)
         user = db.get(UserDBM, user_id)

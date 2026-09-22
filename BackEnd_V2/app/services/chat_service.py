@@ -16,7 +16,7 @@ from app.llm.config import llm_settings
 from app.llm.tools import ToolContext, execute_tool
 from app.core.exceptions import NotFoundError, ValidationError
 from app.llm import get_llm_service, get_llm_service_for_user, LLMService, NewConvoResponse, LLMError, LLMRequestError
-from app.llm.service import _USER_PROVIDER_MAP
+from app.llm.service import get_llm_service_for_ai_behavior
 from app.services import memory_service, settings_service
 from app.models.user import UserDBM
 from app.models.chat import ConversationDBM, MessageDBM
@@ -38,24 +38,9 @@ from app.schemas.chat import (
 )
 
 
-_CUSTOM_KEY_FIELD: dict[str, str] = {
-    "openai": "openai_api_key",
-    "gemini": "gemini_api_key",
-    "claude": "claude_api_key",
-    "ollama": "ollama_api_key",
-}
-
-
 def _build_user_llm_service(ai_behavior: dict) -> LLMService:
     """Returns LLMService with the user's custom API key when enabled, else the cached global service."""
-    provider = ai_behavior.get("ai_provider", "openai")
-    if ai_behavior.get("custom_api_key_enabled") and ai_behavior.get("custom_api_key"):
-        provider_cls = _USER_PROVIDER_MAP.get(provider)
-        key_field = _CUSTOM_KEY_FIELD.get(provider)
-        if provider_cls and key_field:
-            overridden = llm_settings.model_copy(update={key_field: ai_behavior["custom_api_key"]})
-            return LLMService(provider=provider_cls(settings=overridden))
-    return get_llm_service_for_user(provider)
+    return get_llm_service_for_ai_behavior(ai_behavior)
 
 
 def _serialize_conversation(conversation: ConversationDBM) -> ConvoDataShortResponse:

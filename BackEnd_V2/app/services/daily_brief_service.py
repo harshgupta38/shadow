@@ -24,12 +24,12 @@ from app.common import today_ist
 from app.core.exceptions import AppError
 from app.db.session import SessionLocal
 from app.llm.models import GenerateBriefFromLLM
-from app.llm.service import LLMService
+from app.llm.service import get_llm_service_for_ai_behavior
 from app.models.daily_brief import DailyBriefDBM
 from app.models.plan_record import DailyPlanRecordDBM
 from app.models.user import UserDBM
 from app.models.user_setting import UserSettingDBM
-from app.services import notifications_service
+from app.services import notifications_service, settings_service
 
 logger = logging.getLogger(__name__)
 
@@ -67,20 +67,24 @@ def _build_context(items: list[DailyPlanRecordDBM]) -> dict:
 
 # ─── Brief generation ─────────────────────────────────────────────────────────
 
-async def _call_llm_service(user_id: int, first_name: str, today: date, context: dict) -> GenerateBriefFromLLM:
+async def _call_llm_service(
+    user_id: int, first_name: str, today: date, context: dict, ai_behavior: dict,
+) -> GenerateBriefFromLLM:
     """Fresh LLMService per call — this runs inside a new event loop (via
     asyncio.run() in a daemon thread), so the client must not be a cross-thread
     cached singleton."""
-    service = LLMService()
+    service = get_llm_service_for_ai_behavior(ai_behavior)
     try:
-        return await service.generate_daily_brief(user_id, first_name, today, context)
+        return await service.generate_daily_brief(
+            user_id, first_name, today, context, model=ai_behavior["ai_default_model"],
+        )
     finally:
         await service.close()
 
 
-def _generate_briefs(user_id: int, first_name: str, today: date, context: dict) -> tuple[str, str]:
+def _generate_briefs(user_id: int, first_name: str, today: date, context: dict, ai_behavior: dict) -> tuple[str, str]:
     """Call the LLM provider. Raises on failure — no synthetic brief is ever sent."""
-    response = asyncio.run(_call_llm_service(user_id, first_name, today, context))
+    response = asyncio.run(_call_llm_service(user_id, first_name, today, context, ai_behavior))
     return response.brief_data.short_brief[:200], response.brief_data.complete_brief[:2000]
 
 
@@ -114,8 +118,9 @@ def send_daily_brief(user_id: int, today: date) -> None:
             first_name = user.name.split()[0] if user.name else "there"
             items = _get_plan_items(db, user.id, today)
             context = _build_context(items)
+            ai_behavior = settings_service.get_ai_behavior(db, user.id)
 
-            short_brief, complete_brief = _generate_briefs(user.id, first_name, today, context)
+            short_brief, complete_brief = _generate_briefs(user.id, first_name, today, context, ai_behavior)
             title = f"Good morning, {first_name}! Here's your {today.strftime('%A')}"
 
             notif = notifications_service.create_notification(
@@ -185,7 +190,8 @@ async def generate_brief_now(db: Session, user: UserDBM, target_date: date) -> d
 
     first_name = user.name.split()[0] if user.name else "there"
     context = _build_context(items)
-    response = await _call_llm_service(user.id, first_name, target_date, context)
+    ai_behavior = settings_service.get_ai_behavior(db, user.id)
+    response = await _call_llm_service(user.id, first_name, target_date, context, ai_behavior)
     short_brief = response.brief_data.short_brief[:200]
     complete_brief = response.brief_data.complete_brief[:2000]
 

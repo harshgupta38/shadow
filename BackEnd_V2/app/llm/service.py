@@ -232,12 +232,14 @@ class LLMService:
         report_date: str,
         report_type: str,
         day_data: dict,
+        model: str | None = None,
     ) -> GenerateReportFromLLM:
         request = GenerateReportToLLM(
             user_id=user_id,
             report_date=report_date,
             report_type=report_type,
             day_data=day_data,
+            model=model,
         )
         try:
             response = await self._provider.generate_report(request)
@@ -253,12 +255,14 @@ class LLMService:
         first_name: str,
         today: date,
         context: dict,
+        model: str | None = None,
     ) -> GenerateBriefFromLLM:
         request = GenerateBriefToLLM(
             user_id=user_id,
             first_name=first_name,
             today=today,
             context=context,
+            model=model,
         )
         try:
             response = await self._provider.generate_daily_brief(request)
@@ -300,3 +304,25 @@ def get_llm_service_for_user(provider_key: str) -> LLMService:
     if provider_cls is None:
         return get_llm_service()
     return LLMService(provider=provider_cls(settings=llm_settings))
+
+
+_CUSTOM_KEY_FIELD: dict[str, str] = {
+    LLMProvider.OPENAI: "openai_api_key",
+    LLMProvider.GEMINI: "gemini_api_key",
+    LLMProvider.CLAUDE: "claude_api_key",
+    LLMProvider.OLLAMA: "ollama_api_key",
+}
+
+
+def get_llm_service_for_ai_behavior(ai_behavior: dict) -> LLMService:
+    """Returns an LLMService honoring the user's configured provider, and their
+    custom API key when enabled — otherwise falls back to the cached
+    provider-keyed service (env-configured credentials)."""
+    provider = ai_behavior.get("ai_provider", "openai")
+    if ai_behavior.get("custom_api_key_enabled") and ai_behavior.get("custom_api_key"):
+        provider_cls = _USER_PROVIDER_MAP.get(provider)
+        key_field = _CUSTOM_KEY_FIELD.get(provider)
+        if provider_cls and key_field:
+            overridden = llm_settings.model_copy(update={key_field: ai_behavior["custom_api_key"]})
+            return LLMService(provider=provider_cls(settings=overridden))
+    return get_llm_service_for_user(provider)

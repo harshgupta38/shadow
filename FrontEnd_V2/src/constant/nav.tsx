@@ -5,9 +5,13 @@ import {
     Calendar3,
     CalendarCheckFill,
     ChatDotsFill,
+    EggFried,
     FileEarmarkBarGraphFill,
     Grid1x2Fill,
     GraphUpArrow,
+    HeartPulseFill,
+    PersonBadgeFill,
+    GearFill,
     type IconProps,
 } from "react-bootstrap-icons";
 
@@ -40,6 +44,13 @@ export const NAV_SECTIONS: NavSection[] = [
         ],
     },
     {
+        label: "Wellbeing",
+        items: [
+            { to: ROUTES.WORKOUT, label: "Workout", icon: HeartPulseFill },
+            { to: ROUTES.DIET, label: "Diet", icon: EggFried },
+        ],
+    },
+    {
         label: "Reflect",
         items: [
             { to: ROUTES.TRACK_PROGRESS, label: "Track Progress", icon: GraphUpArrow },
@@ -47,11 +58,11 @@ export const NAV_SECTIONS: NavSection[] = [
             { to: ROUTES.ASSISTANT, label: "Assistant", icon: ChatDotsFill },
         ],
     },
-    // {
-    //     label: "You",
-    //     items: [
-    //         { to: ROUTES.PROFILE, label: "Profile", icon: PersonBadgeFill },
-    //         { to: ROUTES.SETTINGS, label: "Settings", icon: GearFill },
-    //     ],
-    // },
+    {
+        label: "You",
+        items: [
+            { to: ROUTES.PROFILE, label: "Profile", icon: PersonBadgeFill },
+            { to: ROUTES.SETTINGS, label: "Settings", icon: GearFill },
+        ],
+    },
 ];

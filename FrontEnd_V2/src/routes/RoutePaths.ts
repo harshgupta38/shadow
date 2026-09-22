@@ -32,6 +32,8 @@ export const ROUTES = {
     ASSISTANT: "/assistant",
     NOTIFICATIONS: "/notifications",
     DAILY_BRIEF: "/daily-brief",
+    WORKOUT: "/workout",
+    DIET: "/diet",
     PROFILE: "/profile",
     SETTINGS: "/settings",
     DEVICE_LIMIT: "/device-limit",

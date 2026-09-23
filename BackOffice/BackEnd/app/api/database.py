@@ -1,6 +1,7 @@
 import json
 
 from fastapi import APIRouter, Response
+from fastapi.responses import FileResponse
 
 from app.api.deps import CurrentAdmin, DbSession
 from app.core.endpoints import ENDPOINTS
@@ -18,7 +19,7 @@ from app.schemas.database import (
     TableInfo,
     UpdateRowRequest,
 )
-from app.services import database_service, shadow_client
+from app.services import database_service, shadow_db_service
 
 router = APIRouter(prefix=ENDPOINTS.DATABASE.PREFIX, tags=["Database"])
 
@@ -48,6 +49,16 @@ def get_row(table_name: str, pk: str, _admin: CurrentAdmin):
     return {"row": database_service.get_row(table_name, pk_dict)}
 
 
+@router.get(ENDPOINTS.DATABASE.BLOB)
+def get_blob(table_name: str, column: str, pk: str, _admin: CurrentAdmin):
+    try:
+        pk_dict = json.loads(pk)
+    except (json.JSONDecodeError, TypeError):
+        raise ValidationError("Invalid pk parameter — must be JSON.")
+    content, content_type = database_service.get_blob(table_name, column, pk_dict)
+    return Response(content=content, media_type=content_type)
+
+
 @router.post(ENDPOINTS.DATABASE.ROWS)
 def create_row(table_name: str, body: InsertRowRequest, db: DbSession, admin: CurrentAdmin):
     return database_service.insert_row(db, table_name, body.data, admin.email)
@@ -70,21 +81,21 @@ def run_query(body: SqlQueryRequest, db: DbSession, admin: CurrentAdmin):
 
 @router.get(ENDPOINTS.DATABASE.BACKUPS, response_model=list[BackupInfo])
 def list_backups(_admin: CurrentAdmin):
-    return shadow_client.list_backups()
+    return shadow_db_service.list_backups()
 
 
 @router.post(ENDPOINTS.DATABASE.BACKUPS, response_model=BackupInfo)
 def create_backup(_admin: CurrentAdmin):
-    return shadow_client.create_backup()
+    return shadow_db_service.create_backup()
 
 
 @router.get(ENDPOINTS.DATABASE.BACKUP_FILE)
 def download_backup(filename: str, _admin: CurrentAdmin):
-    content = shadow_client.download_backup(filename)
-    return Response(
-        content=content,
+    path = shadow_db_service.download_backup(filename)
+    return FileResponse(
+        path=path,
         media_type="application/x-sqlite3",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        filename=filename,
     )
 
 

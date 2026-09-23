@@ -3,7 +3,7 @@ import { Search, Inbox } from "react-bootstrap-icons";
 import { api, ApiError } from "@/api";
 import type { ColumnInfo, Row, TableInfo } from "@/api";
 import { Pagination } from "@/components/ui/Pagination/Pagination";
-import { rowKey } from "./dbHelpers";
+import { formatBytes, isBinaryPlaceholder, rowKey } from "./dbHelpers";
 import { BackupRowViewer } from "./BackupRowViewer";
 
 const DEFAULT_PAGE_SIZE = 25;
@@ -20,11 +20,17 @@ function renderCell(col: ColumnInfo, value: unknown) {
       </span>
     );
   }
+  // Backup browsing has no blob-download endpoint of its own (unlike the
+  // live TableBrowser's BinaryCell) — just show the size, no play/download.
+  if (isBinaryPlaceholder(value)) {
+    return <span className="db-cell-binary-size">{formatBytes(value.size_bytes)}</span>;
+  }
   if (col.type === "JSON" || typeof value === "object") {
     return <span className="db-cell-json">{JSON.stringify(value)}</span>;
   }
   return <span className="db-cell-text">{String(value)}</span>;
 }
+
 
 // Read-only twin of TableBrowser — same sidebar/grid layout, but browsing a
 // specific backup file instead of the live database. There's nothing here

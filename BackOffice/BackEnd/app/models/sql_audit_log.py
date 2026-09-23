@@ -8,8 +8,9 @@ from app.models.base import Base
 
 class SqlAuditLogDBM(Base):
     """Every statement run against shadow.db through BackOffice — the Database
-    page's SQL Console reuses BackEnd_V2's existing unrestricted /admin/sql,
-    so this audit trail is the accountability layer BackOffice adds on top.
+    page's SQL Console runs directly against shadow.db (see
+    app/services/shadow_db_service.py), so this audit trail is the
+    accountability layer BackOffice adds on top.
     """
 
     __tablename__ = "sql_audit_logs"

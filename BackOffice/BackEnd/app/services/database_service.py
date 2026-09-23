@@ -1,8 +1,9 @@
-"""Table browsing/editing built on top of shadow_client.run_sql().
+"""Table browsing/editing built on top of shadow_db_service.run_sql().
 
-BackEnd_V2's /admin/sql (see app/api/system.py) takes a single free-text
-`query` string with no parameter binding, so every statement built here is
-composed as text. That means two rules are non-negotiable everywhere below:
+shadow_db_service opens shadow.db directly (BackOffice and BackEnd_V2 are
+co-located on the same device) via a single free-text `query` string with
+no parameter binding, so every statement built here is composed as text.
+That means two rules are non-negotiable everywhere below:
 
   1. Table and column NAMES are only ever taken from a freshly-fetched real
      schema (list_table_names / get_table_columns) — never interpolated
@@ -22,15 +23,15 @@ from sqlalchemy.orm import Session
 
 from app.core.exceptions import NotFoundError, ValidationError
 from app.models.sql_audit_log import SqlAuditLogDBM
-from app.services import model_constraints, shadow_client
+from app.services import model_constraints, shadow_db_service
 
 logger = logging.getLogger(__name__)
 
 # Every read function below takes an optional `run_sql` — the function that
 # actually executes a query string and returns {"rowcount", "columns",
-# "rows"}. Defaulting to shadow_client.run_sql (the live database) means
+# "rows"}. Defaulting to shadow_db_service.run_sql (the live database) means
 # every existing call site keeps working unchanged; passing a closure over
-# shadow_client.run_backup_sql(filename, ...) instead makes the exact same
+# shadow_db_service.run_backup_sql(filename, ...) instead makes the exact same
 # schema-introspection/search/pagination/JSON-decoding logic browse a
 # specific backup file, read-only, with no duplicated code. Never used for
 # the write path (insert/update/delete/run_raw_query) — those only ever
@@ -67,7 +68,7 @@ def _audit(db: Session, admin_username: str, query: str, success: bool, row_coun
 
 
 def list_table_names(run_sql: RunSql | None = None) -> list[str]:
-    run_sql = run_sql or shadow_client.run_sql
+    run_sql = run_sql or shadow_db_service.run_sql
     result = run_sql(
         "SELECT name FROM sqlite_master WHERE type='table' "
         "AND name NOT LIKE 'sqlite\\_%' ESCAPE '\\' ORDER BY name"
@@ -76,7 +77,7 @@ def list_table_names(run_sql: RunSql | None = None) -> list[str]:
 
 
 def get_table_columns(table_name: str, run_sql: RunSql | None = None) -> list[dict]:
-    run_sql = run_sql or shadow_client.run_sql
+    run_sql = run_sql or shadow_db_service.run_sql
     result = run_sql(f"PRAGMA table_info({_quote_ident(table_name)})")
     fk_result = run_sql(f"PRAGMA foreign_key_list({_quote_ident(table_name)})")
     fk_by_column = {row["from"]: f"{row['table']}.{row['to']}" for row in fk_result["rows"]}
@@ -104,14 +105,14 @@ def list_tables(run_sql: RunSql | None = None) -> list[dict]:
     queries regardless of how many tables exist — get_table_columns() is
     fine for the single-table callers below, but calling it once per table
     here made every listing cost 1 + 3*N queries. For the backup browser
-    each one is a full HTTP round-trip to BackEnd_V2 that opens a fresh
-    read-only connection, so at 20 tables that's ~60 requests just to open
-    a backup. This makes 3, using SQLite's pragma table-valued functions
+    each one is a fresh SQLite connection opened read-only against that
+    file, so at 20 tables that's ~60 opens just to browse a backup. This
+    makes 3, using SQLite's pragma table-valued functions
     (pragma_table_info / pragma_foreign_key_list) joined against
     sqlite_master to fetch every table's schema at once, plus one UNION ALL
     for every table's row count.
     """
-    run_sql = run_sql or shadow_client.run_sql
+    run_sql = run_sql or shadow_db_service.run_sql
     names = list_table_names(run_sql)
     if not names:
         return []
@@ -167,7 +168,7 @@ def _all_table_row_counts(names: list[str], run_sql: RunSql) -> dict[str, int]:
 
 
 def get_rows(table_name: str, page: int, page_size: int, search: str, run_sql: RunSql | None = None) -> dict:
-    run_sql = run_sql or shadow_client.run_sql
+    run_sql = run_sql or shadow_db_service.run_sql
     _validate_table(table_name, run_sql)
     columns = get_table_columns(table_name, run_sql)
     column_names = [c["name"] for c in columns]
@@ -208,7 +209,7 @@ def _pk_columns(columns: list[dict]) -> set[str]:
 
 
 def _decode_json_columns(rows: list[dict], columns: list[dict]) -> list[dict]:
-    """shadow_client.run_sql() (and SQLite itself) hands JSON columns back
+    """shadow_db_service.run_sql() (and SQLite itself) hands JSON columns back
     as the raw TEXT they're stored as — never parsed. Left alone, that text
     gets JSON-encoded a second time on the way out of this API (a string
     wrapped in another layer of quotes/escapes), which is exactly the
@@ -260,7 +261,7 @@ def get_row(table_name: str, pk: dict, run_sql: RunSql | None = None) -> dict | 
     """Re-fetches a single row by primary key — the row editor's "refresh"
     action, for when the underlying data may have changed since it loaded.
     """
-    run_sql = run_sql or shadow_client.run_sql
+    run_sql = run_sql or shadow_db_service.run_sql
     _validate_table(table_name, run_sql)
     columns = get_table_columns(table_name, run_sql)
     pk_columns = _pk_columns(columns)
@@ -276,6 +277,31 @@ def get_row(table_name: str, pk: dict, run_sql: RunSql | None = None) -> dict | 
     if not result["rows"]:
         return None
     return _decode_json_columns(result["rows"], columns)[0]
+
+
+def get_blob(table_name: str, column_name: str, pk: dict) -> tuple[bytes, str]:
+    """Fetches one BLOB cell's actual bytes for the row editor's
+    play/download control — a value that never travels through get_rows()/
+    get_row() itself (those only ever see the {size_bytes} placeholder
+    shadow_db_service.run_sql() returns for binary columns, so listing a table
+    with one doesn't blow up). Validated against the live schema here (not
+    just left to shadow_db_service's own check) so a bad table/column name fails
+    with this app's normal NotFoundError/ValidationError instead of a raw
+    proxy error.
+    """
+    _validate_table(table_name)
+    columns = get_table_columns(table_name)
+    column_names = {c["name"] for c in columns}
+    if column_name not in column_names:
+        raise NotFoundError(f"Column '{column_name}' does not exist on '{table_name}'.")
+
+    pk_columns = _pk_columns(columns)
+    if not pk_columns:
+        raise ValidationError(f"Table '{table_name}' has no primary key — cannot target a single row.")
+    if set(pk.keys()) != pk_columns:
+        raise ValidationError(f"Primary key value(s) required: {', '.join(sorted(pk_columns))}")
+
+    return shadow_db_service.get_blob(table_name, column_name, pk)
 
 
 def insert_row(db: Session, table_name: str, data: dict, admin_username: str) -> dict:
@@ -298,7 +324,7 @@ def insert_row(db: Session, table_name: str, data: dict, admin_username: str) ->
     query = f"INSERT INTO {_quote_ident(table_name)} ({col_sql}) VALUES ({val_sql})"
 
     try:
-        result = shadow_client.run_sql(query)
+        result = shadow_db_service.run_sql(query)
     except Exception as e:
         _audit(db, admin_username, query, False, None, str(e))
         raise
@@ -331,7 +357,7 @@ def update_row(db: Session, table_name: str, pk: dict, data: dict, admin_usernam
     query = f"UPDATE {_quote_ident(table_name)} SET {set_sql} WHERE {where_sql}"
 
     try:
-        result = shadow_client.run_sql(query)
+        result = shadow_db_service.run_sql(query)
     except Exception as e:
         _audit(db, admin_username, query, False, None, str(e))
         raise
@@ -353,7 +379,7 @@ def delete_row(db: Session, table_name: str, pk: dict, admin_username: str) -> d
     query = f"DELETE FROM {_quote_ident(table_name)} WHERE {where_sql}"
 
     try:
-        result = shadow_client.run_sql(query)
+        result = shadow_db_service.run_sql(query)
     except Exception as e:
         _audit(db, admin_username, query, False, None, str(e))
         raise
@@ -363,8 +389,10 @@ def delete_row(db: Session, table_name: str, pk: dict, admin_username: str) -> d
 
 def run_raw_query(db: Session, query: str, admin_username: str, page: int = 1, page_size: int = 15) -> dict:
     """SQL Console — deliberately unrestricted, matching the power
-    /admin/sql already has. Every real attempt is audited regardless of
-    outcome (the pagination probe below is not — see _try_paginate).
+    the old /admin/sql endpoint had (this now runs directly against
+    shadow.db instead of proxying to it). Every real attempt is audited
+    regardless of outcome (the pagination probe below is not — see
+    _try_paginate).
     """
     page = max(page, 1)
     page_size = max(min(page_size, 200), 1)
@@ -373,7 +401,7 @@ def run_raw_query(db: Session, query: str, admin_username: str, page: int = 1, p
     if paginated is not None:
         rows_query, total = paginated
         try:
-            result = shadow_client.run_sql(rows_query)
+            result = shadow_db_service.run_sql(rows_query)
         except Exception as e:
             _audit(db, admin_username, query, False, None, str(e))
             raise
@@ -384,7 +412,7 @@ def run_raw_query(db: Session, query: str, admin_username: str, page: int = 1, p
         return result
 
     try:
-        result = shadow_client.run_sql(query)
+        result = shadow_db_service.run_sql(query)
     except Exception as e:
         _audit(db, admin_username, query, False, None, str(e))
         raise
@@ -413,7 +441,7 @@ def _try_paginate(query: str, page: int, page_size: int) -> tuple[str, int] | No
         return None
 
     try:
-        count_result = shadow_client.run_sql(
+        count_result = shadow_db_service.run_sql(
             f"SELECT COUNT(*) AS __bo_count FROM ({stripped}) AS __bo_probe"
         )
         total = count_result["rows"][0]["__bo_count"]
@@ -426,7 +454,7 @@ def _try_paginate(query: str, page: int, page_size: int) -> tuple[str, int] | No
 
 
 def _backup_run_sql(filename: str) -> RunSql:
-    return lambda query: shadow_client.run_backup_sql(filename, query)
+    return lambda query: shadow_db_service.run_backup_sql(filename, query)
 
 
 def list_backup_tables(filename: str) -> list[dict]:
@@ -451,7 +479,7 @@ def restore_backup(db: Session, filename: str, admin_username: str) -> dict:
     real audit trail entry, same as every row edit and raw query."""
     pseudo_query = f"RESTORE BACKUP {filename}"
     try:
-        result = shadow_client.restore_backup(filename)
+        result = shadow_db_service.restore_backup(filename)
     except Exception as e:
         _audit(db, admin_username, pseudo_query, False, None, str(e))
         raise
@@ -465,7 +493,7 @@ def delete_backup(db: Session, filename: str, admin_username: str) -> dict:
     passthroughs."""
     pseudo_query = f"DELETE BACKUP {filename}"
     try:
-        result = shadow_client.delete_backup(filename)
+        result = shadow_db_service.delete_backup(filename)
     except Exception as e:
         _audit(db, admin_username, pseudo_query, False, None, str(e))
         raise

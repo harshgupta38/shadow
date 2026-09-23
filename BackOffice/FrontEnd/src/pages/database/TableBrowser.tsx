@@ -1,13 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Search, PlusLg, Inbox } from "react-bootstrap-icons";
+import { Search, PlusLg, Inbox, PlayFill, Download } from "react-bootstrap-icons";
 import { api, ApiError } from "@/api";
 import type { ColumnInfo, Row, TableInfo } from "@/api";
 import { Pagination } from "@/components/ui/Pagination/Pagination";
-import { rowKey } from "./dbHelpers";
+import { rowKey, pkValues, isBinaryPlaceholder, formatBytes } from "./dbHelpers";
 import { RowEditorPanel, type RowEditorPanelHandle } from "./RowEditorPanel";
 
 const DEFAULT_PAGE_SIZE = 25;
 const SEARCH_DEBOUNCE_MS = 350;
+
+function isBinaryColumn(col: ColumnInfo): boolean {
+  return col.type.includes("BLOB");
+}
 
 function renderCell(col: ColumnInfo, value: unknown) {
   if (value === null || value === undefined) {
@@ -25,6 +29,110 @@ function renderCell(col: ColumnInfo, value: unknown) {
   }
   return <span className="db-cell-text">{String(value)}</span>;
 }
+
+interface BinaryCellProps {
+  table: TableInfo;
+  col: ColumnInfo;
+  row: Row;
+}
+
+// BLOB columns (e.g. daily_brief_audio.audio_data) never arrive in the row
+// data itself — the backend swaps in a {size_bytes} placeholder so listing
+// the table doesn't fail to serialize. This fetches the real bytes on
+// demand, one cell at a time, only when the admin actually asks to hear or
+// save it.
+function BinaryCell({ table, col, row }: BinaryCellProps) {
+  const value = row[col.name];
+  const [busy, setBusy] = useState<"play" | "download" | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [playUrl, setPlayUrl] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (playUrl) URL.revokeObjectURL(playUrl);
+    };
+  }, [playUrl]);
+
+  if (value === null || value === undefined) {
+    return <span className="db-cell-null">NULL</span>;
+  }
+  if (!isBinaryPlaceholder(value)) {
+    return <span className="db-cell-text">{String(value)}</span>;
+  }
+
+  async function fetchBlob(): Promise<Blob> {
+    return api.database.getBlob(table.name, col.name, pkValues(table, row));
+  }
+
+  async function handlePlay(e: React.MouseEvent) {
+    e.stopPropagation();
+    setBusy("play");
+    setError(null);
+    try {
+      const blob = await fetchBlob();
+      const url = URL.createObjectURL(blob);
+      setPlayUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return url;
+      });
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not load binary data.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function handleDownload(e: React.MouseEvent) {
+    e.stopPropagation();
+    setBusy("download");
+    setError(null);
+    try {
+      const blob = await fetchBlob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${table.name}.${col.name}.${rowKey(table, row)}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not load binary data.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <span className="db-cell-binary" onClick={(e) => e.stopPropagation()}>
+      <span className="db-cell-binary-size">{formatBytes(value.size_bytes)}</span>
+      <button
+        type="button"
+        className="btn btn-ghost btn-icon btn-sm"
+        onClick={handlePlay}
+        disabled={busy !== null}
+        aria-label="Play"
+        title="Play"
+      >
+        <PlayFill size={13} />
+      </button>
+      <button
+        type="button"
+        className="btn btn-ghost btn-icon btn-sm"
+        onClick={handleDownload}
+        disabled={busy !== null}
+        aria-label="Download"
+        title="Download"
+      >
+        <Download size={13} />
+      </button>
+      {playUrl && <audio className="db-cell-binary-audio" src={playUrl} controls autoPlay ref={audioRef} />}
+      {error && <span className="db-cell-binary-error">{error}</span>}
+    </span>
+  );
+}
+
 
 export function TableBrowser() {
   const [tables, setTables] = useState<TableInfo[]>([]);
@@ -258,7 +366,9 @@ export function TableBrowser() {
                       <tr key={rowKey(table, r)} onClick={() => setEditingRow(r)}>
                         {columns.map((col) => (
                           <td key={col.name} className="db-cell">
-                            {renderCell(col, r[col.name])}
+                            {isBinaryColumn(col)
+                              ? <BinaryCell table={table} col={col} row={r} />
+                              : renderCell(col, r[col.name])}
                           </td>
                         ))}
                       </tr>

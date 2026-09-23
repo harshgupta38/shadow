@@ -26,16 +26,24 @@ class Settings(BaseSettings):
 
     # ─── Shadow V2 integration ───────────────────────────────────────────────
     # BackOffice runs co-located with BackEnd_V2 on the same Termux device.
-    # shadow_backend_dir is used only for read-only host/process introspection
-    # (worker_service.py) — every git/restart/deploy action goes through the
-    # Control Server instead (see below), never a direct subprocess call.
+    # shadow_backend_dir is the one thing every direct-filesystem feature below
+    # is rooted at: read-only host/process introspection (worker_service.py),
+    # and — now that BackEnd_V2's /admin/* HTTP surface has been retired —
+    # shadow.db itself, its backups/ directory, and its server.log (see
+    # shadow_db_service.py). git/restart/deploy still go through the Control
+    # Server instead (see below), never a direct subprocess call.
     shadow_backend_dir: str = "~/shadow/BackEnd_V2"
     shadow_backend_url: str = "http://127.0.0.1:8000"
 
-    # Must match the _ADMIN_SECRET constant in BackEnd_V2/app/api/system.py —
-    # BackOffice never introduces a new SQL-execution mechanism, it calls the
-    # existing /admin/sql and /admin/database endpoints with this header.
-    shadow_admin_secret: str = ""
+    # Filenames/subpaths under shadow_backend_dir — broken out as their own
+    # settings (rather than hardcoded in shadow_db_service.py) only so an
+    # unusual deployment can override them without a code change; BackEnd_V2
+    # itself has never needed to configure these, so the defaults match its
+    # own hardcoded conventions exactly.
+    shadow_db_filename: str = "shadow.db"
+    shadow_db_backup_subdir: str = "backups"
+    shadow_db_backup_limit: int = 30
+    shadow_server_log_filename: str = "server.log"
 
     # Shared secret for BackOffice's OWN /admin/sql and /admin/database.
     admin_secret: str = _INSECURE_ADMIN_SECRET

@@ -22,3 +22,23 @@ export function pkValues(table: TableInfo, row: Row): Row {
   for (const c of pkColumns(table)) result[c.name] = row[c.name];
   return result;
 }
+
+// The backend can never hand a BLOB column's actual bytes back as JSON
+// (SELECT * would include e.g. daily_brief_audio.audio_data), so it swaps
+// in this small placeholder instead — everywhere a row's raw value is
+// rendered/edited needs to recognise it rather than treat it as ordinary
+// JSON/text.
+export interface BinaryPlaceholder {
+  __binary__: true;
+  size_bytes: number;
+}
+
+export function isBinaryPlaceholder(value: unknown): value is BinaryPlaceholder {
+  return typeof value === "object" && value !== null && (value as { __binary__?: unknown }).__binary__ === true;
+}
+
+export function formatBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+}

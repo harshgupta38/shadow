@@ -17,6 +17,15 @@ export const databaseApi = {
     });
     return res.row;
   },
+  // Raw bytes of one BLOB cell (e.g. daily_brief_audio.audio_data) — never
+  // included in getRows()/getRow() itself, which only ever see the
+  // {size_bytes} placeholder the backend swaps in so listing a table with
+  // a binary column doesn't fail to serialize.
+  async getBlob(tableName: string, column: string, pk: Row): Promise<Blob> {
+    return httpBlob(ENDPOINTS.DATABASE.blob(tableName), {
+      params: { column, pk: JSON.stringify(pk) },
+    });
+  },
   async insertRow(tableName: string, data: Row): Promise<unknown> {
     return http.post(ENDPOINTS.DATABASE.rows(tableName), { data });
   },

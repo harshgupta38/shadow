@@ -1,9 +1,9 @@
-import { forwardRef, useImperativeHandle, useMemo, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { Modal } from "react-bootstrap";
-import { ArrowClockwise, ArrowCounterclockwise, ArrowLeft, PlusLg, SaveFill, TrashFill } from "react-bootstrap-icons";
+import { ArrowClockwise, ArrowCounterclockwise, ArrowLeft, Download, PlayFill, PlusLg, SaveFill, TrashFill } from "react-bootstrap-icons";
 import { api, ApiError } from "@/api";
 import type { ColumnInfo, Row, TableInfo } from "@/api";
-import { pkValues, rowLabel } from "./dbHelpers";
+import { formatBytes, isBinaryPlaceholder, pkValues, rowKey, rowLabel } from "./dbHelpers";
 import { JsonTreeEditor, type JsonValue } from "./JsonTreeEditor";
 
 type FormValue = string | boolean | string[] | JsonValue;
@@ -19,6 +19,12 @@ function isLongText(col: ColumnInfo): boolean {
 
 function isBoolean(col: ColumnInfo): boolean {
   return col.type.includes("BOOL");
+}
+
+// Never editable as text — the actual bytes only ever travel through the
+// dedicated blob endpoint (see BinaryField below), never this form's data.
+function isBinary(col: ColumnInfo): boolean {
+  return col.type.includes("BLOB");
 }
 
 // A column's live SQL type can drift from its model (e.g. an old migration
@@ -71,7 +77,9 @@ function buildInitialForm(table: TableInfo, row: Row | null): Record<string, For
   const form: Record<string, FormValue> = {};
   for (const col of table.columns) {
     const value = row ? row[col.name] : undefined;
-    if (isBoolean(col)) {
+    if (isBinary(col)) {
+      form[col.name] = ""; // never edited as text — see BinaryField below
+    } else if (isBoolean(col)) {
       form[col.name] = value === undefined ? false : Boolean(value);
     } else if (isListShape(col)) {
       form[col.name] = Array.isArray(value) ? value.map(String) : [];
@@ -82,6 +90,101 @@ function buildInitialForm(table: TableInfo, row: Row | null): Record<string, For
     }
   }
   return form;
+}
+
+interface BinaryFieldProps {
+  table: TableInfo;
+  col: ColumnInfo;
+  row: Row | null;
+}
+
+// Read-only counterpart to TableBrowser's BinaryCell for the single-row
+// form — a BLOB column's bytes never travel through this form's own
+// save/data payload, so there's nothing here for the admin to edit, only
+// to listen to or save a copy of.
+function BinaryField({ table, col, row }: BinaryFieldProps) {
+  const value = row ? row[col.name] : null;
+  const [busy, setBusy] = useState<"play" | "download" | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [playUrl, setPlayUrl] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (playUrl) URL.revokeObjectURL(playUrl);
+    };
+  }, [playUrl]);
+
+  if (!row || !isBinaryPlaceholder(value)) {
+    return <p className="db-field-hint mb-0">Not set — binary data can't be entered here.</p>;
+  }
+
+  async function fetchBlob(): Promise<Blob> {
+    return api.database.getBlob(table.name, col.name, pkValues(table, row!));
+  }
+
+  async function handlePlay() {
+    setBusy("play");
+    setError(null);
+    try {
+      const blob = await fetchBlob();
+      const url = URL.createObjectURL(blob);
+      setPlayUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return url;
+      });
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not load binary data.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function handleDownload() {
+    setBusy("download");
+    setError(null);
+    try {
+      const blob = await fetchBlob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${table.name}.${col.name}.${rowKey(table, row!)}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not load binary data.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <div className="db-cell-binary db-cell-binary--field">
+      <span className="db-cell-binary-size">{formatBytes(value.size_bytes)}</span>
+      <button
+        type="button"
+        className="btn btn-soft-secondary btn-sm d-flex align-items-center gap-2"
+        onClick={() => void handlePlay()}
+        disabled={busy !== null}
+      >
+        {busy === "play" ? <span className="spinner-border spinner-border-sm" /> : <PlayFill size={13} />}
+        Play
+      </button>
+      <button
+        type="button"
+        className="btn btn-soft-secondary btn-sm d-flex align-items-center gap-2"
+        onClick={() => void handleDownload()}
+        disabled={busy !== null}
+      >
+        {busy === "download" ? <span className="spinner-border spinner-border-sm" /> : <Download size={13} />}
+        Download
+      </button>
+      {playUrl && <audio className="db-cell-binary-audio" src={playUrl} controls autoPlay ref={audioRef} />}
+      {error && <span className="db-cell-binary-error">{error}</span>}
+    </div>
+  );
 }
 
 interface ListFieldEditorProps {
@@ -264,6 +367,7 @@ export const RowEditorPanel = forwardRef<RowEditorPanelHandle, RowEditorPanelPro
 
     for (const col of editableColumns) {
       if (col.pk) continue; // identifies the row, isn't part of the change
+      if (isBinary(col)) continue; // never editable as text — see BinaryField
       const raw = form[col.name];
 
       if (isBoolean(col)) {
@@ -481,7 +585,7 @@ export const RowEditorPanel = forwardRef<RowEditorPanelHandle, RowEditorPanelPro
               return (
                 <div
                   key={col.name}
-                  className={`db-field${isLongText(col) || isJson(col) ? " db-field--wide" : ""}`}
+                  className={`db-field${isLongText(col) || isJson(col) || isBinary(col) ? " db-field--wide" : ""}`}
                 >
                   <label className="form-label db-field-label">
                     {col.name}
@@ -490,7 +594,9 @@ export const RowEditorPanel = forwardRef<RowEditorPanelHandle, RowEditorPanelPro
                     {!col.nullable && !col.pk && <span className="db-field-required">*</span>}
                   </label>
 
-                  {col.pk ? (
+                  {isBinary(col) ? (
+                    <BinaryField table={table} col={col} row={row} />
+                  ) : col.pk ? (
                     // editableColumns excludes pk columns while creating, so this
                     // only ever renders for an existing row — row is never null here.
                     <input

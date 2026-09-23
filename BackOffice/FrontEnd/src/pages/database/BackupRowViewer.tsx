@@ -1,9 +1,10 @@
 import { ArrowLeft } from "react-bootstrap-icons";
 import type { Row, TableInfo } from "@/api";
-import { rowLabel } from "./dbHelpers";
+import { formatBytes, isBinaryPlaceholder, rowLabel } from "./dbHelpers";
 
 function formatValue(value: unknown): string {
   if (value === null || value === undefined) return "";
+  if (isBinaryPlaceholder(value)) return `Binary data (${formatBytes(value.size_bytes)})`;
   if (typeof value === "boolean") return value ? "true" : "false";
   if (typeof value === "object") return JSON.stringify(value, null, 2);
   return String(value);
@@ -32,7 +33,7 @@ export function BackupRowViewer({ table, row, onClose }: { table: TableInfo; row
         <div className="db-row-form-grid">
           {table.columns.map((col) => {
             const value = row[col.name];
-            const isJson = col.type === "JSON" || (typeof value === "object" && value !== null);
+            const isJson = col.type === "JSON" || (typeof value === "object" && value !== null && !isBinaryPlaceholder(value));
             return (
               <div key={col.name} className={`db-field${isJson ? " db-field--wide" : ""}`}>
                 <label className="form-label db-field-label">

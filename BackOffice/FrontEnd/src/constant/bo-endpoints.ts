@@ -18,6 +18,7 @@ export const ENDPOINTS = {
     BACKUPS: "/database/backups",
     rows:          (tableName: string) => `/database/tables/${encodeURIComponent(tableName)}/rows`,
     row:           (tableName: string) => `/database/tables/${encodeURIComponent(tableName)}/row`,
+    blob:          (tableName: string) => `/database/tables/${encodeURIComponent(tableName)}/blob`,
     backupFile:    (filename: string) => `/database/backups/${encodeURIComponent(filename)}`,
     backupRestore: (filename: string) => `/database/backups/${encodeURIComponent(filename)}/restore`,
     backupTables:  (filename: string) => `/database/backups/${encodeURIComponent(filename)}/tables`,

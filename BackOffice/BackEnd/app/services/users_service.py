@@ -1,6 +1,6 @@
 """Users listing for both managed apps.
 
-Shadow V2's users come from shadow.db via shadow_client (same path the
+Shadow V2's users come from shadow.db via shadow_db_service (same path the
 Database page already uses — never a second SQL-execution mechanism).
 BackOffice's own admins are read directly, since that's BackOffice's own
 database.
@@ -27,7 +27,7 @@ from app.core.config import settings
 from app.core.exceptions import ForbiddenError, ValidationError
 from app.models.admin_user import AdminUserDBM
 from app.schemas.users import CreateAdminRequest, UserStatus
-from app.services import shadow_client
+from app.services import shadow_db_service
 
 _AWAY_AFTER = timedelta(hours=1)
 _INACTIVE_AFTER = timedelta(days=7)
@@ -74,7 +74,7 @@ def _compute_status(is_active: bool, last_seen: datetime | None) -> UserStatus:
 
 
 def list_shadow_users() -> list[dict]:
-    result = shadow_client.run_sql(
+    result = shadow_db_service.run_sql(
         "SELECT u.id, u.name, u.email, u.is_active, u.email_verified, u.created_at, "
         "MAX(s.last_seen_at) AS last_seen_at "
         "FROM users u LEFT JOIN active_sessions s ON s.user_id = u.id "

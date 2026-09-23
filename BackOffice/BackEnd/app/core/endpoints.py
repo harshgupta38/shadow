@@ -26,6 +26,7 @@ class Endpoints:
         TABLES = "/tables"
         ROWS = "/tables/{table_name}/rows"
         ROW = "/tables/{table_name}/row"
+        BLOB = "/tables/{table_name}/blob"
         QUERY = "/query"
         BACKUPS = "/backups"
         BACKUP_FILE = "/backups/{filename}"

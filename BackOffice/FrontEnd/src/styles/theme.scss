@@ -1796,6 +1796,35 @@ h1, h2, h3, h4, h5, h6, .display-font {
   &--false { background: var(--jv-surface-3); color: var(--jv-faint); }
 }
 
+.db-cell-binary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+
+  &--field {
+    padding: 0.5rem 0;
+  }
+}
+
+.db-cell-binary-size {
+  font-family: "Menlo", "Consolas", monospace;
+  font-size: 0.76rem;
+  color: var(--jv-faint);
+}
+
+.db-cell-binary-audio {
+  width: 100%;
+  height: 32px;
+  margin-top: 0.4rem;
+  flex-basis: 100%;
+}
+
+.db-cell-binary-error {
+  font-size: 0.72rem;
+  color: var(--jv-danger);
+}
+
 .db-empty-state {
   display: flex;
   flex-direction: column;

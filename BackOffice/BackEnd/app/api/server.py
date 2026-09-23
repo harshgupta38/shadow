@@ -2,18 +2,16 @@ import asyncio
 import contextlib
 import logging
 
-import websockets
 from fastapi import APIRouter, BackgroundTasks, WebSocket, WebSocketDisconnect
 
 from app.api.deps import CurrentAdmin, DbSession
 from app.core import security
-from app.core.config import settings
 from app.core.endpoints import ENDPOINTS
 from app.core.exceptions import NotFoundError
 from app.db.session import SessionLocal
 from app.models.restart_log import RestartLogDBM
 from app.schemas.server import RestartResponse, ServerHealthResponse
-from app.services import auth_service, restart_service, shadow_client, worker_service
+from app.services import auth_service, restart_service, shadow_client, shadow_db_service, worker_service
 
 logger = logging.getLogger(__name__)
 
@@ -146,34 +144,25 @@ def get_workers(_admin: CurrentAdmin):
     return worker_service.get_workers()
 
 
-async def _relay_upstream_log(upstream, websocket: WebSocket) -> None:
-    """Forwards every line BackEnd_V2 sends straight through to the
-    browser, unmodified — the ANSI escape codes already in server.log
-    are exactly what let the frontend render this like a real terminal,
-    so nothing here should touch the text itself."""
-    async for message in upstream:
-        text = message if isinstance(message, str) else message.decode("utf-8", "replace")
-        await websocket.send_text(text)
+# How often log_ws polls server.log for newly appended bytes, and how long
+# one connection is allowed to stay open before the server closes it (the
+# frontend reconnects) — same capped-session convention health_ws above
+# uses, so a stalled/orphaned client can't pin resources indefinitely.
+_LOG_WS_TICK_S = 1.0
+_LOG_WS_MAX_DURATION_S = 20 * 60
+_LOG_SEED_LINES = 50
 
 
 @router.websocket(ENDPOINTS.SERVER.LOG_WS)
 async def log_ws(websocket: WebSocket):
-    """Relays BackEnd_V2's real-time server.log websocket through to the
-    browser — connections are opened deliberately by the frontend (the
-    Logs page's play button), never on a timer, so this only ever costs
-    anything while an admin is actually watching. BackOffice never lets
-    the browser talk to BackEnd_V2 directly (same rule as every other
-    call in shadow_client), so this acts as a websocket client to
-    BackEnd_V2 and a websocket server to the browser at the same time.
-
-    Races two tasks rather than only watching the browser's own socket:
-    relay_task ending (BackEnd_V2 closed the connection — its own 20-minute
-    cap, a restart, anything) needs to be noticed too, or this would sit
-    open forever silently relaying nothing while the browser has no idea
-    the feed died. disconnect_task existing purely to detect the browser
-    hanging up (it never sends anything meaningful) restarts itself on any
-    non-disconnect receive, same "not actually terminal" handling as
-    health_ws's own recv_task above.
+    """Tails BackEnd_V2's server.log directly off disk — both apps are
+    co-located on the same device (see SHADOW_BACKEND_DIR), so there's no
+    reason to hop through a second websocket (BackEnd_V2's own former
+    /admin/logs/ws) just to read a file this process can already open
+    itself. Seeds with the last 50 lines, then only ever reads bytes newly
+    appended since the last check (never re-reads the whole file), so
+    watching this indefinitely costs nothing proportional to the file's
+    total size.
     """
     token = _ws_bearer_token(websocket)
     await websocket.accept(subprotocol=token)
@@ -181,35 +170,37 @@ async def log_ws(websocket: WebSocket):
         await websocket.close(code=4401, reason="Not authenticated")
         return
 
+    recv_task = asyncio.ensure_future(websocket.receive_text())
     try:
-        async with websockets.connect(
-            shadow_client.log_ws_url(),
-            additional_headers={"X-Admin-Secret": settings.shadow_admin_secret},
-            open_timeout=10,
-        ) as upstream:
-            relay_task = asyncio.ensure_future(_relay_upstream_log(upstream, websocket))
-            disconnect_task = asyncio.ensure_future(websocket.receive_text())
-            try:
-                while True:
-                    done, _ = await asyncio.wait({relay_task, disconnect_task}, return_when=asyncio.FIRST_COMPLETED)
-                    if relay_task in done:
-                        relay_task.result()  # returns normally if BackEnd_V2 just closed; raises on a real failure
-                        break  # nothing left to relay either way — stop
-                    disconnect_task.result()  # raises WebSocketDisconnect if that's what happened
-                    disconnect_task = asyncio.ensure_future(websocket.receive_text())  # an inert message — keep waiting
-            finally:
-                relay_task.cancel()
-                disconnect_task.cancel()
-                with contextlib.suppress(Exception, asyncio.CancelledError):
-                    await relay_task
-                with contextlib.suppress(Exception, asyncio.CancelledError):
-                    await disconnect_task
+        if not await asyncio.to_thread(shadow_db_service.log_exists):
+            await websocket.send_text("server.log not found.")
+            return
+
+        seed_lines = await asyncio.to_thread(shadow_db_service.read_log_tail, _LOG_SEED_LINES)
+        for line in seed_lines:
+            await websocket.send_text(line)
+        position = await asyncio.to_thread(shadow_db_service.log_size)
+
+        elapsed = 0.0
+        while elapsed < _LOG_WS_MAX_DURATION_S:
+            done, _ = await asyncio.wait({recv_task}, timeout=_LOG_WS_TICK_S)
+            if recv_task in done:
+                recv_task.result()  # raises WebSocketDisconnect if that's what happened
+                recv_task = asyncio.ensure_future(websocket.receive_text())  # an inert message — keep waiting
+            elapsed += _LOG_WS_TICK_S
+
+            new_text, position = await asyncio.to_thread(shadow_db_service.read_log_since, position)
+            if new_text:
+                for line in new_text.splitlines():
+                    await websocket.send_text(line)
     except WebSocketDisconnect:
         pass
     except Exception:
-        logger.exception("log_ws: could not reach BackEnd_V2's log stream.")
-        with contextlib.suppress(Exception):
-            await websocket.send_text("Could not reach Shadow V2's log stream.")
+        logger.exception("log_ws: unexpected error while tailing server.log.")
+    finally:
+        recv_task.cancel()
+        with contextlib.suppress(Exception, asyncio.CancelledError):
+            await recv_task
 
 
 @router.get(ENDPOINTS.SERVER.RESTART_HISTORY, response_model=list[RestartResponse])

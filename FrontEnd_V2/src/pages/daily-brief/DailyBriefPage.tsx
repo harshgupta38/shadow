@@ -131,7 +131,7 @@ interface AudioPlayerBarProps {
 function AudioPlayerBar({ state, currentTime, duration, hasAudio, canGenerate, onToggle, onSeek, onBeginScrub, onEndScrub }: AudioPlayerBarProps) {
     const unlocked = hasAudio;
     const isLoading = state === "loading";
-    const overlayLabel = isLoading ? "Loading…" : state === "error" ? "Retry" : "Listen";
+    const overlayLabel = isLoading ? "Loading…" : state === "error" ? "Retry" : "Hear Your Day";
 
     return (
         <div className={`brief-audio-bar${unlocked ? "" : " brief-audio-bar--locked"}`}>
@@ -272,7 +272,7 @@ export function DailyBriefPage() {
                         state={audio.state}
                         currentTime={audio.currentTime}
                         duration={audio.duration}
-                        hasAudio={(brief?.has_audio ?? false) || audio.loaded}
+                        hasAudio={audio.loaded}
                         canGenerate={displayDate >= todayISTString()}
                         onToggle={handleAudioToggle}
                         onSeek={audio.seek}

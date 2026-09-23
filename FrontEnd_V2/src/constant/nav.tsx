@@ -11,8 +11,8 @@ import {
     GraphUpArrow,
     HeartPulseFill,
     JournalRichtext,
-    PersonBadgeFill,
-    GearFill,
+    // PersonBadgeFill,
+    // GearFill,
     type IconProps,
 } from "react-bootstrap-icons";
 

@@ -14,6 +14,18 @@ log = logging.getLogger("uvicorn.error")
 _BACKUP_GLOB = "shadow-*.db"
 _BACKUP_NAME_RE = re.compile(r"^shadow-(\d{8})-(\d{6})\d{3}\.db$")
 
+# Excluded from every backup: large, cheaply-regenerable-on-request data (TTS audio
+# blobs) isn't worth carrying in every snapshot — losing it just means a user's
+# next "Listen" click re-generates it for a few cents.
+_EXCLUDED_TABLES = ("daily_brief_audio",)
+
+
+def _strip_excluded_tables(conn: sqlite3.Connection) -> None:
+    for table in _EXCLUDED_TABLES:
+        conn.execute(f"DELETE FROM {table}")
+    conn.commit()
+    conn.execute("VACUUM")  # reclaim the space — DELETE alone doesn't shrink the file
+
 
 def _parse_backup_timestamp(name: str) -> datetime | None:
     """Reads the IST timestamp create_backup() already encoded in the
@@ -62,6 +74,7 @@ def create_backup() -> Path | None:
         dst_conn = sqlite3.connect(str(dest))
         try:
             src_conn.backup(dst_conn)
+            _strip_excluded_tables(dst_conn)
         except Exception:
             dst_conn.close()
             dest.unlink(missing_ok=True)

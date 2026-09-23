@@ -60,11 +60,11 @@ export const NAV_SECTIONS: NavSection[] = [
             { to: ROUTES.ASSISTANT, label: "Assistant", icon: ChatDotsFill },
         ],
     },
-    {
-        label: "You",
-        items: [
-            { to: ROUTES.PROFILE, label: "Profile", icon: PersonBadgeFill },
-            { to: ROUTES.SETTINGS, label: "Settings", icon: GearFill },
-        ],
-    },
+    // {
+    //     label: "You",
+    //     items: [
+    //         { to: ROUTES.PROFILE, label: "Profile", icon: PersonBadgeFill },
+    //         { to: ROUTES.SETTINGS, label: "Settings", icon: GearFill },
+    //     ],
+    // },
 ];

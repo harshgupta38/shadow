@@ -10,7 +10,7 @@ from app.analysis.service import get_analysis_service
 # do not import LLMSettings directly from app.llm, as it will create a circular import
 from app.llm.config import LLMSettings
 from app.llm.enums import LLMProvider
-from app.llm.cost import calculate_token_cost, calculate_tts_cost
+from app.llm.cost import calculate_token_cost, calculate_tts_cost, calculate_transcription_cost
 
 logger = logging.getLogger(__name__)
 
@@ -221,6 +221,39 @@ async def log_openai_audio_usage_async(
         )
     except Exception:
         logger.exception("Failed to persist immediate OpenAI TTS usage logging.")
+
+
+async def log_openai_transcription_usage_async(
+    *,
+    settings: LLMSettings,
+    model: str,
+    duration_seconds: float,
+    latency_ms: int,
+    operation: str,
+    user_id: int,
+) -> None:
+    """Persist usage metadata for an OpenAI audio transcription call. Whisper is
+    priced per minute of input audio, not per token, so cost is estimated
+    separately from cost.py's token-based MODEL_COSTS."""
+    try:
+        cost = calculate_transcription_cost(duration_seconds)
+
+        await _write_provider_usage_log(
+            settings=settings,
+            provider=LLMProvider.OPENAI,
+            model=model,
+            model_str=model,
+            request_id=None,
+            latency_ms=latency_ms,
+            input_tokens=0,
+            output_tokens=0,
+            total_tokens=0,
+            cost=cost,
+            operation=operation,
+            user_id=user_id,
+        )
+    except Exception:
+        logger.exception("Failed to persist immediate OpenAI transcription usage logging.")
 
 
 async def _write_provider_usage_log(

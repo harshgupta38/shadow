@@ -23,6 +23,19 @@ class DailyBriefSchema(BaseModel):
 
 class DailyBriefResponse(BaseModel):
     complete_brief: str | None
+    spoken_brief: str | None = None
     date: str
     generated_at: str | None
     has_audio: bool = False
+
+
+# ── Caption timing (word-level, from transcribing the generated audio) ────────────────
+
+class WordTiming(BaseModel):
+    word: str
+    start: float
+    end: float
+
+
+class DailyBriefCaptionsResponse(BaseModel):
+    words: list[WordTiming]

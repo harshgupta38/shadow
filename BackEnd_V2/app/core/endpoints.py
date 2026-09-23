@@ -135,6 +135,7 @@ class Endpoints:
         DETAIL = ""
         GENERATE = "/generate"
         AUDIO = "/audio"
+        CAPTIONS = "/captions"
 
     class CHAT:
         PREFIX = "/chat"

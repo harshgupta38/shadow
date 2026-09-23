@@ -97,6 +97,7 @@ export const ENDPOINTS = {
         DETAIL: "",
         GENERATE: "/generate",
         AUDIO: "/audio",
+        CAPTIONS: "/captions",
     },
     REPORTS: {
         PREFIX: "/reports",

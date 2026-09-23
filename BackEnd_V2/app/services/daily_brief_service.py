@@ -16,6 +16,7 @@ Dedup is handled by notifications_service via event_key = "daily_brief:{user_id}
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from datetime import date
 
@@ -180,6 +181,7 @@ def get_brief_for_date(db: Session, user_id: int, target_date: date) -> dict:
     ) is not None
     return {
         "complete_brief": brief.complete_brief if brief else None,
+        "spoken_brief": brief.spoken_brief if brief and brief.spoken_brief else None,
         "date": target_date.isoformat(),
         "generated_at": brief.created_at.isoformat() if brief else None,
         "has_audio": has_audio,
@@ -189,7 +191,7 @@ def get_brief_for_date(db: Session, user_id: int, target_date: date) -> dict:
 async def get_or_generate_brief_audio(db: Session, user_id: int, target_date: date) -> bytes:
     """Returns cached TTS audio for this brief, generating (and caching) it on first request."""
     from app.models.daily_brief_audio import DailyBriefAudioDBM
-    from app.llm.tts import synthesize_speech
+    from app.llm.tts import synthesize_speech, transcribe_word_timings
 
     cached = db.scalar(
         select(DailyBriefAudioDBM).where(
@@ -210,8 +212,14 @@ async def get_or_generate_brief_audio(db: Session, user_id: int, target_date: da
         raise NotFoundError("No brief has been generated for this date yet.")
 
     audio_data = await synthesize_speech(brief.spoken_brief or brief.complete_brief, user_id=user_id)
+    word_timings = await transcribe_word_timings(audio_data, user_id=user_id)
 
-    db.add(DailyBriefAudioDBM(user_id=user_id, brief_date=target_date, audio_data=audio_data))
+    db.add(DailyBriefAudioDBM(
+        user_id=user_id,
+        brief_date=target_date,
+        audio_data=audio_data,
+        word_timings=json.dumps(word_timings) if word_timings else None,
+    ))
     try:
         db.commit()
     except IntegrityError:
@@ -227,6 +235,22 @@ async def get_or_generate_brief_audio(db: Session, user_id: int, target_date: da
             return cached.audio_data
 
     return audio_data
+
+
+async def get_brief_captions(db: Session, user_id: int, target_date: date) -> list[dict]:
+    """Returns the cached per-word timing data for this brief's audio, or an
+    empty list if no audio has been generated yet or transcription failed."""
+    from app.models.daily_brief_audio import DailyBriefAudioDBM
+
+    cached = db.scalar(
+        select(DailyBriefAudioDBM).where(
+            DailyBriefAudioDBM.user_id == user_id,
+            DailyBriefAudioDBM.brief_date == target_date,
+        )
+    )
+    if not cached or not cached.word_timings:
+        return []
+    return json.loads(cached.word_timings)
 
 
 async def generate_brief_now(db: Session, user: UserDBM, target_date: date) -> dict:

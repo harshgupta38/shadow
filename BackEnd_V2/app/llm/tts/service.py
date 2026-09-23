@@ -4,12 +4,13 @@ Uses OpenAI's audio API directly (not the pluggable LLMProvider abstraction —
 audio synthesis isn't implemented across every provider, and this is the only
 caller today).
 """
+import io
 import logging
 from time import perf_counter
 
 from openai import AsyncOpenAI, APIConnectionError, APIStatusError, OpenAIError
 
-from app.analysis.llm_usage_logger import log_openai_audio_usage_async
+from app.analysis.llm_usage_logger import log_openai_audio_usage_async, log_openai_transcription_usage_async
 from app.core.exceptions import AppError
 from app.llm.config import llm_settings
 
@@ -63,3 +64,50 @@ async def synthesize_speech(text: str, *, user_id: int) -> bytes:
     )
 
     return response.content
+
+
+async def transcribe_word_timings(audio_bytes: bytes, *, user_id: int) -> list[dict] | None:
+    """Transcribes our own just-generated audio to get real per-word timestamps
+    for caption sync — this is ground truth (it's the exact audio being played),
+    not a guess from the source text. Best-effort: captions are a nice-to-have,
+    so any failure here must never break audio playback."""
+    if not llm_settings.openai_api_key:
+        return None
+
+    client = AsyncOpenAI(api_key=llm_settings.openai_api_key, timeout=llm_settings.llm_request_timeout_seconds)
+    started_at = perf_counter()
+    try:
+        transcript = await client.audio.transcriptions.create(
+            model="whisper-1",
+            file=("brief.mp3", io.BytesIO(audio_bytes), "audio/mpeg"),
+            response_format="verbose_json",
+            timestamp_granularities=["word"],
+        )
+        words = getattr(transcript, "words", None) or []
+        latency_ms = int((perf_counter() - started_at) * 1000)
+        # whisper-1 is billed per audio-minute, not per token — transcript.usage.seconds
+        # is the authoritative billed duration (falls back if usage is ever missing).
+        # `or`-chaining would wrongly skip a legitimate 0.0 value, so check explicitly.
+        usage = getattr(transcript, "usage", None)
+        usage_seconds = getattr(usage, "seconds", None)
+        transcript_duration = getattr(transcript, "duration", None)
+        if usage_seconds is not None:
+            duration_seconds = usage_seconds
+        elif transcript_duration is not None:
+            duration_seconds = transcript_duration
+        else:
+            duration_seconds = words[-1].end if words else 0.0
+        await log_openai_transcription_usage_async(
+            settings=llm_settings,
+            model="whisper-1",
+            duration_seconds=duration_seconds,
+            latency_ms=latency_ms,
+            operation="tts_word_timings",
+            user_id=user_id,
+        )
+        return [{"word": w.word, "start": w.start, "end": w.end} for w in words]
+    except (APIConnectionError, APIStatusError, OpenAIError):
+        logger.warning("Word-timing transcription failed — captions will be unavailable.", exc_info=True)
+        return None
+    finally:
+        await client.close()

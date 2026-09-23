@@ -122,6 +122,30 @@
   padding: 0.9rem 1.1rem;
 }
 
+.brief-audio-col-right {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.brief-audio-row {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.brief-audio-subtitle {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--jv-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .brief-audio-play-btn {
   flex-shrink: 0;
   width: 42px;

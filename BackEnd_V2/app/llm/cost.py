@@ -132,3 +132,21 @@ def calculate_tts_cost(model_key: OpenAITTSModel, char_count: int) -> TokenCostB
         output_token_cost=0.0,
         total_cost=input_token_cost,
     )
+
+
+# Whisper transcription is priced per minute of input audio, not per token/character.
+# ~$0.006/min at ~88 INR/USD (same conversion rate used for the Claude legacy rates above).
+WHISPER_TRANSCRIPTION_COST_PER_MINUTE = 0.57
+
+
+def calculate_transcription_cost(duration_seconds: float) -> TokenCostBreakdown:
+    if duration_seconds < 0:
+        raise ValueError("duration_seconds must be greater than or equal to 0.")
+
+    cost = (duration_seconds / 60) * WHISPER_TRANSCRIPTION_COST_PER_MINUTE
+
+    return TokenCostBreakdown(
+        input_token_cost=cost,
+        output_token_cost=0.0,
+        total_cost=cost,
+    )

@@ -1,6 +1,6 @@
 import { ENDPOINTS } from "@/constant/shadow-endpoints";
 import { http } from "@/api/client";
-import type { DailyBriefResponse } from "@/api/types";
+import type { DailyBriefCaptionsResponse, DailyBriefResponse, WordTiming } from "@/api/types";
 
 const P = ENDPOINTS.DAILY_BRIEF.PREFIX;
 
@@ -21,5 +21,13 @@ export const dailyBriefApi = {
       params: { date },
       responseType: "blob",
     });
+  },
+
+  /** Real per-word timestamps from transcribing the generated audio, for caption
+   * sync. Only call after getAudio has resolved for the same date — captions are
+   * cached alongside the audio and won't exist until it's been generated. */
+  async getCaptions(date: string): Promise<WordTiming[]> {
+    const res = await http.get<DailyBriefCaptionsResponse>(`${P}${ENDPOINTS.DAILY_BRIEF.CAPTIONS}`, { params: { date } });
+    return res.words;
   },
 };

@@ -7,6 +7,9 @@ Runs in a daemon thread — safe to call from a FastAPI threadpool.
   short_brief    — 1 sentence, ≤140 chars; notification body + push.
   complete_brief — 3–4 paragraphs; stored in daily_briefs, shown on
                    /daily-brief page and optionally emailed.
+  spoken_brief   — separate rendering of the same brief for TTS playback
+                   (see get_or_generate_brief_audio); falls back to
+                   complete_brief for rows generated before this existed.
 
 Dedup is handled by notifications_service via event_key = "daily_brief:{user_id}:{date}".
 """
@@ -82,10 +85,14 @@ async def _call_llm_service(
         await service.close()
 
 
-def _generate_briefs(user_id: int, first_name: str, today: date, context: dict, ai_behavior: dict) -> tuple[str, str]:
+def _generate_briefs(user_id: int, first_name: str, today: date, context: dict, ai_behavior: dict) -> tuple[str, str, str]:
     """Call the LLM provider. Raises on failure — no synthetic brief is ever sent."""
     response = asyncio.run(_call_llm_service(user_id, first_name, today, context, ai_behavior))
-    return response.brief_data.short_brief[:200], response.brief_data.complete_brief[:2000]
+    return (
+        response.brief_data.short_brief[:200],
+        response.brief_data.complete_brief[:2000],
+        response.brief_data.spoken_brief[:2000],
+    )
 
 
 # ─── Preferences ──────────────────────────────────────────────────────────────
@@ -120,7 +127,7 @@ def send_daily_brief(user_id: int, today: date) -> None:
             context = _build_context(items)
             ai_behavior = settings_service.get_ai_behavior(db, user.id)
 
-            short_brief, complete_brief = _generate_briefs(user.id, first_name, today, context, ai_behavior)
+            short_brief, complete_brief, spoken_brief = _generate_briefs(user.id, first_name, today, context, ai_behavior)
             title = f"Good morning, {first_name}! Here's your {today.strftime('%A')}"
 
             notif = notifications_service.create_notification(
@@ -140,6 +147,7 @@ def send_daily_brief(user_id: int, today: date) -> None:
                 user_id=user.id,
                 brief_date=today,
                 complete_brief=complete_brief,
+                spoken_brief=spoken_brief,
             ))
             db.commit()
 
@@ -201,7 +209,7 @@ async def get_or_generate_brief_audio(db: Session, user_id: int, target_date: da
     if not brief or not brief.complete_brief:
         raise NotFoundError("No brief has been generated for this date yet.")
 
-    audio_data = await synthesize_speech(brief.complete_brief, user_id=user_id)
+    audio_data = await synthesize_speech(brief.spoken_brief or brief.complete_brief, user_id=user_id)
 
     db.add(DailyBriefAudioDBM(user_id=user_id, brief_date=target_date, audio_data=audio_data))
     try:
@@ -246,6 +254,7 @@ async def generate_brief_now(db: Session, user: UserDBM, target_date: date) -> d
     response = await _call_llm_service(user.id, first_name, target_date, context, ai_behavior)
     short_brief = response.brief_data.short_brief[:200]
     complete_brief = response.brief_data.complete_brief[:2000]
+    spoken_brief = response.brief_data.spoken_brief[:2000]
 
     title = f"Good morning, {first_name}! Here's your {target_date.strftime('%A')}"
     event_key = f"daily_brief:{user.id}:{target_date}"
@@ -283,6 +292,7 @@ async def generate_brief_now(db: Session, user: UserDBM, target_date: date) -> d
         user_id=user.id,
         brief_date=target_date,
         complete_brief=complete_brief,
+        spoken_brief=spoken_brief,
     ))
     try:
         db.commit()

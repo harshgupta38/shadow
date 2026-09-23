@@ -787,12 +787,13 @@ def build_report_prompt(report_date: str, report_type: str, day_data: dict) -> s
 # today is loaded for the first time.  Two outputs in one call:
 #   short_brief    — 1 punchy sentence (≤140 chars) for push / in-app body.
 #   complete_brief — 3–4 warm paragraphs for the /daily-brief page and email.
+#   spoken_brief   — separate rendering of the same content for TTS playback.
 # ---------------------------------------------------------------------------
 
 DAILY_BRIEF_SYSTEM_PROMPT = (
     "You are Shadow, an intelligent personal assistant. "
     "Generate a morning brief for the user. "
-    "Return ONLY valid JSON (no markdown, no code blocks) with exactly two string fields:\n\n"
+    "Return ONLY valid JSON (no markdown, no code blocks) with exactly three string fields:\n\n"
     '"short_brief": One warm, punchy sentence. Max 140 characters. '
     "Mention 1–2 highlights from the plan. No generic opener like \"Good morning\" — go straight to something specific. "
     'Example: "13 habits and a coding session await you today, Harsh — it\'s going to be a productive Wednesday!"\n\n'
@@ -800,8 +801,32 @@ DAILY_BRIEF_SYSTEM_PROMPT = (
     "Start with a warm good-morning greeting using the user's first name and the day. "
     "Weave the habits and tasks into natural, motivating language — never a bullet list. "
     "Acknowledge the energy of the day and close with an encouraging, personal sendoff. "
-    "Keep the total under 1600 characters."
+    "Keep the total under 1600 characters.\n\n"
+    '"spoken_brief": The same brief, rewritten to be read aloud by text-to-speech instead of read on screen. '
+    "Speak to the user directly and casually, the way you'd actually talk, not the way you'd write. "
+    "Keep it noticeably shorter than complete_brief — a natural 30-45 second listen. "
+    "No headings, lists, or written-style formatting; just plain flowing speech."
 )
+
+
+def _format_plan_items(items: list[dict]) -> str:
+    """One line per item, tagged with priority/time only when it deviates
+    from the default (medium priority, flexible time) — signal, not noise."""
+    lines = []
+    for item in items:
+        tags = []
+        priority = item.get("priority")
+        if priority and priority != "medium":
+            tags.append(f"priority: {priority}")
+        specific_time = item.get("specific_time")
+        preferred_time = item.get("preferred_time")
+        if specific_time:
+            tags.append(f"time: {specific_time}")
+        elif preferred_time and preferred_time not in ("flexible", "custom"):
+            tags.append(f"time: {preferred_time}")
+        suffix = f" | {' | '.join(tags)}" if tags else ""
+        lines.append(f"- {item['title']}{suffix}")
+    return "\n".join(lines)
 
 
 def build_daily_brief_user_prompt(first_name: str, today: date, context: dict) -> str:
@@ -810,17 +835,17 @@ def build_daily_brief_user_prompt(first_name: str, today: date, context: dict) -
     scheduled = context.get("scheduled", [])
     total = len(habits) + len(tasks) + len(scheduled)
 
-    lines = [
-        f"User's first name: {first_name}",
-        f"Today: {today.strftime('%A, %d %B %Y')}",
-        f"Total plan items: {total}",
+    sections = [
+        f"User's first name: {first_name}\n"
+        f"Today: {today.strftime('%A, %d %B %Y')}\n"
+        f"Total plan items: {total}"
     ]
     if habits:
-        lines.append("Habits: " + ", ".join(h["title"] for h in habits[:8]))
+        sections.append("Habits:\n" + _format_plan_items(habits))
     if tasks:
-        lines.append("Tasks: " + ", ".join(t["title"] for t in tasks[:6]))
+        sections.append("Tasks:\n" + _format_plan_items(tasks))
     if scheduled:
-        lines.append("Scheduled: " + ", ".join(s["title"] for s in scheduled[:4]))
+        sections.append("Scheduled:\n" + _format_plan_items(scheduled))
     if total == 0:
-        lines.append("No items scheduled — clear day.")
-    return "\n".join(lines)
+        sections.append("No items scheduled — clear day.")
+    return "\n\n".join(sections)

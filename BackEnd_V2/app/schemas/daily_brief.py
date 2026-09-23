@@ -10,6 +10,13 @@ class DailyBriefSchema(BaseModel):
     complete_brief: str = Field(
         description="3-4 warm paragraphs for the /daily-brief page and email, under 1600 characters."
     )
+    spoken_brief: str = Field(
+        description=(
+            "A separate rendering of the same brief written to be read aloud by text-to-speech "
+            "(not a summary of complete_brief) — conversational spoken rhythm, no lists/headings, "
+            "roughly 500-800 characters."
+        )
+    )
 
 
 # ── API response schema ────────────────────────────────────────────────────────

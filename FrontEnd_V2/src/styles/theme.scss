@@ -887,6 +887,33 @@ a {
   padding: 0.55rem;
 }
 
+.sidebar-donate-link {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  width: 100%;
+  padding: 0.55rem 0.8rem;
+  border-radius: var(--jv-radius-sm);
+  color: var(--jv-warn);
+  background: var(--jv-warn-soft);
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  flex-shrink: 0;
+  margin-bottom: 0.4rem;
+  transition: background var(--jv-transition), color var(--jv-transition);
+}
+.sidebar-donate-link:hover {
+  background: color-mix(in srgb, var(--jv-warn-soft) 70%, var(--jv-warn) 30%);
+  color: var(--jv-warn);
+}
+.sidebar-donate-link--icon {
+  justify-content: center;
+  padding: 0.55rem;
+}
+
 /* ----------------------------------------------------------------------------
    10. Brand mark
    -------------------------------------------------------------------------- */

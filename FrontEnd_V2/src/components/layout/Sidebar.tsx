@@ -1,7 +1,9 @@
 import { NavLink } from "react-router-dom";
-import { ArrowBarLeft, ArrowBarRight } from "react-bootstrap-icons";
+import { ArrowBarLeft, ArrowBarRight, CupHotFill } from "react-bootstrap-icons";
 
 import { NAV_SECTIONS } from "@/constant/nav";
+
+const BUY_ME_A_COFFEE_URL = "https://buymeacoffee.com/harshgupta38";
 
 interface SidebarProps {
   onNavigate?: () => void;
@@ -40,6 +42,18 @@ export function Sidebar({ onNavigate, collapsed, onToggleCollapse }: SidebarProp
           </div>
         ))}
       </nav>
+
+      <a
+        href={BUY_ME_A_COFFEE_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={`sidebar-donate-link${collapsed ? " sidebar-donate-link--icon" : ""}`}
+        title={collapsed ? "Buy me a coffee" : undefined}
+        aria-label={collapsed ? "Buy me a coffee" : undefined}
+      >
+        <CupHotFill size={18} />
+        {!collapsed && <span>Buy me a coffee</span>}
+      </a>
 
       {onToggleCollapse && (
         <button

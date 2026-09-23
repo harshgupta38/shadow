@@ -25,6 +25,11 @@ class UserSettingDBM(Base):
     privacy: Mapped[dict] = mapped_column(JSON, nullable=False)
     accessibility: Mapped[dict] = mapped_column(JSON, nullable=False)
     reports: Mapped[dict] = mapped_column(JSON, nullable=False)
+    # Internal feature-gating flags (e.g. {"brief_audio_caption": false}) — no
+    # settings-page UI yet; toggled directly for select users. Nullable: added
+    # via ALTER TABLE on existing DBs (see db/session.ensure_columns), and a
+    # missing/absent key is always treated as disabled (see settings_service.is_feature_enabled).
+    feature_toggles: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

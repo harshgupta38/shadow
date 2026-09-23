@@ -784,16 +784,18 @@ def build_report_prompt(report_date: str, report_type: str, day_data: dict) -> s
 
 # ---------------------------------------------------------------------------
 # Daily brief: concise morning briefing generated when the user's plan for
-# today is loaded for the first time.  Two outputs in one call:
+# today is loaded for the first time. Two or three outputs in one call:
 #   short_brief    — 1 punchy sentence (≤140 chars) for push / in-app body.
 #   complete_brief — 3–4 warm paragraphs for the /daily-brief page and email.
-#   spoken_brief   — separate rendering of the same content for TTS playback.
+#   spoken_brief   — separate rendering of the same content for TTS playback;
+#                    omitted entirely (not just left blank) for users whose
+#                    audio/caption feature is disabled, to save output tokens.
 # ---------------------------------------------------------------------------
 
-DAILY_BRIEF_SYSTEM_PROMPT = (
+_DAILY_BRIEF_CORE_PROMPT = (
     "You are Shadow, an intelligent personal assistant. "
     "Generate a morning brief for the user. "
-    "Return ONLY valid JSON (no markdown, no code blocks) with exactly three string fields:\n\n"
+    "Return ONLY valid JSON (no markdown, no code blocks) with exactly {field_count} string fields:\n\n"
     '"short_brief": One warm, punchy sentence. Max 140 characters. '
     "Mention 1–2 highlights from the plan. No generic opener like \"Good morning\" — go straight to something specific. "
     'Example: "13 habits and a coding session await you today, Harsh — it\'s going to be a productive Wednesday!"\n\n'
@@ -801,12 +803,19 @@ DAILY_BRIEF_SYSTEM_PROMPT = (
     "Start with a warm good-morning greeting using the user's first name and the day. "
     "Weave the habits and tasks into natural, motivating language — never a bullet list. "
     "Acknowledge the energy of the day and close with an encouraging, personal sendoff. "
-    "Keep the total under 1600 characters.\n\n"
+    "Keep the total under 1600 characters."
+)
+
+_DAILY_BRIEF_SPOKEN_ADDENDUM = (
+    "\n\n"
     '"spoken_brief": The same brief, rewritten to be read aloud by text-to-speech instead of read on screen. '
     "Speak to the user directly and casually, the way you'd actually talk, not the way you'd write. "
     "Keep it noticeably shorter than complete_brief — a natural 30-45 second listen. "
     "No headings, lists, or written-style formatting; just plain flowing speech."
 )
+
+DAILY_BRIEF_SYSTEM_PROMPT = _DAILY_BRIEF_CORE_PROMPT.format(field_count="three") + _DAILY_BRIEF_SPOKEN_ADDENDUM
+DAILY_BRIEF_SYSTEM_PROMPT_NO_AUDIO = _DAILY_BRIEF_CORE_PROMPT.format(field_count="two")
 
 
 def _format_plan_items(items: list[dict]) -> str:

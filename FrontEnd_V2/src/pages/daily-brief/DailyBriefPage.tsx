@@ -367,20 +367,22 @@ export function DailyBriefPage() {
                         {!done && <span className="brief-skip-hint">Tap to show full brief</span>}
                     </div>
 
-                    <AudioPlayerBar
-                        state={audio.state}
-                        currentTime={audio.currentTime}
-                        duration={audio.duration}
-                        hasAudio={audio.loaded}
-                        canGenerate={displayDate >= todayISTString()}
-                        subtitle={currentSubtitle}
-                        nextSubtitle={nextSubtitle}
-                        reducedMotion={accessibility_reduced_motion}
-                        onToggle={handleAudioToggle}
-                        onSeek={audio.seek}
-                        onBeginScrub={audio.beginScrub}
-                        onEndScrub={audio.endScrub}
-                    />
+                    {brief?.audio_feature_enabled && (
+                        <AudioPlayerBar
+                            state={audio.state}
+                            currentTime={audio.currentTime}
+                            duration={audio.duration}
+                            hasAudio={audio.loaded}
+                            canGenerate={displayDate >= todayISTString()}
+                            subtitle={currentSubtitle}
+                            nextSubtitle={nextSubtitle}
+                            reducedMotion={accessibility_reduced_motion}
+                            onToggle={handleAudioToggle}
+                            onSeek={audio.seek}
+                            onBeginScrub={audio.beginScrub}
+                            onEndScrub={audio.endScrub}
+                        />
+                    )}
                 </>
             )}
 

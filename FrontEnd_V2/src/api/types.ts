@@ -754,6 +754,7 @@ export interface DailyBriefResponse {
   date: string;
   generated_at: string | null;
   has_audio: boolean;
+  audio_feature_enabled: boolean;
 }
 
 export interface WordTiming {

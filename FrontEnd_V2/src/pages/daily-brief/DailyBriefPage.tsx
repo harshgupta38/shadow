@@ -84,12 +84,13 @@ function useCaptionLines(words: WordTiming[]): CaptionLine[] {
     return useMemo(() => groupCaptionLines(words), [words]);
 }
 
-/** Holds the most recent line whose start has passed — avoids blanking out during brief pauses. */
-function pickCaptionLine(lines: CaptionLine[], currentTime: number): string | undefined {
-    let selected: string | undefined;
-    for (const line of lines) {
-        if (line.start > currentTime) break;
-        selected = line.text;
+/** Index of the most recent line whose start has passed (-1 if none yet) —
+ * avoids blanking out during brief pauses by holding the last active line. */
+function pickActiveCaptionIndex(lines: CaptionLine[], currentTime: number): number {
+    let selected = -1;
+    for (let i = 0; i < lines.length; i++) {
+        if (lines[i].start > currentTime) break;
+        selected = i;
     }
     return selected;
 }
@@ -185,13 +186,17 @@ interface AudioPlayerBarProps {
     canGenerate: boolean;
     /** Current caption line, shown above the seek bar whenever timing data exists (not gated on play state). */
     subtitle?: string;
+    /** Upcoming caption line, peeking below the active one for the drum-roll effect. */
+    nextSubtitle?: string;
+    /** Skips the roll animation for users who've asked for reduced motion. */
+    reducedMotion?: boolean;
     onToggle: () => void;
     onSeek: (time: number) => void;
     onBeginScrub: () => void;
     onEndScrub: () => void;
 }
 
-function AudioPlayerBar({ state, currentTime, duration, hasAudio, canGenerate, subtitle, onToggle, onSeek, onBeginScrub, onEndScrub }: AudioPlayerBarProps) {
+function AudioPlayerBar({ state, currentTime, duration, hasAudio, canGenerate, subtitle, nextSubtitle, reducedMotion, onToggle, onSeek, onBeginScrub, onEndScrub }: AudioPlayerBarProps) {
     const unlocked = hasAudio;
     const isLoading = state === "loading";
     const overlayLabel = isLoading ? "Loading…" : state === "error" ? "Retry" : "Hear Your Day";
@@ -199,39 +204,46 @@ function AudioPlayerBar({ state, currentTime, duration, hasAudio, canGenerate, s
     return (
         <div className={`brief-audio-bar${unlocked ? "" : " brief-audio-bar--locked"}`}>
             <div className="brief-audio-bar-inner" aria-hidden={!unlocked}>
-                <button
-                    type="button"
-                    className="brief-audio-play-btn"
-                    onClick={onToggle}
-                    disabled={!unlocked || isLoading}
-                    aria-label={state === "playing" ? "Pause" : "Play"}
-                >
-                    {isLoading
-                        ? <span className="spinner-border spinner-border-sm" aria-hidden="true" />
-                        : state === "playing" ? <PauseFill size={18} /> : <PlayFill size={18} />}
-                </button>
-                <div className="brief-audio-col-right">
-                    {subtitle && <p className="brief-audio-subtitle">{subtitle}</p>}
-                    <div className="brief-audio-row brief-audio-row--seek">
-                        <span className="brief-audio-time">{formatDuration(currentTime)}</span>
-                        <input
-                            type="range"
-                            className="brief-audio-seek"
-                            min={0}
-                            max={duration || 0}
-                            step={0.1}
-                            value={currentTime}
-                            disabled={!unlocked || isLoading}
-                            onChange={(e) => onSeek(Number(e.target.value))}
-                            onMouseDown={onBeginScrub}
-                            onTouchStart={onBeginScrub}
-                            onMouseUp={onEndScrub}
-                            onTouchEnd={onEndScrub}
-                            onBlur={onEndScrub}
-                            aria-label="Seek"
-                        />
-                        <span className="brief-audio-time">{formatDuration(duration)}</span>
-                    </div>
+                <div className="brief-audio-row brief-audio-row--top">
+                    <button
+                        type="button"
+                        className="brief-audio-play-btn"
+                        onClick={onToggle}
+                        disabled={!unlocked || isLoading}
+                        aria-label={state === "playing" ? "Pause" : "Play"}
+                    >
+                        {isLoading
+                            ? <span className="spinner-border spinner-border-sm" aria-hidden="true" />
+                            : state === "playing" ? <PauseFill size={18} /> : <PlayFill size={18} />}
+                    </button>
+                    {subtitle && (
+                        <div className={`brief-caption-roll${reducedMotion ? " brief-caption-roll--static" : ""}`}>
+                            <div key={subtitle} className="brief-caption-line brief-caption-line--active">{subtitle}</div>
+                            {nextSubtitle && (
+                                <div key={nextSubtitle} className="brief-caption-line brief-caption-line--next">{nextSubtitle}</div>
+                            )}
+                        </div>
+                    )}
+                </div>
+                <div className="brief-audio-row brief-audio-row--seek">
+                    <span className="brief-audio-time">{formatDuration(currentTime)}</span>
+                    <input
+                        type="range"
+                        className="brief-audio-seek"
+                        min={0}
+                        max={duration || 0}
+                        step={0.1}
+                        value={currentTime}
+                        disabled={!unlocked || isLoading}
+                        onChange={(e) => onSeek(Number(e.target.value))}
+                        onMouseDown={onBeginScrub}
+                        onTouchStart={onBeginScrub}
+                        onMouseUp={onEndScrub}
+                        onTouchEnd={onEndScrub}
+                        onBlur={onEndScrub}
+                        aria-label="Seek"
+                    />
+                    <span className="brief-audio-time">{formatDuration(duration)}</span>
                 </div>
             </div>
 
@@ -312,7 +324,9 @@ export function DailyBriefPage() {
     // Not gated on play/pause state — scrubbing the seek bar while paused (or
     // before ever pressing play, since it's disabled until unlocked) should
     // still update the caption. Locked (no-audio) state hides it via blur anyway.
-    const currentSubtitle = pickCaptionLine(captionLines, audio.currentTime);
+    const activeCaptionIndex = pickActiveCaptionIndex(captionLines, audio.currentTime);
+    const currentSubtitle = activeCaptionIndex >= 0 ? captionLines[activeCaptionIndex].text : undefined;
+    const nextSubtitle = activeCaptionIndex >= 0 ? captionLines[activeCaptionIndex + 1]?.text : undefined;
 
     const paragraphs = visible.split("\n\n").map(p => p.trim()).filter(Boolean);
 
@@ -360,6 +374,8 @@ export function DailyBriefPage() {
                         hasAudio={audio.loaded}
                         canGenerate={displayDate >= todayISTString()}
                         subtitle={currentSubtitle}
+                        nextSubtitle={nextSubtitle}
+                        reducedMotion={accessibility_reduced_motion}
                         onToggle={handleAudioToggle}
                         onSeek={audio.seek}
                         onBeginScrub={audio.beginScrub}

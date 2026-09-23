@@ -3,6 +3,7 @@ import { ChevronDown, ChevronUp } from "react-bootstrap-icons";
 
 import type { HabitActivityRecord } from "@/api";
 import { todayIso } from "@/services/date.service";
+import { GEOMETRY } from "@/constant/tuning";
 
 import "./HabitHistory.scss";
 
@@ -142,12 +143,12 @@ function buildMonthlyMetricPoints(
 // actual render box stretches everything (bars, gridlines, text) horizontally
 // while leaving the vertical scale untouched, which is what was flattening
 // the chart. Matching the viewBox to the real box 1:1 removes that distortion.
-const CHART_H = 260;
-const CHART_PAD_TOP = 34; // room for the value label above the tallest bar
-const CHART_PAD_BOTTOM = 28; // room for the day-number axis row
+const CHART_H = GEOMETRY.HABIT_HISTORY_CHART_HEIGHT;
+const CHART_PAD_TOP = GEOMETRY.HABIT_HISTORY_CHART_PAD_TOP;
+const CHART_PAD_BOTTOM = GEOMETRY.HABIT_HISTORY_CHART_PAD_BOTTOM;
 const GRID_LINES = [0, 0.33, 0.66, 1];
-const MIN_CHART_W = 320; // sane fallback before the first ResizeObserver measurement
-const MIN_DAY_PX = 46; // per-day slot width below which 4-digit value labels start overlapping
+const MIN_CHART_W = GEOMETRY.HABIT_HISTORY_MIN_CHART_WIDTH;
+const MIN_DAY_PX = GEOMETRY.HABIT_HISTORY_MIN_DAY_PX;
 
 function useMeasuredWidth(fallback: number) {
   const ref = useRef<HTMLDivElement>(null);

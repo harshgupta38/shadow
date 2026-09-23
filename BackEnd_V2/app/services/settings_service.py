@@ -42,6 +42,13 @@ _DEFAULT_PRIVACY = PrivacySection().model_dump()
 _DEFAULT_ACCESSIBILITY = AccessibilitySection().model_dump()
 _DEFAULT_REPORTS = ReportsSection().model_dump()
 
+# Internal feature-gating flags — no settings-page UI, not part of Update/Response
+# schemas. New keys default to False here; is_feature_enabled() also treats a
+# missing key (existing rows created before a given flag existed) as disabled.
+_DEFAULT_FEATURE_TOGGLES = {
+    "brief_audio_caption": False,
+}
+
 # ─── AI Provider catalogue ────────────────────────────────────────────────────
 
 _AI_PROVIDERS: list[AIProviderResponse] = [
@@ -87,6 +94,7 @@ def _get_or_create(db: Session, user_id: int) -> UserSettingDBM:
             privacy=_DEFAULT_PRIVACY,
             accessibility=_DEFAULT_ACCESSIBILITY,
             reports=_DEFAULT_REPORTS,
+            feature_toggles=_DEFAULT_FEATURE_TOGGLES,
         )
         db.add(setting)
         db.commit()
@@ -215,6 +223,18 @@ def get_ai_behavior(db: Session, user_id: int) -> dict:
     if setting is None:
         return dict(_DEFAULT_AI_BEHAVIOR)
     return {**_DEFAULT_AI_BEHAVIOR, **setting.ai_behavior}
+
+
+def is_feature_enabled(db: Session, user_id: int, feature_key: str) -> bool:
+    """Internal feature-gating check (no settings-page UI yet). Defaults to False
+    for any user without an explicit True value, including rows created before
+    `feature_toggles` or a given key existed. Does NOT create a default row."""
+    setting = db.scalar(
+        select(UserSettingDBM).where(UserSettingDBM.user_id == user_id)
+    )
+    if setting is None or not setting.feature_toggles:
+        return False
+    return bool(setting.feature_toggles.get(feature_key, False))
 
 
 def get_settings(db: Session, current_user: UserDBM) -> SettingsResponse:

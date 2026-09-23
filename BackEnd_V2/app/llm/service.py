@@ -256,6 +256,7 @@ class LLMService:
         today: date,
         context: dict,
         model: str | None = None,
+        include_spoken_brief: bool = True,
     ) -> GenerateBriefFromLLM:
         request = GenerateBriefToLLM(
             user_id=user_id,
@@ -263,6 +264,7 @@ class LLMService:
             today=today,
             context=context,
             model=model,
+            include_spoken_brief=include_spoken_brief,
         )
         try:
             response = await self._provider.generate_daily_brief(request)

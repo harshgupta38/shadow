@@ -8,8 +8,8 @@ import { Panel } from "@/pages/profile/Panel/Panel";
 import { ChangePasswordDialog } from "@/pages/profile/ChangePasswordDialog/ChangePasswordDialog";
 import "@/pages/profile/AccountSecurityPanel/AccountSecurityPanel.scss";
 
-const RESEND_VERIFICATION_COOLDOWN_SECONDS = 30;
-const FORGOT_PASSWORD_COOLDOWN_SECONDS = 30;
+const RESEND_VERIFICATION_COOLDOWN_SECONDS = TIMING.RESEND_VERIFICATION_COOLDOWN_SECONDS;
+const FORGOT_PASSWORD_COOLDOWN_SECONDS = TIMING.FORGOT_PASSWORD_COOLDOWN_SECONDS;
 
 export interface AccountSecurityPanelProps {
   displayName: string;

@@ -8,8 +8,8 @@ from app.api.deps import get_current_user
 from app.core.endpoints import ENDPOINTS
 from app.db.session import get_db
 from app.models.user import UserDBM
-from app.schemas.daily_brief import DailyBriefResponse
-from app.services.daily_brief_service import generate_brief_now, get_brief_for_date, get_or_generate_brief_audio
+from app.schemas.daily_brief import DailyBriefCaptionsResponse, DailyBriefResponse
+from app.services.daily_brief_service import generate_brief_now, get_brief_captions, get_brief_for_date, get_or_generate_brief_audio
 
 router = APIRouter(prefix=ENDPOINTS.DAILY_BRIEF.PREFIX, tags=["Daily Brief"])
 
@@ -50,3 +50,13 @@ async def get_daily_brief_audio(
 ):
     audio_data = await get_or_generate_brief_audio(db, current_user.id, _parse_date(date))
     return Response(content=audio_data, media_type="audio/mpeg")
+
+
+@router.get(ENDPOINTS.DAILY_BRIEF.CAPTIONS, response_model=DailyBriefCaptionsResponse)
+async def get_daily_brief_captions(
+    date: str = Query(description="YYYY-MM-DD"),
+    current_user: UserDBM = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    words = await get_brief_captions(db, current_user.id, _parse_date(date))
+    return {"words": words}

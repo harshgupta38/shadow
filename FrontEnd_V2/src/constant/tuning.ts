@@ -58,6 +58,15 @@ export const TYPEWRITER = {
     PARAGRAPH_PAUSE_MS: 1000,
 } as const;
 
+/** Daily Brief page's audio captions — grouping real per-word timestamps into lines. */
+export const CAPTIONS = {
+    /** A pause alone won't break a line until it's at least this long — avoids stray 1-2 word lines. */
+    MIN_LINE_WORDS: 4,
+    MAX_LINE_WORDS: 8,
+    MAX_LINE_SECONDS: 4,
+    PAUSE_GAP_SECONDS: 0.5,
+} as const;
+
 /** Press-and-hold +/- stepper buttons (metric habit progress, task progress). */
 export const HOLD_REPEAT = {
     /** Delay before repeat-increment starts. */
@@ -99,6 +108,11 @@ export const TIMING = {
 
     /** api/client — default/fallback request timeout. */
     API_DEFAULT_TIMEOUT_MS: 30_000,
+
+    /** AccountSecurityPanel — resend-verification-email button cooldown. */
+    RESEND_VERIFICATION_COOLDOWN_SECONDS: 30,
+    /** AccountSecurityPanel — forgot-password-email button cooldown. */
+    FORGOT_PASSWORD_COOLDOWN_SECONDS: 30,
 } as const;
 
 // ── Pagination / batch sizes ──────────────────────────────────────────────────
@@ -160,4 +174,15 @@ export const GEOMETRY = {
     SPARKLINE_WIDTH: 200,
     SPARKLINE_HEIGHT: 50,
     SPARKLINE_PAD_Y: 4,
+
+    /** HabitHistory bar chart — fixed SVG viewBox height. */
+    HABIT_HISTORY_CHART_HEIGHT: 260,
+    /** HabitHistory bar chart — top padding, room for the value label above the tallest bar. */
+    HABIT_HISTORY_CHART_PAD_TOP: 34,
+    /** HabitHistory bar chart — bottom padding, room for the day-number axis row. */
+    HABIT_HISTORY_CHART_PAD_BOTTOM: 28,
+    /** HabitHistory bar chart — sane fallback width before the first ResizeObserver measurement. */
+    HABIT_HISTORY_MIN_CHART_WIDTH: 320,
+    /** HabitHistory bar chart — per-day slot width below which 4-digit value labels start overlapping. */
+    HABIT_HISTORY_MIN_DAY_PX: 46,
 } as const;

@@ -17,7 +17,7 @@ from app.schemas.chat import (
 )
 from app.schemas.memory import MemoryExtractionFromLLMSchema
 from app.schemas.daily_report import GenerateReportSchema
-from app.schemas.daily_brief import DailyBriefSchema
+from app.schemas.daily_brief import DailyBriefSchema, DailyBriefSchemaNoAudio
 
 
 @dataclass(frozen=True)
@@ -168,7 +168,10 @@ class GenerateBriefToLLM(MetadataToLLM):
     first_name: str
     today: date
     context: dict
+    # False when the user's audio/caption feature is disabled — the provider then
+    # skips asking the model for spoken_brief entirely (saves output tokens).
+    include_spoken_brief: bool = True
 
 
 class GenerateBriefFromLLM(MetadataFromLLM):
-    brief_data: DailyBriefSchema
+    brief_data: DailyBriefSchema | DailyBriefSchemaNoAudio

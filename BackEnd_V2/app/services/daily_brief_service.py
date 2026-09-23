@@ -16,6 +16,7 @@ Dedup is handled by notifications_service via event_key = "daily_brief:{user_id}
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from datetime import date
 
@@ -71,7 +72,7 @@ def _build_context(items: list[DailyPlanRecordDBM]) -> dict:
 # ─── Brief generation ─────────────────────────────────────────────────────────
 
 async def _call_llm_service(
-    user_id: int, first_name: str, today: date, context: dict, ai_behavior: dict,
+    user_id: int, first_name: str, today: date, context: dict, ai_behavior: dict, include_spoken_brief: bool,
 ) -> GenerateBriefFromLLM:
     """Fresh LLMService per call — this runs inside a new event loop (via
     asyncio.run() in a daemon thread), so the client must not be a cross-thread
@@ -79,19 +80,28 @@ async def _call_llm_service(
     service = get_llm_service_for_ai_behavior(ai_behavior)
     try:
         return await service.generate_daily_brief(
-            user_id, first_name, today, context, model=ai_behavior["ai_default_model"],
+            user_id, first_name, today, context,
+            model=ai_behavior["ai_default_model"],
+            include_spoken_brief=include_spoken_brief,
         )
     finally:
         await service.close()
 
 
-def _generate_briefs(user_id: int, first_name: str, today: date, context: dict, ai_behavior: dict) -> tuple[str, str, str]:
-    """Call the LLM provider. Raises on failure — no synthetic brief is ever sent."""
-    response = asyncio.run(_call_llm_service(user_id, first_name, today, context, ai_behavior))
+def _generate_briefs(
+    user_id: int, first_name: str, today: date, context: dict, ai_behavior: dict, include_spoken_brief: bool,
+) -> tuple[str, str, str | None]:
+    """Call the LLM provider. Raises on failure — no synthetic brief is ever sent.
+    spoken_brief is None when include_spoken_brief is False — the model was never
+    asked for it, so there's nothing to extract."""
+    response = asyncio.run(
+        _call_llm_service(user_id, first_name, today, context, ai_behavior, include_spoken_brief)
+    )
+    spoken_brief = getattr(response.brief_data, "spoken_brief", None)
     return (
         response.brief_data.short_brief[:200],
         response.brief_data.complete_brief[:2000],
-        response.brief_data.spoken_brief[:2000],
+        spoken_brief[:2000] if spoken_brief else None,
     )
 
 
@@ -126,8 +136,11 @@ def send_daily_brief(user_id: int, today: date) -> None:
             items = _get_plan_items(db, user.id, today)
             context = _build_context(items)
             ai_behavior = settings_service.get_ai_behavior(db, user.id)
+            include_spoken_brief = settings_service.is_feature_enabled(db, user.id, "brief_audio_caption")
 
-            short_brief, complete_brief, spoken_brief = _generate_briefs(user.id, first_name, today, context, ai_behavior)
+            short_brief, complete_brief, spoken_brief = _generate_briefs(
+                user.id, first_name, today, context, ai_behavior, include_spoken_brief,
+            )
             title = f"Good morning, {first_name}! Here's your {today.strftime('%A')}"
 
             notif = notifications_service.create_notification(
@@ -172,7 +185,8 @@ def get_brief_for_date(db: Session, user_id: int, target_date: date) -> dict:
             DailyBriefDBM.brief_date == target_date,
         )
     )
-    has_audio = db.scalar(
+    audio_feature_enabled = settings_service.is_feature_enabled(db, user_id, "brief_audio_caption")
+    has_audio = audio_feature_enabled and db.scalar(
         select(DailyBriefAudioDBM.id).where(
             DailyBriefAudioDBM.user_id == user_id,
             DailyBriefAudioDBM.brief_date == target_date,
@@ -180,16 +194,21 @@ def get_brief_for_date(db: Session, user_id: int, target_date: date) -> dict:
     ) is not None
     return {
         "complete_brief": brief.complete_brief if brief else None,
+        "spoken_brief": brief.spoken_brief if brief and brief.spoken_brief else None,
         "date": target_date.isoformat(),
         "generated_at": brief.created_at.isoformat() if brief else None,
         "has_audio": has_audio,
+        "audio_feature_enabled": audio_feature_enabled,
     }
 
 
 async def get_or_generate_brief_audio(db: Session, user_id: int, target_date: date) -> bytes:
     """Returns cached TTS audio for this brief, generating (and caching) it on first request."""
     from app.models.daily_brief_audio import DailyBriefAudioDBM
-    from app.llm.tts import synthesize_speech
+    from app.llm.tts import synthesize_speech, transcribe_word_timings
+
+    if not settings_service.is_feature_enabled(db, user_id, "brief_audio_caption"):
+        raise AppError("Audio briefs aren't available for your account yet.")
 
     cached = db.scalar(
         select(DailyBriefAudioDBM).where(
@@ -210,8 +229,14 @@ async def get_or_generate_brief_audio(db: Session, user_id: int, target_date: da
         raise NotFoundError("No brief has been generated for this date yet.")
 
     audio_data = await synthesize_speech(brief.spoken_brief or brief.complete_brief, user_id=user_id)
+    word_timings = await transcribe_word_timings(audio_data, user_id=user_id)
 
-    db.add(DailyBriefAudioDBM(user_id=user_id, brief_date=target_date, audio_data=audio_data))
+    db.add(DailyBriefAudioDBM(
+        user_id=user_id,
+        brief_date=target_date,
+        audio_data=audio_data,
+        word_timings=json.dumps(word_timings) if word_timings else None,
+    ))
     try:
         db.commit()
     except IntegrityError:
@@ -227,6 +252,26 @@ async def get_or_generate_brief_audio(db: Session, user_id: int, target_date: da
             return cached.audio_data
 
     return audio_data
+
+
+async def get_brief_captions(db: Session, user_id: int, target_date: date) -> list[dict]:
+    """Returns the cached per-word timing data for this brief's audio, or an
+    empty list if the feature is disabled, no audio has been generated yet, or
+    transcription failed."""
+    from app.models.daily_brief_audio import DailyBriefAudioDBM
+
+    if not settings_service.is_feature_enabled(db, user_id, "brief_audio_caption"):
+        return []
+
+    cached = db.scalar(
+        select(DailyBriefAudioDBM).where(
+            DailyBriefAudioDBM.user_id == user_id,
+            DailyBriefAudioDBM.brief_date == target_date,
+        )
+    )
+    if not cached or not cached.word_timings:
+        return []
+    return json.loads(cached.word_timings)
 
 
 async def generate_brief_now(db: Session, user: UserDBM, target_date: date) -> dict:
@@ -251,10 +296,12 @@ async def generate_brief_now(db: Session, user: UserDBM, target_date: date) -> d
     first_name = user.name.split()[0] if user.name else "there"
     context = _build_context(items)
     ai_behavior = settings_service.get_ai_behavior(db, user.id)
-    response = await _call_llm_service(user.id, first_name, target_date, context, ai_behavior)
+    include_spoken_brief = settings_service.is_feature_enabled(db, user.id, "brief_audio_caption")
+    response = await _call_llm_service(user.id, first_name, target_date, context, ai_behavior, include_spoken_brief)
     short_brief = response.brief_data.short_brief[:200]
     complete_brief = response.brief_data.complete_brief[:2000]
-    spoken_brief = response.brief_data.spoken_brief[:2000]
+    spoken_brief_raw = getattr(response.brief_data, "spoken_brief", None)
+    spoken_brief = spoken_brief_raw[:2000] if spoken_brief_raw else None
 
     title = f"Good morning, {first_name}! Here's your {target_date.strftime('%A')}"
     event_key = f"daily_brief:{user.id}:{target_date}"

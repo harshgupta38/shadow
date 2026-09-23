@@ -750,9 +750,21 @@ export interface Notification {
 
 export interface DailyBriefResponse {
   complete_brief: string | null;
+  spoken_brief?: string | null;
   date: string;
   generated_at: string | null;
   has_audio: boolean;
+  audio_feature_enabled: boolean;
+}
+
+export interface WordTiming {
+  word: string;
+  start: number;
+  end: number;
+}
+
+export interface DailyBriefCaptionsResponse {
+  words: WordTiming[];
 }
 
 // ── Push subscriptions ────────────────────────────────────────────────────────

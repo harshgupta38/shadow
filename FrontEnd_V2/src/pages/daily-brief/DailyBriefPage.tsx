@@ -1,15 +1,15 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { BrightnessHighFill, PauseFill, PlayFill } from "react-bootstrap-icons";
 
 import { api } from "@/api";
-import type { DailyBriefResponse } from "@/api/types";
+import type { DailyBriefResponse, WordTiming } from "@/api/types";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { useAccessibility } from "@/context/AccessibilityContext";
 import { useToast } from "@/context/ToastContext";
 import { useLazyAudio } from "@/hooks/useLazyAudio";
 import type { LazyAudioState } from "@/hooks/useLazyAudio";
-import { TYPEWRITER } from "@/constant/tuning";
+import { CAPTIONS, TYPEWRITER } from "@/constant/tuning";
 
 import "./DailyBriefPage.scss";
 
@@ -31,6 +31,68 @@ function formatDisplayDate(iso: string): string {
 
 function todayISTString(): string {
     return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }); // YYYY-MM-DD
+}
+
+// ── Movie-style captions ──────────────────────────────────────────────────────
+// Backed by real per-word timestamps (from transcribing our own generated audio
+// server-side) rather than guessed from text — so lines switch exactly when the
+// words are actually spoken. We just group consecutive words into short lines
+// here, using the real timing gaps between words as natural break points.
+
+interface CaptionLine {
+    text: string;
+    start: number;
+}
+
+const MIN_LINE_WORDS = CAPTIONS.MIN_LINE_WORDS;
+const MAX_LINE_WORDS = CAPTIONS.MAX_LINE_WORDS;
+const MAX_LINE_SECONDS = CAPTIONS.MAX_LINE_SECONDS;
+const PAUSE_GAP_SECONDS = CAPTIONS.PAUSE_GAP_SECONDS;
+
+function groupCaptionLines(words: WordTiming[]): CaptionLine[] {
+    const lines: CaptionLine[] = [];
+    let buffer: WordTiming[] = [];
+
+    function flush() {
+        if (buffer.length === 0) return;
+        lines.push({ text: buffer.map((w) => w.word).join(" ").trim(), start: buffer[0].start });
+        buffer = [];
+    }
+
+    for (const word of words) {
+        if (buffer.length > 0) {
+            const gapFromPrev = word.start - buffer[buffer.length - 1].end;
+            const spanIfAdded = word.end - buffer[0].start;
+            const hitPause = gapFromPrev > PAUSE_GAP_SECONDS;
+            const hitMaxWords = buffer.length >= MAX_LINE_WORDS;
+            const hitMaxSpan = spanIfAdded > MAX_LINE_SECONDS;
+            // A pause alone shouldn't break the line until it's at least
+            // MIN_LINE_WORDS long — otherwise a natural breath mid-sentence
+            // produces a stray 1-2 word caption. Word/span caps still apply
+            // regardless, so lines never run on too long.
+            if ((hitPause && buffer.length >= MIN_LINE_WORDS) || hitMaxWords || hitMaxSpan) {
+                flush();
+            }
+        }
+        buffer.push(word);
+    }
+    flush();
+    return lines;
+}
+
+function useCaptionLines(words: WordTiming[]): CaptionLine[] {
+    return useMemo(() => groupCaptionLines(words), [words]);
+}
+
+/** Index of the most recent line whose start has passed (-1 if none yet) —
+ * avoids blanking out during brief pauses by holding the last active line. */
+function pickActiveCaptionIndex(lines: CaptionLine[], currentTime: number): number {
+    let selected = -1;
+    for (let i = 0; i < lines.length; i++) {
+        if (lines[i].start > currentTime) break;
+        selected = i;
+    }
+    return selected;
 }
 
 // ── Typewriter reveal ─────────────────────────────────────────────────────────
@@ -122,13 +184,19 @@ interface AudioPlayerBarProps {
     hasAudio: boolean;
     /** Past days with no cached audio can no longer generate one — show a plain message instead of a CTA. */
     canGenerate: boolean;
+    /** Current caption line, shown above the seek bar whenever timing data exists (not gated on play state). */
+    subtitle?: string;
+    /** Upcoming caption line, peeking below the active one for the drum-roll effect. */
+    nextSubtitle?: string;
+    /** Skips the roll animation for users who've asked for reduced motion. */
+    reducedMotion?: boolean;
     onToggle: () => void;
     onSeek: (time: number) => void;
     onBeginScrub: () => void;
     onEndScrub: () => void;
 }
 
-function AudioPlayerBar({ state, currentTime, duration, hasAudio, canGenerate, onToggle, onSeek, onBeginScrub, onEndScrub }: AudioPlayerBarProps) {
+function AudioPlayerBar({ state, currentTime, duration, hasAudio, canGenerate, subtitle, nextSubtitle, reducedMotion, onToggle, onSeek, onBeginScrub, onEndScrub }: AudioPlayerBarProps) {
     const unlocked = hasAudio;
     const isLoading = state === "loading";
     const overlayLabel = isLoading ? "Loading…" : state === "error" ? "Retry" : "Hear Your Day";
@@ -136,35 +204,47 @@ function AudioPlayerBar({ state, currentTime, duration, hasAudio, canGenerate, o
     return (
         <div className={`brief-audio-bar${unlocked ? "" : " brief-audio-bar--locked"}`}>
             <div className="brief-audio-bar-inner" aria-hidden={!unlocked}>
-                <button
-                    type="button"
-                    className="brief-audio-play-btn"
-                    onClick={onToggle}
-                    disabled={!unlocked || isLoading}
-                    aria-label={state === "playing" ? "Pause" : "Play"}
-                >
-                    {isLoading
-                        ? <span className="spinner-border spinner-border-sm" aria-hidden="true" />
-                        : state === "playing" ? <PauseFill size={18} /> : <PlayFill size={18} />}
-                </button>
-                <span className="brief-audio-time">{formatDuration(currentTime)}</span>
-                <input
-                    type="range"
-                    className="brief-audio-seek"
-                    min={0}
-                    max={duration || 0}
-                    step={0.1}
-                    value={currentTime}
-                    disabled={!unlocked || isLoading}
-                    onChange={(e) => onSeek(Number(e.target.value))}
-                    onMouseDown={onBeginScrub}
-                    onTouchStart={onBeginScrub}
-                    onMouseUp={onEndScrub}
-                    onTouchEnd={onEndScrub}
-                    onBlur={onEndScrub}
-                    aria-label="Seek"
-                />
-                <span className="brief-audio-time">{formatDuration(duration)}</span>
+                <div className="brief-audio-row brief-audio-row--top">
+                    <button
+                        type="button"
+                        className="brief-audio-play-btn"
+                        onClick={onToggle}
+                        disabled={!unlocked || isLoading}
+                        aria-label={state === "playing" ? "Pause" : "Play"}
+                    >
+                        {isLoading
+                            ? <span className="spinner-border spinner-border-sm" aria-hidden="true" />
+                            : state === "playing" ? <PauseFill size={18} /> : <PlayFill size={18} />}
+                    </button>
+                    {subtitle && (
+                        <div className={`brief-caption-roll${reducedMotion ? " brief-caption-roll--static" : ""}`}>
+                            <div key={subtitle} className="brief-caption-line brief-caption-line--active">{subtitle}</div>
+                            {nextSubtitle && (
+                                <div key={nextSubtitle} className="brief-caption-line brief-caption-line--next">{nextSubtitle}</div>
+                            )}
+                        </div>
+                    )}
+                </div>
+                <div className="brief-audio-row brief-audio-row--seek">
+                    <span className="brief-audio-time">{formatDuration(currentTime)}</span>
+                    <input
+                        type="range"
+                        className="brief-audio-seek"
+                        min={0}
+                        max={duration || 0}
+                        step={0.1}
+                        value={currentTime}
+                        disabled={!unlocked || isLoading}
+                        onChange={(e) => onSeek(Number(e.target.value))}
+                        onMouseDown={onBeginScrub}
+                        onTouchStart={onBeginScrub}
+                        onMouseUp={onEndScrub}
+                        onTouchEnd={onEndScrub}
+                        onBlur={onEndScrub}
+                        aria-label="Seek"
+                    />
+                    <span className="brief-audio-time">{formatDuration(duration)}</span>
+                </div>
             </div>
 
             {!unlocked && (
@@ -229,6 +309,25 @@ export function DailyBriefPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [audio.state]);
 
+    // Word timings are cached alongside the audio server-side — only fetch once
+    // generation for this date has actually finished (audio.loaded flips true).
+    const [captionWords, setCaptionWords] = useState<WordTiming[]>([]);
+    useEffect(() => {
+        setCaptionWords([]);
+        if (!audio.loaded) return;
+        api.dailyBrief.getCaptions(displayDate)
+            .then(setCaptionWords)
+            .catch(() => setCaptionWords([]));
+    }, [audio.loaded, displayDate]);
+
+    const captionLines = useCaptionLines(captionWords);
+    // Not gated on play/pause state — scrubbing the seek bar while paused (or
+    // before ever pressing play, since it's disabled until unlocked) should
+    // still update the caption. Locked (no-audio) state hides it via blur anyway.
+    const activeCaptionIndex = pickActiveCaptionIndex(captionLines, audio.currentTime);
+    const currentSubtitle = activeCaptionIndex >= 0 ? captionLines[activeCaptionIndex].text : undefined;
+    const nextSubtitle = activeCaptionIndex >= 0 ? captionLines[activeCaptionIndex + 1]?.text : undefined;
+
     const paragraphs = visible.split("\n\n").map(p => p.trim()).filter(Boolean);
 
     function handleAudioToggle() {
@@ -268,17 +367,22 @@ export function DailyBriefPage() {
                         {!done && <span className="brief-skip-hint">Tap to show full brief</span>}
                     </div>
 
-                    <AudioPlayerBar
-                        state={audio.state}
-                        currentTime={audio.currentTime}
-                        duration={audio.duration}
-                        hasAudio={audio.loaded}
-                        canGenerate={displayDate >= todayISTString()}
-                        onToggle={handleAudioToggle}
-                        onSeek={audio.seek}
-                        onBeginScrub={audio.beginScrub}
-                        onEndScrub={audio.endScrub}
-                    />
+                    {brief?.audio_feature_enabled && (
+                        <AudioPlayerBar
+                            state={audio.state}
+                            currentTime={audio.currentTime}
+                            duration={audio.duration}
+                            hasAudio={audio.loaded}
+                            canGenerate={displayDate >= todayISTString()}
+                            subtitle={currentSubtitle}
+                            nextSubtitle={nextSubtitle}
+                            reducedMotion={accessibility_reduced_motion}
+                            onToggle={handleAudioToggle}
+                            onSeek={audio.seek}
+                            onBeginScrub={audio.beginScrub}
+                            onEndScrub={audio.endScrub}
+                        />
+                    )}
                 </>
             )}
 

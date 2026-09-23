@@ -16,6 +16,7 @@ from app.llm.exceptions import (
 from app.llm.knowledge_base import (
     CONVERSATION_CONTEXT_SYSTEM_INSTRUCTION,
     DAILY_BRIEF_SYSTEM_PROMPT,
+    DAILY_BRIEF_SYSTEM_PROMPT_NO_AUDIO,
     GOAL_REFINEMENT_SYSTEM_INSTRUCTION,
     MILESTONE_PROPOSAL_SYSTEM_INSTRUCTION,
     TASK_PROPOSAL_SYSTEM_INSTRUCTION,
@@ -54,7 +55,7 @@ from app.llm.models import (
 )
 from app.schemas.memory import MemoryExtractionFromLLMSchema
 from app.schemas.daily_report import GenerateReportSchema
-from app.schemas.daily_brief import DailyBriefSchema
+from app.schemas.daily_brief import DailyBriefSchema, DailyBriefSchemaNoAudio
 from app.schemas.goals import RefineGoalFromLLMSchema
 from app.schemas.milestones import MilestoneProposalListLLMSchema
 from app.schemas.tasks import TaskProposalListLLMSchema
@@ -1032,11 +1033,13 @@ class OpenAIProvider(BaseLLMProvider):
 
     async def generate_daily_brief(self, request: GenerateBriefToLLM) -> GenerateBriefFromLLM:
         model = self._resolve_model(request)
+        system_prompt = DAILY_BRIEF_SYSTEM_PROMPT if request.include_spoken_brief else DAILY_BRIEF_SYSTEM_PROMPT_NO_AUDIO
+        schema = DailyBriefSchema if request.include_spoken_brief else DailyBriefSchemaNoAudio
 
         messages = [
             {
                 "role": Role.SYSTEM,
-                "content": DAILY_BRIEF_SYSTEM_PROMPT,
+                "content": system_prompt,
             },
             {
                 "role": Role.USER,
@@ -1049,7 +1052,7 @@ class OpenAIProvider(BaseLLMProvider):
             kwargs: dict = {
                 "model": model,
                 "messages": messages,
-                "response_format": DailyBriefSchema,
+                "response_format": schema,
                 "max_completion_tokens": request.max_tokens or 4000,
             }
             if request.temperature is not None:

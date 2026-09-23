@@ -40,12 +40,20 @@ export function useLazyAudio(loader: () => Promise<Blob>, cacheKey: string) {
             setState("paused");
             return;
         }
-        if (state === "paused" && audioRef.current) {
-            await audioRef.current.play();
-            setState("playing");
+        // Already loaded this session (paused, or idle after playback ended) —
+        // just (re)play the existing element instead of re-fetching over the
+        // network. Only a genuine error falls through to a fresh fetch/retry.
+        if (audioRef.current && state !== "error") {
+            try {
+                await audioRef.current.play();
+                setState("playing");
+            } catch {
+                setState("error");
+            }
             return;
         }
 
+        cleanup(); // discard any stale element/URL from a previous failed attempt
         setState("loading");
         try {
             const blob = await loader();

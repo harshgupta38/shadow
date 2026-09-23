@@ -1,889 +1,451 @@
-# Shadow - Personal AI Life and Career Assistant
+# Shadow
 
-> AI-first source of truth for this repository.
-> Read this file before changing code in any folder.
+A full-stack personal AI assistant that helps a small group of users plan their day, track goals and habits, and stay accountable through AI-generated reports and a spoken daily briefing.
 
-Last updated: 2026-07-03
+![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688?logo=fastapi&logoColor=white)
+![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178C6?logo=typescript&logoColor=white)
+![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-2.x-D71F00)
+![Vite](https://img.shields.io/badge/Vite-5-646CFF?logo=vite&logoColor=white)
+![License](https://img.shields.io/badge/status-active--development-orange)
 
----
-
-## 1) What Shadow Is
-
-Shadow is a full-stack web application that helps users stay aligned with life and career goals using:
-
-- Structured planning and daily execution
-- Goal and milestone tracking
-- Metrics and activity logs
-- AI-assisted onboarding, chat, reporting, and memory refinement
-- Feedback loops that reinforce consistency
-
-Shadow is built for a private user group and optimized for practical daily use, not broad consumer scale.
+> This README documents **Shadow V2** — the current, actively developed version of the project, living in [`BackEnd_V2/`](BackEnd_V2) and [`FrontEnd_V2/`](FrontEnd_V2). An earlier iteration (`BackEnd/` / `FrontEnd/`) remains in the repository for reference but is no longer the primary codebase.
 
 ---
 
-## 2) Product Direction
+## Table of Contents
 
-### Target users
-
-- 24-30 year-old early-career professionals
-- Users who struggle with distraction and consistency
-- Users who respond well to visible progress and accountability
-
-### Core loop
-
-Plan -> Do -> Track -> Reflect -> Adapt
-
-### Product principle
-
-Shadow should behave like a calm personal operating layer, not just a CRUD productivity app.
-
----
-
-## 3) Current Capability Snapshot
-
-Implemented in this repository:
-
-- Auth: register, login, JWT-based session flow
-- Onboarding interview with AI-generated understanding memory
-- Profile/Settings split with AI profile and dedicated memory center
-- Goals and milestones
-- Plan (daily task CRUD with defaults, reminders, completion)
-- Schedule (future task planning with manual and AI-assisted draft flow)
-- Repetitive Tasks (backend + frontend vertical slice with lifecycle controls and recommendations)
-- Metrics and activity logging
-- Daily/weekly AI reports
-- Multi-agent AI chat
-- Journal CRUD
-- Notifications and dashboard aggregation
-- Data export, chat-history clear, account deletion flow
-
-In progress (see Story folder):
-
-- SCRUM-11: AI-powered Today workspace redesign
-- SCRUM-16: AI journal coaching and knowledge extraction
-- SCRUM-17: Profile/Settings architecture refinements
-- SCRUM-43: Repetitive Tasks module
-
-Important implementation reality:
-
-- Plan workspace and generation endpoints are active:
-  - `GET /api/plan/workspace`
-  - `POST /api/plan/generate-today`
-- CRUD plan endpoints remain active (`GET/POST/PUT/DELETE /api/plan...`).
-- Schedule endpoints are active:
-  - `GET /api/plan/schedule`
-  - `POST /api/plan/schedule/draft`
-  - `POST /api/plan/schedule`
-  - `PUT /api/plan/schedule/{task_id}`
-- Repetitive Tasks APIs are active at `GET/POST/PUT/DELETE /api/repetitive-tasks` and `GET /api/repetitive-tasks/recommendations`.
+- [What Shadow Is](#what-shadow-is)
+- [Product Preview](#product-preview)
+- [System Architecture](#system-architecture)
+- [Project Structure](#project-structure)
+- [Feature Deep Dive](#feature-deep-dive)
+- [Technology Stack](#technology-stack)
+- [Engineering Decisions](#engineering-decisions)
+- [Engineering Challenges Solved](#engineering-challenges-solved)
+- [Data Flow Examples](#data-flow-examples)
+- [Database Architecture](#database-architecture)
+- [Authentication & Security](#authentication--security)
+- [BackOffice (Admin Panel)](#backoffice-admin-panel)
+- [Controller Server](#controller-server)
+- [Testing](#testing)
+- [Setup & Installation](#setup--installation)
+- [Deployment](#deployment)
+- [Engineering Capabilities Demonstrated](#engineering-capabilities-demonstrated)
+- [Future Work](#future-work)
 
 ---
 
-## 4) Repository Layout
+## What Shadow Is
 
-```text
-Jarvis/
-|- README.md                  # This canonical project document
-|- Story/                     # Product stories (SCRUM-11/15/16/17/43)
-|- BackEnd/                   # FastAPI + SQLAlchemy + Alembic
-|- FrontEnd/                  # React + TypeScript + Vite
-|- shadow.db                  # Local SQLite database snapshot
+Shadow is a personal planning and accountability assistant built for a small, private group of users (not a public product). It combines:
+
+- A structured **planning system** (goals → milestones → tasks/habits → daily materialized plan)
+- A **multi-agent AI assistant** with tool-calling that can read and propose changes to a user's goals, milestones, tasks, and schedule
+- A **persistent, user-scoped AI memory** layer, separate from per-conversation context
+- **AI-generated daily and weekly reports** with an alignment score
+- A **Daily Brief** — a written and spoken (TTS) summary of the day, with word-level synced captions
+- Supporting infrastructure: multi-device session management, web push + email notifications, background schedulers, automated SQLite backups, and multi-provider LLM support (OpenAI, Anthropic Claude, Google Gemini, local Ollama)
+
+The backend (`BackEnd_V2`) is a FastAPI application; the frontend (`FrontEnd_V2`) is a React + TypeScript single-page app. Two small supporting services — [BackOffice](#backoffice-admin-panel) (an admin panel) and [Server](#controller-server) (a process controller) — exist around the core product.
+
+---
+
+## Product Preview
+
+Screenshots below are pulled directly from `FrontEnd_V2/src/assets/landing/` (each page ships both a light and dark capture).
+
+| Dashboard | Today's Plan |
+|---|---|
+| ![Dashboard](FrontEnd_V2/src/assets/landing/dashboard-light.png) | ![Plan](FrontEnd_V2/src/assets/landing/plan-light.png) |
+
+| Goal Detail | Track Progress |
+|---|---|
+| ![Goal Detail](FrontEnd_V2/src/assets/landing/goal-detail-light.png) | ![Track Progress](FrontEnd_V2/src/assets/landing/track-progress-light.png) |
+
+| Report Detail | AI Assistant |
+|---|---|
+| ![Report Detail](FrontEnd_V2/src/assets/landing/report-detail-light.png) | ![Assistant](FrontEnd_V2/src/assets/landing/assistant-light.png) |
+
+<sub>Dark-mode equivalents ship alongside each of the above (`*-dark.png` in the same folder).</sub>
+
+> TODO: Workout, Diet, Journal, Daily Brief, and Settings screenshots are not yet captured in the repository.
+
+---
+
+## System Architecture
+
+```mermaid
+flowchart TD
+    User((User)) --> FE[React 18 + TypeScript SPA]
+    FE -->|HTTPS, httpOnly cookies| API["FastAPI /v2 API (app/api)"]
+    API --> SVC[Service Layer - app/services]
+    SVC --> DB[(SQLite / PostgreSQL)]
+    SVC --> LLM[LLM Service - provider abstraction]
+    LLM --> OpenAI[OpenAI]
+    LLM --> Claude[Anthropic Claude]
+    LLM --> Gemini[Google Gemini]
+    LLM --> Ollama[Ollama - local, dev only]
+    SVC --> TTS[OpenAI TTS + Whisper transcription]
+    SVC --> Jobs[Background asyncio schedulers]
+    Jobs --> Backup[DB backup loop]
+    Jobs --> Reports[Report generation loop]
+    Jobs --> Notify[Notification dispatch loop]
+    SVC --> Delivery[Web Push / SMTP email / SSE]
+
+    BO[BackOffice admin app] -.direct sqlite3 file access.-> DB
+    CTRL[Controller Server] -.health checks + restart/deploy.-> API
+    CTRL -.restart/deploy.-> BO
 ```
 
-Note: backend folder name is `BackEnd/` (not `BackendEnd/`).
-
-Submodule docs:
-
-- Backend: `BackEnd/README.md`
-- Frontend: `FrontEnd/README.md`
+Only components that are actually implemented are shown. There is no message broker, vector database, or container orchestration layer in this system — persistence is a single SQLAlchemy-modeled database, and "background workers" are asyncio tasks inside the same FastAPI process, not separate services.
 
 ---
 
-## 5) Tech Stack
+## Project Structure
 
-### Frontend
+```text
+BackEnd_V2/
+├── app/
+│   ├── api/            # FastAPI routers (thin) - one file per feature domain
+│   ├── services/       # Business logic - conversations, goals, planning, reports, brief, memory, schedulers
+│   ├── models/          # SQLAlchemy 2.0 declarative models
+│   ├── schemas/         # Pydantic request/response/DB-mirror schemas (see docs/naming-conventions.md)
+│   ├── llm/             # Provider-agnostic LLM layer: base interface, providers/, tools/, cost.py, knowledge_base.py
+│   ├── core/            # Settings, JWT/security, exception hierarchy, endpoint path constants
+│   ├── db/              # Engine/session setup
+│   ├── analysis/        # Optional LLM usage/cost logging + Google Sheets export
+│   ├── validators/       # Field-level validation (email, password, date, bio, ...)
+│   └── main.py          # App wiring, middleware, lifespan (startup tasks + background loops)
+├── docs/                # ASSISTANT_MEMORY_SYSTEM.md, naming-conventions.md
+├── backups/             # Rotated SQLite backups written by backup_service
+└── restart_server.sh    # Process-group-safe restart script (multi-worker uvicorn)
 
-- React 18 + TypeScript + Vite
-- Bootstrap 5 + React-Bootstrap
-- React Router
-- Axios (typed API modules)
-- Vitest + React Testing Library
-- Firebase Hosting (static deploy)
+FrontEnd_V2/
+├── src/
+│   ├── pages/           # One folder per route: dashboard, plan, my_goals, habit_library,
+│   │                    #   track_progress, reports, assistant, daily-brief, settings, profile, auth, ...
+│   ├── api/             # Axios client + one typed module per backend domain
+│   ├── context/         # Auth, Theme, Accessibility, Planner, Toast providers (no Redux)
+│   ├── components/      # layout/ (Sidebar, Topbar, AppLayout) and ui/ (buttons, cards, dialogs, forms)
+│   ├── hooks/            # useLazyAudio, useUrlAnchor
+│   ├── routes/           # Route table + auth guards (RequireAuth, RequireDeviceCheck, PublicOnly)
+│   └── constant/         # tuning.ts (animation/UX timing constants), endpoint paths, nav config
+└── firebase.json         # Static hosting config (SPA rewrites, asset caching)
 
-### Backend
-
-- Python 3.11+
-- FastAPI
-- SQLAlchemy 2 + Alembic
-- SQLite by default, PostgreSQL-ready via `DATABASE_URL`
-- Pydantic v2 + pydantic-settings
-- python-jose + passlib/bcrypt
-- APScheduler
-- Pluggable LLM provider layer (Gemini + fake provider)
+BackOffice/               # Separate admin FastAPI + React app (own DB/auth) - see dedicated section
+Server/                   # Lightweight process controller/orchestrator - see dedicated section
+```
 
 ---
 
-## 6) Local Setup (Full Stack)
+## Feature Deep Dive
+
+### Personal Planning
+
+Planning is modeled as **templates that materialize into dated records**, not as a flat to-do list:
+
+- `HabitDBM`, `TaskDBM`, and `ScheduledTaskDBM` describe *what* should happen (frequency, priority, preferred time, whether it's a simple checkbox or a numeric/metric target).
+- Each of these is mirrored by a `PlanDBM` row (`source_type` + `source_id`), which represents the recurring plan.
+- On each day a user views, `planner_service` materializes the relevant `DailyPlanRecordDBM` rows for that date. These records snapshot the display fields (title, priority, etc.) at materialization time, so history remains readable even if the source habit/task is later edited or deleted (the FK to `plan_id` is nullable for exactly this reason).
+- Execution state (`due` / `done` / `missed`, actual numeric value, notes, skip flag) lives on the daily record, and streaks/history are computed from the sequence of records, not from the template.
+
+The **Today's Plan** frontend page reads this materialized view (`GET /v2/planner/for-date`), lets users toggle completion or log numeric progress (`PATCH /v2/planner/records/{id}`), and shows yesterday's AI-generated closing message alongside today's items.
+
+### Goals
+
+- Goals (`GoalDBM`) carry motivation, success definition, current state, and JSON arrays for challenges/strengths/success metrics/insights — populated either manually or by the AI during goal refinement.
+- `POST /v2/goal/refine` sends a user's discovery answers to the LLM, which returns a structured goal draft; the user reviews and saves it (`save-goal-from-proposal`) rather than it being silently created.
+- Milestones and tasks can also be proposed by the assistant during a `goal_coach` conversation via tool calls, producing `MilestoneProposalDBM` / `TaskProposalDBM` rows that surface as review-and-save cards in the chat UI (see [Engineering Decisions](#engineering-decisions)).
+- Goal progress is derived from milestone/habit/task counters maintained on the `GoalDBM` row (`milestones_total`, `milestones_completed`, `habits_total`, `habits_active`).
+
+### AI Assistant
+
+- Conversations (`ConversationDBM`) are scoped to one of four agent types — `shadow`, `goal_coach`, `career_advisor`, `insights` — each wired to a different subset of tools in `app/llm/tools/` (goal/milestone/task/schedule read-and-propose functions).
+- Every provider implements the same 10-method `BaseLLMProvider` interface (`respond_to_message`, `create_conversation`, `update_conversation_context`, `extract_user_memory`, `generate_report`, `generate_daily_brief`, `refine_goal`, milestone/task proposal generation, `health_check`, `close`), so `chat_service` and every other caller never talks to a specific vendor SDK directly.
+- Two independent, message-count-gated background passes run after a reply is sent: a **context summary update** (`stable_context` / `context_summary`, keeps conversations coherent without resending full history) and a **memory extraction** pass (see below) — each with its own threshold (`chat_summary_update_user_messages`, `chat_memory_extraction_user_messages`), so a conversation can stay "in flow" long before anything is promoted to durable memory.
+- Assistant replies that imply an action (create a goal, add a milestone, schedule a task) are surfaced as **proposal cards**, not auto-applied — the user explicitly saves them.
+
+### AI Memory
+
+Shadow separates two different kinds of "memory," and this separation is the core design decision documented in `docs/ASSISTANT_MEMORY_SYSTEM.md`:
+
+- **Conversation context** (`stable_context`, `context_summary` on `ConversationDBM`) — keeps a *single* conversation coherent over many turns.
+- **User memory** (`UserMemoryDBM`, table `user_memories`) — durable facts that should be available in *any* conversation, typed as `preference | progress | decision | constraint | knowledge | plan | history`, with a free-form JSON `content` field whose internal shape is decided by the LLM per topic rather than fixed by the schema.
+
+How it works end to end:
+1. On each message, `chat_service` fetches up to 20 of the user's memory rows and renders them into a text block injected into the system prompt.
+2. Every `chat_memory_extraction_user_messages` (default 3) user turns, an async, non-blocking task asks the LLM whether anything in the recent exchange is worth remembering.
+3. The LLM returns a structured action per candidate memory: `create | update | retire | none`, plus `memory_type`, `topic`, `content`, and `reasoning`. `apply_memory_actions()` performs the corresponding write.
+4. Because updates target an existing `(memory_type, topic)` rather than always inserting, duplicate/contradictory memories are avoided by construction rather than by a dedup pass.
+5. There is deliberately no vector database or embeddings involved — retrieval is a plain SQL query scoped to the user, and injection is a plain prompt block. The extraction pass is fire-and-forget: if it fails, the user-facing reply is unaffected.
+
+### Reports
+
+- `ReportDBM` stores one row per `(user, date, report_type)` — `daily` or `weekly` — with an `alignment_score`, a `headline`/`summary`, and structured JSON (`stats`, `goals`, `highlights`, `closing`) rather than free text, so the frontend can render structured cards instead of parsing prose.
+- Reports are generated either on demand (`POST /v2/reports/{date}/request`) or by `report_scheduler_service`, an asyncio loop that polls every 30 seconds and fires generation at each user's configured time (`UserSettingDBM.reports`, default 23:55 IST). A process-file-based singleton lock (`app/common/proc_lock.py`) ensures only one of the (potentially 4) uvicorn workers actually runs a given user's report, since they all share the same poll loop.
+- Report content mixes raw statistics (tasks/habits/schedule completion counts) computed from `DailyPlanRecordDBM` history with an LLM-authored interpretation layer (highlights, attention areas, per-goal alignment commentary, a closing message in one of several tones).
+- Reports can be emailed (`POST /v2/reports/{date}/email`) and are also shown month-by-month in the Reports UI.
+
+### Daily Brief
+
+The Daily Brief produces **three distinct LLM outputs from the same day's plan**, not one text reused in different places:
+
+| Output | Purpose |
+|---|---|
+| `short_brief` | One-line push/email notification |
+| `complete_brief` | Full written brief rendered on the `/daily-brief` page |
+| `spoken_brief` | Shorter, conversational rewrite with no lists/markdown — written specifically to be read aloud |
+
+Audio generation (`daily_brief_audio_service`) synthesizes `spoken_brief` with OpenAI TTS, then immediately re-transcribes that *same generated audio* with Whisper (`verbose_json`, word-level timestamps) to get real, ground-truth word timings — not a text-length heuristic. Both the MP3 bytes and the timing JSON are cached together in one `daily_brief_audio` row, keyed by `(user_id, brief_date)`, so replaying the brief never re-calls the TTS API. On the frontend, `useLazyAudio` lazy-loads the audio blob on first play, and captions are grouped into short reading lines (4–8 words, capped duration, pause-aware) synced against the real timestamps rather than estimated. A typewriter reveal of the written brief is skipped entirely when the user has reduced-motion accessibility enabled.
+
+### Wellbeing (Workout / Diet / Journal)
+
+Routes for `/workout`, `/diet`, and `/journal` exist in the frontend router and sidebar, but currently render as **"coming soon" placeholder pages** — there is no corresponding backend model or service for these in `BackEnd_V2` yet. This section is intentionally left honest rather than describing planned functionality as shipped.
+
+### Settings
+
+`UserSettingDBM` stores one JSON column per settings domain, each with its own card in the Settings UI: **appearance** (theme: browser/light/dark/dynamic), **planner** (week start, 12h/24h time, date format, default task duration), **notifications** (master toggle, email, quiet hours), **AI behavior** (response length, personality style, provider/model choice, optional custom API key), **accessibility** (reduced motion, high contrast, font scale), **reports** (auto-generation on/off, schedule time, email delivery), plus session management (list/rename/revoke active devices) and account privacy controls (memory on/off, max concurrent devices, data export, account deactivation/deletion).
+
+---
+
+## Technology Stack
+
+| Layer | Technology | How it's actually used |
+|---|---|---|
+| Frontend | React 18 + TypeScript + Vite | SPA with route-level code splitting (`React.lazy`); no server-side rendering |
+| Frontend UI | Bootstrap 5 + react-bootstrap + Sass | Component styling with CSS-variable-driven light/dark theming |
+| Frontend state | React Context (Auth, Theme, Accessibility, Planner, Toast) | No Redux/Zustand — cross-tab sync is done via custom browser events + localStorage, not a state library |
+| Frontend HTTP | Axios | Single client with `withCredentials: true` (httpOnly cookies), a coordinated single-flight refresh-then-retry on 401, and normalized error shapes |
+| Frontend content | react-markdown + remark-gfm + DOMPurify | Assistant replies are rendered as sanitized Markdown, not raw HTML injection |
+| Backend | Python 3.11+ + FastAPI | Routers in `app/api` stay thin; all business logic lives in `app/services`, so the same service functions are reusable from background schedulers, not just HTTP handlers |
+| ORM | SQLAlchemy 2.0 (declarative) | Models in `app/models`; schema created via `Base.metadata.create_all()` at startup |
+| Validation | Pydantic v2 + pydantic-settings | Request/response schemas plus typed `.env`-backed settings objects |
+| Database | SQLite (default) / PostgreSQL-ready via `DATABASE_URL` | Single-writer SQLite with `PRAGMA foreign_keys=ON` enabled per connection; swapping to Postgres is a connection-string change |
+| Auth | JWT (python-jose) in httpOnly cookies + bcrypt (passlib) | Access + refresh tokens, both httpOnly so they're inaccessible to page JavaScript; paired with a custom CSRF origin-check middleware for state-changing requests |
+| AI/LLM | OpenAI, Anthropic Claude, Google Gemini, Ollama | All behind one `BaseLLMProvider` interface selected by `LLM_PROVIDER` env var or per-user custom key; Ollama is local/free and dev-only |
+| TTS/STT | OpenAI TTS (`gpt-4o-mini-tts`) + Whisper | TTS produces the spoken brief; Whisper re-transcribes that same audio for real word-level caption timing |
+| Background jobs | asyncio tasks spawned in FastAPI's lifespan | Backup, report, and notification loops — no Celery/RQ/external queue |
+| Realtime | Server-Sent Events (SSE) | Live notification delivery to the frontend without polling |
+| Push | Web Push (VAPID via `pywebpush`) | Browser push subscriptions stored per user |
+| Email | SMTP (stdlib) | Verification, password reset, report delivery, security alerts |
+| Analytics (optional) | Google Sheets API (`gspread`) | Off by default; when enabled, every LLM call's token count and INR cost is appended to a worksheet |
+| Testing | Vitest + Testing Library (frontend), pytest (V1 backend) | See [Testing](#testing) for current coverage status |
+| Hosting | Firebase Hosting (frontend, static SPA build) | Backend runs as a long-lived uvicorn process (see [Deployment](#deployment)) |
+
+---
+
+## Engineering Decisions
+
+**Provider-agnostic LLM abstraction.** Every feature that touches an LLM (chat, goal refinement, report generation, daily brief, memory extraction) calls `LLMService`, which delegates to whichever `BaseLLMProvider` implementation is configured. Adding a fifth provider means implementing one class against the existing 10-method interface — no call site elsewhere in the codebase needs to change. This also lets individual users override the app-wide default with their own API key/model in Settings.
+
+**Conversation context vs. long-term memory as two separate concepts.** Rather than trying to solve "remember everything forever" with one mechanism, the system keeps a short-lived per-conversation summary (`stable_context`/`context_summary`) and a long-lived, user-scoped `user_memories` table, updated on independent cadences. This keeps single conversations cheap to run (a compact summary instead of full history) while still letting facts learned in one conversation show up in a completely different one later.
+
+**Database-backed memory instead of vector infrastructure.** Memory retrieval is a plain SQL query for a user's rows, and injection is a formatted text block in the system prompt — there is no embeddings pipeline or vector store. This is a deliberate trade for a private, low-user-count product: it avoids an entire infrastructure dependency at the cost of not doing semantic similarity search, which is documented explicitly in `docs/ASSISTANT_MEMORY_SYSTEM.md` as the chosen scope.
+
+**Plan templates vs. materialized daily records.** Recurring items (habits/tasks/scheduled tasks) are stored once, but every day's execution state is snapshotted into its own `DailyPlanRecordDBM` row with a nullable FK back to the template. This means editing or deleting a habit doesn't rewrite history — past days keep showing exactly what was planned and done, which is what streak/report calculations depend on.
+
+**AI proposes, user confirms.** Tool-calling actions that create or modify durable data (goals, milestones, tasks, scheduled tasks) write to dedicated `*_proposal` tables and surface as review cards in the UI, rather than being applied directly to the live tables. This keeps AI actions auditable and reversible before they become real user data.
+
+**Scheduler coordination across multiple uvicorn workers.** The backend runs with multiple worker processes (4 by default) for throughput, but background loops (backups, reports, notifications) must only run once per tick. A procfs-based file lock (`app/common/proc_lock.py`) makes exactly one worker the active scheduler at a time, self-releasing if that worker's PID disappears.
+
+**Cookie-based JWT with CSRF middleware.** Access and refresh tokens are set as httpOnly cookies rather than returned to JavaScript and stored client-side, which removes them from the XSS attack surface. Because cookies are sent automatically by the browser, a custom origin-check middleware rejects non-GET/HEAD/OPTIONS requests whose `Origin` header isn't in the configured allow-list, closing the CSRF gap that cookie auth otherwise opens.
+
+**TTS and captions generated together, not separately.** Word-level caption timing is derived by re-running Whisper transcription on the exact audio just produced by TTS, rather than estimating timing from text length/word count. This guarantees the captions the frontend displays are ground-truth accurate to the actual audio file being played, at the cost of one extra API call per brief (amortized by caching).
+
+---
+
+## Engineering Challenges Solved
+
+- **Multi-provider LLM architecture** with per-provider structured-output handling (each provider has a different native mechanism for constrained JSON) unified behind one request/response model layer (`app/llm/models.py`).
+- **Tool-calling loops with bounded iteration** — `execute_tool()` runs inside a loop capped by `MAX_TOOL_ITERATIONS` with designated `TERMINAL_TOOL_NAMES`, preventing an agent from looping indefinitely across goal/milestone/task/schedule tools.
+- **Preventing duplicate/contradictory memories** without a dedup pass, by having the LLM target `update`/`retire` at an existing `(memory_type, topic)` instead of always inserting new rows.
+- **SQLite concurrency under multiple workers** — foreign keys enabled per-connection, a single-writer database, and a procfs lock so only one worker executes each scheduled job, while backups exclude the largest table (`daily_brief_audio`) to keep backup files small and fast.
+- **Historical accuracy after data changes** — daily plan records snapshot enough fields to render correctly even after their source habit/task is edited or deleted, which is what makes multi-week streaks and past reports trustworthy.
+- **Ground-truth audio captions** by transcribing the exact generated TTS output instead of estimating timing from text.
+- **Session security on a cookie-based auth model** — refresh coordination is single-flight on the frontend (concurrent 401s don't trigger duplicate refresh calls), and the backend independently rate-limits by IP and locks out by account after repeated failures.
+
+---
+
+## Data Flow Examples
+
+### Chat Request (with tool calling)
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant FE as React Frontend
+    participant API as FastAPI /chat
+    participant CS as chat_service
+    participant MEM as memory_service
+    participant LLM as LLMService (active provider)
+    participant DB as Database
+
+    U->>FE: Sends message
+    FE->>API: POST /v2/chat/conversations/{id}/messages
+    API->>CS: respond_to_message()
+    CS->>MEM: get_user_memories(user_id)
+    MEM-->>CS: up to 20 memory rows -> formatted prompt block
+    CS->>LLM: respond_to_message(context + memories + tool definitions)
+    LLM-->>CS: reply text + tool calls (e.g. create_goal_proposal)
+    CS->>DB: persist message + resulting proposal rows
+    CS-->>API: assistant message + proposals
+    API-->>FE: JSON response
+    FE-->>U: rendered reply + "Save" proposal cards
+    par Background, non-blocking
+        CS->>LLM: update_conversation_context (every N user messages)
+        CS->>LLM: extract_user_memory (independent threshold)
+        LLM-->>DB: apply_memory_actions (create/update/retire)
+    end
+```
+
+### Daily Report Generation
+
+```
+Scheduled 30s poll (report_scheduler_service)
+  -> singleton lock acquired by one worker
+  -> user's configured report time reached
+  -> pull DailyPlanRecordDBM history for the period
+  -> reports_service.generate_report() calls LLMService.generate_report()
+  -> structured JSON (stats, goals, highlights, closing, alignment_score)
+  -> saved to ReportDBM
+  -> notification created + optional email sent
+  -> Reports UI renders the stored structured payload
+```
+
+### Daily Brief
+
+```
+Today's materialized plan (DailyPlanRecordDBM rows for the date)
+  -> daily_brief_service builds short_brief / complete_brief / spoken_brief via LLM
+  -> saved to DailyBriefDBM, linked to a NotificationDBM row
+  -> on first playback request: daily_brief_audio_service
+       -> OpenAI TTS synthesizes spoken_brief -> audio bytes
+       -> Whisper transcribes that audio -> word-level timings
+       -> both cached in DailyBriefAudioDBM (audio_data + word_timings)
+  -> frontend fetches audio once, plays it, syncs captions off cached timings
+```
+
+---
+
+## Database Architecture
+
+The schema is organized around one core idea: **templates describe recurring intent, records capture what actually happened on a given date.**
+
+- **Identity & access:** `users` → `active_sessions` (multi-device), `push_subscriptions`, `user_settings` (1:1, JSON per domain), `ip_rate_limits` (shared across workers).
+- **Goal hierarchy:** `goals` → `milestones` → `tasks`, plus `habits` and `scheduled_tasks` linked to a goal (nullable FK, `SET NULL` on delete — losing a goal doesn't delete the habit). `yearly_tasks` act as templates that generate `scheduled_tasks` occurrences on configured dates.
+- **Planning:** `plans` (one row per `(user, source_type, source_id)` — habit/task/schedule) → `plan_records` (materialized per date, unique per `(plan_id, scheduled_date)`, `plan_id` nullable so history survives template deletion). Indexed for both "everything for this user on this date" and "has this plan already been materialized for this date" lookups.
+- **Conversations & AI:** `conversations` (per-agent-type, holding `stable_context`/`context_summary` and a `linked_items` JSON pointer to related proposals) → `messages`; separately, `user_memories` (durable, cross-conversation). Four proposal tables (`goal_proposals`, `milestone_proposals`, `task_proposals`, `scheduled_task_proposals`) link a conversation/message back to a pending, user-reviewable action.
+- **Reporting & briefing:** `reports` (one per `user + date + type`, structured JSON payload) and `daily_briefs` → `daily_brief_audio` (binary audio + JSON word timings, cached, excluded from routine backups because it's cheaply regenerable).
+- **Notifications:** `notifications` with a `(user_id, event_key)` unique constraint used purely for deduplication of event-triggered alerts (e.g., don't send "milestone due soon" twice for the same milestone).
+
+No columns are dumped exhaustively here — the intent above is the part that matters architecturally; exact field lists live in `app/models/`.
+
+---
+
+## Authentication & Security
+
+- **Passwords** are hashed with bcrypt via passlib; registration and password-change enforce length plus mixed-case/digit/special-character requirements.
+- **Sessions** use short-lived JWT access tokens and longer-lived refresh tokens, both stored as **httpOnly cookies** (not `localStorage`), removing them from direct JavaScript/XSS reach. A custom middleware rejects state-changing requests whose `Origin` header isn't on the CORS allow-list, mitigating CSRF for the cookie-auth model.
+- **Account lockout**: 5 failed logins locks an account for 15 minutes; a separate, shared `ip_rate_limits` table locks out an *IP* after repeated failed logins or registrations (works correctly across multiple uvicorn workers because it's DB-backed, not in-process memory).
+- **Multi-device session management**: every login creates an `active_sessions` row; a configurable per-user device limit blocks further logins until an old session is revoked (frontend enforces this with a dedicated `/device-limit` wall).
+- **Email verification** is required, using a time-limited token; password reset follows the same pattern.
+- **Optional IP geolocation** on failed-login security alert emails is off by default and looked up in a background thread — it never blocks or fails the request path.
+- **Secrets hygiene**: `.env` and the `credentials/` folder (Google service-account JSON used only for optional analytics export) are both git-ignored; database files (`*.db`) are also git-ignored. No API keys or credentials are committed to this repository.
+- **AI-rendered content is sanitized**: assistant Markdown replies are rendered through `react-markdown` + `DOMPurify`, not injected as raw HTML.
+- **Data isolation**: every domain query is scoped by `user_id` at the service layer; there is no cross-user data access path in the API surface reviewed.
+
+This documents what is implemented — it is not a claim of a completed security audit.
+
+---
+
+## BackOffice (Admin Panel)
+
+`BackOffice/` is a separate, small FastAPI + React admin application used to operate the main Shadow backend, not a user-facing part of the product. It has its own database and its own JWT-based admin login (`AdminUserDBM`), independent of the main app's auth.
+
+Because BackOffice and `BackEnd_V2` are co-located on the same machine, BackOffice reads `shadow.db` **directly via `sqlite3`** rather than over HTTP — giving it a SQL console, database backup create/list/restore/delete, and server log tailing without needing any privileged endpoint on the public-facing API. It can also trigger a git pull + restart of the main backend. This replaced an earlier design where `BackEnd_V2` exposed its own admin-secret-gated endpoints for these operations; that surface was deleted once BackOffice could reach the same SQLite file directly, removing a shared-secret dependency between the two apps entirely.
+
+## Controller Server
+
+`Server/` is a minimal FastAPI process controller that runs independently of both the main backend and BackOffice, on its own port. It exposes health checks for both apps (`/health/main`, `/health/backoffice`), triggers restarts/deploys/rollbacks via the existing shell scripts, tails logs, and forwards ad-hoc SQL queries — effectively a remote control plane for operating the two apps from outside either one. It assumes a trusted network (no authentication of its own) and is intentionally kept separate so that restarting the main backend doesn't also take down the mechanism used to restart it.
+
+---
+
+## Testing
+
+- **Frontend (`FrontEnd_V2`)**: Vitest + React Testing Library are fully configured (`npm run test`, `npm run test:watch`, `npm run test:coverage`), but no test files currently exist in the V2 frontend — this is a known gap, not a hidden one.
+- **Backend (`BackEnd_V2`)**: no test suite currently exists. The earlier `BackEnd/` (V1) codebase has an extensive pytest suite (`BackEnd/tests/`, covering auth, goals, memory, reports, scheduler jobs, etc.), but it targets the V1 schema/services and has not been ported to V2.
+
+This is documented honestly rather than glossed over: **test coverage for V2 is a real, current limitation**, not a stated future improvement.
+
+---
+
+## Setup & Installation
 
 ### Prerequisites
-
 - Python 3.11+
 - Node.js 18+
-- npm
 
-### Backend
+### Backend (`BackEnd_V2`)
 
 ```powershell
-cd BackEnd
+cd BackEnd_V2
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 Copy-Item .env.example .env
-alembic upgrade head
-uvicorn app.main:app --reload
+# edit .env: JWT_SECRET, an LLM provider key (GEMINI_API_KEY / CLAUDE_API_KEY / etc.), CORS_ORIGINS
+uvicorn app.main:app --reload --port 8000
 ```
 
-Backend URLs:
+- API root: `http://localhost:8000`
+- No Alembic migration step is required for a fresh database — tables are created automatically at startup (`Base.metadata.create_all`).
+- `.env.example` documents every supported variable, including optional SMTP, Google Sheets analytics, and DB backup scheduling.
 
-- API root: http://localhost:8000
-- Swagger: http://localhost:8000/docs
-
-### Frontend
+### Frontend (`FrontEnd_V2`)
 
 ```powershell
-cd FrontEnd
+cd FrontEnd_V2
 npm install
-Copy-Item .env.example .env
 npm run dev
 ```
 
-Frontend URL:
+- App: `http://localhost:5173` (Vite dev server proxies `/api` to `http://localhost:8000`)
+- Production env vars (`VITE_API_BASE_URL`, `VITE_API_TIMEOUT_SECONDS`) are read from `.env`/`.env.production` — not committed to the repo.
 
-- App: http://localhost:5173
-
----
-
-## 7) Environment Variables
-
-### Backend (`BackEnd/.env`)
-
-```env
-ENVIRONMENT=development
-DEBUG=true
-
-DATABASE_URL=sqlite:///./shadow.db
-
-JWT_SECRET=change-me-to-a-long-random-string
-JWT_ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=1440
-
-LLM_PROVIDER=gemini
-GEMINI_API_KEY=your-gemini-api-key
-GEMINI_MODEL=gemini-1.5-flash
-
-CORS_ORIGINS=http://localhost:5173, https://shadow-pa.web.app
-ENABLE_SCHEDULER=true
-```
-
-### Frontend (`FrontEnd/.env`)
-
-```env
-VITE_API_BASE_URL=http://localhost:8000/api
-```
-
-Never place secrets in frontend env files.
+### Notes
+- If something isn't listed above (e.g. a required system package), it was not verifiable from the repository and is intentionally not guessed here.
 
 ---
 
-## 8) Backend API Surface (Current)
+## Deployment
 
-All API routes are prefixed with `/api`.
-
-### Health
-
-- `GET /`
-- `GET /health`
-
-### Auth
-
-- `POST /api/auth/register`
-- `POST /api/auth/login`
-- `GET /api/auth/me`
-- `POST /api/auth/change-password`
-
-### Onboarding
-
-- `GET /api/onboarding/questions`
-- `POST /api/onboarding/answer`
-- `POST /api/onboarding/complete`
-
-### Profile and Memory
-
-- `GET /api/profile`
-- `PUT /api/profile`
-- `GET /api/profile/basic`
-- `PUT /api/profile/basic`
-- `GET /api/profile/ai`
-- `PUT /api/profile/ai`
-- `GET /api/profile/account`
-- `POST /api/profile/change-password`
-- `POST /api/profile/clear-chat-history`
-- `GET /api/profile/export`
-- `DELETE /api/profile/account`
-- `GET /api/profile/memory-center`
-- `GET /api/profile/memories`
-- `POST /api/profile/memories`
-- `POST /api/profile/memories/refine`
-- `PUT /api/profile/memories/{memory_id}`
-- `DELETE /api/profile/memories/{memory_id}`
-
-### Settings
-
-- `GET /api/settings`
-- `PUT /api/settings/appearance`
-- `PUT /api/settings/notifications`
-- `PUT /api/settings/ai-behavior`
-- `PUT /api/settings/integrations`
-- `PUT /api/settings/accessibility`
-- `PUT /api/settings/planner`
-- `PUT /api/settings/privacy`
-
-### Goals and Milestones
-
-- `GET /api/goals`
-- `POST /api/goals`
-- `GET /api/goals/{goal_id}`
-- `PUT /api/goals/{goal_id}`
-- `DELETE /api/goals/{goal_id}`
-- `GET /api/goals/{goal_id}/milestones`
-- `POST /api/goals/{goal_id}/milestones`
-- `PUT /api/milestones/{milestone_id}`
-- `DELETE /api/milestones/{milestone_id}`
-
-### Plan
-
-- `GET /api/plan`
-- `POST /api/plan`
-- `GET /api/plan/schedule`
-- `POST /api/plan/schedule/draft`
-- `POST /api/plan/schedule`
-- `GET /api/plan/workspace`
-- `POST /api/plan/generate-today`
-- `PUT /api/plan/schedule/{task_id}`
-- `PUT /api/plan/{task_id}`
-- `DELETE /api/plan/{task_id}`
-
-### Metrics
-
-- `GET /api/metrics`
-- `POST /api/metrics`
-- `PUT /api/metrics/{metric_id}`
-- `DELETE /api/metrics/{metric_id}`
-- `GET /api/metrics/{metric_id}/logs`
-- `POST /api/metrics/{metric_id}/logs`
-
-### Reports
-
-- `GET /api/reports`
-- `POST /api/reports/generate`
-- `GET /api/reports/{report_id}`
-
-### Chat
-
-- `GET /api/chat/sessions`
-- `POST /api/chat/sessions`
-- `GET /api/chat/sessions/{session_id}/messages`
-- `POST /api/chat/sessions/{session_id}/messages`
-
-### Journal
-
-- `GET /api/journal`
-- `POST /api/journal`
-- `PUT /api/journal/{entry_id}`
-- `DELETE /api/journal/{entry_id}`
-
-### Notifications
-
-- `GET /api/notifications`
-- `POST /api/notifications`
-- `PATCH /api/notifications/{notification_id}/read`
-
-### Dashboard
-
-- `GET /api/dashboard/summary`
+- **Frontend**: static Vite build deployed to Firebase Hosting. `package.json` defines separate `deploy` / `deploy-stg` / `deploy-dev` scripts, each building against a different mode and deploying either to production hosting or a time-limited Firebase preview channel.
+- **Backend**: runs as a long-lived `uvicorn` process with 4 workers (`restart_server.sh`), started/stopped via process-group signals (`setsid`/`pkill`) rather than a container runtime — there is no Dockerfile or systemd unit in this repository. The script waits for the port to free before restarting and logs to `server.log`.
+- **Background workers**: not separate processes — the three scheduler loops (backup, report, notification) run as asyncio tasks inside the same FastAPI process, coordinated across the 4 uvicorn workers by a procfs-based file lock so each scheduled job only executes once.
+- **Database**: SQLite by default; switching to PostgreSQL is a single `DATABASE_URL` change with no code changes required (connection pooling is already configured conditionally in `app/db/session.py` for the non-SQLite case).
+- **Operational tooling**: [BackOffice](#backoffice-admin-panel) and [Server](#controller-server) exist specifically to operate this deployment model (restart, deploy, roll back, inspect logs/DB) without SSH-ing in for every routine action.
 
 ---
 
-## 9) AI and Memory Architecture
+## Engineering Capabilities Demonstrated
 
-- All AI calls go through `BackEnd/app/llm/base.py` provider abstraction.
-- Provider selection is centralized in `BackEnd/app/llm/factory.py`.
-- Gemini provider supports per-request model override with safe fallback.
-- User model preference is normalized in `BackEnd/app/services/settings_service.py`.
-- Memory context is compiled in `BackEnd/app/memory/context.py`.
-- Behavior distillation pipeline lives in `BackEnd/app/memory/behavior.py`.
-- Manual memory refinement endpoint: `POST /api/profile/memories/refine`.
-
----
-
-## 10) Data Model Overview
-
-Core entities:
-
-- User
-- UserProfile
-- UserSetting
-- Goal
-- Milestone
-- PlannedTask
-- TrackedMetric
-- ActivityLog
-- Report
-- ChatSession
-- ChatMessage
-- MemoryEntry
-- JournalEntry
-- Notification
-
-Highlights:
-
-- `UserProfile` and `UserSetting` are separated for identity vs behavior preferences.
-- `User.timezone` is enforced as `Asia/Kolkata` in profile update flows.
-- `PlannedTask` currently includes reminder time and estimated duration fields.
+- **Full-stack ownership** — a FastAPI service layer and a React/TypeScript SPA, sharing a typed API contract maintained by hand across both sides.
+- **REST API design** — 18+ router modules in `app/api`, kept thin, with business logic isolated in `app/services` so it's reusable from background schedulers.
+- **Relational data modeling** — recurrence templates vs. dated execution records, nullable FKs to preserve history, JSON columns used deliberately (flexible AI-authored content) rather than everywhere.
+- **Authentication & session security** — httpOnly cookie JWTs, CSRF origin-check middleware, account lockout, IP rate limiting, multi-device session limits.
+- **Multi-provider AI integration** — one abstract interface across OpenAI, Anthropic, Gemini, and Ollama, with per-user override and cost tracking per call.
+- **Tool-calling / agentic design** — bounded tool-execution loops giving an LLM read/propose access to structured application data.
+- **Long-term AI memory design** — a from-scratch, database-backed (no vector infra) persistent memory system with explicit create/update/retire semantics, documented in `docs/ASSISTANT_MEMORY_SYSTEM.md`.
+- **Background processing & scheduling** — three asyncio scheduler loops coordinated across multiple worker processes via a custom file lock.
+- **Audio/TTS pipeline** — TTS generation paired with real transcription-based caption timing, with binary caching to avoid repeat API cost.
+- **Pragmatic engineering trade-offs, stated explicitly** — e.g., choosing SQL+prompt-injection memory over vector search for a small private user base, and being explicit in this document about what is *not* yet implemented (V2 tests, Workout/Diet/Journal) rather than overstating scope.
 
 ---
 
-## 11) Database and Migrations
-
-Alembic revisions in order:
-
-1. `d431dfd7dcd9` - initial schema
-2. `93f62db4c201` - user profile/settings domains
-3. `f2a1c0b8d90e` - account + behavior settings expansion
-
-Use:
-
-```powershell
-cd BackEnd
-alembic upgrade head
-alembic current
-```
-
----
-
-## 12) Testing
-
-### Backend
-
-- Framework: pytest
-- Tests folder: `BackEnd/tests/`
-- Current test functions: 59
-- Run:
-
-```powershell
-cd BackEnd
-pytest
-```
-
-### Frontend
-
-- Framework: Vitest + RTL
-- Current test cases: 27
-- Run:
-
-```powershell
-cd FrontEnd
-npm run test
-```
-
-Build checks:
-
-- Backend: `pytest`
-- Frontend: `npm run build`
-
----
-
-## 13) Deployment Model
-
-- Frontend: Firebase Hosting (`FrontEnd/firebase.json`)
-- Backend: private always-on server
-- CORS must include the deployed frontend domain
-- Keep auth/data ownership on backend
-
----
-
-## 14) Operating Notes and Gotchas
-
-- Always run `alembic upgrade head` before relying on a persistent environment.
-- Use the project virtual environment for backend runtime and migration commands.
-- If `LLM_PROVIDER=gemini` and `GEMINI_API_KEY` is missing, backend falls back to fake provider.
-- Settings page intentionally allows Gemini models only via dropdown.
-- Frontend auth token key: `shadow.token`; theme key: `shadow.theme`.
-- `BackEnd/deploy.sh` exists but is currently empty.
-
----
-
-## 15) Active Roadmap
-
-- Keep SCRUM-17 profile/settings architecture clean and stable
-- Complete SCRUM-11 AI-first Today workspace
-- Complete SCRUM-16 AI-enhanced Journal coaching
-- Continue expanding behavior learning and cross-module personalization
-
----
-
-If anything in `BackEnd/README.md` or `FrontEnd/README.md` conflicts with this file, this root README wins and the child README files must be updated in the same change.
-
-## 1. Project Overview
-
-**Shadow** is a personal assistant web application that helps its users reach their **life and
-career goals**. It combines structured goal tracking with a suite of **AI agents** that coach,
-advise, and hold users accountable — all personalized using a memory built during an AI-driven
-onboarding interview.
-
-### Vision
-A calm, minimal, always-available companion that *knows you* — your ambitions, your working
-style, your progress — and proactively helps you move forward, one milestone at a time.
-
-### Who it's for
-- A **private group of ~10–20 friends** (small, trusted, invite-scale user base).
-- Not a public product (for now). Design decisions favor **simplicity and clarity** over
-  hyperscale, but the architecture is kept clean enough to grow.
-
-### Target Audience (design for this person)
-- **24–30 year-old corporate employees**, early in their careers.
-- **Distracted by social media**, struggling to focus on their career and life goals.
-- Motivated by **visible progress**: they stay aligned when they can *see* concrete metrics
-  about what they did.
-
-### The Core Problem
-Our users *have* ambitions but lose momentum to distraction and lack of feedback. They don't need
-more information — they need **guidance, structure, and a mirror** that shows them whether today
-moved them forward.
-
-### The Behavioral Insight (why metrics matter) ⭐
-Users stay on track when they see **detailed, quantified reports** of their day/week:
-- *"You completed 6 / 8 planned tasks."*
-- *"You solved 3 LeetCode problems (streak: 5 days)."*
-- *"Deep-work time: 2h 40m. Goal: 3h."*
-
-A clear daily/weekly report makes them **more likely to stay aligned the next day/week**.
-Therefore **metrics, tracking, and reporting are first-class features**, not add-ons.
-
-### The Core Loop (what Shadow optimizes)
-```
-  PLAN  ─▶  DO  ─▶  TRACK  ─▶  REPORT / REFLECT  ─▶  ADAPT
-   ▲                                                    │
-   └──────────────  (Shadow guides every step)  ────────┘
-```
-1. **Plan** — agents help set goals, milestones, and daily/weekly plans.
-2. **Do** — the user works on tasks.
-3. **Track** — the user (and later, integrations) log metrics (tasks done, LeetCode solved, etc.).
-4. **Report / Reflect** — Shadow generates a quantified daily/weekly report + insights.
-5. **Adapt** — Shadow learns the user's evolving behavior and adjusts guidance.
-
-### Adaptive Learning (Shadow gets to know you over time)
-Shadow **auto-learns new user behaviors as they use the app** — not just at onboarding. Patterns
-(when they're productive, what they follow through on, where they stall) are continuously
-captured as memory and folded into future guidance. See §7.3.
-
-### Guiding Mission
-> As a personal assistant, Shadow's **primary job is to guide the user and keep them on the right
-> path** toward their life and career goals — gently, with data, and without adding to the noise
-> they're already drowning in.
-
----
-
-## 2. Core Principles (read before coding)
-
-These come from the org engineering standards and this project's needs:
-
-- **DRY** — no duplication in production or test code. Extract reusable modules/components.
-- **TDD by default** — write a failing test first, then minimal code to pass.
-- **Fast, hermetic unit tests** — mock IO, time, randomness, and **all LLM/network calls**.
-- **≥80% coverage** on new/changed code.
-- **12-Factor** — config in environment variables, stateless processes, logs as streams.
-- **Security first** — validate inputs, hash passwords, secrets out of code, least privilege.
-- **AI provider is pluggable** — never hard-couple feature code to Gemini. Always go through
-  the LLM provider abstraction (see §7).
-- **Update this README** with every meaningful change.
-
----
-
-## 3. Tech Stack
-
-| Layer            | Technology                                                            |
-| ---------------- | --------------------------------------------------------------------- |
-| **Frontend**     | React 18 + **TypeScript** + **Vite**                                  |
-| **UI / Styling** | **Bootstrap 5** (+ React-Bootstrap), responsive, **light + dark**     |
-| **Routing**      | React Router                                                          |
-| **HTTP client**  | Axios (typed API client)                                              |
-| **Backend**      | **Python 3.11+** + **FastAPI**                                        |
-| **ORM**          | SQLAlchemy 2.x + Alembic (migrations)                                 |
-| **Database**     | **SQLite** (MVP) — abstracted via ORM for easy PostgreSQL migration   |
-| **Auth**         | Email + password, **JWT** (python-jose), **bcrypt** hashing (passlib) |
-| **AI / LLM**     | **Google Gemini** via official SDK, behind a pluggable provider layer |
-| **Scheduling**   | APScheduler (reminders / notifications) — runs on 24/7 server         |
-| **Validation**   | Pydantic v2                                                           |
-| **Testing**      | Backend: pytest + httpx; Frontend: Vitest + React Testing Library     || **Hosting**      | Frontend: **Firebase Hosting**; Backend: **private server (24/7)**    |
-| **Firebase**     | Hosting now; optional services (FCM push, Analytics, etc.) as needed  |
----
-
-## 4. High-Level Architecture
-
-```
-┌──────────────────────────────┐         HTTPS / JSON          ┌──────────────────────────────┐
-│          FrontEnd            │  ─────────────────────────▶   │           BackEnd            │
-│  React + TS + Vite + Boot    │   REST API (configurable      │  FastAPI (24/7 private server)│
-│                              │   VITE_API_BASE_URL)          │                              │
-│  - Auth / Onboarding UI      │  ◀─────────────────────────   │  - Auth & JWT                │
-│  - Dashboard                 │                               │  - Onboarding interview      │
-│  - Goals & Milestones        │                               │  - Goals / Milestones        │
-│  - AI Chat (agents)          │                               │  - AI Agent orchestration    │
-│  - Journal                   │                               │  - Memory / User Context     │
-│  - Notification center       │                               │  - Notifications scheduler   │
-│  - Light/Dark theme          │                               │                              │
-└──────────────────────────────┘                               └───────────────┬──────────────┘
-                                                                                 │
-                                                          ┌──────────────────────┼──────────────────────┐
-                                                          │                      │                      │
-                                                   ┌──────▼──────┐        ┌──────▼──────┐        ┌──────▼──────┐
-                                                   │   SQLite    │        │ LLM Provider│        │ APScheduler │
-                                                   │  (SQLAlch)  │        │  (Gemini)   │        │  reminders  │
-                                                   └─────────────┘        └─────────────┘        └─────────────┘
-```
-
-- **Deployment:**
-  - **Frontend** — static Vite build deployed to **Firebase Hosting**; talks to the backend via
-    `VITE_API_BASE_URL`.
-  - **Backend** — FastAPI running persistently on a **private server, online 24/7**; CORS allows
-    the Firebase Hosting origin.
-  - **Firebase services** are available as needed — Hosting is used now; **FCM** (push
-    notifications), Analytics, etc. are optional future add-ons. **Auth and data stay
-    backend-owned** (JWT + SQLite) so there is a single source of truth.
-
----
-
-## 5. Key User Flows
-
-### 5.1 Onboarding — the AI Interview (the heart of personalization)
-When a user **first creates an account**, they go through a guided **AI interview**:
-
-1. The app presents a sequence of questions covering **daily, weekly, monthly, career, and life
-   goals** (plus personality / working style).
-2. After **each answer**, an AI agent (the **Onboarding Interviewer**) generates a concise
-   **"understanding" text** — an interpreted summary of what this answer reveals about the user.
-3. Each understanding is **saved per-user** as a `MemoryEntry`.
-4. These understandings are later compiled into the **User Context Document** and injected into
-   every agent's prompt, so all agents "know" the user.
-
-> This is what makes Shadow feel personal. Treat the onboarding memory as a first-class feature.
-
-### 5.2 Goal Setup
-- The AI can **suggest a goal title** (often phrased as a guiding question), and the user adds a
-  **detailed description**, **category**, and **target date**.
-- Goals are broken into **milestones** (by the user and/or the Goal Coach agent).
-- Progress is tracked per goal (via milestone completion and/or manual progress %).
-
-### 5.3 Daily Use
-- **Dashboard** shows an overview of goals, progress, upcoming milestones, and reminders.
-- Users **chat with AI agents** for coaching, advice, check-ins, and analysis.
-- Users write **journal / reflection** entries.
-- **Reminders** surface in the in-app notification center.
-
-### 5.4 Metrics & Tracking (the alignment engine)
-- Each user has a set of **tracked metrics** — some default (planned tasks, completed tasks,
-  deep-work time), some **custom** (e.g. *LeetCode solved*, *gym sessions*, *pages read*).
-- Users **log activity** quickly (a number + optional note) against a metric for a given day.
-- Metrics roll up into streaks, totals, and completion rates that power the reports.
-- Designed so metrics can later be **auto-populated via integrations** (e.g. LeetCode, GitHub),
-  but MVP starts with fast manual logging.
-
-### 5.5 Daily & Weekly Reports (the behavioral hook)
-- Shadow generates a **daily report** and a **weekly report** summarizing planned vs. completed
-  work, metric totals, streaks, and goal progress — with an **AI-written narrative + next steps**.
-- Reports are the product's core retention mechanism: *see progress → stay aligned tomorrow*.
-- Reports are produced by the **Progress Analyst** agent (see §6) using tracked metrics + goals.
-
-### 5.6 Adaptive Behavior Learning
-- As the user logs activity, chats, and completes (or misses) plans, Shadow extracts
-  **behavior signals** (productive times, follow-through patterns, recurring blockers).
-- These are stored as evolving memory and injected into guidance so advice gets **more tailored
-  over time**. See §7.3.
-
----
-
-## 6. AI Agents
-
-All agents share the injected **User Context Document** (see §7) and use the pluggable LLM
-provider. Each agent = a **system prompt / persona** + context injection + optional tools.
-
-| Agent                    | Purpose                                                             |
-| ------------------------ | ------------------------------------------------------------------- |
-| **Onboarding Interviewer** | Runs the onboarding interview; generates "understanding" memories. |
-| **Goal Coach**           | Breaks goals into milestones and concrete action plans.             |
-| **Career Advisor**       | Career paths, skills to build, job & growth guidance.               |
-| **Daily Check-in / Accountability** | Daily nudges, asks how things are going, keeps user on track. |
-| **Progress Analyst**     | Generates **daily/weekly reports** from tracked metrics + goals, reviews progress, spots blockers, suggests next-step adjustments. |
-| **General Chat Assistant** | Open-ended Q&A companion.                                          |
-
-**Rules for agents:**
-- Never call Gemini directly from feature code — always via `llm_provider` (§7).
-- Keep each agent's persona/system prompt in a dedicated, versioned location
-  (`BackEnd/app/agents/`).
-- All agent LLM calls must be **mockable** for tests.
-
----
-
-## 7. AI Memory & LLM Provider Strategy
-
-### 7.1 LLM Provider Abstraction (pluggable)
-- Define an interface, e.g. `LLMProvider` with methods like `generate(messages, **opts)` and
-  `generate_stream(...)`.
-- Implement `GeminiProvider` first. Provider is selected via env (`LLM_PROVIDER=gemini`).
-- Feature/agent code depends only on the interface — swapping to OpenAI/Claude/Ollama later is a
-  new provider class, no feature changes.
-
-### 7.2 Memory (MVP = simple profile injection)
-- On onboarding, store interpreted **`MemoryEntry`** rows (the "understanding" texts).
-- At agent-call time, compile a **User Context Document**: profile basics + all/most relevant
-  memory understandings + active goals + recent progress → inject into the agent system prompt.
-- **Future-proofing:** the memory store is designed so we can later add **vector embeddings +
-  semantic retrieval (RAG)** — add an embeddings column/table and a retrieval step, without
-  changing agent interfaces.
-
-### 7.3 Adaptive Behavior Learning (continuous, not just onboarding)
-- Memory is **not frozen after onboarding**. As users log metrics, complete/miss tasks, and
-  chat, Shadow periodically distills **behavior signals** into new/updated `MemoryEntry` rows
-  (with `source = behavior`).
-- Examples: *"Most productive 8–11am"*, *"Consistently skips weekend planning"*, *"Follows
-  through on LeetCode but stalls on writing goals."*
-- This distillation runs as a lightweight job (post-report generation and/or scheduled) using the
-  LLM provider over recent activity — always **mockable** in tests.
-- The result: the **User Context Document** grows richer over time, making all agents smarter
-  about *this specific user*.
-
----
-
-## 8. Data Model (initial)
-
-> Implemented with SQLAlchemy models; evolved via Alembic migrations. Field lists are the
-> starting point — keep this section synced with the actual models.
-
-- **User**: `id`, `email` (unique), `hashed_password`, `name`, `timezone`,
-  `theme_preference` (light/dark), `onboarding_completed` (bool), `created_at`, `updated_at`.
-- **MemoryEntry** (onboarding "understandings" + evolving memory): `id`, `user_id`,
-  `category` (daily/weekly/monthly/career/life/personality/other), `question`, `answer`,
-  `ai_understanding` (generated text), `source` (onboarding/chat/manual), `created_at`,
-  `updated_at`. *(Reserved for future: `embedding`.)*
-- **Goal**: `id`, `user_id`, `title`, `description`, `category`, `status`
-  (active/paused/completed/archived), `progress` (0–100), `target_date`, `created_at`,
-  `updated_at`.
-- **Milestone**: `id`, `goal_id`, `title`, `description`, `status` (todo/in_progress/done),
-  `order`, `due_date`, `completed_at`, `created_at`.
-- **ChatSession**: `id`, `user_id`, `agent_type`, `title`, `created_at`, `updated_at`.
-- **ChatMessage**: `id`, `session_id`, `role` (user/assistant/system), `content`, `agent_type`,
-  `created_at`.
-- **JournalEntry**: `id`, `user_id`, `content`, `mood` (optional), `created_at`, `updated_at`.
-- **Notification**: `id`, `user_id`, `title`, `body`, `type` (reminder/system/agent),
-  `related_goal_id` (nullable), `scheduled_at`, `sent` (bool), `read` (bool), `created_at`.
-- **TrackedMetric** (what a user measures): `id`, `user_id`, `key` (e.g. `leetcode_solved`),
-  `label`, `unit` (count/minutes/hours/custom), `type` (default/custom), `target` (optional
-  daily/weekly target), `active` (bool), `created_at`.
-- **ActivityLog** (a single logged value): `id`, `user_id`, `metric_id`, `date`, `value`,
-  `note` (optional), `source` (manual/integration), `created_at`.
-- **PlannedTask** (daily/weekly plan items for planned-vs-done metrics): `id`, `user_id`,
-  `title`, `date`, `status` (planned/done/missed), `related_goal_id` (nullable),
-  `completed_at`, `created_at`.
-- **Report** (generated daily/weekly summary): `id`, `user_id`, `period` (daily/weekly),
-  `period_start`, `period_end`, `metrics_json` (rolled-up numbers/streaks), `narrative`
-  (AI-written summary), `next_steps` (AI suggestions), `created_at`.
-
----
-
-## 9. API Surface (planned)
-
-> REST, JSON, prefixed with `/api`. Protected routes require `Authorization: Bearer <JWT>`.
-
-**Auth**
-- `POST /api/auth/register` — create account (email, password, name).
-- `POST /api/auth/login` — returns JWT.
-- `GET  /api/auth/me` — current user.
-
-**Onboarding**
-- `GET  /api/onboarding/questions` — ordered interview questions.
-- `POST /api/onboarding/answer` — submit an answer → generates & stores understanding.
-- `POST /api/onboarding/complete` — mark onboarding done.
-
-**Profile & Memory**
-- `GET  /api/profile` / `PUT /api/profile`
-- `GET  /api/profile/memories` — list a user's understandings.
-
-**Goals & Milestones**
-- `GET/POST /api/goals`, `GET/PUT/DELETE /api/goals/{id}`
-- `GET/POST /api/goals/{id}/milestones`, `PUT/DELETE /api/milestones/{id}`
-
-**AI Chat**
-- `GET/POST /api/chat/sessions` — list/create sessions (per agent).
-- `GET  /api/chat/sessions/{id}/messages`
-- `POST /api/chat/sessions/{id}/messages` — send message → AI reply (streaming where possible).
-
-**Journal**
-- `GET/POST /api/journal`, `PUT/DELETE /api/journal/{id}`
-
-**Notifications**
-- `GET /api/notifications`, `PATCH /api/notifications/{id}/read`
-
-**Metrics & Tracking**
-- `GET/POST /api/metrics` — list/create a user's tracked metrics (default + custom).
-- `PUT/DELETE /api/metrics/{id}` — edit/deactivate a metric.
-- `GET/POST /api/metrics/{id}/logs` — list/add activity logs for a metric.
-- `GET/POST /api/plan` — list/create planned tasks (for a date); `PUT /api/plan/{id}` to complete.
-- `GET /api/plan/workspace` — read day's task workspace with insights and suggested execution order.
-- `POST /api/plan/generate-today` — generate (or regenerate) AI plan tasks for a date.
-
-**Reports**
-- `GET  /api/reports?period=daily|weekly` — list past reports.
-- `POST /api/reports/generate` — generate a report for a period (also runs on schedule).
-- `GET  /api/reports/{id}` — a single report (metrics + narrative + next steps).
-
-**Dashboard**
-- `GET /api/dashboard/summary` — aggregated goals/progress/metrics/streaks/upcoming/notifications.
-
----
-
-## 10. Repository Structure
-
-```
-Shadow/
-├── README.md            ← this file (source of truth)
-├── FrontEnd/            ← React + TypeScript + Vite + Bootstrap app
-└── BackEnd/             ← FastAPI + SQLAlchemy + SQLite + AI agents
-```
-
-**BackEnd layout** (implemented — Step 4):
-```
-BackEnd/
-├── app/
-│   ├── main.py              # FastAPI app entrypoint
-│   ├── constant.py          # central keys/config (API keys, CORS, version)
-│   ├── database.py          # SQLAlchemy engine/session
-│   ├── models/              # ORM models
-│   ├── schemas/             # Pydantic schemas
-│   ├── api/                 # routers (auth, goals, chat, ...)
-│   ├── agents/              # agent personas + orchestration
-│   ├── llm/                 # LLMProvider interface + GeminiProvider
-│   ├── memory/              # user context compilation
-│   ├── services/            # business logic
-│   └── scheduler/           # APScheduler jobs (reminders)
-├── alembic/                 # migrations
-├── tests/
-├── requirements.txt
-└── .env.example
-```
-
-**FrontEnd layout** (implemented — Step 5):
-```
-FrontEnd/
-├── src/
-│   ├── main.tsx             # entry: Router + providers + Bootstrap/theme CSS
-│   ├── App.tsx              # route table (public / onboarding / app shells)
-│   ├── api/                 # typed Axios client + per-domain modules + types
-│   ├── pages/               # Auth, Onboarding, Dashboard, Plan, Goals, Track,
-│   │                        # Reports, Assistant (chat), Journal, Notifications, Settings
-│   ├── components/          # layout, routing guards, ui primitives, feature UI
-│   ├── context/             # AuthProvider, ThemeProvider, ToastProvider
-│   ├── hooks/               # useAsync (data loading)
-│   ├── lib/                 # format, agents, labels, nav, metrics helpers
-│   └── styles/              # theme.css — CSS-variable design system (light/dark)
-├── index.html
-├── package.json
-├── tsconfig*.json
-├── vite.config.ts
-├── firebase.json          # Firebase Hosting config (SPA rewrites)
-├── .firebaserc            # Firebase project alias
-└── .env.example
-```
-
----
-
-## 11. Configuration (12-Factor)
-
-All secrets/config via environment variables, read through `BackEnd/app/constant.py` (the
-single source of truth for keys/config). Never commit real secrets.
-
-**Backend `.env`**
-```
-DATABASE_URL=sqlite:///./shadow.db   # prod: postgresql+psycopg2://USER:PASS@HOST:5432/DB
-JWT_SECRET=change-me
-JWT_ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=1440
-LLM_PROVIDER=gemini
-GEMINI_API_KEY=your-key
-GEMINI_MODEL=gemini-1.5-flash
-CORS_ORIGINS=http://localhost:5173
-```
-
-> **Data durability:** SQLite is a single local file (great for dev). For production,
-> point `DATABASE_URL` at a **managed PostgreSQL** (automatic backups, no single-file
-> loss risk) — no code changes needed, then run `alembic upgrade head`. The SQLAlchemy
-> layer makes this a drop-in swap; the connection pool auto-tunes for server databases.
-
-**Frontend `.env`**
-```
-VITE_API_BASE_URL=http://localhost:8000/api
-```
-
----
-
-## 12. Security Notes
-- Passwords hashed with **bcrypt** (never stored/logged in plaintext).
-- **JWT** for stateless auth; short-ish expiry; secret from env.
-- **Input validation** via Pydantic (backend) and typed forms (frontend).
-- **CORS** locked to known origins.
-- **Secrets** (Gemini key, JWT secret) only in env / server config — never in git.
-- No sensitive data in error messages or logs.
-
----
-
-## 13. Testing Strategy
-- **Backend:** pytest; unit tests mock the `LLMProvider` and DB where appropriate; API tests via
-  httpx `TestClient`. Time/scheduler mocked.
-- **Frontend:** Vitest + React Testing Library; mock the API client.
-- **Coverage:** ≥80% on new/changed code; assert behavior, not just lines.
-
----
-
-## 14. Build Roadmap
-- [x] **Step 1 — Requirements** (this document's inputs)
-- [x] **Step 2 — README source of truth** (this file)
-- [x] **Step 3 — Create `FrontEnd/` and `BackEnd/` folders**
-- [x] **Step 4 — Scaffold BackEnd** (FastAPI app, config, DB, auth, AI layer, tests)
-- [x] **Step 5 — Scaffold FrontEnd** (Vite + Bootstrap + auth/theme)
-- [ ] **Step 6 — Onboarding interview + memory**
-- [ ] **Step 7 — Goals & milestones**
-- [ ] **Step 8 — AI agents + chat**
-- [ ] **Step 9 — Metrics, tracking & planned tasks**
-- [ ] **Step 10 — Daily/weekly reports + adaptive behavior learning**
-- [ ] **Step 11 — Journal + notifications + dashboard**
-- [ ] **Step 12 — Polish, tests, deploy to private server**
-
----
-
-## 15. Glossary
-- **Understanding / MemoryEntry** — AI-generated interpretation of a user's onboarding answer (or
-  learned behavior), saved and reused to personalize agents.
-- **User Context Document** — the compiled profile + memories + goals injected into agent prompts.
-- **LLM Provider** — pluggable interface abstracting the AI model (Gemini today).
-- **Agent** — a persona (system prompt) that uses the LLM provider + user context for a purpose.
-- **Core Loop** — Plan → Do → Track → Report/Reflect → Adapt; the behavioral cycle Shadow drives.
-- **Tracked Metric** — a measurable a user follows (e.g. LeetCode solved, tasks completed).
-- **Activity Log** — a single logged value for a metric on a given day.
-- **Planned Task** — a day/week plan item; powers planned-vs-completed metrics.
-- **Report** — an AI-generated daily/weekly summary of metrics, streaks, and progress + next steps.
-- **Behavior Signal** — a pattern Shadow learns from usage (productive times, follow-through), fed
-  back into memory for adaptive guidance.
-
----
-
-*Keep this README accurate. It is the map every AI and human developer navigates by.*
+## Future Work
+
+- Port or rewrite the automated test suite for `BackEnd_V2` and add frontend test coverage (infrastructure is already configured on both sides).
+- Implement backend support for Workout, Diet, and Journal, which currently exist only as frontend placeholder routes.
+- Roll out the `save_user_memory` feature flag more broadly (currently defaults to off) once extraction quality is validated further.

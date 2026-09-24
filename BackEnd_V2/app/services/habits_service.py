@@ -375,6 +375,7 @@ def get_activity(
             DailyPlanRecordDBM.scheduled_date,
             DailyPlanRecordDBM.status,
             DailyPlanRecordDBM.actual_value,
+            DailyPlanRecordDBM.planner_target,
             DailyPlanRecordDBM.note,
         ).where(
             DailyPlanRecordDBM.plan_id == plan.id,
@@ -410,6 +411,7 @@ def get_activity(
                 date=r.scheduled_date,
                 status=r.status,
                 value=r.actual_value,
+                planner_target=r.planner_target,
                 note=r.note or None,
                 # Fall back for a record whose date the plan's current frequency no
                 # longer considers applicable (e.g. the habit's schedule changed) —

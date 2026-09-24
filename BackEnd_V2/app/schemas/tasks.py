@@ -368,6 +368,7 @@ class TaskActivityRecord(BaseModel):
     date: date_type
     status: str
     value: float | None = None
+    planner_target: int | None = None
     note: str | None = None
     streak: int = 0
 

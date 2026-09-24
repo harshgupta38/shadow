@@ -102,6 +102,7 @@ function SimpleMonthTimeline({ records }: { records: HabitActivityRecord[] }) {
 interface MonthlyMetricPoint {
   day: number;
   value: number;
+  target: number;
   streak: number;
   note: string | null;
 }
@@ -111,6 +112,7 @@ function buildMonthlyMetricPoints(
   year: number,
   month: number,
   today: string,
+  fallbackTarget: number,
 ): MonthlyMetricPoint[] {
   // monthRecords is already scoped to this {year, month} by the caller
   // (HabitHistory's recordsByMonth map) — no need to re-check each date.
@@ -124,12 +126,43 @@ function buildMonthlyMetricPoints(
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const lastDay = isCurrentMonth ? Math.min(td, daysInMonth) : daysInMonth;
 
+  const monthTargets: Array<number | null> = Array.from({ length: lastDay }, () => null);
+  for (let day = 1; day <= lastDay; day++) {
+    const row = recordByDay.get(day);
+    if (row && row.planner_target != null && row.planner_target > 0) {
+      monthTargets[day - 1] = row.planner_target;
+    }
+  }
+
+  let carryTarget: number | null = null;
+  for (let i = 0; i < monthTargets.length; i++) {
+    if (monthTargets[i] != null) {
+      carryTarget = monthTargets[i];
+      continue;
+    }
+    if (carryTarget != null) {
+      monthTargets[i] = carryTarget;
+    }
+  }
+
+  carryTarget = null;
+  for (let i = monthTargets.length - 1; i >= 0; i--) {
+    if (monthTargets[i] != null) {
+      carryTarget = monthTargets[i];
+      continue;
+    }
+    if (carryTarget != null) {
+      monthTargets[i] = carryTarget;
+    }
+  }
+
   const points: MonthlyMetricPoint[] = [];
   for (let day = 1; day <= lastDay; day++) {
     const r = recordByDay.get(day);
     points.push({
       day,
       value: r?.value ?? 0,
+      target: monthTargets[day - 1] ?? Math.max(0, fallbackTarget),
       streak: r?.streak ?? 0,
       note: r?.note ?? null,
     });
@@ -185,14 +218,14 @@ function MetricMonthChart({
   const { ref: plotRef, width: chartW } = useMeasuredWidth(600);
 
   const points = useMemo(
-    () => buildMonthlyMetricPoints(monthRecords, year, month, today),
-    [monthRecords, year, month, today],
+    () => buildMonthlyMetricPoints(monthRecords, year, month, today, habit.planner_target ?? 0),
+    [monthRecords, year, month, today, habit.planner_target],
   );
 
-  const target = habit.planner_target ?? 0;
   const unit = habit.value_unit ?? "";
   const values = points.map((p) => p.value);
-  const max = Math.max(...values, target, 1);
+  const targets = points.map((p) => p.target);
+  const max = Math.max(...values, ...targets, 1);
 
   const plotH = CHART_H - CHART_PAD_TOP - CHART_PAD_BOTTOM;
   const baseY = CHART_H - CHART_PAD_BOTTOM;
@@ -208,7 +241,6 @@ function MetricMonthChart({
     return { ...p, x, y, h, slotX: i * slot, isToday: dateStr === today };
   });
 
-  const targetY = target > 0 ? baseY - (target / max) * plotH : null;
   const hovered = hoverIdx != null ? bars[hoverIdx] : null;
   const tooltipLeftPct = hovered
     ? Math.min(94, Math.max(6, ((hovered.x + barW / 2) / chartW) * 100))
@@ -241,9 +273,20 @@ function MetricMonthChart({
             return <line key={f} x1="0" y1={y} x2={chartW} y2={y} className="hhs-chart-grid" />;
           })}
 
-          {targetY != null && (
-            <line x1="0" y1={targetY.toFixed(1)} x2={chartW} y2={targetY.toFixed(1)} className="hhs-chart-target" />
-          )}
+          {bars.map((b) => {
+            if (b.target <= 0) return null;
+            const y = baseY - (b.target / max) * plotH;
+            return (
+              <line
+                key={`target-${b.day}`}
+                x1={b.slotX}
+                y1={y.toFixed(1)}
+                x2={b.slotX + slot}
+                y2={y.toFixed(1)}
+                className="hhs-chart-target"
+              />
+            );
+          })}
 
           {bars.map((b, i) => (
             <g
@@ -289,8 +332,8 @@ function MetricMonthChart({
               <span className="hhs-chart-tooltip-dot" />
               {hovered.value}{unit ? ` ${unit}` : ""}
             </div>
-            {target > 0 && (
-              <div className="hhs-chart-tooltip-sub">Target: {target}{unit ? ` ${unit}` : ""}</div>
+            {hovered.target > 0 && (
+              <div className="hhs-chart-tooltip-sub">Target: {hovered.target}{unit ? ` ${unit}` : ""}</div>
             )}
             {hovered.note && (
               <div className="hhs-chart-tooltip-note">{hovered.note}</div>

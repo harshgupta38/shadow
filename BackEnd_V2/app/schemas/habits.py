@@ -291,6 +291,7 @@ class HabitActivityRecord(BaseModel):
     date: date
     status: str
     value: float | None = None
+    planner_target: int | None = None
     note: str | None = None
     streak: int = 0
 

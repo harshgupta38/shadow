@@ -549,6 +549,7 @@ export interface HabitActivityRecord {
   date: string; // YYYY-MM-DD
   status: PlanStatus;
   value: number | null;
+  planner_target?: number | null;
   note: string | null;
   streak: number;
 }

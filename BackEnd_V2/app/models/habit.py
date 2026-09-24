@@ -56,6 +56,7 @@ class HabitDBM(Base):
             "planner_target IS NULL OR planner_target > 0",
             name="ck_habits_planner_target",
         ),
+        {"sqlite_autoincrement": True},
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)

@@ -28,7 +28,7 @@
   text-align: center;
   gap: 0.35rem;
   margin-top: 0.2rem;
-  min-height: min(520px, calc(100vh - 220px));
+  // min-height: min(520px, calc(100vh - 220px));
   padding: clamp(1.4rem, 2.8vw, 2.35rem) 1.1rem;
   border: 1px solid color-mix(in srgb, var(--jv-border-strong) 60%, transparent);
   border-radius: 1.15rem;

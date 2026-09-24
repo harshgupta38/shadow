@@ -199,6 +199,137 @@
     padding: 1.1rem;
   }
 
+  .reconstructed-state {
+    display: flex;
+    min-height: 360px;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    margin-top: 0.95rem;
+    padding: 1.4rem 1rem;
+    // border: 1px solid color-mix(in srgb, var(--jv-brand-1) 25%, var(--jv-border));
+    border-radius: 16px;
+    text-align: center;
+    // background:
+    //   radial-gradient(780px 260px at 12% -10%, color-mix(in srgb, var(--jv-brand-1) 10%, transparent), transparent 56%),
+    //   radial-gradient(640px 210px at 92% -2%, color-mix(in srgb, var(--jv-brand-2) 10%, transparent), transparent 60%),
+    //   var(--jv-surface-2);
+  }
+
+  .reconstructed-state-illustration {
+    width: min(300px, 100%);
+  }
+
+  .reconstructed-state-svg {
+    width: 100%;
+    height: auto;
+    overflow: visible;
+    animation: reconstructed-state-float 5s var(--jv-ease) infinite;
+  }
+
+  .reconstructed-state-svg-calendar {
+    fill: var(--jv-surface);
+    stroke: var(--jv-border-strong);
+    stroke-width: 1.5;
+    filter: drop-shadow(0 12px 24px rgba(20, 22, 40, 0.1));
+  }
+
+  .reconstructed-state-svg-calendar-head {
+    fill: color-mix(in srgb, var(--jv-brand-1) 16%, var(--jv-surface));
+  }
+
+  .reconstructed-state-svg-calendar-ring {
+    fill: var(--jv-brand-1);
+  }
+
+  .reconstructed-state-svg-grid-line {
+    stroke: var(--jv-faint);
+    stroke-width: 1.5;
+  }
+
+  .reconstructed-state-svg-highlight {
+    fill: color-mix(in srgb, var(--jv-brand-2) 14%, transparent);
+    stroke: var(--jv-brand-2);
+    stroke-width: 2;
+    stroke-dasharray: 3 5;
+  }
+
+  .reconstructed-state-svg-puzzle {
+    fill: var(--jv-brand-2);
+    opacity: 0.85;
+    filter: drop-shadow(0 6px 12px color-mix(in srgb, var(--jv-brand-2) 35%, transparent));
+  }
+
+  .reconstructed-state-svg-clock-shadow {
+    filter: drop-shadow(0 10px 20px color-mix(in srgb, var(--jv-brand-1) 44%, transparent));
+  }
+
+  .reconstructed-state-svg-clock-face {
+    fill: var(--jv-surface);
+    stroke: var(--jv-border);
+    stroke-width: 2;
+  }
+
+  .reconstructed-state-svg-rewind-arc {
+    stroke: var(--jv-brand-1);
+    stroke-width: 2.5;
+    stroke-linecap: round;
+  }
+
+  .reconstructed-state-svg-rewind-arrow {
+    fill: var(--jv-brand-1);
+  }
+
+  .reconstructed-state-svg-clock-hand {
+    stroke: var(--jv-text);
+    stroke-width: 2.5;
+    stroke-linecap: round;
+  }
+
+  .reconstructed-state-svg-clock-hand-min {
+    stroke: var(--jv-muted);
+    stroke-width: 2.5;
+    stroke-linecap: round;
+  }
+
+  .reconstructed-state-svg-clock-pin {
+    fill: var(--jv-text);
+  }
+
+  .reconstructed-state-svg-speck {
+    fill: var(--jv-brand-2);
+    opacity: 0.52;
+  }
+
+  .reconstructed-state-code {
+    margin: 0.18rem 0 0;
+    font-family: var(--jv-font-display);
+    font-size: 0.82rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    background: var(--jv-brand-gradient);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .reconstructed-state-title {
+    margin: 0.55rem 0 0;
+    font-family: var(--jv-font-display);
+    font-size: clamp(1.02rem, 2.1vw, 1.2rem);
+    letter-spacing: -0.01em;
+    color: var(--jv-text);
+  }
+
+  .reconstructed-state-text {
+    margin: 0.45rem 0 0;
+    max-width: 53ch;
+    color: var(--jv-muted);
+    font-size: 0.9rem;
+    line-height: 1.52;
+  }
+
   .today-panel>h2 {
     margin: 0;
     font-size: 0.97rem;
@@ -384,6 +515,11 @@
     &--chips { gap: 0.35rem; }
   }
 
+  @keyframes reconstructed-state-float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+
   @keyframes pcs-shimmer {
     0%   { transform: translateX(-100%); }
     100% { transform: translateX(100%); }
@@ -430,6 +566,21 @@
     
     .today-panel {
       padding: 1.35rem 1rem 1rem 1rem;
+    }
+
+    .reconstructed-state {
+      min-height: 320px;
+      margin-top: 0.8rem;
+      padding: 1rem 0.85rem;
+    }
+
+    .reconstructed-state-text {
+      max-width: 38ch;
+      font-size: 0.83rem;
+    }
+
+    .reconstructed-state-illustration {
+      width: min(260px, 100%);
     }
   }
 }

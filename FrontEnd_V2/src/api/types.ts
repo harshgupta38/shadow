@@ -622,6 +622,9 @@ export interface PlanResponse {
   previous_day_closing: DailyReportDetail["closing"] | null;
   daily_brief_enabled: boolean;
   daily_brief_generated: boolean;
+  // True for past dates that were never opened — `items` is empty (no synthesis).
+  // Always false for today.
+  no_plan_generated: boolean;
 }
 
 // ── Scheduled Tasks ──────────────────────────────────────────────────────────

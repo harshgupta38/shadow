@@ -745,15 +745,18 @@ def get_plans_for_date(
     if target_date == today:
         tick_scheduled_tasks(db, current_user.id, today)
 
-    # Shared: load all active plans once (reused for today + yesterday calculations).
-    active_plans = list(db.scalars(
-        select(PlanDBM).where(
-            PlanDBM.user_id == current_user.id,
-            PlanDBM.status == "active",
-        )
-    ).all())
+    # True only for past dates with no saved DailyPlanRecordDBM rows — items stays
+    # empty (no synthesis) and the frontend shows a "reconstructed history" state.
+    # Always False for today (records are always materialized below).
+    no_plan_generated = False
 
     if target_date == today:
+        active_plans = list(db.scalars(
+            select(PlanDBM).where(
+                PlanDBM.user_id == current_user.id,
+                PlanDBM.status == "active",
+            )
+        ).all())
         matched = [p for p in active_plans if _matches_date(p, target_date)]
         plan_by_id = {p.id: p for p in matched}
 
@@ -849,11 +852,6 @@ def get_plans_for_date(
 
     else:
         # ── Past date ──────────────────────────────────────────────────────────
-        # Show: applicable plans with records (real data), applicable plans
-        # without records (synthesized missed), and saved records for plans that
-        # are now archived (previously opened dates).
-        applicable = [p for p in active_plans if _matches_date(p, target_date)]
-
         # All records already saved for this date (includes archived-plan records).
         saved_records = list(db.scalars(
             select(DailyPlanRecordDBM).where(
@@ -861,121 +859,139 @@ def get_plans_for_date(
                 DailyPlanRecordDBM.scheduled_date == target_date,
             )
         ).all())
-        saved_by_plan_id = {r.plan_id: r for r in saved_records if r.plan_id is not None}
+        no_plan_generated = not saved_records
 
-        # Batch-load history for streak computation.
-        all_plan_ids = list(
-            {p.id for p in applicable} | {r.plan_id for r in saved_records if r.plan_id}
-        )
-        all_history = list(db.scalars(
-            select(DailyPlanRecordDBM).where(
-                DailyPlanRecordDBM.plan_id.in_(all_plan_ids),
-                DailyPlanRecordDBM.user_id == current_user.id,
-                DailyPlanRecordDBM.scheduled_date <= target_date,
+        if no_plan_generated:
+            # Nothing was ever saved for this date — the frontend renders a
+            # reconstructed-state notice instead of a list, so skip loading
+            # active plans and synthesizing missed occurrences entirely.
+            items = []
+        else:
+            # Show: applicable plans with records (real data), applicable plans
+            # without records (synthesized missed), and saved records for plans
+            # that are now archived (previously opened dates).
+            active_plans = list(db.scalars(
+                select(PlanDBM).where(
+                    PlanDBM.user_id == current_user.id,
+                    PlanDBM.status == "active",
+                )
+            ).all())
+            applicable = [p for p in active_plans if _matches_date(p, target_date)]
+            saved_by_plan_id = {r.plan_id: r for r in saved_records if r.plan_id is not None}
+
+            # Batch-load history for streak computation.
+            all_plan_ids = list(
+                {p.id for p in applicable} | {r.plan_id for r in saved_records if r.plan_id}
             )
-        ).all()) if all_plan_ids else []
+            all_history = list(db.scalars(
+                select(DailyPlanRecordDBM).where(
+                    DailyPlanRecordDBM.plan_id.in_(all_plan_ids),
+                    DailyPlanRecordDBM.user_id == current_user.id,
+                    DailyPlanRecordDBM.scheduled_date <= target_date,
+                )
+            ).all()) if all_plan_ids else []
 
-        history_by_plan: dict[int, list[DailyPlanRecordDBM]] = defaultdict(list)
-        for r in all_history:
-            history_by_plan[r.plan_id].append(r)
+            history_by_plan: dict[int, list[DailyPlanRecordDBM]] = defaultdict(list)
+            for r in all_history:
+                history_by_plan[r.plan_id].append(r)
 
-        # Build occurrence list (plan, record): record=None → synthesized missed.
-        occurrences: list[tuple[PlanDBM | None, DailyPlanRecordDBM | None]] = []
-        covered: set[int | None] = set()
+            # Build occurrence list (plan, record): record=None → synthesized missed.
+            occurrences: list[tuple[PlanDBM | None, DailyPlanRecordDBM | None]] = []
+            covered: set[int | None] = set()
 
-        for plan in applicable:
-            record = saved_by_plan_id.get(plan.id)
-            occurrences.append((plan, record))
-            covered.add(plan.id)
+            for plan in applicable:
+                record = saved_by_plan_id.get(plan.id)
+                occurrences.append((plan, record))
+                covered.add(plan.id)
 
-        # Include records for non-applicable plans (archived plan, date was opened before).
-        # Skip records with plan_id=None (plan deleted — insufficient data to display).
-        for record in saved_records:
-            if record.plan_id is not None and record.plan_id not in covered:
-                occurrences.append((None, record))
-                covered.add(record.plan_id)
+            # Include records for non-applicable plans (archived plan, date was opened before).
+            # Skip records with plan_id=None (plan deleted — insufficient data to display).
+            for record in saved_records:
+                if record.plan_id is not None and record.plan_id not in covered:
+                    occurrences.append((None, record))
+                    covered.add(record.plan_id)
 
-        def _occ_sort_key(occ: tuple) -> tuple:
-            plan, record = occ
-            if record is not None:
+            def _occ_sort_key(occ: tuple) -> tuple:
+                plan, record = occ
+                if record is not None:
+                    return (
+                        _PRIORITY_ORDER.get(record.priority, 99),
+                        _TIME_ORDER.get(record.preferred_time, 99),
+                        record.id,
+                    )
                 return (
-                    _PRIORITY_ORDER.get(record.priority, 99),
-                    _TIME_ORDER.get(record.preferred_time, 99),
-                    record.id,
+                    _PRIORITY_ORDER.get(plan.priority, 99),
+                    _TIME_ORDER.get(plan.preferred_time, 99),
+                    plan.id,
                 )
-            return (
-                _PRIORITY_ORDER.get(plan.priority, 99),
-                _TIME_ORDER.get(plan.preferred_time, 99),
-                plan.id,
-            )
 
-        occurrences.sort(key=_occ_sort_key)
+            occurrences.sort(key=_occ_sort_key)
 
-        # Collect source pairs for goal enrichment.
-        source_pairs = []
-        for plan, record in occurrences:
-            if record is not None:
-                source_pairs.append((record.source_type, record.source_id))
-            else:
-                source_pairs.append((plan.source_type, plan.source_id))
-        goal_by_source = _enrich_goals(db, source_pairs)
-        can_skip_by_habit = _enrich_can_skip(db, source_pairs)
+            # Collect source pairs for goal enrichment.
+            source_pairs = []
+            for plan, record in occurrences:
+                if record is not None:
+                    source_pairs.append((record.source_type, record.source_id))
+                else:
+                    source_pairs.append((plan.source_type, plan.source_id))
+            goal_by_source = _enrich_goals(db, source_pairs)
+            can_skip_by_habit = _enrich_can_skip(db, source_pairs)
 
-        items = []
-        for plan, record in occurrences:
-            if record is not None:
-                # Real occurrence — data from snapshot.
-                cs, ms = (
-                    compute_streaks(plan, history_by_plan.get(record.plan_id, []), target_date)
-                    if plan else (0, 0)
-                )
-                st, sid = record.source_type, record.source_id
-                items.append(DailyPlanItemResponse(
-                    plan_id=record.plan_id,
-                    source_type=st,
-                    source_id=sid,
-                    title=record.title,
-                    planner_type=record.planner_type,
-                    planner_target=record.planner_target,
-                    value_unit=record.value_unit,
-                    priority=record.priority,
-                    can_skip=can_skip_by_habit.get(sid, False) if st == "habit" else False,
-                    preferred_time=record.preferred_time,
-                    specific_time=record.specific_time,
-                    duration_minutes=record.duration_minutes,
-                    goal=goal_by_source.get((st, sid)),
-                    saved_data=_record_to_saved_data(record, cs, ms, treat_due_as_missed=True),
-                ))
-            else:
-                # Synthesized missed occurrence — data from current plan.
-                cs, ms = compute_streaks(plan, history_by_plan.get(plan.id, []), target_date)
-                norm_target, norm_unit = _normalize(
-                    plan.planner_type, plan.planner_target, plan.value_unit
-                )
-                st, sid = plan.source_type, plan.source_id
-                items.append(DailyPlanItemResponse(
-                    plan_id=plan.id,
-                    source_type=st,
-                    source_id=sid,
-                    title=plan.title,
-                    planner_type=plan.planner_type,
-                    planner_target=norm_target,
-                    value_unit=norm_unit,
-                    priority=plan.priority,
-                    can_skip=can_skip_by_habit.get(sid, False) if st == "habit" else False,
-                    preferred_time=plan.preferred_time,
-                    specific_time=plan.specific_time,
-                    duration_minutes=plan.duration_minutes,
-                    goal=goal_by_source.get((st, sid)),
-                    saved_data=DailyPlanSavedData(
-                        record_id=None,
-                        status="missed",
-                        current_value=0,
-                        current_streak=cs,
-                        max_streak=ms,
-                        note="",
-                    ),
-                ))
+            items = []
+            for plan, record in occurrences:
+                if record is not None:
+                    # Real occurrence — data from snapshot.
+                    cs, ms = (
+                        compute_streaks(plan, history_by_plan.get(record.plan_id, []), target_date)
+                        if plan else (0, 0)
+                    )
+                    st, sid = record.source_type, record.source_id
+                    items.append(DailyPlanItemResponse(
+                        plan_id=record.plan_id,
+                        source_type=st,
+                        source_id=sid,
+                        title=record.title,
+                        planner_type=record.planner_type,
+                        planner_target=record.planner_target,
+                        value_unit=record.value_unit,
+                        priority=record.priority,
+                        can_skip=can_skip_by_habit.get(sid, False) if st == "habit" else False,
+                        preferred_time=record.preferred_time,
+                        specific_time=record.specific_time,
+                        duration_minutes=record.duration_minutes,
+                        goal=goal_by_source.get((st, sid)),
+                        saved_data=_record_to_saved_data(record, cs, ms, treat_due_as_missed=True),
+                    ))
+                else:
+                    # Synthesized missed occurrence — data from current plan.
+                    cs, ms = compute_streaks(plan, history_by_plan.get(plan.id, []), target_date)
+                    norm_target, norm_unit = _normalize(
+                        plan.planner_type, plan.planner_target, plan.value_unit
+                    )
+                    st, sid = plan.source_type, plan.source_id
+                    items.append(DailyPlanItemResponse(
+                        plan_id=plan.id,
+                        source_type=st,
+                        source_id=sid,
+                        title=plan.title,
+                        planner_type=plan.planner_type,
+                        planner_target=norm_target,
+                        value_unit=norm_unit,
+                        priority=plan.priority,
+                        can_skip=can_skip_by_habit.get(sid, False) if st == "habit" else False,
+                        preferred_time=plan.preferred_time,
+                        specific_time=plan.specific_time,
+                        duration_minutes=plan.duration_minutes,
+                        goal=goal_by_source.get((st, sid)),
+                        saved_data=DailyPlanSavedData(
+                            record_id=None,
+                            status="missed",
+                            current_value=0,
+                            current_streak=cs,
+                            max_streak=ms,
+                            note="",
+                        ),
+                    ))
 
     notifications = db.scalar(select(UserSettingDBM.notifications).where(UserSettingDBM.user_id == current_user.id))
     daily_brief_enabled = bool(notifications.get("daily_brief_enabled", False)) if notifications else False
@@ -992,6 +1008,7 @@ def get_plans_for_date(
         previous_day_closing=_previous_day_closing(db, current_user.id, target_date),
         daily_brief_enabled=daily_brief_enabled,
         daily_brief_generated=daily_brief_generated,
+        no_plan_generated=no_plan_generated,
     )
 
 

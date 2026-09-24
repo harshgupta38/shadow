@@ -64,6 +64,11 @@ class DailyPlanResponse(BaseModel):
     daily_brief_enabled: bool = False
     # Whether a brief already exists for `date` — without a separate daily-brief call.
     daily_brief_generated: bool = False
+    # True for past dates that were never opened — no DailyPlanRecordDBM rows exist,
+    # so `items` is empty (no synthesis). Always False for today (records are always
+    # materialized on load). Lets the frontend show a "reconstructed history" state
+    # instead of a plain empty state without inspecting record ids.
+    no_plan_generated: bool = False
 
 
 class UpdatePlanRequest(BaseModel):

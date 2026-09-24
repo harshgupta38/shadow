@@ -49,6 +49,64 @@ function briefMeIcon(): ReactNode {
   return <SunFill size={15} />;
 }
 
+function ReconstructedPastStateIllustration() {
+  return (
+    <svg
+      className="reconstructed-state-svg"
+      viewBox="0 0 400 300"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      role="img"
+      aria-label="Calendar page being rebuilt with a rewind clock and puzzle piece"
+    >
+      <defs>
+        <linearGradient id="planReconstructClockGrad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="var(--jv-brand-1)" />
+          <stop offset="100%" stopColor="var(--jv-brand-2)" />
+        </linearGradient>
+      </defs>
+
+      <g transform="rotate(-3 200 150)">
+        <rect x="88" y="52" width="224" height="188" rx="16" className="reconstructed-state-svg-calendar" />
+        <rect x="88" y="52" width="224" height="40" rx="16" className="reconstructed-state-svg-calendar-head" />
+        <circle cx="132" cy="52" r="6" className="reconstructed-state-svg-calendar-ring" />
+        <circle cx="268" cy="52" r="6" className="reconstructed-state-svg-calendar-ring" />
+
+        <line x1="108" y1="120" x2="292" y2="120" className="reconstructed-state-svg-grid-line" />
+        <line x1="108" y1="152" x2="292" y2="152" className="reconstructed-state-svg-grid-line" />
+        <line x1="108" y1="184" x2="292" y2="184" className="reconstructed-state-svg-grid-line" />
+        <line x1="108" y1="216" x2="292" y2="216" className="reconstructed-state-svg-grid-line" />
+        <line x1="160" y1="104" x2="160" y2="228" className="reconstructed-state-svg-grid-line" />
+        <line x1="212" y1="104" x2="212" y2="228" className="reconstructed-state-svg-grid-line" />
+        <line x1="264" y1="104" x2="264" y2="228" className="reconstructed-state-svg-grid-line" />
+
+        <rect x="160" y="152" width="52" height="32" rx="6" className="reconstructed-state-svg-highlight" />
+      </g>
+
+      <g transform="translate(112 96)">
+        <path
+          d="M0 10 h13 v-7 a7 7 0 0 1 13 0 v7 h13 v13 h-7 a7 7 0 0 0 0 13 h7 v13 h-13 v-7 a7 7 0 0 0 -13 0 v7 h-13z"
+          className="reconstructed-state-svg-puzzle"
+        />
+      </g>
+
+      <g transform="translate(292 208)">
+        <circle r="44" fill="url(#planReconstructClockGrad)" className="reconstructed-state-svg-clock-shadow" />
+        <circle r="35" className="reconstructed-state-svg-clock-face" />
+        <path d="M0 -35 A35 35 0 1 0 27 -22" className="reconstructed-state-svg-rewind-arc" fill="none" />
+        <path d="M27 -22 L12 -20 L22 -8 Z" className="reconstructed-state-svg-rewind-arrow" />
+        <line x1="0" y1="0" x2="0" y2="-19" className="reconstructed-state-svg-clock-hand" />
+        <line x1="0" y1="0" x2="13" y2="7" className="reconstructed-state-svg-clock-hand-min" />
+        <circle r="4" className="reconstructed-state-svg-clock-pin" />
+      </g>
+
+      <circle cx="66" cy="228" r="3" className="reconstructed-state-svg-speck" />
+      <circle cx="336" cy="94" r="4" className="reconstructed-state-svg-speck" />
+      <circle cx="344" cy="244" r="2.5" className="reconstructed-state-svg-speck" />
+    </svg>
+  );
+}
+
 export function PlanPage() {
   const navigate = useNavigate();
   const toast = useToast();
@@ -136,6 +194,8 @@ export function PlanPage() {
     [planItems],
   );
   const skippedCount = skippedItems.length;
+
+  const isReconstructedPastDate = !isToday && planData?.no_plan_generated === true;
 
   const activeItems = useMemo(
     () => planItems.filter(
@@ -440,6 +500,17 @@ export function PlanPage() {
                   .
                 </p>
               </div>
+            ) : isReconstructedPastDate ? (
+              <section className="reconstructed-state" aria-live="polite">
+                <div className="reconstructed-state-illustration" aria-hidden="true">
+                  <ReconstructedPastStateIllustration />
+                </div>
+                <p className="reconstructed-state-code">PAST VIEW</p>
+                <h3 className="reconstructed-state-title">No saved planner timeline for this date</h3>
+                <p className="reconstructed-state-text">
+                  Planner was not opened on this date, so no plan records were generated.
+                </p>
+              </section>
             ) : totalCount === 0 ? (
               <div className="empty-state">
                 <span className="empty-state-icon"><CalendarCheckFill size={20} /></span>

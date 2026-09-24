@@ -6,6 +6,7 @@ import {
   ChevronDown,
   ChevronUp,
   Clock,
+  HouseDoorFill,
   Link45deg,
   MoonFill,
   MoonStarsFill,
@@ -17,6 +18,7 @@ import {
 import { api, ApiError } from "@/api";
 import type { HabitActivityRecord, HabitDataResponse } from "@/api";
 import { trackProgressApi } from "@/api/track_progress";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { ProgressRing } from "@/components/ui/ProgressRing/ProgressRing";
 import { ROUTES } from "@/routes/RoutePaths";
 import { PRIORITY_LABEL } from "@/pages/plan/PlanPage.constants";
@@ -73,6 +75,55 @@ function TimeLabel({ habit }: { habit: HabitDataResponse }) {
       {icon}
       {label}
     </span>
+  );
+}
+
+function MissingHabitIllustration() {
+  return (
+    <svg
+      className="hd-notfound-svg"
+      viewBox="0 0 400 280"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      role="img"
+      aria-label="A fading habit trail ending at a question marker"
+    >
+      <defs>
+        <linearGradient id="hdNotFoundGrad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="var(--jv-brand-1)" />
+          <stop offset="100%" stopColor="var(--jv-brand-2)" />
+        </linearGradient>
+      </defs>
+
+      <g transform="rotate(-4 200 140)">
+        <rect x="76" y="52" width="250" height="175" rx="15" className="hd-notfound-svg-card" />
+        <path
+          d="M115 182 C 148 152, 162 126, 206 114 S 264 146, 294 106"
+          className="hd-notfound-svg-path"
+          fill="none"
+          strokeLinecap="round"
+          strokeDasharray="4 11"
+        />
+        <circle cx="115" cy="182" r="5" className="hd-notfound-svg-dot" />
+        <circle cx="206" cy="114" r="5" className="hd-notfound-svg-dot" />
+        <g transform="translate(294 106)">
+          <circle r="17" className="hd-notfound-svg-badge" />
+          <text x="0" y="6" textAnchor="middle" className="hd-notfound-svg-badge-mark">?</text>
+        </g>
+      </g>
+
+      <g transform="translate(148 158)">
+        <circle r="52" fill="url(#hdNotFoundGrad)" className="hd-notfound-svg-ring-glow" />
+        <circle r="44" className="hd-notfound-svg-ring-face" />
+        <path d="M0 -22 L8 7 L0 19 L-8 7 Z" className="hd-notfound-svg-needle-a" transform="rotate(24)" />
+        <path d="M0 22 L8 -7 L0 -19 L-8 -7 Z" className="hd-notfound-svg-needle-b" transform="rotate(24)" />
+        <circle r="4.5" className="hd-notfound-svg-ring-dot" />
+      </g>
+
+      <circle cx="63" cy="88" r="3" className="hd-notfound-svg-speck" />
+      <circle cx="342" cy="198" r="4" className="hd-notfound-svg-speck" />
+      <circle cx="329" cy="66" r="2.5" className="hd-notfound-svg-speck" />
+    </svg>
   );
 }
 
@@ -283,6 +334,7 @@ export function HabitDetailPage() {
   const [records, setRecords] = useState<HabitActivityRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [switcherOpen, setSwitcherOpen] = useState(false);
@@ -349,7 +401,6 @@ export function HabitDetailPage() {
 
   async function handleDelete() {
     if (!habit || deleting) return;
-    if (!window.confirm(`Delete "${habit.title}"? This cannot be undone.`)) return;
     setDeleting(true);
     try {
       await api.habits.removeHabit(habit.id);
@@ -368,17 +419,40 @@ export function HabitDetailPage() {
   }
 
   if (error || !habit) {
+    const message = error ?? "Habit not found.";
+    const isNotFound = message.toLowerCase().includes("not found");
+
     return (
       <div className="hd-page goal-detail-page">
-        <button onClick={() => navigate(-1)} className="goal-detail-back-link">
+        {/* <button onClick={() => navigate(-1)} className="goal-detail-back-link">
           <ArrowLeft size={15} /> Library
-        </button>
-        <div className="hd-status-state hd-status-state--error">
-          <p>{error ?? "Habit not found."}</p>
-          <button onClick={() => navigate(-1)} className="btn btn-sm btn-outline-secondary">
-            Back
-          </button>
-        </div>
+        </button> */}
+        <section className="hd-notfound" aria-live="polite">
+          <div className="hd-notfound-illustration">
+            <MissingHabitIllustration />
+          </div>
+          <p className="hd-notfound-code">{isNotFound ? "404" : "Oops"}</p>
+          <h2 className="hd-notfound-title">
+            {isNotFound ? "This habit could not be found" : "Could not open this habit"}
+          </h2>
+          <p className="hd-notfound-text">{message}</p>
+          <div className="hd-notfound-actions">
+            <button
+              type="button"
+              className="btn btn-brand hd-notfound-cta"
+              onClick={() => navigate(ROUTES.HABIT_LIBRARY)}
+            >
+              <HouseDoorFill size={14} /> Back to Habit Library
+            </button>
+            <button
+              type="button"
+              className="btn btn-outline-secondary hd-notfound-secondary"
+              onClick={() => navigate(-1)}
+            >
+              <ArrowLeft size={14} /> Go Back
+            </button>
+          </div>
+        </section>
       </div>
     );
   }
@@ -394,7 +468,13 @@ export function HabitDetailPage() {
         </button>
       </div>
 
-      <HabitHero key={`hero-${habit.id}`} habit={habit} completionPct={currentMonthPct} onDelete={handleDelete} deleting={deleting} />
+      <HabitHero
+        key={`hero-${habit.id}`}
+        habit={habit}
+        completionPct={currentMonthPct}
+        onDelete={() => setShowDeleteConfirm(true)}
+        deleting={deleting}
+      />
 
       <HabitHeatmap key={`heatmap-${habit.id}`} habit={habit} records={records} />
 
@@ -410,6 +490,22 @@ export function HabitDetailPage() {
           onSelectTask={(id) => navigate(ROUTES.TASK_DETAIL.replace(":taskId", String(id)))}
         />
       )}
+
+      <ConfirmDialog
+        show={showDeleteConfirm}
+        title="Delete this habit?"
+        message={`This will permanently remove "${habit.title}". This cannot be undone.`}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        destructive
+        busy={deleting}
+        onConfirm={() => void handleDelete()}
+        onCancel={() => {
+          if (!deleting) {
+            setShowDeleteConfirm(false);
+          }
+        }}
+      />
     </div>
   );
 }

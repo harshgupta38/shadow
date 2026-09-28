@@ -90,6 +90,10 @@ export interface ColumnInfo {
   pk: boolean;
   fk: string | null;
   json_shape: JsonShape | null;
+  // The fixed set of values a CheckConstraint("col IN (...)") allows for
+  // this column, in declaration order — null for columns with no such
+  // constraint. Lets the row editor offer a dropdown instead of free text.
+  allowed_values: string[] | null;
 }
 
 export interface TableInfo {

@@ -48,6 +48,15 @@ function isTreeJsonShape(col: ColumnInfo): boolean {
   return isJson(col) && !isListShape(col);
 }
 
+// A fixed, small set of values BackEnd_V2's own model declares via
+// CheckConstraint("col IN (...)") — e.g. `priority`, `agent_type`. Shown as
+// a dropdown instead of free text so a developer can't mistype a value the
+// model would reject; always reflects whatever the model *currently*
+// declares; never hardcoded here (see model_constraints.py).
+function isEnum(col: ColumnInfo): boolean {
+  return !isJson(col) && Boolean(col.allowed_values) && col.allowed_values!.length > 0;
+}
+
 function computeListItemRows(value: string): number {
   if (!value) return 1;
   const lines = value.split("\n");
@@ -85,6 +94,11 @@ function buildInitialForm(table: TableInfo, row: Row | null): Record<string, For
       form[col.name] = Array.isArray(value) ? value.map(String) : [];
     } else if (isTreeJsonShape(col)) {
       form[col.name] = (value ?? (col.json_shape === "list" ? [] : {})) as JsonValue;
+    } else if (isEnum(col) && (value === null || value === undefined) && !col.nullable) {
+      // Creating a new row: default a required enum field to its first
+      // allowed value rather than leaving the dropdown on a blank/invalid
+      // selection the developer would have to notice and fix themselves.
+      form[col.name] = col.allowed_values![0];
     } else {
       form[col.name] = formatFieldValue(col, value ?? null);
     }
@@ -631,6 +645,23 @@ export const RowEditorPanel = forwardRef<RowEditorPanelHandle, RowEditorPanelPro
                       disabled={busy}
                       expectedShape={col.json_shape === "list" ? "list" : "dict"}
                     />
+                  ) : isEnum(col) ? (
+                    <select
+                      className={`form-select${error ? " is-invalid" : ""}`}
+                      value={String(form[col.name] ?? "")}
+                      onChange={(e) => setField(col.name, e.target.value)}
+                    >
+                      {col.nullable && <option value="">NULL</option>}
+                      {!col.allowed_values!.includes(String(form[col.name])) && form[col.name] !== "" && (
+                        // The stored value predates this constraint (or the model
+                        // changed since) — show it as-is rather than silently
+                        // swapping the row's real data for the first listed option.
+                        <option value={String(form[col.name])}>{String(form[col.name])} (not in model)</option>
+                      )}
+                      {col.allowed_values!.map((v) => (
+                        <option key={v} value={v}>{v}</option>
+                      ))}
+                    </select>
                   ) : isLongText(col) ? (
                     <textarea
                       className={`form-control${error ? " is-invalid" : ""}`}

@@ -63,7 +63,9 @@ class ColumnConstraint:
     py_type: str
     nullable: bool
     max_length: int | None = None
-    allowed_values: frozenset[str] | None = None
+    # Declaration order preserved (e.g. "highest" .. "lowest"), not sorted —
+    # the row editor's dropdown shows these in this same order.
+    allowed_values: tuple[str, ...] | None = None
     min_value: float | None = None
     max_value: float | None = None
     # Only set when py_type == "json" — which flavor of JSON this column's
@@ -104,6 +106,21 @@ def get_json_shape(table_name: str, column_name: str) -> str | None:
     if constraint is None:
         return None
     return constraint.json_shape
+
+
+def get_allowed_values(table_name: str, column_name: str) -> list[str] | None:
+    """The fixed set of values a CheckConstraint("col IN (...)") allows for
+    this column, in declaration order — lets the row editor offer a dropdown
+    instead of free text for columns like `priority` or `agent_type`, always
+    reflecting whatever the model *currently* declares (re-parsed from the
+    real source file on every BackOffice startup, never hardcoded here)."""
+    table = _registry.get(table_name)
+    if table is None:
+        return None
+    constraint = table.columns.get(column_name)
+    if constraint is None or constraint.allowed_values is None:
+        return None
+    return list(constraint.allowed_values)
 
 
 def validate_row(table_name: str, data: dict) -> dict[str, str]:
@@ -176,7 +193,7 @@ def _check_value(col: str, value, c: ColumnConstraint) -> str | None:
     if c.max_length is not None and len(value) > c.max_length:
         return f"{col} must be at most {c.max_length} characters (got {len(value)})."
     if c.allowed_values is not None and value not in c.allowed_values:
-        allowed = ", ".join(sorted(c.allowed_values))
+        allowed = ", ".join(c.allowed_values)
         return f"{col} must be one of: {allowed}."
     return None
 
@@ -526,11 +543,14 @@ def _apply_numeric_bound(table: TableConstraints, col: str, op: str, num: float)
         logger.debug("model_constraints: %s = %s bound not enforced (equality isn't a min/max).", col, num)
 
 
-def _parse_value_list(values_text: str) -> frozenset[str]:
-    values = []
+def _parse_value_list(values_text: str) -> tuple[str, ...]:
+    values: list[str] = []
+    seen: set[str] = set()
     for part in values_text.split(","):
         part = part.strip()
         if len(part) >= 2 and part[0] == part[-1] and part[0] in "'\"":
             part = part[1:-1]
-        values.append(part)
-    return frozenset(values)
+        if part not in seen:
+            seen.add(part)
+            values.append(part)
+    return tuple(values)

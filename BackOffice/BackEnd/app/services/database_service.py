@@ -91,6 +91,7 @@ def get_table_columns(table_name: str, run_sql: RunSql | None = None) -> list[di
             "pk": row["pk"] > 0,
             "fk": fk_by_column.get(row["name"]),
             "json_shape": model_constraints.get_json_shape(table_name, row["name"]),
+            "allowed_values": model_constraints.get_allowed_values(table_name, row["name"]),
         })
     return columns
 
@@ -154,6 +155,7 @@ def _all_table_columns(names: list[str], run_sql: RunSql) -> dict[str, list[dict
             "pk": row["pk"] > 0,
             "fk": fk_by_table.get(table_name, {}).get(row["name"]),
             "json_shape": model_constraints.get_json_shape(table_name, row["name"]),
+            "allowed_values": model_constraints.get_allowed_values(table_name, row["name"]),
         })
     return columns_by_table
 

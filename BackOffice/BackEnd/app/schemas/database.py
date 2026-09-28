@@ -14,6 +14,10 @@ class ColumnInfo(BaseModel):
     # declares a specific shape (see model_constraints.py) — lets the
     # frontend offer a structured editor instead of a raw-text box.
     json_shape: str | None = None
+    # The fixed set of values a CheckConstraint("col IN (...)") allows for
+    # this column, in declaration order — lets the row editor offer a
+    # dropdown instead of free text (e.g. `priority`, `agent_type`).
+    allowed_values: list[str] | None = None
 
 
 class TableInfo(BaseModel):

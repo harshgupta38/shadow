@@ -53,3 +53,11 @@ def deploy_backoffice(_auth: RequireControlSecret, body: DeployRequest | None = 
         return deploy_service.deploy(settings.backoffice_path, "restart_backoffice.sh", body.branch if body else None)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+
+
+@router.post(ENDPOINTS.CONTROL.BACKOFFICE_ROLLBACK)
+def rollback_backoffice(_auth: RequireControlSecret, body: RollbackRequest) -> dict:
+    try:
+        return deploy_service.rollback(settings.backoffice_path, "restart_backoffice.sh", body.commit_sha)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))

@@ -13,6 +13,7 @@ class Endpoints:
         MAIN_ROLLBACK = "/main/rollback"
         BACKOFFICE_RESTART = "/backoffice/restart"
         BACKOFFICE_DEPLOY = "/backoffice/deploy"
+        BACKOFFICE_ROLLBACK = "/backoffice/rollback"
 
     class LOGS:
         PREFIX = "/logs"

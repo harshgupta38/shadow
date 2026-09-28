@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Search, PlusLg, Inbox, PlayFill, Download } from "react-bootstrap-icons";
 import { api, ApiError } from "@/api";
-import type { ColumnInfo, Row, TableInfo } from "@/api";
+import type { AppTarget, ColumnInfo, Row, TableInfo } from "@/api";
 import { Pagination } from "@/components/ui/Pagination/Pagination";
 import { rowKey, pkValues, isBinaryPlaceholder, formatBytes } from "./dbHelpers";
 import { RowEditorPanel, type RowEditorPanelHandle } from "./RowEditorPanel";
@@ -31,6 +31,7 @@ function renderCell(col: ColumnInfo, value: unknown) {
 }
 
 interface BinaryCellProps {
+  app: AppTarget;
   table: TableInfo;
   col: ColumnInfo;
   row: Row;
@@ -41,7 +42,7 @@ interface BinaryCellProps {
 // the table doesn't fail to serialize. This fetches the real bytes on
 // demand, one cell at a time, only when the admin actually asks to hear or
 // save it.
-function BinaryCell({ table, col, row }: BinaryCellProps) {
+function BinaryCell({ app, table, col, row }: BinaryCellProps) {
   const value = row[col.name];
   const [busy, setBusy] = useState<"play" | "download" | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -62,7 +63,7 @@ function BinaryCell({ table, col, row }: BinaryCellProps) {
   }
 
   async function fetchBlob(): Promise<Blob> {
-    return api.database.getBlob(table.name, col.name, pkValues(table, row));
+    return api.database.getBlob(app, table.name, col.name, pkValues(table, row));
   }
 
   async function handlePlay(e: React.MouseEvent) {
@@ -134,7 +135,7 @@ function BinaryCell({ table, col, row }: BinaryCellProps) {
 }
 
 
-export function TableBrowser() {
+export function TableBrowser({ app }: { app: AppTarget }) {
   const [tables, setTables] = useState<TableInfo[]>([]);
   const [tablesLoading, setTablesLoading] = useState(true);
   const [tablesError, setTablesError] = useState<string | null>(null);
@@ -167,7 +168,7 @@ export function TableBrowser() {
     async function load() {
       setTablesLoading(true);
       try {
-        const list = await api.database.listTables();
+        const list = await api.database.listTables(app);
         if (cancelled) return;
         setTables(list);
         setTablesError(null);
@@ -180,7 +181,8 @@ export function TableBrowser() {
     }
     load();
     return () => { cancelled = true; };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [app]);
 
   // Debounce the search box before it drives a fetch.
   useEffect(() => {
@@ -195,7 +197,7 @@ export function TableBrowser() {
     if (!selectedTableName) return;
     setRowsLoading(true);
     try {
-      const result = await api.database.getRows(selectedTableName, page, pageSize, search);
+      const result = await api.database.getRows(app, selectedTableName, page, pageSize, search);
       setColumns(result.columns);
       setRows(result.rows);
       setTotal(result.total);
@@ -212,7 +214,7 @@ export function TableBrowser() {
   useEffect(() => {
     loadRows();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTableName, page, pageSize, search]);
+  }, [app, selectedTableName, page, pageSize, search]);
 
   function selectTable(name: string) {
     if (name === selectedTableName) return;
@@ -242,7 +244,7 @@ export function TableBrowser() {
   async function refreshAfterMutation() {
     await loadRows();
     try {
-      const list = await api.database.listTables();
+      const list = await api.database.listTables(app);
       setTables(list);
     } catch {
       // row counts in the sidebar just stay stale until the next successful refresh
@@ -300,6 +302,7 @@ export function TableBrowser() {
         ) : editingRow !== null ? (
           <RowEditorPanel
             ref={rowEditorRef}
+            app={app}
             table={table}
             row={editingRow === "create" ? null : editingRow}
             onClose={() => setEditingRow(null)}
@@ -367,7 +370,7 @@ export function TableBrowser() {
                         {columns.map((col) => (
                           <td key={col.name} className="db-cell">
                             {isBinaryColumn(col)
-                              ? <BinaryCell table={table} col={col} row={r} />
+                              ? <BinaryCell app={app} table={table} col={col} row={r} />
                               : renderCell(col, r[col.name])}
                           </td>
                         ))}

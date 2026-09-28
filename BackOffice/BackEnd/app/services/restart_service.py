@@ -42,8 +42,8 @@ def _control_response_text(resp: httpx.Response) -> str:
     return json.dumps(data, indent=2)
 
 
-def get_server_uptime_seconds(db: Session) -> int | None:
-    """How long BackEnd_V2 has likely been running, computed from
+def get_server_uptime_seconds(db: Session, app: str = "shadow") -> int | None:
+    """How long the given app has likely been running, computed from
     BackOffice's own restart history rather than measured directly —
     psutil.Process.create_time() is confirmed permission-denied on at
     least one real device (needs a /proc/stat read that device refuses),
@@ -57,7 +57,11 @@ def get_server_uptime_seconds(db: Session) -> int | None:
     """
     log = (
         db.query(RestartLogDBM)
-        .filter(RestartLogDBM.status.in_(["success", "unknown"]), RestartLogDBM.completed_at.isnot(None))
+        .filter(
+            RestartLogDBM.app == app,
+            RestartLogDBM.status.in_(["success", "unknown"]),
+            RestartLogDBM.completed_at.isnot(None),
+        )
         .order_by(RestartLogDBM.completed_at.desc())
         .first()
     )
@@ -70,19 +74,20 @@ def get_server_uptime_seconds(db: Session) -> int | None:
     return max(0, int((datetime.now(timezone.utc) - completed_at).total_seconds()))
 
 
-def create_restart_record(db: Session, initiated_by: str) -> RestartLogDBM:
-    log = RestartLogDBM(trigger="manual", initiated_by=initiated_by, status="running")
+def create_restart_record(db: Session, initiated_by: str, app: str = "shadow") -> RestartLogDBM:
+    log = RestartLogDBM(trigger="manual", initiated_by=initiated_by, status="running", app=app)
     db.add(log)
     db.commit()
     db.refresh(log)
     return log
 
 
-def run_restart_job(restart_id: int) -> None:
+def run_restart_job(restart_id: int, app: str = "shadow") -> None:
     """Runs as a FastAPI BackgroundTask with its own DB session."""
     db = SessionLocal()
     log: RestartLogDBM | None = None
     started = time.monotonic()
+    control_segment = "backoffice" if app == "backoffice" else "main"
     try:
         log = db.get(RestartLogDBM, restart_id)
         if log is None:
@@ -90,7 +95,7 @@ def run_restart_job(restart_id: int) -> None:
 
         try:
             resp = _client.post(
-                f"{settings.control_server_url}/control/main/restart",
+                f"{settings.control_server_url}/control/{control_segment}/restart",
                 headers={"X-Control-Secret": settings.control_secret},
             )
             log.log_output = f"control server responded: {resp.status_code}\n{_control_response_text(resp)}"
@@ -108,7 +113,7 @@ def run_restart_job(restart_id: int) -> None:
             db.commit()
             return
 
-        healthy = shadow_client.wait_for_restart()
+        healthy = shadow_client.wait_for_restart(app)
         log.status = "success" if healthy else "unknown"
         log.log_output += (
             "\nHealth check confirmed the server came back up."

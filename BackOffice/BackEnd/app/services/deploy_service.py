@@ -43,13 +43,17 @@ def _control_post(path: str, json: dict | None = None) -> httpx.Response:
     return _client.post(f"{settings.control_server_url}{path}", json=json, headers=_headers())
 
 
+def _control_segment(app: str) -> str:
+    return "backoffice" if app == "backoffice" else "main"
+
+
 def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def _current_commit_sha() -> str | None:
+def _current_commit_sha(app: str = "shadow") -> str | None:
     try:
-        resp = _control_post("/git/main", {"args": ["rev-parse", "HEAD"]})
+        resp = _control_post(f"/git/{_control_segment(app)}", {"args": ["rev-parse", "HEAD"]})
     except httpx.RequestError:
         return None
     if resp.status_code != 200:
@@ -58,13 +62,13 @@ def _current_commit_sha() -> str | None:
     return sha or None
 
 
-def _current_branch_name() -> str | None:
+def _current_branch_name(app: str = "shadow") -> str | None:
     """None in a detached HEAD state (right after a rollback, or after
     deploying a tag/commit SHA directly) — `rev-parse --abbrev-ref HEAD`
     then literally returns the string "HEAD", not a real branch, which
     the caller must not show as if it were one."""
     try:
-        resp = _control_post("/git/main", {"args": ["rev-parse", "--abbrev-ref", "HEAD"]})
+        resp = _control_post(f"/git/{_control_segment(app)}", {"args": ["rev-parse", "--abbrev-ref", "HEAD"]})
     except httpx.RequestError:
         return None
     if resp.status_code != 200:
@@ -73,7 +77,7 @@ def _current_branch_name() -> str | None:
     return branch if branch and branch != "HEAD" else None
 
 
-def list_branches() -> dict:
+def list_branches(app: str = "shadow") -> dict:
     """Every branch that exists on origin, fetched fresh so one pushed
     moments ago shows up immediately, plus which one (if any) is actually
     checked out right now — the caller shouldn't have to guess or show a
@@ -84,9 +88,10 @@ def list_branches() -> dict:
     string rather than "origin/HEAD" — filtering on the "origin/" prefix
     excludes it correctly either way.
     """
+    segment = _control_segment(app)
     try:
-        _control_post("/git/main", {"args": ["fetch", "origin"]})
-        resp = _control_post("/git/main", {"args": ["branch", "-r", "--format=%(refname:short)"]})
+        _control_post(f"/git/{segment}", {"args": ["fetch", "origin"]})
+        resp = _control_post(f"/git/{segment}", {"args": ["branch", "-r", "--format=%(refname:short)"]})
     except httpx.RequestError:
         return {"branches": [], "current": None}
     if resp.status_code != 200:
@@ -97,25 +102,26 @@ def list_branches() -> dict:
         line = line.strip()
         if line.startswith("origin/"):
             names.append(line[len("origin/"):])
-    return {"branches": names, "current": _current_branch_name()}
+    return {"branches": names, "current": _current_branch_name(app)}
 
 
-def list_recent_commits(limit: int = 10, branch: str | None = None) -> list[dict]:
+def list_recent_commits(limit: int = 10, branch: str | None = None, app: str = "shadow") -> list[dict]:
     """A branch's commit log — the tracked branch's by default, standing in
     for the fictional version tags the UI used to show. `branch` names any
     branch on origin, not just the checked-out one; fetched fresh first so
     switching to a just-pushed branch doesn't show stale history."""
+    segment = _control_segment(app)
     ref = f"origin/{branch}" if branch else "HEAD"
     try:
         if branch:
-            _control_post("/git/main", {"args": ["fetch", "origin"]})
-        resp = _control_post("/git/main", {"args": ["log", ref, f"-{limit}", "--pretty=format:%H|%h|%an|%aI|%s"]})
+            _control_post(f"/git/{segment}", {"args": ["fetch", "origin"]})
+        resp = _control_post(f"/git/{segment}", {"args": ["log", ref, f"-{limit}", "--pretty=format:%H|%h|%an|%aI|%s"]})
     except httpx.RequestError:
         return []
     if resp.status_code != 200:
         return []
 
-    current = _current_commit_sha()
+    current = _current_commit_sha(app)
     commits = []
     for line in resp.json().get("stdout", "").splitlines():
         parts = line.split("|", 4)
@@ -134,10 +140,10 @@ def list_recent_commits(limit: int = 10, branch: str | None = None) -> list[dict
 
 
 def create_deployment_record(
-    db: Session, git_ref: str, label: str, description: str, target: str, triggered_by: str,
+    db: Session, git_ref: str, label: str, description: str, target: str, triggered_by: str, app: str = "shadow",
 ) -> DeploymentLogDBM:
     log = DeploymentLogDBM(
-        label=label, description=description, target=target, kind="deploy",
+        label=label, description=description, target=target, app=app, kind="deploy",
         git_ref=git_ref, status="running", triggered_by=triggered_by,
     )
     db.add(log)
@@ -146,16 +152,17 @@ def create_deployment_record(
     return log
 
 
-def _is_branch_ref(ref: str) -> bool:
+def _is_branch_ref(ref: str, app: str = "shadow") -> bool:
     """True if `ref` names a real branch on origin — checked fresh (fetch
     first) since a branch just pushed moments ago wouldn't be in this
     clone's remote-tracking refs yet. False for anything else (a tag, a
     commit SHA, or a typo); the caller then treats it as a fixed ref to
     check out directly instead of a moving one to pull, which is exactly
     what a tag or SHA needs anyway."""
+    segment = _control_segment(app)
     try:
-        _control_post("/git/main", {"args": ["fetch", "origin"]})
-        resp = _control_post("/git/main", {"args": ["rev-parse", "--verify", "--quiet", f"refs/remotes/origin/{ref}"]})
+        _control_post(f"/git/{segment}", {"args": ["fetch", "origin"]})
+        resp = _control_post(f"/git/{segment}", {"args": ["rev-parse", "--verify", "--quiet", f"refs/remotes/origin/{ref}"]})
     except httpx.RequestError:
         return False
     if resp.status_code != 200:
@@ -164,9 +171,9 @@ def _is_branch_ref(ref: str) -> bool:
     return data.get("returncode") == 0 and bool(data.get("stdout", "").strip())
 
 
-def create_rollback_record(db: Session, commit_sha: str, description: str, triggered_by: str) -> DeploymentLogDBM:
+def create_rollback_record(db: Session, commit_sha: str, description: str, triggered_by: str, app: str = "shadow") -> DeploymentLogDBM:
     log = DeploymentLogDBM(
-        label=f"rollback:{commit_sha[:7]}", description=description, target="Backend",
+        label=f"rollback:{commit_sha[:7]}", description=description, target="Backend", app=app,
         kind="rollback", git_ref=commit_sha, status="running", triggered_by=triggered_by,
     )
     db.add(log)
@@ -208,35 +215,36 @@ def _finish(db: Session, log: DeploymentLogDBM, status: str, lines: list[str]) -
     db.commit()
 
 
-def run_deploy_job(deployment_id: int, git_ref: str, target: str) -> None:
+def run_deploy_job(deployment_id: int, git_ref: str, target: str, app: str = "shadow") -> None:
     """Runs as a FastAPI BackgroundTask — opens its own DB session since the
     request-scoped one is already closed by the time this executes.
 
     `git_ref` can be a branch, a tag, or a commit SHA — resolved here (not
     by the caller) since deciding which control-server call to make needs
     a fresh fetch either way. A branch is a moving ref, so it goes through
-    /control/main/deploy (checkout + pull); a tag or SHA is fixed, so it
-    goes through /control/main/rollback (checkout only, detached HEAD) —
+    /control/{app}/deploy (checkout + pull); a tag or SHA is fixed, so it
+    goes through /control/{app}/rollback (checkout only, detached HEAD) —
     same mechanics rollback already uses, just recorded here as kind
     "deploy" since that's what the admin actually asked for.
     """
     db = SessionLocal()
     log: DeploymentLogDBM | None = None
+    segment = _control_segment(app)
     try:
         log = db.get(DeploymentLogDBM, deployment_id)
         if log is None:
             return
 
-        if _is_branch_ref(git_ref):
-            lines = [f"$ POST {settings.control_server_url}/control/main/deploy  (branch={git_ref})"]
-            endpoint, body = "/control/main/deploy", {"branch": git_ref}
+        if _is_branch_ref(git_ref, app):
+            lines = [f"$ POST {settings.control_server_url}/control/{segment}/deploy  (branch={git_ref})"]
+            endpoint, body = f"/control/{segment}/deploy", {"branch": git_ref}
         else:
             lines = [
-                f"$ POST {settings.control_server_url}/control/main/rollback  (commit_sha={git_ref})",
+                f"$ POST {settings.control_server_url}/control/{segment}/rollback  (commit_sha={git_ref})",
                 f"'{git_ref}' did not resolve to a branch on origin — checking it out directly "
                 "(detached HEAD), the same way a tag or a specific commit SHA is deployed.",
             ]
-            endpoint, body = "/control/main/rollback", {"commit_sha": git_ref}
+            endpoint, body = f"/control/{segment}/rollback", {"commit_sha": git_ref}
 
         try:
             resp = _control_post(endpoint, body)
@@ -257,7 +265,7 @@ def run_deploy_job(deployment_id: int, git_ref: str, target: str) -> None:
                 "pipeline) and must be deployed independently."
             )
 
-        healthy = shadow_client.wait_for_restart()
+        healthy = shadow_client.wait_for_restart(app)
         lines.append(
             "Health check confirmed the server came back up."
             if healthy else
@@ -274,17 +282,18 @@ def run_deploy_job(deployment_id: int, git_ref: str, target: str) -> None:
         db.close()
 
 
-def run_rollback_job(deployment_id: int, commit_sha: str) -> None:
+def run_rollback_job(deployment_id: int, commit_sha: str, app: str = "shadow") -> None:
     db = SessionLocal()
     log: DeploymentLogDBM | None = None
+    segment = _control_segment(app)
     try:
         log = db.get(DeploymentLogDBM, deployment_id)
         if log is None:
             return
 
-        lines = [f"$ POST {settings.control_server_url}/control/main/rollback  (commit_sha={commit_sha})"]
+        lines = [f"$ POST {settings.control_server_url}/control/{segment}/rollback  (commit_sha={commit_sha})"]
         try:
-            resp = _control_post("/control/main/rollback", {"commit_sha": commit_sha})
+            resp = _control_post(f"/control/{segment}/rollback", {"commit_sha": commit_sha})
         except httpx.RequestError as e:
             lines.append(f"ERROR: could not reach control server: {e}")
             _finish(db, log, "failed", lines)
@@ -302,7 +311,7 @@ def run_rollback_job(deployment_id: int, commit_sha: str) -> None:
             "— it's for emergency recovery, not a permanent revert."
         )
 
-        healthy = shadow_client.wait_for_restart()
+        healthy = shadow_client.wait_for_restart(app)
         lines.append(
             "Health check confirmed the server came back up."
             if healthy else

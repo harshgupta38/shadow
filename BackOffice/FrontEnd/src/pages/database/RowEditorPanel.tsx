@@ -2,7 +2,7 @@ import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState }
 import { Modal } from "react-bootstrap";
 import { ArrowClockwise, ArrowCounterclockwise, ArrowLeft, Download, PlayFill, PlusLg, SaveFill, TrashFill } from "react-bootstrap-icons";
 import { api, ApiError } from "@/api";
-import type { ColumnInfo, Row, TableInfo } from "@/api";
+import type { AppTarget, ColumnInfo, Row, TableInfo } from "@/api";
 import { formatBytes, isBinaryPlaceholder, pkValues, rowKey, rowLabel } from "./dbHelpers";
 import { JsonTreeEditor, type JsonValue } from "./JsonTreeEditor";
 
@@ -93,6 +93,7 @@ function buildInitialForm(table: TableInfo, row: Row | null): Record<string, For
 }
 
 interface BinaryFieldProps {
+  app: AppTarget;
   table: TableInfo;
   col: ColumnInfo;
   row: Row | null;
@@ -102,7 +103,7 @@ interface BinaryFieldProps {
 // form — a BLOB column's bytes never travel through this form's own
 // save/data payload, so there's nothing here for the admin to edit, only
 // to listen to or save a copy of.
-function BinaryField({ table, col, row }: BinaryFieldProps) {
+function BinaryField({ app, table, col, row }: BinaryFieldProps) {
   const value = row ? row[col.name] : null;
   const [busy, setBusy] = useState<"play" | "download" | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -120,7 +121,7 @@ function BinaryField({ table, col, row }: BinaryFieldProps) {
   }
 
   async function fetchBlob(): Promise<Blob> {
-    return api.database.getBlob(table.name, col.name, pkValues(table, row!));
+    return api.database.getBlob(app, table.name, col.name, pkValues(table, row!));
   }
 
   async function handlePlay() {
@@ -292,6 +293,7 @@ function ListFieldEditor({ items, itemType, onChange, disabled, invalid }: ListF
 }
 
 interface RowEditorPanelProps {
+  app: AppTarget;
   table: TableInfo;
   row: Row | null;
   onClose: () => void;
@@ -310,7 +312,7 @@ export interface RowEditorPanelHandle {
 // same list-to-detail pattern as SAP's table editors. Field inputs lay out
 // in a responsive grid capped at 5 columns (see .db-row-form-grid).
 export const RowEditorPanel = forwardRef<RowEditorPanelHandle, RowEditorPanelProps>(
-  function RowEditorPanel({ table, row, onClose, onSave, onDelete }, ref) {
+  function RowEditorPanel({ app, table, row, onClose, onSave, onDelete }, ref) {
   const isCreate = row === null;
   const [initialForm, setInitialForm] = useState(() => buildInitialForm(table, row));
   const [form, setForm] = useState(initialForm);
@@ -420,9 +422,9 @@ export const RowEditorPanel = forwardRef<RowEditorPanelHandle, RowEditorPanelPro
     setSubmitting(true);
     try {
       if (isCreate) {
-        await api.database.insertRow(table.name, data);
+        await api.database.insertRow(app, table.name, data);
       } else {
-        await api.database.updateRow(table.name, pkValues(table, row), data);
+        await api.database.updateRow(app, table.name, pkValues(table, row), data);
       }
       onSave();
       return true;
@@ -451,7 +453,7 @@ export const RowEditorPanel = forwardRef<RowEditorPanelHandle, RowEditorPanelPro
     setRefreshing(true);
     setFormError(null);
     try {
-      const fresh = await api.database.getRow(table.name, pkValues(table, row));
+      const fresh = await api.database.getRow(app, table.name, pkValues(table, row));
       if (fresh === null) {
         setFormError("This row no longer exists — it may have been deleted.");
         return;
@@ -496,7 +498,7 @@ export const RowEditorPanel = forwardRef<RowEditorPanelHandle, RowEditorPanelPro
     setDeleting(true);
     setFormError(null);
     try {
-      await api.database.deleteRow(table.name, pkValues(table, row));
+      await api.database.deleteRow(app, table.name, pkValues(table, row));
       onDelete();
     } catch (err) {
       setFormError(err instanceof ApiError ? err.message : "Could not delete the row.");
@@ -595,7 +597,7 @@ export const RowEditorPanel = forwardRef<RowEditorPanelHandle, RowEditorPanelPro
                   </label>
 
                   {isBinary(col) ? (
-                    <BinaryField table={table} col={col} row={row} />
+                    <BinaryField app={app} table={table} col={col} row={row} />
                   ) : col.pk ? (
                     // editableColumns excludes pk columns while creating, so this
                     // only ever renders for an existing row — row is never null here.

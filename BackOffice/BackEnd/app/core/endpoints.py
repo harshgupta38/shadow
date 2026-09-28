@@ -13,7 +13,8 @@ class Endpoints:
         ME = "/me"
 
     class DEPLOY:
-        PREFIX = "/deploy"
+        # {app} is "shadow" or "backoffice" — same reasoning as DATABASE.PREFIX above.
+        PREFIX = "/deploy/{app}"
         HISTORY = ""
         NEW = "/new"
         ROLLBACK = "/rollback"
@@ -22,7 +23,10 @@ class Endpoints:
         DETAIL = "/{deployment_id}"
 
     class DATABASE:
-        PREFIX = "/database"
+        # {app} is "shadow" or "backoffice" — which app's database this
+        # request targets. Every sub-path below is unchanged either way;
+        # only the prefix segment picks the target (see app/api/database.py).
+        PREFIX = "/database/{app}"
         TABLES = "/tables"
         ROWS = "/tables/{table_name}/rows"
         ROW = "/tables/{table_name}/row"
@@ -36,7 +40,8 @@ class Endpoints:
         BACKUP_ROW = "/backups/{filename}/tables/{table_name}/row"
 
     class SERVER:
-        PREFIX = "/server"
+        # {app} is "shadow" or "backoffice" — same reasoning as DATABASE.PREFIX above.
+        PREFIX = "/server/{app}"
         HEALTH = "/health"
         HEALTH_WS = "/health/ws"
         WORKERS = "/workers"

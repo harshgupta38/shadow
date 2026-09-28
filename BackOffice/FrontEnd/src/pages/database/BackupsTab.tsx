@@ -11,12 +11,12 @@ import {
   TrashFill,
 } from "react-bootstrap-icons";
 import { api, ApiError } from "@/api";
-import type { BackupInfo } from "@/api";
+import type { AppTarget, BackupInfo } from "@/api";
 import { downloadBlob } from "@/lib/download";
 import { formatDateTime, formatFileSize } from "@/lib/format";
 import { useToast } from "@/context/ToastContext";
 
-export function BackupsTab({ onOpenBackup }: { onOpenBackup: (filename: string) => void }) {
+export function BackupsTab({ app, onOpenBackup }: { app: AppTarget; onOpenBackup: (filename: string) => void }) {
   const [backups, setBackups] = useState<BackupInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -82,7 +82,7 @@ export function BackupsTab({ onOpenBackup }: { onOpenBackup: (filename: string) 
   async function loadBackups() {
     setLoading(true);
     try {
-      const list = await api.database.listBackups();
+      const list = await api.database.listBackups(app);
       setBackups(list);
       setError(null);
     } catch (err) {
@@ -95,12 +95,12 @@ export function BackupsTab({ onOpenBackup }: { onOpenBackup: (filename: string) 
   useEffect(() => {
     loadBackups();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [app]);
 
   async function handleCreateBackup() {
     setCreating(true);
     try {
-      await api.database.createBackup();
+      await api.database.createBackup(app);
       success("Backup created.");
       await loadBackups();
     } catch (err) {
@@ -113,7 +113,7 @@ export function BackupsTab({ onOpenBackup }: { onOpenBackup: (filename: string) 
   async function handleDownload(name: string) {
     setDownloadingName(name);
     try {
-      const blob = await api.database.downloadBackup(name);
+      const blob = await api.database.downloadBackup(app, name);
       downloadBlob(blob, name);
     } catch (err) {
       toastError(err instanceof ApiError ? err.message : "Could not download this backup.");
@@ -128,7 +128,7 @@ export function BackupsTab({ onOpenBackup }: { onOpenBackup: (filename: string) 
     setConfirmingRestore(null);
     setRestoringName(name);
     try {
-      const result = await api.database.restoreBackup(name);
+      const result = await api.database.restoreBackup(app, name);
       success(
         `Restored from ${result.restored_from}. The previous database was saved as ${result.pre_restore_backup.name} first.`,
       );
@@ -146,7 +146,7 @@ export function BackupsTab({ onOpenBackup }: { onOpenBackup: (filename: string) 
     setConfirmingDelete(null);
     setDeletingName(name);
     try {
-      await api.database.deleteBackup(name);
+      await api.database.deleteBackup(app, name);
       success(`Deleted ${name}.`);
       await loadBackups();
     } catch (err) {
@@ -161,7 +161,7 @@ export function BackupsTab({ onOpenBackup }: { onOpenBackup: (filename: string) 
       <div className="db-toolbar">
         <div className="min-w-0">
           <h2 className="db-table-title">Backups</h2>
-          <p className="db-table-meta">Snapshots of shadow.db, taken automatically every day and on demand.</p>
+          <p className="db-table-meta">Snapshots of {app === "shadow" ? "shadow.db" : "backoffice.db"}, taken automatically every day and on demand.</p>
         </div>
         <div className="db-toolbar-actions">
           <button

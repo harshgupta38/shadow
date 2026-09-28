@@ -279,7 +279,7 @@ def get_row(table_name: str, pk: dict, run_sql: RunSql | None = None) -> dict | 
     return _decode_json_columns(result["rows"], columns)[0]
 
 
-def get_blob(table_name: str, column_name: str, pk: dict) -> tuple[bytes, str]:
+def get_blob(table_name: str, column_name: str, pk: dict, db_service=shadow_db_service) -> tuple[bytes, str]:
     """Fetches one BLOB cell's actual bytes for the row editor's
     play/download control — a value that never travels through get_rows()/
     get_row() itself (those only ever see the {size_bytes} placeholder
@@ -301,10 +301,10 @@ def get_blob(table_name: str, column_name: str, pk: dict) -> tuple[bytes, str]:
     if set(pk.keys()) != pk_columns:
         raise ValidationError(f"Primary key value(s) required: {', '.join(sorted(pk_columns))}")
 
-    return shadow_db_service.get_blob(table_name, column_name, pk)
+    return db_service.get_blob(table_name, column_name, pk)
 
 
-def insert_row(db: Session, table_name: str, data: dict, admin_username: str) -> dict:
+def insert_row(db: Session, table_name: str, data: dict, admin_username: str, db_service=shadow_db_service) -> dict:
     _validate_table(table_name)
     columns = get_table_columns(table_name)
     known = {c["name"] for c in columns}
@@ -324,7 +324,7 @@ def insert_row(db: Session, table_name: str, data: dict, admin_username: str) ->
     query = f"INSERT INTO {_quote_ident(table_name)} ({col_sql}) VALUES ({val_sql})"
 
     try:
-        result = shadow_db_service.run_sql(query)
+        result = db_service.run_sql(query)
     except Exception as e:
         _audit(db, admin_username, query, False, None, str(e))
         raise
@@ -332,7 +332,7 @@ def insert_row(db: Session, table_name: str, data: dict, admin_username: str) ->
     return result
 
 
-def update_row(db: Session, table_name: str, pk: dict, data: dict, admin_username: str) -> dict:
+def update_row(db: Session, table_name: str, pk: dict, data: dict, admin_username: str, db_service=shadow_db_service) -> dict:
     _validate_table(table_name)
     columns = get_table_columns(table_name)
     known = {c["name"] for c in columns}
@@ -357,7 +357,7 @@ def update_row(db: Session, table_name: str, pk: dict, data: dict, admin_usernam
     query = f"UPDATE {_quote_ident(table_name)} SET {set_sql} WHERE {where_sql}"
 
     try:
-        result = shadow_db_service.run_sql(query)
+        result = db_service.run_sql(query)
     except Exception as e:
         _audit(db, admin_username, query, False, None, str(e))
         raise
@@ -365,7 +365,7 @@ def update_row(db: Session, table_name: str, pk: dict, data: dict, admin_usernam
     return result
 
 
-def delete_row(db: Session, table_name: str, pk: dict, admin_username: str) -> dict:
+def delete_row(db: Session, table_name: str, pk: dict, admin_username: str, db_service=shadow_db_service) -> dict:
     _validate_table(table_name)
     columns = get_table_columns(table_name)
     pk_columns = _pk_columns(columns)
@@ -379,7 +379,7 @@ def delete_row(db: Session, table_name: str, pk: dict, admin_username: str) -> d
     query = f"DELETE FROM {_quote_ident(table_name)} WHERE {where_sql}"
 
     try:
-        result = shadow_db_service.run_sql(query)
+        result = db_service.run_sql(query)
     except Exception as e:
         _audit(db, admin_username, query, False, None, str(e))
         raise
@@ -387,7 +387,7 @@ def delete_row(db: Session, table_name: str, pk: dict, admin_username: str) -> d
     return result
 
 
-def run_raw_query(db: Session, query: str, admin_username: str, page: int = 1, page_size: int = 15) -> dict:
+def run_raw_query(db: Session, query: str, admin_username: str, page: int = 1, page_size: int = 15, db_service=shadow_db_service) -> dict:
     """SQL Console — deliberately unrestricted, matching the power
     the old /admin/sql endpoint had (this now runs directly against
     shadow.db instead of proxying to it). Every real attempt is audited
@@ -397,11 +397,11 @@ def run_raw_query(db: Session, query: str, admin_username: str, page: int = 1, p
     page = max(page, 1)
     page_size = max(min(page_size, 200), 1)
 
-    paginated = _try_paginate(query, page, page_size)
+    paginated = _try_paginate(query, page, page_size, db_service.run_sql)
     if paginated is not None:
         rows_query, total = paginated
         try:
-            result = shadow_db_service.run_sql(rows_query)
+            result = db_service.run_sql(rows_query)
         except Exception as e:
             _audit(db, admin_username, query, False, None, str(e))
             raise
@@ -412,7 +412,7 @@ def run_raw_query(db: Session, query: str, admin_username: str, page: int = 1, p
         return result
 
     try:
-        result = shadow_db_service.run_sql(query)
+        result = db_service.run_sql(query)
     except Exception as e:
         _audit(db, admin_username, query, False, None, str(e))
         raise
@@ -423,7 +423,7 @@ def run_raw_query(db: Session, query: str, admin_username: str, page: int = 1, p
     return result
 
 
-def _try_paginate(query: str, page: int, page_size: int) -> tuple[str, int] | None:
+def _try_paginate(query: str, page: int, page_size: int, run_sql: RunSql) -> tuple[str, int] | None:
     """If `query` is SELECT-shaped (wrapping it as a subquery is valid SQL),
     returns (a LIMIT/OFFSET-wrapped version of it, the total row count) —
     otherwise (an INSERT/UPDATE/DELETE/DDL/... statement, or anything else
@@ -441,7 +441,7 @@ def _try_paginate(query: str, page: int, page_size: int) -> tuple[str, int] | No
         return None
 
     try:
-        count_result = shadow_db_service.run_sql(
+        count_result = run_sql(
             f"SELECT COUNT(*) AS __bo_count FROM ({stripped}) AS __bo_probe"
         )
         total = count_result["rows"][0]["__bo_count"]
@@ -453,33 +453,33 @@ def _try_paginate(query: str, page: int, page_size: int) -> tuple[str, int] | No
     return rows_query, total
 
 
-def _backup_run_sql(filename: str) -> RunSql:
-    return lambda query: shadow_db_service.run_backup_sql(filename, query)
+def _backup_run_sql(filename: str, db_service=shadow_db_service) -> RunSql:
+    return lambda query: db_service.run_backup_sql(filename, query)
 
 
-def list_backup_tables(filename: str) -> list[dict]:
+def list_backup_tables(filename: str, db_service=shadow_db_service) -> list[dict]:
     """Browse a specific backup file, read-only — reuses list_tables()'s
     exact schema/row-count logic, just pointed at the backup via a closure
     instead of the live database."""
-    return list_tables(_backup_run_sql(filename))
+    return list_tables(_backup_run_sql(filename, db_service))
 
 
-def get_backup_rows(filename: str, table_name: str, page: int, page_size: int, search: str) -> dict:
-    return get_rows(table_name, page, page_size, search, _backup_run_sql(filename))
+def get_backup_rows(filename: str, table_name: str, page: int, page_size: int, search: str, db_service=shadow_db_service) -> dict:
+    return get_rows(table_name, page, page_size, search, _backup_run_sql(filename, db_service))
 
 
-def get_backup_row(filename: str, table_name: str, pk: dict) -> dict | None:
-    return get_row(table_name, pk, _backup_run_sql(filename))
+def get_backup_row(filename: str, table_name: str, pk: dict, db_service=shadow_db_service) -> dict | None:
+    return get_row(table_name, pk, _backup_run_sql(filename, db_service))
 
 
-def restore_backup(db: Session, filename: str, admin_username: str) -> dict:
-    """Overwrites the live shadow.db with a backup — the single most
+def restore_backup(db: Session, filename: str, admin_username: str, db_service=shadow_db_service) -> dict:
+    """Overwrites the live database with a backup — the single most
     destructive action this whole admin panel exposes, so unlike the
     simpler backup passthroughs (list/create/download) this one gets a
     real audit trail entry, same as every row edit and raw query."""
     pseudo_query = f"RESTORE BACKUP {filename}"
     try:
-        result = shadow_db_service.restore_backup(filename)
+        result = db_service.restore_backup(filename)
     except Exception as e:
         _audit(db, admin_username, pseudo_query, False, None, str(e))
         raise
@@ -487,13 +487,13 @@ def restore_backup(db: Session, filename: str, admin_username: str) -> dict:
     return result
 
 
-def delete_backup(db: Session, filename: str, admin_username: str) -> dict:
+def delete_backup(db: Session, filename: str, admin_username: str, db_service=shadow_db_service) -> dict:
     """Permanently removes a backup file — irreversible, so it's audited
     the same as restore, unlike the simpler list/create/download
     passthroughs."""
     pseudo_query = f"DELETE BACKUP {filename}"
     try:
-        result = shadow_db_service.delete_backup(filename)
+        result = db_service.delete_backup(filename)
     except Exception as e:
         _audit(db, admin_username, pseudo_query, False, None, str(e))
         raise

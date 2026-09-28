@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Search, Inbox } from "react-bootstrap-icons";
 import { api, ApiError } from "@/api";
-import type { ColumnInfo, Row, TableInfo } from "@/api";
+import type { AppTarget, ColumnInfo, Row, TableInfo } from "@/api";
 import { Pagination } from "@/components/ui/Pagination/Pagination";
 import { formatBytes, isBinaryPlaceholder, rowKey } from "./dbHelpers";
 import { BackupRowViewer } from "./BackupRowViewer";
@@ -37,7 +37,7 @@ function renderCell(col: ColumnInfo, value: unknown) {
 // that can mutate anything (no "Add row", no RowEditorPanel, no dirty-state
 // guard on switching tables), so it's a good deal simpler than the live
 // version: viewing a row is just a lookup, never something you could lose.
-export function BackupTableBrowser({ filename }: { filename: string }) {
+export function BackupTableBrowser({ app, filename }: { app: AppTarget; filename: string }) {
   const [tables, setTables] = useState<TableInfo[]>([]);
   const [tablesLoading, setTablesLoading] = useState(true);
   const [tablesError, setTablesError] = useState<string | null>(null);
@@ -68,7 +68,7 @@ export function BackupTableBrowser({ filename }: { filename: string }) {
     async function load() {
       setTablesLoading(true);
       try {
-        const list = await api.database.listBackupTables(filename);
+        const list = await api.database.listBackupTables(app, filename);
         if (cancelled) return;
         setTables(list);
         setTablesError(null);
@@ -82,7 +82,7 @@ export function BackupTableBrowser({ filename }: { filename: string }) {
     load();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filename]);
+  }, [app, filename]);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -96,7 +96,7 @@ export function BackupTableBrowser({ filename }: { filename: string }) {
     if (!selectedTableName) return;
     setRowsLoading(true);
     try {
-      const result = await api.database.getBackupRows(filename, selectedTableName, page, pageSize, search);
+      const result = await api.database.getBackupRows(app, filename, selectedTableName, page, pageSize, search);
       setColumns(result.columns);
       setRows(result.rows);
       setTotal(result.total);
@@ -113,7 +113,7 @@ export function BackupTableBrowser({ filename }: { filename: string }) {
   useEffect(() => {
     loadRows();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTableName, page, pageSize, search]);
+  }, [app, selectedTableName, page, pageSize, search]);
 
   function selectTable(name: string) {
     if (name === selectedTableName) return;

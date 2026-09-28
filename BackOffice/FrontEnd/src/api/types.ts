@@ -1,3 +1,9 @@
+// ─── App targeting ──────────────────────────────────────────────────────────
+// Which co-located app a Database/Deploy/Server/Logs request is about — used
+// as a path segment ("/database/{app}/...") so one implementation on both
+// sides serves both Shadow V2 and BackOffice itself.
+export type AppTarget = "shadow" | "backoffice";
+
 export interface AuthUser {
   id: number;
   name: string;

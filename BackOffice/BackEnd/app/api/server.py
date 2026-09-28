@@ -11,9 +11,11 @@ from app.core.exceptions import NotFoundError
 from app.db.session import SessionLocal
 from app.models.restart_log import RestartLogDBM
 from app.schemas.server import RestartResponse, ServerHealthResponse
-from app.services import auth_service, restart_service, shadow_client, shadow_db_service, worker_service
+from app.services import auth_service, backoffice_db_service, restart_service, shadow_client, shadow_db_service, worker_service
 
 logger = logging.getLogger(__name__)
+
+_LOG_SERVICES = {"shadow": shadow_db_service, "backoffice": backoffice_db_service}
 
 router = APIRouter(prefix=ENDPOINTS.SERVER.PREFIX, tags=["Server"])
 
@@ -26,34 +28,34 @@ _HEALTH_PUSH_INTERVAL_S = 5.0
 _HEALTH_WS_MAX_DURATION_S = 20 * 60
 
 
-def _build_health_response() -> ServerHealthResponse:
+def _build_health_response(app: str) -> ServerHealthResponse:
     """The full health snapshot — shared by the plain GET (Dashboard's
     one-time fetch on load) and the websocket push below (the Server
     page's live view), so there's exactly one place assembling this."""
-    shadow_health = shadow_client.check_health()
+    target_health = shadow_client.check_target_health(app)
     host = worker_service.get_host_stats()
     battery = worker_service.get_battery() or {}
-    workers = worker_service.get_workers()
+    workers = worker_service.get_workers(app)
     with SessionLocal() as db:
-        server_uptime_seconds = restart_service.get_server_uptime_seconds(db)
+        server_uptime_seconds = restart_service.get_server_uptime_seconds(db, app)
 
     return ServerHealthResponse(
-        reachable=shadow_health is not None,
-        message=(shadow_health or {}).get("message"),
+        reachable=target_health is not None,
+        message=(target_health or {}).get("message"),
         battery_percent=battery.get("percentage"),
         battery_status=battery.get("status"),
         battery_temperature_c=battery.get("temperature"),
         battery_plugged=battery.get("plugged"),
         workers=workers,
-        expected_workers=(shadow_health or {}).get("expected_workers"),
+        expected_workers=(target_health or {}).get("expected_workers"),
         server_uptime_seconds=server_uptime_seconds,
         **host,
     )
 
 
 @router.get(ENDPOINTS.SERVER.HEALTH, response_model=ServerHealthResponse)
-def get_health(_admin: CurrentAdmin):
-    return _build_health_response()
+def get_health(app: str, _admin: CurrentAdmin):
+    return _build_health_response(app)
 
 
 def _ws_bearer_token(websocket: WebSocket) -> str | None:
@@ -91,7 +93,7 @@ def _authenticate_ws(token: str | None) -> bool:
 
 
 @router.websocket(ENDPOINTS.SERVER.HEALTH_WS)
-async def health_ws(websocket: WebSocket):
+async def health_ws(websocket: WebSocket, app: str):
     """Pushes a health snapshot every few seconds instead of the Server
     page polling GET /server/health on a timer — every poll ran real
     psutil process-scanning plus a request to BackEnd_V2 regardless of
@@ -121,7 +123,7 @@ async def health_ws(websocket: WebSocket):
             # _build_health_response() is a blocking call (psutil, subprocess) —
             # run it off the event loop so it can't stall every other request
             # this process is handling while it waits on a slow/hanging one.
-            snapshot = await asyncio.to_thread(_build_health_response)
+            snapshot = await asyncio.to_thread(_build_health_response, app)
             await websocket.send_text(snapshot.model_dump_json())
 
             done, _ = await asyncio.wait({recv_task}, timeout=_HEALTH_PUSH_INTERVAL_S)
@@ -140,8 +142,8 @@ async def health_ws(websocket: WebSocket):
 
 
 @router.get(ENDPOINTS.SERVER.WORKERS)
-def get_workers(_admin: CurrentAdmin):
-    return worker_service.get_workers()
+def get_workers(app: str, _admin: CurrentAdmin):
+    return worker_service.get_workers(app)
 
 
 # How often log_ws polls server.log for newly appended bytes, and how long
@@ -154,7 +156,7 @@ _LOG_SEED_LINES = 50
 
 
 @router.websocket(ENDPOINTS.SERVER.LOG_WS)
-async def log_ws(websocket: WebSocket):
+async def log_ws(websocket: WebSocket, app: str):
     """Tails BackEnd_V2's server.log directly off disk — both apps are
     co-located on the same device (see SHADOW_BACKEND_DIR), so there's no
     reason to hop through a second websocket (BackEnd_V2's own former
@@ -172,14 +174,16 @@ async def log_ws(websocket: WebSocket):
 
     recv_task = asyncio.ensure_future(websocket.receive_text())
     try:
-        if not await asyncio.to_thread(shadow_db_service.log_exists):
-            await websocket.send_text("server.log not found.")
+        log_service = _LOG_SERVICES.get(app, shadow_db_service)
+        log_filename = "backoffice.log" if app == "backoffice" else "server.log"
+        if not await asyncio.to_thread(log_service.log_exists):
+            await websocket.send_text(f"{log_filename} not found.")
             return
 
-        seed_lines = await asyncio.to_thread(shadow_db_service.read_log_tail, _LOG_SEED_LINES)
+        seed_lines = await asyncio.to_thread(log_service.read_log_tail, _LOG_SEED_LINES)
         for line in seed_lines:
             await websocket.send_text(line)
-        position = await asyncio.to_thread(shadow_db_service.log_size)
+        position = await asyncio.to_thread(log_service.log_size)
 
         elapsed = 0.0
         while elapsed < _LOG_WS_MAX_DURATION_S:
@@ -189,7 +193,7 @@ async def log_ws(websocket: WebSocket):
                 recv_task = asyncio.ensure_future(websocket.receive_text())  # an inert message — keep waiting
             elapsed += _LOG_WS_TICK_S
 
-            new_text, position = await asyncio.to_thread(shadow_db_service.read_log_since, position)
+            new_text, position = await asyncio.to_thread(log_service.read_log_since, position)
             if new_text:
                 for line in new_text.splitlines():
                     await websocket.send_text(line)
@@ -204,10 +208,11 @@ async def log_ws(websocket: WebSocket):
 
 
 @router.get(ENDPOINTS.SERVER.RESTART_HISTORY, response_model=list[RestartResponse])
-def get_restart_history(db: DbSession, _admin: CurrentAdmin, page: int = 1, page_size: int = 10):
+def get_restart_history(app: str, db: DbSession, _admin: CurrentAdmin, page: int = 1, page_size: int = 10):
     offset = max(page - 1, 0) * page_size
     return (
         db.query(RestartLogDBM)
+        .filter(RestartLogDBM.app == app)
         .order_by(RestartLogDBM.started_at.desc())
         .offset(offset)
         .limit(page_size)
@@ -216,14 +221,14 @@ def get_restart_history(db: DbSession, _admin: CurrentAdmin, page: int = 1, page
 
 
 @router.post(ENDPOINTS.SERVER.RESTART, response_model=RestartResponse)
-def restart(background_tasks: BackgroundTasks, db: DbSession, admin: CurrentAdmin):
-    log = restart_service.create_restart_record(db, admin.email)
-    background_tasks.add_task(restart_service.run_restart_job, log.id)
+def restart(app: str, background_tasks: BackgroundTasks, db: DbSession, admin: CurrentAdmin):
+    log = restart_service.create_restart_record(db, admin.email, app)
+    background_tasks.add_task(restart_service.run_restart_job, log.id, app)
     return log
 
 
 @router.get(ENDPOINTS.SERVER.RESTART_DETAIL, response_model=RestartResponse)
-def get_restart(restart_id: int, db: DbSession, _admin: CurrentAdmin):
+def get_restart(app: str, restart_id: int, db: DbSession, _admin: CurrentAdmin):
     log = db.get(RestartLogDBM, restart_id)
     if log is None:
         raise NotFoundError("Restart record not found.")

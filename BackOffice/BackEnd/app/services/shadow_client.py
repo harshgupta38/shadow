@@ -36,22 +36,44 @@ def check_health() -> dict | None:
         return None
 
 
-def wait_for_restart(timeout: float = 60.0, interval: float = 2.0) -> bool:
+def check_backoffice_health() -> dict | None:
+    """Confirms BackOffice itself is reachable, via the Control Server's own
+    /health/backoffice probe rather than asking this process directly —
+    "am I up" is tautological when this very code has to run to answer it.
+    The Control Server is the one genuinely external vantage point available
+    for that question.
+    """
+    try:
+        resp = _client.get(f"{settings.control_server_url}/health/backoffice", timeout=5.0)
+    except httpx.RequestError:
+        return None
+    if resp.status_code != 200:
+        return None
+    try:
+        return resp.json()
+    except ValueError:
+        return None
+
+
+def check_target_health(app: str) -> dict | None:
+    return check_backoffice_health() if app == "backoffice" else check_health()
+
+
+def wait_for_restart(app: str = "shadow", timeout: float = 60.0, interval: float = 2.0) -> bool:
     """Best-effort confirmation that a restart actually happened: polls
-    /health until it's seen going down and then coming back up. The Control
-    Server's response confirms the restart_server.sh invocation itself
+    the target's health until it's seen going down and then coming back up.
+    The Control Server's response confirms the restart script itself
     exited cleanly, but not that uvicorn actually came back up — this is
-    the real confirmation of that, without modifying BackEnd_V2 itself.
+    the real confirmation of that, without modifying either app itself.
     """
     deadline = time.monotonic() + timeout
     seen_down = False
     while time.monotonic() < deadline:
-        if check_health() is None:
+        if check_target_health(app) is None:
             seen_down = True
         elif seen_down:
             return True
         time.sleep(interval)
     # Never observed a drop — the restart may have been faster than our poll
     # interval, or never actually happened. Fall back to a final health check.
-    return check_health() is not None
-
+    return check_target_health(app) is not None

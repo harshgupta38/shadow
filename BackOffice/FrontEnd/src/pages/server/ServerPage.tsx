@@ -10,7 +10,7 @@ import {
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { StatCard } from "@/components/ui/StatCard/StatCard";
 import { api, ApiError } from "@/api";
-import type { RestartLog, ServerHealth } from "@/api";
+import type { AppTarget, RestartLog, ServerHealth } from "@/api";
 import { formatDateTime, statusLabel, statusVariant, formatUptime } from "@/lib/format";
 
 const RESTART_POLL_MS = 1500;
@@ -30,7 +30,7 @@ function fmtPercent(n: number | null): string {
   return n == null ? "Unavailable" : `${n.toFixed(0)}%`;
 }
 
-export function ServerPage() {
+export function ServerPage({ app }: { app: AppTarget }) {
   const [health, setHealth] = useState<ServerHealth | null>(null);
   const [healthError, setHealthError] = useState<string | null>(null);
   const [history, setHistory] = useState<RestartLog[]>([]);
@@ -60,7 +60,7 @@ export function ServerPage() {
   const healthWsStoppedRef = useRef(false);
 
   function connectHealthWs() {
-    const ws = new WebSocket(api.server.healthWsUrl(), api.server.healthWsProtocols());
+    const ws = new WebSocket(api.server.healthWsUrl(app), api.server.healthWsProtocols());
     healthWsRef.current = ws;
 
     ws.onopen = () => {
@@ -98,7 +98,7 @@ export function ServerPage() {
 
   async function loadHistory() {
     try {
-      const list = await api.server.restartHistory(1, 10);
+      const list = await api.server.restartHistory(app, 1, 10);
       setHistory(list);
     } catch {
       // the stat cards / health panel already surface a connectivity error
@@ -114,7 +114,8 @@ export function ServerPage() {
       healthWsRef.current?.close();
       if (restartPollRef.current) clearInterval(restartPollRef.current);
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [app]);
 
   useEffect(() => {
     if (logBodyRef.current) logBodyRef.current.scrollTop = logBodyRef.current.scrollHeight;
@@ -124,7 +125,7 @@ export function ServerPage() {
     if (restartPollRef.current) clearInterval(restartPollRef.current);
     restartPollRef.current = setInterval(async () => {
       try {
-        const record = await api.server.restartDetail(id);
+        const record = await api.server.restartDetail(app, id);
         setActiveJob(record);
         if (record.status !== "running") {
           clearInterval(restartPollRef.current!);
@@ -141,7 +142,7 @@ export function ServerPage() {
   async function handleRestart() {
     setShowRestartModal(false);
     try {
-      const record = await api.server.restart();
+      const record = await api.server.restart(app);
       setActiveJob(record);
       pollRestart(record.id);
     } catch (err) {
@@ -154,7 +155,11 @@ export function ServerPage() {
       <PageHeader
         icon={<CpuFill size={20} />}
         title="Server"
-        subtitle="Monitor and manage the Shadow V2 host — a Termux server running on Android."
+        subtitle={
+          app === "shadow"
+            ? "Monitor and manage the Shadow V2 host — a Termux server running on Android."
+            : "Monitor and manage BackOffice itself, co-located on the same host."
+        }
         actions={[{
           key: "restart-server",
           label: "Restart Server",
@@ -354,7 +359,7 @@ export function ServerPage() {
         </Modal.Header>
         <Modal.Body>
           <p className="mb-0" style={{ fontSize: "0.88rem", color: "var(--jv-muted)" }}>
-            This runs restart_server.sh directly (no code changes are pulled). All worker
+            This runs {app === "shadow" ? "restart_server.sh" : "restart_backoffice.sh"} directly (no code changes are pulled). All worker
             processes restart together — in-flight requests may be dropped for a few seconds.
           </p>
         </Modal.Body>

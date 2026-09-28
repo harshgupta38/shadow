@@ -11,10 +11,11 @@ router = APIRouter(prefix=ENDPOINTS.DEPLOY.PREFIX, tags=["Deploy"])
 
 
 @router.get(ENDPOINTS.DEPLOY.HISTORY, response_model=list[DeploymentResponse])
-def get_history(db: DbSession, _admin: CurrentAdmin, page: int = 1, page_size: int = 10):
+def get_history(app: str, db: DbSession, _admin: CurrentAdmin, page: int = 1, page_size: int = 10):
     offset = max(page - 1, 0) * page_size
     return (
         db.query(DeploymentLogDBM)
+        .filter(DeploymentLogDBM.app == app)
         .order_by(DeploymentLogDBM.started_at.desc())
         .offset(offset)
         .limit(page_size)
@@ -23,17 +24,17 @@ def get_history(db: DbSession, _admin: CurrentAdmin, page: int = 1, page_size: i
 
 
 @router.get(ENDPOINTS.DEPLOY.COMMITS, response_model=list[CommitInfo])
-def get_commits(_admin: CurrentAdmin, limit: int = 10, branch: str | None = None):
-    return deploy_service.list_recent_commits(limit, branch)
+def get_commits(app: str, _admin: CurrentAdmin, limit: int = 10, branch: str | None = None):
+    return deploy_service.list_recent_commits(limit, branch, app)
 
 
 @router.get(ENDPOINTS.DEPLOY.BRANCHES, response_model=BranchesResponse)
-def get_branches(_admin: CurrentAdmin):
-    return deploy_service.list_branches()
+def get_branches(app: str, _admin: CurrentAdmin):
+    return deploy_service.list_branches(app)
 
 
 @router.get(ENDPOINTS.DEPLOY.DETAIL, response_model=DeploymentResponse)
-def get_deployment(deployment_id: int, db: DbSession, _admin: CurrentAdmin):
+def get_deployment(app: str, deployment_id: int, db: DbSession, _admin: CurrentAdmin):
     log = db.get(DeploymentLogDBM, deployment_id)
     if log is None:
         raise NotFoundError("Deployment not found.")
@@ -42,6 +43,7 @@ def get_deployment(deployment_id: int, db: DbSession, _admin: CurrentAdmin):
 
 @router.post(ENDPOINTS.DEPLOY.NEW, response_model=DeploymentResponse)
 def new_deployment(
+    app: str,
     body: NewDeploymentRequest,
     background_tasks: BackgroundTasks,
     db: DbSession,
@@ -49,18 +51,19 @@ def new_deployment(
 ):
     git_ref = body.git_ref.strip()
     label = body.label.strip() or git_ref
-    log = deploy_service.create_deployment_record(db, git_ref, label, body.description, body.target, admin.email)
-    background_tasks.add_task(deploy_service.run_deploy_job, log.id, git_ref, body.target)
+    log = deploy_service.create_deployment_record(db, git_ref, label, body.description, body.target, admin.email, app)
+    background_tasks.add_task(deploy_service.run_deploy_job, log.id, git_ref, body.target, app)
     return log
 
 
 @router.post(ENDPOINTS.DEPLOY.ROLLBACK, response_model=DeploymentResponse)
 def rollback(
+    app: str,
     body: RollbackRequest,
     background_tasks: BackgroundTasks,
     db: DbSession,
     admin: CurrentAdmin,
 ):
-    log = deploy_service.create_rollback_record(db, body.commit_sha, body.description, admin.email)
-    background_tasks.add_task(deploy_service.run_rollback_job, log.id, body.commit_sha)
+    log = deploy_service.create_rollback_record(db, body.commit_sha, body.description, admin.email, app)
+    background_tasks.add_task(deploy_service.run_rollback_job, log.id, body.commit_sha, app)
     return log

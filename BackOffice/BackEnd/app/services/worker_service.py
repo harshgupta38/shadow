@@ -62,17 +62,21 @@ def _backend_port() -> int:
     return urlparse(settings.shadow_backend_url).port or 8000
 
 
-def _find_arbiter() -> psutil.Process | None:
-    """Finds BackEnd_V2's uvicorn arbiter by matching its actual command
-    line — the same information restart_server.sh uses to launch it in
-    the first place, so there's nothing else (a pidfile path, or
-    process-group inheritance surviving setsid/nohup/multiprocessing's
-    spawn intact) that needs to independently agree for this to work.
-    Matched on port specifically: BackOffice's own arbiter is also
+def _port_for(app: str) -> int:
+    return settings.backoffice_port if app == "backoffice" else _backend_port()
+
+
+def _find_arbiter(app: str = "shadow") -> psutil.Process | None:
+    """Finds the given app's uvicorn arbiter by matching its actual command
+    line — the same information restart_server.sh/restart_backoffice.sh use
+    to launch it in the first place, so there's nothing else (a pidfile
+    path, or process-group inheritance surviving setsid/nohup/
+    multiprocessing's spawn intact) that needs to independently agree for
+    this to work. Matched on port specifically: both apps run
     "uvicorn app.main:app", co-located on the same device — the port is
     what actually tells the two apart.
     """
-    port_marker = f"--port {_backend_port()}"
+    port_marker = f"--port {_port_for(app)}"
     for proc in psutil.process_iter(["pid", "cmdline"]):
         try:
             cmdline = " ".join(proc.info["cmdline"] or [])
@@ -144,7 +148,7 @@ def _worker_uptime(proc: psutil.Process) -> int | None:
         return None
 
 
-def get_workers() -> list[dict]:
+def get_workers(app: str = "shadow") -> list[dict]:
     """Every worker the uvicorn arbiter forked — found via a manual
     pid/ppid walk (see _descendant_pids), not psutil's own
     Process.children(), and not process-group membership either. Both of
@@ -163,9 +167,9 @@ def get_workers() -> list[dict]:
     request itself, so counting it as one more "worker" made a perfectly
     healthy server show up as e.g. "5 of 4" against expected_workers.
     """
-    arbiter = _find_arbiter()
+    arbiter = _find_arbiter(app)
     if arbiter is None:
-        logger.warning("worker_service: no BackEnd_V2 uvicorn arbiter found on port %s.", _backend_port())
+        logger.warning("worker_service: no %s uvicorn arbiter found on port %s.", app, _port_for(app))
         return []
 
     pids = _descendant_pids(arbiter.pid, _ppid_map()) - {arbiter.pid}

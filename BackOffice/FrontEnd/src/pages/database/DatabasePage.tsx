@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { CloudArrowDownFill, DatabaseFill, Grid3x3GapFill, Terminal, XLg } from "react-bootstrap-icons";
+import type { AppTarget } from "@/api";
 import { TableBrowser } from "./TableBrowser";
 import { SqlConsole } from "./SqlConsole";
 import { BackupsTab } from "./BackupsTab";
@@ -16,7 +17,7 @@ function isBackupTab(tab: DbTab, filename?: string): tab is { kind: "backup"; fi
 // database tools (row grid, SQL console) need the full viewport to be
 // usable, unlike every other page in the app. See .app-content-full /
 // .db-page-full in theme.scss and the route-based switch in AppLayout.
-export function DatabasePage() {
+export function DatabasePage({ app }: { app: AppTarget }) {
   const [tab, setTab] = useState<DbTab>("main");
   // Filenames currently open as their own tab — separate from `tab` (which
   // of them, if any, is the active one) so a closed-but-not-active backup
@@ -103,10 +104,10 @@ export function DatabasePage() {
       </div>
 
       <div className="db-tab-panel">
-        {tab === "main" && <TableBrowser />}
-        {tab === "query" && <SqlConsole />}
-        {tab === "backups" && <BackupsTab onOpenBackup={openBackupTab} />}
-        {isBackupTab(tab) && <BackupTableBrowser filename={tab.filename} />}
+        {tab === "main" && <TableBrowser app={app} />}
+        {tab === "query" && <SqlConsole app={app} />}
+        {tab === "backups" && <BackupsTab app={app} onOpenBackup={openBackupTab} />}
+        {isBackupTab(tab) && <BackupTableBrowser app={app} filename={tab.filename} />}
       </div>
     </div>
   );

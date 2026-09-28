@@ -20,9 +20,9 @@ export function DashboardPage() {
     async function load() {
       setLoading(true);
       const [deploysResult, healthResult, restartResult] = await Promise.allSettled([
-        api.deploy.history(1, 5),
-        api.server.health(),
-        api.server.restartHistory(1, 1),
+        api.deploy.history("shadow", 1, 5),
+        api.server.health("shadow"),
+        api.server.restartHistory("shadow", 1, 1),
       ]);
 
       if (cancelled) return;

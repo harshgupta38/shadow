@@ -35,6 +35,12 @@ class Settings(BaseSettings):
     shadow_backend_dir: str = "~/shadow/BackEnd_V2"
     shadow_backend_url: str = "http://127.0.0.1:8000"
 
+    # This process's own port — used only to find ITS OWN uvicorn arbiter
+    # in worker_service.py the same way it already finds BackEnd_V2's (by
+    # matching "--port {this}" in a process's cmdline). Must match whatever
+    # restart_backoffice.sh actually launches with.
+    backoffice_port: int = 8100
+
     # Filenames/subpaths under shadow_backend_dir — broken out as their own
     # settings (rather than hardcoded in shadow_db_service.py) only so an
     # unusual deployment can override them without a code change; BackEnd_V2
@@ -44,6 +50,16 @@ class Settings(BaseSettings):
     shadow_db_backup_subdir: str = "backups"
     shadow_db_backup_limit: int = 30
     shadow_server_log_filename: str = "server.log"
+
+    # ─── BackOffice self-targeting ────────────────────────────────────────
+    # Everything below mirrors the shadow_* settings above but for
+    # BackOffice's OWN backoffice.db/backups/log — resolved relative to
+    # backoffice.db's own path (see backoffice_db_service._db_path()), not a
+    # separate directory setting, since this process already knows where its
+    # own database file is.
+    backoffice_db_backup_subdir: str = "backups"
+    backoffice_db_backup_limit: int = 30
+    backoffice_log_filename: str = "backoffice.log"
 
     # Shared secret for BackOffice's OWN /admin/sql and /admin/database.
     admin_secret: str = _INSECURE_ADMIN_SECRET

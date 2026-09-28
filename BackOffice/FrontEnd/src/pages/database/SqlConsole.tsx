@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Terminal, Trash } from "react-bootstrap-icons";
 import { api, ApiError } from "@/api";
-import type { Row } from "@/api";
+import type { AppTarget, Row } from "@/api";
 import { computePageWindow } from "@/components/ui/Pagination/Pagination";
 
 const PAGE_SIZE = 15;
@@ -28,12 +28,20 @@ interface HistoryEntry {
   pageLoading: boolean;
 }
 
-const EXAMPLE_QUERIES = [
-  "SELECT * FROM users;",
-  "SELECT * FROM goals LIMIT 5;",
-  "SELECT COUNT(*) FROM tasks;",
-  "SELECT title, status FROM milestones;",
-];
+const EXAMPLE_QUERIES: Record<AppTarget, string[]> = {
+  shadow: [
+    "SELECT * FROM users;",
+    "SELECT * FROM goals LIMIT 5;",
+    "SELECT COUNT(*) FROM tasks;",
+    "SELECT title, status FROM milestones;",
+  ],
+  backoffice: [
+    "SELECT * FROM admin_users;",
+    "SELECT * FROM deployment_logs ORDER BY started_at DESC LIMIT 5;",
+    "SELECT * FROM restart_logs ORDER BY started_at DESC LIMIT 5;",
+    "SELECT COUNT(*) FROM sql_audit_logs;",
+  ],
+};
 
 function ResultTable({ result, loading, onPageChange }: {
   result: RowsResult;
@@ -145,7 +153,7 @@ function ResultTable({ result, loading, onPageChange }: {
   );
 }
 
-export function SqlConsole() {
+export function SqlConsole({ app }: { app: AppTarget }) {
   const [input, setInput] = useState("");
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [queryLog, setQueryLog] = useState<string[]>([]);
@@ -171,7 +179,7 @@ export function SqlConsole() {
 
     const start = performance.now();
     try {
-      const res = await api.database.runQuery(query, 1, PAGE_SIZE);
+      const res = await api.database.runQuery(app, query, 1, PAGE_SIZE);
       const ms = performance.now() - start;
       setHistory((prev) => prev.map((e) => (
         e.id === id
@@ -197,7 +205,7 @@ export function SqlConsole() {
 
     const start = performance.now();
     try {
-      const res = await api.database.runQuery(entry.query, page, PAGE_SIZE);
+      const res = await api.database.runQuery(app, entry.query, page, PAGE_SIZE);
       const ms = performance.now() - start;
       setHistory((prev) => prev.map((e) => (
         e.id === entry.id
@@ -267,7 +275,7 @@ export function SqlConsole() {
       <div className="sql-console-body" ref={bodyRef} onClick={handleBodyClick}>
         {history.length === 0 && (
           <div className="sql-console-hint">
-            Type a SQL query below and press Enter to run it against shadow.db. Try one of the examples below to get started.
+            Type a SQL query below and press Enter to run it against {app === "shadow" ? "shadow.db" : "backoffice.db"}. Try one of the examples below to get started.
           </div>
         )}
         {history.map((entry) => (
@@ -309,7 +317,7 @@ export function SqlConsole() {
       </div>
 
       <div className="sql-console-examples">
-        {EXAMPLE_QUERIES.map((q) => (
+        {EXAMPLE_QUERIES[app].map((q) => (
           <button key={q} type="button" className="sql-console-example-chip" onClick={() => setInput(q)}>
             {q}
           </button>

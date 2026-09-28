@@ -1,26 +1,26 @@
 import { http } from "./client";
 import { ENDPOINTS } from "@/constant/bo-endpoints";
-import type { BranchesResponse, CommitInfo, Deployment, NewDeploymentRequest, RollbackRequest } from "./types";
+import type { AppTarget, BranchesResponse, CommitInfo, Deployment, NewDeploymentRequest, RollbackRequest } from "./types";
 
 export const deployApi = {
-  async history(page: number, pageSize: number): Promise<Deployment[]> {
-    return http.get<Deployment[]>(ENDPOINTS.DEPLOY.HISTORY, {
+  async history(app: AppTarget, page: number, pageSize: number): Promise<Deployment[]> {
+    return http.get<Deployment[]>(ENDPOINTS.DEPLOY.history(app), {
       params: { page, page_size: pageSize },
     });
   },
-  async commits(limit = 10, branch?: string): Promise<CommitInfo[]> {
-    return http.get<CommitInfo[]>(ENDPOINTS.DEPLOY.COMMITS, { params: { limit, branch } });
+  async commits(app: AppTarget, limit = 10, branch?: string): Promise<CommitInfo[]> {
+    return http.get<CommitInfo[]>(ENDPOINTS.DEPLOY.commits(app), { params: { limit, branch } });
   },
-  async branches(): Promise<BranchesResponse> {
-    return http.get<BranchesResponse>(ENDPOINTS.DEPLOY.BRANCHES);
+  async branches(app: AppTarget): Promise<BranchesResponse> {
+    return http.get<BranchesResponse>(ENDPOINTS.DEPLOY.branches(app));
   },
-  async detail(id: number): Promise<Deployment> {
-    return http.get<Deployment>(ENDPOINTS.DEPLOY.detail(id));
+  async detail(app: AppTarget, id: number): Promise<Deployment> {
+    return http.get<Deployment>(ENDPOINTS.DEPLOY.detail(app, id));
   },
-  async trigger(data: NewDeploymentRequest): Promise<Deployment> {
-    return http.post<Deployment>(ENDPOINTS.DEPLOY.NEW, data);
+  async trigger(app: AppTarget, data: NewDeploymentRequest): Promise<Deployment> {
+    return http.post<Deployment>(ENDPOINTS.DEPLOY.new(app), data);
   },
-  async rollback(data: RollbackRequest): Promise<Deployment> {
-    return http.post<Deployment>(ENDPOINTS.DEPLOY.ROLLBACK, data);
+  async rollback(app: AppTarget, data: RollbackRequest): Promise<Deployment> {
+    return http.post<Deployment>(ENDPOINTS.DEPLOY.rollback(app), data);
   },
 };

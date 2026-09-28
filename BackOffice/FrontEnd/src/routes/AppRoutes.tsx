@@ -60,16 +60,20 @@ export function AppRoutes() {
         <Route element={<RequireAuth />}>
           <Route element={<AppLayout />}>
             <Route path={ROUTES.HOME}     element={<DashboardPage />} />
-            <Route path={ROUTES.DEPLOY}   element={<DeployPage />} />
-            <Route path={ROUTES.DATABASE} element={<DatabasePage />} />
-            <Route path={ROUTES.SERVER}   element={<ServerPage />} />
+            <Route path={ROUTES.DEPLOY}   element={<DeployPage app="shadow" />} />
+            <Route path={ROUTES.DATABASE} element={<DatabasePage app="shadow" />} />
+            <Route path={ROUTES.SERVER}   element={<ServerPage app="shadow" />} />
 
             <Route path={ROUTES.SHADOW_USERS}      element={<ShadowUsersPage />} />
-            <Route path={ROUTES.SHADOW_DATABASE}   element={<DatabasePage />} />
-            <Route path={ROUTES.SHADOW_DEPLOYMENT} element={<DeployPage />} />
-            <Route path={ROUTES.SHADOW_SERVER}     element={<ServerPage />} />
-            <Route path={ROUTES.SHADOW_LOGS}       element={<LogsPage />} />
-            <Route path={ROUTES.BACKOFFICE_USERS}  element={<BackOfficeUsersPage />} />
+            <Route path={ROUTES.SHADOW_DATABASE}   element={<DatabasePage app="shadow" />} />
+            <Route path={ROUTES.SHADOW_DEPLOYMENT} element={<DeployPage app="shadow" />} />
+            <Route path={ROUTES.SHADOW_SERVER}     element={<ServerPage app="shadow" />} />
+            <Route path={ROUTES.SHADOW_LOGS}       element={<LogsPage app="shadow" />} />
+            <Route path={ROUTES.BACKOFFICE_USERS}      element={<BackOfficeUsersPage />} />
+            <Route path={ROUTES.BACKOFFICE_DATABASE}   element={<DatabasePage app="backoffice" />} />
+            <Route path={ROUTES.BACKOFFICE_DEPLOYMENT} element={<DeployPage app="backoffice" />} />
+            <Route path={ROUTES.BACKOFFICE_SERVER}     element={<ServerPage app="backoffice" />} />
+            <Route path={ROUTES.BACKOFFICE_LOGS}       element={<LogsPage app="backoffice" />} />
           </Route>
         </Route>
 

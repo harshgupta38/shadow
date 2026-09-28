@@ -12,7 +12,7 @@ import {
 } from "react-bootstrap-icons";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { api, ApiError } from "@/api";
-import type { CommitInfo, Deployment, DeployTarget } from "@/api";
+import type { AppTarget, CommitInfo, Deployment, DeployTarget } from "@/api";
 import { formatDateTime, formatRelative, statusLabel, statusVariant } from "@/lib/format";
 
 const PAGE_SIZE = 5;
@@ -35,7 +35,7 @@ interface DeployPrefill {
   target?: DeployTarget;
 }
 
-export function DeployPage() {
+export function DeployPage({ app }: { app: AppTarget }) {
   const [branches, setBranches] = useState<string[]>([]);
   // Empty means "not resolved (yet)" — shown as a genuinely blank
   // selection, never a placeholder like "current branch", since the
@@ -98,8 +98,8 @@ export function DeployPage() {
   async function loadAll() {
     setLoading(true);
     const [branchesResult, deploysResult] = await Promise.allSettled([
-      api.deploy.branches(),
-      api.deploy.history(1, 50),
+      api.deploy.branches(app),
+      api.deploy.history(app, 1, 50),
     ]);
     if (branchesResult.status === "fulfilled") {
       setBranches(branchesResult.value.branches);
@@ -128,7 +128,7 @@ export function DeployPage() {
       return;
     }
     try {
-      setCommits(await api.deploy.commits(COMMIT_LIMIT, selectedBranch));
+      setCommits(await api.deploy.commits(app, COMMIT_LIMIT, selectedBranch));
     } catch {
       // The section just shows "no commit history available" — the
       // top-level loadError already covers a fully unreachable API.
@@ -141,7 +141,8 @@ export function DeployPage() {
       if (pollRef.current) clearInterval(pollRef.current);
       if (revealRef.current) clearInterval(revealRef.current);
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [app]);
 
   useEffect(() => {
     loadCommits();
@@ -171,7 +172,7 @@ export function DeployPage() {
     if (pollRef.current) clearInterval(pollRef.current);
     pollRef.current = setInterval(async () => {
       try {
-        const record = await api.deploy.detail(id);
+        const record = await api.deploy.detail(app, id);
         setActiveJob(record);
         if (record.status !== "running") {
           clearInterval(pollRef.current!);
@@ -213,7 +214,7 @@ export function DeployPage() {
     const target = confirmRollback;
     setConfirmRollback(null);
     try {
-      const record = await api.deploy.rollback({
+      const record = await api.deploy.rollback(app, {
         commit_sha: target.commit_sha!,
         description: `Rollback to deployment #${target.id} (${target.label})`,
       });
@@ -230,7 +231,7 @@ export function DeployPage() {
     setFormSubmitting(true);
     setFormError(null);
     try {
-      const record = await api.deploy.trigger({
+      const record = await api.deploy.trigger(app, {
         git_ref: formRef.trim(),
         label: formLabel.trim(),
         description: formDesc.trim(),
@@ -253,7 +254,7 @@ export function DeployPage() {
       <PageHeader
         icon={<CloudArrowUpFill size={20} />}
         title="Deployments"
-        subtitle="Manage and trigger deployments for Shadow V2."
+        subtitle={app === "shadow" ? "Manage and trigger deployments for Shadow V2." : "Manage and trigger deployments for BackOffice itself."}
         actions={[{
           key: "new-deployment",
           label: "New Deployment",

@@ -25,6 +25,11 @@ class DeploymentLogDBM(Base):
     description: Mapped[str] = mapped_column(Text, default="", nullable=False)
     target: Mapped[str] = mapped_column(String(16), default="Backend", nullable=False)
 
+    # Which co-located app this deploy/rollback was against — "shadow" or
+    # "backoffice". Added via ensure_columns (see db/session.py) for
+    # existing rows; new rows always set it explicitly.
+    app: Mapped[str] = mapped_column(String(16), default="shadow", server_default="shadow", nullable=False)
+
     kind: Mapped[str] = mapped_column(String(16), nullable=False)  # "deploy" | "rollback"
     git_ref: Mapped[str] = mapped_column(String(255), nullable=False)  # branch ref or commit sha requested
     commit_sha: Mapped[str | None] = mapped_column(String(64), nullable=True)  # resolved HEAD once known

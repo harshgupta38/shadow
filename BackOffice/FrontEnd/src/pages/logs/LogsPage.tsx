@@ -1,6 +1,7 @@
 import { memo, useEffect, useRef, useState } from "react";
 import { PauseFill, PlayFill, Terminal } from "react-bootstrap-icons";
 import { api } from "@/api";
+import type { AppTarget } from "@/api";
 import { parseAnsiLine } from "@/lib/ansi";
 
 // Keeps memory/DOM size bounded on a long-running session — a real
@@ -30,7 +31,7 @@ const LogLine = memo(function LogLine({ line }: { line: string }) {
 // terminal needs the full viewport, same reasoning as DatabasePage. See
 // .app-content-full / .logs-page-full in theme.scss and the route-based
 // switch in AppLayout.
-export function LogsPage() {
+export function LogsPage({ app }: { app: AppTarget }) {
   const [lines, setLines] = useState<string[]>([]);
   const [playing, setPlaying] = useState(false);
   const [connected, setConnected] = useState(false);
@@ -69,7 +70,7 @@ export function LogsPage() {
   }, []);
 
   function connect() {
-    const ws = new WebSocket(api.server.logWsUrl(), api.server.logWsProtocols());
+    const ws = new WebSocket(api.server.logWsUrl(app), api.server.logWsProtocols());
     wsRef.current = ws;
 
     ws.onopen = () => {
@@ -144,7 +145,7 @@ export function LogsPage() {
       <div className="logs-toolbar">
         <div className="logs-toolbar-title">
           <Terminal size={14} />
-          <span>server.log · BackEnd_V2</span>
+          <span>{app === "shadow" ? "server.log · BackEnd_V2" : "backoffice.log · BackOffice"}</span>
           {playing && (
             <span className={`deploy-log-badge deploy-log-badge--${connected ? "running" : "paused"}`}>
               {connected ? "Live" : "Reconnecting…"}
@@ -164,7 +165,7 @@ export function LogsPage() {
       <div className="logs-terminal-body" ref={bodyRef} onScroll={handleScroll}>
         {!playing ? (
           <div className="logs-terminal-line logs-terminal-empty">
-            Paused — click play to start streaming server.log.
+            Paused — click play to start streaming {app === "shadow" ? "server.log" : "backoffice.log"}.
           </div>
         ) : error && lines.length === 0 ? (
           <div className="logs-terminal-line logs-terminal-empty">{error}</div>

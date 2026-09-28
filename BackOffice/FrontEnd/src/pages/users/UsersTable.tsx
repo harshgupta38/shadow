@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Search, Inbox } from "react-bootstrap-icons";
+import { Search, Inbox, TrashFill } from "react-bootstrap-icons";
 import { Pagination } from "@/components/ui/Pagination/Pagination";
 import { formatDate } from "@/lib/format";
 import type { AppUser, UserStatus } from "@/api";
@@ -41,6 +41,10 @@ interface UsersTableProps {
   // "Add User" button) — omitted entirely by pages that don't need it, such
   // as Shadow's read-only Users page.
   headerActions?: ReactNode;
+  // Adds a per-row "Delete" action (and its own Actions column) — only
+  // Shadow's Users page supplies this; BackOffice admins aren't deletable
+  // from here.
+  onDeleteUser?: (user: AppUser) => void;
 }
 
 // Reusable across every "Users" page in BackOffice — Shadow V2's users and
@@ -48,7 +52,7 @@ interface UsersTableProps {
 // only supplying its own data (see ShadowUsersPage / BackOfficeUsersPage).
 // Owns its own header row (title + search) rather than using the generic
 // PageHeader, since the search box needs to live in that same row.
-export function UsersTable({ icon, title, subtitle, users, loading, error, headerActions }: UsersTableProps) {
+export function UsersTable({ icon, title, subtitle, users, loading, error, headerActions, onDeleteUser }: UsersTableProps) {
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -117,6 +121,7 @@ export function UsersTable({ icon, title, subtitle, users, loading, error, heade
                 <th>Email</th>
                 <th>Status</th>
                 <th>Joined</th>
+                {onDeleteUser && <th className="text-end">Actions</th>}
               </tr>
             </thead>
             <tbody>
@@ -147,6 +152,19 @@ export function UsersTable({ icon, title, subtitle, users, loading, error, heade
                   <td style={{ color: "var(--jv-muted)", whiteSpace: "nowrap" }}>
                     {formatDate(u.created_at)}
                   </td>
+                  {onDeleteUser && (
+                    <td className="text-end">
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-icon btn-sm text-danger"
+                        onClick={() => onDeleteUser(u)}
+                        aria-label={`Delete ${u.name}`}
+                        title="Delete user"
+                      >
+                        <TrashFill size={14} />
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

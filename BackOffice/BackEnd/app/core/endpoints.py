@@ -54,6 +54,16 @@ class Endpoints:
         PREFIX = "/users"
         SHADOW = "/shadow"
         BACKOFFICE = "/backoffice"
+        SHADOW_DELETE = "/shadow/{user_id}"
+
+    class DELETED_DATA:
+        # Read-only browsing of deleted_data.db — the "Deleted Data" tab on
+        # the Database page. Not app-parameterized like DATABASE above: it's
+        # a single BackOffice-owned archive, not per-target.
+        PREFIX = "/deleted-data"
+        TABLES = "/tables"
+        ROWS = "/tables/{table_name}/rows"
+        ROW = "/tables/{table_name}/row"
 
 
 ENDPOINTS = Endpoints()

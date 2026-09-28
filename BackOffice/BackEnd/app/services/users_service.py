@@ -27,7 +27,7 @@ from app.core.config import settings
 from app.core.exceptions import ForbiddenError, ValidationError
 from app.models.admin_user import AdminUserDBM
 from app.schemas.users import CreateAdminRequest, UserStatus
-from app.services import shadow_db_service
+from app.services import deleted_data_service, shadow_db_service
 
 _AWAY_AFTER = timedelta(hours=1)
 _INACTIVE_AFTER = timedelta(days=7)
@@ -149,3 +149,12 @@ def create_backoffice_admin(db: Session, actor: AdminUserDBM, data: CreateAdminR
     db.commit()
     db.refresh(admin)
     return _admin_to_dict(admin)
+
+
+def delete_shadow_user(user_id: int, confirm_email: str, deleted_by: str) -> dict:
+    """Archives every row a Shadow V2 user owns (across every table that
+    references them, directly or transitively) into deleted_data.db, then
+    removes it all from the live shadow.db — see
+    deleted_data_service.archive_and_delete_user for the actual mechanics.
+    """
+    return deleted_data_service.archive_and_delete_user(user_id, confirm_email, deleted_by)

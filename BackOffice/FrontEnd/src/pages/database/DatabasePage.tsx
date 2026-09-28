@@ -1,12 +1,13 @@
 import { useState } from "react";
-import { CloudArrowDownFill, DatabaseFill, Grid3x3GapFill, Terminal, XLg } from "react-bootstrap-icons";
+import { CloudArrowDownFill, DatabaseFill, Grid3x3GapFill, PersonXFill, Terminal, XLg } from "react-bootstrap-icons";
 import type { AppTarget } from "@/api";
 import { TableBrowser } from "./TableBrowser";
 import { SqlConsole } from "./SqlConsole";
 import { BackupsTab } from "./BackupsTab";
 import { BackupTableBrowser } from "./BackupTableBrowser";
+import { DeletedDataBrowser } from "./DeletedDataBrowser";
 
-type DbTab = "main" | "query" | "backups" | { kind: "backup"; filename: string };
+type DbTab = "main" | "query" | "backups" | "deleted" | { kind: "backup"; filename: string };
 
 function isBackupTab(tab: DbTab, filename?: string): tab is { kind: "backup"; filename: string } {
   if (typeof tab === "string") return false;
@@ -63,6 +64,16 @@ export function DatabasePage({ app }: { app: AppTarget }) {
           <Terminal size={14} />
           Query
         </button>
+        {app === "backoffice" && (
+          <button
+            type="button"
+            className={`db-tab${tab === "deleted" ? " db-tab--active" : ""}`}
+            onClick={() => setTab("deleted")}
+          >
+            <PersonXFill size={14} />
+            Deleted Data
+          </button>
+        )}
         <button
           type="button"
           className={`db-tab${tab === "backups" ? " db-tab--active" : ""}`}
@@ -107,6 +118,7 @@ export function DatabasePage({ app }: { app: AppTarget }) {
         {tab === "main" && <TableBrowser app={app} />}
         {tab === "query" && <SqlConsole app={app} />}
         {tab === "backups" && <BackupsTab app={app} onOpenBackup={openBackupTab} />}
+        {tab === "deleted" && app === "backoffice" && <DeletedDataBrowser />}
         {isBackupTab(tab) && <BackupTableBrowser app={app} filename={tab.filename} />}
       </div>
     </div>

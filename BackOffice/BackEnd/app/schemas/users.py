@@ -34,3 +34,21 @@ class CreateAdminRequest(BaseModel):
     _validate_name = field_validator("name")(validate_name)
     _validate_email = field_validator("email")(validate_email_address)
     _validate_password = field_validator("password")(validate_password_strong)
+
+
+class DeleteUserRequest(BaseModel):
+    # Must match the target user's actual email, checked server-side in
+    # deleted_data_service — never trusted just because the UI's own
+    # confirmation input matched client-side.
+    confirm_email: str
+
+
+class DeleteUserResponse(BaseModel):
+    user_id: int
+    email: str
+    name: str
+    # table name -> number of rows archived and removed from shadow.db.
+    archived_rows: dict[str, int]
+    # The permanent "deleted-user-" safety backup taken just before —
+    # visible/restorable from the Backups tab.
+    backup_filename: str

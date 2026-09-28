@@ -61,6 +61,13 @@ class Settings(BaseSettings):
     backoffice_db_backup_limit: int = 30
     backoffice_log_filename: str = "backoffice.log"
 
+    # ─── Deleted user archive ─────────────────────────────────────────────
+    # Where "Delete User" moves a shadow.db user's data before removing it
+    # from the live database — lives beside backoffice.db (BackOffice's own
+    # directory), not shadow.db's, since this is BackOffice's bookkeeping of
+    # who got deleted, not something BackEnd_V2 itself needs to know about.
+    deleted_data_db_filename: str = "deleted_data.db"
+
     # Shared secret for BackOffice's OWN /admin/sql and /admin/database.
     admin_secret: str = _INSECURE_ADMIN_SECRET
 

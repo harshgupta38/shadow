@@ -39,5 +39,11 @@ export const ENDPOINTS = {
   USERS: {
     SHADOW:     "/users/shadow",
     BACKOFFICE: "/users/backoffice",
+    shadowDelete: (userId: number) => `/users/shadow/${userId}`,
+  },
+  DELETED_DATA: {
+    tables: () => `/deleted-data/tables`,
+    rows:   (tableName: string) => `/deleted-data/tables/${encodeURIComponent(tableName)}/rows`,
+    row:    (tableName: string) => `/deleted-data/tables/${encodeURIComponent(tableName)}/row`,
   },
 } as const;

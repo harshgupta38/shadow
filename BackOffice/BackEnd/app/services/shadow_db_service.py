@@ -37,6 +37,16 @@ logger = logging.getLogger(__name__)
 _BACKUP_GLOB = "shadow-*.db"
 _BACKUP_NAME_RE = re.compile(r"^shadow-(\d{8})-(\d{6})\d{3}\.db$")
 
+# A safety snapshot taken right before "Delete User" archives/removes a
+# user's data (see deleted_data_service.archive_and_delete_user) — named
+# after the deleted user's email so it's identifiable in the Backups tab,
+# and deliberately excluded from _enforce_backup_limit's rotation below: an
+# irreplaceable pre-deletion snapshot should never be silently pruned just
+# because 30 routine backups have happened since.
+_DELETED_USER_BACKUP_GLOB = "deleted-user-*.db"
+_DELETED_USER_BACKUP_RE = re.compile(r"^deleted-user-.+-(\d{8})-(\d{6})\d{3}\.db$")
+_LABEL_UNSAFE_RE = re.compile(r"[^A-Za-z0-9._-]")
+
 # Same exclusion as BackEnd_V2's backup_service.py — large, cheaply
 # regenerable-on-request TTS audio blobs aren't worth carrying in every
 # snapshot this app creates either.
@@ -165,7 +175,7 @@ def get_blob(table: str, column: str, pk: dict) -> tuple[bytes, str]:
 # ─── Backups ────────────────────────────────────────────────────────────────
 
 def _parse_backup_timestamp(name: str) -> datetime | None:
-    m = _BACKUP_NAME_RE.match(name)
+    m = _BACKUP_NAME_RE.match(name) or _DELETED_USER_BACKUP_RE.match(name)
     if not m:
         return None
     date_part, time_part = m.groups()
@@ -189,7 +199,11 @@ def list_backups() -> list[dict]:
     backup_dir = _backup_dir()
     if not backup_dir.is_dir():
         return []
-    entries = [_describe_backup(p) for p in backup_dir.glob(_BACKUP_GLOB)]
+    entries = [
+        _describe_backup(p)
+        for glob in (_BACKUP_GLOB, _DELETED_USER_BACKUP_GLOB)
+        for p in backup_dir.glob(glob)
+    ]
     entries.sort(key=lambda e: e["created_at"], reverse=True)
     return entries
 
@@ -203,7 +217,11 @@ def get_backup_path(filename: str) -> Path | None:
     backup_dir = _backup_dir()
     if not backup_dir.is_dir():
         return None
-    valid_names = {p.name for p in backup_dir.glob(_BACKUP_GLOB)}
+    valid_names = {
+        p.name
+        for glob in (_BACKUP_GLOB, _DELETED_USER_BACKUP_GLOB)
+        for p in backup_dir.glob(glob)
+    }
     if filename not in valid_names:
         return None
     return backup_dir / filename
@@ -217,11 +235,16 @@ def _enforce_backup_limit(backup_dir: Path) -> None:
         logger.info("shadow_db_service: backup limit reached — deleted oldest: %s", oldest.name)
 
 
-def create_backup() -> dict:
+def create_backup(label: str | None = None) -> dict:
     """Snapshots the live shadow.db via SQLite's own online-backup API
     (safe with concurrent readers/writers) into backups/, using the same
     IST-timestamped filename convention as BackEnd_V2's scheduled backups
     so both sort and parse correctly side by side in one directory.
+
+    `label`, when given (only "Delete User" passes one, the deleted user's
+    email), switches the filename to the permanent `deleted-user-` kind
+    instead of the routine, rotated `shadow-` one — see the two globs/regex
+    above.
     """
     src = _db_path()
     if not src.exists():
@@ -232,7 +255,12 @@ def create_backup() -> dict:
 
     now = datetime.now(_IST)
     ms = now.microsecond // 1000
-    dest = backup_dir / f"shadow-{now.strftime('%Y%m%d-%H%M%S')}{ms:03d}.db"
+    stamp = f"{now.strftime('%Y%m%d-%H%M%S')}{ms:03d}"
+    if label:
+        safe_label = _LABEL_UNSAFE_RE.sub("_", label)[:60]
+        dest = backup_dir / f"deleted-user-{safe_label}-{stamp}.db"
+    else:
+        dest = backup_dir / f"shadow-{stamp}.db"
 
     src_conn = sqlite3.connect(str(src))
     try:

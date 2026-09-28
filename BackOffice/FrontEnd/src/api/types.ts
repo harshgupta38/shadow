@@ -208,3 +208,14 @@ export interface CreateAdminRequest {
   password: string;
   secret_key: string;
 }
+
+export interface DeleteUserResponse {
+  user_id: number;
+  email: string;
+  name: string;
+  // table name -> number of rows archived and removed from shadow.db.
+  archived_rows: Record<string, number>;
+  // The permanent "deleted-user-" safety backup taken just before — visible/
+  // restorable from the Database page's Backups tab.
+  backup_filename: string;
+}

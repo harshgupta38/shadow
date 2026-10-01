@@ -19,6 +19,17 @@ export function formatDateDisplayYearly(iso: string, format: DateFormat = "dd mm
     return formatDisplayDateShort(iso, format);
 }
 
+export function formatDateRange(startIso: string, endIso: string): string {
+    const fmt = (iso: string) => {
+        const dt = new Date(iso + "T00:00:00");
+        const dd = String(dt.getDate()).padStart(2, "0");
+        const mmm = dt.toLocaleString("en-US", { month: "short" });
+        const yy = String(dt.getFullYear()).slice(2);
+        return `${dd} ${mmm} ${yy}`;
+    };
+    return `${fmt(startIso)} – ${fmt(endIso)}`;
+}
+
 const PREFERRED_TIME_LABEL: Partial<Record<ScheduledTaskPreferredTime, string>> = {
     morning:   "Morning",
     afternoon: "Afternoon",

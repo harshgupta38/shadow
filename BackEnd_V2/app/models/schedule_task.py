@@ -40,6 +40,19 @@ class ScheduledTaskDBM(Base):
             "status IN ('upcoming', 'completed', 'snoozed', 'missed')",
             name="ck_scheduled_tasks_status",
         ),
+        CheckConstraint(
+            "task_duration IN ('short', 'long')",
+            name="ck_scheduled_tasks_task_duration",
+        ),
+        CheckConstraint(
+            "end_preferred_time IS NULL OR end_preferred_time IN "
+            "('flexible', 'morning', 'afternoon', 'evening', 'night', 'custom')",
+            name="ck_scheduled_tasks_end_preferred_time",
+        ),
+        CheckConstraint(
+            "planner_display IS NULL OR planner_display IN ('task', 'banner', 'none')",
+            name="ck_scheduled_tasks_planner_display",
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -59,6 +72,13 @@ class ScheduledTaskDBM(Base):
 
     preferred_time: Mapped[str] = mapped_column(String(16), nullable=False, default="flexible", server_default=text("'flexible'"))
     specific_time: Mapped[str | None] = mapped_column(String(10), nullable=True)
+
+    # Long-term task fields — only populated when task_duration = 'long'
+    task_duration: Mapped[str] = mapped_column(String(8), nullable=False, default="short", server_default=text("'short'"))
+    end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    end_preferred_time: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    end_specific_time: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    planner_display: Mapped[str | None] = mapped_column(String(8), nullable=True)
 
     allow_snoozing: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=text("false"))
     snooze_limit: Mapped[int | None] = mapped_column(Integer, nullable=True)

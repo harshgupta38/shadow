@@ -18,8 +18,10 @@ import {
     answersFromProposalDraft,
     answersFromTask,
     buildTime,
+    CATEGORY_ICONS,
     getStepBannerError,
     getStepValidationErrors,
+    getSteps,
     GOAL_CATEGORY_OPTIONS,
     makeEmptyAnswers,
     mapApiFieldErrors,
@@ -29,7 +31,6 @@ import {
     PREFERRED_TIME_OPTIONS,
     PRIORITY_OPTIONS,
     SCHEDULE_LOADER_STEPS,
-    STEPS,
     type ScheduleFieldErrorKey,
     type ScheduleFieldErrors,
     type ScheduleWizardAnswers,
@@ -90,6 +91,7 @@ export function ScheduleWizardPage() {
     const [submitting, setSubmitting] = useState(false);
     const [goals, setGoals] = useState<GoalDataShortResponse[]>([]);
     const dateInputRef = useRef<HTMLInputElement>(null);
+    const endDateInputRef = useRef<HTMLInputElement>(null);
     const noteRef = useRef<HTMLTextAreaElement>(null);
 
     // ── Load goals for step 3 ─────────────────────────────────────────────────
@@ -154,15 +156,60 @@ export function ScheduleWizardPage() {
         updateAnswer("specificTime", buildTime(p.h, p.m, p.a));
     }
 
+    const parsedEndSpecificTime = useMemo(() => parseTime(answers.endSpecificTime), [answers.endSpecificTime]);
+
+    function setEndSpecificTimePart(part: "h" | "m" | "a", val: string) {
+        const p = { ...parsedEndSpecificTime, [part]: val };
+        updateAnswer("endSpecificTime", buildTime(p.h, p.m, p.a));
+    }
+
+    function setTaskDuration(dur: typeof answers.taskDuration) {
+        setAnswers((cur) => ({
+            ...cur,
+            taskDuration: dur,
+            // Clear long-term-only fields when switching back to one-time
+            ...(dur === "short"
+                ? {
+                    endDate: "",
+                    endPreferredTime: "flexible" as const,
+                    endSpecificTime: "",
+                    // Re-sync category from the linked goal — it was skipped while long-term
+                    category: cur.goalId
+                        ? (goals.find((g) => String(g.id) === cur.goalId)?.category ?? cur.category)
+                        : cur.category,
+                }
+                : {}),
+            // Long-term tasks cannot snooze (discarded if not done on day 1)
+            ...(dur === "long"
+                ? { allowSnoozing: false, snoozeLimit: "" }
+                : {}),
+        }));
+        setFieldErrors((cur) => {
+            const next = { ...cur };
+            delete next.endDate;
+            delete next.endSpecificTime;
+            delete next.category;
+            delete next.snoozeLimit;
+            return next;
+        });
+        setError(null);
+        // When switching back to one-time, the longTermSettings step disappears —
+        // cap the index so the user doesn't end up out of bounds.
+        if (dur === "short") setCurrentStepIndex((cur) => Math.min(cur, 2));
+    }
+
+    // ── Dynamic step list ────────────────────────────────────────────────────────
+    const steps = useMemo(() => getSteps(answers.taskDuration), [answers.taskDuration]);
+
     // ── Validation ──────────────────────────────────────────────────────────────
     function validateForSubmit(): ScheduleFieldErrors {
         const errs: ScheduleFieldErrors = {};
-        for (const step of STEPS) Object.assign(errs, getStepValidationErrors(step.key, answers));
+        for (const step of steps) Object.assign(errs, getStepValidationErrors(step.key, answers));
         return errs;
     }
 
     function goNextFrom(stepIndex: number) {
-        const step = STEPS[stepIndex];
+        const step = steps[stepIndex];
         if (!step) return;
         const nextErrors = getStepValidationErrors(step.key, answers);
         if (Object.keys(nextErrors).length > 0) {
@@ -170,7 +217,7 @@ export function ScheduleWizardPage() {
             setCurrentStepIndex(stepIndex);
             return;
         }
-        setCurrentStepIndex(Math.min(stepIndex + 1, STEPS.length - 1));
+        setCurrentStepIndex(Math.min(stepIndex + 1, steps.length - 1));
     }
 
     // ── Submit ──────────────────────────────────────────────────────────────────
@@ -178,7 +225,7 @@ export function ScheduleWizardPage() {
         const nextErrors = validateForSubmit();
         if (Object.keys(nextErrors).length > 0) {
             setFieldErrors(nextErrors);
-            const errorStepIndex = STEPS.findIndex(
+            const errorStepIndex = steps.findIndex(
                 (step) => getStepBannerError(step.key, nextErrors) !== null,
             );
             setCurrentStepIndex(errorStepIndex >= 0 ? errorStepIndex : 0);
@@ -191,8 +238,12 @@ export function ScheduleWizardPage() {
 
         try {
             const isMetric = answers.plannerType === "metric";
+            const isLong = answers.taskDuration === "long";
             const specificTimeOut = answers.preferredTime === "custom"
                 ? buildTime(parsedSpecificTime.h, parsedSpecificTime.m, parsedSpecificTime.a)
+                : "";
+            const endSpecificTimeOut = isLong && answers.endPreferredTime === "custom"
+                ? buildTime(parsedEndSpecificTime.h, parsedEndSpecificTime.m, parsedEndSpecificTime.a)
                 : "";
 
             const payload = {
@@ -204,6 +255,11 @@ export function ScheduleWizardPage() {
                 scheduled_date: answers.scheduledDate,
                 preferred_time: answers.preferredTime,
                 specific_time: specificTimeOut || null,
+                task_duration: answers.taskDuration,
+                end_date: isLong ? (answers.endDate || null) : null,
+                end_preferred_time: isLong ? (answers.endPreferredTime || null) : null,
+                end_specific_time: isLong ? (endSpecificTimeOut || null) : null,
+                planner_display: isLong ? (answers.plannerDisplay || null) : null,
                 allow_snoozing: answers.allowSnoozing,
                 snooze_limit: answers.allowSnoozing
                     ? (answers.snoozeLimit ? parseOptionalPositiveInt(answers.snoozeLimit) : null)
@@ -235,7 +291,7 @@ export function ScheduleWizardPage() {
                 const mapped = mapApiFieldErrors(submitError.fieldErrors ?? {});
                 if (Object.keys(mapped).length > 0) {
                     setFieldErrors(mapped);
-                    const errorStepIndex = STEPS.findIndex(
+                    const errorStepIndex = steps.findIndex(
                         (step) => getStepBannerError(step.key, mapped) !== null,
                     );
                     setCurrentStepIndex(errorStepIndex >= 0 ? errorStepIndex : 0);
@@ -252,16 +308,16 @@ export function ScheduleWizardPage() {
     }
 
     const canGoNext = useMemo(() => {
-        const activeStep = STEPS[currentStepIndex];
+        const activeStep = steps[currentStepIndex];
         if (!activeStep) return false;
         return Object.keys(getStepValidationErrors(activeStep.key, answers)).length === 0;
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [answers, currentStepIndex]);
+    }, [answers, currentStepIndex, steps]);
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    const canSubmit = useMemo(() => Object.keys(validateForSubmit()).length === 0, [answers]);
+    const canSubmit = useMemo(() => Object.keys(validateForSubmit()).length === 0, [answers, steps]);
 
-    const activeStepKey = STEPS[currentStepIndex]?.key ?? "defineTask";
+    const activeStepKey = steps[currentStepIndex]?.key ?? "defineTask";
     const stepBannerError = getStepBannerError(activeStepKey, fieldErrors);
     const displayError = stepBannerError ?? error;
     const loaderMessage = SCHEDULE_LOADER_STEPS[Math.min(loaderIndex, SCHEDULE_LOADER_STEPS.length - 1)];
@@ -330,7 +386,7 @@ export function ScheduleWizardPage() {
 
                     <div className="goal-wizard-body">
                         <aside className="goal-wizard-stepper" aria-label="Schedule task setup steps">
-                            {STEPS.map((step, index) => {
+                            {steps.map((step, index) => {
                                 const isActive = index === currentStepIndex;
                                 const isDone = index < currentStepIndex;
                                 const isMetric = answers.plannerType === "metric";
@@ -445,7 +501,7 @@ export function ScheduleWizardPage() {
                                                             </div>
                                                         )}
 
-                                                        {/* Priority + Scheduled date — side-by-side on md+ */}
+                                                        {/* Priority + Duration toggle */}
                                                         <div className="row g-3 mb-3">
                                                             <div className="col-md-6">
                                                                 <label className="form-label">Priority</label>
@@ -461,14 +517,41 @@ export function ScheduleWizardPage() {
                                                                 </select>
                                                             </div>
                                                             <div className="col-md-6">
-                                                                <label className="form-label">Scheduled date</label>
+                                                                <label className="form-label">Task type</label>
+                                                                <div className="goal-task-type-toggle goal-task-type-toggle--compact mt-0">
+                                                                    <button
+                                                                        type="button"
+                                                                        className={`goal-task-type-option ${answers.taskDuration === "short" ? "is-active" : ""}`.trim()}
+                                                                        onClick={() => setTaskDuration("short")}
+                                                                        disabled={!isActive || submitting}
+                                                                    >
+                                                                        <span className="goal-task-type-option-title">One-time</span>
+                                                                    </button>
+                                                                    <button
+                                                                        type="button"
+                                                                        className={`goal-task-type-option ${answers.taskDuration === "long" ? "is-active" : ""}`.trim()}
+                                                                        onClick={() => setTaskDuration("long")}
+                                                                        disabled={!isActive || submitting}
+                                                                    >
+                                                                        <span className="goal-task-type-option-title">Long-term</span>
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Start date + Preferred time */}
+                                                        <div className="row g-3 mb-1">
+                                                            <div className="col-12 col-md-6">
+                                                                <label className="form-label">
+                                                                    {answers.taskDuration === "long" ? "Start date" : "Scheduled date"}
+                                                                </label>
                                                                 <div
                                                                     className={`form-control schedule-date-display ${fieldErrors.scheduledDate ? "is-invalid" : ""} ${!isActive || submitting ? "disabled" : ""}`.trim()}
                                                                     onClick={() => { if (isActive && !submitting) dateInputRef.current?.showPicker(); }}
                                                                     onKeyDown={(e) => { if ((e.key === "Enter" || e.key === " ") && isActive && !submitting) dateInputRef.current?.showPicker(); }}
                                                                     role="button"
                                                                     tabIndex={isActive && !submitting ? 0 : -1}
-                                                                    aria-label="Open date picker"
+                                                                    aria-label="Open start date picker"
                                                                 >
                                                                     {answers.scheduledDate
                                                                         ? formatDisplayDate(answers.scheduledDate, dateFormat)
@@ -490,116 +573,259 @@ export function ScheduleWizardPage() {
                                                                     <div className="text-danger small mt-1">{fieldErrors.scheduledDate}</div>
                                                                 )}
                                                             </div>
-                                                        </div>
-
-                                                        {/* Preferred time */}
-                                                        <div className="mb-3">
-                                                            <label className="form-label">
-                                                                Preferred time <span className="text-muted fw-normal">(optional)</span>
-                                                            </label>
-                                                            <div className="d-flex gap-2 align-items-center">
-                                                                <select
-                                                                    className="form-select"
-                                                                    value={answers.preferredTime}
-                                                                    onChange={(e) => {
-                                                                        updateAnswer("preferredTime", e.target.value as typeof answers.preferredTime);
-                                                                        if (e.target.value !== "custom") updateAnswer("specificTime", "");
-                                                                    }}
-                                                                    disabled={!isActive || submitting}
-                                                                >
-                                                                    {PREFERRED_TIME_OPTIONS.map((opt) => (
-                                                                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                                                                    ))}
-                                                                </select>
-                                                                {answers.preferredTime === "custom" && (
-                                                                    <div className="d-flex gap-1 align-items-center flex-shrink-0">
-                                                                        {timeFormat === "24h" ? (
-                                                                            <input type="time" className="form-control schedule-time-select" value={answers.specificTime || "08:00"} onChange={(e) => updateAnswer("specificTime", e.target.value)} disabled={!isActive || submitting} aria-label="Time" />
-                                                                        ) : (
-                                                                            <>
-                                                                                <select className="form-select schedule-time-select" value={parsedSpecificTime.h} onChange={(e) => setSpecificTimePart("h", e.target.value)} disabled={!isActive || submitting} aria-label="Hour">
-                                                                                    {Array.from({ length: 12 }, (_, i) => String(i + 1)).map((h) => <option key={h} value={h}>{String(Number(h)).padStart(2, "0")}</option>)}
-                                                                                </select>
-                                                                                :
-                                                                                <select className="form-select schedule-time-select" value={parsedSpecificTime.m} onChange={(e) => setSpecificTimePart("m", e.target.value)} disabled={!isActive || submitting} aria-label="Minute">
-                                                                                    {MINUTES.map((m) => <option key={m} value={m}>{m}</option>)}
-                                                                                </select>
-                                                                                <select className="form-select schedule-time-select" value={parsedSpecificTime.a} onChange={(e) => setSpecificTimePart("a", e.target.value)} disabled={!isActive || submitting} aria-label="AM/PM" style={{ minWidth: "3.5rem" }}>
-                                                                                    <option value="AM">AM</option>
-                                                                                    <option value="PM">PM</option>
-                                                                                </select>
-                                                                            </>
-                                                                        )}
-                                                                    </div>
+                                                            <div className="col-12 col-md-6">
+                                                                <label className="form-label">
+                                                                    Preferred time <span className="text-muted fw-normal">(optional)</span>
+                                                                </label>
+                                                                <div className="d-flex gap-2 align-items-center">
+                                                                    <select
+                                                                        className="form-select"
+                                                                        value={answers.preferredTime}
+                                                                        onChange={(e) => {
+                                                                            updateAnswer("preferredTime", e.target.value as typeof answers.preferredTime);
+                                                                            if (e.target.value !== "custom") updateAnswer("specificTime", "");
+                                                                        }}
+                                                                        disabled={!isActive || submitting}
+                                                                    >
+                                                                        {PREFERRED_TIME_OPTIONS.map((opt) => (
+                                                                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                                                        ))}
+                                                                    </select>
+                                                                    {answers.preferredTime === "custom" && (
+                                                                        <div className="d-flex gap-1 align-items-center flex-shrink-0">
+                                                                            {timeFormat === "24h" ? (
+                                                                                <input type="time" className="form-control schedule-time-select" value={answers.specificTime || "08:00"} onChange={(e) => updateAnswer("specificTime", e.target.value)} disabled={!isActive || submitting} aria-label="Time" />
+                                                                            ) : (
+                                                                                <>
+                                                                                    <select className="form-select schedule-time-select" value={parsedSpecificTime.h} onChange={(e) => setSpecificTimePart("h", e.target.value)} disabled={!isActive || submitting} aria-label="Hour">
+                                                                                        {Array.from({ length: 12 }, (_, i) => String(i + 1)).map((h) => <option key={h} value={h}>{String(Number(h)).padStart(2, "0")}</option>)}
+                                                                                    </select>
+                                                                                    :
+                                                                                    <select className="form-select schedule-time-select" value={parsedSpecificTime.m} onChange={(e) => setSpecificTimePart("m", e.target.value)} disabled={!isActive || submitting} aria-label="Minute">
+                                                                                        {MINUTES.map((m) => <option key={m} value={m}>{m}</option>)}
+                                                                                    </select>
+                                                                                    <select className="form-select schedule-time-select" value={parsedSpecificTime.a} onChange={(e) => setSpecificTimePart("a", e.target.value)} disabled={!isActive || submitting} aria-label="AM/PM" style={{ minWidth: "3.5rem" }}>
+                                                                                        <option value="AM">AM</option>
+                                                                                        <option value="PM">PM</option>
+                                                                                    </select>
+                                                                                </>
+                                                                            )}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                                {fieldErrors.specificTime && (
+                                                                    <div className="text-danger small mt-1">{fieldErrors.specificTime}</div>
                                                                 )}
                                                             </div>
-                                                            {fieldErrors.specificTime && (
-                                                                <div className="text-danger small mt-1">{fieldErrors.specificTime}</div>
+                                                        </div>
+
+                                                        {/* End date + End time (long-term only) */}
+                                                        {answers.taskDuration === "long" && (
+                                                            <div className="row g-3 mb-1 mt-0">
+                                                                <div className="col-12 col-md-6">
+                                                                    <label className="form-label">End date</label>
+                                                                    <div
+                                                                        className={`form-control schedule-date-display ${fieldErrors.endDate ? "is-invalid" : ""} ${!isActive || submitting ? "disabled" : ""}`.trim()}
+                                                                        onClick={() => { if (isActive && !submitting) endDateInputRef.current?.showPicker(); }}
+                                                                        onKeyDown={(e) => { if ((e.key === "Enter" || e.key === " ") && isActive && !submitting) endDateInputRef.current?.showPicker(); }}
+                                                                        role="button"
+                                                                        tabIndex={isActive && !submitting ? 0 : -1}
+                                                                        aria-label="Open end date picker"
+                                                                    >
+                                                                        {answers.endDate
+                                                                            ? formatDisplayDate(answers.endDate, dateFormat)
+                                                                            : <span className="schedule-date-placeholder">Pick a date</span>
+                                                                        }
+                                                                        <input
+                                                                            ref={endDateInputRef}
+                                                                            type="date"
+                                                                            value={answers.endDate}
+                                                                            min={answers.scheduledDate || todayIso()}
+                                                                            onChange={(e) => updateAnswer("endDate", e.target.value)}
+                                                                            disabled={!isActive || submitting}
+                                                                            className="schedule-date-hidden-input"
+                                                                            tabIndex={-1}
+                                                                            aria-hidden="true"
+                                                                        />
+                                                                    </div>
+                                                                    {fieldErrors.endDate && (
+                                                                        <div className="text-danger small mt-1">{fieldErrors.endDate}</div>
+                                                                    )}
+                                                                </div>
+                                                                <div className="col-12 col-md-6">
+                                                                    <label className="form-label">
+                                                                        End time <span className="text-muted fw-normal">(optional)</span>
+                                                                    </label>
+                                                                    <div className="d-flex gap-2 align-items-center">
+                                                                        <select
+                                                                            className="form-select"
+                                                                            value={answers.endPreferredTime}
+                                                                            onChange={(e) => {
+                                                                                updateAnswer("endPreferredTime", e.target.value as typeof answers.endPreferredTime);
+                                                                                if (e.target.value !== "custom") updateAnswer("endSpecificTime", "");
+                                                                            }}
+                                                                            disabled={!isActive || submitting}
+                                                                        >
+                                                                            {PREFERRED_TIME_OPTIONS.map((opt) => (
+                                                                                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                                                            ))}
+                                                                        </select>
+                                                                        {answers.endPreferredTime === "custom" && (
+                                                                            <div className="d-flex gap-1 align-items-center flex-shrink-0">
+                                                                                {timeFormat === "24h" ? (
+                                                                                    <input type="time" className="form-control schedule-time-select" value={answers.endSpecificTime || "08:00"} onChange={(e) => updateAnswer("endSpecificTime", e.target.value)} disabled={!isActive || submitting} aria-label="End time" />
+                                                                                ) : (
+                                                                                    <>
+                                                                                        <select className="form-select schedule-time-select" value={parsedEndSpecificTime.h} onChange={(e) => setEndSpecificTimePart("h", e.target.value)} disabled={!isActive || submitting} aria-label="End hour">
+                                                                                            {Array.from({ length: 12 }, (_, i) => String(i + 1)).map((h) => <option key={h} value={h}>{String(Number(h)).padStart(2, "0")}</option>)}
+                                                                                        </select>
+                                                                                        :
+                                                                                        <select className="form-select schedule-time-select" value={parsedEndSpecificTime.m} onChange={(e) => setEndSpecificTimePart("m", e.target.value)} disabled={!isActive || submitting} aria-label="End minute">
+                                                                                            {MINUTES.map((m) => <option key={m} value={m}>{m}</option>)}
+                                                                                        </select>
+                                                                                        <select className="form-select schedule-time-select" value={parsedEndSpecificTime.a} onChange={(e) => setEndSpecificTimePart("a", e.target.value)} disabled={!isActive || submitting} aria-label="End AM/PM" style={{ minWidth: "3.5rem" }}>
+                                                                                            <option value="AM">AM</option>
+                                                                                            <option value="PM">PM</option>
+                                                                                        </select>
+                                                                                    </>
+                                                                                )}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                    {fieldErrors.endSpecificTime && (
+                                                                        <div className="text-danger small mt-1">{fieldErrors.endSpecificTime}</div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+
+                                                {/* ── Step 3: Long-term Event Details ── */}
+                                                {step.key === "longTermSettings" && (
+                                                    <div className="mt-3">
+                                                        {/* Category icon grid */}
+                                                        <div className="mb-4">
+                                                            <label className="form-label">
+                                                                Category
+                                                            </label>
+                                                            <div className={`schedule-category-grid ${fieldErrors.category ? "is-invalid" : ""}`.trim()}>
+                                                                {GOAL_CATEGORY_OPTIONS.map((cat) => (
+                                                                    <button
+                                                                        key={cat}
+                                                                        type="button"
+                                                                        className={`schedule-category-option ${answers.category === cat ? "is-active" : ""}`.trim()}
+                                                                        onClick={() => updateAnswer("category", cat)}
+                                                                        disabled={!isActive || submitting}
+                                                                    >
+                                                                        <span className="schedule-category-option-icon">{CATEGORY_ICONS[cat]}</span>
+                                                                        <span>{cat}</span>
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                            {fieldErrors.category && (
+                                                                <div className="text-danger small mt-1">{fieldErrors.category}</div>
                                                             )}
+                                                        </div>
+
+                                                        {/* Planner display */}
+                                                        <div className="mb-3">
+                                                            <label className="form-label">How should this event appear in your daily planner?</label>
+                                                            <div className="goal-task-type-toggle goal-task-type-toggle--triple mt-0">
+                                                                <button
+                                                                    type="button"
+                                                                    className={`goal-task-type-option ${answers.plannerDisplay === "none" ? "is-active" : ""}`.trim()}
+                                                                    onClick={() => updateAnswer("plannerDisplay", "none")}
+                                                                    disabled={!isActive || submitting}
+                                                                >
+                                                                    <span className="goal-task-type-option-title">Day 1 only</span>
+                                                                    <span className="goal-task-type-option-subtitle">Only appears on the start date; does not carry forward each day.</span>
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    className={`goal-task-type-option ${answers.plannerDisplay === "task" ? "is-active" : ""}`.trim()}
+                                                                    onClick={() => updateAnswer("plannerDisplay", "task")}
+                                                                    disabled={!isActive || submitting}
+                                                                >
+                                                                    <span className="goal-task-type-option-title">Daily task</span>
+                                                                    <span className="goal-task-type-option-subtitle">Appears as a checkable task every day throughout the event.</span>
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    className={`goal-task-type-option ${answers.plannerDisplay === "banner" ? "is-active" : ""}`.trim()}
+                                                                    onClick={() => updateAnswer("plannerDisplay", "banner")}
+                                                                    disabled={!isActive || submitting}
+                                                                >
+                                                                    <span className="goal-task-type-option-title">Highlighted banner</span>
+                                                                    <span className="goal-task-type-option-subtitle">Shows as a passive info strip each day — no check-off needed.</span>
+                                                                </button>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 )}
 
-                                                {/* ── Step 3: Additional Details ── */}
+                                                {/* ── Step 4: Additional Details ── */}
                                                 {step.key === "additionalDetails" && (
                                                     <div className="mt-3">
-                                                        {/* Allow snoozing */}
-                                                        <div className="mb-3">
-                                                            <label className="form-label">Allow snoozing?</label>
-                                                            <div className="goal-task-type-toggle mt-0">
-                                                                <button
-                                                                    type="button"
-                                                                    className={`goal-task-type-option ${answers.allowSnoozing ? "is-active" : ""}`.trim()}
-                                                                    onClick={() => updateAnswer("allowSnoozing", true)}
-                                                                    disabled={!isActive || submitting}
-                                                                >
-                                                                    <span className="goal-task-type-option-title">Yes</span>
-                                                                    <span className="goal-task-type-option-subtitle">If missed, carry it over to the next day.</span>
-                                                                </button>
-                                                                <button
-                                                                    type="button"
-                                                                    className={`goal-task-type-option ${!answers.allowSnoozing ? "is-active" : ""}`.trim()}
-                                                                    onClick={() => {
-                                                                        updateAnswer("allowSnoozing", false);
-                                                                        updateAnswer("snoozeLimit", "");
-                                                                    }}
-                                                                    disabled={!isActive || submitting}
-                                                                >
-                                                                    <span className="goal-task-type-option-title">No</span>
-                                                                    <span className="goal-task-type-option-subtitle">Task disappears if not done on the scheduled day.</span>
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                        
-                                                        {/* Snooze limit */}
-                                                        {answers.allowSnoozing && (
-                                                            <div className="mb-3">
-                                                                <label className="form-label">
-                                                                    Snooze limit <span className="text-muted fw-normal">(days, leave empty for no limit)</span>
-                                                                </label>
-                                                                <input
-                                                                    type="number"
-                                                                    className={`form-control ${fieldErrors.snoozeLimit ? "is-invalid" : ""}`.trim()}
-                                                                    value={answers.snoozeLimit}
-                                                                    onChange={(e) => updateAnswer("snoozeLimit", e.target.value)}
-                                                                    placeholder="e.g. 3 — or leave empty for infinite snoozing"
-                                                                    min={1}
-                                                                    step={1}
-                                                                    disabled={!isActive || submitting}
-                                                                />
-                                                                {fieldErrors.snoozeLimit && (
-                                                                    <div className="text-danger small mt-1">{fieldErrors.snoozeLimit}</div>
+                                                        {/* Allow snoozing + limit — hidden for long-term (day-1-discard makes snoozing irrelevant) */}
+                                                        {answers.taskDuration === "short" && (
+                                                            <>
+                                                                <div className="mb-3">
+                                                                    <label className="form-label">Allow snoozing?</label>
+                                                                    <div className="goal-task-type-toggle mt-0">
+                                                                        <button
+                                                                            type="button"
+                                                                            className={`goal-task-type-option ${answers.allowSnoozing ? "is-active" : ""}`.trim()}
+                                                                            onClick={() => updateAnswer("allowSnoozing", true)}
+                                                                            disabled={!isActive || submitting}
+                                                                        >
+                                                                            <span className="goal-task-type-option-title">Yes</span>
+                                                                            <span className="goal-task-type-option-subtitle">If missed, carry it over to the next day.</span>
+                                                                        </button>
+                                                                        <button
+                                                                            type="button"
+                                                                            className={`goal-task-type-option ${!answers.allowSnoozing ? "is-active" : ""}`.trim()}
+                                                                            onClick={() => {
+                                                                                updateAnswer("allowSnoozing", false);
+                                                                                updateAnswer("snoozeLimit", "");
+                                                                            }}
+                                                                            disabled={!isActive || submitting}
+                                                                        >
+                                                                            <span className="goal-task-type-option-title">No</span>
+                                                                            <span className="goal-task-type-option-subtitle">Task disappears if not done on the scheduled day.</span>
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                                {answers.allowSnoozing && (
+                                                                    <div className="mb-3">
+                                                                        <label className="form-label">
+                                                                            Snooze limit <span className="text-muted fw-normal">(days, leave empty for no limit)</span>
+                                                                        </label>
+                                                                        <input
+                                                                            type="number"
+                                                                            className={`form-control ${fieldErrors.snoozeLimit ? "is-invalid" : ""}`.trim()}
+                                                                            value={answers.snoozeLimit}
+                                                                            onChange={(e) => updateAnswer("snoozeLimit", e.target.value)}
+                                                                            placeholder="e.g. 3 — or leave empty for infinite snoozing"
+                                                                            min={1}
+                                                                            step={1}
+                                                                            disabled={!isActive || submitting}
+                                                                        />
+                                                                        {fieldErrors.snoozeLimit && (
+                                                                            <div className="text-danger small mt-1">{fieldErrors.snoozeLimit}</div>
+                                                                        )}
+                                                                        <p className="text-muted small mt-1">
+                                                                            The task will keep appearing in your planner for {answers.snoozeLimit ? `${answers.snoozeLimit} day${answers.snoozeLimit === "1" ? "" : "s"}` : "this many days"} after the original date if not completed.
+                                                                        </p>
+                                                                    </div>
                                                                 )}
-                                                                <p className="text-muted small mt-1">
-                                                                    The task will keep appearing in your planner for {answers.snoozeLimit ? `${answers.snoozeLimit} day${answers.snoozeLimit === "1" ? "" : "s"}` : "this many days"} after the original date if not completed.
-                                                                </p>
-                                                            </div>
+                                                            </>
                                                         )}
 
-                                                        {/* Goal + Category row */}
+                                                        {/* Goal + Category row — category hidden for long-term (already set in Event Details step) */}
                                                         <div className="row g-3 mb-3">
                                                             {goals.length > 0 && (
-                                                                <div className="col-md-6">
+                                                                <div className={answers.taskDuration === "long" ? "col-12" : "col-md-6"}>
                                                                     <label className="form-label">
                                                                         Goal <span className="text-muted fw-normal">(optional)</span>
                                                                     </label>
@@ -610,7 +836,7 @@ export function ScheduleWizardPage() {
                                                                             const newGoalId = e.target.value;
                                                                             updateAnswer("goalId", newGoalId);
                                                                             const linked = goals.find((g) => String(g.id) === newGoalId);
-                                                                            updateAnswer("category", linked?.category ?? "");
+                                                                            if (answers.taskDuration === "short") updateAnswer("category", linked?.category ?? "");
                                                                         }}
                                                                         disabled={!isActive || submitting}
                                                                     >
@@ -621,22 +847,24 @@ export function ScheduleWizardPage() {
                                                                     </select>
                                                                 </div>
                                                             )}
-                                                            <div className={goals.length > 0 ? "col-md-6" : "col-12"}>
-                                                                <label className="form-label">
-                                                                    Category <span className="text-muted fw-normal">(optional)</span>
-                                                                </label>
-                                                                <select
-                                                                    className="form-select"
-                                                                    value={answers.category}
-                                                                    onChange={(e) => updateAnswer("category", e.target.value as typeof answers.category)}
-                                                                    disabled={!isActive || submitting || !!answers.goalId}
-                                                                >
-                                                                    <option value="">{answers.goalId ? "From linked goal" : "No category"}</option>
-                                                                    {GOAL_CATEGORY_OPTIONS.map((cat) => (
-                                                                        <option key={cat} value={cat}>{cat}</option>
-                                                                    ))}
-                                                                </select>
-                                                            </div>
+                                                            {answers.taskDuration === "short" && (
+                                                                <div className={goals.length > 0 ? "col-md-6" : "col-12"}>
+                                                                    <label className="form-label">
+                                                                        Category <span className="text-muted fw-normal">(optional)</span>
+                                                                    </label>
+                                                                    <select
+                                                                        className="form-select"
+                                                                        value={answers.category}
+                                                                        onChange={(e) => updateAnswer("category", e.target.value as typeof answers.category)}
+                                                                        disabled={!isActive || submitting || !!answers.goalId}
+                                                                    >
+                                                                        <option value="">{answers.goalId ? "From linked goal" : "No category"}</option>
+                                                                        {GOAL_CATEGORY_OPTIONS.map((cat) => (
+                                                                            <option key={cat} value={cat}>{cat}</option>
+                                                                        ))}
+                                                                    </select>
+                                                                </div>
+                                                            )}
                                                         </div>
 
                                                         {/* Duration + Repeat yearly */}
@@ -656,7 +884,7 @@ export function ScheduleWizardPage() {
                                                                     disabled={!isActive || submitting}
                                                                 />
                                                             </div>
-                                                            {!stateProposalId && (
+                                                            {!stateProposalId && answers.taskDuration === "short" && (
                                                             <div className="col-md-6">
                                                                 <label className="form-label">Repeat <span className="text-muted fw-normal">(optional)</span></label>
                                                                 <div className="goal-task-type-toggle goal-task-type-toggle--compact mt-0">
@@ -705,7 +933,7 @@ export function ScheduleWizardPage() {
 
                                                 {/* ── Step footer ── */}
                                                 <div className="goal-wizard-footer mt-3">
-                                                    {index < STEPS.length - 1 ? (
+                                                    {index < steps.length - 1 ? (
                                                         <button
                                                             type="button"
                                                             className="btn btn-brand btn-brand-custom"

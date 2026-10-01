@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Calendar3,
   CalendarCheckFill,
@@ -16,7 +16,9 @@ import {
 } from "react-bootstrap-icons";
 
 import { api, ApiError } from "@/api";
-import type { DailyPlanSavedData, PlanResponse } from "@/api";
+import type { DailyPlanSavedData, PlanResponse, ScheduledTaskDataResponse } from "@/api";
+import { PRIORITY_COLOR, formatDateRange } from "@/pages/schedule/ScheduleCard/ScheduleCard.constants";
+import { CATEGORY_ICONS } from "@/pages/schedule/ScheduleWizard/ScheduleWizard.constants";
 import { ROUTES } from "@/routes/RoutePaths";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { ProgressRing } from "@/components/ui/ProgressRing/ProgressRing";
@@ -31,6 +33,8 @@ import { useDateParam } from "@/hooks/useUrlAnchor";
 import { PlanCard } from "@/pages/plan/PlanCard/PlanCard";
 import { DayOverviewPanel } from "@/pages/plan/DayOverviewPanel/DayOverviewPanel";
 import { YesterdayClosingPanel } from "@/pages/plan/YesterdayClosingPanel/YesterdayClosingPanel";
+import { ScheduleTaskDetailPanel } from "@/pages/schedule/ScheduleTaskDetailPanel/ScheduleTaskDetailPanel";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { useDateFormat } from "@/context/PlannerContext";
 import { useToast } from "@/context/ToastContext";
 import { ANIMATION, TIMING } from "@/constant/tuning";
@@ -109,6 +113,7 @@ function ReconstructedPastStateIllustration() {
 
 export function PlanPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const toast = useToast();
   const dateFormat = useDateFormat();
 
@@ -130,6 +135,9 @@ export function PlanPage() {
   const [completedOpen, setCompletedOpen] = useState(false);
   const [skippedOpen, setSkippedOpen] = useState(false);
   const [generatingBrief, setGeneratingBrief] = useState(false);
+  const [selectedBannerTask, setSelectedBannerTask] = useState<ScheduledTaskDataResponse | null>(null);
+  const [bannerDeleteTarget, setBannerDeleteTarget] = useState<ScheduledTaskDataResponse | null>(null);
+  const [bannerDeleting, setBannerDeleting] = useState(false);
 
   useEffect(() => {
     function refreshToday() {
@@ -164,7 +172,7 @@ export function PlanPage() {
 
   useEffect(() => {
     void loadPlan();
-  }, [loadPlan]);
+  }, [loadPlan, location.key]);
 
   const planItems = planData?.items ?? [];
 
@@ -226,6 +234,29 @@ export function PlanPage() {
     });
   }
 
+  async function refreshBanners() {
+    try {
+      const fresh = await api.planItems.getForDate(toDateInputValue(selectedDate));
+      setPlanData(prev => prev ? { ...prev, banner_tasks: fresh.banner_tasks ?? [] } : prev);
+    } catch { /* non-critical */ }
+  }
+
+  async function handleBannerDelete() {
+    if (!bannerDeleteTarget) return;
+    setBannerDeleting(true);
+    try {
+      await api.schedule.removeScheduleTask(bannerDeleteTarget.id, bannerDeleteTarget.repeat_yearly);
+      setBannerDeleteTarget(null);
+      setSelectedBannerTask(null);
+      toast.success("Task deleted.");
+      void loadPlan();
+    } catch {
+      toast.error("Couldn't delete task. Please try again.");
+    } finally {
+      setBannerDeleting(false);
+    }
+  }
+
   function removeCompletingId(planId: number) {
     setCompletingIds((prev) => {
       const next = new Set(prev);
@@ -255,6 +286,7 @@ export function PlanPage() {
       updateItemSavedData(recordId, savedData);
       setCompletingIds((prev) => new Set([...prev, planId]));
       setTimeout(() => removeCompletingId(planId), COMPLETE_ANIM_MS);
+      if (item?.source_type === "schedule") void refreshBanners();
     } catch {
       toast.error("Couldn't update status. Please try again.");
     } finally {
@@ -275,6 +307,7 @@ export function PlanPage() {
     try {
       const savedData = await api.planItems.updateRecord(recordId, { status: "due" });
       updateItemSavedData(recordId, savedData);
+      if (item?.source_type === "schedule") void refreshBanners();
     } catch {
       toast.error("Couldn't update status. Please try again.");
     } finally {
@@ -356,6 +389,7 @@ export function PlanPage() {
       updateItemSavedData(recordId, savedData);
       setCompletingIds((prev) => new Set([...prev, planId]));
       setTimeout(() => removeCompletingId(planId), COMPLETE_ANIM_MS);
+      if (item?.source_type === "schedule") void refreshBanners();
     } catch {
       toast.error("Couldn't save. Please try again.");
     }
@@ -389,6 +423,7 @@ export function PlanPage() {
       ? "Plan a few tasks to get started."
       : completionMessage(completion);
 
+  const bannerTasks = planData?.banner_tasks ?? [];
 
   return (
     <section className="plan-page">
@@ -596,6 +631,30 @@ export function PlanPage() {
         </div>
 
         <div className="plan-column">
+          {bannerTasks.length > 0 && (
+            <div className="plan-banners">
+              {bannerTasks.map(task => (
+                <button
+                  key={task.id}
+                  type="button"
+                  className="plan-banner-card"
+                  style={{ "--banner-color": PRIORITY_COLOR[task.priority] } as React.CSSProperties}
+                  onClick={() => setSelectedBannerTask(task)}
+                >
+                  <span className="plan-banner-icon">
+                    {task.category ? (CATEGORY_ICONS[task.category as keyof typeof CATEGORY_ICONS] ?? "📅") : "📅"}
+                  </span>
+                  <div className="plan-banner-info">
+                    <div className="plan-banner-title">{task.title}</div>
+                    {task.end_date && (
+                      <div className="plan-banner-dates">{formatDateRange(task.scheduled_date, task.end_date)}</div>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+
           {!loadingPlan && totalCount > 0 && (
             <section className="plan-panel progress-panel">
               <ProgressRing percentage={completion} />
@@ -614,6 +673,40 @@ export function PlanPage() {
           {isToday && <YesterdayClosingPanel closing={planData?.previous_day_closing ?? null} />}
         </div>
       </div>
+
+      {selectedBannerTask && (
+        <ScheduleTaskDetailPanel
+          task={selectedBannerTask}
+          onClose={() => setSelectedBannerTask(null)}
+          onEdit={() => {
+            setSelectedBannerTask(null);
+            navigate(
+              ROUTES.SCHEDULE_EDIT.replace(":taskId", String(selectedBannerTask.id)) +
+                (selectedBannerTask.repeat_yearly ? "?yearly=1" : ""),
+              { state: { task: selectedBannerTask, returnPath: location.pathname } },
+            );
+          }}
+          onDuplicate={() => {
+            setSelectedBannerTask(null);
+            navigate(ROUTES.SCHEDULE_CREATE, { state: { draft: selectedBannerTask, returnPath: location.pathname } });
+          }}
+          onDelete={() => {
+            setSelectedBannerTask(null);
+            setBannerDeleteTarget(selectedBannerTask);
+          }}
+        />
+      )}
+
+      <ConfirmDialog
+        show={bannerDeleteTarget !== null}
+        title="Delete task?"
+        message={`"${bannerDeleteTarget?.title}" will be permanently deleted.`}
+        confirmLabel="Delete"
+        destructive
+        busy={bannerDeleting}
+        onConfirm={() => void handleBannerDelete()}
+        onCancel={() => setBannerDeleteTarget(null)}
+      />
     </section>
   );
 }

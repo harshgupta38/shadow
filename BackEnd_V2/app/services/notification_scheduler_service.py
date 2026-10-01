@@ -15,6 +15,9 @@ Jobs:
     #4  End-of-day plan completion reminder (< 50 % done)
     #12 Habits not yet logged today (streak-at-risk)
 
+  Every tick (60 s)  specific_time_reminders (global):
+    #14 Habits/tasks with a custom specific_time — 5-min warning + on-time nudge
+
 Deduplication: all notifications pass a stable event_key to create_notification(),
 which skips the insert if (user_id, event_key) already exists in the table.
 
@@ -34,6 +37,7 @@ from app.common import now_ist
 from app.common.proc_lock import acquire_singleton_lock
 from app.db.session import SessionLocal
 from app.models.goal import GoalDBM
+from app.models.habit import HabitDBM
 from app.models.milestone import MilestoneDBM
 from app.models.plan_record import DailyPlanRecordDBM
 from app.models.schedule_task import ScheduledTaskDBM
@@ -284,6 +288,95 @@ def _evening_jobs(today: date) -> None:
                 )
 
 
+# ── Specific-time reminders (every tick) ─────────────────────────────────────
+
+def _specific_time_reminders(today: date, now_minutes: int) -> None:
+    """#14 — 5-min warning + on-time nudge for habits/tasks with a custom specific_time.
+
+    Only fires for items that are on today's plan and not yet marked done,
+    so users are never reminded about habits/tasks they've already completed.
+    """
+    with SessionLocal() as db:
+        users = _active_users(db)
+        if not users:
+            return
+        user_ids = list(users.keys())
+
+        # (title, user_id, target_minutes, dedup-key-prefix)
+        items: list[tuple[str, int, int, str]] = []
+
+        # Habits on today's plan that aren't done yet
+        for habit in db.scalars(
+            select(HabitDBM)
+            .join(
+                DailyPlanRecordDBM,
+                (DailyPlanRecordDBM.source_id == HabitDBM.id)
+                & (DailyPlanRecordDBM.source_type == "habit")
+                & (DailyPlanRecordDBM.scheduled_date == today)
+                & (DailyPlanRecordDBM.status != "done"),
+            )
+            .where(
+                HabitDBM.user_id.in_(user_ids),
+                HabitDBM.preferred_time == "custom",
+                HabitDBM.specific_time.isnot(None),
+            )
+        ).all():
+            try:
+                h, m = map(int, habit.specific_time.split(":"))
+                items.append((habit.title, habit.user_id, h * 60 + m, f"habit:{habit.id}"))
+            except (ValueError, AttributeError):
+                pass
+
+        # Tasks on today's plan that aren't done yet
+        for task in db.scalars(
+            select(TaskDBM)
+            .join(
+                DailyPlanRecordDBM,
+                (DailyPlanRecordDBM.source_id == TaskDBM.id)
+                & (DailyPlanRecordDBM.source_type == "task")
+                & (DailyPlanRecordDBM.scheduled_date == today)
+                & (DailyPlanRecordDBM.status != "done"),
+            )
+            .where(
+                TaskDBM.user_id.in_(user_ids),
+                TaskDBM.preferred_time == "custom",
+                TaskDBM.specific_time.isnot(None),
+            )
+        ).all():
+            try:
+                h, m = map(int, task.specific_time.split(":"))
+                items.append((task.title, task.user_id, h * 60 + m, f"task:{task.id}"))
+            except (ValueError, AttributeError):
+                pass
+
+        for title, user_id, target, key_prefix in items:
+            user = users.get(user_id)
+            if not user:
+                continue
+
+            # 5-minute warning — fires in the 2-minute window starting 5 min before target
+            if target - 5 <= now_minutes < target - 3:
+                notifications_service.create_notification(
+                    db, user,
+                    title=f"Starting in 5 min: {title}",
+                    body="Get ready — it's almost time.",
+                    level=notifications_service.LEVEL_REMINDER,
+                    url="/plan",
+                    event_key=f"remind_5min:{key_prefix}:{today}",
+                )
+
+            # On-time reminder — fires in the 2-minute window at target
+            if target <= now_minutes < target + 2:
+                notifications_service.create_notification(
+                    db, user,
+                    title=f"Time to start: {title}",
+                    body="Your scheduled time is now.",
+                    level=notifications_service.LEVEL_REMINDER,
+                    url="/plan",
+                    event_key=f"remind_ontime:{key_prefix}:{today}",
+                )
+
+
 # ── Scheduler loop ────────────────────────────────────────────────────────────
 
 async def notification_scheduler_loop() -> None:
@@ -338,6 +431,12 @@ async def notification_scheduler_loop() -> None:
                         log.exception("Notification scheduler: reminder jobs error")
         except Exception:
             log.exception("Notification scheduler: reminder time check error")
+
+        # Specific-time reminders — every tick (habits + tasks with custom specific_time)
+        try:
+            await asyncio.to_thread(_specific_time_reminders, today, minutes)
+        except Exception:
+            log.exception("Notification scheduler: specific-time reminders error")
 
         # Evening batch — 21:00 IST (global: plan completion + habits)
         if 21 * 60 <= minutes < 21 * 60 + 2 and "evening" not in triggered_today:

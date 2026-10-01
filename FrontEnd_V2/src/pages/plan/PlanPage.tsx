@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Calendar3,
   CalendarCheckFill,
@@ -34,6 +34,7 @@ import { PlanCard } from "@/pages/plan/PlanCard/PlanCard";
 import { DayOverviewPanel } from "@/pages/plan/DayOverviewPanel/DayOverviewPanel";
 import { YesterdayClosingPanel } from "@/pages/plan/YesterdayClosingPanel/YesterdayClosingPanel";
 import { ScheduleTaskDetailPanel } from "@/pages/schedule/ScheduleTaskDetailPanel/ScheduleTaskDetailPanel";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { useDateFormat } from "@/context/PlannerContext";
 import { useToast } from "@/context/ToastContext";
 import { ANIMATION, TIMING } from "@/constant/tuning";
@@ -112,6 +113,7 @@ function ReconstructedPastStateIllustration() {
 
 export function PlanPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const toast = useToast();
   const dateFormat = useDateFormat();
 
@@ -134,6 +136,8 @@ export function PlanPage() {
   const [skippedOpen, setSkippedOpen] = useState(false);
   const [generatingBrief, setGeneratingBrief] = useState(false);
   const [selectedBannerTask, setSelectedBannerTask] = useState<ScheduledTaskDataResponse | null>(null);
+  const [bannerDeleteTarget, setBannerDeleteTarget] = useState<ScheduledTaskDataResponse | null>(null);
+  const [bannerDeleting, setBannerDeleting] = useState(false);
 
   useEffect(() => {
     function refreshToday() {
@@ -168,7 +172,7 @@ export function PlanPage() {
 
   useEffect(() => {
     void loadPlan();
-  }, [loadPlan]);
+  }, [loadPlan, location.key]);
 
   const planItems = planData?.items ?? [];
 
@@ -230,6 +234,29 @@ export function PlanPage() {
     });
   }
 
+  async function refreshBanners() {
+    try {
+      const fresh = await api.planItems.getForDate(toDateInputValue(selectedDate));
+      setPlanData(prev => prev ? { ...prev, banner_tasks: fresh.banner_tasks ?? [] } : prev);
+    } catch { /* non-critical */ }
+  }
+
+  async function handleBannerDelete() {
+    if (!bannerDeleteTarget) return;
+    setBannerDeleting(true);
+    try {
+      await api.schedule.removeScheduleTask(bannerDeleteTarget.id, bannerDeleteTarget.repeat_yearly);
+      setBannerDeleteTarget(null);
+      setSelectedBannerTask(null);
+      toast.success("Task deleted.");
+      void loadPlan();
+    } catch {
+      toast.error("Couldn't delete task. Please try again.");
+    } finally {
+      setBannerDeleting(false);
+    }
+  }
+
   function removeCompletingId(planId: number) {
     setCompletingIds((prev) => {
       const next = new Set(prev);
@@ -259,6 +286,7 @@ export function PlanPage() {
       updateItemSavedData(recordId, savedData);
       setCompletingIds((prev) => new Set([...prev, planId]));
       setTimeout(() => removeCompletingId(planId), COMPLETE_ANIM_MS);
+      if (item?.source_type === "schedule") void refreshBanners();
     } catch {
       toast.error("Couldn't update status. Please try again.");
     } finally {
@@ -279,6 +307,7 @@ export function PlanPage() {
     try {
       const savedData = await api.planItems.updateRecord(recordId, { status: "due" });
       updateItemSavedData(recordId, savedData);
+      if (item?.source_type === "schedule") void refreshBanners();
     } catch {
       toast.error("Couldn't update status. Please try again.");
     } finally {
@@ -360,6 +389,7 @@ export function PlanPage() {
       updateItemSavedData(recordId, savedData);
       setCompletingIds((prev) => new Set([...prev, planId]));
       setTimeout(() => removeCompletingId(planId), COMPLETE_ANIM_MS);
+      if (item?.source_type === "schedule") void refreshBanners();
     } catch {
       toast.error("Couldn't save. Please try again.");
     }
@@ -648,11 +678,35 @@ export function PlanPage() {
         <ScheduleTaskDetailPanel
           task={selectedBannerTask}
           onClose={() => setSelectedBannerTask(null)}
-          onEdit={() => setSelectedBannerTask(null)}
-          onDuplicate={() => setSelectedBannerTask(null)}
-          onDelete={() => setSelectedBannerTask(null)}
+          onEdit={() => {
+            setSelectedBannerTask(null);
+            navigate(
+              ROUTES.SCHEDULE_EDIT.replace(":taskId", String(selectedBannerTask.id)) +
+                (selectedBannerTask.repeat_yearly ? "?yearly=1" : ""),
+              { state: { task: selectedBannerTask, returnPath: location.pathname } },
+            );
+          }}
+          onDuplicate={() => {
+            setSelectedBannerTask(null);
+            navigate(ROUTES.SCHEDULE_CREATE, { state: { draft: selectedBannerTask, returnPath: location.pathname } });
+          }}
+          onDelete={() => {
+            setSelectedBannerTask(null);
+            setBannerDeleteTarget(selectedBannerTask);
+          }}
         />
       )}
+
+      <ConfirmDialog
+        show={bannerDeleteTarget !== null}
+        title="Delete task?"
+        message={`"${bannerDeleteTarget?.title}" will be permanently deleted.`}
+        confirmLabel="Delete"
+        destructive
+        busy={bannerDeleting}
+        onConfirm={() => void handleBannerDelete()}
+        onCancel={() => setBannerDeleteTarget(null)}
+      />
     </section>
   );
 }

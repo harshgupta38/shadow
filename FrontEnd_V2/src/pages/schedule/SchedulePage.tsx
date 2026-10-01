@@ -129,11 +129,13 @@ export function SchedulePage() {
         return acc;
     }, {}), [tasks]);
 
-    // Maps each continuation date (day 2 → end_date) to the long-term tasks spanning it
+    // Maps each date (start_date → end_date) to the long-term tasks spanning it
     const longTermSpansByDate = useMemo(() => {
         const map: Record<string, ScheduledTaskDataResponse[]> = {};
         for (const task of tasks) {
             if (task.task_duration === "long" && task.end_date) {
+                // Include the start date so the icon appears on day 1 alongside the chip
+                (map[task.scheduled_date] ??= []).push(task);
                 for (const date of getDatesInRange(task.scheduled_date, task.end_date)) {
                     (map[date] ??= []).push(task);
                 }

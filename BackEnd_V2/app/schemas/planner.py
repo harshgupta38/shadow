@@ -3,6 +3,7 @@ from typing import Literal
 from pydantic import BaseModel
 
 from app.schemas.daily_report import ReportClosingResponse
+from app.schemas.schedule import ScheduledTaskDataResponse
 
 PlanSourceType = Literal["habit", "task", "schedule"]
 PlannerType = Literal["simple", "metric"]
@@ -69,6 +70,8 @@ class DailyPlanResponse(BaseModel):
     # materialized on load). Lets the frontend show a "reconstructed history" state
     # instead of a plain empty state without inspecting record ids.
     no_plan_generated: bool = False
+    # Long-term tasks with planner_display='banner' that span the requested date.
+    banner_tasks: list[ScheduledTaskDataResponse] = []
 
 
 class UpdatePlanRequest(BaseModel):

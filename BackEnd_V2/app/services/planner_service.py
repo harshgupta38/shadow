@@ -20,7 +20,7 @@ from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import delete, func, select, update
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.common import today_ist, to_ist
 from app.core.exceptions import AppError, NotFoundError
@@ -42,6 +42,7 @@ from app.schemas.planner import (
     GoalDataInPlan,
     ReportClosingResponse,
 )
+from app.schemas.schedule import GoalSummary, ScheduledTaskDataResponse
 from app.services.report_service import get_reports
 
 
@@ -672,6 +673,9 @@ def tick_scheduled_tasks(db: Session, user_id: int, today: date) -> None:
             ScheduledTaskDBM.user_id == user_id,
             ScheduledTaskDBM.scheduled_date < today,
             ScheduledTaskDBM.status.in_(["upcoming", "snoozed"]),
+            # Long-term tasks have scheduled_date as their start date, not deadline —
+            # they manage their own lifecycle and must not be ticked like one-time tasks.
+            ScheduledTaskDBM.task_duration != "long",
         )
     ).all())
 
@@ -728,6 +732,65 @@ def _previous_day_closing(db: Session, user_id: int, target_date: date) -> Repor
     if not reports:
         return None
     return ReportClosingResponse.model_validate(reports[0].closing)
+
+
+def _get_banner_tasks(
+    db: Session,
+    user_id: int,
+    target_date: date,
+) -> list[ScheduledTaskDataResponse]:
+    """Return long-term tasks with planner_display='banner' that span target_date."""
+    rows = db.scalars(
+        select(ScheduledTaskDBM)
+        .options(joinedload(ScheduledTaskDBM.goal))
+        .where(
+            ScheduledTaskDBM.user_id == user_id,
+            ScheduledTaskDBM.task_duration == "long",
+            ScheduledTaskDBM.planner_display == "banner",
+            ScheduledTaskDBM.status == "completed",   # only show once activated (done on day 1)
+            ScheduledTaskDBM.scheduled_date <= target_date,
+            ScheduledTaskDBM.end_date >= target_date,
+        )
+        .order_by(ScheduledTaskDBM.priority, ScheduledTaskDBM.scheduled_date)
+    ).all()
+
+    result: list[ScheduledTaskDataResponse] = []
+    for task in rows:
+        is_metric = task.planner_type == "metric"
+        goal_summary: GoalSummary | None = None
+        if task.goal_id is not None and task.goal is not None:
+            goal_summary = GoalSummary(
+                id=task.goal.id,
+                title=task.goal.title,
+                category=task.goal.category,
+            )
+        result.append(ScheduledTaskDataResponse(
+            id=task.id,
+            title=task.title,
+            note=task.note,
+            planner_type=task.planner_type,
+            planner_target=task.planner_target if is_metric else None,
+            value_unit=task.value_unit if is_metric else None,
+            priority=task.priority,
+            scheduled_date=task.scheduled_date,
+            preferred_time=task.preferred_time,
+            specific_time=task.specific_time,
+            task_duration="long",
+            end_date=task.end_date,
+            end_preferred_time=task.end_preferred_time,
+            end_specific_time=task.end_specific_time,
+            planner_display=task.planner_display,
+            allow_snoozing=task.allow_snoozing,
+            snooze_limit=task.snooze_limit if task.allow_snoozing else None,
+            duration_minutes=task.duration_minutes,
+            repeat_yearly=False,
+            category=task.category,
+            goal=goal_summary,
+            status=task.status,
+            created_at=task.created_at,
+            updated_at=task.updated_at,
+        ))
+    return result
 
 
 def get_plans_for_date(
@@ -1003,12 +1066,15 @@ def get_plans_for_date(
         )
     ) is not None
 
+    banner_tasks = _get_banner_tasks(db, current_user.id, target_date)
+
     return DailyPlanResponse(
         items=items,
         previous_day_closing=_previous_day_closing(db, current_user.id, target_date),
         daily_brief_enabled=daily_brief_enabled,
         daily_brief_generated=daily_brief_generated,
         no_plan_generated=no_plan_generated,
+        banner_tasks=banner_tasks,
     )
 
 

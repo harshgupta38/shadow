@@ -32,6 +32,7 @@ def _resolve_goal(db: Session, current_user: UserDBM, goal_id: int | None) -> Go
 
 def _serialize(task: ScheduledTaskDBM) -> ScheduledTaskDataResponse:
     is_metric = task.planner_type == "metric"
+    is_long = getattr(task, "task_duration", "short") == "long"
     goal_summary: GoalSummary | None = None
     if task.goal_id is not None and task.goal is not None:
         goal_summary = GoalSummary(id=task.goal.id, title=task.goal.title, category=task.goal.category)
@@ -46,6 +47,11 @@ def _serialize(task: ScheduledTaskDBM) -> ScheduledTaskDataResponse:
         scheduled_date=task.scheduled_date,
         preferred_time=task.preferred_time,
         specific_time=task.specific_time,
+        task_duration=task.task_duration if hasattr(task, "task_duration") and task.task_duration else "short",
+        end_date=task.end_date if is_long else None,
+        end_preferred_time=task.end_preferred_time if is_long else None,
+        end_specific_time=task.end_specific_time if is_long else None,
+        planner_display=task.planner_display if is_long else None,
         allow_snoozing=task.allow_snoozing,
         snooze_limit=task.snooze_limit if task.allow_snoozing else None,
         duration_minutes=task.duration_minutes,
@@ -124,6 +130,20 @@ def get_list(db: Session, current_user: UserDBM, year: int, month: int) -> list[
         )
     ).all()
 
+    # Long-term tasks that START before this month but have end_date within or beyond it.
+    # Collected IDs avoid duplicating tasks that also start in this month.
+    existing_ids = {t.id for t in tasks}
+    spanning_tasks = db.scalars(
+        select(ScheduledTaskDBM)
+        .options(joinedload(ScheduledTaskDBM.goal))
+        .where(
+            ScheduledTaskDBM.user_id == current_user.id,
+            ScheduledTaskDBM.task_duration == "long",
+            ScheduledTaskDBM.scheduled_date < first_day,
+            ScheduledTaskDBM.end_date >= first_day,
+        )
+    ).all()
+
     yearly_tasks = db.scalars(
         select(YearlyTaskDBM)
         .options(joinedload(YearlyTaskDBM.goal))
@@ -134,6 +154,7 @@ def get_list(db: Session, current_user: UserDBM, year: int, month: int) -> list[
     ).all()
 
     result: list[ScheduledTaskDataResponse] = [_serialize(t) for t in tasks]
+    result += [_serialize(t) for t in spanning_tasks if t.id not in existing_ids]
     result += [
         _serialize_yearly(t, occ)
         for t in yearly_tasks
@@ -230,6 +251,7 @@ def save_task(
         db.refresh(yearly_task)
         return _serialize_yearly(yearly_task, _next_yearly_occurrence(yearly_task.recurrence_month, yearly_task.recurrence_day, today_ist()))
 
+    is_long = data.task_duration == "long"
     task = ScheduledTaskDBM(
         user_id=current_user.id,
         goal_id=goal.id if goal is not None else None,
@@ -243,6 +265,11 @@ def save_task(
         scheduled_date=data.scheduled_date,
         preferred_time=data.preferred_time,
         specific_time=data.specific_time.strip() if data.preferred_time == "custom" and data.specific_time else None,
+        task_duration=data.task_duration,
+        end_date=data.end_date if is_long else None,
+        end_preferred_time=data.end_preferred_time if is_long else None,
+        end_specific_time=data.end_specific_time if is_long and data.end_preferred_time == "custom" else None,
+        planner_display=data.planner_display if is_long else None,
         allow_snoozing=data.allow_snoozing,
         snooze_limit=data.snooze_limit if data.allow_snoozing else None,
         duration_minutes=data.duration_minutes,
@@ -275,6 +302,21 @@ def _validate_task_state(task: ScheduledTaskDBM) -> None:
         raise ValidationError(errors={"planner_target": "planner_target is required for metric tasks."})
     if not task.allow_snoozing:
         task.snooze_limit = None
+    is_long = getattr(task, "task_duration", "short") == "long"
+    if is_long:
+        if not task.end_date:
+            raise ValidationError(errors={"end_date": "end_date is required for long-term tasks."})
+        if task.end_date <= task.scheduled_date:
+            raise ValidationError(errors={"end_date": "end_date must be after scheduled_date."})
+        if task.end_preferred_time != "custom":
+            task.end_specific_time = None
+        elif not task.end_specific_time or not task.end_specific_time.strip():
+            raise ValidationError(errors={"end_specific_time": "end_specific_time is required when end_preferred_time is 'custom'."})
+    else:
+        task.end_date = None
+        task.end_preferred_time = None
+        task.end_specific_time = None
+        task.planner_display = None
 
 
 def update_task(
@@ -453,9 +495,10 @@ def update_task(
     if "priority" in fields and data.priority is not None:
         task.priority = data.priority
     if "scheduled_date" in fields and data.scheduled_date is not None:
-        task.scheduled_date = data.scheduled_date
-        if task.status in ("completed", "missed"):
-            task.status = "upcoming"
+        if data.scheduled_date != task.scheduled_date:
+            task.scheduled_date = data.scheduled_date
+            if task.status in ("completed", "missed"):
+                task.status = "upcoming"
 
     if "preferred_time" in fields and data.preferred_time is not None:
         task.preferred_time = data.preferred_time
@@ -500,10 +543,28 @@ def update_task(
         else:
             task.value_unit = None
 
+    was_long = getattr(task, "task_duration", "short") == "long"
+    if "task_duration" in fields and data.task_duration is not None:
+        task.task_duration = data.task_duration
+    is_long = getattr(task, "task_duration", "short") == "long"
+
+    if is_long:
+        if "end_date" in fields:
+            task.end_date = data.end_date
+        if "end_preferred_time" in fields:
+            task.end_preferred_time = data.end_preferred_time
+        if "end_specific_time" in fields and task.end_preferred_time == "custom":
+            task.end_specific_time = data.end_specific_time.strip() if data.end_specific_time else None
+        if "planner_display" in fields and data.planner_display is not None:
+            task.planner_display = data.planner_display
+
     _validate_task_state(task)
     db.commit()
     db.refresh(task)
+
+    # Always sync — long-term tasks get a day-1 plan entry just like short tasks.
     sync_plan_from_scheduled_task(db, task)
+
     return _serialize(task)
 
 

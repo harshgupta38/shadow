@@ -11,6 +11,8 @@ ScheduledTaskType = Literal["simple", "metric"]
 ScheduledTaskPriority = Literal["highest", "high", "medium", "low", "lowest"]
 ScheduledTaskPreferredTime = Literal["flexible", "morning", "afternoon", "evening", "night", "custom"]
 ScheduledTaskStatus = Literal["upcoming", "completed", "snoozed", "missed"]
+ScheduledTaskDuration = Literal["short", "long"]
+ScheduledTaskPlannerDisplay = Literal["task", "banner", "none"]
 
 
 class GoalSummary(BaseModel):
@@ -30,6 +32,12 @@ class ScheduledTaskCreateRequest(BaseModel):
 
     preferred_time: ScheduledTaskPreferredTime = "flexible"
     specific_time: str | None = Field(default=None, max_length=10)
+
+    task_duration: ScheduledTaskDuration = "short"
+    end_date: date | None = None
+    end_preferred_time: ScheduledTaskPreferredTime | None = None
+    end_specific_time: str | None = Field(default=None, max_length=10)
+    planner_display: ScheduledTaskPlannerDisplay | None = None
 
     allow_snoozing: bool = False
     snooze_limit: int | None = Field(default=None, gt=0)
@@ -60,6 +68,29 @@ class ScheduledTaskCreateRequest(BaseModel):
         else:
             self.specific_time = None
 
+        if self.task_duration == "long":
+            # Long-term tasks cannot recur yearly (they have an explicit end_date instead).
+            self.repeat_yearly = False
+            if self.end_date is None:
+                raise ValueError("end_date is required for long-term tasks.")
+            if self.end_date <= self.scheduled_date:
+                raise ValueError("end_date must be after scheduled_date.")
+            if not self.category:
+                raise ValueError("category is required for long-term tasks.")
+            if self.planner_display is None:
+                self.planner_display = "banner"
+            if self.end_preferred_time == "custom":
+                if not (self.end_specific_time and self.end_specific_time.strip()):
+                    raise ValueError("end_specific_time is required when end_preferred_time is 'custom'.")
+            else:
+                self.end_specific_time = None
+        else:
+            # Clear long-term fields for short tasks.
+            self.end_date = None
+            self.end_preferred_time = None
+            self.end_specific_time = None
+            self.planner_display = None
+
         if self.planner_type == "metric":
             if self.planner_target is None:
                 raise ValueError("planner_target is required for metric tasks.")
@@ -88,6 +119,12 @@ class ScheduledTaskUpdateRequest(BaseModel):
 
     preferred_time: ScheduledTaskPreferredTime | None = None
     specific_time: str | None = Field(default=None, max_length=10)
+
+    task_duration: ScheduledTaskDuration | None = None
+    end_date: date | None = None
+    end_preferred_time: ScheduledTaskPreferredTime | None = None
+    end_specific_time: str | None = Field(default=None, max_length=10)
+    planner_display: ScheduledTaskPlannerDisplay | None = None
 
     allow_snoozing: bool | None = None
     snooze_limit: int | None = Field(default=None, gt=0)
@@ -145,6 +182,12 @@ class ScheduledTaskDataResponse(ORMModel):
 
     preferred_time: ScheduledTaskPreferredTime
     specific_time: str | None
+
+    task_duration: ScheduledTaskDuration = "short"
+    end_date: date | None = None
+    end_preferred_time: ScheduledTaskPreferredTime | None = None
+    end_specific_time: str | None = None
+    planner_display: ScheduledTaskPlannerDisplay | None = None
 
     allow_snoozing: bool
     snooze_limit: int | None

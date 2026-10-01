@@ -238,8 +238,12 @@ export function ScheduleWizardPage() {
 
         try {
             const isMetric = answers.plannerType === "metric";
+            const isLong = answers.taskDuration === "long";
             const specificTimeOut = answers.preferredTime === "custom"
                 ? buildTime(parsedSpecificTime.h, parsedSpecificTime.m, parsedSpecificTime.a)
+                : "";
+            const endSpecificTimeOut = isLong && answers.endPreferredTime === "custom"
+                ? buildTime(parsedEndSpecificTime.h, parsedEndSpecificTime.m, parsedEndSpecificTime.a)
                 : "";
 
             const payload = {
@@ -251,6 +255,11 @@ export function ScheduleWizardPage() {
                 scheduled_date: answers.scheduledDate,
                 preferred_time: answers.preferredTime,
                 specific_time: specificTimeOut || null,
+                task_duration: answers.taskDuration,
+                end_date: isLong ? (answers.endDate || null) : null,
+                end_preferred_time: isLong ? (answers.endPreferredTime || null) : null,
+                end_specific_time: isLong ? (endSpecificTimeOut || null) : null,
+                planner_display: isLong ? (answers.plannerDisplay || null) : null,
                 allow_snoozing: answers.allowSnoozing,
                 snooze_limit: answers.allowSnoozing
                     ? (answers.snoozeLimit ? parseOptionalPositiveInt(answers.snoozeLimit) : null)

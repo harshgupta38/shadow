@@ -1,12 +1,16 @@
 import asyncio
 import logging
 import sqlite3
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
+
+from sqlalchemy import delete
 
 from app.common import now_ist
 from app.common.proc_lock import acquire_singleton_lock
 from app.core.config import settings
+from app.db.session import SessionLocal
+from app.models.notification import NotificationDBM
 
 log = logging.getLogger("uvicorn.error")
 
@@ -81,6 +85,17 @@ def _enforce_limit(backup_dir: Path) -> None:
         log.info("DB backup limit reached — deleted oldest: %s", oldest.name)
 
 
+def purge_old_notifications() -> None:
+    cutoff = now_ist() - timedelta(days=30)
+    with SessionLocal() as db:
+        result = db.execute(
+            delete(NotificationDBM).where(NotificationDBM.created_at < cutoff)
+        )
+        db.commit()
+    if result.rowcount:
+        log.info("Purged %d notification(s) older than 30 days.", result.rowcount)
+
+
 def _is_valid_slot(slot: str) -> bool:
     """Return True if slot is a 4-digit HHMM string with a valid hour and minute."""
     if len(slot) != 4 or not slot.isdigit():
@@ -136,3 +151,8 @@ async def backup_scheduler_loop() -> None:
                     create_backup()
                 except Exception:
                     log.exception("DB backup failed for slot %s", slot)
+                else:
+                    try:
+                        purge_old_notifications()
+                    except Exception:
+                        log.exception("Notification purge failed for slot %s", slot)

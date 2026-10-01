@@ -1,6 +1,64 @@
+.schedule-category-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 0.4rem;
+
+  &.is-invalid {
+    outline: 2px solid var(--bs-danger, #dc3545);
+    border-radius: 0.5rem;
+    padding: 0.25rem;
+  }
+}
+
+.schedule-category-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  padding: 0.5rem 0.5rem;
+  border: 1.5px solid var(--jv-border, #e5e7eb);
+  border-radius: 0.5rem;
+  background: transparent;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+  font-size: 0.7rem;
+  line-height: 1.3;
+  text-align: center;
+  color: inherit;
+
+  .schedule-category-option-icon {
+    font-size: 1.4rem;
+    line-height: 1;
+  }
+
+  &:hover:not(:disabled) {
+    border-color: var(--jv-brand, #6366f1);
+    background: rgba(99, 102, 241, 0.06);
+  }
+
+  &.is-active {
+    border-color: var(--jv-brand, #6366f1);
+    background: rgba(99, 102, 241, 0.12);
+    font-weight: 600;
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+
+.goal-task-type-toggle--triple {
+  grid-template-columns: 1fr;
+
+  @media (min-width: 768px) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 .schedule-time-select {
   max-width: 4.5rem;
-  padding-right: 0.5rem;
 }
 
 .schedule-date-display {

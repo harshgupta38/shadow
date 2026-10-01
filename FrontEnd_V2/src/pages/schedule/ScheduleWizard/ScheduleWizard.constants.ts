@@ -8,7 +8,10 @@ import type {
 } from "@/api";
 import { todayIso } from "@/services/date.service";
 
-export type ScheduleWizardStepKey = "defineTask" | "whenAndPriority" | "additionalDetails";
+export type ScheduleWizardStepKey = "defineTask" | "whenAndPriority" | "longTermSettings" | "additionalDetails";
+export type PlannerDisplay = "task" | "banner" | "none";
+
+export type TaskDuration = "short" | "long";
 
 export type ScheduleWizardAnswers = {
     // Step 1: Define Task
@@ -19,9 +22,14 @@ export type ScheduleWizardAnswers = {
     plannerTarget: string; // metric only
     valueUnit: string;     // metric only
     priority: ScheduledTaskPriority;
+    taskDuration: TaskDuration;
     scheduledDate: string; // YYYY-MM-DD
     preferredTime: ScheduledTaskPreferredTime;
     specificTime: string;  // "HH:MM" when preferredTime === "custom"
+    endDate: string;       // YYYY-MM-DD, long-term only
+    endPreferredTime: ScheduledTaskPreferredTime;
+    endSpecificTime: string; // "HH:MM" when endPreferredTime === "custom"
+    plannerDisplay: PlannerDisplay; // long-term only
     repeatYearly: boolean;
 
     // Step 3: Additional Details
@@ -40,26 +48,40 @@ export type ScheduleWizardStep = {
     subtitle: string | null;
 };
 
-export const STEPS: ScheduleWizardStep[] = [
-    {
-        key: "defineTask",
-        title: "Define Task",
-        header: "What is the task you want to schedule?",
-        subtitle: null,
-    },
-    {
-        key: "whenAndPriority",
-        title: "When & Priority",
-        header: "When should this task happen?",
-        subtitle: "Set the date, time preference, and importance of this task.",
-    },
-    {
+export function getSteps(taskDuration: TaskDuration): ScheduleWizardStep[] {
+    const steps: ScheduleWizardStep[] = [
+        {
+            key: "defineTask",
+            title: "Define Task",
+            header: "What is the task you want to schedule?",
+            subtitle: null,
+        },
+        {
+            key: "whenAndPriority",
+            title: "When & Priority",
+            header: "When should this task happen?",
+            subtitle: "Set the date, time preference, and importance of this task.",
+        },
+    ];
+
+    if (taskDuration === "long") {
+        steps.push({
+            key: "longTermSettings",
+            title: "Event Details",
+            header: "Tell us more about this event",
+            subtitle: "Set the category and how it should appear in your daily planner.",
+        });
+    }
+
+    steps.push({
         key: "additionalDetails",
         title: "Additional Details",
         header: "Finishing touches",
         subtitle: "Add optional details to help the planner fit this task into your day.",
-    },
-];
+    });
+
+    return steps;
+}
 
 
 export function makeEmptyAnswers(defaultDuration = 30): ScheduleWizardAnswers {
@@ -69,9 +91,14 @@ export function makeEmptyAnswers(defaultDuration = 30): ScheduleWizardAnswers {
         plannerTarget: "",
         valueUnit: "",
         priority: "medium",
+        taskDuration: "short",
         scheduledDate: todayIso(),
         preferredTime: "flexible",
         specificTime: "",
+        endDate: "",
+        endPreferredTime: "flexible",
+        endSpecificTime: "",
+        plannerDisplay: "banner",
         allowSnoozing: false,
         snoozeLimit: "",
         repeatYearly: false,
@@ -89,9 +116,14 @@ export function answersFromProposalDraft(p: ScheduledTaskProposalLLMSchema): Sch
         plannerTarget: p.planner_target != null ? String(p.planner_target) : "",
         valueUnit: p.value_unit ?? "",
         priority: p.priority,
+        taskDuration: "short",
         scheduledDate: p.scheduled_date,
         preferredTime: p.preferred_time ?? "flexible",
         specificTime: p.specific_time ?? "",
+        endDate: "",
+        endPreferredTime: "flexible",
+        endSpecificTime: "",
+        plannerDisplay: "banner",
         allowSnoozing: p.allow_snoozing ?? false,
         snoozeLimit: p.snooze_limit != null ? String(p.snooze_limit) : "",
         repeatYearly: false,
@@ -109,9 +141,14 @@ export function answersFromTask(task: ScheduledTaskDataResponse): ScheduleWizard
         plannerTarget: task.planner_target !== null ? String(task.planner_target) : "",
         valueUnit: task.value_unit ?? "",
         priority: task.priority,
+        taskDuration: "short",
         scheduledDate: task.scheduled_date,
         preferredTime: task.preferred_time ?? "flexible",
         specificTime: task.specific_time ?? "",
+        endDate: "",
+        endPreferredTime: "flexible",
+        endSpecificTime: "",
+        plannerDisplay: "banner",
         allowSnoozing: task.allow_snoozing,
         snoozeLimit: task.snooze_limit !== null ? String(task.snooze_limit) : "",
         repeatYearly: task.repeat_yearly,
@@ -126,6 +163,20 @@ export const GOAL_CATEGORY_OPTIONS: GoalCategory[] = [
     "Career", "Business", "Finance", "Health", "Fitness",
     "Education", "Relationships", "Productivity", "Personal Growth", "Travel", "Other",
 ];
+
+export const CATEGORY_ICONS: Record<GoalCategory, string> = {
+    Career:          "💼",
+    Business:        "🏢",
+    Finance:         "💰",
+    Health:          "❤️",
+    Fitness:         "🏃",
+    Education:       "📚",
+    Relationships:   "👥",
+    Productivity:    "⚡",
+    "Personal Growth": "🌱",
+    Travel:          "✈️",
+    Other:           "🔖",
+};
 
 export const PRIORITY_OPTIONS: { value: ScheduledTaskPriority; label: string }[] = [
     { value: "highest", label: "Highest: non-negotiable" },
@@ -160,6 +211,9 @@ export type ScheduleFieldErrorKey =
     | "valueUnit"
     | "scheduledDate"
     | "specificTime"
+    | "endDate"
+    | "endSpecificTime"
+    | "category"
     | "snoozeLimit";
 
 export type ScheduleFieldErrors = Partial<Record<ScheduleFieldErrorKey, string>>;
@@ -169,12 +223,15 @@ export type ScheduleFieldErrors = Partial<Record<ScheduleFieldErrorKey, string>>
 export function mapApiFieldErrors(raw: Partial<Record<string, string>>): ScheduleFieldErrors {
     const mapped: ScheduleFieldErrors = {};
     const aliases: Record<ScheduleFieldErrorKey, string[]> = {
-        title:         ["title"],
-        plannerTarget: ["planner_target"],
-        valueUnit:     ["value_unit"],
-        scheduledDate: ["scheduled_date"],
-        specificTime:  ["specific_time"],
-        snoozeLimit:   ["snooze_limit"],
+        title:          ["title"],
+        plannerTarget:  ["planner_target"],
+        valueUnit:      ["value_unit"],
+        scheduledDate:  ["scheduled_date"],
+        specificTime:   ["specific_time"],
+        endDate:        ["end_date"],
+        endSpecificTime:["end_specific_time"],
+        category:       ["category"],
+        snoozeLimit:    ["snooze_limit"],
     };
     for (const key of Object.keys(aliases) as ScheduleFieldErrorKey[]) {
         const match = aliases[key].find((alias) => {
@@ -188,7 +245,8 @@ export function mapApiFieldErrors(raw: Partial<Record<string, string>>): Schedul
 
 export function getStepBannerError(stepKey: ScheduleWizardStepKey, errs: ScheduleFieldErrors): string | null {
     if (stepKey === "defineTask")        return errs.title ?? null;
-    if (stepKey === "whenAndPriority")   return errs.plannerTarget ?? errs.valueUnit ?? errs.scheduledDate ?? errs.specificTime ?? null;
+    if (stepKey === "whenAndPriority")   return errs.plannerTarget ?? errs.valueUnit ?? errs.scheduledDate ?? errs.specificTime ?? errs.endDate ?? errs.endSpecificTime ?? null;
+    if (stepKey === "longTermSettings")  return errs.category ?? null;
     if (stepKey === "additionalDetails") return errs.snoozeLimit ?? null;
     return null;
 }
@@ -204,13 +262,25 @@ export function getStepValidationErrors(stepKey: ScheduleWizardStepKey, answers:
     }
 
     if (stepKey === "whenAndPriority") {
-        if (!answers.scheduledDate) errs.scheduledDate = "Please set a scheduled date.";
+        if (!answers.scheduledDate) errs.scheduledDate = "Please set a start date.";
+        if (answers.taskDuration === "long") {
+            if (!answers.endDate) {
+                errs.endDate = "Please set an end date.";
+            } else if (answers.endDate <= answers.scheduledDate) {
+                errs.endDate = "End date must be after the start date.";
+            }
+        }
         if (answers.plannerType === "metric") {
             if (parseOptionalPositiveInt(answers.plannerTarget) === null) {
                 errs.plannerTarget = "Target must be a whole number greater than 0.";
             }
             if (!answers.valueUnit.trim()) errs.valueUnit = "Value unit is required for metric tasks.";
         }
+        return errs;
+    }
+
+    if (stepKey === "longTermSettings") {
+        if (!answers.category) errs.category = "Please select a category for this event.";
         return errs;
     }
 

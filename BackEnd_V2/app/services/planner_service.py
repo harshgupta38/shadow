@@ -520,6 +520,7 @@ def sync_plan_from_task(db: Session, task: TaskDBM, commit: bool = True) -> None
         task.planning_enabled
         and task.task_type == "Numeric"
         and task.status in _TASK_ACTIVE_STATUSES
+        and task.completed_at is None  # permanently excluded once metric target reached
     )
 
     if not should_be_active:
@@ -1161,6 +1162,18 @@ def update_daily_record(
                 )
             ) or 0
             task.current_value = total
+
+            # Auto-complete metric task when cumulative progress reaches the overall target.
+            # completed_at is the permanent planner exclusion marker — even if the user
+            # manually resets status to "In Progress", the planner won't re-activate it.
+            if (
+                task.planner_type == "metric"
+                and task.target_value
+                and total >= task.target_value
+                and task.completed_at is None
+            ):
+                task.status = "Completed"
+                task.completed_at = datetime.now(timezone.utc)
 
     # For schedule plans: mirror record status back to the source ScheduledTask
     # in both directions so the Schedule page always stays in sync.

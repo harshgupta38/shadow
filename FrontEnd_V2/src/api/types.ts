@@ -625,6 +625,7 @@ export interface PlanResponse {
   // True for past dates that were never opened — `items` is empty (no synthesis).
   // Always false for today.
   no_plan_generated: boolean;
+  banner_tasks?: ScheduledTaskDataResponse[];
 }
 
 // ── Scheduled Tasks ──────────────────────────────────────────────────────────

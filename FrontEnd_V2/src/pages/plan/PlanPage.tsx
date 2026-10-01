@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -16,7 +16,9 @@ import {
 } from "react-bootstrap-icons";
 
 import { api, ApiError } from "@/api";
-import type { DailyPlanSavedData, PlanResponse } from "@/api";
+import type { DailyPlanSavedData, PlanResponse, ScheduledTaskDataResponse } from "@/api";
+import { PRIORITY_COLOR, formatDateRange } from "@/pages/schedule/ScheduleCard/ScheduleCard.constants";
+import { CATEGORY_ICONS } from "@/pages/schedule/ScheduleWizard/ScheduleWizard.constants";
 import { ROUTES } from "@/routes/RoutePaths";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { ProgressRing } from "@/components/ui/ProgressRing/ProgressRing";
@@ -31,6 +33,7 @@ import { useDateParam } from "@/hooks/useUrlAnchor";
 import { PlanCard } from "@/pages/plan/PlanCard/PlanCard";
 import { DayOverviewPanel } from "@/pages/plan/DayOverviewPanel/DayOverviewPanel";
 import { YesterdayClosingPanel } from "@/pages/plan/YesterdayClosingPanel/YesterdayClosingPanel";
+import { ScheduleTaskDetailPanel } from "@/pages/schedule/ScheduleTaskDetailPanel/ScheduleTaskDetailPanel";
 import { useDateFormat } from "@/context/PlannerContext";
 import { useToast } from "@/context/ToastContext";
 import { ANIMATION, TIMING } from "@/constant/tuning";
@@ -130,6 +133,7 @@ export function PlanPage() {
   const [completedOpen, setCompletedOpen] = useState(false);
   const [skippedOpen, setSkippedOpen] = useState(false);
   const [generatingBrief, setGeneratingBrief] = useState(false);
+  const [selectedBannerTask, setSelectedBannerTask] = useState<ScheduledTaskDataResponse | null>(null);
 
   useEffect(() => {
     function refreshToday() {
@@ -389,6 +393,7 @@ export function PlanPage() {
       ? "Plan a few tasks to get started."
       : completionMessage(completion);
 
+  const bannerTasks = planData?.banner_tasks ?? [];
 
   return (
     <section className="plan-page">
@@ -596,6 +601,30 @@ export function PlanPage() {
         </div>
 
         <div className="plan-column">
+          {bannerTasks.length > 0 && (
+            <div className="plan-banners">
+              {bannerTasks.map(task => (
+                <button
+                  key={task.id}
+                  type="button"
+                  className="plan-banner-card"
+                  style={{ "--banner-color": PRIORITY_COLOR[task.priority] } as React.CSSProperties}
+                  onClick={() => setSelectedBannerTask(task)}
+                >
+                  <span className="plan-banner-icon">
+                    {task.category ? (CATEGORY_ICONS[task.category as keyof typeof CATEGORY_ICONS] ?? "📅") : "📅"}
+                  </span>
+                  <div className="plan-banner-info">
+                    <div className="plan-banner-title">{task.title}</div>
+                    {task.end_date && (
+                      <div className="plan-banner-dates">{formatDateRange(task.scheduled_date, task.end_date)}</div>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+
           {!loadingPlan && totalCount > 0 && (
             <section className="plan-panel progress-panel">
               <ProgressRing percentage={completion} />
@@ -614,6 +643,16 @@ export function PlanPage() {
           {isToday && <YesterdayClosingPanel closing={planData?.previous_day_closing ?? null} />}
         </div>
       </div>
+
+      {selectedBannerTask && (
+        <ScheduleTaskDetailPanel
+          task={selectedBannerTask}
+          onClose={() => setSelectedBannerTask(null)}
+          onEdit={() => setSelectedBannerTask(null)}
+          onDuplicate={() => setSelectedBannerTask(null)}
+          onDelete={() => setSelectedBannerTask(null)}
+        />
+      )}
     </section>
   );
 }

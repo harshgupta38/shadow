@@ -525,6 +525,68 @@
     100% { transform: translateX(100%); }
   }
 
+  // ── Banner strip ─────────────────────────────────────────────────────────────
+
+  .plan-banners {
+    display: flex;
+    gap: 0.6rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+    border-radius: 9px;
+
+    &::-webkit-scrollbar { display: none; }
+  }
+
+  .plan-banner-card {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.42rem 0.75rem;
+    border: 1px solid var(--jv-border);
+    border-left: 3px solid var(--banner-color, var(--jv-brand-1));
+    border-radius: 9px;
+    background: color-mix(in srgb, var(--banner-color, var(--jv-brand-1)) 7%, var(--jv-surface-2));
+    flex-shrink: 0;
+    cursor: pointer;
+    text-align: left;
+    transition: background var(--jv-transition);
+
+    &:only-child {
+      width: 100%;
+    }
+
+    &:hover {
+      background: color-mix(in srgb, var(--banner-color, var(--jv-brand-1)) 14%, var(--jv-surface-2));
+    }
+
+    .plan-banner-icon {
+      font-size: 1.1rem;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+
+    .plan-banner-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .plan-banner-title {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--jv-text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .plan-banner-dates {
+      font-size: 0.68rem;
+      color: var(--jv-muted);
+      margin-top: 0.06rem;
+      white-space: nowrap;
+    }
+  }
+
   @media (max-width: 800px) {
     .plan-columns {
       grid-template-columns: 1fr;

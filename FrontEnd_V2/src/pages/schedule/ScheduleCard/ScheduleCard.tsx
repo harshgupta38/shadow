@@ -6,7 +6,7 @@ import { Dropdown } from "react-bootstrap";
 
 import type { ScheduledTaskDataResponse } from "@/api/types";
 import { PRIORITY_COLOR, PRIORITY_LABEL, formatDateDisplay, formatDateDisplayYearly, formatDateRange, formatTimeDisplay, TimeIcon } from "./ScheduleCard.constants";
-import { CATEGORY_ICONS } from "@/constant/category";
+import { CATEGORY_ICONS } from "@/pages/schedule/ScheduleWizard/ScheduleWizard.constants";
 
 import "./ScheduleCard.scss";
 

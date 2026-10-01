@@ -7,7 +7,7 @@ import { ArrowRepeat, ChevronRight, Clock, Files, MoonFill, MoonStarsFill, Penci
 import type { ScheduledTaskDataResponse } from "@/api/types";
 import { todayIso, formatDuration } from "@/services/date.service";
 import { formatDateDisplay, formatDateDisplayYearly, PRIORITY_LABEL, STATUS_LABEL } from "@/pages/schedule/ScheduleCard/ScheduleCard.constants";
-import { CATEGORY_ICONS } from "@/constant/category";
+import { CATEGORY_ICONS } from "@/pages/schedule/ScheduleWizard/ScheduleWizard.constants";
 import { PriorityIcon } from "@/constant/priority";
 import { ANIMATION } from "@/constant/tuning";
 

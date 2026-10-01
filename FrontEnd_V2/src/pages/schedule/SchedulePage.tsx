@@ -26,7 +26,7 @@ import { useMonthParam } from "@/hooks/useUrlAnchor";
 import { ScheduleCard } from "@/pages/schedule/ScheduleCard/ScheduleCard";
 import { PRIORITY_COLOR } from "@/pages/schedule/ScheduleCard/ScheduleCard.constants";
 import { ScheduleTaskDetailPanel } from "@/pages/schedule/ScheduleTaskDetailPanel/ScheduleTaskDetailPanel";
-import { CATEGORY_ICONS } from "@/constant/category";
+import { CATEGORY_ICONS } from "@/pages/schedule/ScheduleWizard/ScheduleWizard.constants";
 
 import "@/pages/schedule/SchedulePage.scss";
 

@@ -7,12 +7,19 @@ import { ArrowRepeat, ChevronRight, Clock, Files, MoonFill, MoonStarsFill, Penci
 import type { ScheduledTaskDataResponse } from "@/api/types";
 import { todayIso, formatDuration } from "@/services/date.service";
 import { formatDateDisplay, formatDateDisplayYearly, PRIORITY_LABEL, STATUS_LABEL } from "@/pages/schedule/ScheduleCard/ScheduleCard.constants";
+import { CATEGORY_ICONS } from "@/constant/category";
 import { PriorityIcon } from "@/constant/priority";
 import { ANIMATION } from "@/constant/tuning";
 
 import "@/pages/my_goals/GoalCreationWizard/GoalCreationWizard.scss";
 import "@/pages/assistant/RefinedGoalReviewPanel/RefinedGoalReviewPanel.scss";
 import "@/pages/schedule/ScheduleTaskDetailPanel/ScheduleTaskDetailPanel.scss";
+
+const PLANNER_DISPLAY_LABEL: Record<string, string> = {
+    task:   "Daily task",
+    banner: "Highlighted banner",
+    none:   "Day 1 only",
+};
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -111,20 +118,47 @@ export function ScheduleTaskDetailPanel({ task, onClose, onEdit, onDuplicate, on
                                 </span>
                             </span>
                         </div>
-                        <div className="stdp-row">
-                            <span className="stdp-label">Date</span>
-                            <span className="stdp-value stdp-value--flex">
-                                {dateDisplay}
-                                {task.repeat_yearly && <ArrowRepeat size={13} className="stdp-repeat-icon" title="Repeats yearly" />}
-                            </span>
-                        </div>
-                        {task.preferred_time !== "flexible" && (
-                            <div className="stdp-row">
-                                <span className="stdp-label">Time</span>
-                                <span className="stdp-value">
-                                    <TimeChip preferredTime={task.preferred_time} specificTime={task.specific_time} />
-                                </span>
-                            </div>
+                        {task.task_duration === "long" ? (
+                            <>
+                                <div className="stdp-row">
+                                    <span className="stdp-label">Start</span>
+                                    <span className="stdp-value stdp-value--flex">
+                                        {formatDateDisplay(task.scheduled_date, dateFormat)}
+                                        {task.preferred_time !== "flexible" && (
+                                            <TimeChip preferredTime={task.preferred_time} specificTime={task.specific_time} />
+                                        )}
+                                    </span>
+                                </div>
+                                {task.end_date && (
+                                    <div className="stdp-row">
+                                        <span className="stdp-label">End</span>
+                                        <span className="stdp-value stdp-value--flex">
+                                            {formatDateDisplay(task.end_date, dateFormat)}
+                                            {task.end_preferred_time && task.end_preferred_time !== "flexible" && (
+                                                <TimeChip preferredTime={task.end_preferred_time} specificTime={task.end_specific_time ?? null} />
+                                            )}
+                                        </span>
+                                    </div>
+                                )}
+                            </>
+                        ) : (
+                            <>
+                                <div className="stdp-row">
+                                    <span className="stdp-label">Date</span>
+                                    <span className="stdp-value stdp-value--flex">
+                                        {dateDisplay}
+                                        {task.repeat_yearly && <ArrowRepeat size={13} className="stdp-repeat-icon" title="Repeats yearly" />}
+                                    </span>
+                                </div>
+                                {task.preferred_time !== "flexible" && (
+                                    <div className="stdp-row">
+                                        <span className="stdp-label">Time</span>
+                                        <span className="stdp-value">
+                                            <TimeChip preferredTime={task.preferred_time} specificTime={task.specific_time} />
+                                        </span>
+                                    </div>
+                                )}
+                            </>
                         )}
                         {isMetric && task.planner_target !== null && (
                             <div className="stdp-row">
@@ -156,10 +190,19 @@ export function ScheduleTaskDetailPanel({ task, onClose, onEdit, onDuplicate, on
                                 </span>
                             </div>
                         )}
+                        {task.task_duration === "long" && task.planner_display && (
+                            <div className="stdp-row">
+                                <span className="stdp-label">Planner</span>
+                                <span className="stdp-value">{PLANNER_DISPLAY_LABEL[task.planner_display] ?? task.planner_display}</span>
+                            </div>
+                        )}
                         {task.category && (
                             <div className="stdp-row">
                                 <span className="stdp-label">Category</span>
-                                <span className="stdp-value">{task.category}</span>
+                                <span className="stdp-value stdp-value--flex">
+                                    <span>{CATEGORY_ICONS[task.category]}</span>
+                                    {task.category}
+                                </span>
                             </div>
                         )}
                         {task.goal && (

@@ -26,6 +26,7 @@ import { useMonthParam } from "@/hooks/useUrlAnchor";
 import { ScheduleCard } from "@/pages/schedule/ScheduleCard/ScheduleCard";
 import { PRIORITY_COLOR } from "@/pages/schedule/ScheduleCard/ScheduleCard.constants";
 import { ScheduleTaskDetailPanel } from "@/pages/schedule/ScheduleTaskDetailPanel/ScheduleTaskDetailPanel";
+import { CATEGORY_ICONS } from "@/constant/category";
 
 import "@/pages/schedule/SchedulePage.scss";
 
@@ -47,6 +48,22 @@ function ScheduleCardSkeleton() {
             </div>
         </div>
     );
+}
+
+// Returns every date from startIso+1 day through endIso (the day-2…end span of a long-term task).
+// Uses local date getters, not toISOString(), to stay correct in non-UTC timezones (e.g. IST).
+function getDatesInRange(startIso: string, endIso: string): string[] {
+    const dates: string[] = [];
+    const end = new Date(endIso + "T00:00:00");
+    const cur = new Date(startIso + "T00:00:00");
+    cur.setDate(cur.getDate() + 1);
+    while (cur <= end) {
+        dates.push(
+            `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, "0")}-${String(cur.getDate()).padStart(2, "0")}`,
+        );
+        cur.setDate(cur.getDate() + 1);
+    }
+    return dates;
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -111,6 +128,19 @@ export function SchedulePage() {
         acc[t.scheduled_date].push(t);
         return acc;
     }, {}), [tasks]);
+
+    // Maps each continuation date (day 2 → end_date) to the long-term tasks spanning it
+    const longTermSpansByDate = useMemo(() => {
+        const map: Record<string, ScheduledTaskDataResponse[]> = {};
+        for (const task of tasks) {
+            if (task.task_duration === "long" && task.end_date) {
+                for (const date of getDatesInRange(task.scheduled_date, task.end_date)) {
+                    (map[date] ??= []).push(task);
+                }
+            }
+        }
+        return map;
+    }, [tasks]);
 
     const weekStart = useWeekStart();
     const calCells = useMemo(() => buildCalendarCells(calYear, calMonth, weekStart), [calYear, calMonth, weekStart]);
@@ -249,6 +279,7 @@ export function SchedulePage() {
                         <div className="schedule-cal-grid">
                             {calCells.map((cell, i) => {
                                 const cellTasks = tasksByDate[cell.iso] ?? [];
+                                const spanTasks = longTermSpansByDate[cell.iso] ?? [];
                                 const isToday = cell.iso === currentTodayIso;
                                 const cellTaskLimit = PAGE_SIZE.SCHEDULE_CELL_TASK_LIMIT;
                                 return (
@@ -285,6 +316,22 @@ export function SchedulePage() {
                                                 <span className="schedule-cal-overflow">+{cellTasks.length - cellTaskLimit} more</span>
                                             )}
                                         </div>
+                                        {spanTasks.length > 0 && (
+                                            <div className="schedule-cal-span-strip">
+                                                {spanTasks.map(t => (
+                                                    <button
+                                                        key={t.id}
+                                                        type="button"
+                                                        className="schedule-cal-span-icon"
+                                                        style={{ "--chip-color": PRIORITY_COLOR[t.priority] } as React.CSSProperties}
+                                                        title={t.title}
+                                                        onClick={(e) => { e.stopPropagation(); setSelectedTask(t); }}
+                                                    >
+                                                        {t.category ? CATEGORY_ICONS[t.category] : "📅"}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
                                 );
                             })}

@@ -633,6 +633,9 @@ export type ScheduledTaskPriority = "highest" | "high" | "medium" | "low" | "low
 export type ScheduledTaskPreferredTime = "flexible" | "morning" | "afternoon" | "evening" | "night" | "custom";
 export type ScheduledTaskStatus = "upcoming" | "completed" | "snoozed" | "missed";
 
+export type ScheduledTaskDuration = "short" | "long";
+export type ScheduledTaskPlannerDisplay = "task" | "banner" | "none";
+
 export interface ScheduledTaskCreateRequest {
   title: string;
   planner_type: ScheduledTaskType;
@@ -644,6 +647,13 @@ export interface ScheduledTaskCreateRequest {
   preferred_time: ScheduledTaskPreferredTime;
   specific_time: string | null;
   repeat_yearly?: boolean; // true → saved to yearly_tasks; false/omitted → scheduled_tasks
+
+  // Long-term task fields (optional until backend ships them)
+  task_duration?: ScheduledTaskDuration;
+  end_date?: string | null;           // YYYY-MM-DD, long-term only
+  end_preferred_time?: ScheduledTaskPreferredTime | null;
+  end_specific_time?: string | null;
+  planner_display?: ScheduledTaskPlannerDisplay | null;
 
   allow_snoozing: boolean;
   snooze_limit: number | null; // null = infinite

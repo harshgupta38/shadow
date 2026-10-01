@@ -76,6 +76,6 @@ class DailyPlanResponse(BaseModel):
 
 class UpdatePlanRequest(BaseModel):
     status: PlanStatus | None = None
-    actual_value: int | None = None
+    add_value: int | None = None  # delta — backend adds to current DB value (safe under concurrent writes)
     note: str | None = None
     skipped: bool | None = None

@@ -1083,7 +1083,6 @@ def update_daily_record(
     current_user: UserDBM,
     record_id: int,
     status: str | None,
-    actual_value: int | None,
     note: str | None,
     add_value: int | None = None,
     skipped: bool | None = None,
@@ -1100,8 +1099,9 @@ def update_daily_record(
     if record.scheduled_date != today_ist():
         raise AppError("Past date records cannot be modified.")
 
+    actual_value: int | None = None
     if add_value is not None:
-        actual_value = record.actual_value + add_value
+        actual_value = max(0, (record.actual_value or 0) + add_value)
 
     # For metric plans: actual_value drives status automatically.
     if actual_value is not None and record.planner_type == "metric":

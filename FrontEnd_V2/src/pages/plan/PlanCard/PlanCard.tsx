@@ -35,7 +35,7 @@ interface PlanCardProps {
   item: PlanDataResponse;
   onToggle?: () => void;
   onToggleSkip?: () => void;
-  onSaveProgress?: (value: number) => Promise<void>;
+  onSaveDelta?: (delta: number) => Promise<void>;
   onSaveNote?: (note: string) => Promise<void>;
   onSaveNoteAndDone?: (note: string) => Promise<void>;
   busy?: boolean;
@@ -78,7 +78,7 @@ function TimeChip({ preferredTime, label }: { preferredTime: string; label: stri
   );
 }
 
-export function PlanCard({ item, onToggle, onToggleSkip, onSaveProgress, onSaveNote, onSaveNoteAndDone, busy = false, readOnly = false, isCompleting = false }: PlanCardProps) {
+export function PlanCard({ item, onToggle, onToggleSkip, onSaveDelta, onSaveNote, onSaveNoteAndDone, busy = false, readOnly = false, isCompleting = false }: PlanCardProps) {
   const navigate = useNavigate();
   const timeFormat = useTimeFormat();
   const isDone = item.saved_data?.status === "done";
@@ -164,10 +164,10 @@ export function PlanCard({ item, onToggle, onToggleSkip, onSaveProgress, onSaveN
   }
 
   async function handleSaveProgress() {
-    if (progressDraft === null || !onSaveProgress) return;
+    if (progressDraft === null || progressDraft === baseCurrent || !onSaveDelta) return;
     setSavingProgress(true);
     try {
-      await onSaveProgress(progressDraft);
+      await onSaveDelta(progressDraft - baseCurrent);
       setProgressDraft(null);
     } finally {
       setSavingProgress(false);
@@ -176,10 +176,10 @@ export function PlanCard({ item, onToggle, onToggleSkip, onSaveProgress, onSaveN
 
   async function handleSaveProgressDelta() {
     const delta = parseInt(inputDelta, 10);
-    if (isNaN(delta) || delta === 0 || !onSaveProgress) return;
+    if (isNaN(delta) || delta === 0 || !onSaveDelta) return;
     setSavingProgress(true);
     try {
-      await onSaveProgress(Math.max(0, baseCurrent + delta));
+      await onSaveDelta(delta);
       setInputDelta("");
     } finally {
       setSavingProgress(false);
@@ -389,7 +389,7 @@ export function PlanCard({ item, onToggle, onToggleSkip, onSaveProgress, onSaveN
                     </span>
                   ) : (
                     <>
-                      {hasDraft && onSaveProgress && (
+                      {hasDraft && onSaveDelta && (
                         <button
                           type="button"
                           className="btn btn-ghost btn-icon border-0 plan-card-progress-action plan-card-progress-action-save"

@@ -33,7 +33,7 @@ def update_daily_record(
         current_user,
         record_id,
         status=body.status,
-        actual_value=body.actual_value,
+        add_value=body.add_value,
         note=body.note,
         skipped=body.skipped,
     )

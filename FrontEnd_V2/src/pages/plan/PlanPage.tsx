@@ -340,14 +340,14 @@ export function PlanPage() {
     }
   }
 
-  async function handleSaveProgress(planId: number, value: number) {
+  async function handleSaveDelta(planId: number, delta: number) {
     const item = planData?.items.find((i) => i.plan_id === planId);
     const recordId = item?.saved_data?.record_id;
     if (!recordId) return;
     const prevStatus = item?.saved_data?.status;
 
     try {
-      const savedData = await api.planItems.updateRecord(recordId, { actual_value: value });
+      const savedData = await api.planItems.updateRecord(recordId, { add_value: delta });
       if (savedData.status === "done" && prevStatus !== "done") {
         setCompletingIds((prev) => new Set([...prev, planId]));
         updateItemSavedData(recordId, savedData);
@@ -361,8 +361,8 @@ export function PlanPage() {
       } else {
         updateItemSavedData(recordId, savedData);
       }
-    } catch {
-      toast.error("Couldn't save progress. Please try again.");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to update progress.");
     }
   }
 
@@ -585,7 +585,7 @@ export function PlanPage() {
                     busy={busyIds.has(item.plan_id)}
                     onToggle={() => handleToggle(item.plan_id)}
                     onToggleSkip={() => handleToggleSkip(item.plan_id)}
-                    onSaveProgress={(value) => handleSaveProgress(item.plan_id, value)}
+                    onSaveDelta={(delta) => handleSaveDelta(item.plan_id, delta)}
                     onSaveNote={(note) => handleSaveNote(item.plan_id, note)}
                     onSaveNoteAndDone={(note) => handleSaveNoteAndDone(item.plan_id, note)}
                   />
@@ -619,7 +619,7 @@ export function PlanPage() {
                         readOnly={!isToday}
                         busy={busyIds.has(item.plan_id)}
                         onToggle={() => handleToggle(item.plan_id)}
-                        onSaveProgress={(value) => handleSaveProgress(item.plan_id, value)}
+                        onSaveDelta={(delta) => handleSaveDelta(item.plan_id, delta)}
                         onSaveNote={(note) => handleSaveNote(item.plan_id, note)}
                       />
                     ))}

@@ -610,7 +610,7 @@ export interface DailyPlanSavedData {
 
 export interface UpdatePlanRequest {
   status?: PlanStatus;
-  actual_value?: number;
+  add_value?: number;
   note?: string;
   skipped?: boolean;
 }

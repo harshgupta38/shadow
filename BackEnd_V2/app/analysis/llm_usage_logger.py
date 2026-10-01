@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import datetime, timezone
 from typing import Any
@@ -256,6 +257,29 @@ async def log_openai_transcription_usage_async(
         logger.exception("Failed to persist immediate OpenAI transcription usage logging.")
 
 
+def _sync_upsert_daily_usage(user_id: int, input_tokens: int, output_tokens: int) -> None:
+    from app.common import today_ist
+    from app.db.session import SessionLocal
+    from sqlalchemy import text as _text
+    with SessionLocal() as db:
+        db.execute(
+            _text(
+                "INSERT INTO daily_usage (user_id, date, input_tokens, output_tokens) "
+                "VALUES (:user_id, :date, :input_tokens, :output_tokens) "
+                "ON CONFLICT (user_id, date) DO UPDATE SET "
+                "  input_tokens = daily_usage.input_tokens + excluded.input_tokens, "
+                "  output_tokens = daily_usage.output_tokens + excluded.output_tokens"
+            ),
+            {
+                "user_id": user_id,
+                "date": today_ist(),
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+            },
+        )
+        db.commit()
+
+
 async def _write_provider_usage_log(
     *,
     settings: LLMSettings,
@@ -290,6 +314,16 @@ async def _write_provider_usage_log(
             error=None,
         )
     )
+    if user_id is not None:
+        try:
+            await asyncio.to_thread(
+                _sync_upsert_daily_usage,
+                user_id,
+                input_tokens or 0,
+                output_tokens or 0,
+            )
+        except Exception:
+            logger.exception("Failed to upsert daily usage for user %s.", user_id)
 
 
 def _utc_now() -> datetime:

@@ -941,6 +941,18 @@ export interface UpdateBioRequest {
   bio: string;
 }
 
+export interface DailyUsageEntry {
+  date: string; // "YYYY-MM-DD"
+  input_tokens: number;
+  output_tokens: number;
+}
+
+export interface UsageResponse {
+  daily: DailyUsageEntry[];  // all days in the requested month, oldest first
+  monthly_input: number;
+  monthly_output: number;
+}
+
 // ─── Settings ─────────────────────────────────────────────────────────────────
 
 export type ThemePreferenceValue = ThemePreference;

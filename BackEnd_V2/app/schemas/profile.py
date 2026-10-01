@@ -2,6 +2,7 @@ from datetime import date
 
 from pydantic import BaseModel, field_validator
 
+
 from app.schemas.track_progress import ColorKey
 from app.validators.bio import validate_bio
 
@@ -48,3 +49,15 @@ class UpdateBioRequest(BaseModel):
     bio: str
 
     _validate_bio = field_validator("bio")(validate_bio)
+
+
+class DailyUsageEntry(BaseModel):
+    date: date
+    input_tokens: int
+    output_tokens: int
+
+
+class UsageResponse(BaseModel):
+    daily: list[DailyUsageEntry]  # all days in the requested month, oldest first
+    monthly_input: int
+    monthly_output: int

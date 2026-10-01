@@ -34,6 +34,7 @@ class Endpoints:
         PREFIX = "/profile"
         ROOT = ""
         BIO = "/bio"
+        USAGE = "/usage"
 
     class DASHBOARD:
         PREFIX = "/dashboard"

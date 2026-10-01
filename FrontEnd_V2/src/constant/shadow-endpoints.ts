@@ -26,6 +26,7 @@ export const ENDPOINTS = {
         PREFIX: "/profile",
         ROOT: "",
         BIO: "/bio",
+        USAGE: "/usage",
     },
     GOALS: {
         PREFIX: "/goal",

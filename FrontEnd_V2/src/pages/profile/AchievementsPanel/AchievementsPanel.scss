@@ -74,9 +74,18 @@
   box-shadow: var(--jv-shadow);
 }
 
-// 24 tiles is a lot to scroll the whole page for — on mobile the grid caps
-// at 2 columns x 4 rows (8 cards) and scrolls internally instead, so the
-// rest of the page stays reachable without an extra-long Achievements card.
+// Desktop: cap the grid height so the panel doesn't dwarf the right column.
+@media (min-width: 561px) {
+  .pf-badge-grid {
+    max-height: 600px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 0.3rem;
+    margin-right: -0.3rem;
+  }
+}
+
+// Mobile: same idea but tighter (2 cols × 4 rows ≈ 8 cards visible).
 @media (max-width: 560px) {
   .pf-badge-grid {
     max-height: 490px;

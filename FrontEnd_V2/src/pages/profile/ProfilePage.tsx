@@ -14,6 +14,7 @@ import { ThisMonthPanel } from "@/pages/profile/ThisMonthPanel/ThisMonthPanel";
 import { AppPreferencesPanel } from "@/pages/profile/AppPreferencesPanel/AppPreferencesPanel";
 import { AccountSecurityPanel } from "@/pages/profile/AccountSecurityPanel/AccountSecurityPanel";
 import { DangerZonePanel } from "@/pages/profile/DangerZonePanel/DangerZonePanel";
+import { UsagePanel } from "@/pages/profile/UsagePanel/UsagePanel";
 import "@/pages/profile/ProfilePage.scss";
 
 export function ProfilePage() {
@@ -103,6 +104,7 @@ export function ProfilePage() {
 
       <div className="row g-3">
         <div className="col-xl-7 d-flex flex-column gap-3">
+          <UsagePanel />
           <AchievementsPanel achievements={profile.achievements} />
         </div>
 

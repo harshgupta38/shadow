@@ -6,6 +6,7 @@ deliberately absent here; the frontend sources those from AuthContext
 (UserDataResponse) instead of duplicating them.
 """
 
+import calendar
 from datetime import date, timedelta
 
 from sqlalchemy import func, select
@@ -13,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.common import to_ist, today_ist
 from app.models.chat import ConversationDBM
+from app.models.daily_usage import DailyUsageDBM
 from app.models.goal import GoalDBM
 from app.models.habit import HabitDBM
 from app.models.milestone import MilestoneDBM
@@ -21,7 +23,7 @@ from app.models.report import ReportDBM
 from app.models.schedule_task import ScheduledTaskDBM
 from app.models.task import TaskDBM
 from app.models.user import UserDBM
-from app.schemas.profile import ProfileAchievement, ProfileResponse
+from app.schemas.profile import DailyUsageEntry, ProfileAchievement, ProfileResponse, UsageResponse
 from app.services import habits_service, report_service, reports_service
 
 # ── System-wide achievement thresholds ─────────────────────────────────────────
@@ -439,3 +441,36 @@ def update_bio(db: Session, current_user: UserDBM, bio: str) -> ProfileResponse:
     db.commit()
     db.refresh(current_user)
     return get_profile(db, current_user)
+
+
+def get_usage(db: Session, user_id: int, year: int, month: int) -> UsageResponse:
+    today = today_ist()
+    month_start = date(year, month, 1)
+    last_day = calendar.monthrange(year, month)[1]
+    month_end = min(date(year, month, last_day), today)
+
+    rows = db.scalars(
+        select(DailyUsageDBM).where(
+            DailyUsageDBM.user_id == user_id,
+            DailyUsageDBM.usage_date >= month_start,
+            DailyUsageDBM.usage_date <= month_end,
+        )
+    ).all()
+    by_date = {row.usage_date: row for row in rows}
+
+    daily: list[DailyUsageEntry] = []
+    d = month_start
+    while d <= month_end:
+        row = by_date.get(d)
+        daily.append(DailyUsageEntry(
+            date=d,
+            input_tokens=row.input_tokens if row else 0,
+            output_tokens=row.output_tokens if row else 0,
+        ))
+        d += timedelta(days=1)
+
+    return UsageResponse(
+        daily=daily,
+        monthly_input=sum(e.input_tokens for e in daily),
+        monthly_output=sum(e.output_tokens for e in daily),
+    )

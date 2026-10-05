@@ -19,16 +19,25 @@
 
   // ── Month header row ────────────────────────────────────────────────────────
   .hhs-month-header {
-    appearance: none;
-    border: none;
-    background: transparent;
-    padding: 0;
     width: 100%;
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 0.5rem;
     cursor: pointer;
+
+    &:focus-visible {
+      outline: 2px solid var(--jv-brand-1);
+      outline-offset: 3px;
+      border-radius: 4px;
+    }
+  }
+
+  .hhs-month-header-right {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
   }
 
   .hhs-month-label {
@@ -135,10 +144,12 @@
   }
 
   .hhs-note {
-    margin: 0 0 0.35rem;
+    margin: 0;
     font-size: 0.875rem;
     color: var(--jv-text);
     line-height: 1.45;
+    flex: 1;
+    min-width: 0;
   }
 
   .hhs-streak {
@@ -153,6 +164,28 @@
     gap: 0.75rem;
   }
 
+  .hhs-content-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: row;
+    align-items: baseline;
+    gap: 0.4rem;
+  }
+
+  .hhs-weekday-pill {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    font-size: 0.6rem;
+    font-weight: 700;
+    color: var(--jv-brand-1);
+    background: color-mix(in srgb, var(--jv-brand-1) 12%, transparent);
+    padding: 0.1rem 0.4rem;
+    border-radius: 3px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
 
   // ── Monthly metric chart (replaces the day list for metric habits/tasks) ────
   // Below MIN_DAY_PX-per-day, bars/labels start overlapping — the plot gets a

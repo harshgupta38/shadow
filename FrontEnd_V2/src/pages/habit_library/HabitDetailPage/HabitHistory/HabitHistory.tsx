@@ -4,6 +4,7 @@ import { ChevronDown, ChevronUp } from "react-bootstrap-icons";
 import type { HabitActivityRecord } from "@/api";
 import { todayIso } from "@/services/date.service";
 import { GEOMETRY } from "@/constant/tuning";
+import { FilterDropdown } from "@/components/ui/FilterDropdown/FilterDropdown";
 
 import "./HabitHistory.scss";
 
@@ -11,6 +12,18 @@ const MONTH_FULL = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
 ];
+
+const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
+const WEEKDAY_OPTIONS = [
+  { value: "Mon", label: "Mon" }, { value: "Tue", label: "Tue" },
+  { value: "Wed", label: "Wed" }, { value: "Thu", label: "Thu" },
+  { value: "Fri", label: "Fri" }, { value: "Sat", label: "Sat" },
+  { value: "Sun", label: "Sun" },
+];
+
+function weekdayOf(dateStr: string): string {
+  return DAY_LABELS[new Date(`${dateStr}T00:00:00`).getDay()];
+}
 
 interface PlannerConfig {
   planner_type: "simple" | "metric";
@@ -31,10 +44,13 @@ function StreakPill({ streak }: { streak: number }) {
   return <span className="plan-card-streak hhs-streak">🔥 {streak}</span>;
 }
 
-function SimpleContent({ record }: { record: HabitActivityRecord }) {
+function SimpleContent({ record, weekday }: { record: HabitActivityRecord; weekday: string }) {
   return (
     <div className="hhs-content hhs-content--simple">
-      {record.note && <p className="hhs-note">{record.note}</p>}
+      <div className="hhs-content-body">
+        <span className="hhs-weekday-pill">{weekday}</span>
+        {record.note && <p className="hhs-note">{record.note}</p>}
+      </div>
       <StreakPill streak={record.streak} />
     </div>
   );
@@ -64,22 +80,36 @@ function StatsFooter({ stats }: { stats: { value: string; unit?: string; key: st
 // done/missed pattern). Lead with month stats, then only list days that have
 // an actual note — the list becomes "why", the heatmap stays "what".
 
-function SimpleMonthTimeline({ records }: { records: HabitActivityRecord[] }) {
-  const notedEntries = useMemo(() => records.filter((r) => !!r.note), [records]);
+function SimpleMonthTimeline({
+  records,
+  weekdayFilter,
+}: {
+  records: HabitActivityRecord[];
+  weekdayFilter: string[];
+}) {
+  const allEntries = useMemo(() => records.filter((r) => !!r.note), [records]);
+  const visibleEntries = useMemo(
+    () => weekdayFilter.length === 0
+      ? allEntries
+      : allEntries.filter((r) => weekdayFilter.includes(weekdayOf(r.date))),
+    [allEntries, weekdayFilter],
+  );
   const doneCount = useMemo(() => records.filter((r) => r.status === "done").length, [records]);
   const missedCount = useMemo(() => records.filter((r) => r.status === "missed").length, [records]);
   const bestStreak = useMemo(() => Math.max(0, ...records.map((r) => r.streak)), [records]);
 
   return (
     <div className="hhs-simple-month">
-      {notedEntries.length === 0 ? (
-        <p className="hhs-simple-empty">No notes logged this month.</p>
+      {visibleEntries.length === 0 ? (
+        <p className="hhs-simple-empty">
+          {allEntries.length === 0 ? "No notes logged this month." : "No notes match the selected days."}
+        </p>
       ) : (
         <div className="hhs-timeline">
-          {notedEntries.map((record) => (
+          {visibleEntries.map((record) => (
             <div key={record.date} className="hhs-item">
               <div className="hhs-ball">{Number(record.date.slice(8, 10))}</div>
-              <SimpleContent record={record} />
+              <SimpleContent record={record} weekday={weekdayOf(record.date)} />
             </div>
           ))}
         </div>
@@ -372,6 +402,14 @@ function MonthSection({
   onToggle: () => void;
 }) {
   const plannerType = habit.planner_type;
+  const [weekdayFilter, setWeekdayFilter] = useState<string[]>([]);
+
+  function toggleWeekday(day: string) {
+    setWeekdayFilter((prev) =>
+      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day],
+    );
+  }
+
   const entries = plannerType === "metric"
     ? group.records.filter((r) => !!r.note || (r.value !== null && r.value > 0))
     : group.records.filter((r) => !!r.note || r.status === "done");
@@ -380,19 +418,41 @@ function MonthSection({
 
   return (
     <div className={`hl-card hhs-month-group ${expanded ? "pb-3" : ""}`}>
-      <button
-        type="button"
+      {/* Header is a div so FilterDropdown can live beside the chevron without nested-button issues */}
+      <div
         className="hhs-month-header"
+        role="button"
+        tabIndex={0}
         onClick={onToggle}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onToggle(); }}
         aria-expanded={expanded}
       >
         <h3 className="hhs-month-label">
           {MONTH_FULL[group.month]}, {group.year}
         </h3>
-        <span className="hhs-chevron" aria-hidden="true">
-          {expanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-        </span>
-      </button>
+        <div className="hhs-month-header-right">
+          {plannerType === "simple" && expanded && (
+            // stopPropagation so interacting with the filter doesn't toggle the card
+            <span onClick={(e) => e.stopPropagation()}>
+              <FilterDropdown
+                width={280}
+                hideChevron
+                sections={[{
+                  key: "weekday",
+                  label: "Day of week",
+                  options: WEEKDAY_OPTIONS,
+                  selected: weekdayFilter,
+                  onToggle: toggleWeekday,
+                }]}
+                onReset={() => setWeekdayFilter([])}
+              />
+            </span>
+          )}
+          <span className="hhs-chevron" aria-hidden="true">
+            {expanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+          </span>
+        </div>
+      </div>
 
       <div className={`hhs-collapse${expanded ? " is-expanded" : ""}`}>
         <div className={`hhs-collapse-inner${expanded ? "" : " is-collapsed"}`}>
@@ -405,7 +465,7 @@ function MonthSection({
               today={today}
             />
           ) : (
-            <SimpleMonthTimeline records={group.records} />
+            <SimpleMonthTimeline records={group.records} weekdayFilter={weekdayFilter} />
           )}
         </div>
       </div>

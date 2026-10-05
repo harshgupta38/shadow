@@ -23,6 +23,8 @@ export interface FilterDropdownProps {
     label?: string;
     /** Dropdown width in px. Default: 300 */
     width?: number;
+    /** Hide the chevron arrow on the trigger button. */
+    hideChevron?: boolean;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -32,6 +34,7 @@ export function FilterDropdown({
     onReset,
     label = "Filters",
     width = 300,
+    hideChevron = false,
 }: FilterDropdownProps) {
     const uid = useId();
     const dropdownId = `jv-filter-dropdown-${uid}`;
@@ -115,7 +118,7 @@ export function FilterDropdown({
                 onKeyDown={e => { if (e.key === "Escape") setOpen(false); }}
             >
                 {label}
-                <ChevronDown size={12} className={`jv-filter-chevron${open ? " jv-filter-chevron--up" : ""}`} />
+                {!hideChevron && <ChevronDown size={12} className={`jv-filter-chevron${open ? " jv-filter-chevron--up" : ""}`} />}
             </button>
 
             {open && pos && createPortal(

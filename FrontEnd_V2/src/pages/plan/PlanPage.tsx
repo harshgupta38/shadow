@@ -38,6 +38,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { useDateFormat } from "@/context/PlannerContext";
 import { useToast } from "@/context/ToastContext";
 import { ANIMATION, TIMING } from "@/constant/tuning";
+import { useWakeRefresh } from "@/hooks/useWakeRefresh";
 import "@/pages/plan/PlanPage.scss";
 
 const COMPLETE_ANIM_MS = ANIMATION.PLAN_ITEM_COMPLETE_MS;
@@ -173,6 +174,7 @@ export function PlanPage() {
   useEffect(() => {
     void loadPlan();
   }, [loadPlan, location.key]);
+  useWakeRefresh(() => void loadPlan());
 
   const planItems = planData?.items ?? [];
 

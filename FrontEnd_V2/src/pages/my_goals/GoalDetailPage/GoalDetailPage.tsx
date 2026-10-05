@@ -18,6 +18,7 @@ import { formatDisplayDate, todayDate } from "@/services/date.service";
 import { HabitCard } from "@/pages/habit_library/HabitCard/HabitCard";
 import { FREQUENCY_OPTIONS, PRIORITY_OPTIONS } from "@/pages/habit_library/HabitWizard/HabitWizard.constants";
 import { DEFAULT_FILTERS, EMPTY_FILTERS, FILTER_STATUS_OPTIONS } from "@/pages/habit_library/HabitLibraryPage.constants";
+import { useWakeRefresh } from "@/hooks/useWakeRefresh";
 
 import "@/pages/my_goals/GoalDetailPage/GoalDetailPage.scss";
 import "@/pages/habit_library/HabitLibraryPage.scss";
@@ -159,6 +160,10 @@ export function GoalDetailPage() {
   useEffect(() => {
     void loadHabits();
   }, [loadHabits]);
+  useWakeRefresh(() => {
+    void loadGoal();
+    void loadHabits();
+  });
 
   useEffect(() => {
     function enforceListView() {

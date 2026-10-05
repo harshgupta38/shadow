@@ -13,6 +13,7 @@ import { UpcomingPanel } from "./UpcomingPanel/UpcomingPanel";
 import { ThisWeekPanel } from "./ThisWeekPanel/ThisWeekPanel";
 import { greeting } from "./DashboardPage.constants";
 import { SKELETON } from "@/constant/tuning";
+import { useWakeRefresh } from "@/hooks/useWakeRefresh";
 import "./DashboardPage.scss";
 
 // ── Ghost Shell (loading placeholder, shaped like Today's Snapshot) ──────────
@@ -87,6 +88,7 @@ export function DashboardPage() {
   }
 
   useEffect(() => { load(); }, []);
+  useWakeRefresh(load);
 
   return (
     <section className="dashboard-page">

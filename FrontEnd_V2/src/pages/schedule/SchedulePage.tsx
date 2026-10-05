@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useWeekStart } from "@/context/PlannerContext";
 import { weekDayLabels } from "@/utils/weekUtils";
 import { CalendarWeek, ChevronDoubleLeft, ChevronDoubleRight, ChevronLeft, ChevronRight, PlusLg } from "react-bootstrap-icons";
@@ -23,6 +23,7 @@ import { PAGE_SIZE } from "@/constant/tuning";
 import { ROUTES } from "@/routes/RoutePaths";
 import { todayIso } from "@/services/date.service";
 import { useMonthParam } from "@/hooks/useUrlAnchor";
+import { useWakeRefresh } from "@/hooks/useWakeRefresh";
 import { ScheduleCard } from "@/pages/schedule/ScheduleCard/ScheduleCard";
 import { PRIORITY_COLOR } from "@/pages/schedule/ScheduleCard/ScheduleCard.constants";
 import { ScheduleTaskDetailPanel } from "@/pages/schedule/ScheduleTaskDetailPanel/ScheduleTaskDetailPanel";
@@ -85,7 +86,7 @@ export function SchedulePage() {
     // instead of always resetting to the current month.
     const returnPath = `${location.pathname}${location.search}`;
 
-    useEffect(() => {
+    const loadTasks = useCallback(() => {
         setLoading(true);
         setSelectedTask(null);
         void api.schedule.getScheduleList(calYear, calMonth + 1)
@@ -93,6 +94,9 @@ export function SchedulePage() {
             .catch(() => toast.error("Failed to load scheduled tasks."))
             .finally(() => setLoading(false));
     }, [calYear, calMonth]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    useEffect(() => { loadTasks(); }, [loadTasks]);
+    useWakeRefresh(loadTasks);
 
     function handleDuplicate(task: ScheduledTaskDataResponse) {
         navigate(ROUTES.SCHEDULE_CREATE, { state: { draft: task, returnPath } });

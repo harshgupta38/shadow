@@ -13,6 +13,7 @@ import { refreshAccessToken } from "@/api/client";
 import { ENDPOINTS } from "@/constant/shadow-endpoints";
 import { clearSessionHint, markSessionKnown } from "@/services/session-hint.service";
 import { TIMING } from "@/constant/tuning";
+import { useWakeRefresh } from "@/hooks/useWakeRefresh";
 
 type AuthStatus = "loading" | "authenticated" | "unauthenticated";
 
@@ -122,6 +123,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         window.addEventListener("unauthorized", handleUnauthorized);
         return () => window.removeEventListener("unauthorized", handleUnauthorized);
     }, [logout]);
+
+    // Device/tab woke from sleep — silently re-fetch the user so settings/profile
+    // changes made from another device while this one was asleep show up here too.
+    useWakeRefresh(() => {
+        if (status === "authenticated") {
+            void refreshUser().catch(() => { /* interceptor/SSE handle real auth failures */ });
+        }
+    });
 
     // SSE listener: log out immediately when this session is revoked from another device
     useEffect(() => {

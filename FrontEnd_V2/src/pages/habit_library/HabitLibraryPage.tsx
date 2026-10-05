@@ -12,6 +12,7 @@ import { DEFAULT_FILTERS, EMPTY_FILTERS, FILTER_STATUS_OPTIONS } from "@/pages/h
 import { HabitCard } from "@/pages/habit_library/HabitCard/HabitCard";
 import { FilterDropdown } from "@/components/ui/FilterDropdown/FilterDropdown";
 
+import { useWakeRefresh } from "@/hooks/useWakeRefresh";
 import "@/pages/habit_library/HabitLibraryPage.scss";
 
 export function HabitLibraryPage() {
@@ -60,6 +61,7 @@ export function HabitLibraryPage() {
   useEffect(() => {
     void loadHabits();
   }, [loadHabits]);
+  useWakeRefresh(() => void loadHabits());
 
   const stats = useMemo(
     () => ({

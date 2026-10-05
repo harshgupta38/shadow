@@ -113,6 +113,11 @@ export const TIMING = {
     RESEND_VERIFICATION_COOLDOWN_SECONDS: 30,
     /** AccountSecurityPanel — forgot-password-email button cooldown. */
     FORGOT_PASSWORD_COOLDOWN_SECONDS: 30,
+
+    /** useWakeRefresh — heartbeat tick interval used to detect a paused event loop (device sleep/background throttling). */
+    WAKE_HEARTBEAT_MS: 20_000,
+    /** useWakeRefresh — if more than this much time passed since the last heartbeat/visibility check, treat it as a wake-up and notify subscribers. */
+    WAKE_STALE_THRESHOLD_MS: 60_000,
 } as const;
 
 // ── Pagination / batch sizes ──────────────────────────────────────────────────

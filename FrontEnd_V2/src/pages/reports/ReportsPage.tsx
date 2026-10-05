@@ -17,6 +17,7 @@ import {
   fmtKey, buildMonthData, tierOf, computeStats, insightMsg,
 } from "@/pages/reports/ReportsPage.constants";
 import { GenerateReportDialog } from "@/pages/reports/GenerateReportDialog";
+import { useWakeRefresh } from "@/hooks/useWakeRefresh";
 import "@/pages/reports/ReportsPage.scss";
 
 // ─── Ghost Shell ──────────────────────────────────────────────────────────────
@@ -101,6 +102,7 @@ export function ReportsPage() {
   }, [year, month]);
 
   useEffect(() => { loadReport(); }, [loadReport]);
+  useWakeRefresh(loadReport);
 
   // Live-updates the calendar the moment a "report ready" notification arrives for the
   // month currently on screen — so a report generated while this page is open is

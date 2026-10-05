@@ -28,6 +28,7 @@ import { GoalCreationWizard } from "@/pages/my_goals/GoalCreationWizard/GoalCrea
 import { GoalLoadingSkeleton } from "@/pages/my_goals/GoalLoadingSkeleton/GoalLoadingSkeleton";
 import { useToast } from "@/context/ToastContext";
 import { LIMITS } from "@/constant/tuning";
+import { useWakeRefresh } from "@/hooks/useWakeRefresh";
 
 import "@/pages/my_goals/MyGoalsPage.scss";
 
@@ -123,6 +124,7 @@ export function MyGoalsPage() {
   useEffect(() => {
     void loadGoals(activeFilter);
   }, [activeFilter, loadGoals]);
+  useWakeRefresh(() => void loadGoals(activeFilter));
 
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;

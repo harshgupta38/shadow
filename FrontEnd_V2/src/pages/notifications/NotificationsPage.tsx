@@ -10,6 +10,7 @@ import { IST_TIMEZONE, notifDateLabel, notifTime } from "@/services/date.service
 import { useTimeFormat } from "@/context/PlannerContext";
 import { getNotificationVisual } from "@/pages/notifications/NotificationsPage.constants";
 import { PAGE_SIZE as PAGE_SIZE_CONFIG } from "@/constant/tuning";
+import { useWakeRefresh } from "@/hooks/useWakeRefresh";
 import "@/pages/notifications/NotificationsPage.scss";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -154,6 +155,12 @@ export function NotificationsPage() {
       setError(err instanceof ApiError ? err.message : "Couldn't load notifications.");
     }).finally(() => setLoading(false));
   }
+
+  // Woke from sleep/background — quietly refresh the first page without
+  // flashing the loading skeleton over already-visible notifications.
+  useWakeRefresh(() => {
+    loadPage().then(setNotifications).catch(() => {});
+  });
 
   // ── Render ──────────────────────────────────────────────────────────────────
 

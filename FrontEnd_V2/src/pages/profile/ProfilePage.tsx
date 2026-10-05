@@ -15,6 +15,7 @@ import { AppPreferencesPanel } from "@/pages/profile/AppPreferencesPanel/AppPref
 import { AccountSecurityPanel } from "@/pages/profile/AccountSecurityPanel/AccountSecurityPanel";
 import { DangerZonePanel } from "@/pages/profile/DangerZonePanel/DangerZonePanel";
 import { UsagePanel } from "@/pages/profile/UsagePanel/UsagePanel";
+import { useWakeRefresh } from "@/hooks/useWakeRefresh";
 import "@/pages/profile/ProfilePage.scss";
 
 export function ProfilePage() {
@@ -49,6 +50,7 @@ export function ProfilePage() {
   useEffect(() => {
     void load();
   }, [load]);
+  useWakeRefresh(() => void load());
 
   async function saveName(value: string) {
     try {

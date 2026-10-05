@@ -17,6 +17,7 @@ import {
 import { useWeekStart } from "@/context/PlannerContext";
 import { dayToCol, weekDayLabels, weekRangeStr } from "@/utils/weekUtils";
 import { todayDate } from "@/services/date.service";
+import { useWakeRefresh } from "@/hooks/useWakeRefresh";
 import "@/pages/track_progress/TrackProgressPage.scss";
 
 
@@ -158,6 +159,7 @@ export function TrackProgressPage() {
   }
 
   useEffect(() => { fetchTrackData(); }, []);
+  useWakeRefresh(fetchTrackData);
 
   function openPanel() {
     Promise.all([trackProgressApi.getEligibleHabits(), trackProgressApi.getEligibleTasks()])

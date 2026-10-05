@@ -398,18 +398,19 @@ def _recompute_task_progress(db: Session, task_id: int) -> None:
     ) or 0
 
 
-def _apply_metric_status(record: DailyPlanRecordDBM) -> None:
+def _apply_metric_status(record: DailyPlanRecordDBM, tolerance_pct: int = 100) -> None:
     """Re-derive status and completed_at from actual_value vs planner_target.
 
     Called after planner_target changes so the record stays internally consistent.
     'missed' is a deliberate user action and is never overridden here.
-    'done' is re-evaluated: if the target was raised above actual_value, the
-    record reverts to 'due' so the planner does not show a false completion.
+    'done' is re-evaluated using tolerance_pct: if actual * 100 < target * tolerance_pct
+    the record reverts to 'due' so the planner does not show a false completion.
     """
     if record.status == "missed":
         return
     target = record.planner_target or 0
-    if target > 0 and record.actual_value >= target:
+    actual = record.actual_value or 0
+    if target > 0 and actual * 100 >= target * tolerance_pct:
         record.status = "done"
         if record.completed_at is None:
             record.completed_at = datetime.now(timezone.utc)
@@ -462,7 +463,12 @@ def _sync_today_record(db: Session, plan: PlanDBM) -> None:
         setattr(record, key, value)
 
     if record.planner_type == "metric":
-        _apply_metric_status(record)
+        tolerance_pct = 100
+        if plan.source_type == "habit" and plan.source_id is not None:
+            habit = db.get(HabitDBM, plan.source_id)
+            if habit is not None:
+                tolerance_pct = habit.streak_tolerance_pct
+        _apply_metric_status(record, tolerance_pct)
 
 
 # ── Public sync API ───────────────────────────────────────────────────────────
@@ -1108,7 +1114,12 @@ def update_daily_record(
     if actual_value is not None and record.planner_type == "metric":
         record.actual_value = actual_value
         target = record.planner_target or 0
-        if target > 0 and actual_value >= target:
+        tolerance_pct = 100
+        if record.source_type == "habit" and record.source_id is not None:
+            habit = db.get(HabitDBM, record.source_id)
+            if habit is not None:
+                tolerance_pct = habit.streak_tolerance_pct
+        if target > 0 and actual_value * 100 >= target * tolerance_pct:
             record.status = "done"
             if record.completed_at is None:
                 record.completed_at = datetime.now(timezone.utc)

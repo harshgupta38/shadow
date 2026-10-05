@@ -58,6 +58,13 @@ async def lifespan(_app: FastAPI):
             "Email notifications are disabled until these are set in the environment."
         )
     Base.metadata.create_all(bind=engine)
+    # Add columns that didn't exist when the DB was first created.
+    from sqlalchemy import text as _sql_text  # pyright: ignore[reportMissingImports]
+    with engine.connect() as _conn:
+        _cols = {row[1] for row in _conn.execute(_sql_text("PRAGMA table_info(habits)")).fetchall()}
+        if "streak_tolerance_pct" not in _cols:
+            _conn.execute(_sql_text("ALTER TABLE habits ADD COLUMN streak_tolerance_pct INTEGER NOT NULL DEFAULT 100"))
+            _conn.commit()
     with SessionLocal() as db:
         planner_service.sync_all_plans(db)
 

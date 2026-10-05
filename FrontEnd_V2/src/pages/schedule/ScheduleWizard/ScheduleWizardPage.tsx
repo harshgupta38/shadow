@@ -869,7 +869,7 @@ export function ScheduleWizardPage() {
 
                                                         {/* Duration + Repeat yearly */}
                                                         <div className="row g-3 mb-3">
-                                                            <div className={stateProposalId ? "col-12" : "col-md-6"}>
+                                                            <div className={stateProposalId || answers.taskDuration === "long" ? "col-12" : "col-md-6"}>
                                                                 <label className="form-label">
                                                                     Estimated duration <span className="text-muted fw-normal">(minutes, optional)</span>
                                                                 </label>

@@ -163,6 +163,16 @@ class HabitDBM(Base):
         server_default=text("false"),
     )
 
+    # Minimum % of planner_target that counts as "done" for streak purposes.
+    # 100 = strict (must fully meet target). 50 is the minimum allowed value.
+    # Only meaningful for metric habits; simple habits always use done/missed.
+    streak_tolerance_pct: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=100,
+        server_default=text("100"),
+    )
+
     goal: Mapped["GoalDBM | None"] = relationship(  # type: ignore[name-defined]
         "GoalDBM",
         foreign_keys=[goal_id],

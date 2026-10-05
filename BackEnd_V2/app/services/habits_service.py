@@ -50,6 +50,7 @@ def _serialize(habit: HabitDBM, streaks: tuple[int, int] = (0, 0)) -> HabitDataR
         day_fallback=habit.day_fallback,
         include_in_report=habit.include_in_report,
         can_skip=habit.can_skip,
+        streak_tolerance_pct=habit.streak_tolerance_pct,
         start_date=habit.start_date,
         end_date=habit.end_date,
         preferred_time=habit.preferred_time,
@@ -166,6 +167,7 @@ def save_habit(
         day_fallback=day_fallback,
         include_in_report=data.include_in_report,
         can_skip=data.can_skip,
+        streak_tolerance_pct=data.streak_tolerance_pct if is_metric else 100,
         planner_type=data.planner_type,
         planner_target=data.planner_target if is_metric else None,
         value_unit=data.value_unit.strip() if is_metric and data.value_unit and data.value_unit.strip() else None,
@@ -271,6 +273,12 @@ def update_habit(
         if data.planner_type == "simple":
             habit.planner_target = None
             habit.value_unit = None
+            habit.streak_tolerance_pct = 100
+
+    # Resolve tolerance after planner_type so a simple→metric switch in the same
+    # request correctly uses the incoming type rather than the old one.
+    if "streak_tolerance_pct" in fields and data.streak_tolerance_pct is not None:
+        habit.streak_tolerance_pct = data.streak_tolerance_pct if habit.planner_type == "metric" else 100
     if "planner_target" in fields:
         habit.planner_target = data.planner_target if habit.planner_type == "metric" else None
     if "value_unit" in fields:

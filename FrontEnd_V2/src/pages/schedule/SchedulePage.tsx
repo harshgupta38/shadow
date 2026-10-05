@@ -119,6 +119,9 @@ export function SchedulePage() {
     }
 
     const currentTodayIso = todayIso();
+    const todayDate = new Date(currentTodayIso + "T00:00:00");
+    const isCurrentMonth = calYear === todayDate.getFullYear() && calMonth === todayDate.getMonth();
+    function goToToday() { setCalMonth(todayDate.getFullYear(), todayDate.getMonth()); }
 
     const filteredTasks = useMemo(() => tasks.filter(t => {
         if (filters.priority.length     && !filters.priority.includes(t.priority))             return false;
@@ -169,6 +172,12 @@ export function SchedulePage() {
                 subtitle="Plan one-time commitments and never lose track of them."
                 icon={<CalendarWeek size={20} />}
                 actions={[
+                    ...(!isCurrentMonth ? [{
+                        key: "go-today",
+                        label: "Today",
+                        tone: "soft" as const,
+                        onClick: goToToday,
+                    }] : []),
                     {
                         key: "new-task",
                         label: "New Task",

@@ -108,6 +108,7 @@ class HabitCreateRequest(BaseModel):
     day_fallback: bool = False
     include_in_report: bool = True
     can_skip: bool = False
+    streak_tolerance_pct: int = Field(default=100, ge=50, le=100)
 
     @field_validator("title", mode="before")
     @classmethod
@@ -166,6 +167,7 @@ class HabitCreateRequest(BaseModel):
         else:
             self.planner_target = None
             self.value_unit = None
+            self.streak_tolerance_pct = 100
 
         return self
 
@@ -193,6 +195,7 @@ class HabitUpdateRequest(BaseModel):
     day_fallback: bool | None = None
     include_in_report: bool | None = None
     can_skip: bool | None = None
+    streak_tolerance_pct: int | None = Field(default=None, ge=50, le=100)
 
     @field_validator("specific_days", mode="before")
     @classmethod
@@ -263,6 +266,7 @@ class HabitDataResponse(ORMModel):
     day_fallback: bool
     include_in_report: bool
     can_skip: bool
+    streak_tolerance_pct: int
     start_date: date | None
     end_date: date | None
     preferred_time: HabitPreferredTime

@@ -505,6 +505,7 @@ export interface HabitCreateRequest {
   day_fallback: boolean;
   include_in_report: boolean;
   can_skip: boolean;
+  streak_tolerance_pct: number;
 
   start_date: string | null;
   end_date: string | null;

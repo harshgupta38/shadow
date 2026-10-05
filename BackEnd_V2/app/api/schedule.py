@@ -5,12 +5,15 @@ from app.core.endpoints import ENDPOINTS
 from app.db.session import get_db
 from app.models.user import UserDBM
 from app.schemas.schedule import (
+    SubtaskCreateRequest,
+    SubtaskResponse,
+    SubtaskUpdateRequest,
     ScheduledTaskCreateRequest,
     ScheduledTaskDataResponse,
     ScheduledTaskUpdateRequest,
     SaveScheduledTaskFromProposalRequest,
 )
-from app.services import schedule_service
+from app.services import schedule_service, schedule_subtask_service
 
 router = APIRouter(prefix=ENDPOINTS.SCHEDULE.PREFIX, tags=["Schedule"])
 
@@ -80,3 +83,49 @@ def delete_schedule_task(
     current_user: UserDBM = Depends(get_current_user),
 ) -> None:
     schedule_service.delete_task(db, current_user, schedule_task_id, is_yearly)
+
+
+# ── Sub-tasks ─────────────────────────────────────────────────────────────────
+
+@router.get(ENDPOINTS.SCHEDULE.SUBTASKS, response_model=list[SubtaskResponse])
+def get_subtasks(
+    schedule_task_id: int,
+    db=Depends(get_db),
+    current_user: UserDBM = Depends(get_current_user),
+) -> list[SubtaskResponse]:
+    return schedule_subtask_service.list_subtasks(db, current_user, schedule_task_id)
+
+
+@router.post(
+    ENDPOINTS.SCHEDULE.SUBTASKS,
+    response_model=SubtaskResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_subtask(
+    schedule_task_id: int,
+    data: SubtaskCreateRequest,
+    db=Depends(get_db),
+    current_user: UserDBM = Depends(get_current_user),
+) -> SubtaskResponse:
+    return schedule_subtask_service.create_subtask(db, current_user, schedule_task_id, data)
+
+
+@router.patch(ENDPOINTS.SCHEDULE.SUBTASK_DETAIL, response_model=SubtaskResponse)
+def update_subtask(
+    schedule_task_id: int,
+    subtask_id: int,
+    data: SubtaskUpdateRequest,
+    db=Depends(get_db),
+    current_user: UserDBM = Depends(get_current_user),
+) -> SubtaskResponse:
+    return schedule_subtask_service.update_subtask(db, current_user, schedule_task_id, subtask_id, data)
+
+
+@router.delete(ENDPOINTS.SCHEDULE.SUBTASK_DETAIL, status_code=status.HTTP_204_NO_CONTENT)
+def delete_subtask(
+    schedule_task_id: int,
+    subtask_id: int,
+    db=Depends(get_db),
+    current_user: UserDBM = Depends(get_current_user),
+) -> None:
+    schedule_subtask_service.delete_subtask(db, current_user, schedule_task_id, subtask_id)

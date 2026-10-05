@@ -9,6 +9,7 @@ from app.core.exceptions import NotFoundError, ValidationError
 from app.models.goal import GoalDBM
 from app.models.schedule_task import ScheduledTaskDBM
 from app.models.scheduled_task_proposal import ScheduledTaskProposalDBM
+from app.models.scheduled_task_subtask import ScheduledTaskSubtaskDBM
 from app.models.user import UserDBM
 from app.models.yearly_task import YearlyTaskDBM
 from app.schemas.schedule import (
@@ -17,6 +18,7 @@ from app.schemas.schedule import (
     ScheduledTaskCreateRequest,
     ScheduledTaskDataResponse,
     ScheduledTaskUpdateRequest,
+    SubtaskResponse,
 )
 from app.services.planner_service import deactivate_plan, sync_plan_from_scheduled_task
 
@@ -30,7 +32,10 @@ def _resolve_goal(db: Session, current_user: UserDBM, goal_id: int | None) -> Go
     return goal
 
 
-def _serialize(task: ScheduledTaskDBM) -> ScheduledTaskDataResponse:
+def _serialize(
+    task: ScheduledTaskDBM,
+    subtasks: list[SubtaskResponse] | None = None,
+) -> ScheduledTaskDataResponse:
     is_metric = task.planner_type == "metric"
     is_long = getattr(task, "task_duration", "short") == "long"
     goal_summary: GoalSummary | None = None
@@ -40,6 +45,7 @@ def _serialize(task: ScheduledTaskDBM) -> ScheduledTaskDataResponse:
         id=task.id,
         title=task.title,
         note=task.note,
+        subtasks=subtasks or [],
         planner_type=task.planner_type,
         planner_target=task.planner_target if is_metric else None,
         value_unit=task.value_unit if is_metric else None,
@@ -153,8 +159,34 @@ def get_list(db: Session, current_user: UserDBM, year: int, month: int) -> list[
         )
     ).all()
 
-    result: list[ScheduledTaskDataResponse] = [_serialize(t) for t in tasks]
-    result += [_serialize(t) for t in spanning_tasks if t.id not in existing_ids]
+    # Batch-load subtasks for all long-term tasks in the result (single query).
+    all_long_tasks = [t for t in tasks + [t for t in spanning_tasks if t.id not in existing_ids] if t.task_duration == "long"]
+    subtasks_by_task: dict[int, list[SubtaskResponse]] = {}
+    if all_long_tasks:
+        long_ids = [t.id for t in all_long_tasks]
+        subtask_rows = db.scalars(
+            select(ScheduledTaskSubtaskDBM)
+            .where(
+                ScheduledTaskSubtaskDBM.task_id.in_(long_ids),
+                ScheduledTaskSubtaskDBM.user_id == current_user.id,
+                ScheduledTaskSubtaskDBM.subtask_date >= first_day,
+                ScheduledTaskSubtaskDBM.subtask_date <= last_day,
+            )
+            .order_by(ScheduledTaskSubtaskDBM.subtask_date, ScheduledTaskSubtaskDBM.id)
+        ).all()
+        for s in subtask_rows:
+            subtasks_by_task.setdefault(s.task_id, []).append(SubtaskResponse(
+                id=s.id,
+                task_id=s.task_id,
+                subtask_date=s.subtask_date,
+                description=s.description,
+                planner_mode=s.planner_mode,
+                created_at=s.created_at,
+                updated_at=s.updated_at,
+            ))
+
+    result: list[ScheduledTaskDataResponse] = [_serialize(t, subtasks_by_task.get(t.id)) for t in tasks]
+    result += [_serialize(t, subtasks_by_task.get(t.id)) for t in spanning_tasks if t.id not in existing_ids]
     result += [
         _serialize_yearly(t, occ)
         for t in yearly_tasks

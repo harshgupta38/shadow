@@ -586,6 +586,59 @@
     }
   }
 
+  .plan-subtasks-panel {
+    padding: 0.9rem 1.1rem;
+  }
+
+  .plan-subtasks-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+  }
+
+  .plan-subtask-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.55rem;
+
+    > div {
+      display: flex;
+      flex-direction: column;
+      gap: 0.05rem;
+      min-width: 0;
+    }
+
+    &--task .plan-subtask-bullet { background: var(--jv-brand-1); }
+    &--task .plan-subtask-task   { color: var(--jv-brand-1); }
+
+    &--highlight .plan-subtask-bullet { background: var(--jv-warn); }
+    &--highlight .plan-subtask-task   { color: var(--jv-warn); }
+  }
+
+  .plan-subtask-bullet {
+    flex-shrink: 0;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    margin-top: 0.38rem;
+  }
+
+  .plan-subtask-task {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .plan-subtask-text {
+    font-size: 0.825rem;
+    color: var(--jv-text);
+    line-height: 1.4;
+  }
+
   @media (max-width: 800px) {
     .plan-columns {
       grid-template-columns: 1fr;

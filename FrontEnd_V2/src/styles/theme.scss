@@ -466,6 +466,8 @@ a {
   font-weight: 500;
 }
 
+.modal-backdrop { z-index: 1210; }
+.modal { z-index: 1215; }
 .modal-content {
   background: var(--jv-elevated);
   border: 1px solid var(--jv-border);

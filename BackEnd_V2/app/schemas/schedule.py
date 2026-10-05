@@ -172,6 +172,7 @@ class ScheduledTaskDataResponse(ORMModel):
     id: int
     title: str
     note: str | None
+    subtasks: list["SubtaskResponse"] = []
 
     planner_type: ScheduledTaskType
     planner_target: int | None
@@ -200,5 +201,31 @@ class ScheduledTaskDataResponse(ORMModel):
 
     status: ScheduledTaskStatus
 
+    created_at: datetime
+    updated_at: datetime
+
+
+# ── Sub-tasks ─────────────────────────────────────────────────────────────────
+
+SubtaskPlannerMode = Literal["task", "highlight"]
+
+
+class SubtaskCreateRequest(BaseModel):
+    subtask_date: date
+    description: str = Field(min_length=1, max_length=200)
+    planner_mode: SubtaskPlannerMode | None = None
+
+
+class SubtaskUpdateRequest(BaseModel):
+    description: str | None = Field(default=None, min_length=1, max_length=200)
+    planner_mode: SubtaskPlannerMode | None = None
+
+
+class SubtaskResponse(ORMModel):
+    id: int
+    task_id: int
+    subtask_date: date
+    description: str
+    planner_mode: SubtaskPlannerMode | None
     created_at: datetime
     updated_at: datetime

@@ -426,6 +426,7 @@ export function PlanPage() {
       : completionMessage(completion);
 
   const bannerTasks = planData?.banner_tasks ?? [];
+  const subtasks = planData?.subtasks ?? [];
 
   return (
     <section className="plan-page">
@@ -655,6 +656,22 @@ export function PlanPage() {
                 </button>
               ))}
             </div>
+          )}
+
+          {subtasks.length > 0 && (
+            <section className="plan-panel plan-subtasks-panel">
+              <ul className="plan-subtasks-list">
+                {subtasks.map(subtask => (
+                  <li key={subtask.id} className={`plan-subtask-item plan-subtask-item--${subtask.planner_mode}`}>
+                    <span className="plan-subtask-bullet" />
+                    <div>
+                      <span className="plan-subtask-task">{subtask.task_title}</span>
+                      <span className="plan-subtask-text">{subtask.description}</span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
           )}
 
           {!loadingPlan && totalCount > 0 && (

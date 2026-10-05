@@ -148,3 +148,212 @@
     &--missed    { color: var(--jv-danger); }
 }
 
+// ── Sub-tasks Section ─────────────────────────────────────────────────────────
+
+.subtask-section {
+    border-top: 1px solid var(--jv-border);
+    padding-top: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.subtask-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.1rem;
+}
+
+.subtask-add-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    padding: 0;
+    border-radius: 50%;
+    background: var(--jv-brand-soft);
+    color: var(--jv-brand-1);
+    flex-shrink: 0;
+
+    &:hover {
+        background: color-mix(in srgb, var(--jv-brand-1) 20%, transparent);
+        color: var(--jv-brand-1);
+    }
+}
+
+.subtask-empty {
+    font-size: 0.78rem;
+    color: var(--jv-faint);
+    margin: 0;
+}
+
+.subtask-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.subtask-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.825rem;
+    line-height: 1.4;
+
+    .subtask-actions {
+        display: none;
+        align-items: center;
+        gap: 0.1rem;
+        margin-left: auto;
+        flex-shrink: 0;
+    }
+
+    &:hover .subtask-actions,
+    &--editing .subtask-actions {
+        display: flex;
+    }
+}
+
+.subtask-date-pill {
+    flex-shrink: 0;
+    font-size: 0.7rem;
+    font-weight: 600;
+    background: var(--jv-surface-3);
+    color: var(--jv-muted);
+    border-radius: 1rem;
+    padding: 0.15rem 0.5rem;
+    white-space: nowrap;
+    margin-top: 0.05rem;
+}
+
+.subtask-text {
+    flex: 1;
+    color: var(--jv-text);
+    min-width: 0;
+    word-break: break-word;
+}
+
+.subtask-mode-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+
+    &--task      { background: var(--jv-brand-1); }
+    &--highlight { background: var(--jv-warn); }
+}
+
+.subtask-action-btn {
+    color: var(--jv-faint);
+    padding: 0.2rem;
+    width: 1.4rem;
+    height: 1.4rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    &:hover { color: var(--jv-muted); }
+    &--delete:hover { color: var(--jv-danger); }
+}
+
+.subtask-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    background: var(--jv-surface-3);
+    border: 1px solid var(--jv-border);
+    border-radius: var(--jv-radius-sm);
+    padding: 0.75rem;
+}
+
+.subtask-form-top {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+
+    .subtask-date-display {
+        flex: 1;
+    }
+}
+
+.subtask-date-display {
+    text-align: center;
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--jv-text);
+    cursor: pointer;
+    position: relative;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &.disabled {
+        opacity: 0.65;
+        cursor: not-allowed;
+        pointer-events: none;
+    }
+
+    .schedule-date-placeholder {
+        color: var(--jv-muted);
+    }
+
+    .schedule-date-hidden-input {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        border: none;
+        padding: 0;
+    }
+}
+
+textarea.subtask-textarea {
+    resize: none;
+    min-height: 50px;
+    font-size: 0.82rem;
+    overflow-y: hidden;
+}
+
+.subtask-error {
+    font-size: 0.78rem;
+    color: var(--jv-danger);
+    margin: 0;
+}
+
+.subtask-save-btn,
+.subtask-cancel-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 2.2rem;
+    align-self: stretch;
+    padding: 0;
+    border: none;
+    border-radius: var(--jv-radius-sm);
+}
+
+.subtask-save-btn {
+    background: var(--jv-brand-soft);
+    color: var(--jv-brand-1);
+
+    &:hover { background: color-mix(in srgb, var(--jv-brand-1) 20%, transparent); }
+    &:disabled { opacity: 0.45; }
+}
+
+.subtask-cancel-btn {
+    background: var(--jv-danger-soft);
+    color: var(--jv-danger);
+
+    &:hover { background: color-mix(in srgb, var(--jv-danger) 20%, transparent); }
+    &:disabled { opacity: 0.6; }
+}
+

@@ -286,6 +286,17 @@
     &:hover {
       background: color-mix(in srgb, var(--chip-color, var(--jv-brand-1)) 24%, transparent);
     }
+
+    &--subtask {
+      background: var(--jv-surface-3);
+      color: var(--jv-muted);
+      border-left-color: var(--jv-border-strong);
+
+      &:hover {
+        background: var(--jv-border);
+        color: var(--jv-text);
+      }
+    }
   }
 
   .schedule-cal-overflow {

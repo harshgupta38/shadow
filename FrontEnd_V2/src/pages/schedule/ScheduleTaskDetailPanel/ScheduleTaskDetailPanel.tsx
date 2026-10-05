@@ -10,8 +10,10 @@ import { formatDateDisplay, formatDateDisplayYearly, PRIORITY_LABEL, STATUS_LABE
 import { CATEGORY_ICONS } from "@/pages/schedule/ScheduleWizard/ScheduleWizard.constants";
 import { PriorityIcon } from "@/constant/priority";
 import { ANIMATION } from "@/constant/tuning";
+import { SubtasksSection } from "@/pages/schedule/ScheduleTaskDetailPanel/SubtasksSection";
 
 import "@/pages/my_goals/GoalCreationWizard/GoalCreationWizard.scss";
+import "@/pages/my_goals/GoalTaskWizard/GoalTaskWizardPage.scss";
 import "@/pages/assistant/RefinedGoalReviewPanel/RefinedGoalReviewPanel.scss";
 import "@/pages/schedule/ScheduleTaskDetailPanel/ScheduleTaskDetailPanel.scss";
 
@@ -55,11 +57,12 @@ interface ScheduleTaskDetailPanelProps {
     onEdit: () => void;
     onDuplicate: () => void;
     onDelete: () => void;
+    onSubtasksChanged?: () => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function ScheduleTaskDetailPanel({ task, onClose, onEdit, onDuplicate, onDelete }: ScheduleTaskDetailPanelProps) {
+export function ScheduleTaskDetailPanel({ task, onClose, onEdit, onDuplicate, onDelete, onSubtasksChanged }: ScheduleTaskDetailPanelProps) {
     const [isClosing, setIsClosing] = useState(false);
 
     function requestClose() {
@@ -212,6 +215,15 @@ export function ScheduleTaskDetailPanel({ task, onClose, onEdit, onDuplicate, on
                             </div>
                         )}
                     </div>
+
+                    {task.task_duration === "long" && task.end_date && (
+                        <SubtasksSection
+                            taskId={task.id}
+                            minDate={task.scheduled_date}
+                            maxDate={task.end_date}
+                            onSubtasksChanged={onSubtasksChanged}
+                        />
+                    )}
                 </div>
 
                 <footer className="stdp-footer">

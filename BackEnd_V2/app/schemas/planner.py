@@ -1,9 +1,19 @@
+from datetime import date
 from typing import Literal
 
 from pydantic import BaseModel
 
 from app.schemas.daily_report import ReportClosingResponse
-from app.schemas.schedule import ScheduledTaskDataResponse
+from app.schemas.schedule import ScheduledTaskDataResponse, SubtaskPlannerMode
+
+
+class SubtaskInPlannerResponse(BaseModel):
+    id: int
+    task_id: int
+    task_title: str
+    subtask_date: date
+    description: str
+    planner_mode: SubtaskPlannerMode
 
 PlanSourceType = Literal["habit", "task", "schedule"]
 PlannerType = Literal["simple", "metric"]
@@ -72,6 +82,8 @@ class DailyPlanResponse(BaseModel):
     no_plan_generated: bool = False
     # Long-term tasks with planner_display='banner' that span the requested date.
     banner_tasks: list[ScheduledTaskDataResponse] = []
+    # Sub-tasks for long-term tasks that fall on the requested date and have a planner_mode set.
+    subtasks: list[SubtaskInPlannerResponse] = []
 
 
 class UpdatePlanRequest(BaseModel):

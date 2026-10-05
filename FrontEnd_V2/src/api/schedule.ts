@@ -1,6 +1,14 @@
 import { ENDPOINTS } from "@/constant/shadow-endpoints";
 import { http } from "@/api/client";
-import type { SaveScheduledTaskFromProposalRequest, ScheduledTaskCreateRequest, ScheduledTaskDataResponse, ScheduledTaskUpdateRequest } from "@/api/types";
+import type {
+    SubtaskCreateRequest,
+    SubtaskResponse,
+    SubtaskUpdateRequest,
+    SaveScheduledTaskFromProposalRequest,
+    ScheduledTaskCreateRequest,
+    ScheduledTaskDataResponse,
+    ScheduledTaskUpdateRequest,
+} from "@/api/types";
 
 export const scheduleApi = {
     async save(data: ScheduledTaskCreateRequest): Promise<ScheduledTaskDataResponse> {
@@ -32,5 +40,21 @@ export const scheduleApi = {
         return http.get<ScheduledTaskDataResponse>(
             `${ENDPOINTS.SCHEDULE.PREFIX}${ENDPOINTS.SCHEDULE.DETAIL(id)}${qs}`,
         );
+    },
+
+    async getSubtasks(taskId: number): Promise<SubtaskResponse[]> {
+        return http.get<SubtaskResponse[]>(`${ENDPOINTS.SCHEDULE.PREFIX}${ENDPOINTS.SCHEDULE.SUBTASKS(taskId)}`);
+    },
+
+    async createSubtask(taskId: number, data: SubtaskCreateRequest): Promise<SubtaskResponse> {
+        return http.post<SubtaskResponse>(`${ENDPOINTS.SCHEDULE.PREFIX}${ENDPOINTS.SCHEDULE.SUBTASKS(taskId)}`, data);
+    },
+
+    async updateSubtask(taskId: number, subtaskId: number, data: SubtaskUpdateRequest): Promise<SubtaskResponse> {
+        return http.patch<SubtaskResponse>(`${ENDPOINTS.SCHEDULE.PREFIX}${ENDPOINTS.SCHEDULE.SUBTASK_DETAIL(taskId, subtaskId)}`, data);
+    },
+
+    async deleteSubtask(taskId: number, subtaskId: number): Promise<void> {
+        return http.delete<void>(`${ENDPOINTS.SCHEDULE.PREFIX}${ENDPOINTS.SCHEDULE.SUBTASK_DETAIL(taskId, subtaskId)}`);
     },
 };

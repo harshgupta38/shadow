@@ -5,7 +5,7 @@ import { CalendarWeek, ChevronDoubleLeft, ChevronDoubleRight, ChevronLeft, Chevr
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { api } from "@/api";
-import type { ScheduledTaskDataResponse, ScheduledTaskPreferredTime, ScheduledTaskPriority, ScheduledTaskStatus } from "@/api/types";
+import type { ScheduledTaskDataResponse, ScheduledTaskPreferredTime, ScheduledTaskPriority, ScheduledTaskStatus, SubtaskResponse } from "@/api/types";
 import {
     buildCalendarCells,
     DEFAULT_FILTERS,
@@ -95,6 +95,12 @@ export function SchedulePage() {
             .finally(() => setLoading(false));
     }, [calYear, calMonth]); // eslint-disable-line react-hooks/exhaustive-deps
 
+    const refreshTasksSilent = useCallback(() => {
+        void api.schedule.getScheduleList(calYear, calMonth + 1)
+            .then(setTasks)
+            .catch(() => {});
+    }, [calYear, calMonth]); // eslint-disable-line react-hooks/exhaustive-deps
+
     useEffect(() => { loadTasks(); }, [loadTasks]);
     useWakeRefresh(loadTasks);
 
@@ -135,6 +141,17 @@ export function SchedulePage() {
         acc[t.scheduled_date].push(t);
         return acc;
     }, {}), [tasks]);
+
+    // Maps each subtask_date to the subtasks (with their parent task) for calendar chips
+    const subtasksByDate = useMemo(() => {
+        const map: Record<string, { subtask: SubtaskResponse; parentTask: ScheduledTaskDataResponse }[]> = {};
+        for (const task of tasks) {
+            for (const subtask of task.subtasks ?? []) {
+                (map[subtask.subtask_date] ??= []).push({ subtask, parentTask: task });
+            }
+        }
+        return map;
+    }, [tasks]);
 
     // Maps each date (start_date → end_date) to the long-term tasks spanning it
     const longTermSpansByDate = useMemo(() => {
@@ -294,9 +311,13 @@ export function SchedulePage() {
                         <div className="schedule-cal-grid">
                             {calCells.map((cell, i) => {
                                 const cellTasks = tasksByDate[cell.iso] ?? [];
+                                const cellSubtasks = subtasksByDate[cell.iso] ?? [];
                                 const spanTasks = longTermSpansByDate[cell.iso] ?? [];
                                 const isToday = cell.iso === currentTodayIso;
                                 const cellTaskLimit = PAGE_SIZE.SCHEDULE_CELL_TASK_LIMIT;
+                                const taskSlots = Math.min(cellTasks.length, cellTaskLimit);
+                                const subtaskSlots = Math.min(cellSubtasks.length, cellTaskLimit - taskSlots);
+                                const overflowCount = (cellTasks.length - taskSlots) + (cellSubtasks.length - subtaskSlots);
                                 return (
                                     <div
                                         key={i}
@@ -315,7 +336,7 @@ export function SchedulePage() {
                                             {cell.day}
                                         </div>
                                         <div className="schedule-cal-chips">
-                                            {cellTasks.slice(0, cellTaskLimit).map(t => (
+                                            {cellTasks.slice(0, taskSlots).map(t => (
                                                 <button
                                                     key={`${t.repeat_yearly ? "y" : "n"}-${t.id}`}
                                                     type="button"
@@ -327,8 +348,19 @@ export function SchedulePage() {
                                                     {t.title}
                                                 </button>
                                             ))}
-                                            {cellTasks.length > cellTaskLimit && (
-                                                <span className="schedule-cal-overflow">+{cellTasks.length - cellTaskLimit} more</span>
+                                            {cellSubtasks.slice(0, subtaskSlots).map(({ subtask, parentTask }) => (
+                                                <button
+                                                    key={`st-${subtask.id}`}
+                                                    type="button"
+                                                    className="schedule-task-chip schedule-task-chip--subtask"
+                                                    title={`${parentTask.title} · ${subtask.description}`}
+                                                    onClick={(e) => { e.stopPropagation(); setSelectedTask(parentTask); }}
+                                                >
+                                                    {subtask.description}
+                                                </button>
+                                            ))}
+                                            {overflowCount > 0 && (
+                                                <span className="schedule-cal-overflow">+{overflowCount} more</span>
                                             )}
                                         </div>
                                         {spanTasks.length > 0 && (
@@ -374,6 +406,7 @@ export function SchedulePage() {
                         setSelectedTask(null);
                         setDeleteTarget(selectedTask);
                     }}
+                    onSubtasksChanged={refreshTasksSilent}
                 />
             )}
 

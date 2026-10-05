@@ -616,6 +616,38 @@ export interface UpdatePlanRequest {
   skipped?: boolean;
 }
 
+export type SubtaskPlannerMode = "task" | "highlight";
+
+export interface SubtaskCreateRequest {
+  subtask_date: string; // YYYY-MM-DD
+  description: string;
+  planner_mode: SubtaskPlannerMode | null;
+}
+
+export interface SubtaskUpdateRequest {
+  description?: string;
+  planner_mode?: SubtaskPlannerMode | null;
+}
+
+export interface SubtaskResponse {
+  id: number;
+  task_id: number;
+  subtask_date: string;
+  description: string;
+  planner_mode: SubtaskPlannerMode | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SubtaskInPlanner {
+  id: number;
+  task_id: number;
+  task_title: string;
+  subtask_date: string;
+  description: string;
+  planner_mode: SubtaskPlannerMode;
+}
+
 export interface PlanResponse {
   items: PlanDataResponse[];
   // The prior day's daily-report closing message (relative to the requested date),
@@ -626,7 +658,8 @@ export interface PlanResponse {
   // True for past dates that were never opened — `items` is empty (no synthesis).
   // Always false for today.
   no_plan_generated: boolean;
-  banner_tasks?: ScheduledTaskDataResponse[];
+  banner_tasks: ScheduledTaskDataResponse[];
+  subtasks: SubtaskInPlanner[];
 }
 
 // ── Scheduled Tasks ──────────────────────────────────────────────────────────
@@ -673,6 +706,7 @@ export interface ScheduledTaskDataResponse extends Omit<ScheduledTaskCreateReque
   repeat_yearly: boolean; // true if from yearly_tasks — derived from table membership, not a stored column
   goal?: GoalDataInPlan;
   status: ScheduledTaskStatus;
+  subtasks: SubtaskResponse[];
   created_at: string;
   updated_at: string;
 }

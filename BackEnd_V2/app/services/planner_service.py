@@ -31,6 +31,7 @@ from app.models.habit import HabitDBM
 from app.models.plan import PlanDBM
 from app.models.report import ReportDBM
 from app.models.schedule_task import ScheduledTaskDBM
+from app.models.scheduled_task_subtask import ScheduledTaskSubtaskDBM
 from app.models.task import TaskDBM
 from app.models.user import UserDBM
 from app.models.user_setting import UserSettingDBM
@@ -39,6 +40,7 @@ from app.schemas.planner import (
     DailyPlanItemResponse,
     DailyPlanResponse,
     DailyPlanSavedData,
+    SubtaskInPlannerResponse,
     GoalDataInPlan,
     ReportClosingResponse,
 )
@@ -800,6 +802,43 @@ def _get_banner_tasks(
     return result
 
 
+def _get_subtasks_for_date(
+    db: Session,
+    user_id: int,
+    target_date: date,
+) -> list[SubtaskInPlannerResponse]:
+    """Return sub-tasks that have a planner_mode set for target_date."""
+    rows = db.execute(
+        select(
+            ScheduledTaskSubtaskDBM.id,
+            ScheduledTaskSubtaskDBM.task_id,
+            ScheduledTaskSubtaskDBM.subtask_date,
+            ScheduledTaskSubtaskDBM.description,
+            ScheduledTaskSubtaskDBM.planner_mode,
+            ScheduledTaskDBM.title.label("task_title"),
+        )
+        .join(ScheduledTaskDBM, ScheduledTaskDBM.id == ScheduledTaskSubtaskDBM.task_id)
+        .where(
+            ScheduledTaskSubtaskDBM.user_id == user_id,
+            ScheduledTaskSubtaskDBM.subtask_date == target_date,
+            ScheduledTaskSubtaskDBM.planner_mode.isnot(None),
+        )
+        .order_by(ScheduledTaskSubtaskDBM.id)
+    ).all()
+
+    return [
+        SubtaskInPlannerResponse(
+            id=r.id,
+            task_id=r.task_id,
+            task_title=r.task_title,
+            subtask_date=r.subtask_date,
+            description=r.description,
+            planner_mode=r.planner_mode,
+        )
+        for r in rows
+    ]
+
+
 def get_plans_for_date(
     db: Session,
     current_user: UserDBM,
@@ -1074,6 +1113,7 @@ def get_plans_for_date(
     ) is not None
 
     banner_tasks = _get_banner_tasks(db, current_user.id, target_date)
+    subtasks = _get_subtasks_for_date(db, current_user.id, target_date)
 
     return DailyPlanResponse(
         items=items,
@@ -1082,6 +1122,7 @@ def get_plans_for_date(
         daily_brief_generated=daily_brief_generated,
         no_plan_generated=no_plan_generated,
         banner_tasks=banner_tasks,
+        subtasks=subtasks,
     )
 
 

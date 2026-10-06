@@ -3,6 +3,8 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from app.core.timezone import UtcDateTime
+
 
 class ColumnInfo(BaseModel):
     name: str
@@ -42,6 +44,9 @@ class SqlQueryRequest(BaseModel):
     query: str
     page: int = 1
     page_size: int = 15
+    # False when the console is only turning to another page of a result it already ran — that is
+    # not a new query, so it must not add to the saved history.
+    record_history: bool = True
 
 
 class SqlQueryResponse(BaseModel):
@@ -56,6 +61,19 @@ class SqlQueryResponse(BaseModel):
     total: int | None = None
     page: int = 1
     page_size: int = 15
+
+
+class SqlHistoryEntry(BaseModel):
+    id: int
+    query: str
+    success: bool
+    # The first page of what the query returned when it ran; None for a failed query.
+    result: SqlQueryResponse | None
+    error_message: str | None
+    # True when the saved output had rows dropped to stay under the size cap.
+    truncated: bool
+    duration_ms: int | None
+    executed_at: UtcDateTime
 
 
 class InsertRowRequest(BaseModel):

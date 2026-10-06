@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Terminal, Trash } from "react-bootstrap-icons";
+import { ChevronLeft, ChevronRight, ClockHistory, Terminal, Trash } from "react-bootstrap-icons";
 import { api, ApiError } from "@/api";
-import type { AppTarget, Row } from "@/api";
+import type { AppTarget, Row, SqlHistoryEntry } from "@/api";
 import { computePageWindow } from "@/components/ui/Pagination/Pagination";
+import { formatRelative } from "@/lib/format";
 
 const PAGE_SIZE = 15;
+// Matches the server's cap, so the list the console holds is what a reload would bring back.
+const MAX_SAVED = 30;
 
 interface RowsResult {
   kind: "rows";
@@ -21,6 +24,8 @@ interface RowsResult {
 interface ErrorResult { kind: "error"; message: string; }
 type QueryResult = RowsResult | ErrorResult | null; // null while the request is in flight
 
+// One run in the scrollback of THIS visit to the console. (Not to be confused with the saved
+// history kept on the server, which survives reloads — see SqlHistoryEntry.)
 interface HistoryEntry {
   id: number;
   query: string;
@@ -43,10 +48,12 @@ const EXAMPLE_QUERIES: Record<AppTarget, string[]> = {
   ],
 };
 
-function ResultTable({ result, loading, onPageChange }: {
+function ResultTable({ result, loading, onPageChange, readOnly = false }: {
   result: RowsResult;
   loading: boolean;
-  onPageChange: (page: number) => void;
+  onPageChange?: (page: number) => void;
+  // A saved output has nothing live to page through: it is only the first page as it was.
+  readOnly?: boolean;
 }) {
   const totalPages = result.total !== null ? Math.max(1, Math.ceil(result.total / PAGE_SIZE)) : 1;
   const start = (result.page - 1) * PAGE_SIZE + 1;
@@ -99,7 +106,7 @@ function ResultTable({ result, loading, onPageChange }: {
           {" "}({(result.ms / 1000).toFixed(3)} sec)
         </span>
 
-        {result.total !== null && totalPages > 1 && (
+        {result.total !== null && totalPages > 1 && !readOnly && onPageChange && (
           <span className="sql-console-pager">
             <button
               type="button"
@@ -153,27 +160,70 @@ function ResultTable({ result, loading, onPageChange }: {
   );
 }
 
+function savedAsRowsResult(entry: SqlHistoryEntry): RowsResult | null {
+  const r = entry.result;
+  if (!entry.success || r === null) return null;
+  return { kind: "rows", columns: r.columns, rows: r.rows, rowcount: r.rowcount, ms: entry.duration_ms ?? 0, total: r.total, page: 1 };
+}
+
 export function SqlConsole({ app }: { app: AppTarget }) {
   const [input, setInput] = useState("");
   const [history, setHistory] = useState<HistoryEntry[]>([]);
-  const [queryLog, setQueryLog] = useState<string[]>([]);
-  const [logIndex, setLogIndex] = useState<number | null>(null);
+  // The last runs saved on the server (newest first) — what ↑ walks through, and what a reload brings back.
+  const [saved, setSaved] = useState<SqlHistoryEntry[]>([]);
+  const [recallIndex, setRecallIndex] = useState<number | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
   const [running, setRunning] = useState(false);
   const bodyRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const historyPanelRef = useRef<HTMLDivElement>(null);
+  const historyButtonRef = useRef<HTMLButtonElement>(null);
   const idRef = useRef(0);
+  // What was typed before ↑ started walking through saved queries, so walking back down restores it.
+  const draftRef = useRef("");
+
+  const recalled = recallIndex !== null ? saved[recallIndex] ?? null : null;
+
+  useEffect(() => {
+    let cancelled = false;
+    api.database.sqlHistory(app)
+      .then((list) => { if (!cancelled) setSaved(list); })
+      .catch(() => { /* history is a convenience — the console works without it */ });
+    return () => { cancelled = true; };
+  }, [app]);
 
   useEffect(() => {
     if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
-  }, [history]);
+  }, [history, recalled]);
+
+  // Close the history list when clicking anywhere outside it.
+  useEffect(() => {
+    if (!showHistory) return;
+    function onPointerDown(e: MouseEvent) {
+      const target = e.target as Node;
+      if (historyPanelRef.current?.contains(target) || historyButtonRef.current?.contains(target)) return;
+      setShowHistory(false);
+    }
+    document.addEventListener("mousedown", onPointerDown);
+    return () => document.removeEventListener("mousedown", onPointerDown);
+  }, [showHistory]);
+
+  // Keeps the local copy in step with what the server just saved, so ↑ works straight away
+  // without re-downloading the list. Repeating the newest query replaces it, as on the server.
+  function rememberRun(query: string, outcome: Pick<SqlHistoryEntry, "success" | "result" | "error_message" | "duration_ms">) {
+    const entry: SqlHistoryEntry = {
+      id: -Date.now(), query, truncated: false, executed_at: new Date().toISOString(), ...outcome,
+    };
+    setSaved((prev) => [entry, ...(prev[0]?.query === query ? prev.slice(1) : prev)].slice(0, MAX_SAVED));
+  }
 
   async function execute(query: string) {
     if (!query.trim() || running) return;
     idRef.current += 1;
     const id = idRef.current;
     setHistory((prev) => [...prev, { id, query, result: null, pageLoading: false }]);
-    setQueryLog((prev) => [...prev, query]);
-    setLogIndex(null);
+    setRecallIndex(null);
+    setShowHistory(false);
     setInput("");
     setRunning(true);
 
@@ -186,11 +236,13 @@ export function SqlConsole({ app }: { app: AppTarget }) {
           ? { ...e, result: { kind: "rows", columns: res.columns, rows: res.rows, rowcount: res.rowcount, ms, total: res.total, page: res.page } }
           : e
       )));
+      rememberRun(query, { success: true, result: res, error_message: null, duration_ms: Math.round(ms) });
     } catch (err) {
       const message = err instanceof ApiError ? err.message : "Query failed.";
       setHistory((prev) => prev.map((e) => (
         e.id === id ? { ...e, result: { kind: "error", message } } : e
       )));
+      rememberRun(query, { success: false, result: null, error_message: message, duration_ms: Math.round(performance.now() - start) });
     } finally {
       setRunning(false);
     }
@@ -205,7 +257,8 @@ export function SqlConsole({ app }: { app: AppTarget }) {
 
     const start = performance.now();
     try {
-      const res = await api.database.runQuery(app, entry.query, page, PAGE_SIZE);
+      // Not a new query, so it isn't added to the saved history.
+      const res = await api.database.runQuery(app, entry.query, page, PAGE_SIZE, false);
       const ms = performance.now() - start;
       setHistory((prev) => prev.map((e) => (
         e.id === entry.id
@@ -217,6 +270,30 @@ export function SqlConsole({ app }: { app: AppTarget }) {
       // data with an error — a transient page-change failure isn't worth
       // losing the visible result over.
       setHistory((prev) => prev.map((e) => (e.id === entry.id ? { ...e, pageLoading: false } : e)));
+    }
+  }
+
+  // Puts saved entry `index` (or the draft, for null) on the prompt and shows its saved output.
+  function recall(index: number | null) {
+    if (index !== null && recallIndex === null) draftRef.current = input;
+    setRecallIndex(index);
+    setInput(index === null ? draftRef.current : saved[index].query);
+  }
+
+  function pickFromList(index: number) {
+    recall(index);
+    setShowHistory(false);
+    inputRef.current?.focus();
+  }
+
+  async function clearSaved() {
+    try {
+      await api.database.clearSqlHistory(app);
+      setSaved([]);
+      setRecallIndex(null);
+      setShowHistory(false);
+    } catch {
+      // Leave the list as it is if the server couldn't clear it, rather than pretending it's gone.
     }
   }
 
@@ -236,23 +313,23 @@ export function SqlConsole({ app }: { app: AppTarget }) {
       execute(input);
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      if (queryLog.length === 0) return;
-      const nextIndex = logIndex === null ? queryLog.length - 1 : Math.max(0, logIndex - 1);
-      setLogIndex(nextIndex);
-      setInput(queryLog[nextIndex]);
+      if (saved.length === 0) return;
+      recall(recallIndex === null ? 0 : Math.min(recallIndex + 1, saved.length - 1));
     } else if (e.key === "ArrowDown") {
       e.preventDefault();
-      if (logIndex === null) return;
-      const nextIndex = logIndex + 1;
-      if (nextIndex >= queryLog.length) {
-        setLogIndex(null);
-        setInput("");
-      } else {
-        setLogIndex(nextIndex);
-        setInput(queryLog[nextIndex]);
+      if (recallIndex === null) return;
+      recall(recallIndex === 0 ? null : recallIndex - 1);
+    } else if (e.key === "Escape") {
+      if (recallIndex !== null) {
+        e.preventDefault();
+        recall(null);
+      } else if (showHistory) {
+        setShowHistory(false);
       }
     }
   }
+
+  const recalledRows = recalled ? savedAsRowsResult(recalled) : null;
 
   return (
     <div className="sql-console-wrap">
@@ -261,21 +338,52 @@ export function SqlConsole({ app }: { app: AppTarget }) {
           <Terminal size={13} />
           <span>SQL Console</span>
         </div>
-        <button
-          type="button"
-          className="btn btn-ghost btn-icon"
-          onClick={() => setHistory([])}
-          aria-label="Clear console"
-          disabled={history.length === 0}
-        >
-          <Trash size={13} />
-        </button>
+        <div className="d-flex align-items-center gap-1">
+          <button
+            ref={historyButtonRef}
+            type="button"
+            className="btn btn-ghost btn-icon"
+            onClick={() => setShowHistory((open) => !open)}
+            aria-label="Query history"
+            title="Query history — or press ↑ in the prompt"
+            disabled={saved.length === 0}
+          >
+            <ClockHistory size={13} />
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost btn-icon"
+            onClick={() => setHistory([])}
+            aria-label="Clear console"
+            title="Clear the screen (saved history is kept)"
+            disabled={history.length === 0}
+          >
+            <Trash size={13} />
+          </button>
+        </div>
       </div>
+
+      {showHistory && (
+        <div className="sql-console-history-panel" ref={historyPanelRef}>
+          <div className="sql-console-history-head">
+            <span>Last {saved.length} quer{saved.length === 1 ? "y" : "ies"} · click one to see its saved output</span>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={clearSaved}>Clear history</button>
+          </div>
+          {saved.map((e, i) => (
+            <button key={e.id} type="button" className="sql-console-history-item" onClick={() => pickFromList(i)}>
+              <span className={`sql-console-history-dot sql-console-history-dot--${e.success ? "ok" : "err"}`} />
+              <span className="sql-console-history-query">{e.query}</span>
+              <span className="sql-console-history-meta">{formatRelative(e.executed_at)}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="sql-console-body" ref={bodyRef} onClick={handleBodyClick}>
         {history.length === 0 && (
           <div className="sql-console-hint">
             Type a SQL query below and press Enter to run it against {app === "shadow" ? "shadow.db" : "backoffice.db"}. Try one of the examples below to get started.
+            {saved.length > 0 && ` Press ↑ to bring back your last ${saved.length} quer${saved.length === 1 ? "y" : "ies"} along with what they returned.`}
           </div>
         )}
         {history.map((entry) => (
@@ -299,6 +407,27 @@ export function SqlConsole({ app }: { app: AppTarget }) {
             )}
           </div>
         ))}
+
+        {recalled && (
+          <div className="sql-console-entry sql-console-entry--saved">
+            <div className="sql-console-saved-label">
+              Saved output · ran {formatRelative(recalled.executed_at)} · Enter runs it again · Esc dismisses
+            </div>
+            <div className="sql-console-query-line">
+              <span className="sql-console-prompt-char">db&gt;</span> {recalled.query}
+            </div>
+            {recalledRows ? (
+              <ResultTable result={recalledRows} loading={false} readOnly />
+            ) : (
+              <div className="sql-console-status sql-console-status--error">{recalled.error_message ?? "Query failed."}</div>
+            )}
+            {recalled.truncated && recalled.result && (
+              <div className="sql-console-status">
+                Only the first {recalled.result.rows.length} rows of this result were saved — run it again for the rest.
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="sql-console-input-row">
           <span className="sql-console-prompt-char">db&gt;</span>

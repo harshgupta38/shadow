@@ -32,6 +32,7 @@ class Endpoints:
         ROW = "/tables/{table_name}/row"
         BLOB = "/tables/{table_name}/blob"
         QUERY = "/query"
+        SQL_HISTORY = "/sql-history"
         BACKUPS = "/backups"
         BACKUP_FILE = "/backups/{filename}"
         BACKUP_RESTORE = "/backups/{filename}/restore"

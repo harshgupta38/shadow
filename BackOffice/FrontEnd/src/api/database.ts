@@ -1,6 +1,6 @@
 import { http, httpBlob } from "./client";
 import { ENDPOINTS } from "@/constant/bo-endpoints";
-import type { AppTarget, BackupInfo, DeleteBackupResponse, RestoreBackupResponse, Row, RowsResponse, SqlQueryResponse, TableInfo } from "./types";
+import type { AppTarget, BackupInfo, DeleteBackupResponse, RestoreBackupResponse, Row, RowsResponse, SqlHistoryEntry, SqlQueryResponse, TableInfo } from "./types";
 
 export const databaseApi = {
   async listTables(app: AppTarget): Promise<TableInfo[]> {
@@ -35,8 +35,18 @@ export const databaseApi = {
   async deleteRow(app: AppTarget, tableName: string, pk: Row): Promise<unknown> {
     return http.delete(ENDPOINTS.DATABASE.rows(app, tableName), { pk });
   },
-  async runQuery(app: AppTarget, query: string, page = 1, pageSize = 15): Promise<SqlQueryResponse> {
-    return http.post<SqlQueryResponse>(ENDPOINTS.DATABASE.query(app), { query, page, page_size: pageSize });
+  // recordHistory is false when only turning to another page of a result that was already run —
+  // that isn't a new query, so it must not be added to the saved history.
+  async runQuery(app: AppTarget, query: string, page = 1, pageSize = 15, recordHistory = true): Promise<SqlQueryResponse> {
+    return http.post<SqlQueryResponse>(ENDPOINTS.DATABASE.query(app), {
+      query, page, page_size: pageSize, record_history: recordHistory,
+    });
+  },
+  async sqlHistory(app: AppTarget): Promise<SqlHistoryEntry[]> {
+    return http.get<SqlHistoryEntry[]>(ENDPOINTS.DATABASE.sqlHistory(app));
+  },
+  async clearSqlHistory(app: AppTarget): Promise<void> {
+    return http.delete<void>(ENDPOINTS.DATABASE.sqlHistory(app));
   },
   async listBackups(app: AppTarget): Promise<BackupInfo[]> {
     return http.get<BackupInfo[]>(ENDPOINTS.DATABASE.backups(app));

@@ -1,4 +1,5 @@
 import json
+import time
 
 from fastapi import APIRouter, Response
 from fastapi.responses import FileResponse
@@ -14,12 +15,13 @@ from app.schemas.database import (
     RestoreBackupResponse,
     RowLookupResponse,
     RowsResponse,
+    SqlHistoryEntry,
     SqlQueryRequest,
     SqlQueryResponse,
     TableInfo,
     UpdateRowRequest,
 )
-from app.services import backoffice_db_service, database_service, shadow_db_service
+from app.services import backoffice_db_service, database_service, shadow_db_service, sql_history_service
 
 router = APIRouter(prefix=ENDPOINTS.DATABASE.PREFIX, tags=["Database"])
 
@@ -86,9 +88,40 @@ def delete_row(app: str, table_name: str, body: DeleteRowRequest, db: DbSession,
 
 @router.post(ENDPOINTS.DATABASE.QUERY, response_model=SqlQueryResponse)
 def run_query(app: str, body: SqlQueryRequest, db: DbSession, admin: CurrentAdmin):
-    return database_service.run_raw_query(
-        db, body.query, admin.email, body.page, body.page_size, _db_service_for(app),
-    )
+    db_service = _db_service_for(app)
+    # Only a query's first page is a "run"; later pages are the console turning pages of that result.
+    record = body.record_history and body.page == 1
+    started = time.perf_counter()
+    try:
+        result = database_service.run_raw_query(
+            db, body.query, admin.email, body.page, body.page_size, db_service,
+        )
+    except Exception as exc:
+        if record:
+            sql_history_service.record(
+                db, admin.email, app, body.query,
+                error=getattr(exc, "detail", None) or str(exc),
+                duration_ms=round((time.perf_counter() - started) * 1000),
+            )
+        raise
+    if record:
+        sql_history_service.record(
+            db, admin.email, app, body.query,
+            result=result, duration_ms=round((time.perf_counter() - started) * 1000),
+        )
+    return result
+
+
+@router.get(ENDPOINTS.DATABASE.SQL_HISTORY, response_model=list[SqlHistoryEntry])
+def get_sql_history(app: str, db: DbSession, admin: CurrentAdmin):
+    _db_service_for(app)
+    return sql_history_service.list_history(db, admin.email, app)
+
+
+@router.delete(ENDPOINTS.DATABASE.SQL_HISTORY, status_code=204)
+def clear_sql_history(app: str, db: DbSession, admin: CurrentAdmin):
+    _db_service_for(app)
+    sql_history_service.clear_history(db, admin.email, app)
 
 
 @router.get(ENDPOINTS.DATABASE.BACKUPS, response_model=list[BackupInfo])

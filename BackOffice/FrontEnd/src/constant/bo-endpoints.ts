@@ -18,6 +18,7 @@ export const ENDPOINTS = {
   DATABASE: {
     tables:  (app: string) => `/database/${app}/tables`,
     query:   (app: string) => `/database/${app}/query`,
+    sqlHistory: (app: string) => `/database/${app}/sql-history`,
     backups: (app: string) => `/database/${app}/backups`,
     rows:          (app: string, tableName: string) => `/database/${app}/tables/${encodeURIComponent(tableName)}/rows`,
     row:           (app: string, tableName: string) => `/database/${app}/tables/${encodeURIComponent(tableName)}/row`,

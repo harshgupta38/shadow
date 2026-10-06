@@ -2140,6 +2140,7 @@ h1, h2, h3, h4, h5, h6, .display-font {
 
 // ── SQL Console ──────────────────────────────────────────────────────────────────
 .sql-console-wrap {
+  position: relative; // anchors the history list that opens over the console
   background: var(--jv-term-bg);
   border: 1px solid var(--jv-term-border);
   border-radius: var(--jv-radius);
@@ -2228,6 +2229,92 @@ h1, h2, h3, h4, h5, h6, .display-font {
 .sql-console-prompt-char {
   color: var(--jv-brand-1);
   font-weight: 700;
+}
+
+// A saved query and its saved output, recalled with ↑ — set apart from a live run so it can't be
+// mistaken for something that just executed.
+.sql-console-entry--saved {
+  border-left: 2px dashed var(--jv-term-border);
+  padding-left: 0.75rem;
+}
+
+.sql-console-saved-label {
+  font-size: 0.7rem;
+  color: var(--jv-term-muted);
+  margin-bottom: 0.3rem;
+}
+
+// The list of saved queries. Lives inside the console (not a floating menu) because the console
+// clips anything that overflows it.
+.sql-console-history-panel {
+  position: absolute;
+  top: 50px; // just under .sql-console-header
+  right: 0.75rem;
+  width: min(580px, calc(100% - 1.5rem));
+  max-height: 60%;
+  overflow-y: auto;
+  z-index: 5;
+  background: var(--jv-surface);
+  border: 1px solid var(--jv-term-border);
+  border-radius: var(--jv-radius);
+  box-shadow: var(--jv-shadow-lg);
+}
+
+.sql-console-history-head {
+  position: sticky;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.4rem 0.75rem;
+  background: var(--jv-surface);
+  border-bottom: 1px solid var(--jv-term-border);
+  font-size: 0.72rem;
+  color: var(--jv-term-muted);
+}
+
+.sql-console-history-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.4rem 0.75rem;
+  background: transparent;
+  border: none;
+  text-align: left;
+  color: var(--jv-term-text);
+  font-family: "Menlo", "Consolas", "Courier New", monospace;
+  font-size: 0.78rem;
+  cursor: pointer;
+
+  &:hover { background: var(--jv-brand-soft); }
+}
+
+.sql-console-history-query {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sql-console-history-meta {
+  flex-shrink: 0;
+  font-family: var(--jv-font-body, inherit);
+  font-size: 0.7rem;
+  color: var(--jv-term-muted);
+  white-space: nowrap;
+}
+
+.sql-console-history-dot {
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+
+  &--ok { background: var(--jv-success); }
+  &--err { background: var(--jv-danger); }
 }
 
 .sql-console-status {

@@ -21,6 +21,7 @@ from app.models.admin_user import AdminUserDBM
 from app.models.deployment_log import DeploymentLogDBM
 from app.models.restart_log import RestartLogDBM
 from app.models.sql_audit_log import SqlAuditLogDBM
+from app.models.sql_history import SqlHistoryDBM
 from app.services import deploy_service, self_restart
 
 

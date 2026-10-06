@@ -128,6 +128,20 @@ export interface SqlQueryResponse {
   page_size: number;
 }
 
+/** One saved run from the SQL Console's history. */
+export interface SqlHistoryEntry {
+  id: number;
+  query: string;
+  success: boolean;
+  // The first page of what the query returned; null when it failed.
+  result: SqlQueryResponse | null;
+  error_message: string | null;
+  // True when rows were dropped from the saved output to keep it small.
+  truncated: boolean;
+  duration_ms: number | null;
+  executed_at: string;
+}
+
 export interface BackupInfo {
   name: string;
   created_at: string;

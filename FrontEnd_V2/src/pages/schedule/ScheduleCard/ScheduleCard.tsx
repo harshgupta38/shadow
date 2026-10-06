@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
+import { useDateFormat, useTimeFormat } from "@/context/PlannerContext";
 import { createPortal } from "react-dom";
-import { Files, PencilFill, Trash3Fill } from "react-bootstrap-icons";
+import { ArrowRepeat, Files, PencilFill, Trash3Fill } from "react-bootstrap-icons";
 import { Dropdown } from "react-bootstrap";
 
 import type { ScheduledTaskDataResponse } from "@/api/types";
-import { PRIORITY_COLOR, PRIORITY_LABEL, formatDateDisplay, formatTimeDisplay, TimeIcon } from "./ScheduleCard.constants";
+import { PRIORITY_COLOR, PRIORITY_LABEL, formatDateDisplay, formatDateDisplayYearly, formatDateRange, formatTimeDisplay, TimeIcon } from "./ScheduleCard.constants";
+import { CATEGORY_ICONS } from "@/pages/schedule/ScheduleWizard/ScheduleWizard.constants";
 
 import "./ScheduleCard.scss";
 
@@ -19,7 +21,9 @@ interface ScheduleCardProps {
 }
 
 export function ScheduleCard({ task, onSelect, onEdit, onDuplicate, onDelete }: ScheduleCardProps) {
-    const timeDisplay = formatTimeDisplay(task.preferred_time, task.specific_time);
+    const timeFormat = useTimeFormat();
+    const dateFormat = useDateFormat();
+    const timeDisplay = formatTimeDisplay(task.preferred_time, task.specific_time, timeFormat);
     const [showCtx, setShowCtx] = useState(false);
     const [ctxPos, setCtxPos] = useState({ x: 0, y: 0 });
 
@@ -63,15 +67,25 @@ export function ScheduleCard({ task, onSelect, onEdit, onDuplicate, onDelete }: 
                         </span>
                     </div>
 
-                    {/* Row 2 - date (left) · time chip (right) */}
+                    {/* Row 2 - date · time · category icon (long-term only) */}
                     <div className="schedule-task-meta">
                         <span className="schedule-task-date">
-                            {formatDateDisplay(task.scheduled_date)}
+                            {task.task_duration === "long" && task.end_date
+                                ? formatDateRange(task.scheduled_date, task.end_date)
+                                : task.repeat_yearly
+                                    ? <>{formatDateDisplayYearly(task.scheduled_date, dateFormat)}<ArrowRepeat size={11} className="sc-repeat-icon" /></>
+                                    : formatDateDisplay(task.scheduled_date, dateFormat)
+                            }
                         </span>
                         {timeDisplay && (
                             <span className="schedule-task-time">
                                 <TimeIcon preferredTime={task.preferred_time} />
                                 {timeDisplay}
+                            </span>
+                        )}
+                        {task.task_duration === "long" && task.category && (
+                            <span className="sc-category-icon" title={task.category}>
+                                {CATEGORY_ICONS[task.category]}
                             </span>
                         )}
                     </div>

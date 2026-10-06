@@ -16,34 +16,6 @@
       border-color var(--jv-transition);
   }
 
-  .goal-summary-card-link {
-    display: block;
-    height: 100%;
-    color: inherit;
-    text-decoration: none;
-
-    &:hover .goal-summary-card,
-    &:focus-visible .goal-summary-card {
-      border-color: var(--jv-border-strong);
-      box-shadow: var(--jv-shadow-lg);
-      transform: translateY(-2px);
-    }
-
-    &:hover .goal-summary-title,
-    &:focus-visible .goal-summary-title {
-      color: var(--jv-brand-1);
-      transform: translateY(-1px);
-    }
-
-    &:hover .goal-summary-meta,
-    &:focus-visible .goal-summary-meta {
-      transform: translateY(-1px);
-    }
-
-    &:focus-visible {
-      outline: none;
-    }
-  }
 
   .goal-summary-card-head {
     display: flex;
@@ -51,6 +23,34 @@
     justify-content: space-between;
     gap: 0.5rem;
     margin-bottom: 0.8rem;
+  }
+
+  .goal-summary-card--draggable {
+    cursor: grab;
+    touch-action: none;
+
+    &:active {
+      cursor: grabbing;
+    }
+  }
+
+  .goal-summary-card--dragging {
+    cursor: grabbing;
+  }
+
+  .goal-summary-card:hover {
+    border-color: var(--jv-border-strong);
+    box-shadow: var(--jv-shadow-lg);
+    transform: translateY(-2px);
+
+    .goal-summary-title {
+      color: var(--jv-brand-1);
+      transform: translateY(-1px);
+    }
+
+    .goal-summary-meta {
+      transform: translateY(-1px);
+    }
   }
 
   .goal-summary-category {

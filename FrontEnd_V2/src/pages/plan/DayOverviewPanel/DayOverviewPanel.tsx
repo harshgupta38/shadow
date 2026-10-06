@@ -5,6 +5,7 @@ import {
 } from "react-bootstrap-icons";
 
 import type { PlanDataResponse, PlanPriority } from "@/api";
+import { useTimeFormat } from "@/context/PlannerContext";
 import { formatDuration, PRIORITY_LABEL } from "@/pages/plan/PlanPage.constants";
 import {
   PRIORITY_ORDER,
@@ -23,6 +24,7 @@ interface Props {
 }
 
 export function DayOverviewPanel({ items, loading, isToday, estimatedMinutes }: Props) {
+  const timeFormat = useTimeFormat();
   const title = isToday ? "Today's Overview" : "Overview";
 
   if (loading) {
@@ -93,7 +95,14 @@ export function DayOverviewPanel({ items, loading, isToday, estimatedMinutes }: 
   const nextUp =
     [...active]
       .filter((i) => i.preferred_time !== "flexible")
-      .sort((a, b) => TIME_ORDER[a.preferred_time] - TIME_ORDER[b.preferred_time])[0] ?? null;
+      .sort((a, b) => {
+        const order = TIME_ORDER[a.preferred_time] - TIME_ORDER[b.preferred_time];
+        if (order !== 0) return order;
+        if (a.preferred_time === "custom" && b.preferred_time === "custom") {
+          return (a.specific_time ?? "").localeCompare(b.specific_time ?? "");
+        }
+        return 0;
+      })[0] ?? null;
 
   const primaryFocus =
     [...active].sort((a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority])[0] ??
@@ -151,7 +160,7 @@ export function DayOverviewPanel({ items, loading, isToday, estimatedMinutes }: 
             <div className="overview-nextup">
               <ArrowRightShort size={16} className="overview-nextup-arrow" />
               <span className="overview-nextup-title">{nextUp.title}</span>
-              <span className="overview-nextup-time">{nextUpTimeLabel(nextUp)}</span>
+              <span className="overview-nextup-time">{nextUpTimeLabel(nextUp, timeFormat)}</span>
               {(nextUp.saved_data?.current_streak ?? 0) >= 1 && (
                 <span className="overview-nextup-streak" aria-label={`${nextUp.saved_data!.current_streak} day streak`}>
                   🔥 {nextUp.saved_data!.current_streak}

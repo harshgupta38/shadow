@@ -4,6 +4,7 @@ from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import settings
+from app.db.change_tracking import register_change_tracking
 
 
 engine = create_engine(
@@ -28,6 +29,9 @@ SessionLocal = sessionmaker(
     expire_on_commit=False,
     class_=Session,
 )
+
+
+register_change_tracking(SessionLocal)
 
 
 def get_db() -> Generator[Session, None, None]:

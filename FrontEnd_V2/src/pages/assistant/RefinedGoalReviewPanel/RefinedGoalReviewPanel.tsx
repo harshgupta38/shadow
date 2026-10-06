@@ -5,6 +5,7 @@ import { api } from "@/api";
 import { ApiError } from "@/api/client";
 import type { GoalDataResponse, GoalProposal, RefineGoalFromLLMSchema } from "@/api/types";
 import { GoalWizardReview } from "@/pages/my_goals/GoalCreationWizard/GoalWizardReview";
+import { ANIMATION } from "@/constant/tuning";
 
 import "@/pages/my_goals/GoalCreationWizard/GoalCreationWizard.scss";
 import "@/pages/assistant/RefinedGoalReviewPanel/RefinedGoalReviewPanel.scss";
@@ -45,8 +46,6 @@ interface RefinedGoalReviewPanelProps {
     onSaved?: (goal: GoalDataResponse) => void | Promise<void>;
 }
 
-const SLIDE_OUT_DURATION_MS = 220;
-
 export function RefinedGoalReviewPanel({ proposal, onClose, onSaved }: RefinedGoalReviewPanelProps) {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -56,7 +55,7 @@ export function RefinedGoalReviewPanel({ proposal, onClose, onSaved }: RefinedGo
     function requestClose() {
         if (isClosing) return;
         setIsClosing(true);
-        window.setTimeout(onClose, SLIDE_OUT_DURATION_MS);
+        window.setTimeout(onClose, ANIMATION.PANEL_SLIDE_OUT_MS);
     }
 
     useEffect(() => {

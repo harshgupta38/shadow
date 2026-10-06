@@ -14,8 +14,10 @@ import LOADING_IMAGE from "@/assets/loading_default.png";
 import { StepImageVisual } from "@/components/ui/StepImageVisual/StepImageVisual";
 import { ThemeToggle } from "@/components/ui/ThemeToggle/ThemeToggle";
 import { useToast } from "@/context/ToastContext";
+import { useDefaultTaskDuration, useTimeFormat } from "@/context/PlannerContext";
 import { ROUTES } from "@/routes/RoutePaths";
 import { GoalWizardVisual } from "@/pages/my_goals/GoalCreationWizard/GoalWizardVisual";
+import { ANIMATION } from "@/constant/tuning";
 
 import {
     answersFromDraft,
@@ -58,6 +60,8 @@ export function HabitWizardPage() {
     const navigate = useNavigate();
     const location = useLocation();
     const toast = useToast();
+    const timeFormat = useTimeFormat();
+    const defaultDuration = useDefaultTaskDuration();
 
     const isEditMode = Boolean(habitId);
     const numericHabitId = Number(habitId);
@@ -73,7 +77,7 @@ export function HabitWizardPage() {
     const [answers, setAnswers] = useState<HabitWizardAnswers>(() => {
         if (isEditMode && stateHabit) return answersFromHabit(stateHabit);
         if (!isEditMode && stateDraft) return answersFromDraft(stateDraft);
-        return makeEmptyAnswers();
+        return makeEmptyAnswers(defaultDuration);
     });
     const [fieldErrors, setFieldErrors] = useState<HabitFieldErrors>({});
     const [error, setError] = useState<string | null>(null);
@@ -130,7 +134,7 @@ export function HabitWizardPage() {
         if (!loadingContext) { setLoaderIndex(0); return; }
         const interval = window.setInterval(() => {
             setLoaderIndex((cur) => Math.min(cur + 1, HABIT_LOADER_STEPS.length - 1));
-        }, 1100);
+        }, ANIMATION.WIZARD_LOADER_STEP_MS);
         return () => window.clearInterval(interval);
     }, [loadingContext]);
 
@@ -225,7 +229,6 @@ export function HabitWizardPage() {
         setFieldErrors({});
 
         try {
-            const isMetric = answers.plannerType === "metric";
             const specificTimeOut = answers.preferredTime === "custom"
                 ? buildTime(parsedSpecificTime.h, parsedSpecificTime.m, parsedSpecificTime.a)
                 : "";
@@ -242,11 +245,14 @@ export function HabitWizardPage() {
                 monthly_count: answers.frequencies.includes("monthly") ? answers.monthlyCount : null,
                 specific_days: answers.specificDays.length > 0 ? answers.specificDays : null,
                 day_fallback: answers.dayFallback,
+                can_skip: answers.canSkip,
+                streak_tolerance_pct: isMetric ? answers.streakTolerancePct : 100,
                 start_date: answers.setStartDate === "yes" ? answers.startDate : null,
                 end_date: answers.setStartDate === "yes" && answers.setEndDate ? answers.endDate : null,
                 preferred_time: answers.preferredTime,
                 specific_time: specificTimeOut || null,
                 duration_minutes: parseOptionalPositiveInt(answers.durationMinutes),
+                include_in_report: answers.includeInReport,
                 goal_id: answers.goalId ? Number(answers.goalId) : null,
                 category: answers.category || null,
             };
@@ -296,6 +302,7 @@ export function HabitWizardPage() {
     const displayError = stepBannerError ?? error;
     const loaderMessage = HABIT_LOADER_STEPS[Math.min(loaderIndex, HABIT_LOADER_STEPS.length - 1)];
 
+    const isMetric = answers.plannerType === "metric";
     const hasSpecificDay = answers.specificDays.length > 0;
     const disabledFreqs = useMemo(
         () => computeDisabledFreqs(answers.frequencies, hasSpecificDay),
@@ -304,8 +311,6 @@ export function HabitWizardPage() {
 
     // ── Scheduling section (Step 2) ────────────────────────────────────────────
     function renderSchedulingSection(isActive: boolean) {
-        const isMetric = answers.plannerType === "metric";
-
         return (
             <div className="mt-3">
                 {/* Planner target + value unit (metric only) */}
@@ -345,19 +350,42 @@ export function HabitWizardPage() {
                     </div>
                 )}
 
-                {/* Priority */}
-                <div className="mb-3">
-                    <label className="form-label">Priority</label>
-                    <select
-                        className="form-select"
-                        value={answers.priority}
-                        onChange={(e) => updateAnswer("priority", e.target.value as typeof answers.priority)}
-                        disabled={!isActive || submitting}
-                    >
-                        {PRIORITY_OPTIONS.map((opt) => (
-                            <option key={opt.value} value={opt.value}>{opt.label}</option>
-                        ))}
-                    </select>
+                {/* Priority + Can skip */}
+                <div className="row g-3 mb-3">
+                    <div className="col-md-6">
+                        <label className="form-label">Priority</label>
+                        <select
+                            className="form-select"
+                            value={answers.priority}
+                            onChange={(e) => updateAnswer("priority", e.target.value as typeof answers.priority)}
+                            disabled={!isActive || submitting}
+                        >
+                            {PRIORITY_OPTIONS.map((opt) => (
+                                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="col-md-6">
+                        <label className="form-label">Can skip</label>
+                        <div className="goal-task-type-toggle goal-task-type-toggle--compact mt-0">
+                            <button
+                                type="button"
+                                className={`goal-task-type-option ${answers.canSkip ? "is-active" : ""}`.trim()}
+                                onClick={() => updateAnswer("canSkip", true)}
+                                disabled={!isActive || submitting}
+                            >
+                                <span className="goal-task-type-option-title">Yes - Allow</span>
+                            </button>
+                            <button
+                                type="button"
+                                className={`goal-task-type-option ${!answers.canSkip ? "is-active" : ""}`.trim()}
+                                onClick={() => updateAnswer("canSkip", false)}
+                                disabled={!isActive || submitting}
+                            >
+                                <span className="goal-task-type-option-title">No - Required</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
                 {/* Frequency chips */}
@@ -772,61 +800,127 @@ export function HabitWizardPage() {
                                                 {/* ── Step 4: Additional Details ── */}
                                                 {step.key === "additionalDetails" && (
                                                     <div className="mt-3">
-                                                        {/* Preferred time */}
-                                                        <div className="mb-3">
-                                                            <label className="form-label">
-                                                                When do you prefer to do it? <span className="text-muted fw-normal">(optional)</span>
-                                                            </label>
-                                                            <div className="d-flex gap-2 align-items-center">
-                                                                <select
-                                                                    className="form-select"
-                                                                    value={answers.preferredTime}
-                                                                    onChange={(e) => {
-                                                                        updateAnswer("preferredTime", e.target.value as HabitPreferredTime);
-                                                                        if (e.target.value !== "custom") updateAnswer("specificTime", "");
-                                                                    }}
-                                                                    disabled={!isActive || submitting}
-                                                                >
-                                                                    {PREFERRED_TIME_OPTIONS.map((opt) => (
-                                                                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                                                                    ))}
-                                                                </select>
-                                                                {answers.preferredTime === "custom" && (
-                                                                    <div className="d-flex gap-1 align-items-center flex-shrink-0">
-                                                                        <select className="form-select habit-time-select" value={parsedSpecificTime.h} onChange={(e) => setSpecificTimePart("h", e.target.value)} disabled={!isActive || submitting} aria-label="Hour">
-                                                                            {Array.from({ length: 12 }, (_, i) => String(i + 1)).map((h) => <option key={h} value={h}>{String(Number(h)).padStart(2, "0")}</option>)}
-                                                                        </select>
-                                                                        :
-                                                                        <select className="form-select habit-time-select" value={parsedSpecificTime.m} onChange={(e) => setSpecificTimePart("m", e.target.value)} disabled={!isActive || submitting} aria-label="Minute">
-                                                                            {MINUTES.map((m) => <option key={m} value={m}>{m}</option>)}
-                                                                        </select>
-                                                                        <select className="form-select habit-time-select" value={parsedSpecificTime.a} onChange={(e) => setSpecificTimePart("a", e.target.value)} disabled={!isActive || submitting} aria-label="AM/PM" style={{ minWidth: "3.5rem" }}>
-                                                                            <option value="AM">AM</option>
-                                                                            <option value="PM">PM</option>
-                                                                        </select>
+                                                        {/* Streak tolerance (metric) + Preferred time — same row */}
+                                                        <div className="row g-3 mb-3">
+                                                            {isMetric && (
+                                                                <div className="col-md-6">
+                                                                    <label className="form-label d-flex align-items-center justify-content-between">
+                                                                        <span>
+                                                                            Streak tolerance
+                                                                            <span className="text-muted ms-1" style={{ fontSize: "0.78rem", fontWeight: 400 }}>
+                                                                                (min % to keep streak)
+                                                                            </span>
+                                                                        </span>
+                                                                        <span style={{ fontWeight: 700, fontSize: "0.92rem", color: "var(--jv-brand-1)" }}>
+                                                                            {answers.streakTolerancePct}%
+                                                                        </span>
+                                                                    </label>
+                                                                    <input
+                                                                        type="range"
+                                                                        className="form-range streak-tolerance-range"
+                                                                        value={answers.streakTolerancePct}
+                                                                        onChange={(e) => updateAnswer("streakTolerancePct", Number(e.target.value))}
+                                                                        min={50}
+                                                                        max={100}
+                                                                        step={5}
+                                                                        disabled={!isActive || submitting}
+                                                                        style={{ "--range-fill": `${((answers.streakTolerancePct - 50) / 50) * 100}%` } as React.CSSProperties}
+                                                                    />
+                                                                    <div className="d-flex justify-content-between" style={{ fontSize: "0.7rem", color: "var(--jv-faint)", marginTop: "0.1rem" }}>
+                                                                        <span>50%</span>
+                                                                        <span className="text-muted" style={{ fontSize: "0.7rem" }}>
+                                                                            {answers.streakTolerancePct === 100
+                                                                                ? "Must fully meet target."
+                                                                                : `${answers.streakTolerancePct}% counts as done.`}
+                                                                        </span>
+                                                                        <span>100%</span>
                                                                     </div>
+                                                                </div>
+                                                            )}
+                                                            <div className={isMetric ? "col-md-6" : "col-12"}>
+                                                                <label className="form-label">
+                                                                    When do you prefer to do it? <span className="text-muted fw-normal">(optional)</span>
+                                                                </label>
+                                                                <div className="d-flex gap-2 align-items-center">
+                                                                    <select
+                                                                        className="form-select"
+                                                                        value={answers.preferredTime}
+                                                                        onChange={(e) => {
+                                                                            updateAnswer("preferredTime", e.target.value as HabitPreferredTime);
+                                                                            if (e.target.value !== "custom") updateAnswer("specificTime", "");
+                                                                        }}
+                                                                        disabled={!isActive || submitting}
+                                                                    >
+                                                                        {PREFERRED_TIME_OPTIONS.map((opt) => (
+                                                                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                                                        ))}
+                                                                    </select>
+                                                                    {answers.preferredTime === "custom" && (
+                                                                        <div className="d-flex gap-1 align-items-center flex-shrink-0">
+                                                                            {timeFormat === "24h" ? (
+                                                                                <input type="time" className="form-control habit-time-select" value={answers.specificTime || "08:00"} onChange={(e) => updateAnswer("specificTime", e.target.value)} disabled={!isActive || submitting} aria-label="Time" />
+                                                                            ) : (
+                                                                                <>
+                                                                                    <select className="form-select habit-time-select" value={parsedSpecificTime.h} onChange={(e) => setSpecificTimePart("h", e.target.value)} disabled={!isActive || submitting} aria-label="Hour">
+                                                                                        {Array.from({ length: 12 }, (_, i) => String(i + 1)).map((h) => <option key={h} value={h}>{String(Number(h)).padStart(2, "0")}</option>)}
+                                                                                    </select>
+                                                                                    :
+                                                                                    <select className="form-select habit-time-select" value={parsedSpecificTime.m} onChange={(e) => setSpecificTimePart("m", e.target.value)} disabled={!isActive || submitting} aria-label="Minute">
+                                                                                        {MINUTES.map((m) => <option key={m} value={m}>{m}</option>)}
+                                                                                    </select>
+                                                                                    <select className="form-select habit-time-select" value={parsedSpecificTime.a} onChange={(e) => setSpecificTimePart("a", e.target.value)} disabled={!isActive || submitting} aria-label="AM/PM" style={{ minWidth: "3.5rem" }}>
+                                                                                        <option value="AM">AM</option>
+                                                                                        <option value="PM">PM</option>
+                                                                                    </select>
+                                                                                </>
+                                                                            )}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                                {fieldErrors.specificTime && (
+                                                                    <div className="text-danger small mt-1">{fieldErrors.specificTime}</div>
                                                                 )}
                                                             </div>
-                                                            {fieldErrors.specificTime && (
-                                                                <div className="text-danger small mt-1">{fieldErrors.specificTime}</div>
-                                                            )}
                                                         </div>
 
-                                                        {/* Duration */}
-                                                        <div className="mb-3">
-                                                            <label className="form-label">
-                                                                How long does it take? <span className="text-muted fw-normal">(minutes, optional)</span>
-                                                            </label>
-                                                            <input
-                                                                type="number"
-                                                                className="form-control"
-                                                                value={answers.durationMinutes}
-                                                                onChange={(e) => updateAnswer("durationMinutes", e.target.value)}
-                                                                placeholder="e.g. 20"
-                                                                min={1}
-                                                                step={1}
-                                                                disabled={!isActive || submitting}
-                                                            />
+                                                        {/* Duration + Include in reports */}
+                                                        <div className="row g-3 mb-3">
+                                                            <div className="col-md-6">
+                                                                <label className="form-label">
+                                                                    Estimated duration <span className="text-muted fw-normal">(minutes, optional)</span>
+                                                                </label>
+                                                                <input
+                                                                    type="number"
+                                                                    className="form-control"
+                                                                    value={answers.durationMinutes}
+                                                                    onChange={(e) => updateAnswer("durationMinutes", e.target.value)}
+                                                                    placeholder="e.g. 20"
+                                                                    min={1}
+                                                                    step={1}
+                                                                    disabled={!isActive || submitting}
+                                                                />
+                                                            </div>
+                                                            <div className="col-md-6">
+                                                                <label className="form-label">Include in reports</label>
+                                                                <div className="goal-task-type-toggle goal-task-type-toggle--compact mt-0">
+                                                                    <button
+                                                                        type="button"
+                                                                        className={`goal-task-type-option ${answers.includeInReport ? "is-active" : ""}`.trim()}
+                                                                        onClick={() => updateAnswer("includeInReport", true)}
+                                                                        disabled={!isActive || submitting}
+                                                                    >
+                                                                        <span className="goal-task-type-option-title">Yes - Include</span>
+                                                                    </button>
+                                                                    <button
+                                                                        type="button"
+                                                                        className={`goal-task-type-option ${!answers.includeInReport ? "is-active" : ""}`.trim()}
+                                                                        onClick={() => updateAnswer("includeInReport", false)}
+                                                                        disabled={!isActive || submitting}
+                                                                    >
+                                                                        <span className="goal-task-type-option-title">No - Exclude</span>
+                                                                    </button>
+                                                                </div>
+                                                            </div>
                                                         </div>
 
                                                         {/* Note */}

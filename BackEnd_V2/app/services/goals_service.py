@@ -1,8 +1,9 @@
 from datetime import date
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, func, select, update
 
-from app.core.exceptions import NotFoundError, ConflictError
+from app.common import today_ist
+from app.core.exceptions import NotFoundError, ConflictError, ValidationError
 from app.services import planner_service
 from app.llm import RefineGoalFromLLM, get_llm_service, LLMError, LLMRequestError
 from app.models.chat import MessageDBM
@@ -17,8 +18,11 @@ from app.schemas.goals import (
     GoalDataResponse,
     GoalDataShortResponse,
     GoalListStatusFilter,
+    GoalReorderRequest,
     RefineGoalRequest,
     SaveGoalFromProposalRequest,
+    SaveGoalRequest,
+    UpdateGoalRequest,
 )
 
 
@@ -26,6 +30,8 @@ async def refine_goal(
     data: RefineGoalRequest,
     current_user: UserDBM,
 ) -> RefineGoalFromLLM:
+    # uses the env-default model — refine_goal()/RefineGoalToLLM don't accept a
+    # model override yet, so this ignores the user's ai_provider/ai_default_model setting.
     llm_service = get_llm_service()
 
     try:
@@ -45,12 +51,19 @@ def _serialize_goal_detail(goal: GoalDBM) -> GoalDataResponse:
 def save_goal(
     db,
     current_user: UserDBM,
-    data: RefineGoalRequest,
+    data: SaveGoalRequest,
 ) -> None:
     # time.sleep(5)
 
+    next_position = db.scalar(
+        select(func.coalesce(func.max(GoalDBM.position), -1) + 1).where(
+            GoalDBM.user_id == current_user.id,
+        )
+    )
+
     goal = GoalDBM(
         user_id=current_user.id,
+        position=int(next_position or 0),
         title=data.title.strip(),
         summary=data.summary.strip(),
         category=data.category,
@@ -133,8 +146,15 @@ def save_goal_from_proposal(
     stale_goal_id = proposal.goal_id
 
     goal_data = data.goal
+    next_position = db.scalar(
+        select(func.coalesce(func.max(GoalDBM.position), -1) + 1).where(
+            GoalDBM.user_id == current_user.id,
+        )
+    )
+
     goal = GoalDBM(
         user_id=current_user.id,
+        position=int(next_position or 0),
         title=goal_data.title.strip(),
         summary=goal_data.summary.strip(),
         category=goal_data.category,
@@ -189,6 +209,25 @@ def save_goal_from_proposal(
     return _serialize_goal_detail(goal)
 
 
+def reorder_goals(
+    db,
+    current_user: UserDBM,
+    data: GoalReorderRequest,
+) -> None:
+    goal_ids = [item.id for item in data.goals]
+    goals = db.query(GoalDBM).filter(
+        GoalDBM.id.in_(goal_ids),
+        GoalDBM.user_id == current_user.id,
+    ).all()
+
+    goal_map = {goal.id: goal for goal in goals}
+    for item in data.goals:
+        if item.id in goal_map:
+            goal_map[item.id].position = item.position
+
+    db.commit()
+
+
 def get_goal_list(
     db,
     current_user: UserDBM,
@@ -202,23 +241,9 @@ def get_goal_list(
     if status != "All":
         query = query.filter(GoalDBM.status == status)
 
-    goals = query.order_by(GoalDBM.updated_at.desc()).all()
+    goals = query.order_by(GoalDBM.position).all()
 
-    return [
-        GoalDataShortResponse(
-            id=goal.id,
-            title=goal.title,
-            summary=goal.summary,
-            category=goal.category,
-            status=goal.status,
-            target_date=goal.target_date.isoformat(),
-            milestones_total=goal.milestones_total,
-            milestones_completed=goal.milestones_completed,
-            habits_total=goal.habits_total,
-            habits_active=goal.habits_active,
-        )
-        for goal in goals
-    ]
+    return [GoalDataShortResponse.model_validate(goal) for goal in goals]
 
 
 def get_goal_detail(
@@ -259,8 +284,7 @@ def delete_goal(
         raise NotFoundError("Goal not found.")
 
     task_ids = db.scalars(select(TaskDBM.id).where(TaskDBM.goal_id == goal.id)).all()
-    for task_id in task_ids:
-        planner_service.deactivate_plan(db, "task", task_id)
+    planner_service.deactivate_plans(db, "task", list(task_ids))
 
     db.execute(delete(TaskDBM).where(TaskDBM.goal_id == goal.id))
     db.execute(delete(MilestoneDBM).where(MilestoneDBM.goal_id == goal.id))
@@ -272,7 +296,7 @@ def update_goal(
     db,
     current_user: UserDBM,
     goal_id: int,
-    data: RefineGoalRequest,
+    data: UpdateGoalRequest,
 ) -> GoalDataResponse:
     goal = (
         db.query(GoalDBM)
@@ -282,6 +306,10 @@ def update_goal(
 
     if goal is None:
         raise NotFoundError("Goal not found.")
+
+    new_target_date = date.fromisoformat(data.target_date)
+    if new_target_date != goal.target_date and new_target_date <= today_ist():
+        raise ValidationError("Target date must be a future date.")
 
     goal.title = data.title.strip()
     goal.summary = data.summary.strip()
@@ -293,7 +321,7 @@ def update_goal(
     goal.strengths = _clean_list(data.strengths)
     goal.success_metrics = _clean_list(data.success_metrics)
     goal.insights = _clean_list(data.insights)
-    goal.target_date = date.fromisoformat(data.target_date)
+    goal.target_date = new_target_date
 
     db.execute(
         update(HabitDBM)

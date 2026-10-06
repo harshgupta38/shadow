@@ -27,6 +27,23 @@ class ValidationError(AppError):
         super().__init__(detail)
         self.errors = errors or {}
 
+class ForbiddenError(AppError):
+    status_code = 403
+    detail = "Access denied."
+
 class NotFoundError(AppError):
     status_code = 404
     detail = "Resource not found."
+
+class ServiceUnavailableError(AppError):
+    status_code = 503
+    detail = "An external service is temporarily unavailable. Please try again later."
+
+
+class TooManyRequestsError(AppError):
+    status_code = 429
+    detail = "Too many requests. Please try again later."
+
+    def __init__(self, detail: str | None = None, retry_after: int | None = None):
+        super().__init__(detail)
+        self.retry_after = retry_after  # seconds until the lockout expires

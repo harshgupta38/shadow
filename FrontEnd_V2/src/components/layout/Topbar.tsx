@@ -6,6 +6,7 @@ import { BoxArrowRight, GearFill, List, PersonCircle } from "react-bootstrap-ico
 import { ThemeToggle } from "@/components/ui/ThemeToggle/ThemeToggle";
 import { Brand } from "@/components/ui/Brand/Brand";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
+import { NotificationsBell } from "@/components/layout/NotificationsBell/NotificationsBell";
 import { useAuth } from "@/context/AuthContext";
 import { ROUTES } from "@/routes/RoutePaths";
 
@@ -56,6 +57,7 @@ export function Topbar({ onOpenMenu }: TopbarProps) {
 
       <div className="ms-auto d-flex align-items-center gap-1">
         <ThemeToggle />
+        <NotificationsBell />
 
         <Dropdown align="end">
           <Dropdown.Toggle

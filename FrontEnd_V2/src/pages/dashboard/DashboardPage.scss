@@ -1,5 +1,272 @@
+// dp = Dashboard Page — classes shared across two or more panels live here;
+// each panel's own styling lives next to it (see TodaySnapshot/, ReportsOverview/, etc.)
+
+@keyframes dp-page-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .dashboard-page {
-  .page-title {
+  display: flex;
+  flex-direction: column;
+  animation: dp-page-in 260ms var(--jv-ease) both;
+
+  // ── Welcome header ────────────────────────────────────────────────────────────
+
+  .dp-welcome {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.5rem;
+  }
+
+  .dp-welcome-text {
+    min-width: 0;
+  }
+
+  .dp-welcome-title {
+    font-family: var(--jv-font-display);
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: var(--jv-text);
+    margin: 0 0 0.3rem;
+  }
+
+  .dp-welcome-subtitle {
+    font-size: 0.9rem;
+    color: var(--jv-muted);
     margin: 0;
   }
+
+  .dp-welcome-actions {
+    display: flex;
+    gap: 0.6rem;
+    flex-shrink: 0;
+  }
+
+  @media (max-width: 520px) {
+    .dp-welcome-actions {
+      width: 100%;
+
+      .btn {
+        flex: 1;
+      }
+    }
+  }
+
+  // ── Section header (shared by every panel) ───────────────────────────────────
+
+  .dp-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.875rem;
+  }
+
+  .dp-section-head {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+  }
+
+  .dp-section-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--jv-text);
+    margin: 0;
+  }
+
+  .dp-section-chip {
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--jv-muted);
+    background: var(--jv-surface-2);
+    border: 1px solid var(--jv-border);
+    border-radius: var(--jv-radius-pill);
+    padding: 1px 9px;
+  }
+
+  .dp-section-link {
+    margin-left: auto;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--jv-brand-1);
+    text-decoration: none;
+
+    &:hover {
+      opacity: 0.8;
+    }
+  }
+
+  // ── Coming up: Upcoming + This Week panels ────────────────────────────────────
+
+  .dp-coming-up-grid {
+    display: grid;
+    // minmax(0, ...) — see the note in TodaySnapshot.scss: a bare fr track's
+    // implicit min-width:auto lets nowrap+ellipsis text (e.g. upcoming-item
+    // titles) force the track wider than the container instead of truncating.
+    grid-template-columns: minmax(0, 4fr) minmax(0, 6fr);
+    gap: 1rem;
+    align-items: start;
+
+    @media (max-width: 760px) {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  .dp-panel {
+    background: var(--jv-surface);
+    border: 1px solid var(--jv-border);
+    border-radius: var(--jv-radius);
+    padding: 1.1rem 1.1rem 0.9rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+
+    &.no-gap {
+      gap: 0;
+      padding-bottom: 0.55rem;
+    }
+  }
+
+  .dp-panel-head {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+
+    &.mb-075 {
+      margin-bottom: 0.75rem;
+    }
+  }
+
+  .dp-panel-title {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--jv-text);
+    margin: 0;
+  }
+
+  // ── Loading ghost shell (mirrors TrackProgressPage's tp-empty pattern) ───────
+
+  .dp-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .dp-empty-ghost-shell {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0.875rem;
+    pointer-events: none;
+    user-select: none;
+    mask-image: linear-gradient(to bottom, black 0%, black 40%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, black 0%, black 40%, transparent 100%);
+
+    // On narrow screens the ring panel drops below the list (see dp-today-grid's
+    // own breakpoint) and stacks 4 stat cards into 2 rows, which together push the
+    // loading text off-screen. Trim the ghost preview so it stays as compact as
+    // TrackProgressPage's mobile loading view.
+    @media (max-width: 860px) {
+      .dp-stats .dp-stat:nth-child(n + 3) {
+        display: none;
+      }
+
+      .dp-today-list .dp-today-item:nth-child(n + 2) {
+        display: none;
+      }
+
+      .dp-today-ring-panel {
+        display: none;
+      }
+    }
+  }
+
+  .dp-ghost-line {
+    display: block;
+    height: 9px;
+    border-radius: 4px;
+    background: var(--jv-surface-3);
+  }
+
+  .dp-ghost-val {
+    display: block;
+    width: 46px;
+    height: 22px;
+    flex-shrink: 0;
+    border-radius: 6px;
+    background: var(--jv-surface-3);
+  }
+
+  .dp-ghost-dot {
+    background: var(--jv-surface-3);
+  }
+
+  .dp-ghost-ring {
+    display: block;
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    border: 10px solid var(--jv-surface-3);
+  }
+
+  .dp-empty-core {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    max-width: 300px;
+    margin-top: -0.5rem;
+  }
+
+  .dp-empty-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 14px;
+    background: var(--jv-brand-soft);
+    border: 1px solid color-mix(in srgb, var(--jv-brand-1) 28%, transparent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--jv-brand-1);
+    margin-bottom: 1.1rem;
+  }
+
+  .dp-empty-title {
+    margin: 0 0 0.45rem;
+    font-size: 1.05rem;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    color: var(--jv-text);
+  }
+
+  .dp-empty-sub {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--jv-muted);
+    line-height: 1.58;
+  }
+
+  @keyframes dp-spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .dp-loading-spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--jv-border);
+    border-top-color: var(--jv-brand-1);
+    border-radius: 50%;
+    animation: dp-spin 700ms linear infinite;
+  }
+
 }

@@ -1,14 +1,17 @@
 from datetime import date
 
+from app.common import today_ist
 from app.llm.common import build_schema_prompt
 from app.schemas.chat import (
     ConversationContextFromLLMSchema,
     MessageFromLLMSchema,
     NewConvoFromLLMSchema,
 )
+from app.schemas.memory import MemoryExtractionFromLLMSchema
 from app.schemas.goals import RefineGoalRequest, RefineGoalFromLLMSchema
 from app.schemas.milestones import MilestoneProposalListLLMSchema
 from app.schemas.tasks import TaskProposalListLLMSchema
+from app.schemas.daily_report import GenerateReportSchema
 
 # ---------------------------------------------------------------------------
 # Goal refinement: turns five collected discovery answers into a structured
@@ -43,7 +46,7 @@ GOAL_REFINEMENT_SYSTEM_INSTRUCTION_CLAUDE = (
 
 def build_goal_refinement_user_prompt(request_data: RefineGoalRequest) -> str:
     return (
-        f"Current Date: {date.today().isoformat()}\n\n"
+        f"Current Date: {today_ist().isoformat()}\n\n"
         "User Responses\n\n"
         f"Goal: {request_data.goal.strip()}\n"
         f"Why: {request_data.why.strip()}\n"
@@ -204,7 +207,7 @@ def build_task_proposal_user_prompt(
     success_metrics = goal_data.get("success_metrics") or []
 
     return (
-        f"Current Date: {date.today().isoformat()}\n\n"
+        f"Current Date: {today_ist().isoformat()}\n\n"
         "Goal:\n"
         f"Title: {goal_data.get('title', '')}\n"
         f"Success Definition: {goal_data.get('success_definition', '')}\n"
@@ -223,7 +226,7 @@ def build_milestone_proposal_user_prompt(goal_data: dict) -> str:
     success_metrics = goal_data.get("success_metrics") or []
 
     return (
-        f"Current Date: {date.today().isoformat()}\n\n"
+        f"Current Date: {today_ist().isoformat()}\n\n"
         "Goal:\n"
         f"Title: {goal_data.get('title', '')}\n"
         f"Summary: {goal_data.get('summary', '')}\n"
@@ -276,6 +279,55 @@ _RESPONSE_STYLE = (
     " response. Use Markdown (lists, bold, headers) only when it actually improves readability —"
     " not for short replies."
 )
+
+RESPONSE_LENGTH_INSTRUCTION: dict[str, str] = {
+    "short": (
+        "Response length override (user preference): Keep your reply concise. "
+        "Prefer 1 to 3 sentences when possible. Skip examples, background, "
+        "and elaboration unless the user explicitly asks or they are necessary "
+        "to answer correctly."
+    ),
+    "balanced": "",
+    "detailed": (
+        "Response length override (user preference): Provide a thorough answer. Include relevant"
+        " examples, reasoning, and context that help the user fully understand. Structure with"
+        " headers or lists where it aids clarity."
+    ),
+    "very_detailed": (
+        "Response length override (user preference): Be comprehensive. Cover all relevant aspects,"
+        " edge cases, and nuances. Use structured formatting (headers, numbered steps, code blocks)"
+        " as appropriate. Do not abbreviate unless the topic is genuinely narrow."
+    ),
+}
+
+AI_PERSONALITY_INSTRUCTION: dict[str, str] = {
+    "professional": (
+        "Communication style (user preference): Use a formal, precise tone. Structure responses"
+        " clearly. Avoid casual language, contractions, and filler phrases. Every sentence should"
+        " carry substance."
+    ),
+    "friendly": (
+        "Communication style (user preference): Use a warm, conversational tone. Natural language"
+        " and light encouragement are welcome. Make the interaction feel approachable — like"
+        " talking with a knowledgeable friend, not reading a manual."
+    ),
+    "coach": "",  # default — base personas already carry a coaching tone
+    "teacher": (
+        "Communication style (user preference): Explain things step by step. Assume the user may"
+        " be learning this topic and break down concepts clearly. Use examples and analogies where"
+        " they genuinely help understanding."
+    ),
+    "mentor": (
+        "Communication style (user preference): Take a reflective, empathetic approach. Acknowledge"
+        " the user's situation before offering guidance. Ask thoughtful questions that help the user"
+        " think through problems themselves rather than just delivering answers."
+    ),
+    "minimal": (
+        "Communication style (user preference): Be as concise as possible. Answer directly with no"
+        " preamble, no affirmations, no summaries. One idea per sentence. Skip examples and"
+        " elaboration unless explicitly requested."
+    ),
+}
 
 _NEW_CONVO_OUTPUT = (
     "\n\nReturn a single JSON object matching the required schema: title, stable_context,"
@@ -413,3 +465,396 @@ RESPOND_TO_MESSAGE_SYSTEM_INSTRUCTION_CLAUDE: dict[str, str] = {
     agent_type: instruction + _CONVERSATION_SCHEMA_FOR_CLAUDE(MessageFromLLMSchema)
     for agent_type, instruction in RESPOND_TO_MESSAGE_SYSTEM_INSTRUCTION.items()
 }
+
+
+# ---------------------------------------------------------------------------
+# User memory extraction: decides what durable information from a conversation
+# is worth persisting to long-term user memory across all future conversations.
+# ---------------------------------------------------------------------------
+
+_MEMORY_EXTRACTION_INSTRUCTION = (
+    "You are a memory manager for Shadow, an AI personal assistant. "
+    "Your job is to analyze a conversation and decide what information should be "
+    "persisted as long-term user memory for use in future conversations.\n\n"
+
+    "You will receive:\n"
+    "- The conversation's stable context and summary.\n"
+    "- Recent messages from the conversation.\n"
+    "- A list of existing user memories (with their IDs).\n\n"
+
+    "Decide what actions to take — create, update, retire, or none:\n\n"
+
+    "CREATE a new memory when:\n"
+    "- The conversation contains durable, useful information not covered by any existing memory.\n"
+    "- The information will help future assistants make better recommendations or responses.\n\n"
+
+    "UPDATE an existing memory when:\n"
+    "- New information extends or refines an existing memory on the same topic.\n"
+    "- Always provide the COMPLETE merged content — not just the delta.\n\n"
+
+    "RETIRE an existing memory when:\n"
+    "- It contains information that is now outdated, superseded, or contradicted.\n\n"
+
+    "Return NONE (empty actions list) when:\n"
+    "- The conversation contains only temporary details, one-off questions, or trivial exchanges.\n"
+    "- The information is already available from Shadow's normal database (goals, tasks, habits, etc.).\n"
+    "- Nothing would meaningfully help a future assistant.\n\n"
+
+    "Examples worth remembering:\n"
+    "- User completed a set of problems/exercises and their progress.\n"
+    "- Long-term preferences (communication style, learning approach, tools preferred).\n"
+    "- Important decisions made or constraints that affect future plans.\n"
+    "- Ongoing progress in an area that spans multiple conversations.\n\n"
+
+    "Examples NOT worth remembering:\n"
+    "- Greetings and casual small talk.\n"
+    "- One-off factual questions with no future relevance.\n"
+    "- Information that will be fetched fresh from the database each time (goal titles, task statuses).\n\n"
+
+    "Be selective. Fewer high-quality memories are better than many low-value ones.\n\n"
+    "Return only the JSON object matching the required schema."
+)
+
+USER_MEMORY_EXTRACTION_SYSTEM_INSTRUCTION = (
+    _MEMORY_EXTRACTION_INSTRUCTION
+    + "\n\nSchema:\n"
+    + build_schema_prompt(MemoryExtractionFromLLMSchema)
+)
+
+
+# ── Generate Report ───────────────────────────────────────────────────────────
+
+_GENERATE_DAILY_REPORT_SYSTEM_INSTRUCTION = (
+    "You are Shadow — a personal productivity and goal-alignment coach.\n"
+    "Generate a structured DAILY progress report from the user's activity data for a single day. Be specific, honest, and coach-like — not just a summary of numbers.\n\n"
+
+    "=== SCOPE ===\n"
+    "This is a DAILY report. All stats, records, and activity data cover one day only.\n"
+    "History data covers the previous 7 days and is provided for context and pattern detection only — not as the subject of the report.\n\n"
+
+    "=== SCORING ===\n"
+    "alignment_score (0–100): reflects today's execution quality, not raw completion rate.\n"
+    "  - Weight goal-linked tasks 2× more than standalone scheduled items.\n"
+    "  - Weight highest/high-priority items 1.5× more than medium/low-priority items.\n"
+    "  - For metric-tracked items (e.g. '8/10 km'), score proportionally to actual/target, not binary done/missed.\n"
+    "  - If all goal-linked and high-priority work is done, completing only 50% of low-priority filler should still yield a score of 70+.\n"
+    "  - Do not let a single missed item or a single exceptional item move the score by more than ~10 points.\n\n"
+
+    "=== HEADLINE ===\n"
+    "5–6 words maximum. One clear theme — not two thoughts joined by a semicolon or 'but'.\n"
+    "Name what defined today most: the biggest win, the biggest gap, or the dominant pattern.\n"
+    "A user should understand it in under 2 seconds. Prefer simple, everyday words over clever or formal phrasing.\n"
+    "Examples of good headlines: 'Strong SDE focus today', 'Fitness goal crushed', 'Planning slipped badly', 'Solid all-round day'.\n"
+    "Never use generic phrases like 'productive day', 'mixed results', or 'room for improvement'.\n\n"
+
+    "=== SUMMARY ===\n"
+    "2–3 short sentences. Write in plain, everyday English — like a friend giving honest feedback, not a performance review.\n"
+    "No complex vocabulary, no metaphors, no formal tone. Short sentences are better than long ones.\n"
+    "Say what happened, why it matters, and what it means going forward. The user already sees the full activity list — do not restate it.\n"
+    "Do NOT restate the headline. Do not repeat what you will say in goal notes or highlights.\n"
+    "BANNED WORDS — never use these anywhere in the report: momentum, leverage, optimize, productivity, efficiency, "
+    "technical debt, sustainable, trajectory, execution quality, performance, concentrated, margin, strategic, "
+    "holistic, synergy, actionable, bandwidth, impactful, robust, seamless, paradigm, cadence, proactive.\n\n"
+
+    "=== GOALS ===\n"
+    "One entry per goal in the input. Match goal_id exactly.\n"
+    "alignment_pct: priority-weighted completion of this goal's planned work today (not a raw count).\n"
+    "note: Exactly 1 sentence. State what today's activity means for this goal's progress or success definition.\n"
+    "Do NOT list or describe which items were completed or missed — the user already sees the activity data.\n\n"
+
+    "=== HIGHLIGHTS ===\n"
+    "highlights_good: 2–4 items. Name patterns, streaks, or meaningful achievements — not activity titles.\n"
+    "  Bad: 'Completed LeetCode POTD' (just restates done items).\n"
+    "  Good: 'Maintained 7-day SDE study streak' or 'Hit hydration target for 3rd consecutive day'.\n"
+    "highlights_attention: 1–3 specific gaps from today that genuinely matter. Do not repeat what's in summary or goal notes.\n\n"
+
+    "=== CLOSING ===\n"
+    "closing_message: 1–2 sentences naming one concrete action or focus area for tomorrow.\n\n"
+
+    "=== CROSS-SECTION RULE ===\n"
+    "Each insight must appear in at most one section. If a gap is named in the summary, omit it from highlights_attention. If a win is named in a goal note, omit it from highlights_good.\n\n"
+
+    "=== PATTERN RULE ===\n"
+    "Never claim a recurring pattern (e.g. 'you always struggle with X') unless the provided 7-day history data explicitly shows it across multiple days.\n\n"
+
+    "Return only the structured JSON required by the schema. No commentary outside the schema."
+)
+
+_GENERATE_WEEKLY_REPORT_SYSTEM_INSTRUCTION = (
+    "You are Shadow — a personal productivity and goal-alignment coach.\n"
+    "Generate a structured WEEKLY progress report from the user's activity data for a full 7-day window (Sunday–Saturday). Be specific, honest, and coach-like — not just a summary of numbers.\n\n"
+
+    "=== SCOPE ===\n"
+    "This is a WEEKLY report. All stats, records, and activity data span the entire 7-day window (Sunday through Saturday).\n"
+    "History data covers the previous week (the 7 days before this window) and is provided for context and trend detection only — not as the subject of the report.\n"
+    "When you write 'tasks done', 'habits done', or any completion metric, it means the total across all 7 days of this week.\n\n"
+
+    "=== SCORING ===\n"
+    "alignment_score (0–100): reflects this week's overall execution quality, not raw completion rate.\n"
+    "  - Weight goal-linked tasks 2× more than standalone scheduled items.\n"
+    "  - Weight highest/high-priority items 1.5× more than medium/low-priority items.\n"
+    "  - For metric-tracked items (e.g. '8/10 km'), score proportionally to actual/target, not binary done/missed.\n"
+    "  - If all goal-linked and high-priority work is done across the week, completing only 50% of low-priority filler should still yield a score of 70+.\n"
+    "  - Do not let a single day or a single item swing the score by more than ~10 points.\n\n"
+
+    "=== HEADLINE ===\n"
+    "5–6 words maximum. One clear theme — not two thoughts joined by a semicolon or 'but'.\n"
+    "Name what defined this week most: the biggest win, the biggest gap, or the dominant pattern across 7 days.\n"
+    "A user should understand it in under 2 seconds. Prefer simple, everyday words over clever or formal phrasing.\n"
+    "Examples of good headlines: 'Best SDE week so far', 'Fitness habits held strong', 'Consistency dropped this week', 'Goals back on track'.\n"
+    "Never use generic phrases like 'great week', 'mixed results', or 'room for improvement'.\n\n"
+
+    "=== SUMMARY ===\n"
+    "2–3 short sentences. Write in plain, everyday English — like a friend giving honest feedback, not a performance review.\n"
+    "No complex vocabulary, no metaphors, no formal tone. Short sentences are better than long ones.\n"
+    "Say what happened across the week, why it matters, and what it means going forward. The user already sees the full activity list — do not restate it.\n"
+    "Do NOT restate the headline. Do not repeat what you will say in goal notes or highlights.\n"
+    "BANNED WORDS — never use these anywhere in the report: momentum, leverage, optimize, productivity, efficiency, "
+    "technical debt, sustainable, trajectory, execution quality, performance, concentrated, margin, strategic, "
+    "holistic, synergy, actionable, bandwidth, impactful, robust, seamless, paradigm, cadence, proactive.\n\n"
+
+    "=== GOALS ===\n"
+    "One entry per goal in the input. Match goal_id exactly.\n"
+    "alignment_pct: priority-weighted completion of this goal's planned work this week (not a raw count).\n"
+    "note: Exactly 1 sentence. State what this week's activity means for this goal's progress or success definition.\n"
+    "Do NOT list or describe which items were completed or missed — the user already sees the activity data.\n\n"
+
+    "=== HIGHLIGHTS ===\n"
+    "highlights_good: 2–4 items. Name weekly patterns, multi-day streaks, or meaningful achievements — not individual activity titles.\n"
+    "  Bad: 'Completed LeetCode POTD on Wednesday' (restates a single done item).\n"
+    "  Good: 'Kept SDE study going 5 out of 7 days' or 'Hit hydration target every day this week'.\n"
+    "highlights_attention: 1–3 specific gaps or weak areas across the week that genuinely matter. Do not repeat what's in summary or goal notes.\n\n"
+
+    "=== CLOSING ===\n"
+    "closing_message: 1–2 sentences naming one concrete action or focus area for next week.\n\n"
+
+    "=== CROSS-SECTION RULE ===\n"
+    "Each insight must appear in at most one section. If a gap is named in the summary, omit it from highlights_attention. If a win is named in a goal note, omit it from highlights_good.\n\n"
+
+    "=== PATTERN RULE ===\n"
+    "Never claim a cross-week recurring pattern unless the provided previous-week history data explicitly shows it.\n\n"
+
+    "Return only the structured JSON required by the schema. No commentary outside the schema."
+)
+
+
+def get_report_system_instruction(report_type: str) -> str:
+    """Return the dedicated system instruction for the given report type."""
+    if report_type == "weekly":
+        return _GENERATE_WEEKLY_REPORT_SYSTEM_INSTRUCTION
+    return _GENERATE_DAILY_REPORT_SYSTEM_INSTRUCTION
+
+
+_GENERATE_DAILY_REPORT_SYSTEM_INSTRUCTION_CLAUDE = (
+    _GENERATE_DAILY_REPORT_SYSTEM_INSTRUCTION
+    + _CONVERSATION_SCHEMA_FOR_CLAUDE(GenerateReportSchema)
+)
+
+_GENERATE_WEEKLY_REPORT_SYSTEM_INSTRUCTION_CLAUDE = (
+    _GENERATE_WEEKLY_REPORT_SYSTEM_INSTRUCTION
+    + _CONVERSATION_SCHEMA_FOR_CLAUDE(GenerateReportSchema)
+)
+
+
+def get_report_system_instruction_claude(report_type: str) -> str:
+    """Return the Claude-specific system instruction (with the JSON schema inlined,
+    since Claude has no response_format/response_schema parameter)."""
+    if report_type == "weekly":
+        return _GENERATE_WEEKLY_REPORT_SYSTEM_INSTRUCTION_CLAUDE
+    return _GENERATE_DAILY_REPORT_SYSTEM_INSTRUCTION_CLAUDE
+
+
+def _format_record_line(r: dict, indent: str = "  ") -> str:
+    """Format a single plan record into a compact, information-dense text line."""
+    status = r.get("status", "?").upper()
+    title = r.get("title", "Untitled")
+    source_type = r.get("source_type")
+    priority = r.get("priority", "medium")
+    planner_type = r.get("planner_type", "simple")
+    actual_value = r.get("actual_value", 0)
+    planner_target = r.get("planner_target")
+    value_unit = r.get("value_unit")
+    duration = r.get("duration_minutes")
+    note = r.get("note")
+
+    prefix = f"[{source_type}] " if source_type else ""
+    line = f"{indent}{prefix}[{status}] {title}"
+
+    if planner_type == "metric" and planner_target:
+        unit_str = f" {value_unit}" if value_unit else ""
+        line += f" | {actual_value}/{planner_target}{unit_str}"
+
+    if priority in ("highest", "high"):
+        line += f" | priority:{priority}"
+
+    if duration:
+        line += f" | {duration}min"
+
+    if note:
+        line += f" | Note: {note}"
+
+    return line
+
+
+def build_report_prompt(report_date: str, report_type: str, day_data: dict) -> str:
+    stats = day_data.get("stats", {})
+    goals = day_data.get("goals", [])
+    all_records = day_data.get("all_records", [])
+    history = day_data.get("history", [])
+    goal_history = day_data.get("goal_history", [])
+
+    is_weekly = report_type == "weekly"
+    stats_header = "=== THIS WEEK'S STATS ===" if is_weekly else "=== TODAY'S STATS ==="
+    history_header = (
+        "=== PREVIOUS WEEK'S PERFORMANCE (oldest first) ===" if is_weekly
+        else "=== RECENT PERFORMANCE (last 7 days, oldest first) ==="
+    )
+    tasks_label = "Tasks this week" if is_weekly else "Tasks today"
+    activity_label = "Activity this week" if is_weekly else "Activity today"
+    goal_history_label = "Previous week goal activity (oldest first)" if is_weekly else "Recent 7-day goal activity (oldest first)"
+
+    lines = [
+        f"Report Date: {report_date}",
+        f"Report Type: {report_type}",
+        "",
+        stats_header,
+        f"Tasks completed: {stats.get('tasks_done', 0)} / {stats.get('tasks_total', 0)}",
+        f"Habits completed: {stats.get('habits_done', 0)} / {stats.get('habits_total', 0)}",
+        f"Current streak: {stats.get('best_streak', 0)} days",
+    ]
+
+    if history:
+        lines += ["", history_header]
+        for h in history:
+            lines.append(
+                f"  {h['date']}: tasks {h.get('tasks_done', 0)}/{h.get('tasks_total', 0)}"
+                f", habits {h.get('habits_done', 0)}/{h.get('habits_total', 0)}"
+            )
+
+    lines += ["", "=== ACTIVE GOALS ==="]
+
+    goal_history_map: dict[int, list] = {
+        gh["goal_id"]: gh.get("days", []) for gh in goal_history
+    }
+
+    for goal in goals:
+        goal_id = goal["goal_id"]
+        lines += [
+            "",
+            f"Goal ID: {goal_id}",
+            f"Title: {goal['title']}",
+            f"Category: {goal.get('category', 'N/A')}",
+            f"Target date: {goal.get('target_date', 'N/A')}",
+        ]
+
+        if goal.get("success_definition"):
+            lines.append(f"Success definition: {goal['success_definition']}")
+
+        ms_title = goal.get("active_milestone", "No active milestone")
+        ms_desc = goal.get("milestone_description")
+        ms_progress = goal.get("milestone_progress")
+        if ms_desc:
+            lines.append(f"Active milestone: {ms_title} — {ms_desc}")
+        else:
+            lines.append(f"Active milestone: {ms_title}")
+        if ms_progress:
+            lines.append(f"Milestone overall progress: {ms_progress}")
+
+        lines.append(f"{tasks_label}: {goal.get('tasks_done', 0)} done / {goal.get('tasks_total', 0)} total")
+
+        task_records = goal.get("task_records", [])
+        if task_records:
+            lines.append(f"{activity_label}:")
+            for r in task_records:
+                lines.append(_format_record_line(r, indent="  - "))
+
+        g_days = goal_history_map.get(goal_id, [])
+        if g_days:
+            lines.append(f"{goal_history_label}:")
+            for d in g_days:
+                lines.append(f"  {d['date']}: {d.get('tasks_done', 0)}/{d.get('tasks_total', 0)} tasks")
+
+    if all_records:
+        lines += ["", "=== ALL ACTIVITY (habits + scheduled + tasks) ==="]
+        for r in all_records:
+            lines.append(_format_record_line(r, indent="  "))
+
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Daily brief: concise morning briefing generated when the user's plan for
+# today is loaded for the first time. Two or three outputs in one call:
+#   short_brief    — 1 punchy sentence (≤140 chars) for push / in-app body.
+#   complete_brief — 3–4 warm paragraphs for the /daily-brief page and email.
+#   spoken_brief   — separate rendering of the same content for TTS playback;
+#                    omitted entirely (not just left blank) for users whose
+#                    audio/caption feature is disabled, to save output tokens.
+# ---------------------------------------------------------------------------
+
+_DAILY_BRIEF_CORE_PROMPT = (
+    "You are Shadow, an intelligent personal assistant. "
+    "Generate a morning brief for the user. "
+    "Return ONLY valid JSON (no markdown, no code blocks) with exactly {field_count} string fields:\n\n"
+    '"short_brief": One warm, punchy sentence. Max 140 characters. '
+    "Mention 1–2 highlights from the plan. No generic opener like \"Good morning\" — go straight to something specific. "
+    'Example: "13 habits and a coding session await you today, Harsh — it\'s going to be a productive Wednesday!"\n\n'
+    '"complete_brief": 3–4 warm paragraphs. Write like a trusted personal assistant who genuinely knows the user. '
+    "Start with a warm good-morning greeting using the user's first name and the day. "
+    "Weave the habits and tasks into natural, motivating language — never a bullet list. "
+    "Acknowledge the energy of the day and close with an encouraging, personal sendoff. "
+    "Keep the total under 1600 characters."
+)
+
+_DAILY_BRIEF_SPOKEN_ADDENDUM = (
+    "\n\n"
+    '"spoken_brief": The same brief, rewritten to be read aloud by text-to-speech instead of read on screen. '
+    "Speak to the user directly and casually, the way you'd actually talk, not the way you'd write. "
+    "Keep it noticeably shorter than complete_brief — a natural 30-45 second listen. "
+    "No headings, lists, or written-style formatting; just plain flowing speech."
+)
+
+DAILY_BRIEF_SYSTEM_PROMPT = _DAILY_BRIEF_CORE_PROMPT.format(field_count="three") + _DAILY_BRIEF_SPOKEN_ADDENDUM
+DAILY_BRIEF_SYSTEM_PROMPT_NO_AUDIO = _DAILY_BRIEF_CORE_PROMPT.format(field_count="two")
+
+
+def _format_plan_items(items: list[dict]) -> str:
+    """One line per item, tagged with priority/time only when it deviates
+    from the default (medium priority, flexible time) — signal, not noise."""
+    lines = []
+    for item in items:
+        tags = []
+        priority = item.get("priority")
+        if priority and priority != "medium":
+            tags.append(f"priority: {priority}")
+        specific_time = item.get("specific_time")
+        preferred_time = item.get("preferred_time")
+        if specific_time:
+            tags.append(f"time: {specific_time}")
+        elif preferred_time and preferred_time not in ("flexible", "custom"):
+            tags.append(f"time: {preferred_time}")
+        suffix = f" | {' | '.join(tags)}" if tags else ""
+        lines.append(f"- {item['title']}{suffix}")
+    return "\n".join(lines)
+
+
+def build_daily_brief_user_prompt(first_name: str, today: date, context: dict) -> str:
+    habits = context.get("habits", [])
+    tasks = context.get("tasks", [])
+    scheduled = context.get("scheduled", [])
+    total = len(habits) + len(tasks) + len(scheduled)
+
+    sections = [
+        f"User's first name: {first_name}\n"
+        f"Today: {today.strftime('%A, %d %B %Y')}\n"
+        f"Total plan items: {total}"
+    ]
+    if habits:
+        sections.append("Habits:\n" + _format_plan_items(habits))
+    if tasks:
+        sections.append("Tasks:\n" + _format_plan_items(tasks))
+    if scheduled:
+        sections.append("Scheduled:\n" + _format_plan_items(scheduled))
+    if total == 0:
+        sections.append("No items scheduled — clear day.")
+    return "\n\n".join(sections)

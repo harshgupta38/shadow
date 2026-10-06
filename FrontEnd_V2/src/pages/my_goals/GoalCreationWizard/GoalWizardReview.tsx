@@ -6,6 +6,8 @@ import type {
     RefineGoalFromLLMSchema,
 } from "@/api/types";
 import { resizeTextareaToMaxLines } from "@/services/textarea-resize.service";
+import { todayDate } from "@/services/date.service";
+import { LIMITS } from "@/constant/tuning";
 
 const CATEGORY_OPTIONS: GoalCategory[] = [
     "Career",
@@ -21,11 +23,36 @@ const CATEGORY_OPTIONS: GoalCategory[] = [
     "Other",
 ];
 
-const MAX_TEXTAREA_LINES = 8;
-const MAX_LIST_TEXTAREA_LINES = 4;
-
 type ListFieldKey = "challenges" | "strengths" | "success_metrics" | "insights";
-type GoalReviewFieldKey = keyof RefineGoalFromLLMSchema;
+export type GoalReviewFieldKey = keyof RefineGoalFromLLMSchema;
+export type GoalReviewFieldErrors = Partial<Record<GoalReviewFieldKey, string>>;
+
+export const REVIEW_FIELD_KEYS: GoalReviewFieldKey[] = [
+    "title",
+    "summary",
+    "category",
+    "motivation",
+    "success_definition",
+    "current_state",
+    "target_date",
+    "challenges",
+    "strengths",
+    "success_metrics",
+    "insights",
+];
+
+export function mapFieldErrorsToReviewErrors(fieldErrors: Partial<Record<string, string>>): GoalReviewFieldErrors {
+    const reviewFieldErrors: GoalReviewFieldErrors = {};
+
+    for (const key of REVIEW_FIELD_KEYS) {
+        const message = fieldErrors[key];
+        if (typeof message === "string" && message.trim().length > 0) {
+            reviewFieldErrors[key] = message;
+        }
+    }
+
+    return reviewFieldErrors;
+}
 
 const LIST_FIELD_CONFIG: Array<{ key: ListFieldKey; label: string }> = [
     { key: "challenges", label: "Challenges" },
@@ -80,8 +107,7 @@ function validateGoalReviewData(goalData: RefineGoalFromLLMSchema): Partial<Reco
             if (!isValidDate) {
                 errors.target_date = "Target date must be in YYYY-MM-DD format.";
             } else {
-                const today = new Date();
-                const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                const todayStart = todayDate();
                 if (parsedTargetDate <= todayStart) {
                     errors.target_date = "Target date must be a future date.";
                 }
@@ -153,7 +179,7 @@ export function GoalWizardReview({ goalData, saving, error, fieldErrors, hideBac
     useEffect(() => {
         Object.entries(textareaRefs.current).forEach(([key, textarea]) => {
             if (textarea) {
-                const maxLines = textareaMaxLinesRefs.current[key] ?? MAX_TEXTAREA_LINES;
+                const maxLines = textareaMaxLinesRefs.current[key] ?? LIMITS.TEXTAREA_MAX_LINES;
                 resizeTextareaToMaxLines(textarea, maxLines);
             }
         });
@@ -165,7 +191,7 @@ export function GoalWizardReview({ goalData, saving, error, fieldErrors, hideBac
         onValidationStateChange(Object.keys(nextClientErrors).length > 0);
     }, [editableGoal, onValidationStateChange]);
 
-    function registerTextareaRef(key: string, maxLines: number = MAX_TEXTAREA_LINES) {
+    function registerTextareaRef(key: string, maxLines: number = LIMITS.TEXTAREA_MAX_LINES) {
         return (textarea: HTMLTextAreaElement | null) => {
             textareaRefs.current[key] = textarea;
             textareaMaxLinesRefs.current[key] = maxLines;
@@ -398,9 +424,9 @@ export function GoalWizardReview({ goalData, saving, error, fieldErrors, hideBac
                                             value={item}
                                             onChange={(event) => {
                                                 updateListField(activeListConfig.key, index, event.target.value);
-                                                resizeTextareaToMaxLines(event.currentTarget, MAX_LIST_TEXTAREA_LINES);
+                                                resizeTextareaToMaxLines(event.currentTarget, LIMITS.TEXTAREA_MAX_LIST_LINES);
                                             }}
-                                            ref={registerTextareaRef(`${activeListConfig.key}-${index}`, MAX_LIST_TEXTAREA_LINES)}
+                                            ref={registerTextareaRef(`${activeListConfig.key}-${index}`, LIMITS.TEXTAREA_MAX_LIST_LINES)}
                                             title={getFieldErrorTitle(activeListConfig.key)}
                                             disabled={saving}
                                         />

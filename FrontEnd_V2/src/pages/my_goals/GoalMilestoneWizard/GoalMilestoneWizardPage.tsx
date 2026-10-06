@@ -12,6 +12,7 @@ import { ThemeToggle } from "@/components/ui/ThemeToggle/ThemeToggle";
 import { useToast } from "@/context/ToastContext";
 import { ROUTES } from "@/routes/RoutePaths";
 import { resizeTextareaToMaxLines } from "@/services/textarea-resize.service";
+import { ANIMATION } from "@/constant/tuning";
 
 import { GoalWizardVisual } from "@/pages/my_goals/GoalCreationWizard/GoalWizardVisual";
 import {
@@ -159,7 +160,7 @@ export function GoalMilestoneWizardPage() {
 					navigateToMyGoalsWithError("Could not load this goal right now.");
 				}
 			});
-	}, [navigate, numericGoalId, toast]);
+	}, [navigate, numericGoalId, numericMilestoneId, isUpdateMode, toast]);
 
 	useEffect(() => {
 		if (!loadingGoal) {
@@ -169,7 +170,7 @@ export function GoalMilestoneWizardPage() {
 
 		const interval = window.setInterval(() => {
 			setLoaderIndex((current) => Math.min(current + 1, GOAL_LOADER_STEPS.length - 1));
-		}, 1100);
+		}, ANIMATION.WIZARD_LOADER_STEP_MS);
 
 		return () => {
 			window.clearInterval(interval);

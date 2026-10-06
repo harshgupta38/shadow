@@ -1,0 +1,291 @@
+.brief-page {
+  display: flex;
+  flex-direction: column;
+  max-width: 680px;
+}
+
+// ── Date header ───────────────────────────────────────────────────────────────
+
+.brief-date {
+  font-size: 0.85rem;
+  color: var(--jv-text-muted);
+  margin: 0;
+}
+
+// ── Brief body ────────────────────────────────────────────────────────────────
+
+.brief-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.brief-paragraph {
+  font-size: 1rem;
+  line-height: 1.8;
+  color: var(--jv-text-primary);
+  margin: 0 0 1.1rem;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.brief-content--typing {
+  cursor: pointer;
+}
+
+.brief-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1.05em;
+  margin-left: 2px;
+  background: var(--jv-brand-1);
+  vertical-align: text-bottom;
+  animation: brief-cursor-blink 0.8s step-end infinite;
+}
+
+@keyframes brief-cursor-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+.brief-skip-hint {
+  display: block;
+  margin-top: 0.5rem;
+  font-size: 0.78rem;
+  color: var(--jv-text-muted);
+  opacity: 0.7;
+}
+
+// ── Empty / loading states ────────────────────────────────────────────────────
+
+.brief-empty {
+  font-size: 0.9rem;
+  color: var(--jv-text-muted);
+  line-height: 1.6;
+}
+
+.brief-skel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.brief-skel-line {
+  position: relative;
+  height: 1rem;
+  border-radius: 6px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--jv-border) 78%, var(--jv-surface) 22%);
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      color-mix(in srgb, #fff 56%, transparent) 50%,
+      transparent 100%
+    );
+    animation: brief-skel-shimmer 1.4s ease-in-out infinite;
+  }
+
+  &--short  { width: 45%; }
+  &--medium { width: 72%; }
+  &--long   { width: 100%; }
+}
+
+@keyframes brief-skel-shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+// ── Audio player bar ──────────────────────────────────────────────────────────
+
+.brief-audio-bar {
+  position: relative;
+  margin-top: 1.75rem;
+  border: 1px solid var(--jv-border);
+  border-radius: var(--jv-radius);
+  background: var(--jv-surface);
+  box-shadow: var(--jv-shadow);
+  overflow: hidden;
+}
+
+.brief-audio-bar-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.9rem 1.1rem;
+}
+
+.brief-audio-row {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.brief-audio-row--top {
+  .brief-caption-roll {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.brief-audio-subtitle {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--jv-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+// ── Caption "drum roll" ────────────────────────────────────────────────────────
+// Active line sits bright and upright; the next line peeks below it, dimmer and
+// tilted back in 3D — like it's curled around a drum waiting to roll up into
+// place. Each line is freshly mounted (keyed by its own text) whenever the
+// active caption changes, which replays the enter animation from scratch.
+//
+// A shallow perspective (previously 240px) made the tilt warp the glyphs
+// instead of reading as a clean tilt — a much longer perspective + a smaller
+// angle, hinged at the bottom edge, keeps the letters straight while still
+// selling the "leaning back" look.
+
+.brief-caption-roll {
+  position: relative;
+  height: 2.5em;
+  overflow: hidden;
+  perspective: 900px;
+}
+
+.brief-caption-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transform-origin: center bottom;
+  backface-visibility: hidden;
+}
+
+.brief-caption-line--active {
+  top: 0;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--jv-text-primary);
+  animation: brief-caption-roll-active 380ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.brief-caption-line--next {
+  top: 1.5em;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--jv-text-muted);
+  opacity: 0.5;
+  transform: rotateX(18deg);
+  animation: brief-caption-roll-next 380ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes brief-caption-roll-active {
+  from {
+    transform: translateY(1.5em) rotateX(18deg);
+    opacity: 0.5;
+  }
+  to {
+    transform: translateY(0) rotateX(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes brief-caption-roll-next {
+  from {
+    transform: translateY(0.6em) rotateX(30deg);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) rotateX(18deg);
+    opacity: 0.5;
+  }
+}
+
+.brief-caption-roll--static {
+  .brief-caption-line {
+    animation: none;
+    transform: none;
+    opacity: 1;
+  }
+  .brief-caption-line--next {
+    opacity: 0.5;
+  }
+}
+
+.brief-audio-play-btn {
+  flex-shrink: 0;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 50%;
+  color: #fff;
+  background: var(--jv-brand-gradient);
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--jv-brand-1) 35%, transparent);
+  cursor: pointer;
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.6;
+    box-shadow: none;
+  }
+}
+
+.brief-audio-time {
+  flex-shrink: 0;
+  min-width: 2.6em;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--jv-muted);
+}
+
+.brief-audio-seek {
+  flex: 1;
+  accent-color: var(--jv-brand-1);
+}
+
+.brief-audio-bar--locked {
+  .brief-audio-bar-inner {
+    filter: blur(4px);
+    opacity: 0.5;
+    pointer-events: none;
+    user-select: none;
+  }
+}
+
+.brief-audio-lock-overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--jv-surface) 55%, transparent);
+}
+
+.brief-audio-listen-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.5rem 1.25rem;
+  border-radius: var(--jv-radius-pill);
+  font-weight: 600;
+}
+
+.brief-audio-unavailable-msg {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--jv-muted);
+}

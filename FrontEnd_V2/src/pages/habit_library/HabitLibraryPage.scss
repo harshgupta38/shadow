@@ -125,7 +125,7 @@
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    padding: 1.25rem 1.4rem 1rem;
+    padding: 1.12rem 1.4rem 0.5rem;
     flex-wrap: wrap;
   }
 
@@ -178,9 +178,42 @@
     color: var(--jv-muted);
   }
 
+  .hl-search-box {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    height: 1.75rem;
+    padding: 0 0.6rem;
+    border: 1px solid var(--jv-border, #dee2e6);
+    border-radius: 999px;
+    transition: border-color 0.15s;
+
+    &:focus-within {
+      border-color: var(--jv-brand-1);
+    }
+  }
+
+  .hl-search-icon {
+    color: var(--jv-muted);
+    flex-shrink: 0;
+  }
+
+  .hl-search-input {
+    border: 0;
+    background: transparent;
+    outline: none;
+    font-size: 0.8125rem;
+    color: var(--jv-text);
+    width: 9rem;
+
+    &::placeholder {
+      color: var(--jv-muted);
+    }
+  }
+
   // ── Card body ───────────────────────────────────────────────────────
   .hl-card-body {
-    padding: 0.25rem 1.4rem 1.5rem;
+    padding: 0.25rem 1.4rem 1rem;
 
     &.less-padding-below {
       padding-bottom: 1rem;
@@ -222,6 +255,17 @@
     margin: 0;
     max-width: 280px;
     line-height: 1.55;
+  }
+
+  // PageHeader's "Add habit" action is visually cramped below 992px, so surface a CTA here instead.
+  .hl-empty-cta {
+    display: none;
+    margin-top: 1.25rem;
+
+    @media (max-width: 991.98px) {
+      display: inline-flex;
+      align-items: center;
+    }
   }
 
   // -- Habit viewing cards ---------------------------------------------
@@ -348,7 +392,16 @@
     }
 
     .hl-card-header-actions {
+      width: 100%;
       gap: 0.35rem;
+    }
+
+    .hl-search-box {
+      flex: 1;
+    }
+
+    .hl-search-input {
+      width: 100%;
     }
 
     .hl-habit-grid--grid {

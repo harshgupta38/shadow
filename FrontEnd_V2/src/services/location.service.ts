@@ -1,4 +1,5 @@
 import { UserLocation } from "@/api";
+import { TIMING } from "@/constant/tuning";
 
 export async function getUserLocation(): Promise<UserLocation | null> {
     if (typeof navigator === "undefined" || !navigator.geolocation)
@@ -17,8 +18,8 @@ export async function getUserLocation(): Promise<UserLocation | null> {
             },
             {
                 enableHighAccuracy: false,
-                maximumAge: 10 * 60 * 1000, // Reuse location up to 10 minutes old
-                timeout: 7000,              // Wait at most 7 seconds
+                maximumAge: TIMING.LOCATION_CACHE_MAX_AGE_MS,
+                timeout: TIMING.LOCATION_TIMEOUT_MS,
             }
         );
     });

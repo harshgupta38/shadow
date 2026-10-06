@@ -1,13 +1,8 @@
-import { ArrowDownRight, ArrowUpRight, DashLg } from "react-bootstrap-icons";
-
-import type { HabitDataResponse } from "@/api";
+import type { DateFormat, HabitDataResponse, TimeFormat } from "@/api";
 import { FREQUENCY_OPTIONS, PREFERRED_TIME_OPTIONS } from "@/pages/habit_library/HabitWizard/HabitWizard.constants";
+import { todayDate, formatTime, formatDisplayDate } from "@/services/date.service";
 
-export function PriorityIcon({ priority }: { priority: HabitDataResponse["priority"] }) {
-  if (priority === "highest" || priority === "high") return <ArrowUpRight size={11} />;
-  if (priority === "low" || priority === "lowest") return <ArrowDownRight size={11} />;
-  return <DashLg size={11} />;
-}
+export { PriorityIcon } from "@/constant/priority";
 
 // Static lookup maps — built once at module load from constants.
 export const frequencyLabelMap = new Map(FREQUENCY_OPTIONS.map((o) => [o.value, o.label]));
@@ -29,31 +24,28 @@ export function formatStatusLabel(status: HabitDataResponse["status"]): string {
   return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
-export function formatHabitDate(value: string): string {
-  const parsed = new Date(`${value}T00:00:00`);
-  if (Number.isNaN(parsed.getTime())) return value;
-  return parsed.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+export function formatHabitDate(value: string, format: DateFormat = "dd mmmm yyyy"): string {
+  return formatDisplayDate(value, format);
 }
 
-export function getHabitDateLabel(habit: HabitDataResponse): string | null {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+export function getHabitDateLabel(habit: HabitDataResponse, format: DateFormat = "dd mmmm yyyy"): string | null {
+  const today = todayDate();
 
   if (habit.start_date) {
     const startDate = new Date(`${habit.start_date}T00:00:00`);
     if (!Number.isNaN(startDate.getTime()) && startDate >= today) {
-      return `Starts ${formatHabitDate(habit.start_date)}`;
+      return `Starts ${formatHabitDate(habit.start_date, format)}`;
     }
   }
 
-  return habit.end_date ? `Ends ${formatHabitDate(habit.end_date)}` : null;
+  return habit.end_date ? `Ends ${formatHabitDate(habit.end_date, format)}` : null;
 }
 
-export function getPreferredTimeLabel(habit: HabitDataResponse): string | null {
+export function getPreferredTimeLabel(habit: HabitDataResponse, format: TimeFormat = "12h"): string | null {
   if (habit.preferred_time === "flexible") return null;
   if (habit.preferred_time === "custom") {
     const t = habit.specific_time?.trim();
-    return t ? `${t} hrs` : null;
+    return t ? formatTime(t, format) : null;
   }
   const option = PREFERRED_TIME_OPTIONS.find((item) => item.value === habit.preferred_time);
   return option?.label.split(" (")[0] ?? habit.preferred_time;
@@ -78,7 +70,14 @@ function joinWithAmpersand(items: string[]): string {
   return `${items.slice(0, -1).join(", ")} & ${items[items.length - 1]}`;
 }
 
-export function getSimpleFrequencyLabel(habit: HabitDataResponse): {
+interface FrequencySource {
+  frequencies: string[];
+  weekly_count: number | null;
+  monthly_count: number | null;
+  specific_days: number[] | null;
+}
+
+export function getSimpleFrequencyLabel(habit: FrequencySource): {
   suffix: string;
   tooltip: string[] | null;
 } {
@@ -95,8 +94,8 @@ export function getSimpleFrequencyLabel(habit: HabitDataResponse): {
 
   if (freqs.includes("weekdays")) return { suffix: "on weekdays", tooltip: null };
   if (freqs.includes("weekends")) return { suffix: "on weekends", tooltip: null };
-  if (freqs.includes("weekly"))   return { suffix: `${habit.weekly_count ?? ""}×/week`,   tooltip: null };
-  if (freqs.includes("monthly"))  return { suffix: `${habit.monthly_count ?? ""}×/month`, tooltip: null };
+  if (freqs.includes("weekly"))   return { suffix: habit.weekly_count  ? `${habit.weekly_count}×/week`   : "weekly",  tooltip: null };
+  if (freqs.includes("monthly"))  return { suffix: habit.monthly_count ? `${habit.monthly_count}×/month` : "monthly", tooltip: null };
 
   if (freqs.includes("specific_day") && habit.specific_days?.length) {
     const days = [...habit.specific_days].sort((a, b) => a - b);
@@ -117,7 +116,7 @@ export function getSimpleFrequencyLabel(habit: HabitDataResponse): {
   return { suffix: "daily", tooltip: null };
 }
 
-export function getMetricFrequencyLabel(habit: HabitDataResponse): {
+export function getMetricFrequencyLabel(habit: FrequencySource): {
   suffix: string;
   tooltip: string[] | null;
 } {
@@ -135,8 +134,8 @@ export function getMetricFrequencyLabel(habit: HabitDataResponse): {
 
   if (freqs.includes("weekdays")) return { suffix: "on weekdays", tooltip: null };
   if (freqs.includes("weekends")) return { suffix: "on weekends", tooltip: null };
-  if (freqs.includes("weekly"))   return { suffix: `${habit.weekly_count ?? ""}×/week`,   tooltip: null };
-  if (freqs.includes("monthly"))  return { suffix: `${habit.monthly_count ?? ""}×/month`, tooltip: null };
+  if (freqs.includes("weekly"))   return { suffix: habit.weekly_count  ? `${habit.weekly_count}×/week`   : "weekly",  tooltip: null };
+  if (freqs.includes("monthly"))  return { suffix: habit.monthly_count ? `${habit.monthly_count}×/month` : "monthly", tooltip: null };
 
   if (freqs.includes("specific_day") && habit.specific_days?.length) {
     const days = [...habit.specific_days].sort((a, b) => a - b);

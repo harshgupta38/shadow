@@ -1,45 +1,161 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Calendar3,
   CalendarCheckFill,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Eye,
+  EyeSlash,
+  MoonFill,
+  MoonStarsFill,
   Plus,
+  SunFill,
 } from "react-bootstrap-icons";
 
 import { api, ApiError } from "@/api";
-import type { DailyPlanSavedData, PlanResponse } from "@/api";
+import type { DailyPlanSavedData, PlanResponse, ScheduledTaskDataResponse } from "@/api";
+import { PRIORITY_COLOR, formatDateRange } from "@/pages/schedule/ScheduleCard/ScheduleCard.constants";
+import { CATEGORY_ICONS } from "@/pages/schedule/ScheduleWizard/ScheduleWizard.constants";
 import { ROUTES } from "@/routes/RoutePaths";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { ProgressRing } from "@/components/ui/ProgressRing/ProgressRing";
+import { completionMessage } from "@/pages/dashboard/TodaySnapshot/TodaySnapshot.constants";
 import {
   toDateInputValue,
   formatDisplayDate,
   shiftDate,
 } from "@/pages/plan/PlanPage.constants";
+import { currentIstHour, todayDate } from "@/services/date.service";
+import { useDateParam } from "@/hooks/useUrlAnchor";
 import { PlanCard } from "@/pages/plan/PlanCard/PlanCard";
 import { DayOverviewPanel } from "@/pages/plan/DayOverviewPanel/DayOverviewPanel";
+import { YesterdayClosingPanel } from "@/pages/plan/YesterdayClosingPanel/YesterdayClosingPanel";
+import { ScheduleTaskDetailPanel } from "@/pages/schedule/ScheduleTaskDetailPanel/ScheduleTaskDetailPanel";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
+import { useDateFormat } from "@/context/PlannerContext";
 import { useToast } from "@/context/ToastContext";
+import { ANIMATION, TIMING } from "@/constant/tuning";
+import { useWakeRefresh } from "@/hooks/useWakeRefresh";
 import "@/pages/plan/PlanPage.scss";
 
-const TODAY = new Date();
-const COMPLETE_ANIM_MS = 520;
+const COMPLETE_ANIM_MS = ANIMATION.PLAN_ITEM_COMPLETE_MS;
+const TODAY_REFRESH_MS = TIMING.PLAN_DAY_ROLLOVER_CHECK_MS;
+
+// Same morning/afternoon -> sun, evening/night -> moon mapping as PlanCard's TimeChip,
+// but driven by the current IST clock instead of a task's stored preferred time.
+function briefMeIcon(): ReactNode {
+  const hour = currentIstHour();
+
+  if (hour >= 17 && hour < 21) return <MoonFill size={15} />;
+  if (hour >= 21 || hour < 5) return <MoonStarsFill size={14} />;
+  return <SunFill size={15} />;
+}
+
+function ReconstructedPastStateIllustration() {
+  return (
+    <svg
+      className="reconstructed-state-svg"
+      viewBox="0 0 400 300"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      role="img"
+      aria-label="Calendar page being rebuilt with a rewind clock and puzzle piece"
+    >
+      <defs>
+        <linearGradient id="planReconstructClockGrad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="var(--jv-brand-1)" />
+          <stop offset="100%" stopColor="var(--jv-brand-2)" />
+        </linearGradient>
+      </defs>
+
+      <g transform="rotate(-3 200 150)">
+        <rect x="88" y="52" width="224" height="188" rx="16" className="reconstructed-state-svg-calendar" />
+        <rect x="88" y="52" width="224" height="40" rx="16" className="reconstructed-state-svg-calendar-head" />
+        <circle cx="132" cy="52" r="6" className="reconstructed-state-svg-calendar-ring" />
+        <circle cx="268" cy="52" r="6" className="reconstructed-state-svg-calendar-ring" />
+
+        <line x1="108" y1="120" x2="292" y2="120" className="reconstructed-state-svg-grid-line" />
+        <line x1="108" y1="152" x2="292" y2="152" className="reconstructed-state-svg-grid-line" />
+        <line x1="108" y1="184" x2="292" y2="184" className="reconstructed-state-svg-grid-line" />
+        <line x1="108" y1="216" x2="292" y2="216" className="reconstructed-state-svg-grid-line" />
+        <line x1="160" y1="104" x2="160" y2="228" className="reconstructed-state-svg-grid-line" />
+        <line x1="212" y1="104" x2="212" y2="228" className="reconstructed-state-svg-grid-line" />
+        <line x1="264" y1="104" x2="264" y2="228" className="reconstructed-state-svg-grid-line" />
+
+        <rect x="160" y="152" width="52" height="32" rx="6" className="reconstructed-state-svg-highlight" />
+      </g>
+
+      <g transform="translate(112 96)">
+        <path
+          d="M0 10 h13 v-7 a7 7 0 0 1 13 0 v7 h13 v13 h-7 a7 7 0 0 0 0 13 h7 v13 h-13 v-7 a7 7 0 0 0 -13 0 v7 h-13z"
+          className="reconstructed-state-svg-puzzle"
+        />
+      </g>
+
+      <g transform="translate(292 208)">
+        <circle r="44" fill="url(#planReconstructClockGrad)" className="reconstructed-state-svg-clock-shadow" />
+        <circle r="35" className="reconstructed-state-svg-clock-face" />
+        <path d="M0 -35 A35 35 0 1 0 27 -22" className="reconstructed-state-svg-rewind-arc" fill="none" />
+        <path d="M27 -22 L12 -20 L22 -8 Z" className="reconstructed-state-svg-rewind-arrow" />
+        <line x1="0" y1="0" x2="0" y2="-19" className="reconstructed-state-svg-clock-hand" />
+        <line x1="0" y1="0" x2="13" y2="7" className="reconstructed-state-svg-clock-hand-min" />
+        <circle r="4" className="reconstructed-state-svg-clock-pin" />
+      </g>
+
+      <circle cx="66" cy="228" r="3" className="reconstructed-state-svg-speck" />
+      <circle cx="336" cy="94" r="4" className="reconstructed-state-svg-speck" />
+      <circle cx="344" cy="244" r="2.5" className="reconstructed-state-svg-speck" />
+    </svg>
+  );
+}
 
 export function PlanPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const toast = useToast();
+  const dateFormat = useDateFormat();
 
-  const [selectedDate, setSelectedDate] = useState(TODAY);
+  // IST-anchored "today", refreshed periodically so a tab left open past midnight doesn't get stuck.
+  const [today, setToday] = useState(() => todayDate());
+  // Selected date is mirrored in the URL (?date=) so navigating away (e.g. to
+  // Schedule) and back, or refreshing the tab, keeps the date the user was on.
+  const { iso: selectedDateIso, setDate: setSelectedDateIso } = useDateParam();
+  const selectedDate = useMemo(() => new Date(`${selectedDateIso}T00:00:00`), [selectedDateIso]);
+  function setSelectedDate(next: Date | ((date: Date) => Date)) {
+    const nextDate = typeof next === "function" ? next(selectedDate) : next;
+    setSelectedDateIso(toDateInputValue(nextDate));
+  }
   const [planData, setPlanData] = useState<PlanResponse | null>(null);
   const [loadingPlan, setLoadingPlan] = useState(false);
   const [planError, setPlanError] = useState<string | null>(null);
   const [completingIds, setCompletingIds] = useState<Set<number>>(new Set());
   const [busyIds, setBusyIds] = useState<Set<number>>(new Set());
   const [completedOpen, setCompletedOpen] = useState(false);
+  const [skippedOpen, setSkippedOpen] = useState(false);
+  const [generatingBrief, setGeneratingBrief] = useState(false);
+  const [selectedBannerTask, setSelectedBannerTask] = useState<ScheduledTaskDataResponse | null>(null);
+  const [bannerDeleteTarget, setBannerDeleteTarget] = useState<ScheduledTaskDataResponse | null>(null);
+  const [bannerDeleting, setBannerDeleting] = useState(false);
 
-  const isToday = selectedDate.toDateString() === TODAY.toDateString();
+  useEffect(() => {
+    function refreshToday() {
+      const now = todayDate();
+      setToday((prev) => (prev.toDateString() === now.toDateString() ? prev : now));
+    }
+    const intervalId = window.setInterval(refreshToday, TODAY_REFRESH_MS);
+    document.addEventListener("visibilitychange", refreshToday);
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", refreshToday);
+    };
+  }, []);
+
+  const isToday = selectedDate.toDateString() === today.toDateString();
+  const dailyBriefEnabled = planData?.daily_brief_enabled ?? false;
+  const briefExists = planData?.daily_brief_generated ?? false;
 
   const loadPlan = useCallback(async () => {
     setLoadingPlan(true);
@@ -57,7 +173,8 @@ export function PlanPage() {
 
   useEffect(() => {
     void loadPlan();
-  }, [loadPlan]);
+  }, [loadPlan, location.key]);
+  useWakeRefresh(() => void loadPlan());
 
   const planItems = planData?.items ?? [];
 
@@ -82,11 +199,21 @@ export function PlanPage() {
     [planItems],
   );
 
+  const skippedItems = useMemo(
+    () => planItems.filter((item) => item.saved_data?.skipped),
+    [planItems],
+  );
+  const skippedCount = skippedItems.length;
+
+  const isReconstructedPastDate = !isToday && planData?.no_plan_generated === true;
+
   const activeItems = useMemo(
     () => planItems.filter(
-      (item) => item.saved_data?.status !== "done" || completingIds.has(item.plan_id),
+      (item) =>
+        (item.saved_data?.status !== "done" || completingIds.has(item.plan_id)) &&
+        (!item.saved_data?.skipped || skippedOpen),
     ),
-    [planItems, completingIds],
+    [planItems, completingIds, skippedOpen],
   );
   const doneItems = useMemo(
     () => planItems.filter(
@@ -107,6 +234,29 @@ export function PlanPage() {
         ),
       };
     });
+  }
+
+  async function refreshBanners() {
+    try {
+      const fresh = await api.planItems.getForDate(toDateInputValue(selectedDate));
+      setPlanData(prev => prev ? { ...prev, banner_tasks: fresh.banner_tasks ?? [] } : prev);
+    } catch { /* non-critical */ }
+  }
+
+  async function handleBannerDelete() {
+    if (!bannerDeleteTarget) return;
+    setBannerDeleting(true);
+    try {
+      await api.schedule.removeScheduleTask(bannerDeleteTarget.id, bannerDeleteTarget.repeat_yearly);
+      setBannerDeleteTarget(null);
+      setSelectedBannerTask(null);
+      toast.success("Task deleted.");
+      void loadPlan();
+    } catch {
+      toast.error("Couldn't delete task. Please try again.");
+    } finally {
+      setBannerDeleting(false);
+    }
   }
 
   function removeCompletingId(planId: number) {
@@ -138,6 +288,7 @@ export function PlanPage() {
       updateItemSavedData(recordId, savedData);
       setCompletingIds((prev) => new Set([...prev, planId]));
       setTimeout(() => removeCompletingId(planId), COMPLETE_ANIM_MS);
+      if (item?.source_type === "schedule") void refreshBanners();
     } catch {
       toast.error("Couldn't update status. Please try again.");
     } finally {
@@ -158,6 +309,7 @@ export function PlanPage() {
     try {
       const savedData = await api.planItems.updateRecord(recordId, { status: "due" });
       updateItemSavedData(recordId, savedData);
+      if (item?.source_type === "schedule") void refreshBanners();
     } catch {
       toast.error("Couldn't update status. Please try again.");
     } finally {
@@ -169,14 +321,35 @@ export function PlanPage() {
     }
   }
 
-  async function handleSaveProgress(planId: number, value: number) {
+  async function handleToggleSkip(planId: number) {
+    const item = planData?.items.find((i) => i.plan_id === planId);
+    const recordId = item?.saved_data?.record_id;
+    if (!recordId) return;
+    const nextSkipped = !item?.saved_data?.skipped;
+
+    setBusyIds((prev) => new Set([...prev, planId]));
+    try {
+      const savedData = await api.planItems.updateRecord(recordId, { skipped: nextSkipped });
+      updateItemSavedData(recordId, savedData);
+    } catch {
+      toast.error("Couldn't update status. Please try again.");
+    } finally {
+      setBusyIds((prev) => {
+        const next = new Set(prev);
+        next.delete(planId);
+        return next;
+      });
+    }
+  }
+
+  async function handleSaveDelta(planId: number, delta: number) {
     const item = planData?.items.find((i) => i.plan_id === planId);
     const recordId = item?.saved_data?.record_id;
     if (!recordId) return;
     const prevStatus = item?.saved_data?.status;
 
     try {
-      const savedData = await api.planItems.updateRecord(recordId, { actual_value: value });
+      const savedData = await api.planItems.updateRecord(recordId, { add_value: delta });
       if (savedData.status === "done" && prevStatus !== "done") {
         setCompletingIds((prev) => new Set([...prev, planId]));
         updateItemSavedData(recordId, savedData);
@@ -190,8 +363,8 @@ export function PlanPage() {
       } else {
         updateItemSavedData(recordId, savedData);
       }
-    } catch {
-      toast.error("Couldn't save progress. Please try again.");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to update progress.");
     }
   }
 
@@ -208,13 +381,52 @@ export function PlanPage() {
     }
   }
 
+  async function handleSaveNoteAndDone(planId: number, note: string) {
+    const item = planData?.items.find((i) => i.plan_id === planId);
+    const recordId = item?.saved_data?.record_id;
+    if (!recordId) return;
+
+    try {
+      const savedData = await api.planItems.updateRecord(recordId, { note, status: "done" });
+      updateItemSavedData(recordId, savedData);
+      setCompletingIds((prev) => new Set([...prev, planId]));
+      setTimeout(() => removeCompletingId(planId), COMPLETE_ANIM_MS);
+      if (item?.source_type === "schedule") void refreshBanners();
+    } catch {
+      toast.error("Couldn't save. Please try again.");
+    }
+  }
+
+  async function handleBriefMe() {
+    const dateStr = toDateInputValue(selectedDate);
+
+    if (isToday && !briefExists) {
+      if (totalCount === 0) {
+        toast.info("No plan items yet — nothing to brief.");
+        return;
+      }
+      setGeneratingBrief(true);
+      try {
+        await api.dailyBrief.generate(dateStr);
+        navigate(`${ROUTES.DAILY_BRIEF}?date=${dateStr}`);
+      } catch (err) {
+        toast.error(err instanceof ApiError ? err.message : "Couldn't generate the brief. Please try again.");
+      } finally {
+        setGeneratingBrief(false);
+      }
+      return;
+    }
+
+    navigate(`${ROUTES.DAILY_BRIEF}?date=${dateStr}`);
+  }
+
   const progressMessage =
     totalCount === 0
       ? "Plan a few tasks to get started."
-      : completion === 100
-        ? "Everything done — nice work!"
-        : "Keep going, you've got this.";
+      : completionMessage(completion);
 
+  const bannerTasks = planData?.banner_tasks ?? [];
+  const subtasks = planData?.subtasks ?? [];
 
   return (
     <section className="plan-page">
@@ -231,13 +443,13 @@ export function PlanPage() {
           </button>
           <label className="date-field">
             <span className="visually-hidden">Plan date</span>
-            <span className="date-display" aria-hidden="true">{formatDisplayDate(selectedDate)}</span>
+            <span className="date-display" aria-hidden="true">{formatDisplayDate(selectedDate, dateFormat)}</span>
             <Calendar3 className="date-calendar-icon" size={16} aria-hidden="true" />
             <input
               type="date"
               value={toDateInputValue(selectedDate)}
-              max={toDateInputValue(TODAY)}
-              onChange={(event) => setSelectedDate(new Date(`${event.target.value}T00:00:00`))}
+              max={toDateInputValue(today)}
+              onChange={(event) => { if (event.target.value) setSelectedDate(new Date(`${event.target.value}T00:00:00`)); }}
               onClick={(e) => e.currentTarget.showPicker?.()}
               aria-label="Plan date"
             />
@@ -254,8 +466,21 @@ export function PlanPage() {
         </div>
         <div className="plan-action-buttons">
           {!isToday && (
-            <button type="button" className="plan-secondary-button" onClick={() => setSelectedDate(TODAY)}>
+            <button type="button" className="plan-secondary-button" onClick={() => setSelectedDate(today)}>
               <CalendarCheckFill size={15} /> {"Today"}
+            </button>
+          )}
+          {dailyBriefEnabled && !loadingPlan && (isToday || briefExists) && (
+            <button
+              type="button"
+              className="plan-secondary-button"
+              disabled={generatingBrief}
+              onClick={handleBriefMe}
+            >
+              {generatingBrief
+                ? <span className="spinner-border spinner-border-sm" aria-hidden="true" />
+                : briefMeIcon()}
+              {generatingBrief ? "Generating…" : "Brief me"}
             </button>
           )}
           <button type="button" className="plan-primary-button" onClick={() => navigate(ROUTES.SCHEDULE)}>
@@ -268,10 +493,22 @@ export function PlanPage() {
         <div className="plan-column">
           <section className="plan-panel today-panel">
             <h2 style={{ display: "flex", alignItems: "baseline", gap: "0.5rem" }}>
-              {isToday ? "Your Today's Plan" : formatDisplayDate(selectedDate)}
+              {isToday ? "Your Today's Plan" : formatDisplayDate(selectedDate, dateFormat)}
               <span style={{ fontSize: "0.9rem", fontWeight: 400, color: "var(--jv-muted)" }}>
                 {selectedDate.toLocaleDateString(undefined, { weekday: "long" })}
               </span>
+              {skippedCount > 0 && (
+                <button
+                  type="button"
+                  className="plan-header-icon-btn"
+                  style={{ marginLeft: "auto", alignSelf: "center" }}
+                  aria-label={skippedOpen ? "Hide skipped items" : `Show ${skippedCount} skipped item${skippedCount === 1 ? "" : "s"}`}
+                  title={skippedOpen ? "Hide skipped items" : "Show skipped items"}
+                  onClick={() => setSkippedOpen((o) => !o)}
+                >
+                  {skippedOpen ? <EyeSlash size={16} /> : <Eye size={16} />}
+                </button>
+              )}
             </h2>
 
             {loadingPlan ? (
@@ -293,8 +530,25 @@ export function PlanPage() {
               <div className="empty-state">
                 <span className="empty-state-icon"><CalendarCheckFill size={20} /></span>
                 <h3 className="text-normal">Couldn't load your plan</h3>
-                <p>{planError}</p>
+                <p>
+                  {planError} Please{" "}
+                  <button type="button" className="btn-link-inline" onClick={() => void loadPlan()}>
+                    try again
+                  </button>
+                  .
+                </p>
               </div>
+            ) : isReconstructedPastDate ? (
+              <section className="reconstructed-state" aria-live="polite">
+                <div className="reconstructed-state-illustration" aria-hidden="true">
+                  <ReconstructedPastStateIllustration />
+                </div>
+                <p className="reconstructed-state-code">PAST VIEW</p>
+                <h3 className="reconstructed-state-title">No saved planner timeline for this date</h3>
+                <p className="reconstructed-state-text">
+                  Planner was not opened on this date, so no plan records were generated.
+                </p>
+              </section>
             ) : totalCount === 0 ? (
               <div className="empty-state">
                 <span className="empty-state-icon"><CalendarCheckFill size={20} /></span>
@@ -303,6 +557,18 @@ export function PlanPage() {
                   {isToday
                     ? "You're all clear. Enjoy the day or add something manually."
                     : "You can add something manually or check another date."}
+                </p>
+              </div>
+            ) : activeItems.length === 0 && doneItems.length === 0 && skippedCount > 0 ? (
+              <div className="empty-state">
+                <span className="empty-state-icon"><EyeSlash size={20} /></span>
+                <h3 className="text-normal">Nothing to do — {skippedCount} skipped</h3>
+                <p>
+                  {isToday ? "Everything left for today was skipped. " : "Everything left on this date was skipped. "}
+                  <button type="button" className="btn-link-inline" onClick={() => setSkippedOpen(true)}>
+                    Show skipped items
+                  </button>
+                  .
                 </p>
               </div>
             ) : activeItems.length === 0 ? (
@@ -321,8 +587,10 @@ export function PlanPage() {
                     isCompleting={completingIds.has(item.plan_id)}
                     busy={busyIds.has(item.plan_id)}
                     onToggle={() => handleToggle(item.plan_id)}
-                    onSaveProgress={(value) => handleSaveProgress(item.plan_id, value)}
+                    onToggleSkip={() => handleToggleSkip(item.plan_id)}
+                    onSaveDelta={(delta) => handleSaveDelta(item.plan_id, delta)}
                     onSaveNote={(note) => handleSaveNote(item.plan_id, note)}
+                    onSaveNoteAndDone={(note) => handleSaveNoteAndDone(item.plan_id, note)}
                   />
                 ))}
               </div>
@@ -344,26 +612,68 @@ export function PlanPage() {
                   size={15}
                 />
               </button>
-              {completedOpen && (
-                <div className="plan-task-list mt-0">
-                  {doneItems.map((item) => (
-                    <PlanCard
-                      key={item.saved_data?.record_id ?? item.plan_id}
-                      item={item}
-                      readOnly={!isToday}
-                      busy={busyIds.has(item.plan_id)}
-                      onToggle={() => handleToggle(item.plan_id)}
-                      onSaveProgress={(value) => handleSaveProgress(item.plan_id, value)}
-                      onSaveNote={(note) => handleSaveNote(item.plan_id, note)}
-                    />
-                  ))}
+              <div className={`completed-panel-collapse${completedOpen ? " is-open" : ""}`}>
+                <div className="completed-panel-collapse-inner">
+                  <div className="plan-task-list mt-0">
+                    {doneItems.map((item) => (
+                      <PlanCard
+                        key={item.saved_data?.record_id ?? item.plan_id}
+                        item={item}
+                        readOnly={!isToday}
+                        busy={busyIds.has(item.plan_id)}
+                        onToggle={() => handleToggle(item.plan_id)}
+                        onSaveDelta={(delta) => handleSaveDelta(item.plan_id, delta)}
+                        onSaveNote={(note) => handleSaveNote(item.plan_id, note)}
+                      />
+                    ))}
+                  </div>
                 </div>
-              )}
+              </div>
             </section>
           )}
         </div>
 
         <div className="plan-column">
+          {bannerTasks.length > 0 && (
+            <div className="plan-banners">
+              {bannerTasks.map(task => (
+                <button
+                  key={task.id}
+                  type="button"
+                  className="plan-banner-card"
+                  style={{ "--banner-color": PRIORITY_COLOR[task.priority] } as React.CSSProperties}
+                  onClick={() => setSelectedBannerTask(task)}
+                >
+                  <span className="plan-banner-icon">
+                    {task.category ? (CATEGORY_ICONS[task.category as keyof typeof CATEGORY_ICONS] ?? "📅") : "📅"}
+                  </span>
+                  <div className="plan-banner-info">
+                    <div className="plan-banner-title">{task.title}</div>
+                    {task.end_date && (
+                      <div className="plan-banner-dates">{formatDateRange(task.scheduled_date, task.end_date)}</div>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {subtasks.length > 0 && (
+            <section className="plan-panel plan-subtasks-panel">
+              <ul className="plan-subtasks-list">
+                {subtasks.map(subtask => (
+                  <li key={subtask.id} className={`plan-subtask-item plan-subtask-item--${subtask.planner_mode}`}>
+                    <span className="plan-subtask-bullet" />
+                    <div>
+                      <span className="plan-subtask-task">{subtask.task_title}</span>
+                      <span className="plan-subtask-text">{subtask.description}</span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
           {!loadingPlan && totalCount > 0 && (
             <section className="plan-panel progress-panel">
               <ProgressRing percentage={completion} />
@@ -378,8 +688,44 @@ export function PlanPage() {
             isToday={isToday}
             estimatedMinutes={estimatedMinutes}
           />
+
+          {isToday && <YesterdayClosingPanel closing={planData?.previous_day_closing ?? null} />}
         </div>
       </div>
+
+      {selectedBannerTask && (
+        <ScheduleTaskDetailPanel
+          task={selectedBannerTask}
+          onClose={() => setSelectedBannerTask(null)}
+          onEdit={() => {
+            setSelectedBannerTask(null);
+            navigate(
+              ROUTES.SCHEDULE_EDIT.replace(":taskId", String(selectedBannerTask.id)) +
+                (selectedBannerTask.repeat_yearly ? "?yearly=1" : ""),
+              { state: { task: selectedBannerTask, returnPath: location.pathname } },
+            );
+          }}
+          onDuplicate={() => {
+            setSelectedBannerTask(null);
+            navigate(ROUTES.SCHEDULE_CREATE, { state: { draft: selectedBannerTask, returnPath: location.pathname } });
+          }}
+          onDelete={() => {
+            setSelectedBannerTask(null);
+            setBannerDeleteTarget(selectedBannerTask);
+          }}
+        />
+      )}
+
+      <ConfirmDialog
+        show={bannerDeleteTarget !== null}
+        title="Delete task?"
+        message={`"${bannerDeleteTarget?.title}" will be permanently deleted.`}
+        confirmLabel="Delete"
+        destructive
+        busy={bannerDeleting}
+        onConfirm={() => void handleBannerDelete()}
+        onCancel={() => setBannerDeleteTarget(null)}
+      />
     </section>
   );
 }

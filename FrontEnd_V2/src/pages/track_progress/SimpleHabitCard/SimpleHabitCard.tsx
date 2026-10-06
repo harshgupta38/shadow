@@ -1,18 +1,25 @@
+import { useNavigate } from "react-router-dom";
 import type { SimpleHabitData } from "@/api/types";
 import { todayDate } from "@/services/date.service";
+import { useWeekStart } from "@/context/PlannerContext";
+import { dayToCol, weekDayLabels } from "@/utils/weekUtils";
+import { ANIMATION } from "@/constant/tuning";
+import { ROUTES } from "@/routes/RoutePaths";
 import "./SimpleHabitCard.scss";
 
 // ── Mini Heatmap ──────────────────────────────────────────────────────────────
 
-const WEEK_DAYS = ["S", "M", "T", "W", "T", "F", "S"];
-const _TODAY_IDX = todayDate().getDay(); // 0=Sun … 6=Sat
-
 function MiniHeatmap({ history, color }: { history: boolean[]; color: string }) {
-  // history[0]=Sun … history[6]=Sat; index matches JS getDay()
+  // history from backend: 7 entries ordered by week_starts_on (index 0 = first day of user's week)
+  const weekStart = useWeekStart();
+  const today = todayDate();
+  const dayLetters = weekDayLabels(weekStart, "letter");
+  const todayCol = dayToCol(today, weekStart);
+
   return (
     <div className="tp-heatmap" aria-label="This week's completion">
       <div className="tp-heatmap-header">
-        {WEEK_DAYS.map((d, i) => (
+        {dayLetters.map((d, i) => (
           <span key={i} className="tp-heatmap-day">{d}</span>
         ))}
       </div>
@@ -23,10 +30,10 @@ function MiniHeatmap({ history, color }: { history: boolean[]; color: string }) 
             className={[
               "tp-heatmap-cell",
               done ? `tp-heatmap-cell--done tp-heatmap-cell--${color}` : "tp-heatmap-cell--miss",
-              idx === _TODAY_IDX ? "tp-heatmap-cell--today" : "",
-              idx > _TODAY_IDX ? "tp-heatmap-cell--future" : "",
+              idx === todayCol ? "tp-heatmap-cell--today" : "",
+              idx > todayCol ? "tp-heatmap-cell--future" : "",
             ].filter(Boolean).join(" ")}
-            style={{ animationDelay: `${idx * 18}ms` }}
+            style={{ animationDelay: `${idx * ANIMATION.STAGGER_HEATMAP_CELL_MS}ms` }}
             aria-label={done ? "completed" : "missed"}
           />
         ))}
@@ -38,13 +45,28 @@ function MiniHeatmap({ history, color }: { history: boolean[]; color: string }) 
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function SimpleHabitCard({ habit: h }: { habit: SimpleHabitData }) {
+  const navigate = useNavigate();
   const done7 = h.history.filter(Boolean).length;
   const weekPct = Math.round((done7 / 7) * 100);
 
   const isPersonalBest = h.current_streak > 0 && h.current_streak >= h.max_streak;
 
+  function openDetail() {
+    const path = h.source_type === "habit"
+      ? ROUTES.HABIT_LIBRARY_DETAIL.replace(":habitId", String(h.id))
+      : ROUTES.TASK_DETAIL.replace(":taskId", String(h.id));
+    navigate(path);
+  }
+
   return (
-    <article className={`tp-simple-card tp-simple-card--${h.color}`}>
+    <article
+      className={`tp-simple-card tp-simple-card--${h.color}`}
+      role="button"
+      tabIndex={0}
+      onClick={openDetail}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openDetail(); } }}
+      aria-label={`Open details for ${h.title}`}
+    >
       <div className="tp-sc-inner">
 
         {/* ── Head ── */}

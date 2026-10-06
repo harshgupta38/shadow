@@ -2,6 +2,10 @@ export interface UserDataResponse {
   id: number;
   name: string;
   email: string;
+  theme_preference: ThemePreference;
+  planner: PlannerSettings;
+  accessibility: AccessibilitySettings;
+  session_limit_exceeded: boolean;
 }
 
 export interface LoginRequest {
@@ -13,9 +17,33 @@ export interface RegisterRequest extends LoginRequest {
   name: string;
 }
 
-export interface TokenResponse {
-  access_token: string;
-  token_type: string;
+export interface UpdateNameRequest {
+  name: string;
+}
+
+export interface ChangePasswordRequest {
+  current_password: string;
+  new_password: string;
+}
+
+export interface AccountPasswordConfirmRequest {
+  current_password: string;
+}
+
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface ResetPasswordRequest {
+  uid: number;
+  token: string;
+  new_password: string;
+}
+
+// TokenResponse is defined below alongside SessionInfo
+
+export interface RefreshRequest {
+  refresh_token: string;
 }
 
 export interface ChildProps {
@@ -26,6 +54,7 @@ export interface ApiErrorShape {
   message: string;
   status?: number;
   fieldErrors?: Record<string, string>;
+  retryAfter?: number; // seconds until the rate-limit window reopens (from Retry-After header)
 }
 
 export interface FieldError {
@@ -39,9 +68,11 @@ export type EffectiveTheme = Exclude<ThemePreference, "browser" | "dynamic">;
 
 export interface DynamicThemeResponse {
   effective_theme: EffectiveTheme;
-  sunrise: string;
-  sunset: string;
-  next_transition_at: string;
+  // null when the sunrise-sunset.org lookup failed and the backend fell back to a
+  // simple clock heuristic instead of failing the whole request.
+  sunrise: string | null;
+  sunset: string | null;
+  next_transition_at: string | null;
 }
 
 export interface UserLocation {
@@ -113,6 +144,7 @@ export type GoalItemStatus = Exclude<GoalListStatusFilter, "All">;
 
 export interface GoalDataShortResponse {
   id: number;
+  position: number;
   title: string;
   summary: string;
   category: GoalCategory;
@@ -122,6 +154,15 @@ export interface GoalDataShortResponse {
   milestones_completed: number;
   habits_total: number;
   habits_active: number;
+}
+
+export interface GoalReorderItem {
+  id: number;
+  position: number;
+}
+
+export interface GoalReorderRequest {
+  goals: GoalReorderItem[];
 }
 
 export interface GoalDataResponse {
@@ -356,10 +397,43 @@ export interface SaveTaskFromProposalRequest {
   task: TaskCreateRequest;
 }
 
+export interface ScheduledTaskProposalLLMSchema {
+  title: string;
+  scheduled_date: string;
+  priority: ScheduledTaskPriority;
+  planner_type: ScheduledTaskType;
+  planner_target: number | null;
+  value_unit: string | null;
+  preferred_time: ScheduledTaskPreferredTime;
+  specific_time: string | null;
+  allow_snoozing: boolean;
+  snooze_limit: number | null;
+  duration_minutes: number | null;
+  note: string | null;
+  category: string | null;
+  goal_id: number | null;
+  assistant_context: string;
+}
+
+export interface ScheduledTaskProposal {
+  proposal_id: string;
+  content_index: number;
+  status: ProposalStatus;
+  scheduled_task_id: number | null;
+  scheduled_task: ScheduledTaskProposalLLMSchema;
+  scheduled_task_action: ProposalAction;
+}
+
+export interface SaveScheduledTaskFromProposalRequest {
+  proposal_id: string;
+  task: ScheduledTaskCreateRequest;
+}
+
 export interface MessageLinkedItems {
   goal_proposals?: GoalProposal[];
   milestone_proposals?: MilestoneProposal[];
   task_proposals?: TaskProposal[];
+  scheduled_task_proposals?: ScheduledTaskProposal[];
 }
 
 export interface MessageDataResponse {
@@ -429,6 +503,9 @@ export interface HabitCreateRequest {
   monthly_count: number | null;
   specific_days: number[] | null;
   day_fallback: boolean;
+  include_in_report: boolean;
+  can_skip: boolean;
+  streak_tolerance_pct: number;
 
   start_date: string | null;
   end_date: string | null;
@@ -455,12 +532,41 @@ export interface HabitUpdateRequest extends Partial<HabitCreateRequest> {
   status?: HabitStatus;
 }
 
+export interface HabitHistoryStats {
+  total_records: number;
+  total_done: number;
+  total_missed: number;
+  completion_rate: number; // 0.0 – 1.0
+}
+
 // ── Planner ─────────────────────────────────────────────────────────────────
 export type PlanPriority = "highest" | "high" | "medium" | "low" | "lowest";
 export type PlanSourceType = "habit" | "task" | "schedule";
 export type PlannerType = "simple" | "metric";
 export type PlanPreferredTime = "flexible" | "morning" | "afternoon" | "evening" | "night" | "custom";
 export type PlanStatus = "due" | "done" | "missed";
+
+export interface HabitActivityRecord {
+  date: string; // YYYY-MM-DD
+  status: PlanStatus;
+  value: number | null;
+  planner_target?: number | null;
+  note: string | null;
+  streak: number;
+}
+
+export interface HabitActivityResponse {
+  habit: HabitDataResponse;
+  records: HabitActivityRecord[];
+}
+
+export type TaskActivityRecord = HabitActivityRecord;
+
+export interface TaskActivityResponse {
+  task: TaskDataResponse;
+  goal_title: string | null;
+  records: TaskActivityRecord[];
+}
 
 export interface PlanDataResponse {
   plan_id: number;
@@ -478,6 +584,10 @@ export interface PlanDataResponse {
   // Goal-linked fields — populated when the source habit/task is linked to a goal
   goal?: GoalDataInPlan;
 
+  // Whether the source habit allows skipping today's occurrence. Always false
+  // for task/schedule sources.
+  can_skip: boolean;
+
   saved_data: DailyPlanSavedData | null;
 }
 
@@ -494,16 +604,62 @@ export interface DailyPlanSavedData {
   current_streak: number; // computed from recurrence + history, never stored
   max_streak: number;     // computed from recurrence + history, never stored
   note: string;
+  // Excused absence for today's occurrence — always false for synthesized
+  // missed occurrences (no DB record to skip).
+  skipped: boolean;
 }
 
 export interface UpdatePlanRequest {
   status?: PlanStatus;
-  actual_value?: number;
+  add_value?: number;
   note?: string;
+  skipped?: boolean;
+}
+
+export type SubtaskPlannerMode = "task" | "highlight";
+
+export interface SubtaskCreateRequest {
+  subtask_date: string; // YYYY-MM-DD
+  description: string;
+  planner_mode: SubtaskPlannerMode | null;
+}
+
+export interface SubtaskUpdateRequest {
+  description?: string;
+  planner_mode?: SubtaskPlannerMode | null;
+}
+
+export interface SubtaskResponse {
+  id: number;
+  task_id: number;
+  subtask_date: string;
+  description: string;
+  planner_mode: SubtaskPlannerMode | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SubtaskInPlanner {
+  id: number;
+  task_id: number;
+  task_title: string;
+  subtask_date: string;
+  description: string;
+  planner_mode: SubtaskPlannerMode;
 }
 
 export interface PlanResponse {
   items: PlanDataResponse[];
+  // The prior day's daily-report closing message (relative to the requested date),
+  // if one was generated — null when no report exists yet for that date.
+  previous_day_closing: DailyReportDetail["closing"] | null;
+  daily_brief_enabled: boolean;
+  daily_brief_generated: boolean;
+  // True for past dates that were never opened — `items` is empty (no synthesis).
+  // Always false for today.
+  no_plan_generated: boolean;
+  banner_tasks: ScheduledTaskDataResponse[];
+  subtasks: SubtaskInPlanner[];
 }
 
 // ── Scheduled Tasks ──────────────────────────────────────────────────────────
@@ -511,6 +667,9 @@ export type ScheduledTaskType = "simple" | "metric";
 export type ScheduledTaskPriority = "highest" | "high" | "medium" | "low" | "lowest";
 export type ScheduledTaskPreferredTime = "flexible" | "morning" | "afternoon" | "evening" | "night" | "custom";
 export type ScheduledTaskStatus = "upcoming" | "completed" | "snoozed" | "missed";
+
+export type ScheduledTaskDuration = "short" | "long";
+export type ScheduledTaskPlannerDisplay = "task" | "banner" | "none";
 
 export interface ScheduledTaskCreateRequest {
   title: string;
@@ -522,6 +681,14 @@ export interface ScheduledTaskCreateRequest {
   scheduled_date: string; // YYYY-MM-DD
   preferred_time: ScheduledTaskPreferredTime;
   specific_time: string | null;
+  repeat_yearly?: boolean; // true → saved to yearly_tasks; false/omitted → scheduled_tasks
+
+  // Long-term task fields
+  task_duration?: ScheduledTaskDuration;
+  end_date?: string | null;           // YYYY-MM-DD, long-term only
+  end_preferred_time?: ScheduledTaskPreferredTime | null;
+  end_specific_time?: string | null;
+  planner_display?: ScheduledTaskPlannerDisplay | null;
 
   allow_snoozing: boolean;
   snooze_limit: number | null; // null = infinite
@@ -534,12 +701,19 @@ export interface ScheduledTaskCreateRequest {
 
 export interface ScheduledTaskUpdateRequest extends Partial<ScheduledTaskCreateRequest> { }
 
-export interface ScheduledTaskDataResponse extends Omit<ScheduledTaskCreateRequest, "goal_id"> {
+export interface ScheduledTaskDataResponse extends Omit<ScheduledTaskCreateRequest, "goal_id" | "repeat_yearly"> {
   id: number;
+  repeat_yearly: boolean; // true if from yearly_tasks — derived from table membership, not a stored column
   goal?: GoalDataInPlan;
   status: ScheduledTaskStatus;
+  subtasks: SubtaskResponse[];
   created_at: string;
   updated_at: string;
+}
+
+export interface ScheduleListResponse {
+  tasks: ScheduledTaskDataResponse[];
+  overflow_tasks: ScheduledTaskDataResponse[];
 }
 
 // ── Track Progress ──────────────────────────────────────────────────────────
@@ -560,7 +734,7 @@ export interface HabitTrackItem extends HabitBaseData {
   planner_type: HabitType;
   planner_target: number | null;
   value_unit: string | null;
-  /** 7 integers — index 0 = Sunday, index 6 = Saturday; simple=0|1, metric=actual_value, future=0 */
+  /** 7 integers ordered by week_starts_on (index 0 = first day of week); simple=0|1, metric=actual_value, future=0 */
   history: number[];
   current_value: number;
 }
@@ -573,15 +747,395 @@ export interface EligibleHabitItem {
   planner_type: HabitType;
 }
 
+export interface EligibleTaskItem {
+  id: number;
+  title: string;
+  priority: TaskPriority;
+  planner_type: TaskPlannerType;
+  tracking_enabled: boolean;
+}
+
+export interface TaskTrackItem {
+  id: number;
+  title: string;
+  planner_type: TaskPlannerType;
+  planner_target: number | null;
+  value_unit: string | null;
+  current_streak: number;
+  max_streak: number;
+  history: number[];
+  done_today: boolean;
+  current_value: number;
+  color: ColorKey;
+}
+
 export interface MetricHabitData extends HabitBaseData {
+  source_type: "habit" | "task";
   value_unit: string;
   planner_target: number;
-  /** 7 entries — index 0 = Sunday, index 6 = Saturday of the current week */
+  /** 7 entries ordered by week_starts_on (index 0 = first day of week) */
   history: number[];
   current_value: number;
 }
 
 export interface SimpleHabitData extends HabitBaseData {
-  /** 7 entries — index 0 = Sunday, index 6 = Saturday of the current week */
+  source_type: "habit" | "task";
+  /** 7 entries ordered by week_starts_on (index 0 = first day of week) */
   history: boolean[];
+}
+
+// ── Notifications ────────────────────────────────────────────────────────────
+
+export type NotificationType = "reminder" | "system" | "agent" | "security" | "warning" | "achievement";
+
+export interface Notification {
+  id: number;
+  priority: number;
+  title: string;
+  body: string | null;
+  type: NotificationType;
+  level: number;
+  read: boolean;
+  created_at: string;
+  url?: string;
+  event_key: string | null;
+}
+
+// ── Daily brief ───────────────────────────────────────────────────────────────
+
+export interface DailyBriefResponse {
+  complete_brief: string | null;
+  spoken_brief?: string | null;
+  date: string;
+  generated_at: string | null;
+  has_audio: boolean;
+  audio_feature_enabled: boolean;
+}
+
+export interface WordTiming {
+  word: string;
+  start: number;
+  end: number;
+}
+
+export interface DailyBriefCaptionsResponse {
+  words: WordTiming[];
+}
+
+// ── Push subscriptions ────────────────────────────────────────────────────────
+
+export interface PushSubscriptionPayload {
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  user_agent?: string;
+}
+
+export interface PushPublicKeyResponse {
+  public_key: string;
+}
+
+// ── Reports ───────────────────────────────────────────────────────────────────
+
+export interface DayReport {
+  date: string;             // "YYYY-MM-DD"
+  score: number | null;     // null when no plan records exist for the date
+  alignment_score: number | null; // from latest report; null when no report exists
+  habits_total: number;
+  habits_done: number;
+  tasks_total: number;
+  tasks_done: number;
+  schedule_total: number;
+  schedule_done: number;
+  has_daily_report: boolean;
+  has_weekly_report: boolean;
+}
+
+export interface MonthlyReportResponse {
+  days: DayReport[];
+}
+
+export interface GoalAlignment {
+  id: number;
+  title: string;
+  alignment_pct: number;
+  milestone_title: string;
+  note: string;
+  tasks_done: number;
+  tasks_total: number;
+}
+
+export interface DailyReportDetail {
+  id: number;
+  date: string;
+  report_type: "daily" | "weekly";
+  generated_at: string;
+  alignment_score: number;
+  headline: string;
+  summary: string;
+  stats: {
+    tasks_done: number;
+    tasks_total: number;
+    habits_done: number;
+    habits_total: number;
+    best_streak: number;
+  };
+  goals: GoalAlignment[];
+  highlights: { good: string[]; attention: string[] };
+  closing: { tone: "motivate" | "guide" | "celebrate"; message: string };
+}
+
+// ── Dashboard ──────────────────────────────────────────────────────────────────
+
+// A single habit's Sun–Sat completion row, used by both TrackProgressPage's
+// weekly matrix and the Dashboard's "This Week" panel.
+export interface WeeklyMatrixRow {
+  id: number;
+  title: string;
+  week: boolean[];
+}
+
+// Shaped specifically for the Dashboard's today-snapshot preview — not a reuse
+// of PlanDataResponse, since the widget only ever needs a goal's summary line
+// (never its title/category/id) and never touches duration, notes, or streak max.
+export interface DashboardTodayItem {
+  plan_id: number;
+  source_type: "habit" | "task" | "schedule";
+  title: string;
+  planner_type: "simple" | "metric";
+  planner_target: number | null;
+  value_unit: string | null;
+  priority: PlanPriority;
+  preferred_time: PlanPreferredTime;
+  specific_time: string | null;
+  goal_summary: string | null;
+  status: "due" | "done";
+  current_value: number;
+  current_streak: number;
+}
+
+export interface DashboardUpcomingItem {
+  id: number;
+  // scheduled_tasks and yearly_tasks are separate tables with their own id
+  // sequences, so an id can collide across the two — use id+repeat_yearly
+  // together as the unique key (same pattern SchedulePage already uses).
+  repeat_yearly: boolean;
+  title: string;
+  scheduled_date: string; // YYYY-MM-DD
+  priority: ScheduledTaskPriority;
+  note: string | null;
+}
+
+// Single-endpoint contract for the Dashboard — every widget's data is a slice
+// of this one response, no per-widget requests.
+export interface DashboardResponse {
+  today_items: DashboardTodayItem[];
+  latest_report: DailyReportDetail | null; // null when no report has ever been generated
+  month_days: DayReport[];
+  goals: GoalDataShortResponse[];
+  upcoming: DashboardUpcomingItem[];
+  week_habits: WeeklyMatrixRow[];
+}
+
+// ── Profile ────────────────────────────────────────────────────────────────────
+
+// A resolved, ready-to-render badge — the server decides which ones exist and
+// whether each is unlocked (system-wide rules or per-habit/goal thresholds);
+// the frontend only maps `icon` to a component and paints it. `icon` is a
+// bootstrap-icons component name (e.g. "Fire", "TrophyFill").
+export interface ProfileAchievement {
+  key: string;
+  label: string;
+  hint: string;
+  icon: string;
+  unlocked: boolean;
+  tone?: ColorKey;
+}
+
+// Single-endpoint contract for the Profile page — every card's data is a
+// slice of this one response, no per-card requests (same approach as
+// DashboardResponse above). Name/email stay sourced from AuthContext
+// (UserDataResponse) rather than duplicated here.
+export interface ProfileResponse {
+  bio: string | null;
+  joined_at: string; // "YYYY-MM-DD"
+  email_verified: boolean;
+
+  streak_days: number;
+  goals_completed: number;
+  habits_active: number;
+  tasks_completed_total: number;
+
+  month_alignment_percent: number;
+  month_goals_done: number;
+  month_goals_total: number;
+  month_habits_done: number;
+  month_habits_total: number;
+  month_tasks_done: number;
+  month_tasks_total: number;
+
+  achievements: ProfileAchievement[];
+}
+
+export interface UpdateBioRequest {
+  bio: string;
+}
+
+export interface DailyUsageEntry {
+  date: string; // "YYYY-MM-DD"
+  input_tokens: number;
+  output_tokens: number;
+}
+
+export interface UsageResponse {
+  daily: DailyUsageEntry[];  // all days in the requested month, oldest first
+  monthly_input: number;
+  monthly_output: number;
+}
+
+// ── Journal ────────────────────────────────────────────────────────────────────
+
+export type JournalMood = "great" | "good" | "okay" | "tough" | "rough";
+
+export interface JournalEntryResponse {
+  id: number;
+  entry_date: string; // YYYY-MM-DD
+  mood: JournalMood | null;
+  text: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface JournalEntryUpsertRequest {
+  mood: JournalMood | null;
+  text: string;
+}
+
+// ─── Settings ─────────────────────────────────────────────────────────────────
+
+export type ThemePreferenceValue = ThemePreference;
+export type AIResponseLength = "short" | "balanced" | "detailed" | "very_detailed";
+export type AIPersonality = "professional" | "friendly" | "coach" | "teacher" | "mentor" | "minimal";
+export type WeekStartsOn = "monday" | "sunday";
+export type TimeFormat = "12h" | "24h";
+export type DateFormat =
+  | "dd mmmm yyyy"
+  | "dd/mm/yy"
+  | "dd/mm/yyyy"
+  | "dd-mm-yy"
+  | "dd-mm-yyyy"
+  | "mmm d, yyyy";
+
+export interface AIModel {
+  name: string;
+  key: string;
+}
+
+export interface AIProvider {
+  name: string;
+  key: string;
+  models: AIModel[];
+}
+
+export interface AIProviderHealthCheckRequest {
+  provider: string;
+  model: string;
+}
+
+export interface AIProviderHealthCheckResponse {
+  healthy: boolean;
+  message: string;
+}
+
+export interface AppearanceSettings {
+  theme_preference: ThemePreferenceValue;
+}
+
+export interface NotificationSettings {
+  notifications_enabled: boolean;
+  email_notifications_enabled: boolean;
+  reminder_notifications_enabled: boolean;
+  daily_brief_enabled: boolean;
+  quiet_hours_enabled: boolean;
+  quiet_hours_start: string;
+  quiet_hours_end: string;
+  quiet_hours_allow_urgent: boolean;
+}
+
+export interface AIBehaviorSettings {
+  ai_response_length: AIResponseLength;
+  ai_personality: AIPersonality;
+  ai_provider: string;
+  ai_default_model: string;
+  custom_api_key_enabled: boolean;
+  custom_api_key: string;
+  /** True when a key is stored server-side; the raw key is never returned. */
+  custom_api_key_saved: boolean;
+}
+
+export interface PlannerSettings {
+  week_starts_on: WeekStartsOn;
+  default_reminder_time: string;
+  default_task_duration_minutes: number;
+  time_format: TimeFormat;
+  date_format: DateFormat;
+}
+
+export interface SessionInfo {
+  id: number;
+  device_name: string;
+  custom_name: string | null;
+  browser: string;
+  os_name: string;
+  ip_address: string | null;
+  last_seen_at: string;
+  created_at: string;
+  is_current: boolean;
+}
+
+export interface TokenResponse {
+  token_type: string;
+  session_limit_exceeded: boolean;
+  sessions: SessionInfo[];
+  current_session_id: number | null;
+  max_concurrent_devices: number;
+}
+
+export interface SessionsListResponse {
+  sessions: SessionInfo[];
+  current_session_id: number | null;
+  max_concurrent_devices: number;
+  session_limit_exceeded: boolean;
+}
+
+export interface PrivacySettings {
+  ai_memory_enabled: boolean;
+  max_concurrent_devices: number;
+}
+
+export interface AccessibilitySettings {
+  accessibility_reduced_motion: boolean;
+  accessibility_high_contrast: boolean;
+  accessibility_font_scale_percent: number;
+}
+
+export interface ReportScheduleSettings {
+  enabled: boolean;
+  time: string; // "HHMM", 24h, IST — matches the backend scheduler's convention
+  email_enabled: boolean;
+}
+
+export interface ReportsSettings {
+  daily: ReportScheduleSettings;
+  weekly: ReportScheduleSettings;
+}
+
+export interface FullSettings {
+  appearance: AppearanceSettings;
+  notifications: NotificationSettings;
+  ai_behavior: AIBehaviorSettings;
+  planner: PlannerSettings;
+  privacy: PrivacySettings;
+  accessibility: AccessibilitySettings;
+  reports: ReportsSettings;
 }

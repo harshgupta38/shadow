@@ -1,14 +1,9 @@
 import { Clock, MoonFill, MoonStarsFill, SunFill } from "react-bootstrap-icons";
 
-import type { ScheduledTaskPreferredTime, ScheduledTaskPriority, ScheduledTaskStatus } from "@/api/types";
+import type { DateFormat, ScheduledTaskPreferredTime, ScheduledTaskStatus, TimeFormat } from "@/api/types";
+import { formatDisplayDate, formatDisplayDateShort, formatTime } from "@/services/date.service";
 
-export const PRIORITY_COLOR: Record<ScheduledTaskPriority, string> = {
-    highest: "var(--bs-danger)",
-    high: "var(--bs-orange, #f97316)",
-    medium: "var(--jv-brand-1)",
-    low: "var(--bs-info)",
-    lowest: "var(--jv-muted)",
-};
+export { PRIORITY_COLOR, PRIORITY_LABEL } from "@/constant/priority";
 
 export const STATUS_LABEL: Record<ScheduledTaskStatus, string> = {
     upcoming:  "Upcoming",
@@ -17,22 +12,22 @@ export const STATUS_LABEL: Record<ScheduledTaskStatus, string> = {
     missed:    "Missed",
 };
 
-export const PRIORITY_LABEL: Record<ScheduledTaskPriority, string> = {
-    highest: "Highest",
-    high: "High",
-    medium: "Medium",
-    low: "Low",
-    lowest: "Lowest",
-};
+export function formatDateDisplay(iso: string, format: DateFormat = "dd mmmm yyyy"): string {
+    return formatDisplayDate(iso, format);
+}
+export function formatDateDisplayYearly(iso: string, format: DateFormat = "dd mmmm yyyy"): string {
+    return formatDisplayDateShort(iso, format);
+}
 
-const MONTH_NAMES = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December",
-];
-
-export function formatDateDisplay(iso: string): string {
-    const [y, m, d] = iso.split("-").map(Number);
-    return `${String(d).padStart(2, "0")} ${MONTH_NAMES[m - 1]} ${y}`;
+export function formatDateRange(startIso: string, endIso: string): string {
+    const fmt = (iso: string) => {
+        const dt = new Date(iso + "T00:00:00");
+        const dd = String(dt.getDate()).padStart(2, "0");
+        const mmm = dt.toLocaleString("en-US", { month: "short" });
+        const yy = String(dt.getFullYear()).slice(2);
+        return `${dd} ${mmm} ${yy}`;
+    };
+    return `${fmt(startIso)} – ${fmt(endIso)}`;
 }
 
 const PREFERRED_TIME_LABEL: Partial<Record<ScheduledTaskPreferredTime, string>> = {
@@ -45,15 +40,12 @@ const PREFERRED_TIME_LABEL: Partial<Record<ScheduledTaskPreferredTime, string>> 
 export function formatTimeDisplay(
     preferredTime: ScheduledTaskPreferredTime,
     specificTime: string | null,
+    format: TimeFormat = "12h",
 ): string | null {
     if (preferredTime === "flexible") return null;
     if (preferredTime === "custom") {
         if (!specificTime) return null;
-        const [hh, mm] = specificTime.split(":");
-        const h24 = parseInt(hh, 10);
-        const ampm = h24 < 12 ? "AM" : "PM";
-        const h12 = h24 === 0 ? 12 : h24 > 12 ? h24 - 12 : h24;
-        return `${h12}:${mm} ${ampm}`;
+        return formatTime(specificTime, format);
     }
     return PREFERRED_TIME_LABEL[preferredTime] ?? null;
 }

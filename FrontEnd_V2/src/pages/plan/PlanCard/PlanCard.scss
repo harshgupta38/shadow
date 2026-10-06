@@ -25,6 +25,14 @@
     pointer-events: none;
     will-change: transform, opacity;
   }
+
+  &--skipped {
+    opacity: 0.7;
+    .plan-card-title {
+      color: var(--jv-muted);
+      text-decoration: line-through;
+    }
+  }
 }
 
 @keyframes plan-card-complete {
@@ -196,6 +204,8 @@
   line-height: 1;
   white-space: nowrap;
 
+  &--clickable { cursor: pointer; }
+
   // source type
   &--type-habit     { background: var(--jv-brand-soft);                                  color: var(--jv-brand-1); }
   &--type-task      { background: var(--jv-info-soft);                                   color: var(--jv-info);    }
@@ -240,6 +250,28 @@
       color: var(--jv-text);
       border-color: var(--jv-text);
     }
+  }
+
+  // skip action
+  &--skip {
+    background: transparent;
+    color: var(--jv-muted);
+    border: 1px dashed var(--jv-border-strong);
+    flex-shrink: 0;
+    transition: border-color var(--jv-transition), color var(--jv-transition);
+
+    &:hover {
+      color: var(--jv-warn);
+      border-color: var(--jv-warn);
+    }
+  }
+
+  // skipped state badge
+  &--skipped {
+    background: color-mix(in srgb, var(--jv-muted) 14%, transparent);
+    color: var(--jv-muted);
+    border: none;
+    flex-shrink: 0;
   }
 }
 
@@ -333,6 +365,33 @@
 
 .plan-card-progress-action-save {
   color: var(--jv-brand-1);
+}
+
+.plan-card-progress-input {
+  width: 68px;
+  height: 24px;
+  font-size: 0.72rem;
+  text-align: center;
+  padding: 0 0.25rem;
+  border: 1px solid var(--jv-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--jv-text);
+
+  &::-webkit-inner-spin-button,
+  &::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+  }
+  -moz-appearance: textfield;
+
+  &:focus {
+    outline: none;
+    border-color: var(--jv-brand-1);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+  }
 }
 
 @media (max-width: 767.98px) {

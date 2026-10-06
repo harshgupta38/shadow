@@ -3,8 +3,9 @@ from datetime import date, datetime, timedelta, timezone
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
+from app.common import to_ist
 from app.core.exceptions import ConflictError, NotFoundError
-from app.services import planner_service
+from app.services import notifications_service, planner_service
 from app.models.chat import MessageDBM
 from app.models.goal import GoalDBM
 from app.models.milestone import MilestoneDBM
@@ -309,12 +310,37 @@ def update_milestone(
                 and (milestone.estimated_duration_days or 0) > 0
             ):
                 milestone.target_date = (
-                    now.date() + timedelta(days=milestone.estimated_duration_days)
+                    to_ist(now).date() + timedelta(days=milestone.estimated_duration_days)
                 )
         elif data.status == "Paused":
             milestone.paused_at = now
         elif data.status == "Completed":
             milestone.completed_at = now
+            # Notification #8 — milestone completed.
+            notifications_service.create_notification(
+                db, current_user,
+                title=f"Milestone completed: {milestone.title}",
+                body=f"Part of goal: {goal.title}" if goal else None,
+                type="achievement",
+                level=notifications_service.LEVEL_ACHIEVEMENT,
+                url="/goals",
+                event_key=f"milestone_done:{milestone.id}",
+            )
+            # Notification #6 — goal completed (all milestones done).
+            if (
+                goal is not None
+                and goal.milestones_total
+                and (goal.milestones_completed or 0) >= goal.milestones_total
+            ):
+                notifications_service.create_notification(
+                    db, current_user,
+                    title=f"Goal achieved: {goal.title} 🎉",
+                    body="All milestones are complete. Outstanding work.",
+                    type="achievement",
+                    level=notifications_service.LEVEL_ACHIEVEMENT,
+                    url="/goals",
+                    event_key=f"goal_done:{goal.id}",
+                )
         elif data.status == "Not Started" and prev_status != "Not Started":
             db.execute(
                 update(TaskDBM)
@@ -343,11 +369,15 @@ def delete_milestone(
     if milestone is None:
         raise NotFoundError("Milestone not found. Please check and try again.")
 
-    goal = db.scalar(select(GoalDBM).where(GoalDBM.id == milestone.goal_id))
+    goal = db.scalar(
+        select(GoalDBM).where(
+            GoalDBM.id == milestone.goal_id,
+            GoalDBM.user_id == current_user.id,
+        )
+    )
 
     task_ids = db.scalars(select(TaskDBM.id).where(TaskDBM.milestone_id == milestone.id)).all()
-    for task_id in task_ids:
-        planner_service.deactivate_plan(db, "task", task_id)
+    planner_service.deactivate_plans(db, "task", list(task_ids))
 
     db.execute(delete(TaskDBM).where(TaskDBM.milestone_id == milestone.id))
 

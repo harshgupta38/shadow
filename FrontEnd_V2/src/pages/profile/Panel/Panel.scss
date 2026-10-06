@@ -1,0 +1,12 @@
+// ─── Panel ──────────────────────────────────────────────────────────────────
+
+.panel-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.25rem 1.35rem;
+}
+
+.panel-card--danger {
+  border-color: color-mix(in srgb, var(--jv-danger) 25%, var(--jv-border));
+}

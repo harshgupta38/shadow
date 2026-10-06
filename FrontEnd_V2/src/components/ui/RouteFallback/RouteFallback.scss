@@ -1,0 +1,86 @@
+.route-fallback {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.1rem;
+    background:
+        radial-gradient(900px 480px at 12% -10%, color-mix(in srgb, var(--jv-brand-1) 12%, transparent), transparent 60%),
+        radial-gradient(800px 420px at 92% 8%, color-mix(in srgb, var(--jv-brand-2) 10%, transparent), transparent 55%),
+        var(--jv-bg);
+
+    &-mark {
+        position: relative;
+        width: 56px;
+        height: 56px;
+        display: grid;
+        place-items: center;
+        border-radius: 16px;
+        color: #fff;
+        background: var(--jv-brand-gradient);
+        box-shadow: 0 12px 30px color-mix(in srgb, var(--jv-brand-1) 45%, transparent);
+        animation: route-fallback-pulse 1.8s var(--jv-ease) infinite;
+    }
+
+    &-ring {
+        position: absolute;
+        inset: -9px;
+        border-radius: 20px;
+        border: 2px solid transparent;
+        border-top-color: var(--jv-brand-1);
+        border-right-color: var(--jv-brand-2);
+        animation: route-fallback-spin 1s linear infinite;
+    }
+
+    &-text {
+        display: flex;
+        align-items: center;
+        margin: 0;
+        color: var(--jv-muted);
+        font-family: var(--jv-font-display);
+        font-weight: 700;
+        font-size: 0.92rem;
+        letter-spacing: 0.01em;
+    }
+
+    &-dots {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        margin-left: 0.35rem;
+
+        i {
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: var(--jv-brand-1);
+            animation: route-fallback-dot 1.2s ease-in-out infinite;
+
+            &:nth-child(2) { animation-delay: 0.15s; }
+            &:nth-child(3) { animation-delay: 0.3s; }
+        }
+    }
+}
+
+@keyframes route-fallback-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.07); }
+}
+
+@keyframes route-fallback-spin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes route-fallback-dot {
+    0%, 80%, 100% { opacity: 0.25; transform: translateY(0); }
+    40% { opacity: 1; transform: translateY(-3px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .route-fallback-mark,
+    .route-fallback-ring,
+    .route-fallback-dots i {
+        animation: none;
+    }
+}

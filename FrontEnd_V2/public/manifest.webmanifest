@@ -1,0 +1,22 @@
+{
+  "name": "Shadow — Your Personal Assistant",
+  "short_name": "Shadow",
+  "description": "Shadow — your calm, always-available personal assistant for life and career goals.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#6d5efc",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}

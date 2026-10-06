@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Dropdown } from "react-bootstrap";
-import { PencilSquare, ThreeDotsVertical, Check2Circle, Trash3, DashLg, PlusLg, Floppy } from "react-bootstrap-icons";
+import { PencilSquare, ThreeDotsVertical, Check2Circle, Trash3, DashLg, PlusLg, Floppy, BarChartLine } from "react-bootstrap-icons";
 import { useNavigate } from "react-router-dom";
 
 import { api, type MilestoneStatus, type TaskDataResponse, type TaskStatus } from "@/api";
@@ -8,6 +8,7 @@ import { ApiError } from "@/api/client";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { checkAndConvertPluralWord } from "@/services/word-plurality.service";
 import { ROUTES } from "@/routes/RoutePaths";
+import { HOLD_REPEAT } from "@/constant/tuning";
 
 import "@/pages/my_goals/MilestoneTasksList/MilestoneTasksList.scss";
 
@@ -161,8 +162,8 @@ export function MilestoneTasksList({ goalId, milestoneId, milestoneStatus, onNee
 		holdTimeoutRef.current = window.setTimeout(() => {
 			holdIntervalRef.current = window.setInterval(() => {
 				changeProgress(task, delta);
-			}, 90);
-		}, 260);
+			}, HOLD_REPEAT.REPEAT_INTERVAL_MS);
+		}, HOLD_REPEAT.INITIAL_DELAY_MS);
 	}
 
 	async function saveProgress(task: TaskDataResponse) {
@@ -301,6 +302,13 @@ export function MilestoneTasksList({ goalId, milestoneId, milestoneStatus, onNee
 												<ThreeDotsVertical size={16} />
 											</Dropdown.Toggle>
 											<Dropdown.Menu>
+												{task.planning_enabled && (
+													<Dropdown.Item onClick={() => navigate(
+														ROUTES.TASK_DETAIL.replace(":taskId", String(task.id))
+													)}>
+														<BarChartLine size={14} className="me-2" /> Overview
+													</Dropdown.Item>
+												)}
 												<Dropdown.Item onClick={() => navigate(
 													ROUTES.MY_GOAL_MILESTONE_TASK_EDIT
 														.replace(":goalId", String(goalId))

@@ -106,6 +106,9 @@ class HabitCreateRequest(BaseModel):
     monthly_count: int | None = Field(default=None, ge=1, le=27)
     specific_days: list[int] | None = None
     day_fallback: bool = False
+    include_in_report: bool = True
+    can_skip: bool = False
+    streak_tolerance_pct: int = Field(default=100, ge=50, le=100)
 
     @field_validator("title", mode="before")
     @classmethod
@@ -164,6 +167,7 @@ class HabitCreateRequest(BaseModel):
         else:
             self.planner_target = None
             self.value_unit = None
+            self.streak_tolerance_pct = 100
 
         return self
 
@@ -189,6 +193,9 @@ class HabitUpdateRequest(BaseModel):
     monthly_count: int | None = Field(default=None, ge=1, le=27)
     specific_days: list[int] | None = None
     day_fallback: bool | None = None
+    include_in_report: bool | None = None
+    can_skip: bool | None = None
+    streak_tolerance_pct: int | None = Field(default=None, ge=50, le=100)
 
     @field_validator("specific_days", mode="before")
     @classmethod
@@ -241,9 +248,7 @@ class GoalSummary(BaseModel):
     category: str | None
 
 
-class HabitDataResponse(BaseModel):
-    model_config = ORMModel.model_config
-
+class HabitDataResponse(ORMModel):
     id: int
     title: str
     note: str | None
@@ -259,10 +264,13 @@ class HabitDataResponse(BaseModel):
     monthly_count: int | None
     specific_days: list[int] | None
     day_fallback: bool
+    include_in_report: bool
+    can_skip: bool
+    streak_tolerance_pct: int
     start_date: date | None
     end_date: date | None
     preferred_time: HabitPreferredTime
-    specific_time: str
+    specific_time: str | None
     duration_minutes: int | None
 
     status: HabitStatus
@@ -274,3 +282,24 @@ class HabitDataResponse(BaseModel):
 
 class SetTrackingRequest(BaseModel):
     enabled_ids: list[int]
+
+
+class HabitHistoryStats(BaseModel):
+    total_records: int
+    total_done: int
+    total_missed: int
+    completion_rate: float  # 0.0 – 1.0
+
+
+class HabitActivityRecord(BaseModel):
+    date: date
+    status: str
+    value: float | None = None
+    planner_target: int | None = None
+    note: str | None = None
+    streak: int = 0
+
+
+class HabitActivityResponse(BaseModel):
+    habit: HabitDataResponse
+    records: list[HabitActivityRecord]

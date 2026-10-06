@@ -93,11 +93,6 @@
     flex: 1;
     min-height: 0;
     overflow: hidden;
-
-    &--compact .schedule-cal-header {
-      padding-top: 0.3rem;
-      padding-bottom: 0.3rem;
-    }
   }
 
   .schedule-cal-header {
@@ -158,6 +153,8 @@
     min-height: 0;
     cursor: pointer;
     transition: background var(--jv-transition);
+    display: flex;
+    flex-direction: column;
 
     &:hover {
       background: color-mix(in srgb, var(--jv-brand-1) 5%, transparent);
@@ -219,10 +216,58 @@
     }
   }
 
+  // Continuation icon strip — sits at the bottom-right of the cell.
+  // direction:rtl keeps icons right-aligned and lets overflow scroll leftward
+  // without hiding the rightmost (most recent) icon first.
+  .schedule-cal-span-strip {
+    display: flex;
+    flex-direction: row;
+    direction: rtl;
+    overflow-x: auto;
+    scrollbar-width: none;
+    gap: 0.15rem;
+    flex-shrink: 0;
+    padding-top: 0.1rem;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+
+  .schedule-cal-span-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    direction: ltr;
+    width: 1.3rem;
+    height: 1.3rem;
+    font-size: 0.8rem;
+    line-height: 1;
+    border-radius: 4px;
+    border: none;
+    padding: 0;
+    flex-shrink: 0;
+    background: transparent;
+    cursor: pointer;
+    transition: background var(--jv-transition);
+
+    &:hover {
+      background: color-mix(in srgb, var(--chip-color, var(--jv-brand-1)) 20%, transparent);
+    }
+
+    &--adjacent {
+      opacity: 0.38;
+      cursor: default;
+      pointer-events: none;
+    }
+  }
+
   .schedule-cal-chips {
     display: flex;
     flex-direction: column;
     gap: 0.18rem;
+    flex: 1;
+    min-height: 0;
   }
 
   .schedule-task-chip {
@@ -247,6 +292,23 @@
     &:hover {
       background: color-mix(in srgb, var(--chip-color, var(--jv-brand-1)) 24%, transparent);
     }
+
+    &--subtask {
+      background: var(--jv-surface-3);
+      color: var(--jv-muted);
+      border-left-color: var(--jv-border-strong);
+
+      &:hover {
+        background: var(--jv-border);
+        color: var(--jv-text);
+      }
+    }
+
+    &--adjacent {
+      opacity: 0.5;
+      cursor: default;
+      pointer-events: none;
+    }
   }
 
   .schedule-cal-overflow {
@@ -254,6 +316,35 @@
     color: var(--jv-muted);
     padding: 0.08rem 0.35rem;
   }
+
+  // ── Card skeleton ─────────────────────────────────────────────────────
+
+  .sch-skel-card { pointer-events: none; }
+
+  .sch-skel {
+    border-radius: 4px;
+    background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--jv-border) 80%, transparent) 25%,
+      color-mix(in srgb, var(--jv-border) 40%, transparent) 50%,
+      color-mix(in srgb, var(--jv-border) 80%, transparent) 75%
+    );
+    background-size: 200% 100%;
+    animation: sch-shimmer 1.5s infinite linear;
+  }
+
+  .sch-skel-title    { height: 0.72rem; width: 62%; margin-top: 1px; }
+  .sch-skel-priority { height: 0.62rem; width: 17%; }
+  .sch-skel-date     { height: 0.6rem;  width: 46%; margin-top: 1px; }
+  .sch-skel-time     { height: 0.6rem;  width: 28%; }
+
+  // Vary widths across cards so the skeleton looks natural
+  .sch-skel-card:nth-child(2) .sch-skel-title { width: 76%; }
+  .sch-skel-card:nth-child(3) .sch-skel-title { width: 52%; }
+  .sch-skel-card:nth-child(4) .sch-skel-title { width: 82%; }
+  .sch-skel-card:nth-child(5) .sch-skel-title { width: 58%; }
+  .sch-skel-card:nth-child(3) .sch-skel-date  { width: 38%; }
+  .sch-skel-card:nth-child(5) .sch-skel-date  { width: 54%; }
 
   // ── Responsive ────────────────────────────────────────────────────────
 
@@ -288,7 +379,11 @@
 
     .schedule-cal-grid {
       overflow: visible;
-      grid-auto-rows: 72px;
     }
   }
+}
+
+@keyframes sch-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
 }

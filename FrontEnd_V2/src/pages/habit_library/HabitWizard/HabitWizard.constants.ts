@@ -17,6 +17,8 @@ export type HabitWizardAnswers = {
     monthlyCount: number;
     specificDays: number[];
     dayFallback: boolean;
+    canSkip: boolean;
+    streakTolerancePct: number; // 50-100, metric only
 
     // Step 3: Habit Timeline
     setStartDate: "yes" | "no";
@@ -28,6 +30,7 @@ export type HabitWizardAnswers = {
     preferredTime: HabitPreferredTime;
     specificTime: string;
     durationMinutes: string;
+    includeInReport: boolean;
     note: string;
     goalId: string; // "" means null
     category: GoalCategory | "";
@@ -68,7 +71,7 @@ export const STEPS: HabitWizardStep[] = [
 ];
 
 
-export function makeEmptyAnswers(): HabitWizardAnswers {
+export function makeEmptyAnswers(defaultDuration = 30): HabitWizardAnswers {
     return {
         title: "",
         plannerType: "simple",
@@ -80,13 +83,16 @@ export function makeEmptyAnswers(): HabitWizardAnswers {
         monthlyCount: 1,
         specificDays: [],
         dayFallback: false,
+        canSkip: false,
+        streakTolerancePct: 100,
         setStartDate: "no",
         startDate: todayIso(),
         setEndDate: false,
         endDate: "",
         preferredTime: "flexible",
         specificTime: "",
-        durationMinutes: "",
+        durationMinutes: String(defaultDuration),
+        includeInReport: true,
         note: "",
         goalId: "",
         category: "",
@@ -171,13 +177,16 @@ export function answersFromHabit(habit: HabitDataResponse): HabitWizardAnswers {
         monthlyCount: habit.monthly_count ?? 1,
         specificDays: habit.specific_days ?? [],
         dayFallback: habit.day_fallback,
+        canSkip: habit.can_skip ?? false,
+        streakTolerancePct: habit.streak_tolerance_pct ?? 100,
         setStartDate: habit.start_date ? "yes" : "no",
-        startDate: habit.start_date ?? new Date().toISOString().slice(0, 10),
+        startDate: habit.start_date ?? todayIso(),
         setEndDate: habit.end_date !== null,
         endDate: habit.end_date ?? "",
         preferredTime: habit.preferred_time ?? "flexible",
         specificTime: habit.specific_time ?? "",
         durationMinutes: habit.duration_minutes !== null ? String(habit.duration_minutes) : "",
+        includeInReport: habit.include_in_report ?? true,
         note: habit.note ?? "",
         goalId: habit.goal?.id != null ? String(habit.goal.id) : "",
         category: (habit.category as GoalCategory | null) ?? "",
@@ -198,6 +207,8 @@ export function answersFromDraft(draft: Partial<HabitCreateRequest>): HabitWizar
         monthlyCount: draft.monthly_count ?? 1,
         specificDays: draft.specific_days ?? [],
         dayFallback: draft.day_fallback ?? false,
+        canSkip: draft.can_skip ?? false,
+        streakTolerancePct: draft.streak_tolerance_pct ?? 100,
         setStartDate: draft.start_date ? "yes" : "no",
         startDate: draft.start_date ?? base.startDate,
         setEndDate: draft.end_date !== null && draft.end_date !== undefined,
@@ -205,6 +216,7 @@ export function answersFromDraft(draft: Partial<HabitCreateRequest>): HabitWizar
         preferredTime: draft.preferred_time ?? "flexible",
         specificTime: draft.specific_time ?? "",
         durationMinutes: draft.duration_minutes != null ? String(draft.duration_minutes) : "",
+        includeInReport: draft.include_in_report ?? true,
         note: draft.note ?? "",
         goalId: draft.goal_id != null ? String(draft.goal_id) : "",
         category: (draft.category as GoalCategory | null | undefined) ?? "",

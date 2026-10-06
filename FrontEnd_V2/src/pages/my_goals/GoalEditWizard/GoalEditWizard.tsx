@@ -5,27 +5,15 @@ import { api } from "@/api";
 import { ApiError } from "@/api/client";
 import type { GoalDataResponse, RefineGoalFromLLMSchema } from "@/api/types";
 import { ThemeToggle } from "@/components/ui/ThemeToggle/ThemeToggle";
-import { GoalWizardReview } from "@/pages/my_goals/GoalCreationWizard/GoalWizardReview";
+import {
+    GoalWizardReview,
+    mapFieldErrorsToReviewErrors,
+    type GoalReviewFieldKey,
+    type GoalReviewFieldErrors,
+} from "@/pages/my_goals/GoalCreationWizard/GoalWizardReview";
 import { GoalWizardVisual } from "@/pages/my_goals/GoalCreationWizard/GoalWizardVisual";
 
 import "@/pages/my_goals/GoalCreationWizard/GoalCreationWizard.scss";
-
-type GoalReviewFieldKey = keyof RefineGoalFromLLMSchema;
-type GoalReviewFieldErrors = Partial<Record<GoalReviewFieldKey, string>>;
-
-const REVIEW_FIELD_KEYS: GoalReviewFieldKey[] = [
-    "title",
-    "summary",
-    "category",
-    "motivation",
-    "success_definition",
-    "current_state",
-    "target_date",
-    "challenges",
-    "strengths",
-    "success_metrics",
-    "insights",
-];
 
 function mapToRefineGoalSchema(goal: GoalDataResponse): RefineGoalFromLLMSchema {
     return {
@@ -41,19 +29,6 @@ function mapToRefineGoalSchema(goal: GoalDataResponse): RefineGoalFromLLMSchema 
         success_metrics: goal.success_metrics,
         insights: goal.insights,
     };
-}
-
-function mapFieldErrorsToReviewErrors(fieldErrors: Partial<Record<string, string>>): GoalReviewFieldErrors {
-    const reviewFieldErrors: GoalReviewFieldErrors = {};
-
-    for (const key of REVIEW_FIELD_KEYS) {
-        const message = fieldErrors[key];
-        if (typeof message === "string" && message.trim().length > 0) {
-            reviewFieldErrors[key] = message;
-        }
-    }
-
-    return reviewFieldErrors;
 }
 
 interface GoalEditWizardProps {

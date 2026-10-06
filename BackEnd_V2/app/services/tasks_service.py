@@ -1,8 +1,9 @@
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
+from app.common import today_ist
 from app.core.exceptions import ConflictError, NotFoundError
 from app.core.exceptions import ValidationError
 from app.models.chat import MessageDBM
@@ -10,7 +11,10 @@ from app.models.milestone import MilestoneDBM
 from app.models.task import TaskDBM
 from app.models.task_proposal import TaskProposalDBM
 from app.models.user import UserDBM
-from app.schemas.tasks import TaskCreateRequest, TaskDataResponse, TaskUpdateRequest, SaveTaskFromProposalRequest
+from app.models.plan import PlanDBM
+from app.models.plan_record import DailyPlanRecordDBM
+from app.models.goal import GoalDBM
+from app.schemas.tasks import TaskActivityRecord, TaskActivityResponse, TaskCreateRequest, TaskDataResponse, TaskUpdateRequest, SaveTaskFromProposalRequest
 from app.services import planner_service
 
 
@@ -140,9 +144,9 @@ def save_task_from_proposal(db: Session, current_user: UserDBM, data: SaveTaskFr
     milestone.total_tasks = (milestone.total_tasks or 0) + 1
     _mark_task_proposal_saved_in_message(db, proposal.message_id, data.proposal_id, task.id)
 
+    planner_service.sync_plan_from_task(db, task, commit=False)
     db.commit()
     db.refresh(task)
-    planner_service.sync_plan_from_task(db, task)
 
     return _serialize_task(task)
 
@@ -183,9 +187,9 @@ def save_task(db: Session, current_user: UserDBM, data: TaskCreateRequest) -> Ta
 
     milestone.total_tasks = (milestone.total_tasks or 0) + 1
 
+    planner_service.sync_plan_from_task(db, task, commit=False)
     db.commit()
     db.refresh(task)
-    planner_service.sync_plan_from_task(db, task)
 
     return _serialize_task(task)
 
@@ -293,7 +297,12 @@ def update_task(
 
     if data.status is not None:
         if data.status == "In Progress":
-            milestone = db.scalar(select(MilestoneDBM).where(MilestoneDBM.id == task.milestone_id))
+            milestone = db.scalar(
+                select(MilestoneDBM).where(
+                    MilestoneDBM.id == task.milestone_id,
+                    MilestoneDBM.user_id == current_user.id,
+                )
+            )
             if milestone is not None and milestone.status == "Not Started":
                 raise ValidationError(
                     "The parent milestone is Not Started. Set the milestone to In Progress before starting this task."
@@ -321,6 +330,9 @@ def update_task(
             if isinstance(data.value_unit, str) and data.value_unit.strip()
             else None
         )
+
+    if "tracking_enabled" in data.model_fields_set and data.tracking_enabled is not None:
+        task.tracking_enabled = data.tracking_enabled
 
     if "planning_enabled" in data.model_fields_set and data.planning_enabled is not None:
         if data.planning_enabled and task.task_type == "Binary":
@@ -373,9 +385,9 @@ def update_task(
     if data.position is not None:
         task.position = data.position
 
+    planner_service.sync_plan_from_task(db, task, commit=False)
     db.commit()
     db.refresh(task)
-    planner_service.sync_plan_from_task(db, task)
 
     return _serialize_task(task)
 
@@ -392,7 +404,12 @@ def delete_task(db: Session, current_user: UserDBM, task_id: int) -> None:
         raise NotFoundError("Task not found. Please check and try again.")
 
     planner_service.deactivate_plan(db, "task", task_id)
-    milestone = db.scalar(select(MilestoneDBM).where(MilestoneDBM.id == task.milestone_id))
+    milestone = db.scalar(
+        select(MilestoneDBM).where(
+            MilestoneDBM.id == task.milestone_id,
+            MilestoneDBM.user_id == current_user.id,
+        )
+    )
 
     db.delete(task)
 
@@ -402,3 +419,79 @@ def delete_task(db: Session, current_user: UserDBM, task_id: int) -> None:
             milestone.completed_tasks = max(0, (milestone.completed_tasks or 1) - 1)
 
     db.commit()
+
+
+def get_task_activity(
+    db: Session,
+    current_user: UserDBM,
+    task_id: int,
+) -> TaskActivityResponse:
+    task = db.scalar(
+        select(TaskDBM).where(TaskDBM.id == task_id, TaskDBM.user_id == current_user.id)
+    )
+    if task is None:
+        raise NotFoundError("Task not found.")
+
+    goal = db.scalar(
+        select(GoalDBM).where(GoalDBM.id == task.goal_id, GoalDBM.user_id == current_user.id)
+    ) if task.goal_id else None
+    task_response = _serialize_task(task)
+
+    plan = db.scalar(
+        select(PlanDBM).where(
+            PlanDBM.source_type == "task",
+            PlanDBM.source_id == task_id,
+            PlanDBM.user_id == current_user.id,
+        )
+    )
+    if plan is None:
+        return TaskActivityResponse(task=task_response, goal_title=goal.title if goal else None, records=[])
+
+    today = today_ist()
+    m = today.month - 11
+    y = today.year
+    if m <= 0:
+        m += 12
+        y -= 1
+    window_start = date(y, m, 1)
+
+    rows = db.execute(
+        select(
+            DailyPlanRecordDBM.scheduled_date,
+            DailyPlanRecordDBM.status,
+            DailyPlanRecordDBM.actual_value,
+            DailyPlanRecordDBM.planner_target,
+            DailyPlanRecordDBM.note,
+        ).where(
+            DailyPlanRecordDBM.plan_id == plan.id,
+            DailyPlanRecordDBM.user_id == current_user.id,
+            DailyPlanRecordDBM.scheduled_date >= window_start,
+        )
+        .order_by(DailyPlanRecordDBM.scheduled_date.desc())
+    ).all()
+
+    rows_asc = sorted(rows, key=lambda r: r.scheduled_date)
+    running = 0
+    streak_map: dict = {}
+    for r in rows_asc:
+        if r.status == "done":
+            running += 1
+        elif r.status == "missed":
+            running = 0
+        streak_map[r.scheduled_date] = running
+
+    return TaskActivityResponse(
+        task=task_response,
+        goal_title=goal.title if goal else None,
+        records=[
+            TaskActivityRecord(
+                date=r.scheduled_date,
+                status=r.status,
+                value=r.actual_value,
+                planner_target=r.planner_target,
+                note=r.note or None,
+                streak=streak_map[r.scheduled_date],
+            )
+            for r in rows
+        ],
+    )

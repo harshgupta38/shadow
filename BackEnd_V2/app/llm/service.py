@@ -1,3 +1,4 @@
+from datetime import date
 from functools import lru_cache
 from typing import Callable
 
@@ -14,6 +15,12 @@ from app.llm.models import (
     MessageFromLLM,
     ConversationContextToLLM,
     ConversationContextFromLLM,
+    ExtractUserMemoryToLLM,
+    ExtractUserMemoryFromLLM,
+    GenerateReportToLLM,
+    GenerateReportFromLLM,
+    GenerateBriefToLLM,
+    GenerateBriefFromLLM,
 )
 from app.llm.base import BaseLLMProvider
 from app.llm.config import LLMSettings, llm_settings
@@ -110,6 +117,10 @@ class LLMService:
         goal_id: int | None = None,
         milestone_id: int | None = None,
         tool_executor: Callable[[str, dict], dict] | None = None,
+        user_memory: str = "",
+        response_length: str = "balanced",
+        personality: str = "coach",
+        model: str | None = None,
     ) -> NewConvoFromLLM:
         request = NewConvoToLLM(
             request_data=data,
@@ -117,6 +128,10 @@ class LLMService:
             goal_id=goal_id,
             milestone_id=milestone_id,
             tool_executor=tool_executor,
+            user_memory=user_memory,
+            response_length=response_length,
+            personality=personality,
+            model=model,
         )
         response = await self._provider.create_conversation(request)
 
@@ -136,6 +151,10 @@ class LLMService:
         goal_id: int | None = None,
         milestone_id: int | None = None,
         tool_executor: Callable[[str, dict], dict] | None = None,
+        user_memory: str = "",
+        response_length: str = "balanced",
+        personality: str = "coach",
+        model: str | None = None,
     ) -> MessageFromLLM:
         request = MessageToLLM(
             request_data=data.content,
@@ -147,11 +166,39 @@ class LLMService:
             context_summary=context_summary,
             recent_messages=recent_messages,
             tool_executor=tool_executor,
+            user_memory=user_memory,
+            response_length=response_length,
+            personality=personality,
+            model=model,
         )
         response = await self._provider.respond_to_message(request)
-        
+
         if response is None or response.llm_data is None:
             raise LLMConfigurationError("LLM provider returned no message data.")
+
+        return response
+
+    async def extract_user_memory(
+        self,
+        user_id: int,
+        agent_type: str,
+        stable_context: str,
+        context_summary: str,
+        messages: list[dict[str, str]],
+        existing_memories: list[dict],
+    ) -> ExtractUserMemoryFromLLM:
+        request = ExtractUserMemoryToLLM(
+            user_id=user_id,
+            agent_type=agent_type,
+            stable_context=stable_context,
+            context_summary=context_summary,
+            messages=messages,
+            existing_memories=existing_memories,
+        )
+        response = await self._provider.extract_user_memory(request)
+
+        if response is None or response.llm_data is None:
+            raise LLMConfigurationError("LLM provider returned no memory extraction data.")
 
         return response
 
@@ -179,8 +226,58 @@ class LLMService:
 
         return response
 
-    async def health_check(self) -> bool:
-        return await self._provider.health_check()
+    async def generate_report(
+        self,
+        user_id: int,
+        report_date: str,
+        report_type: str,
+        day_data: dict,
+        model: str | None = None,
+    ) -> GenerateReportFromLLM:
+        request = GenerateReportToLLM(
+            user_id=user_id,
+            report_date=report_date,
+            report_type=report_type,
+            day_data=day_data,
+            model=model,
+        )
+        try:
+            response = await self._provider.generate_report(request)
+        except NotImplementedError:
+            raise LLMConfigurationError("AI report generation is not supported by the configured LLM provider.")
+        if response is None or response.report_data is None:
+            raise LLMConfigurationError("LLM provider returned no report data.")
+        return response
+
+    async def generate_daily_brief(
+        self,
+        user_id: int,
+        first_name: str,
+        today: date,
+        context: dict,
+        model: str | None = None,
+        include_spoken_brief: bool = True,
+    ) -> GenerateBriefFromLLM:
+        request = GenerateBriefToLLM(
+            user_id=user_id,
+            first_name=first_name,
+            today=today,
+            context=context,
+            model=model,
+            include_spoken_brief=include_spoken_brief,
+        )
+        try:
+            response = await self._provider.generate_daily_brief(request)
+        except NotImplementedError:
+            raise LLMConfigurationError(
+                "Daily brief generation is not supported by the configured LLM provider."
+            )
+        if response is None or response.brief_data is None:
+            raise LLMConfigurationError("LLM provider returned no daily brief data.")
+        return response
+
+    async def health_check(self, model: str | None = None) -> bool:
+        return await self._provider.health_check(model=model)
 
     async def close(self) -> None:
         await self._provider.close()
@@ -189,3 +286,45 @@ class LLMService:
 @lru_cache(maxsize=1)
 def get_llm_service() -> LLMService:
     return LLMService()
+
+
+_USER_PROVIDER_MAP: dict[str, type[BaseLLMProvider]] = {
+    LLMProvider.OPENAI: OpenAIProvider,
+    LLMProvider.GEMINI: GeminiProvider,
+    LLMProvider.CLAUDE: ClaudeProvider,
+}
+
+if llm_settings.show_local_provider:
+    _USER_PROVIDER_MAP[LLMProvider.OLLAMA] = OllamaProvider
+
+
+@lru_cache(maxsize=4)
+def get_llm_service_for_user(provider_key: str) -> LLMService:
+    """Returns a cached LLMService for the given provider key.
+    Falls back to the env-default service for unknown or unsupported keys."""
+    provider_cls = _USER_PROVIDER_MAP.get(provider_key)
+    if provider_cls is None:
+        return get_llm_service()
+    return LLMService(provider=provider_cls(settings=llm_settings))
+
+
+_CUSTOM_KEY_FIELD: dict[str, str] = {
+    LLMProvider.OPENAI: "openai_api_key",
+    LLMProvider.GEMINI: "gemini_api_key",
+    LLMProvider.CLAUDE: "claude_api_key",
+    LLMProvider.OLLAMA: "ollama_api_key",
+}
+
+
+def get_llm_service_for_ai_behavior(ai_behavior: dict) -> LLMService:
+    """Returns an LLMService honoring the user's configured provider, and their
+    custom API key when enabled — otherwise falls back to the cached
+    provider-keyed service (env-configured credentials)."""
+    provider = ai_behavior.get("ai_provider", "openai")
+    if ai_behavior.get("custom_api_key_enabled") and ai_behavior.get("custom_api_key"):
+        provider_cls = _USER_PROVIDER_MAP.get(provider)
+        key_field = _CUSTOM_KEY_FIELD.get(provider)
+        if provider_cls and key_field:
+            overridden = llm_settings.model_copy(update={key_field: ai_behavior["custom_api_key"]})
+            return LLMService(provider=provider_cls(settings=overridden))
+    return get_llm_service_for_user(provider)

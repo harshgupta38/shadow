@@ -1,27 +1,25 @@
 from contextlib import asynccontextmanager
 
 import asyncio
-import json
-import subprocess
+import logging
 
-from fastapi import FastAPI, Header, HTTPException, Request # header and http exception is extra
+from typing import Callable
+
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from fastapi.exceptions import RequestValidationError
-from pydantic import BaseModel # extra
 
 from app.api.router import api_router
+from app.api.system import router as system_router
+from app.api.shortcuts import router as shortcuts_router
 from app.core.config import settings
 
 from app.db.session import SessionLocal, engine
 from app.models.base import Base
-from app.core.exceptions import AppError
+from app.core.exceptions import AppError, TooManyRequestsError
 
-from pathlib import Path
-from fastapi import HTTPException
-from fastapi.responses import PlainTextResponse
-
-# These will be moved soon, these create the table (if not present) when server start
+# These create the tables (if not present) when the server starts
 from app.models.user import UserDBM
 from app.models.goal import GoalDBM
 from app.models.goal_proposal import GoalProposalDBM
@@ -31,23 +29,61 @@ from app.models.task import TaskDBM
 from app.models.habit import HabitDBM
 from app.models.plan import PlanDBM
 from app.models.plan_record import DailyPlanRecordDBM
+from app.models.yearly_task import YearlyTaskDBM
 from app.models.schedule_task import ScheduledTaskDBM
-from app.services import planner_service, backup_service
+from app.models.scheduled_task_proposal import ScheduledTaskProposalDBM
+from app.models.memory import UserMemoryDBM
+from app.models.report import ReportDBM
+from app.models.notification import NotificationDBM
+from app.models.daily_brief import DailyBriefDBM
+from app.models.daily_brief_audio import DailyBriefAudioDBM
+from app.models.push_subscription import PushSubscriptionDBM
+from app.models.user_setting import UserSettingDBM
+from app.models.active_session import ActiveSessionDBM
+from app.models.ip_rate_limit import IpRateLimitDBM
+from app.models.daily_usage import DailyUsageDBM
+from app.models.scheduled_task_subtask import ScheduledTaskSubtaskDBM
+from app.models.journal import JournalEntryDBM
+from app.models.data_version import DataVersionDBM
+from app.services import planner_service, backup_service, notification_scheduler_service, report_scheduler_service, session_event_service
+from app.api.notifications import reset_shutdown as _reset_sse_shutdown
+from app.api.notifications import signal_shutdown as _signal_sse_shutdown
+
+
+_startup_logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    if not settings.smtp_host or not settings.smtp_from_email:
+        _startup_logger.warning(
+            "SMTP is not configured (SMTP_HOST / SMTP_FROM_EMAIL missing). "
+            "Email notifications are disabled until these are set in the environment."
+        )
     Base.metadata.create_all(bind=engine)
+    # Add columns that didn't exist when the DB was first created.
+    from sqlalchemy import text as _sql_text  # pyright: ignore[reportMissingImports]
+    with engine.connect() as _conn:
+        _cols = {row[1] for row in _conn.execute(_sql_text("PRAGMA table_info(habits)")).fetchall()}
+        if "streak_tolerance_pct" not in _cols:
+            _conn.execute(_sql_text("ALTER TABLE habits ADD COLUMN streak_tolerance_pct INTEGER NOT NULL DEFAULT 100"))
+            _conn.commit()
     with SessionLocal() as db:
         planner_service.sync_all_plans(db)
 
-    scheduler = asyncio.create_task(backup_service.backup_scheduler_loop())
+    session_event_service.set_event_loop(asyncio.get_running_loop())
+    _reset_sse_shutdown()
+    backup_sched = asyncio.create_task(backup_service.backup_scheduler_loop())
+    report_sched = asyncio.create_task(report_scheduler_service.report_scheduler_loop())
+    notif_sched = asyncio.create_task(notification_scheduler_service.notification_scheduler_loop())
     yield
-    scheduler.cancel()
-    try:
-        await scheduler
-    except asyncio.CancelledError:
-        pass
+    _signal_sse_shutdown()
+    for task in (backup_sched, report_sched, notif_sched):
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
 
 
 app = FastAPI(
@@ -64,7 +100,30 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    max_age=30,
 )
+
+
+@app.middleware("http")
+async def csrf_origin_check(request: Request, call_next: Callable) -> Response:
+    """Rejects state-changing requests whose Origin header is not in the allowed list.
+    GET/HEAD/OPTIONS are exempt (read-only or preflight — CORS handles those).
+    Requests with no Origin header (curl, mobile, server-to-server) pass through.
+    """
+    if request.method not in ("GET", "HEAD", "OPTIONS"):
+        origin = request.headers.get("origin")
+        if origin is not None and origin not in settings.cors_origins_list:
+            return JSONResponse(
+                status_code=403,
+                content={"message": "Request origin not permitted."},
+            )
+    return await call_next(request)
+
+
+@app.exception_handler(TooManyRequestsError)
+async def handle_too_many_requests(_request: Request, exc: TooManyRequestsError) -> JSONResponse:
+    headers = {"Retry-After": str(exc.retry_after)} if exc.retry_after is not None else {}
+    return JSONResponse(status_code=429, content={"message": exc.detail}, headers=headers)
 
 
 @app.exception_handler(AppError)
@@ -102,124 +161,6 @@ async def handle_validation_error(
     )
 
 
-@app.get("/", tags=["health"])
-def root() -> dict:
-    return {"name": settings.app_name, "version": settings.app_version, "status": "ok"}
-
-
-def get_battery():
-    try:
-        data = subprocess.check_output(["termux-battery-status"])
-        battery = json.loads(data)
-
-        health = battery.get("health", "Unknown").replace("_", " ").title()
-        battery_percent = battery.get("percentage", "Unknown")
-        charging_status = battery.get("status", "Unknown").replace("_", " ").title()
-        if battery.get("plugged") == "UNPLUGGED":
-            charging_status = "Not Charging"
-        temperature = battery.get("temperature", "Unknown")
-        power = battery.get("current", "Unknown")
-
-        if temperature != "Unknown":
-            if temperature < 35:
-                temperature_status = "Excellent"
-            elif 35 <= temperature <= 40:
-                temperature_status = "Normal"
-            elif 40 < temperature <= 43:
-                temperature_status = "Warm"
-            elif 43 < temperature <= 45:
-                temperature_status = "Hot"
-            else:
-                temperature_status = "Too Hot"
-            temperature = f"{temperature_status} ({temperature}°C)"
-
-        if power != "Unknown":
-            power = power // 1000
-            if power <= 400:
-                power_status = "Idle power"
-            elif 400 < power <= 800:
-                power_status = "Light server workload"
-            elif 800 < power <= 1200:
-                power_status = "Heavy server workload"
-            else:
-                power_status = "Critical server workload"
-            power_status = f"{power_status} ({power} mA)"
-        else:
-            power_status = "Unknown"
-
-        return (
-            f"We are currently {charging_status.lower()} with {battery_percent}% battery, "
-            f"and temperature is {temperature} with {health} battery health on {power_status}."
-        )
-
-    except Exception as e:
-        return "Unknown"
-
-
-@app.get("/health", tags=["health"])
-async def health() -> dict:
-
-    message = "Shadow is up and running."
-
-    battery = get_battery()
-    if battery != "Unknown":
-        message = message + " " + battery
-
-    return {
-        "status": "ok",
-        "message": message,
-    }
-
-
-@app.get(
-    "/server/log",
-    tags=["admin"],
-    response_class=PlainTextResponse,
-)
-async def get_server_log():
-    log_file = Path("server.log")
-
-    if not log_file.exists():
-        raise HTTPException(
-            status_code=404,
-            detail="server.log not found.",
-        )
-
-    return log_file.read_text(encoding="utf-8")
-
-
-_ADMIN_SECRET = "shadow-admin-2026" # extra
-
-
-class SqlRequest(BaseModel): # extra
-    query: str
-
-
-@app.post("/admin/sql", tags=["admin"]) # extra
-def run_sql(body: SqlRequest, x_admin_secret: str = Header(...)):
-    if x_admin_secret != _ADMIN_SECRET:
-        raise HTTPException(status_code=403, detail="Forbidden.")
-
-    import sqlite3
-    db_path = "shadow.db"
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    cur = conn.cursor()
-    try:
-        cur.execute(body.query)
-        conn.commit()
-        rows = cur.fetchall()
-        columns = [d[0] for d in cur.description] if cur.description else []
-        return {
-            "rowcount": cur.rowcount,
-            "columns": columns,
-            "rows": [dict(r) for r in rows],
-        }
-    except Exception as e:
-        conn.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
-    finally:
-        conn.close()
-
-
+app.include_router(system_router)
+app.include_router(shortcuts_router)
 app.include_router(api_router, prefix=settings.api_prefix)

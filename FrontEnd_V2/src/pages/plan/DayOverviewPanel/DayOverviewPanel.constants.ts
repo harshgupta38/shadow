@@ -1,4 +1,5 @@
-import type { PlanDataResponse, PlanPreferredTime, PlanPriority } from "@/api";
+import type { PlanDataResponse, PlanPreferredTime, PlanPriority, TimeFormat } from "@/api";
+import { formatTime } from "@/services/date.service";
 
 export const PRIORITY_ORDER: Record<PlanPriority, number> = {
   highest: 0, high: 1, medium: 2, low: 3, lowest: 4,
@@ -14,8 +15,8 @@ export function activeItems(items: PlanDataResponse[]) {
   );
 }
 
-export function nextUpTimeLabel(item: PlanDataResponse): string {
-  if (item.preferred_time === "custom" && item.specific_time) return item.specific_time;
+export function nextUpTimeLabel(item: PlanDataResponse, format: TimeFormat = "12h"): string {
+  if (item.preferred_time === "custom" && item.specific_time) return formatTime(item.specific_time, format);
   return item.preferred_time.charAt(0).toUpperCase() + item.preferred_time.slice(1);
 }
 

@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import date
 from typing import Callable
 
 from pydantic import BaseModel, Field
@@ -14,6 +15,9 @@ from app.schemas.chat import (
     NewConvoRequest,
     NewConvoFromLLMSchema,
 )
+from app.schemas.memory import MemoryExtractionFromLLMSchema
+from app.schemas.daily_report import GenerateReportSchema
+from app.schemas.daily_brief import DailyBriefSchema, DailyBriefSchemaNoAudio
 
 
 @dataclass(frozen=True)
@@ -88,6 +92,9 @@ class TaskProposalsFromLLM(MetadataFromLLM):
 # --- CHAT - Start Conversation ---
 class NewConvoToLLM(MetadataToLLM):
     request_data: NewConvoRequest
+    user_memory: str = ""
+    response_length: str = "balanced"
+    personality: str = "coach"
 
 
 class NewConvoFromLLM(MetadataFromLLM):
@@ -117,6 +124,11 @@ class MessageToLLM(MetadataToLLM):
     stable_context: str
     context_summary: str
     recent_messages: list[dict[str, str]]
+    # Formatted user memory block injected from previous conversations.
+    # Empty string means no memory is available.
+    user_memory: str = ""
+    response_length: str = "balanced"
+    personality: str = "coach"
 
 
 class MessageFromLLM(MetadataFromLLM):
@@ -125,3 +137,41 @@ class MessageFromLLM(MetadataFromLLM):
 
 class MessageResponse(MetadataFromLLM):
     message_data: MessageDataResponse
+
+
+# --- USER MEMORY EXTRACTION ---
+class ExtractUserMemoryToLLM(MetadataToLLM):
+    agent_type: str
+    stable_context: str
+    context_summary: str
+    messages: list[dict[str, str]]
+    existing_memories: list[dict]
+
+
+class ExtractUserMemoryFromLLM(MetadataFromLLM):
+    llm_data: MemoryExtractionFromLLMSchema
+
+
+# --- GENERATE REPORT ---
+class GenerateReportToLLM(MetadataToLLM):
+    report_date: str
+    report_type: str
+    day_data: dict
+
+
+class GenerateReportFromLLM(MetadataFromLLM):
+    report_data: GenerateReportSchema
+
+
+# --- GENERATE DAILY BRIEF ---
+class GenerateBriefToLLM(MetadataToLLM):
+    first_name: str
+    today: date
+    context: dict
+    # False when the user's audio/caption feature is disabled — the provider then
+    # skips asking the model for spoken_brief entirely (saves output tokens).
+    include_spoken_brief: bool = True
+
+
+class GenerateBriefFromLLM(MetadataFromLLM):
+    brief_data: DailyBriefSchema | DailyBriefSchemaNoAudio

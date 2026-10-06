@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 
+import { ANIMATION } from "@/constant/tuning";
+
 import "./AssistantThinkingIndicator.scss";
 
 // const PHRASES = [
@@ -35,8 +37,8 @@ export function AssistantThinkingIndicator() {
       setTimeout(() => {
         setIndex(i => (i + 1) % PHRASES.length);
         setVisible(true);
-      }, 280);
-    }, 2600);
+      }, ANIMATION.THINKING_PHRASE_FADE_MS);
+    }, ANIMATION.THINKING_PHRASE_ROTATE_MS);
     return () => clearInterval(id);
   }, []);
 

@@ -1,43 +1,32 @@
 import asyncio
 import logging
-import os
 import sqlite3
-from datetime import date, datetime
+from datetime import date, timedelta
 from pathlib import Path
-from typing import IO
 
+from sqlalchemy import delete
+
+from app.common import now_ist
+from app.common.proc_lock import acquire_singleton_lock
 from app.core.config import settings
+from app.db.session import SessionLocal
+from app.models.notification import NotificationDBM
 
 log = logging.getLogger("uvicorn.error")
 
-_LOCK_FILE = Path(".backup_scheduler.lock")
-_lock_fh: IO | None = None  # kept open for the lifetime of the process
+_BACKUP_GLOB = "shadow-*.db"
+
+# Excluded from every backup: large, cheaply-regenerable-on-request data (TTS audio
+# blobs) isn't worth carrying in every snapshot — losing it just means a user's
+# next "Listen" click re-generates it for a few cents.
+_EXCLUDED_TABLES = ("daily_brief_audio",)
 
 
-def _acquire_lock() -> bool:
-    """Try to become the one scheduler process. Returns True if lock acquired.
-
-    Uses an OS-level exclusive flock on Linux/Android so the lock is
-    automatically released if the process dies — no stale lock files.
-    On Windows (local dev, always single-worker) fcntl is unavailable so
-    we skip locking — ImportError is the cross-platform signal.
-    """
-    global _lock_fh
-
-    try:
-        import fcntl
-    except ImportError:
-        return True  # Windows — single worker assumed, no lock needed
-
-    try:
-        fh = open(_LOCK_FILE, "w")
-        fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        fh.write(str(os.getpid()))
-        fh.flush()
-        _lock_fh = fh  # hold open — OS releases lock when this process exits
-        return True
-    except OSError:
-        return False
+def _strip_excluded_tables(conn: sqlite3.Connection) -> None:
+    for table in _EXCLUDED_TABLES:
+        conn.execute(f"DELETE FROM {table}")
+    conn.commit()
+    conn.execute("VACUUM")  # reclaim the space — DELETE alone doesn't shrink the file
 
 
 def _sqlite_db_path() -> Path | None:
@@ -58,9 +47,9 @@ def create_backup() -> Path | None:
     backup_dir = Path(settings.db_backup_dir)
     backup_dir.mkdir(parents=True, exist_ok=True)
 
-    now = datetime.now()
+    now = now_ist()
     ms = now.microsecond // 1000
-    dest = backup_dir / f"shadow-{now.strftime('%d%m%Y-%H%M%S')}{ms:03d}.db"
+    dest = backup_dir / f"shadow-{now.strftime('%Y%m%d-%H%M%S')}{ms:03d}.db"
 
     if not src.exists():
         log.error("DB backup skipped: database file not found at %s", src)
@@ -71,6 +60,7 @@ def create_backup() -> Path | None:
         dst_conn = sqlite3.connect(str(dest))
         try:
             src_conn.backup(dst_conn)
+            _strip_excluded_tables(dst_conn)
         except Exception:
             dst_conn.close()
             dest.unlink(missing_ok=True)
@@ -86,13 +76,24 @@ def create_backup() -> Path | None:
 
 def _enforce_limit(backup_dir: Path) -> None:
     backups = sorted(
-        backup_dir.glob("shadow-*.db"),
+        backup_dir.glob(_BACKUP_GLOB),
         key=lambda p: p.stat().st_mtime,
     )
     while len(backups) > settings.db_backup_limit:
         oldest = backups.pop(0)
         oldest.unlink()
         log.info("DB backup limit reached — deleted oldest: %s", oldest.name)
+
+
+def purge_old_notifications() -> None:
+    cutoff = now_ist() - timedelta(days=30)
+    with SessionLocal() as db:
+        result = db.execute(
+            delete(NotificationDBM).where(NotificationDBM.created_at < cutoff)
+        )
+        db.commit()
+    if result.rowcount:
+        log.info("Purged %d notification(s) older than 30 days.", result.rowcount)
 
 
 def _is_valid_slot(slot: str) -> bool:
@@ -122,19 +123,19 @@ async def backup_scheduler_loop() -> None:
         log.warning("DB backup scheduler: no valid slots remain after validation, skipping.")
         return
 
-    if not _acquire_lock():
+    if not acquire_singleton_lock("backup_scheduler"):
         log.info("DB backup scheduler: another worker is already running it, skipping.")
         return
 
     log.info("DB backup scheduler started. Slots: %s", ", ".join(s for s, _ in runtimes))
 
     triggered_today: set[str] = set()
-    last_date: date = datetime.now().date()
+    last_date: date = now_ist().date()
 
     while True:
         await asyncio.sleep(30)
 
-        now = datetime.now()
+        now = now_ist()
         today = now.date()
 
         # Reset at midnight so each slot fires once per day.
@@ -150,3 +151,8 @@ async def backup_scheduler_loop() -> None:
                     create_backup()
                 except Exception:
                     log.exception("DB backup failed for slot %s", slot)
+                else:
+                    try:
+                        purge_old_notifications()
+                    except Exception:
+                        log.exception("Notification purge failed for slot %s", slot)

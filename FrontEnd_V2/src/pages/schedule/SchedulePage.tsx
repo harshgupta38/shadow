@@ -1,70 +1,120 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useWeekStart } from "@/context/PlannerContext";
+import { weekDayLabels } from "@/utils/weekUtils";
 import { CalendarWeek, ChevronDoubleLeft, ChevronDoubleRight, ChevronLeft, ChevronRight, PlusLg } from "react-bootstrap-icons";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import { api } from "@/api";
-import type { ScheduledTaskDataResponse, ScheduledTaskPreferredTime, ScheduledTaskPriority, ScheduledTaskStatus } from "@/api/types";
+import type { ScheduledTaskDataResponse, ScheduledTaskPreferredTime, ScheduledTaskPriority, ScheduledTaskStatus, SubtaskResponse } from "@/api/types";
 import {
     buildCalendarCells,
     DEFAULT_FILTERS,
     MONTH_NAMES,
-    DAY_NAMES,
     PRIORITY_FILTER_OPTIONS,
     STATUS_FILTER_OPTIONS,
     TIME_FILTER_OPTIONS,
 } from "@/pages/schedule/SchedulePage.constants";
 import type { ScheduleFilterState } from "@/pages/schedule/SchedulePage.constants";
 import { FilterDropdown } from "@/components/ui/FilterDropdown/FilterDropdown";
-import { ScheduleTaskDetail } from "@/pages/schedule/ScheduleTaskDetail/ScheduleTaskDetail";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { useToast } from "@/context/ToastContext";
+import { PAGE_SIZE } from "@/constant/tuning";
 import { ROUTES } from "@/routes/RoutePaths";
 import { todayIso } from "@/services/date.service";
+import { useMonthParam } from "@/hooks/useUrlAnchor";
+import { useWakeRefresh } from "@/hooks/useWakeRefresh";
 import { ScheduleCard } from "@/pages/schedule/ScheduleCard/ScheduleCard";
 import { PRIORITY_COLOR } from "@/pages/schedule/ScheduleCard/ScheduleCard.constants";
+import { ScheduleTaskDetailPanel } from "@/pages/schedule/ScheduleTaskDetailPanel/ScheduleTaskDetailPanel";
+import { CATEGORY_ICONS } from "@/pages/schedule/ScheduleWizard/ScheduleWizard.constants";
 
 import "@/pages/schedule/SchedulePage.scss";
+
+// ── Skeleton ─────────────────────────────────────────────────────────────────
+
+function ScheduleCardSkeleton() {
+    return (
+        <div className="schedule-task-card sch-skel-card" aria-hidden="true">
+            <div className="schedule-task-body">
+                <div className="schedule-task-title-row">
+                    <div className="sch-skel sch-skel-title" />
+                    <div className="sch-skel sch-skel-priority" />
+                </div>
+                <div className="schedule-task-meta mt-2">
+                    <div className="sch-skel sch-skel-date" />
+                    <div className="sch-skel sch-skel-time" />
+                </div>
+                <div className="sch-skel sch-skel-date mt-2 w-75"></div>
+            </div>
+        </div>
+    );
+}
+
+// Returns every date from startIso+1 day through endIso (the day-2…end span of a long-term task).
+// Uses local date getters, not toISOString(), to stay correct in non-UTC timezones (e.g. IST).
+function getDatesInRange(startIso: string, endIso: string): string[] {
+    const dates: string[] = [];
+    const end = new Date(endIso + "T00:00:00");
+    const cur = new Date(startIso + "T00:00:00");
+    cur.setDate(cur.getDate() + 1);
+    while (cur <= end) {
+        dates.push(
+            `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, "0")}-${String(cur.getDate()).padStart(2, "0")}`,
+        );
+        cur.setDate(cur.getDate() + 1);
+    }
+    return dates;
+}
 
 // ── Component ────────────────────────────────────────────────────────────────
 
 export function SchedulePage() {
     const navigate = useNavigate();
+    const location = useLocation();
     const toast = useToast();
 
     const [loading, setLoading] = useState(true);
     const [tasks, setTasks] = useState<ScheduledTaskDataResponse[]>([]);
+    const [adjacentTasks, setAdjacentTasks] = useState<ScheduledTaskDataResponse[]>([]);
+    const [selectedTask, setSelectedTask] = useState<ScheduledTaskDataResponse | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<ScheduledTaskDataResponse | null>(null);
     const [deleting, setDeleting] = useState(false);
     const [filters, setFilters] = useState<ScheduleFilterState>(DEFAULT_FILTERS);
-    const [selectedTask, setSelectedTask] = useState<ScheduledTaskDataResponse | null>(null);
-    const [calYear, setCalYear] = useState(() => {
-        const [y] = todayIso().split("-").map(Number);
-        return y;
-    });
-    const [calMonth, setCalMonth] = useState(() => {
-        const [, m] = todayIso().split("-").map(Number);
-        return m - 1;
-    });
+    const { year: calYear, month: calMonth, setMonth: setCalMonth } = useMonthParam();
+    // `location.pathname + location.search` captures the month the user is currently
+    // viewing; handed to the wizard so save/cancel can return to this exact view
+    // instead of always resetting to the current month.
+    const returnPath = `${location.pathname}${location.search}`;
 
-    useEffect(() => {
-        void api.schedule.getScheduleList()
-            .then(setTasks)
+    const loadTasks = useCallback(() => {
+        setLoading(true);
+        setSelectedTask(null);
+        void api.schedule.getScheduleList(calYear, calMonth + 1)
+            .then(res => { setTasks(res.tasks); setAdjacentTasks(res.overflow_tasks); })
             .catch(() => toast.error("Failed to load scheduled tasks."))
             .finally(() => setLoading(false));
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [calYear, calMonth]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    const refreshTasksSilent = useCallback(() => {
+        void api.schedule.getScheduleList(calYear, calMonth + 1)
+            .then(res => { setTasks(res.tasks); setAdjacentTasks(res.overflow_tasks); })
+            .catch(() => {});
+    }, [calYear, calMonth]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    useEffect(() => { loadTasks(); }, [loadTasks]);
+    useWakeRefresh(loadTasks);
 
     function handleDuplicate(task: ScheduledTaskDataResponse) {
-        navigate(ROUTES.SCHEDULE_CREATE, { state: { draft: task } });
+        navigate(ROUTES.SCHEDULE_CREATE, { state: { draft: task, returnPath } });
     }
 
     async function handleDelete() {
         if (!deleteTarget) return;
         setDeleting(true);
         try {
-            await api.schedule.removeScheduleTask(deleteTarget.id);
-            setTasks(prev => prev.filter(t => t.id !== deleteTarget.id));
+            await api.schedule.removeScheduleTask(deleteTarget.id, deleteTarget.repeat_yearly);
+            setTasks(prev => prev.filter(t => !(t.id === deleteTarget.id && t.repeat_yearly === deleteTarget.repeat_yearly)));
             setDeleteTarget(null);
             setSelectedTask(null);
             toast.success("Task deleted.");
@@ -76,6 +126,9 @@ export function SchedulePage() {
     }
 
     const currentTodayIso = todayIso();
+    const todayDate = new Date(currentTodayIso + "T00:00:00");
+    const isCurrentMonth = calYear === todayDate.getFullYear() && calMonth === todayDate.getMonth();
+    function goToToday() { setCalMonth(todayDate.getFullYear(), todayDate.getMonth()); }
 
     const filteredTasks = useMemo(() => tasks.filter(t => {
         if (filters.priority.length     && !filters.priority.includes(t.priority))             return false;
@@ -90,18 +143,73 @@ export function SchedulePage() {
         return acc;
     }, {}), [tasks]);
 
-    const calCells = useMemo(() => buildCalendarCells(calYear, calMonth), [calYear, calMonth]);
+    const adjacentTasksByDate = useMemo(() => adjacentTasks.reduce<Record<string, ScheduledTaskDataResponse[]>>((acc, t) => {
+        (acc[t.scheduled_date] ??= []).push(t);
+        return acc;
+    }, {}), [adjacentTasks]);
+
+    // Maps each subtask_date to the subtasks (with their parent task) for calendar chips
+    const subtasksByDate = useMemo(() => {
+        const map: Record<string, { subtask: SubtaskResponse; parentTask: ScheduledTaskDataResponse }[]> = {};
+        for (const task of tasks) {
+            for (const subtask of task.subtasks ?? []) {
+                (map[subtask.subtask_date] ??= []).push({ subtask, parentTask: task });
+            }
+        }
+        return map;
+    }, [tasks]);
+
+    // Maps each date (start_date → end_date) to the long-term tasks spanning it
+    const longTermSpansByDate = useMemo(() => {
+        const map: Record<string, ScheduledTaskDataResponse[]> = {};
+        for (const task of tasks) {
+            if (task.task_duration === "long" && task.end_date) {
+                // Include the start date so the icon appears on day 1 alongside the chip
+                (map[task.scheduled_date] ??= []).push(task);
+                for (const date of getDatesInRange(task.scheduled_date, task.end_date)) {
+                    (map[date] ??= []).push(task);
+                }
+            }
+        }
+        return map;
+    }, [tasks]);
+
+    const adjacentSubtasksByDate = useMemo(() => {
+        const map: Record<string, { subtask: SubtaskResponse; parentTask: ScheduledTaskDataResponse }[]> = {};
+        for (const task of adjacentTasks) {
+            for (const subtask of task.subtasks ?? []) {
+                (map[subtask.subtask_date] ??= []).push({ subtask, parentTask: task });
+            }
+        }
+        return map;
+    }, [adjacentTasks]);
+
+    const adjacentSpansByDate = useMemo(() => {
+        const map: Record<string, ScheduledTaskDataResponse[]> = {};
+        for (const task of adjacentTasks) {
+            if (task.task_duration === "long" && task.end_date) {
+                (map[task.scheduled_date] ??= []).push(task);
+                for (const date of getDatesInRange(task.scheduled_date, task.end_date)) {
+                    (map[date] ??= []).push(task);
+                }
+            }
+        }
+        return map;
+    }, [adjacentTasks]);
+
+    const weekStart = useWeekStart();
+    const calCells = useMemo(() => buildCalendarCells(calYear, calMonth, weekStart), [calYear, calMonth, weekStart]);
 
     function prevMonth() {
-        if (calMonth === 0) { setCalYear(y => y - 1); setCalMonth(11); }
-        else setCalMonth(m => m - 1);
+        if (calMonth === 0) setCalMonth(calYear - 1, 11);
+        else setCalMonth(calYear, calMonth - 1);
     }
     function nextMonth() {
-        if (calMonth === 11) { setCalYear(y => y + 1); setCalMonth(0); }
-        else setCalMonth(m => m + 1);
+        if (calMonth === 11) setCalMonth(calYear + 1, 0);
+        else setCalMonth(calYear, calMonth + 1);
     }
-    function prevYear() { setCalYear(y => y - 1); }
-    function nextYear() { setCalYear(y => y + 1); }
+    function prevYear() { setCalMonth(calYear - 1, calMonth); }
+    function nextYear() { setCalMonth(calYear + 1, calMonth); }
 
     return (
         <section className="schedule-page-container">
@@ -110,12 +218,18 @@ export function SchedulePage() {
                 subtitle="Plan one-time commitments and never lose track of them."
                 icon={<CalendarWeek size={20} />}
                 actions={[
+                    ...(!isCurrentMonth ? [{
+                        key: "go-today",
+                        label: "Today",
+                        tone: "soft" as const,
+                        onClick: goToToday,
+                    }] : []),
                     {
                         key: "new-task",
                         label: "New Task",
                         icon: <PlusLg size={14} />,
                         tone: "brand",
-                        onClick: () => navigate(ROUTES.SCHEDULE_CREATE),
+                        onClick: () => navigate(ROUTES.SCHEDULE_CREATE, { state: { returnPath } }),
                     },
                 ]}
             />
@@ -171,9 +285,7 @@ export function SchedulePage() {
 
                     <div className="schedule-tasks-list">
                         {loading ? (
-                            <div className="schedule-empty-state">
-                                <span className="spinner-border spinner-border-sm" aria-hidden="true" />
-                            </div>
+                            Array.from({ length: 5 }, (_, i) => <ScheduleCardSkeleton key={i} />)
                         ) : tasks.length === 0 ? (
                             <div className="schedule-empty-state">
                                 <CalendarWeek size={28} className="mb-2 schedule-empty-icon" />
@@ -187,10 +299,10 @@ export function SchedulePage() {
                             </div>
                         ) : filteredTasks.map(task => (
                             <ScheduleCard
-                                key={task.id}
+                                key={`${task.repeat_yearly ? "y" : "n"}-${task.id}`}
                                 task={task}
                                 onSelect={() => setSelectedTask(task)}
-                                onEdit={() => navigate(ROUTES.SCHEDULE_EDIT.replace(":taskId", String(task.id)), { state: { task } })}
+                                onEdit={() => navigate(ROUTES.SCHEDULE_EDIT.replace(":taskId", String(task.id)) + (task.repeat_yearly ? "?yearly=1" : ""), { state: { task, returnPath } })}
                                 onDuplicate={() => handleDuplicate(task)}
                                 onDelete={() => setDeleteTarget(task)}
                             />
@@ -200,25 +312,7 @@ export function SchedulePage() {
 
                 {/* ── Right: calendar or task detail ───────────────────── */}
                 <div className="surface schedule-cal-panel">
-                    {selectedTask && (
-                        <ScheduleTaskDetail
-                            task={selectedTask}
-                            onClose={() => setSelectedTask(null)}
-                            onEdit={() => {
-                                setSelectedTask(null);
-                                navigate(
-                                    ROUTES.SCHEDULE_EDIT.replace(":taskId", String(selectedTask.id)),
-                                    { state: { task: selectedTask } },
-                                );
-                            }}
-                            onDuplicate={() => {
-                                setSelectedTask(null);
-                                handleDuplicate(selectedTask);
-                            }}
-                            onDelete={() => setDeleteTarget(selectedTask)}
-                        />
-                    )}
-                    <div className={`schedule-cal-view${selectedTask ? " schedule-cal-view--compact" : ""}`}>
+                    <div className="schedule-cal-view">
                         <div className="schedule-cal-header">
                             <button type="button" className="btn btn-ghost btn-icon border-0" onClick={prevYear} aria-label="Previous year">
                                 <ChevronDoubleLeft size={16} />
@@ -238,7 +332,7 @@ export function SchedulePage() {
                         </div>
 
                         <div className="schedule-cal-day-names">
-                            {DAY_NAMES.map(d => (
+                            {weekDayLabels(weekStart).map(d => (
                                 <div key={d} className="schedule-cal-day-name">{d}</div>
                             ))}
                         </div>
@@ -246,8 +340,14 @@ export function SchedulePage() {
                         <div className="schedule-cal-grid">
                             {calCells.map((cell, i) => {
                                 const cellTasks = tasksByDate[cell.iso] ?? [];
+                                const cellSubtasks = subtasksByDate[cell.iso] ?? [];
+                                const spanTasks = longTermSpansByDate[cell.iso] ?? [];
+                                const adjacentSpanTasks = !cell.isCurrentMonth ? (adjacentSpansByDate[cell.iso] ?? []) : [];
                                 const isToday = cell.iso === currentTodayIso;
-                                const cellTaskLimit = selectedTask ? 1 : 2;
+                                const cellTaskLimit = PAGE_SIZE.SCHEDULE_CELL_TASK_LIMIT;
+                                const taskSlots = Math.min(cellTasks.length, cellTaskLimit);
+                                const subtaskSlots = Math.min(cellSubtasks.length, cellTaskLimit - taskSlots);
+                                const overflowCount = (cellTasks.length - taskSlots) + (cellSubtasks.length - subtaskSlots);
                                 return (
                                     <div
                                         key={i}
@@ -259,16 +359,16 @@ export function SchedulePage() {
                                         ].filter(Boolean).join(" ")}
                                         role={cell.iso >= currentTodayIso ? "button" : undefined}
                                         tabIndex={cell.iso >= currentTodayIso ? 0 : undefined}
-                                        onClick={cell.iso >= currentTodayIso ? () => navigate(ROUTES.SCHEDULE_CREATE, { state: { date: cell.iso } }) : undefined}
-                                        onKeyDown={cell.iso >= currentTodayIso ? (e) => { if (e.key === "Enter" || e.key === " ") navigate(ROUTES.SCHEDULE_CREATE, { state: { date: cell.iso } }); } : undefined}
+                                        onClick={cell.iso >= currentTodayIso ? () => navigate(ROUTES.SCHEDULE_CREATE, { state: { date: cell.iso, returnPath } }) : undefined}
+                                        onKeyDown={cell.iso >= currentTodayIso ? (e) => { if (e.key === "Enter" || e.key === " ") navigate(ROUTES.SCHEDULE_CREATE, { state: { date: cell.iso, returnPath } }); } : undefined}
                                     >
                                         <div className={`schedule-cal-day-num${isToday ? " is-today" : ""}`}>
                                             {cell.day}
                                         </div>
                                         <div className="schedule-cal-chips">
-                                            {cellTasks.slice(0, cellTaskLimit).map(t => (
+                                            {cellTasks.slice(0, taskSlots).map(t => (
                                                 <button
-                                                    key={t.id}
+                                                    key={`${t.repeat_yearly ? "y" : "n"}-${t.id}`}
                                                     type="button"
                                                     className="schedule-task-chip"
                                                     style={{ "--chip-color": PRIORITY_COLOR[t.priority] } as React.CSSProperties}
@@ -278,10 +378,66 @@ export function SchedulePage() {
                                                     {t.title}
                                                 </button>
                                             ))}
-                                            {cellTasks.length > cellTaskLimit && (
-                                                <span className="schedule-cal-overflow">+{cellTasks.length - cellTaskLimit} more</span>
+                                            {cellSubtasks.slice(0, subtaskSlots).map(({ subtask, parentTask }) => (
+                                                <button
+                                                    key={`st-${subtask.id}`}
+                                                    type="button"
+                                                    className="schedule-task-chip schedule-task-chip--subtask"
+                                                    title={`${parentTask.title} · ${subtask.description}`}
+                                                    onClick={(e) => { e.stopPropagation(); setSelectedTask(parentTask); }}
+                                                >
+                                                    {subtask.description}
+                                                </button>
+                                            ))}
+                                            {overflowCount > 0 && (
+                                                <span className="schedule-cal-overflow">+{overflowCount} more</span>
                                             )}
+                                            {!cell.isCurrentMonth && (adjacentTasksByDate[cell.iso] ?? []).slice(0, cellTaskLimit).map(t => (
+                                                <span
+                                                    key={`adj-${t.repeat_yearly ? "y" : "n"}-${t.id}`}
+                                                    className="schedule-task-chip schedule-task-chip--adjacent"
+                                                    style={{ "--chip-color": PRIORITY_COLOR[t.priority] } as React.CSSProperties}
+                                                    title={t.title}
+                                                >
+                                                    {t.title}
+                                                </span>
+                                            ))}
+                                            {!cell.isCurrentMonth && (adjacentSubtasksByDate[cell.iso] ?? []).slice(0, cellTaskLimit).map(({ subtask, parentTask }) => (
+                                                <span
+                                                    key={`adj-st-${subtask.id}`}
+                                                    className="schedule-task-chip schedule-task-chip--subtask schedule-task-chip--adjacent"
+                                                    title={`${parentTask.title} · ${subtask.description}`}
+                                                >
+                                                    {subtask.description}
+                                                </span>
+                                            ))}
                                         </div>
+                                        {(spanTasks.length > 0 || adjacentSpanTasks.length > 0) && (
+                                            <div className="schedule-cal-span-strip">
+                                                {spanTasks.map(t => (
+                                                    <button
+                                                        key={t.id}
+                                                        type="button"
+                                                        className="schedule-cal-span-icon"
+                                                        style={{ "--chip-color": PRIORITY_COLOR[t.priority] } as React.CSSProperties}
+                                                        title={t.title}
+                                                        onClick={(e) => { e.stopPropagation(); setSelectedTask(t); }}
+                                                    >
+                                                        {t.category ? CATEGORY_ICONS[t.category] : "📅"}
+                                                    </button>
+                                                ))}
+                                                {adjacentSpanTasks.map(t => (
+                                                    <span
+                                                        key={`adj-span-${t.id}`}
+                                                        className="schedule-cal-span-icon schedule-cal-span-icon--adjacent"
+                                                        style={{ "--chip-color": PRIORITY_COLOR[t.priority] } as React.CSSProperties}
+                                                        title={t.title}
+                                                    >
+                                                        {t.category ? CATEGORY_ICONS[t.category] : "📅"}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
                                 );
                             })}
@@ -289,6 +445,29 @@ export function SchedulePage() {
                     </div>
                 </div>
             </div>
+
+            {selectedTask && (
+                <ScheduleTaskDetailPanel
+                    task={selectedTask}
+                    onClose={() => setSelectedTask(null)}
+                    onEdit={() => {
+                        setSelectedTask(null);
+                        navigate(
+                            ROUTES.SCHEDULE_EDIT.replace(":taskId", String(selectedTask.id)) + (selectedTask.repeat_yearly ? "?yearly=1" : ""),
+                            { state: { task: selectedTask, returnPath } },
+                        );
+                    }}
+                    onDuplicate={() => {
+                        setSelectedTask(null);
+                        handleDuplicate(selectedTask);
+                    }}
+                    onDelete={() => {
+                        setSelectedTask(null);
+                        setDeleteTarget(selectedTask);
+                    }}
+                    onSubtasksChanged={refreshTasksSilent}
+                />
+            )}
 
             <ConfirmDialog
                 show={deleteTarget !== null}

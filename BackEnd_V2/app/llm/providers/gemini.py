@@ -1,4 +1,5 @@
 import asyncio
+import json
 from time import perf_counter
 
 from google import genai
@@ -18,10 +19,17 @@ from app.llm.knowledge_base import (
     CONVERSATION_CONTEXT_SYSTEM_INSTRUCTION,
     GOAL_REFINEMENT_SYSTEM_INSTRUCTION,
     MILESTONE_PROPOSAL_SYSTEM_INSTRUCTION,
+    TASK_PROPOSAL_SYSTEM_INSTRUCTION,
     RESPOND_TO_MESSAGE_SYSTEM_INSTRUCTION,
     CREATE_CONVERSATION_SYSTEM_INSTRUCTION,
+    USER_MEMORY_EXTRACTION_SYSTEM_INSTRUCTION,
+    RESPONSE_LENGTH_INSTRUCTION,
+    AI_PERSONALITY_INSTRUCTION,
     build_goal_refinement_user_prompt,
     build_milestone_proposal_user_prompt,
+    build_task_proposal_user_prompt,
+    get_report_system_instruction,
+    build_report_prompt,
 )
 from app.llm.models import (
     ConversationContextToLLM,
@@ -38,14 +46,23 @@ from app.llm.models import (
     NewConvoToLLM,
     NewConvoFromLLM,
     TokenUsage,
+    ExtractUserMemoryToLLM,
+    ExtractUserMemoryFromLLM,
+    GenerateReportToLLM,
+    GenerateReportFromLLM,
+    GenerateBriefToLLM,
+    GenerateBriefFromLLM,
 )
+from app.schemas.memory import MemoryExtractionFromLLMSchema
 from app.schemas.goals import RefineGoalFromLLMSchema
 from app.schemas.milestones import MilestoneProposalListLLMSchema
+from app.schemas.tasks import TaskProposalListLLMSchema
 from app.schemas.chat import (
     ConversationContextFromLLMSchema,
     MessageFromLLMSchema,
     NewConvoFromLLMSchema,
 )
+from app.schemas.daily_report import GenerateReportSchema
 from app.llm.tools import MAX_TOOL_ITERATIONS, AGENT_TOOL_DEFINITIONS, TERMINAL_TOOL_NAMES
 
 
@@ -291,13 +308,86 @@ class GeminiProvider(BaseLLMProvider):
         )
 
     async def generate_task_proposals(self, request: TaskProposalsToLLM) -> TaskProposalsFromLLM:
-        raise NotImplementedError
+        model = self._resolve_model(request)
+
+        started_at = perf_counter()
+        try:
+            response = await self._client.aio.models.generate_content(
+                model=model,
+                contents=build_task_proposal_user_prompt(
+                    request.goal_data, request.milestone_data
+                ),
+                config=types.GenerateContentConfig(
+                    system_instruction=TASK_PROPOSAL_SYSTEM_INSTRUCTION,
+                    response_mime_type="application/json",
+                    response_schema=TaskProposalListLLMSchema,
+                    temperature=request.temperature,
+                    max_output_tokens=request.max_tokens,
+                    http_options=types.HttpOptions(
+                        timeout=self._settings.llm_request_timeout_seconds * 1000,
+                    ),
+                ),
+            )
+        except errors.APIError as exc:
+            raise LLMProviderError(f"Gemini generate_task_proposals failed: {exc}") from exc
+        response_time_ms = int((perf_counter() - started_at) * 1000)
+
+        await log_gemini_completion_usage_async(
+            settings=self._settings,
+            model=model,
+            response=response,
+            latency_ms=response_time_ms,
+            user_id=request.user_id,
+            operation="generate_task_proposals",
+        )
+
+        if not response.candidates:
+            raise LLMRequestError("Gemini returned no choices for generate_task_proposals.")
+
+        first_choice = response.candidates[0]
+        parsed = response.parsed
+
+        if parsed is None:
+            raise LLMRequestError("Gemini returned an unparsable generate_task_proposals response.")
+
+        usage = None
+        if response.usage_metadata is not None:
+            usage = TokenUsage(
+                input_tokens=response.usage_metadata.prompt_token_count,
+                output_tokens=(response.usage_metadata.candidates_token_count or 0)
+                + (response.usage_metadata.thoughts_token_count or 0),
+                total_tokens=response.usage_metadata.total_token_count,
+            )
+
+        return TaskProposalsFromLLM(
+            provider=LLMProvider.GEMINI,
+            model=model,
+            model_str=response.model_version or model,
+            proposals=parsed,
+            finish_reason=first_choice.finish_reason,
+            usage=usage,
+            response_id=response.response_id,
+            response_time_ms=response_time_ms,
+            cost=calculate_token_cost(
+                model_key=model,
+                input_tokens=usage.input_tokens if usage and usage.input_tokens else 0,
+                output_tokens=(
+                    usage.output_tokens if usage and usage.output_tokens else 0
+                ),
+            ),
+        )
 
     async def create_conversation(self, request: NewConvoToLLM) -> NewConvoFromLLM:
         model = self._resolve_model(request)
 
         request_data = request.request_data
         system_instruction = CREATE_CONVERSATION_SYSTEM_INSTRUCTION[request_data.agent_type]
+        if request.user_memory:
+            system_instruction += f"\n\n{request.user_memory}"
+        if instruction := RESPONSE_LENGTH_INSTRUCTION.get(request.response_length, ""):
+            system_instruction += f"\n\n{instruction}"
+        if instruction := AI_PERSONALITY_INSTRUCTION.get(request.personality, ""):
+            system_instruction += f"\n\n{instruction}"
 
         contents = [
             types.Content(role="user", parts=[types.Part(text=request_data.content)])
@@ -457,6 +547,12 @@ class GeminiProvider(BaseLLMProvider):
             + f"\n\nStable context:\n{request.stable_context}\n\n"
             + f"Conversation summary:\n{request.context_summary}"
         )
+        if request.user_memory:
+            system_instruction += f"\n\n{request.user_memory}"
+        if instruction := RESPONSE_LENGTH_INSTRUCTION.get(request.response_length, ""):
+            system_instruction += f"\n\n{instruction}"
+        if instruction := AI_PERSONALITY_INSTRUCTION.get(request.personality, ""):
+            system_instruction += f"\n\n{instruction}"
         contents = [
             types.Content(
                 role="model" if msg["role"] == "assistant" else msg["role"],
@@ -707,10 +803,169 @@ class GeminiProvider(BaseLLMProvider):
             ),
         )
 
-    async def health_check(self) -> bool:
-        # Gemini health check using the /models endpoint.
+    async def extract_user_memory(
+        self, request: ExtractUserMemoryToLLM
+    ) -> ExtractUserMemoryFromLLM:
+        model = self._resolve_model(request)
+
+        existing_block = (
+            json.dumps(request.existing_memories, ensure_ascii=False, indent=2)
+            if request.existing_memories
+            else "[]"
+        )
+        conversation_block = (
+            f"Stable context:\n{request.stable_context}\n\n"
+            f"Conversation summary:\n{request.context_summary}\n\n"
+            "Recent messages:\n"
+            + "\n".join(f"[{m['role']}]: {m['content']}" for m in request.messages)
+        )
+        user_prompt = (
+            f"Existing user memories:\n{existing_block}\n\n"
+            f"Conversation to analyze:\n{conversation_block}"
+        )
+
+        started_at = perf_counter()
         try:
-            await self._client.aio.models.list()
+            response = await self._client.aio.models.generate_content(
+                model=model,
+                contents=user_prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=USER_MEMORY_EXTRACTION_SYSTEM_INSTRUCTION,
+                    response_mime_type="application/json",
+                    response_schema=MemoryExtractionFromLLMSchema,
+                    temperature=request.temperature,
+                    max_output_tokens=request.max_tokens,
+                    http_options=types.HttpOptions(
+                        timeout=self._settings.llm_request_timeout_seconds * 1000,
+                    ),
+                ),
+            )
+        except errors.APIError as exc:
+            raise LLMProviderError(f"Gemini extract_user_memory failed: {exc}") from exc
+        response_time_ms = int((perf_counter() - started_at) * 1000)
+
+        await log_gemini_completion_usage_async(
+            settings=self._settings,
+            model=model,
+            response=response,
+            latency_ms=response_time_ms,
+            user_id=request.user_id,
+            operation="extract_user_memory",
+        )
+
+        if not response.candidates:
+            raise LLMRequestError("Gemini returned no choices for extract_user_memory.")
+
+        first_choice = response.candidates[0]
+        parsed = response.parsed
+
+        if parsed is None:
+            raise LLMRequestError("Gemini returned an unparsable extract_user_memory response.")
+
+        usage = None
+        if response.usage_metadata is not None:
+            usage = TokenUsage(
+                input_tokens=response.usage_metadata.prompt_token_count,
+                output_tokens=(response.usage_metadata.candidates_token_count or 0)
+                + (response.usage_metadata.thoughts_token_count or 0),
+                total_tokens=response.usage_metadata.total_token_count,
+            )
+
+        return ExtractUserMemoryFromLLM(
+            provider=LLMProvider.GEMINI,
+            model=model,
+            model_str=response.model_version or model,
+            llm_data=parsed,
+            finish_reason=first_choice.finish_reason,
+            usage=usage,
+            response_id=response.response_id,
+            response_time_ms=response_time_ms,
+            cost=calculate_token_cost(
+                model_key=model,
+                input_tokens=usage.input_tokens if usage and usage.input_tokens else 0,
+                output_tokens=usage.output_tokens if usage and usage.output_tokens else 0,
+            ),
+        )
+
+    async def generate_report(self, request: GenerateReportToLLM) -> GenerateReportFromLLM:
+        model = self._resolve_model(request)
+
+        started_at = perf_counter()
+        try:
+            response = await self._client.aio.models.generate_content(
+                model=model,
+                contents=build_report_prompt(
+                    request.report_date, request.report_type, request.day_data
+                ),
+                config=types.GenerateContentConfig(
+                    system_instruction=get_report_system_instruction(request.report_type),
+                    response_mime_type="application/json",
+                    response_schema=GenerateReportSchema,
+                    temperature=request.temperature,
+                    max_output_tokens=request.max_tokens,
+                    http_options=types.HttpOptions(
+                        timeout=self._settings.llm_request_timeout_seconds * 1000,
+                    ),
+                ),
+            )
+        except errors.APIError as exc:
+            raise LLMProviderError(f"Gemini generate_report failed: {exc}") from exc
+        response_time_ms = int((perf_counter() - started_at) * 1000)
+
+        await log_gemini_completion_usage_async(
+            settings=self._settings,
+            model=model,
+            response=response,
+            latency_ms=response_time_ms,
+            user_id=request.user_id,
+            operation="generate_report",
+        )
+
+        if not response.candidates:
+            raise LLMRequestError("Gemini returned no choices for generate_report.")
+
+        first_choice = response.candidates[0]
+        parsed = response.parsed
+
+        if parsed is None:
+            raise LLMRequestError("Gemini returned an unparsable generate_report response.")
+
+        usage = None
+        if response.usage_metadata is not None:
+            usage = TokenUsage(
+                input_tokens=response.usage_metadata.prompt_token_count,
+                output_tokens=(response.usage_metadata.candidates_token_count or 0)
+                + (response.usage_metadata.thoughts_token_count or 0),
+                total_tokens=response.usage_metadata.total_token_count,
+            )
+
+        return GenerateReportFromLLM(
+            provider=LLMProvider.GEMINI,
+            model=model,
+            model_str=response.model_version or model,
+            report_data=parsed,
+            finish_reason=first_choice.finish_reason,
+            usage=usage,
+            response_id=response.response_id,
+            response_time_ms=response_time_ms,
+            cost=calculate_token_cost(
+                model_key=model,
+                input_tokens=usage.input_tokens if usage and usage.input_tokens else 0,
+                output_tokens=(
+                    usage.output_tokens if usage and usage.output_tokens else 0
+                ),
+            ),
+        )
+
+    async def generate_daily_brief(self, request: GenerateBriefToLLM) -> GenerateBriefFromLLM:
+        raise NotImplementedError("Daily brief generation is only supported by the OpenAI provider currently.")
+
+    async def health_check(self, model: str | None = None) -> bool:
+        try:
+            if model:
+                await self._client.aio.models.get(model=model)
+            else:
+                await self._client.aio.models.list()
             return True
         except errors.APIError as exc:
             raise LLMHealthCheckError(f"Gemini health check failed: {exc}") from exc

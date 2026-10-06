@@ -15,14 +15,22 @@ from app.llm.exceptions import (
 )
 from app.llm.knowledge_base import (
     CONVERSATION_CONTEXT_SYSTEM_INSTRUCTION,
+    DAILY_BRIEF_SYSTEM_PROMPT,
+    DAILY_BRIEF_SYSTEM_PROMPT_NO_AUDIO,
     GOAL_REFINEMENT_SYSTEM_INSTRUCTION,
     MILESTONE_PROPOSAL_SYSTEM_INSTRUCTION,
     TASK_PROPOSAL_SYSTEM_INSTRUCTION,
     RESPOND_TO_MESSAGE_SYSTEM_INSTRUCTION,
     CREATE_CONVERSATION_SYSTEM_INSTRUCTION,
+    USER_MEMORY_EXTRACTION_SYSTEM_INSTRUCTION,
+    RESPONSE_LENGTH_INSTRUCTION,
+    AI_PERSONALITY_INSTRUCTION,
+    build_daily_brief_user_prompt,
+    get_report_system_instruction,
     build_goal_refinement_user_prompt,
     build_milestone_proposal_user_prompt,
     build_task_proposal_user_prompt,
+    build_report_prompt,
 )
 from app.llm.models import (
     ConversationContextToLLM,
@@ -38,7 +46,16 @@ from app.llm.models import (
     NewConvoToLLM,
     NewConvoFromLLM,
     TokenUsage,
+    ExtractUserMemoryToLLM,
+    ExtractUserMemoryFromLLM,
+    GenerateReportToLLM,
+    GenerateReportFromLLM,
+    GenerateBriefToLLM,
+    GenerateBriefFromLLM,
 )
+from app.schemas.memory import MemoryExtractionFromLLMSchema
+from app.schemas.daily_report import GenerateReportSchema
+from app.schemas.daily_brief import DailyBriefSchema, DailyBriefSchemaNoAudio
 from app.schemas.goals import RefineGoalFromLLMSchema
 from app.schemas.milestones import MilestoneProposalListLLMSchema
 from app.schemas.tasks import TaskProposalListLLMSchema
@@ -361,12 +378,17 @@ class OpenAIProvider(BaseLLMProvider):
         model = self._resolve_model(request)
 
         request_data = request.request_data
+        system_content = CREATE_CONVERSATION_SYSTEM_INSTRUCTION[request_data.agent_type]
+        if request.user_memory:
+            system_content += f"\n\n{request.user_memory}"
+        if instruction := RESPONSE_LENGTH_INSTRUCTION.get(request.response_length, ""):
+            system_content += f"\n\n{instruction}"
+        if instruction := AI_PERSONALITY_INSTRUCTION.get(request.personality, ""):
+            system_content += f"\n\n{instruction}"
         messages = [
             {
                 "role": Role.SYSTEM,
-                "content": CREATE_CONVERSATION_SYSTEM_INSTRUCTION[
-                    request_data.agent_type
-                ],
+                "content": system_content,
             },
         ]
         _ctx_parts = []
@@ -592,6 +614,12 @@ class OpenAIProvider(BaseLLMProvider):
             f"Stable context:\n{request.stable_context}\n\n"
             f"Conversation summary:\n{request.context_summary}"
         )
+        if request.user_memory:
+            conversation_context += f"\n\n{request.user_memory}"
+        if instruction := RESPONSE_LENGTH_INSTRUCTION.get(request.response_length, ""):
+            conversation_context += f"\n\n{instruction}"
+        if instruction := AI_PERSONALITY_INSTRUCTION.get(request.personality, ""):
+            conversation_context += f"\n\n{instruction}"
         messages = [
             {
                 "role": Role.SYSTEM,
@@ -827,10 +855,273 @@ class OpenAIProvider(BaseLLMProvider):
             ),
         )
 
-    async def health_check(self) -> bool:
-        # OpenAI health check using the /models endpoint.
+    async def extract_user_memory(
+        self, request: ExtractUserMemoryToLLM
+    ) -> ExtractUserMemoryFromLLM:
+        model = self._resolve_model(request)
+
+        existing_block = (
+            json.dumps(request.existing_memories, ensure_ascii=False, indent=2)
+            if request.existing_memories
+            else "[]"
+        )
+        conversation_block = (
+            f"Stable context:\n{request.stable_context}\n\n"
+            f"Conversation summary:\n{request.context_summary}\n\n"
+            "Recent messages:\n"
+            + "\n".join(f"[{m['role']}]: {m['content']}" for m in request.messages)
+        )
+        user_prompt = (
+            f"Existing user memories:\n{existing_block}\n\n"
+            f"Conversation to analyze:\n{conversation_block}"
+        )
+
+        messages = [
+            {"role": Role.SYSTEM, "content": USER_MEMORY_EXTRACTION_SYSTEM_INSTRUCTION},
+            {"role": Role.USER, "content": user_prompt},
+        ]
+
+        started_at = perf_counter()
         try:
-            await self._client.models.list()
+            kwargs: dict = {
+                "model": model,
+                "messages": messages,
+                "response_format": MemoryExtractionFromLLMSchema,
+            }
+            if request.temperature is not None:
+                kwargs["temperature"] = request.temperature
+            if request.max_tokens is not None:
+                kwargs["max_completion_tokens"] = request.max_tokens
+
+            completion = await self._client.beta.chat.completions.parse(**kwargs)
+        except (APIConnectionError, APIStatusError, OpenAIError) as exc:
+            raise LLMProviderError(f"OpenAI extract_user_memory failed: {exc}") from exc
+        response_time_ms = int((perf_counter() - started_at) * 1000)
+
+        await log_openai_completion_usage_async(
+            settings=self._settings,
+            model=model,
+            completion=completion,
+            latency_ms=response_time_ms,
+            user_id=request.user_id,
+            operation="extract_user_memory",
+        )
+
+        if not completion.choices:
+            raise LLMRequestError("OpenAI returned no choices for extract_user_memory.")
+
+        first_choice = completion.choices[0]
+        message = first_choice.message
+        parsed = message.parsed
+
+        if parsed is None:
+            if message.refusal:
+                raise LLMRequestError(
+                    f"OpenAI refused extract_user_memory response: {message.refusal}"
+                )
+            raise LLMRequestError("OpenAI returned an unparsable extract_user_memory response.")
+
+        usage = None
+        if completion.usage is not None:
+            usage = TokenUsage(
+                input_tokens=completion.usage.prompt_tokens,
+                output_tokens=completion.usage.completion_tokens,
+                total_tokens=completion.usage.total_tokens,
+            )
+
+        return ExtractUserMemoryFromLLM(
+            provider=LLMProvider.OPENAI,
+            model=model,
+            model_str=completion.model or model,
+            llm_data=parsed,
+            finish_reason=first_choice.finish_reason,
+            usage=usage,
+            response_id=completion.id,
+            response_time_ms=response_time_ms,
+            cost=calculate_token_cost(
+                model_key=model,
+                input_tokens=completion.usage.prompt_tokens if completion.usage else 0,
+                output_tokens=completion.usage.completion_tokens if completion.usage else 0,
+            ),
+        )
+
+    async def generate_report(self, request: GenerateReportToLLM) -> GenerateReportFromLLM:
+        model = self._resolve_model(request)
+
+        messages = [
+            {
+                "role": Role.SYSTEM,
+                "content": get_report_system_instruction(request.report_type),
+            },
+            {
+                "role": Role.USER,
+                "content": build_report_prompt(
+                    request.report_date, request.report_type, request.day_data
+                ),
+            },
+        ]
+
+        started_at = perf_counter()
+        try:
+            kwargs: dict = {
+                "model": model,
+                "messages": messages,
+                "response_format": GenerateReportSchema,
+            }
+            if request.temperature is not None:
+                kwargs["temperature"] = request.temperature
+            if request.max_tokens is not None:
+                kwargs["max_completion_tokens"] = request.max_tokens
+            # Report generation is a structured summarization pass over already-aggregated
+            # data — no multi-step reasoning needed. Reasoning-family models (gpt-5*, o-series)
+            # default to "medium" effort when unset, burning hidden reasoning tokens for no
+            # quality benefit here, so pin it low. Non-reasoning models (gpt-4.1*) reject this param.
+            if model.startswith("gpt-5") or model.startswith("o"):
+                kwargs["reasoning_effort"] = "minimal"
+
+            completion = await self._client.beta.chat.completions.parse(**kwargs)
+        except (APIConnectionError, APIStatusError, OpenAIError) as exc:
+            raise LLMProviderError(f"OpenAI generate_report failed: {exc}") from exc
+        response_time_ms = int((perf_counter() - started_at) * 1000)
+
+        await log_openai_completion_usage_async(
+            settings=self._settings,
+            model=model,
+            completion=completion,
+            latency_ms=response_time_ms,
+            user_id=request.user_id,
+            operation="generate_report",
+        )
+
+        if not completion.choices:
+            raise LLMRequestError("OpenAI returned no choices for generate_report.")
+
+        first_choice = completion.choices[0]
+        message = first_choice.message
+        parsed = message.parsed
+
+        if parsed is None:
+            if message.refusal:
+                raise LLMRequestError(
+                    f"OpenAI refused generate_report response: {message.refusal}"
+                )
+            raise LLMRequestError("OpenAI returned an unparsable generate_report response.")
+
+        usage = None
+        if completion.usage is not None:
+            usage = TokenUsage(
+                input_tokens=completion.usage.prompt_tokens,
+                output_tokens=completion.usage.completion_tokens,
+                total_tokens=completion.usage.total_tokens,
+            )
+
+        return GenerateReportFromLLM(
+            provider=LLMProvider.OPENAI,
+            model=model,
+            model_str=completion.model or model,
+            report_data=parsed,
+            finish_reason=first_choice.finish_reason,
+            usage=usage,
+            response_id=completion.id,
+            response_time_ms=response_time_ms,
+            cost=calculate_token_cost(
+                model_key=model,
+                input_tokens=completion.usage.prompt_tokens if completion.usage else 0,
+                output_tokens=completion.usage.completion_tokens if completion.usage else 0,
+            ),
+        )
+
+    async def generate_daily_brief(self, request: GenerateBriefToLLM) -> GenerateBriefFromLLM:
+        model = self._resolve_model(request)
+        system_prompt = DAILY_BRIEF_SYSTEM_PROMPT if request.include_spoken_brief else DAILY_BRIEF_SYSTEM_PROMPT_NO_AUDIO
+        schema = DailyBriefSchema if request.include_spoken_brief else DailyBriefSchemaNoAudio
+
+        messages = [
+            {
+                "role": Role.SYSTEM,
+                "content": system_prompt,
+            },
+            {
+                "role": Role.USER,
+                "content": build_daily_brief_user_prompt(request.first_name, request.today, request.context),
+            },
+        ]
+
+        started_at = perf_counter()
+        try:
+            kwargs: dict = {
+                "model": model,
+                "messages": messages,
+                "response_format": schema,
+                "max_completion_tokens": request.max_tokens or 4000,
+            }
+            if request.temperature is not None:
+                kwargs["temperature"] = request.temperature
+            # Reasoning-family models (gpt-5*, o-series) default to "medium" effort,
+            # burning hidden reasoning tokens for no benefit on this short summarization task.
+            if model.startswith("gpt-5") or model.startswith("o"):
+                kwargs["reasoning_effort"] = "minimal"
+
+            completion = await self._client.beta.chat.completions.parse(**kwargs)
+        except (APIConnectionError, APIStatusError, OpenAIError) as exc:
+            raise LLMProviderError(f"OpenAI generate_daily_brief failed: {exc}") from exc
+        response_time_ms = int((perf_counter() - started_at) * 1000)
+
+        await log_openai_completion_usage_async(
+            settings=self._settings,
+            model=model,
+            completion=completion,
+            latency_ms=response_time_ms,
+            user_id=request.user_id,
+            operation="generate_daily_brief",
+        )
+
+        if not completion.choices:
+            raise LLMRequestError("OpenAI returned no choices for generate_daily_brief.")
+
+        first_choice = completion.choices[0]
+        message = first_choice.message
+        parsed = message.parsed
+
+        if parsed is None:
+            if message.refusal:
+                raise LLMRequestError(
+                    f"OpenAI refused generate_daily_brief response: {message.refusal}"
+                )
+            raise LLMRequestError("OpenAI returned an unparsable generate_daily_brief response.")
+
+        usage = None
+        if completion.usage is not None:
+            usage = TokenUsage(
+                input_tokens=completion.usage.prompt_tokens,
+                output_tokens=completion.usage.completion_tokens,
+                total_tokens=completion.usage.total_tokens,
+            )
+
+        return GenerateBriefFromLLM(
+            provider=LLMProvider.OPENAI,
+            model=model,
+            model_str=completion.model or model,
+            brief_data=parsed,
+            finish_reason=first_choice.finish_reason,
+            usage=usage,
+            response_id=completion.id,
+            response_time_ms=response_time_ms,
+            cost=calculate_token_cost(
+                model_key=model,
+                input_tokens=completion.usage.prompt_tokens if completion.usage else 0,
+                output_tokens=(
+                    completion.usage.completion_tokens if completion.usage else 0
+                ),
+            ),
+        )
+
+    async def health_check(self, model: str | None = None) -> bool:
+        try:
+            if model:
+                await self._client.models.retrieve(model)
+            else:
+                await self._client.models.list()
             return True
         except (APIConnectionError, APIStatusError, OpenAIError) as exc:
             raise LLMHealthCheckError(f"OpenAI health check failed: {exc}") from exc

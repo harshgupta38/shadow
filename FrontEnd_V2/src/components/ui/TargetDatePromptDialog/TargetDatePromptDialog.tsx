@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 import { Modal } from "react-bootstrap";
 import { CalendarEvent } from "react-bootstrap-icons";
 
+import { todayIso } from "@/services/date.service";
+
+import "@/components/ui/NoteDialog/NoteDialog.scss";
 import "@/components/ui/TargetDatePromptDialog/TargetDatePromptDialog.scss";
 
 interface TargetDatePromptDialogProps {
@@ -26,7 +29,7 @@ function toInputDate(value: string | null | undefined): string {
 }
 
 function getTodayInputDate(): string {
-    return new Date().toISOString().slice(0, 10);
+    return todayIso();
 }
 
 export function TargetDatePromptDialog({
@@ -57,11 +60,15 @@ export function TargetDatePromptDialog({
     return (
         <Modal show={show} onHide={onCancel} centered backdrop="static">
             <Modal.Body className="p-4 target-date-prompt-dialog">
-                <div className="empty-icon mx-auto mb-3">
-                    <CalendarEvent size={24} />
+                <div className="note-dialog-header mb-3">
+                    <div className="empty-icon">
+                        <CalendarEvent size={24} />
+                    </div>
+                    <div>
+                        <h2 className="h5 fw-bold mb-0">{title}</h2>
+                        <p className="text-muted-2 mb-0">{message}</p>
+                    </div>
                 </div>
-                <h2 className="h5 fw-bold text-center">{title}</h2>
-                <p className="text-muted-2 mb-3 text-center">{message}</p>
 
                 <label htmlFor="target-date-input" className="form-label fw-semibold">
                     Target date

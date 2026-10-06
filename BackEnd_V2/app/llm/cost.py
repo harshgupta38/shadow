@@ -1,5 +1,5 @@
 from app.llm.models import ModelCost, TokenCostBreakdown
-from app.llm.enums import OllamaModel, OpenAIModel, GeminiModel, ClaudeModel
+from app.llm.enums import OllamaModel, OpenAIModel, OpenAITTSModel, GeminiModel, ClaudeModel
 
 ModelKey = OllamaModel | OpenAIModel | GeminiModel | ClaudeModel
 
@@ -21,6 +21,7 @@ MODEL_COSTS: dict[ModelKey, ModelCost] = {
     OllamaModel.DEEPSEEK_R1_8B: ModelCost(0.0, 0.0),
     OllamaModel.MISTRAL_7B: ModelCost(0.0, 0.0),
     # OpenAI
+    # OpenAIModel.GPT_6_ASTRA: ModelCost(0.96, 4.79),  # disabled — member commented out in enums.py
     OpenAIModel.GPT_5: ModelCost(0.11, 0.88),
     OpenAIModel.GPT_5_MINI: ModelCost(0.022, 0.176),
     OpenAIModel.GPT_5_NANO: ModelCost(0.0044, 0.035),
@@ -41,10 +42,15 @@ MODEL_COSTS: dict[ModelKey, ModelCost] = {
     GeminiModel.GEMINI_2_5_FLASH_LITE: ModelCost(0.009, 0.07),
     GeminiModel.GEMINI_FLASH_LATEST: ModelCost(0.026, 0.21),
     GeminiModel.GEMINI_PRO_LATEST: ModelCost(0.11, 0.88),
-    # Claude
-    ClaudeModel.CLAUDE_FABLE_5: ModelCost(None, None),
-    ClaudeModel.CLAUDE_OPUS_5: ModelCost(1.32, 6.60),
-    ClaudeModel.CLAUDE_SONNET_5: ModelCost(0.264, 1.32),
+    # Claude — rates below are per-model at ~88 INR/USD. Current-generation models
+    # (Fable 5, Opus 5, Sonnet 5, Haiku 4.5) have their own real published rates;
+    # every prior generation shares its generation's legacy USD rate ($15/$75 Opus,
+    # $3/$15 Sonnet, $0.80/$4 Haiku 3.5, $0.25/$1.25 Haiku 3) since Anthropic doesn't
+    # retroactively reprice already-published models.
+    ClaudeModel.CLAUDE_FABLE_5: ModelCost(0.88, 4.40),  # $10 / $50 per MTok
+    ClaudeModel.CLAUDE_OPUS_5: ModelCost(0.44, 2.20),  # $5 / $25 per MTok
+    ClaudeModel.CLAUDE_SONNET_5: ModelCost(0.176, 0.88),  # $2 / $10 per MTok
+    ClaudeModel.CLAUDE_HAIKU_4_5: ModelCost(0.088, 0.44),  # $1 / $5 per MTok
     ClaudeModel.CLAUDE_OPUS_4_8: ModelCost(1.32, 6.60),
     ClaudeModel.CLAUDE_OPUS_4_7: ModelCost(1.32, 6.60),
     ClaudeModel.CLAUDE_OPUS_4_6: ModelCost(1.32, 6.60),
@@ -55,7 +61,6 @@ MODEL_COSTS: dict[ModelKey, ModelCost] = {
     ClaudeModel.CLAUDE_SONNET_4_5: ModelCost(0.264, 1.32),
     ClaudeModel.CLAUDE_SONNET_4_1: ModelCost(0.264, 1.32),
     ClaudeModel.CLAUDE_SONNET_4: ModelCost(0.264, 1.32),
-    ClaudeModel.CLAUDE_HAIKU_4_5: ModelCost(0.07, 0.35),
     ClaudeModel.CLAUDE_SONNET_3_7: ModelCost(0.264, 1.32),
     ClaudeModel.CLAUDE_SONNET_3_5: ModelCost(0.264, 1.32),
     ClaudeModel.CLAUDE_HAIKU_3_5: ModelCost(0.07, 0.35),
@@ -103,4 +108,45 @@ def calculate_token_cost(
         input_token_cost=input_token_cost,
         output_token_cost=output_token_cost,
         total_cost=total_cost,
+    )
+
+
+# TTS is priced per input character, not per token, so it's kept separate from
+# MODEL_COSTS/calculate_token_cost above.
+TTS_COSTS: dict[OpenAITTSModel, float] = {
+    OpenAITTSModel.GPT_4O_MINI_TTS: 1.32,
+    OpenAITTSModel.TTS_1: 1.32,
+    OpenAITTSModel.TTS_1_HD: 2.64,
+}
+
+
+def calculate_tts_cost(model_key: OpenAITTSModel, char_count: int) -> TokenCostBreakdown:
+    if char_count < 0:
+        raise ValueError("char_count must be greater than or equal to 0.")
+
+    rate = TTS_COSTS.get(model_key, 0.0)
+    input_token_cost = (char_count / 1000) * rate
+
+    return TokenCostBreakdown(
+        input_token_cost=input_token_cost,
+        output_token_cost=0.0,
+        total_cost=input_token_cost,
+    )
+
+
+# Whisper transcription is priced per minute of input audio, not per token/character.
+# ~$0.006/min at ~88 INR/USD (same conversion rate used for the Claude legacy rates above).
+WHISPER_TRANSCRIPTION_COST_PER_MINUTE = 0.57
+
+
+def calculate_transcription_cost(duration_seconds: float) -> TokenCostBreakdown:
+    if duration_seconds < 0:
+        raise ValueError("duration_seconds must be greater than or equal to 0.")
+
+    cost = (duration_seconds / 60) * WHISPER_TRANSCRIPTION_COST_PER_MINUTE
+
+    return TokenCostBreakdown(
+        input_token_cost=cost,
+        output_token_cost=0.0,
+        total_cost=cost,
     )

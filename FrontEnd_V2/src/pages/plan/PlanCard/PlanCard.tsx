@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  ArrowDownRight,
-  ArrowUpRight,
+  ArrowCounterclockwise,
   Bullseye,
   CalendarEvent,
   ChatSquareDots,
@@ -16,22 +15,29 @@ import {
   MoonStarsFill,
   PencilFill,
   PlusLg,
+  SkipForward,
   SunFill,
   TagFill,
 } from "react-bootstrap-icons";
 
 import { NoteDialog } from "@/components/ui/NoteDialog/NoteDialog";
+import { useTimeFormat } from "@/context/PlannerContext";
+import { formatTime } from "@/services/date.service";
+import { HOLD_REPEAT } from "@/constant/tuning";
 
-import type { PlanDataResponse, PlanPriority } from "@/api";
+import type { PlanDataResponse } from "@/api";
 import { ROUTES } from "@/routes/RoutePaths";
 import { PRIORITY_LABEL, formatDuration } from "@/pages/plan/PlanPage.constants";
+import { PriorityIcon } from "@/constant/priority";
 import "./PlanCard.scss";
 
 interface PlanCardProps {
   item: PlanDataResponse;
   onToggle?: () => void;
-  onSaveProgress?: (value: number) => Promise<void>;
+  onToggleSkip?: () => void;
+  onSaveDelta?: (delta: number) => Promise<void>;
   onSaveNote?: (note: string) => Promise<void>;
+  onSaveNoteAndDone?: (note: string) => Promise<void>;
   busy?: boolean;
   readOnly?: boolean;
   isCompleting?: boolean;
@@ -72,22 +78,18 @@ function TimeChip({ preferredTime, label }: { preferredTime: string; label: stri
   );
 }
 
-function PriorityIcon({ priority }: { priority: PlanPriority }) {
-  if (priority === "highest" || priority === "high") return <ArrowUpRight size={11} />;
-  if (priority === "low" || priority === "lowest") return <ArrowDownRight size={11} />;
-  return <DashLg size={11} />;
-}
-
-export function PlanCard({ item, onToggle, onSaveProgress, onSaveNote, busy = false, readOnly = false, isCompleting = false }: PlanCardProps) {
+export function PlanCard({ item, onToggle, onToggleSkip, onSaveDelta, onSaveNote, onSaveNoteAndDone, busy = false, readOnly = false, isCompleting = false }: PlanCardProps) {
   const navigate = useNavigate();
+  const timeFormat = useTimeFormat();
   const isDone = item.saved_data?.status === "done";
   const isMissed = item.saved_data?.status === "missed";
+  const isSkipped = item.saved_data?.skipped ?? false;
   const target = item.planner_target ?? 0;
   const isMetric = item.planner_type === "metric" && target > 0;
 
   const timeLabel =
     item.preferred_time === "custom"
-      ? item.specific_time
+      ? (item.specific_time ? formatTime(item.specific_time, timeFormat) : null)
       : item.preferred_time !== "flexible"
         ? item.preferred_time.charAt(0).toUpperCase() + item.preferred_time.slice(1)
         : null;
@@ -96,6 +98,7 @@ export function PlanCard({ item, onToggle, onSaveProgress, onSaveNote, busy = fa
 
   const [progressDraft, setProgressDraft] = useState<number | null>(null);
   const [savingProgress, setSavingProgress] = useState(false);
+  const [inputDelta, setInputDelta] = useState("");
   const holdTimeoutRef = useRef<number | null>(null);
   const holdIntervalRef = useRef<number | null>(null);
 
@@ -134,8 +137,8 @@ export function PlanCard({ item, onToggle, onSaveProgress, onSaveNote, busy = fa
     stopProgressHold();
     changeProgress(delta);
     holdTimeoutRef.current = window.setTimeout(() => {
-      holdIntervalRef.current = window.setInterval(() => changeProgress(delta), 90);
-    }, 260);
+      holdIntervalRef.current = window.setInterval(() => changeProgress(delta), HOLD_REPEAT.REPEAT_INTERVAL_MS);
+    }, HOLD_REPEAT.INITIAL_DELAY_MS);
   }
 
   async function handleSaveNote(note: string) {
@@ -149,12 +152,35 @@ export function PlanCard({ item, onToggle, onSaveProgress, onSaveNote, busy = fa
     }
   }
 
+  async function handleSaveNoteAndDone(note: string) {
+    if (!onSaveNoteAndDone) return;
+    setSavingNote(true);
+    try {
+      await onSaveNoteAndDone(note);
+      setNoteOpen(false);
+    } finally {
+      setSavingNote(false);
+    }
+  }
+
   async function handleSaveProgress() {
-    if (progressDraft === null || !onSaveProgress) return;
+    if (progressDraft === null || progressDraft === baseCurrent || !onSaveDelta) return;
     setSavingProgress(true);
     try {
-      await onSaveProgress(progressDraft);
+      await onSaveDelta(progressDraft - baseCurrent);
       setProgressDraft(null);
+    } finally {
+      setSavingProgress(false);
+    }
+  }
+
+  async function handleSaveProgressDelta() {
+    const delta = parseInt(inputDelta, 10);
+    if (isNaN(delta) || delta === 0 || !onSaveDelta) return;
+    setSavingProgress(true);
+    try {
+      await onSaveDelta(delta);
+      setInputDelta("");
     } finally {
       setSavingProgress(false);
     }
@@ -162,7 +188,7 @@ export function PlanCard({ item, onToggle, onSaveProgress, onSaveNote, busy = fa
 
   return (
     <article
-      className={`plan-card${isDone ? " plan-card--done" : ""}${isMissed ? " plan-card--missed" : ""}${isCompleting ? " plan-card--completing" : ""}`}
+      className={`plan-card${isDone ? " plan-card--done" : ""}${isMissed ? " plan-card--missed" : ""}${isSkipped ? " plan-card--skipped" : ""}${isCompleting ? " plan-card--completing" : ""}`}
     >
       {/* Row 1 — title · time · checkbox */}
       <div className="plan-card-row">
@@ -198,7 +224,7 @@ export function PlanCard({ item, onToggle, onSaveProgress, onSaveNote, busy = fa
       </div>
 
       {/* Row 2 — saved note */}
-      {existingNote && (
+      {!isMetric && existingNote && (
         <p className="plan-card-note">
           <span className="plan-card-note-text">{existingNote}</span>
           {!readOnly && (
@@ -217,7 +243,14 @@ export function PlanCard({ item, onToggle, onSaveProgress, onSaveNote, busy = fa
       {/* Row 3 — pills */}
       <div className="plan-card-pills">
         <div className="plan-card-pills-left">
-          <span className={`plan-card-pill plan-card-pill--type-${item.source_type}`}>
+          <span
+            className={`plan-card-pill plan-card-pill--type-${item.source_type}${item.source_type === "habit" || item.source_type === "task" ? " plan-card-pill--clickable" : ""}`}
+            onClick={item.source_type === "habit"
+              ? () => navigate(ROUTES.HABIT_LIBRARY_DETAIL.replace(":habitId", String(item.source_id)))
+              : item.source_type === "task"
+                ? () => navigate(ROUTES.TASK_DETAIL.replace(":taskId", String(item.source_id)))
+                : undefined}
+          >
             {item.source_type === "habit"
               ? <Bullseye size={11} />
               : item.source_type === "schedule"
@@ -256,6 +289,30 @@ export function PlanCard({ item, onToggle, onSaveProgress, onSaveNote, busy = fa
               {formatDuration(item.duration_minutes!)}
             </span>
           )}
+
+          {isSkipped ? (
+            <button
+              type="button"
+              className={`plan-card-pill plan-card-pill--skipped${!readOnly ? " plan-card-pill--clickable" : ""}`}
+              onClick={!readOnly ? onToggleSkip : undefined}
+              disabled={busy}
+            >
+              <ArrowCounterclockwise size={11} />
+              {readOnly ? "Skipped" : "Skipped · Restore"}
+            </button>
+          ) : (
+            !readOnly && item.can_skip && !isDone && (
+              <button
+                type="button"
+                className="plan-card-pill plan-card-pill--skip plan-card-pill--clickable"
+                onClick={onToggleSkip}
+                disabled={busy}
+              >
+                <SkipForward size={11} />
+                Skip
+              </button>
+            )
+          )}
         </div>
 
         {!readOnly && !existingNote && (
@@ -286,51 +343,123 @@ export function PlanCard({ item, onToggle, onSaveProgress, onSaveNote, busy = fa
           <span className="plan-card-progress-pct">{pct}%</span>
           {!readOnly && (
             <div className="plan-card-progress-actions">
-              {hasDraft && onSaveProgress && (
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-icon border-0 plan-card-progress-action plan-card-progress-action-save"
-                  aria-label="Save progress"
-                  onClick={() => { void handleSaveProgress(); }}
-                  disabled={busy || savingProgress}
-                >
-                  <Floppy size={13} />
-                </button>
+              {target > 100 ? (
+                <>
+                  {busy || savingProgress ? (
+                    <span className="plan-card-check-spinner me-1" role="status" aria-label="Updating status">
+                      <span className="spinner-border spinner-border-sm" aria-hidden="true" />
+                    </span>
+                  ) : (
+                    <>
+                      {inputDelta && (
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-icon border-0 plan-card-progress-action plan-card-progress-action-save"
+                          aria-label="Save progress"
+                          onClick={() => { void handleSaveProgressDelta(); }}
+                          disabled={busy || savingProgress}
+                        >
+                          <Floppy size={13} />
+                        </button>
+                      )}
+                    </>
+                  )}
+                  <input
+                    type="number"
+                    className="plan-card-progress-input"
+                    value={inputDelta}
+                    placeholder="Add..."
+                    min={target * -2}
+                    max={target * 2}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value, 10);
+                      if (isNaN(val)) { setInputDelta(""); return; }
+                      setInputDelta(String(Math.min(Math.max(target * -2, val), target * 2)));
+                    }}
+                    onKeyDown={(e) => { if (e.key === "Enter") void handleSaveProgressDelta(); }}
+                    disabled={busy || savingProgress}
+                    aria-label="Progress amount to add"
+                  />
+                </>
+              ) : (
+                <>
+                  {busy || savingProgress ? (
+                    <span className="plan-card-check-spinner me-1" role="status" aria-label="Updating status">
+                      <span className="spinner-border spinner-border-sm" aria-hidden="true" />
+                    </span>
+                  ) : (
+                    <>
+                      {hasDraft && onSaveDelta && (
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-icon border-0 plan-card-progress-action plan-card-progress-action-save"
+                          aria-label="Save progress"
+                          onClick={() => { void handleSaveProgress(); }}
+                          disabled={busy || savingProgress}
+                        >
+                          <Floppy size={13} />
+                        </button>
+                      )}
+                    </>
+                  )}
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-icon border-0 plan-card-progress-action"
+                    aria-label="Decrease"
+                    onPointerDown={() => startProgressHold(-1)}
+                    onPointerUp={stopProgressHold}
+                    onPointerCancel={stopProgressHold}
+                    onPointerLeave={stopProgressHold}
+                    disabled={busy || savingProgress || effectiveCurrent <= 0}
+                  >
+                    <DashLg size={13} />
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-icon border-0 plan-card-progress-action"
+                    aria-label="Increase"
+                    onPointerDown={() => startProgressHold(1)}
+                    onPointerUp={stopProgressHold}
+                    onPointerCancel={stopProgressHold}
+                    onPointerLeave={stopProgressHold}
+                    disabled={busy || savingProgress}
+                  >
+                    <PlusLg size={13} />
+                  </button>
+                </>
               )}
-              <button
-                type="button"
-                className="btn btn-ghost btn-icon border-0 plan-card-progress-action"
-                aria-label="Decrease"
-                onPointerDown={() => startProgressHold(-1)}
-                onPointerUp={stopProgressHold}
-                onPointerCancel={stopProgressHold}
-                onPointerLeave={stopProgressHold}
-                disabled={busy || savingProgress || effectiveCurrent <= 0}
-              >
-                <DashLg size={13} />
-              </button>
-              <button
-                type="button"
-                className="btn btn-ghost btn-icon border-0 plan-card-progress-action"
-                aria-label="Increase"
-                onPointerDown={() => startProgressHold(1)}
-                onPointerUp={stopProgressHold}
-                onPointerCancel={stopProgressHold}
-                onPointerLeave={stopProgressHold}
-                disabled={busy || savingProgress}
-              >
-                <PlusLg size={13} />
-              </button>
             </div>
           )}
         </div>
       )}
+
+      {/* Row 5 — saved note (only for metric) */}
+      {isMetric && existingNote && (
+        <p className="plan-card-note">
+          <span className="plan-card-note-text">{existingNote}</span>
+          {!readOnly && (
+            <button
+              type="button"
+              className="plan-card-note-edit"
+              onClick={() => setNoteOpen(true)}
+              aria-label="Edit note"
+            >
+              <PencilFill size={12} />
+            </button>
+          )}
+        </p>
+      )}
+
       <NoteDialog
         show={noteOpen}
         initialValue={existingNote}
         busy={savingNote}
         onConfirm={(note) => { void handleSaveNote(note); }}
         onCancel={() => setNoteOpen(false)}
+        onConfirmAndDone={!isMetric && !isDone && !isMissed && onSaveNoteAndDone
+          ? (note) => { void handleSaveNoteAndDone(note); }
+          : undefined
+        }
       />
     </article>
   );

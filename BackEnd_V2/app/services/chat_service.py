@@ -15,7 +15,9 @@ from app.llm.models import MessageResponse
 from app.llm.config import llm_settings
 from app.llm.tools import ToolContext, execute_tool
 from app.core.exceptions import NotFoundError, ValidationError
-from app.llm import get_llm_service, NewConvoResponse, LLMError, LLMRequestError
+from app.llm import get_llm_service, get_llm_service_for_user, LLMService, NewConvoResponse, LLMError, LLMRequestError
+from app.llm.service import get_llm_service_for_ai_behavior
+from app.services import memory_service, settings_service
 from app.models.user import UserDBM
 from app.models.chat import ConversationDBM, MessageDBM
 from app.models.goal import GoalDBM
@@ -23,6 +25,7 @@ from app.models.goal_proposal import GoalProposalDBM
 from app.models.milestone import MilestoneDBM
 from app.models.milestone_proposal import MilestoneProposalDBM
 from app.models.task_proposal import TaskProposalDBM
+from app.models.scheduled_task_proposal import ScheduledTaskProposalDBM
 from app.schemas.chat import (
     ConvoDataResponse,
     ConvoDataShortResponse,
@@ -33,6 +36,11 @@ from app.schemas.chat import (
     NewConvoRequest,
     RenameConvoRequest,
 )
+
+
+def _build_user_llm_service(ai_behavior: dict) -> LLMService:
+    """Returns LLMService with the user's custom API key when enabled, else the cached global service."""
+    return get_llm_service_for_ai_behavior(ai_behavior)
 
 
 def _serialize_conversation(conversation: ConversationDBM) -> ConvoDataShortResponse:
@@ -138,6 +146,101 @@ def _resolve_task_proposal_actions(
     return {**linked_items, "task_proposals": resolved_proposals}
 
 
+def _resolve_scheduled_task_proposal_actions(
+    db: Session, current_user: UserDBM, linked_items: dict
+) -> dict:
+    """Derive each scheduled task proposal's CTA from whether its task still exists."""
+    proposals = linked_items.get("scheduled_task_proposals")
+    if not proposals:
+        return linked_items
+
+    from app.models.schedule_task import ScheduledTaskDBM
+    from app.models.scheduled_task_proposal import ScheduledTaskProposalDBM
+
+    # The snapshot in linked_items has scheduled_task_id=None at write time.
+    # Query the live proposal rows by proposal_id to get the real scheduled_task_id.
+    proposal_ids = [p["proposal_id"] for p in proposals if p.get("proposal_id")]
+    live_rows = db.scalars(
+        select(ScheduledTaskProposalDBM).where(
+            ScheduledTaskProposalDBM.proposal_id.in_(proposal_ids),
+            ScheduledTaskProposalDBM.user_id == current_user.id,
+        )
+    ).all()
+    task_id_by_proposal: dict[str, int | None] = {
+        row.proposal_id: row.scheduled_task_id for row in live_rows
+    }
+
+    task_ids = {tid for tid in task_id_by_proposal.values() if tid is not None}
+    existing_task_ids: set[int] = set()
+    if task_ids:
+        existing_task_ids = set(
+            db.scalars(
+                select(ScheduledTaskDBM.id).where(
+                    ScheduledTaskDBM.id.in_(task_ids),
+                    ScheduledTaskDBM.user_id == current_user.id,
+                )
+            ).all()
+        )
+
+    resolved_proposals = [
+        {
+            **proposal,
+            "scheduled_task_action": (
+                "view"
+                if task_id_by_proposal.get(proposal.get("proposal_id")) in existing_task_ids
+                else "create"
+            ),
+        }
+        for proposal in proposals
+    ]
+
+    return {**linked_items, "scheduled_task_proposals": resolved_proposals}
+
+
+def _attach_scheduled_task_proposal(
+    db: Session,
+    current_user: UserDBM,
+    conversation: ConversationDBM,
+    assistant_message: MessageDBM,
+    action_data: dict | None,
+    content_index: int,
+) -> None:
+    """Persist a scheduled task proposal and attach it to the message linked_items."""
+    if not action_data or "scheduled_task_proposal" not in action_data:
+        return
+
+    proposal_data = action_data["scheduled_task_proposal"]
+
+    proposal_id = str(uuid.uuid4())
+    db.add(
+        ScheduledTaskProposalDBM(
+            proposal_id=proposal_id,
+            user_id=current_user.id,
+            conversation_id=conversation.id,
+            message_id=assistant_message.id,
+            content_index=content_index,
+            status="pending",
+            scheduled_task_id=None,
+        )
+    )
+
+    existing_linked_items = assistant_message.linked_items or {}
+    existing_proposals = list(existing_linked_items.get("scheduled_task_proposals") or [])
+    existing_proposals.append(
+        {
+            "proposal_id": proposal_id,
+            "content_index": content_index,
+            "status": "pending",
+            "scheduled_task_id": None,
+            "scheduled_task": proposal_data,
+        }
+    )
+    assistant_message.linked_items = {
+        **existing_linked_items,
+        "scheduled_task_proposals": existing_proposals,
+    }
+
+
 def _serialize_message(
     db: Session, current_user: UserDBM, message: MessageDBM
 ) -> MessageDataResponse:
@@ -145,6 +248,7 @@ def _serialize_message(
     data.linked_items = _resolve_goal_proposal_actions(db, current_user, data.linked_items)
     data.linked_items = _resolve_milestone_proposal_actions(db, current_user, data.linked_items)
     data.linked_items = _resolve_task_proposal_actions(db, current_user, data.linked_items)
+    data.linked_items = _resolve_scheduled_task_proposal_actions(db, current_user, data.linked_items)
     return data
 
 
@@ -326,19 +430,33 @@ async def create_conversation(
     current_user: UserDBM,
     data: NewConvoRequest,
 ) -> NewConvoResponse:
-    llm_service = get_llm_service()
+    user_memory_str = ""
+    memory_enabled = llm_settings.save_user_memory and settings_service.get_ai_memory_enabled(db, current_user.id)
+    if memory_enabled:
+        user_memories = memory_service.get_user_memories(db, current_user.id)
+        user_memory_str = memory_service.format_memories_for_prompt(user_memories)
+
+    ai_behavior = settings_service.get_ai_behavior(db, current_user.id)
+    response_length = ai_behavior["ai_response_length"]
+    personality = ai_behavior["ai_personality"]
+    ai_provider = ai_behavior["ai_provider"]
+    ai_model = ai_behavior["ai_default_model"]
 
     tool_context = ToolContext(db=db, current_user=current_user)
     tool_executor = partial(execute_tool, context=tool_context)
+    llm_service = _build_user_llm_service(ai_behavior)
 
     try:
         response = await llm_service.create_conversation(
-            data, 
+            data,
             user_id=current_user.id,
             goal_id=data.goal_id,
             milestone_id=data.milestone_id,
-            
             tool_executor=tool_executor,
+            user_memory=user_memory_str,
+            response_length=response_length,
+            personality=personality,
+            model=ai_model,
         )
     except LLMError as exc:
         raise LLMRequestError(f"Failed to create conversation: {exc}") from exc
@@ -380,6 +498,7 @@ async def create_conversation(
     )
     _attach_milestone_proposals(db, current_user, conversation, assistant_message, tool_context.action_data, 0)
     _attach_task_proposals(db, current_user, conversation, assistant_message, tool_context.action_data, 0)
+    _attach_scheduled_task_proposal(db, current_user, conversation, assistant_message, tool_context.action_data, 0)
 
     db.commit()
     db.refresh(conversation)
@@ -392,6 +511,9 @@ async def create_conversation(
         db, current_user, resolved_linked_items
     )
     resolved_linked_items = _resolve_task_proposal_actions(
+        db, current_user, resolved_linked_items
+    )
+    resolved_linked_items = _resolve_scheduled_task_proposal_actions(
         db, current_user, resolved_linked_items
     )
 
@@ -512,6 +634,13 @@ async def _call_llm_and_save(
     user_message: MessageDBM,
     data: MessageRequest,
     recent_message_data: list[dict],
+    user_memory: str = "",
+    response_length: str = "balanced",
+    personality: str = "coach",
+    ai_provider: str = "openai",
+    ai_model: str = "gpt-5-mini",
+    custom_api_key_enabled: bool = False,
+    custom_api_key: str = "",
 ) -> MessageResponse:
     user_message.request_status = "pending"
     db.commit()
@@ -519,7 +648,11 @@ async def _call_llm_and_save(
     tool_context = ToolContext(db=db, current_user=current_user)
     tool_executor = partial(execute_tool, context=tool_context)
 
-    llm_service = get_llm_service()
+    llm_service = _build_user_llm_service({
+        "ai_provider": ai_provider,
+        "custom_api_key_enabled": custom_api_key_enabled,
+        "custom_api_key": custom_api_key,
+    })
     try:
         response = await llm_service.respond_to_message(
             data,
@@ -532,6 +665,10 @@ async def _call_llm_and_save(
             context_summary=conversation.context_summary,
             recent_messages=recent_message_data,
             tool_executor=tool_executor,
+            user_memory=user_memory,
+            response_length=response_length,
+            personality=personality,
+            model=ai_model,
         )
     except LLMError as exc:
         user_message.request_status = "failed"
@@ -561,6 +698,9 @@ async def _call_llm_and_save(
         db, current_user, conversation, assistant_message, tool_context.action_data, 0
     )
     _attach_task_proposals(
+        db, current_user, conversation, assistant_message, tool_context.action_data, 0
+    )
+    _attach_scheduled_task_proposal(
         db, current_user, conversation, assistant_message, tool_context.action_data, 0
     )
 
@@ -627,13 +767,28 @@ async def respond_to_message(
         {"role": MessageRoleEnum.USER, "content": data.content},
     ]
 
+    user_memory_str = ""
+    user_memories = []
+    memory_enabled = llm_settings.save_user_memory and settings_service.get_ai_memory_enabled(db, current_user.id)
+    if memory_enabled:
+        user_memories = memory_service.get_user_memories(db, current_user.id)
+        user_memory_str = memory_service.format_memories_for_prompt(user_memories)
+
+    ai_behavior = settings_service.get_ai_behavior(db, current_user.id)
+    response_length = ai_behavior["ai_response_length"]
+    personality = ai_behavior["ai_personality"]
+    ai_provider = ai_behavior["ai_provider"]
+    ai_model = ai_behavior["ai_default_model"]
+
+    # Background ops use the env-default provider intentionally — they run internal
+    # bookkeeping prompts that are tuned for the deployment model, not the user's
+    # chosen chat provider.
     llm_service = get_llm_service()
     context_task = None
+    memory_task = None
+
+    # Context summary: fires every chat_summary_update_user_messages (default 10).
     if summary_update_due:
-        # Fire the context summary update concurrently with the main LLM call
-        # instead of awaiting it first. Both run in parallel, so the extra
-        # latency is max(context_time, message_time) rather than their sum.
-        # The update is non-critical — if it fails, the next threshold retries.
         context_task = asyncio.create_task(
             llm_service.update_conversation_context(
                 user_id=current_user.id,
@@ -644,33 +799,60 @@ async def respond_to_message(
             )
         )
 
+    # Memory extraction: fires every chat_memory_extraction_user_messages (default 3),
+    # independent of the summary threshold so short conversations can persist durable info.
+    if memory_enabled:
+        new_memory_message_count = (
+            total_user_message_count - conversation.memory_user_message_count
+        )
+        memory_update_due = (
+            new_memory_message_count >= llm_settings.chat_memory_extraction_user_messages
+        )
+        if memory_update_due:
+            memory_task = asyncio.create_task(
+                llm_service.extract_user_memory(
+                    user_id=current_user.id,
+                    agent_type=conversation.agent_type,
+                    stable_context=conversation.stable_context,
+                    context_summary=conversation.context_summary,
+                    messages=context_messages,
+                    existing_memories=memory_service.serialize_memories_for_llm(user_memories),
+                )
+            )
+
     user_message = MessageDBM(
         conversation_id=conversation.id,
         role=MessageRoleEnum.USER,
         content=[data.content],
         request_status="pending",
+        # Persisted so retry/regenerate can recover the original goal/milestone
+        # context — they rebuild the request from this row, not from `data`.
+        linked_items={"goal_id": data.goal_id, "milestone_id": data.milestone_id},
     )
     db.add(user_message)
 
     try:
-        message_response = await _call_llm_and_save(db, current_user, conversation, user_message, data, recent_message_data)
+        message_response = await _call_llm_and_save(
+            db, current_user, conversation, user_message, data,
+            recent_message_data, user_memory=user_memory_str,
+            response_length=response_length, personality=personality,
+            ai_provider=ai_provider, ai_model=ai_model,
+            custom_api_key_enabled=ai_behavior.get("custom_api_key_enabled", False),
+            custom_api_key=ai_behavior.get("custom_api_key", ""),
+        )
     except Exception:
-        # If message generation fails, cancel and drain the context task so it
-        # doesn't run orphaned in the background. An unattended task exception
-        # produces "Task exception was never retrieved" warnings and wastes an
-        # LLM request that no one will read.
-        if context_task is not None:
-            context_task.cancel()
-            try:
-                await context_task
-            except (asyncio.CancelledError, Exception):
-                pass
+        # Cancel background tasks on main-call failure to avoid orphaned warnings.
+        for task in (context_task, memory_task):
+            if task is not None:
+                task.cancel()
+                try:
+                    await task
+                except (asyncio.CancelledError, Exception):
+                    pass
         raise
 
     if context_task is not None:
         try:
-            # context_task ran concurrently with _call_llm_and_save.
-            # Total wait = max(context_time, message_time), not their sum.
             context_response = await context_task
             context_data = context_response.llm_data
             if context_data.context_summary.strip():
@@ -681,6 +863,21 @@ async def respond_to_message(
                 db.commit()
         except Exception:
             logger.exception("Context summary update failed; will retry at next threshold.")
+
+    if memory_task is not None:
+        try:
+            memory_response = await memory_task
+            actions = memory_response.llm_data.actions
+            if actions:
+                memory_service.apply_memory_actions(db, current_user.id, actions)
+            # Advance the watermark regardless of whether any actions were applied.
+            # This prevents the same message window from being re-evaluated on the
+            # next request. Only skip the update on exception so failed extractions
+            # retry at the next threshold.
+            conversation.memory_user_message_count = total_user_message_count
+            db.commit()
+        except Exception:
+            logger.exception("User memory extraction failed; will retry at next threshold.")
 
     return message_response
 
@@ -723,8 +920,20 @@ async def retry_failed_message(
         for msg in preceding_messages
     ]
 
-    data = MessageRequest(content=user_message.content[-1])
-    return await _call_llm_and_save(db, current_user, conversation, user_message, data, recent_message_data)
+    data = MessageRequest(
+        content=user_message.content[-1],
+        goal_id=user_message.linked_items.get("goal_id"),
+        milestone_id=user_message.linked_items.get("milestone_id"),
+    )
+    ai_behavior = settings_service.get_ai_behavior(db, current_user.id)
+    return await _call_llm_and_save(
+        db, current_user, conversation, user_message, data,
+        recent_message_data,
+        response_length=ai_behavior["ai_response_length"],
+        personality=ai_behavior["ai_personality"],
+        ai_provider=ai_behavior["ai_provider"],
+        ai_model=ai_behavior["ai_default_model"],
+    )
 
 
 async def regenerate_response(
@@ -781,21 +990,39 @@ async def regenerate_response(
         {"role": msg.role, "content": msg.content[-1]}
         for msg in prior_messages
     ]
-    data = MessageRequest(content=paired_user_message.content[-1])
+    data = MessageRequest(
+        content=paired_user_message.content[-1],
+        goal_id=paired_user_message.linked_items.get("goal_id"),
+        milestone_id=paired_user_message.linked_items.get("milestone_id"),
+    )
+
+    user_memory_str = ""
+    memory_enabled = llm_settings.save_user_memory and settings_service.get_ai_memory_enabled(db, current_user.id)
+    if memory_enabled:
+        user_memories = memory_service.get_user_memories(db, current_user.id)
+        user_memory_str = memory_service.format_memories_for_prompt(user_memories)
+
+    ai_behavior = settings_service.get_ai_behavior(db, current_user.id)
 
     tool_context = ToolContext(db=db, current_user=current_user)
     tool_executor = partial(execute_tool, context=tool_context)
 
-    llm_service = get_llm_service()
+    llm_service = _build_user_llm_service(ai_behavior)
     try:
         response = await llm_service.respond_to_message(
             data,
             user_id=current_user.id,
+            goal_id=data.goal_id,
+            milestone_id=data.milestone_id,
             agent_type=conversation.agent_type,
             stable_context=conversation.stable_context,
             context_summary=conversation.context_summary,
             recent_messages=recent_message_data,
             tool_executor=tool_executor,
+            user_memory=user_memory_str,
+            response_length=ai_behavior["ai_response_length"],
+            personality=ai_behavior["ai_personality"],
+            model=ai_behavior["ai_default_model"],
         )
     except LLMError as exc:
         raise LLMRequestError(f"Failed to regenerate response: {exc}") from exc
@@ -816,6 +1043,7 @@ async def regenerate_response(
     )
     _attach_milestone_proposals(db, current_user, conversation, assistant_message, tool_context.action_data, new_content_index)
     _attach_task_proposals(db, current_user, conversation, assistant_message, tool_context.action_data, new_content_index)
+    _attach_scheduled_task_proposal(db, current_user, conversation, assistant_message, tool_context.action_data, new_content_index)
 
     conversation.updated_at = datetime.now(timezone.utc)
     db.commit()

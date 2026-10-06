@@ -1,0 +1,511 @@
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import {
+  ArrowLeft,
+  ArrowLeftRight,
+  ChevronDown,
+  ChevronUp,
+  Clock,
+  HouseDoorFill,
+  Link45deg,
+  MoonFill,
+  MoonStarsFill,
+  PencilSquare,
+  SunFill,
+  Trash3,
+} from "react-bootstrap-icons";
+
+import { api, ApiError } from "@/api";
+import type { HabitActivityRecord, HabitDataResponse } from "@/api";
+import { trackProgressApi } from "@/api/track_progress";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
+import { ProgressRing } from "@/components/ui/ProgressRing/ProgressRing";
+import { ROUTES } from "@/routes/RoutePaths";
+import { PRIORITY_LABEL } from "@/pages/plan/PlanPage.constants";
+import { todayDate, formatTime, formatDisplayDate } from "@/services/date.service";
+import { useDateFormat, useTimeFormat } from "@/context/PlannerContext";
+import { useToast } from "@/context/ToastContext";
+import {
+  formatStatusLabel,
+  getSimpleFrequencyLabel,
+  PriorityIcon,
+} from "@/pages/habit_library/HabitCard/HabitCard.constants";
+import { HabitHeatmap } from "./HabitHeatmap/HabitHeatmap";
+import { HabitHistory } from "./HabitHistory/HabitHistory";
+import { DetailPageSkeleton } from "./DetailPageSkeleton/DetailPageSkeleton";
+import {
+  HabitTaskSwitcherPanel,
+  type HabitSwitchItem,
+  type TaskSwitchItem,
+} from "./HabitTaskSwitcherPanel/HabitTaskSwitcherPanel";
+
+import "@/pages/my_goals/GoalDetailPage/GoalDetailPage.scss";
+import "@/pages/plan/PlanCard/PlanCard.scss";
+import "@/pages/habit_library/HabitCard/HabitCard.scss";
+// .hl-card / .hl-card-header / .hl-card-body / .hl-title (used by HabitHeatmap
+// and HabitHistory below) are only DEFINED here — GoalDetailPage.scss just
+// layers page-specific overrides on top. Without this import, this page only
+// looked right when reached via the Habit Library list (whose own import of
+// this stylesheet happened to still be loaded from the prior route) and lost
+// its card padding when opened directly, e.g. from a PlanCard habit pill.
+import "@/pages/habit_library/HabitLibraryPage.scss";
+import "./HabitDetailPage.scss";
+
+// ── Inline time label — mirrors ScheduleTaskDetailPanel's TimeChip ────────────
+
+function TimeLabel({ habit }: { habit: HabitDataResponse }) {
+  const timeFormat = useTimeFormat();
+  const t = habit.preferred_time;
+  if (!t || t === "flexible") return null;
+  const label =
+    t === "custom"
+      ? (habit.specific_time ? formatTime(habit.specific_time, timeFormat) : "Custom")
+      : t.charAt(0).toUpperCase() + t.slice(1);
+
+  let icon: React.ReactNode;
+  let mod: string;
+  if (t === "morning") { icon = <SunFill size={12} />; mod = "hd-time--morning"; }
+  else if (t === "afternoon") { icon = <SunFill size={12} />; mod = "hd-time--afternoon"; }
+  else if (t === "evening") { icon = <MoonFill size={11} />; mod = "hd-time--evening"; }
+  else if (t === "night") { icon = <MoonStarsFill size={11} />; mod = "hd-time--night"; }
+  else { icon = <Clock size={12} />; mod = "hd-time--clock"; }
+
+  return (
+    <span className={`hd-time ${mod}`}>
+      {icon}
+      {label}
+    </span>
+  );
+}
+
+function MissingHabitIllustration() {
+  return (
+    <svg
+      className="hd-notfound-svg"
+      viewBox="0 0 400 280"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      role="img"
+      aria-label="A fading habit trail ending at a question marker"
+    >
+      <defs>
+        <linearGradient id="hdNotFoundGrad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="var(--jv-brand-1)" />
+          <stop offset="100%" stopColor="var(--jv-brand-2)" />
+        </linearGradient>
+      </defs>
+
+      <g transform="rotate(-4 200 140)">
+        <rect x="76" y="52" width="250" height="175" rx="15" className="hd-notfound-svg-card" />
+        <path
+          d="M115 182 C 148 152, 162 126, 206 114 S 264 146, 294 106"
+          className="hd-notfound-svg-path"
+          fill="none"
+          strokeLinecap="round"
+          strokeDasharray="4 11"
+        />
+        <circle cx="115" cy="182" r="5" className="hd-notfound-svg-dot" />
+        <circle cx="206" cy="114" r="5" className="hd-notfound-svg-dot" />
+        <g transform="translate(294 106)">
+          <circle r="17" className="hd-notfound-svg-badge" />
+          <text x="0" y="6" textAnchor="middle" className="hd-notfound-svg-badge-mark">?</text>
+        </g>
+      </g>
+
+      <g transform="translate(148 158)">
+        <circle r="52" fill="url(#hdNotFoundGrad)" className="hd-notfound-svg-ring-glow" />
+        <circle r="44" className="hd-notfound-svg-ring-face" />
+        <path d="M0 -22 L8 7 L0 19 L-8 7 Z" className="hd-notfound-svg-needle-a" transform="rotate(24)" />
+        <path d="M0 22 L8 -7 L0 -19 L-8 -7 Z" className="hd-notfound-svg-needle-b" transform="rotate(24)" />
+        <circle r="4.5" className="hd-notfound-svg-ring-dot" />
+      </g>
+
+      <circle cx="63" cy="88" r="3" className="hd-notfound-svg-speck" />
+      <circle cx="342" cy="198" r="4" className="hd-notfound-svg-speck" />
+      <circle cx="329" cy="66" r="2.5" className="hd-notfound-svg-speck" />
+    </svg>
+  );
+}
+
+// ── Hero ──────────────────────────────────────────────────────────────────────
+
+function HabitHero({
+  habit,
+  completionPct,
+  onDelete,
+  deleting,
+}: {
+  habit: HabitDataResponse;
+  completionPct: number;
+  onDelete: () => void;
+  deleting: boolean;
+}) {
+  const navigate = useNavigate();
+  const dateFormat = useDateFormat();
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  const freqLabel = getSimpleFrequencyLabel(habit);
+
+  const dateRangeLabel = (() => {
+    if (!habit.start_date && !habit.end_date) return null;
+    const from = habit.start_date ? formatDisplayDate(habit.start_date, dateFormat) : "—";
+    const to = habit.end_date ? formatDisplayDate(habit.end_date, dateFormat) : "ongoing";
+    return `${from} → ${to}`;
+  })();
+
+  return (
+    <div className={`surface goal-detail-hero${isExpanded ? " is-expanded" : ""}`}>
+      <div className="d-flex flex-column flex-md-row gap-4 align-items-md-center">
+
+        {/* Left — completion ring */}
+        <div className="goal-detail-hero-progress" aria-hidden="true">
+          <ProgressRing percentage={completionPct} />
+        </div>
+
+        {/* Right — content */}
+        <div className="flex-grow-1 min-w-0">
+
+          {/* Chips row + actions */}
+          <div className="d-flex align-items-center gap-2 flex-wrap mb-2 goal-detail-hero-head">
+            {/* Category */}
+            {habit.category && (
+              <span className="goal-detail-category">{habit.category}</span>
+            )}
+
+            {/* Status */}
+            <span className={`hl-habit-chip hl-habit-chip--status-${habit.status}`}>
+              <span className="hl-habit-chip-dot" aria-hidden="true" />
+              {formatStatusLabel(habit.status)}
+            </span>
+
+            {/* Priority */}
+            <span className={`plan-card-pill plan-card-pill--priority-${habit.priority}`}>
+              <PriorityIcon priority={habit.priority} />
+              {PRIORITY_LABEL[habit.priority]}
+            </span>
+
+            {/* Current streak */}
+            {habit.current_streak > 0 && (
+              <span className="plan-card-streak" aria-label={`${habit.current_streak} day streak`}>
+                🔥 {habit.current_streak}
+              </span>
+            )}
+
+            {/* Max streak */}
+            {habit.max_streak > 0 && (
+              <span className="plan-card-streak" aria-label={`${habit.max_streak} day best streak`}>
+                🏆 {habit.max_streak}
+              </span>
+            )}
+
+            {/* Linked goal */}
+            {habit.goal && (
+              <span
+                className="goal-detail-link-pill"
+                role="button"
+                tabIndex={0}
+                onClick={() =>
+                  navigate(ROUTES.MY_GOAL_DETAIL.replace(":goalId", String(habit.goal!.id)))
+                }
+                onKeyDown={(e) => {
+                  if (e.key === "Enter")
+                    navigate(ROUTES.MY_GOAL_DETAIL.replace(":goalId", String(habit.goal!.id)));
+                }}
+              >
+                <Link45deg size={12} />
+                {habit.goal.title}
+              </span>
+            )}
+
+            {/* Actions */}
+            <div className="goal-detail-hero-actions ms-auto">
+              <button
+                type="button"
+                className="btn btn-ghost btn-icon goal-detail-action-btn"
+                aria-label={isExpanded ? "Collapse details" : "Expand details"}
+                aria-expanded={isExpanded}
+                onClick={() => setIsExpanded((v) => !v)}
+              >
+                {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost btn-icon goal-detail-action-btn goal-detail-action-btn-desktop"
+                aria-label="Edit habit"
+                onClick={() =>
+                  navigate(
+                    ROUTES.HABIT_LIBRARY_EDIT.replace(":habitId", String(habit.id)),
+                    { state: { habit } },
+                  )
+                }
+              >
+                <PencilSquare size={16} />
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost btn-icon goal-detail-action-btn goal-detail-action-btn-desktop hd-delete-btn"
+                aria-label="Delete habit"
+                onClick={onDelete}
+                disabled={deleting}
+              >
+                <Trash3 size={16} />
+              </button>
+            </div>
+          </div>
+
+          {/* Title */}
+          <h1 className="goal-detail-title h3 fw-bold mb-1">{habit.title}</h1>
+
+          {/* Note */}
+          {habit.note && <p className="goal-detail-copy mt-1">{habit.note}</p>}
+
+          {/* Expandable detail rows — slides open on chevron toggle */}
+          <div className={`hd-details-shell${isExpanded ? " is-expanded" : ""}`}>
+            <div className="hd-details-inner">
+              <div className="hd-detail-rows">
+
+                <div className="hd-detail-row">
+                  <span className="hd-detail-label">Frequency</span>
+                  <span className="hd-detail-value" style={{ textTransform: "capitalize" }}>{freqLabel.suffix}</span>
+                </div>
+
+                {habit.preferred_time && habit.preferred_time !== "flexible" && (
+                  <div className="hd-detail-row">
+                    <span className="hd-detail-label">Time</span>
+                    <span className="hd-detail-value">
+                      <TimeLabel habit={habit} />
+                    </span>
+                  </div>
+                )}
+
+                {habit.duration_minutes != null && habit.duration_minutes > 0 && (
+                  <div className="hd-detail-row">
+                    <span className="hd-detail-label">Duration</span>
+                    <span className="hd-detail-value">{habit.duration_minutes} min</span>
+                  </div>
+                )}
+
+                {habit.planner_type === "metric" && habit.planner_target != null && (
+                  <div className="hd-detail-row">
+                    <span className="hd-detail-label">Target</span>
+                    <span className="hd-detail-value">
+                      {habit.planner_target}
+                      {habit.value_unit ? ` ${habit.value_unit}` : ""}
+                    </span>
+                  </div>
+                )}
+
+                {dateRangeLabel && (
+                  <div className="hd-detail-row">
+                    <span className="hd-detail-label">Date</span>
+                    <span className="hd-detail-value">{dateRangeLabel}</span>
+                  </div>
+                )}
+
+              </div>
+            </div>
+          </div>
+
+          {/* Mobile progress bar */}
+          <div
+            className="goal-detail-progress-bar-wrap mt-2"
+            aria-label={`${completionPct}% completion rate`}
+          >
+            <div className="goal-detail-progress-bar-track">
+              <div
+                className="goal-detail-progress-bar-fill"
+                style={{ width: `${completionPct}%` }}
+              />
+            </div>
+            <span className="goal-detail-progress-bar-label">{completionPct}%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main page ─────────────────────────────────────────────────────────────────
+
+export function HabitDetailPage() {
+  const { habitId } = useParams<{ habitId: string }>();
+
+  const [habit, setHabit] = useState<HabitDataResponse | null>(null);
+  const [records, setRecords] = useState<HabitActivityRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const [switcherOpen, setSwitcherOpen] = useState(false);
+  const [switcherHabits, setSwitcherHabits] = useState<HabitSwitchItem[]>([]);
+  const [switcherTasks, setSwitcherTasks] = useState<TaskSwitchItem[]>([]);
+
+  const navigate = useNavigate();
+  const toast = useToast();
+
+  function openSwitcher() {
+    Promise.all([trackProgressApi.getEligibleHabits(), trackProgressApi.getEligibleTasks()])
+      .then(([habitData, taskData]) => {
+        setSwitcherHabits(habitData.map((h) => ({
+          id: h.id,
+          title: h.title,
+          type: h.planner_type === "metric" ? "Metric" as const : "Simple" as const,
+          priority: h.priority,
+          category: h.category,
+        })));
+        setSwitcherTasks(taskData.map((t) => ({
+          id: t.id,
+          title: t.title,
+          type: t.planner_type === "metric" ? "Metric" as const : "Simple" as const,
+          priority: t.priority,
+        })));
+        setSwitcherOpen(true);
+      })
+      .catch((err) => {
+        toast.error(err instanceof ApiError ? err.message : "Couldn't load habits and tasks.");
+      });
+  }
+
+  useEffect(() => {
+    if (!habitId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await api.habits.getActivity(Number(habitId));
+        if (cancelled) return;
+        setHabit(data.habit);
+        setRecords(data.records);
+      } catch (err) {
+        if (!cancelled)
+          setError(err instanceof ApiError ? err.message : "Failed to load habit details.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [habitId]);
+
+  const currentMonthPct = useMemo(() => {
+    const now = todayDate();
+    const y = now.getFullYear();
+    const m = now.getMonth();
+    const monthRecs = records.filter((r) => {
+      if (r.status === "due") return false;
+      const d = new Date(`${r.date}T00:00:00`);
+      return d.getFullYear() === y && d.getMonth() === m;
+    });
+    const done = monthRecs.filter((r) => r.status === "done").length;
+    return monthRecs.length > 0 ? Math.round((done / monthRecs.length) * 100) : 0;
+  }, [records]);
+
+  async function handleDelete() {
+    if (!habit || deleting) return;
+    setDeleting(true);
+    try {
+      await api.habits.removeHabit(habit.id);
+      navigate(ROUTES.HABIT_LIBRARY, { replace: true });
+    } catch {
+      setDeleting(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="hd-page goal-detail-page">
+        <DetailPageSkeleton />
+      </div>
+    );
+  }
+
+  if (error || !habit) {
+    const message = error ?? "Habit not found.";
+    const isNotFound = message.toLowerCase().includes("not found");
+
+    return (
+      <div className="hd-page goal-detail-page">
+        {/* <button onClick={() => navigate(-1)} className="goal-detail-back-link">
+          <ArrowLeft size={15} /> Library
+        </button> */}
+        <section className="hd-notfound" aria-live="polite">
+          <div className="hd-notfound-illustration">
+            <MissingHabitIllustration />
+          </div>
+          <p className="hd-notfound-code">{isNotFound ? "404" : "Oops"}</p>
+          <h2 className="hd-notfound-title">
+            {isNotFound ? "This habit could not be found" : "Could not open this habit"}
+          </h2>
+          <p className="hd-notfound-text">{message}</p>
+          <div className="hd-notfound-actions">
+            <button
+              type="button"
+              className="btn btn-brand hd-notfound-cta"
+              onClick={() => navigate(ROUTES.HABIT_LIBRARY)}
+            >
+              <HouseDoorFill size={14} /> Back to Habit Library
+            </button>
+            <button
+              type="button"
+              className="btn btn-outline-secondary hd-notfound-secondary"
+              onClick={() => navigate(-1)}
+            >
+              <ArrowLeft size={14} /> Go Back
+            </button>
+          </div>
+        </section>
+      </div>
+    );
+  }
+
+  return (
+    <div className="hd-page goal-detail-page habit-library-page">
+      <div className="hd-top-row">
+        <button onClick={() => navigate(-1)} className="goal-detail-back-link">
+          <ArrowLeft size={15} /> Back
+        </button>
+        <button onClick={openSwitcher} className="goal-detail-back-link">
+          <ArrowLeftRight size={15} /> Switch
+        </button>
+      </div>
+
+      <HabitHero
+        key={`hero-${habit.id}`}
+        habit={habit}
+        completionPct={currentMonthPct}
+        onDelete={() => setShowDeleteConfirm(true)}
+        deleting={deleting}
+      />
+
+      <HabitHeatmap key={`heatmap-${habit.id}`} habit={habit} records={records} />
+
+      <HabitHistory key={`history-${habit.id}`} habit={habit} records={records} />
+
+      {switcherOpen && (
+        <HabitTaskSwitcherPanel
+          habits={switcherHabits}
+          tasks={switcherTasks}
+          activeHabitId={habit.id}
+          onClose={() => setSwitcherOpen(false)}
+          onSelectHabit={(id) => navigate(ROUTES.HABIT_LIBRARY_DETAIL.replace(":habitId", String(id)))}
+          onSelectTask={(id) => navigate(ROUTES.TASK_DETAIL.replace(":taskId", String(id)))}
+        />
+      )}
+
+      <ConfirmDialog
+        show={showDeleteConfirm}
+        title="Delete this habit?"
+        message={`This will permanently remove "${habit.title}". This cannot be undone.`}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        destructive
+        busy={deleting}
+        onConfirm={() => void handleDelete()}
+        onCancel={() => {
+          if (!deleting) {
+            setShowDeleteConfirm(false);
+          }
+        }}
+      />
+    </div>
+  );
+}

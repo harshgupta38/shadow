@@ -115,6 +115,12 @@ class TaskDBM(Base):
         default=False,
         server_default=text("0"),
     )
+    tracking_enabled: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default=text("0"),
+    )
     # planner_type: "simple" = mark done once per session; "metric" = track amount per session.
     planner_type: Mapped[str] = mapped_column(
         String(8),

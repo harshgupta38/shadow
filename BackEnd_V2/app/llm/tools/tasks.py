@@ -17,6 +17,8 @@ async def create_task_proposals(context: ToolContext, arguments: dict) -> dict:
     goal_data = goal.model_dump(mode="json")
     milestone_data = milestone.model_dump(mode="json")
 
+    # uses the env-default model — generate_task_proposals() doesn't accept a
+    # model override yet, so this ignores the user's ai_provider/ai_default_model setting.
     llm_service = get_llm_service()
     result = await llm_service.generate_task_proposals(
         goal_data=goal_data,

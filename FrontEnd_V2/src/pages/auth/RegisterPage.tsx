@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { EnvelopeFill, Eye, EyeSlash, LockFill, PersonFill } from "react-bootstrap-icons";
 
@@ -6,8 +6,16 @@ import { ApiError } from "@/api/client";
 import { type RegisterRequest } from "@/api";
 import { AuthLayout } from "@/components/layout/AuthLayout";
 import { TextField } from "@/components/ui/TextField/TextField";
+import { PasswordStrength } from "@/components/ui/PasswordStrength/PasswordStrength";
 import { useAuth } from "@/context/AuthContext";
 import { ROUTES } from "@/routes/RoutePaths";
+import { TIMING } from "@/constant/tuning";
+
+function fmtCountdown(secs: number): string {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m}:${String(s).padStart(2, "0")}`;
+}
 
 export function RegisterPage() {
     const { register } = useAuth();
@@ -21,8 +29,34 @@ export function RegisterPage() {
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const [submitting, setSubmitting] = useState(false);
 
+    // Rate-limit lockout: timestamp (ms) when the lockout expires, null when unlocked
+    const [lockedUntil, setLockedUntil] = useState<number | null>(null);
+    const [countdown, setCountdown] = useState(0);
+
+    useEffect(() => {
+        if (lockedUntil === null) return;
+
+        const tick = () => {
+            const remaining = Math.ceil((lockedUntil - Date.now()) / 1000);
+            if (remaining <= 0) {
+                setLockedUntil(null);
+                setCountdown(0);
+                setError(null);
+            } else {
+                setCountdown(remaining);
+            }
+        };
+
+        tick();
+        const id = setInterval(tick, TIMING.LOCKOUT_COUNTDOWN_TICK_MS);
+        return () => clearInterval(id);
+    }, [lockedUntil]);
+
+    const isLocked = lockedUntil !== null;
+
     async function handleSubmit(event: FormEvent) {
         event.preventDefault();
+        if (isLocked) return;
         setError(null);
         setFieldErrors({});
         setSubmitting(true);
@@ -36,10 +70,13 @@ export function RegisterPage() {
         try {
             await register(payload);
             navigate(ROUTES.DASHBOARD, { replace: true });
-        } catch (error) {
-            if (error instanceof ApiError) {
-                setError(error.message);
-                if (error.fieldErrors) setFieldErrors(error.fieldErrors);
+        } catch (err) {
+            if (err instanceof ApiError) {
+                setError(err.message);
+                if (err.fieldErrors) setFieldErrors(err.fieldErrors);
+                if (err.status === 429 && err.retryAfter && err.retryAfter > 0) {
+                    setLockedUntil(Date.now() + err.retryAfter * 1000);
+                }
             } else {
                 setError("Unable to create your account. Please try again.");
             }
@@ -64,9 +101,12 @@ export function RegisterPage() {
     }
 
     return (
-        <AuthLayout>
-            <h1 className="h3 fw-bold mb-1">Create your account</h1>
-            <p className="text-muted-2 mb-4">Start turning your goals into daily momentum.</p>
+        <AuthLayout
+            mobileTitle={<>Create your <span className="auth-aside-title-accent">account</span> ✨</>}
+            mobileSubtitle="Turn your goals into daily momentum."
+        >
+            <h1 className="h3 fw-bold mb-1 d-none d-md-block">Create your account</h1>
+            <p className="text-muted-2 mb-4 d-none d-md-block">Start turning your goals into daily momentum.</p>
 
             {error && (
                 <div className="alert alert-danger py-2 px-3 small" role="alert">
@@ -107,7 +147,7 @@ export function RegisterPage() {
                     name="password"
                     type={showPassword ? "text" : "password"}
                     autoComplete="new-password"
-                    placeholder="At least 8 characters"
+                    placeholder="Create a strong password"
                     icon={<LockFill size={15} />}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -127,13 +167,18 @@ export function RegisterPage() {
                         </button>
                     }
                 />
+                <PasswordStrength password={password} />
 
                 <button
                     type="submit"
                     className="btn btn-brand btn-lg w-100 mt-2"
-                    disabled={submitting}
+                    disabled={submitting || isLocked}
                 >
-                    {submitting ? "Creating account…" : "Create account"}
+                    {isLocked
+                        ? `Locked · ${fmtCountdown(countdown)}`
+                        : submitting
+                            ? "Creating account…"
+                            : "Create account"}
                 </button>
             </form>
 

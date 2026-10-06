@@ -4,9 +4,10 @@ import { http } from "@/api/client";
 import {
     GoalDataResponse,
     GoalDataShortResponse,
-    GoalListStatusFilter, 
+    GoalListStatusFilter,
+    GoalReorderRequest,
     RefineGoalResponse,
-    RefineGoalRequest, 
+    RefineGoalRequest,
     RefineGoalFromLLMSchema,
     SaveGoalFromProposalRequest
 } from "@/api/types";
@@ -40,5 +41,9 @@ export const goalsApi = {
 
     async updateGoal(goalId: number, data: RefineGoalFromLLMSchema): Promise<GoalDataResponse> {
         return http.patch<GoalDataResponse>(`${ENDPOINTS.GOALS.PREFIX}${ENDPOINTS.GOALS.DETAIL(goalId)}`, data);
+    },
+
+    async reorderGoals(data: GoalReorderRequest): Promise<void> {
+        return http.post<void>(`${ENDPOINTS.GOALS.PREFIX}${ENDPOINTS.GOALS.REORDER}`, data);
     },
 };

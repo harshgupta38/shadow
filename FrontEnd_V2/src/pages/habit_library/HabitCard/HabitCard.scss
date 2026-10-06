@@ -7,11 +7,31 @@
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  transition: border-color var(--jv-transition), box-shadow var(--jv-transition);
+  cursor: pointer;
+  transition:
+    border-color var(--jv-transition),
+    box-shadow var(--jv-transition),
+    background var(--jv-transition),
+    transform var(--jv-transition);
+  outline: none;
 
   &:hover {
-    border-color: color-mix(in srgb, var(--jv-brand-1) 28%, var(--jv-border) 72%);
-    box-shadow: 0 6px 16px color-mix(in srgb, var(--jv-brand-1) 12%, transparent);
+    border-color: color-mix(in srgb, var(--jv-brand-1) 40%, var(--jv-border) 60%);
+    background: color-mix(in srgb, var(--jv-brand-1) 4%, var(--jv-surface) 96%);
+    box-shadow:
+      0 0 0 3px color-mix(in srgb, var(--jv-brand-1) 10%, transparent),
+      0 6px 20px color-mix(in srgb, var(--jv-brand-1) 14%, transparent);
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--jv-brand-1) 10%, transparent);
+  }
+
+  &:focus-visible {
+    border-color: var(--jv-brand-1);
+    box-shadow: var(--jv-ring);
   }
 }
 
@@ -45,7 +65,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  
+
   &.hl-habit-name--grid{
     max-width: 30ch;
   }
@@ -118,11 +138,6 @@
 .hl-habit-chip--priority-medium  { background: var(--jv-info-soft);   color: var(--jv-info);   }
 .hl-habit-chip--priority-low     { background: color-mix(in srgb, var(--jv-muted) 12%, transparent); color: var(--jv-muted); }
 .hl-habit-chip--priority-lowest  { background: color-mix(in srgb, var(--jv-faint) 12%, transparent); color: var(--jv-faint); }
-
-.hl-habit-chip--frequency {
-  border-color: color-mix(in srgb, var(--jv-border) 82%, transparent);
-  color: var(--jv-muted);
-}
 
 .hl-habit-chip--metric {
   background: color-mix(in srgb, var(--jv-violet) 12%, var(--jv-surface) 88%);

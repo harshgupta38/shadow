@@ -46,9 +46,8 @@ export function isPluralWord(word: string): boolean {
 }
 
 export function checkAndConvertPluralWord(word: string): { isPlural: boolean; singular: string } {
-    const singular = singularizeWord(word);
     return {
-        isPlural: singular.toLowerCase() !== word.trim().toLowerCase(),
-        singular,
+        isPlural: isPluralWord(word),
+        singular: singularizeWord(word),
     };
 }

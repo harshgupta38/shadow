@@ -1,0 +1,14 @@
+Story/
+_test_shadow.db
+*/db
+*/node_modules
+pending work.txt
+data.txt
+*.env
+*.pyc
+*.db
+.vscode
+Structure.md
+.claude
+dist/
+*.log

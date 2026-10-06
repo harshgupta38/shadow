@@ -1,0 +1,425 @@
+.hhs-card {
+  box-shadow: none;
+  border-radius: var(--jv-radius);
+
+  .hhs-body {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  // ── Month group ─────────────────────────────────────────────────────────────
+  .hhs-month-group {
+    display: flex;
+    flex-direction: column;
+    padding: 1.5rem;
+    background: var(--jv-surface);
+    border-radius: var(--jv-radius);
+  }
+
+  // ── Month header row ────────────────────────────────────────────────────────
+  .hhs-month-header {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    cursor: pointer;
+
+    &:focus-visible {
+      outline: 2px solid var(--jv-brand-1);
+      outline-offset: 3px;
+      border-radius: 4px;
+    }
+  }
+
+  .hhs-month-header-right {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+  }
+
+  .hhs-month-label {
+    margin: 0;
+    font-size: 1.35rem;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    color: var(--jv-text);
+    text-align: left;
+  }
+
+  .hhs-chevron {
+    color: var(--jv-muted);
+    flex-shrink: 0;
+    display: flex;
+  }
+
+  // ── Collapse ─────────────────────────────────────────────────────────────────
+  .hhs-collapse {
+    display: grid;
+    grid-template-rows: 0fr;
+    overflow: hidden;
+    transition: grid-template-rows 280ms ease, margin-top 560ms ease;
+
+    &.is-expanded {
+      grid-template-rows: 1fr;
+      margin-top: 0.75rem;
+    }
+  }
+
+  .hhs-collapse-inner {
+    min-height: 0;
+    min-width: 0; // grid items default to min-width:auto — without this, a wide
+                  // child (the chart's horizontal scroller) grows the track instead
+                  // of being clipped/scrolled.
+    padding-top: 0.75rem;
+
+    &.is-collapsed {
+      padding-top: 0;
+    }
+  }
+
+  // ── Loading / empty states ───────────────────────────────────────────────────
+  .hhs-loading {
+    display: flex;
+    justify-content: center;
+    padding: 0.5rem 0;
+  }
+
+  .hhs-empty {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--jv-muted);
+    padding: 0.25rem 0;
+  }
+
+  // ── Timeline ────────────────────────────────────────────────────────────────
+  .hhs-timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+  }
+
+  // ── Item ────────────────────────────────────────────────────────────────────
+  .hhs-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.78rem;
+
+    // connector line from bottom of ball to top of next ball
+    &:not(:last-child)::after {
+      content: "";
+      position: absolute;
+      left: 15px;
+      top: 30px;
+      bottom: -4rem;
+      width: 1px;
+      background: var(--jv-border-strong);
+      pointer-events: none;
+    }
+  }
+
+  // ── Ball ────────────────────────────────────────────────────────────────────
+  .hhs-ball {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--jv-brand-1);
+    color: #fff;
+    font-size: 0.78rem;
+    font-weight: 700;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    z-index: 1;
+  }
+
+  // ── Content (shared) ─────────────────────────────────────────────────────────
+  .hhs-content {
+    flex: 1;
+    min-width: 0;
+    padding-top: 0.3rem;
+  }
+
+  .hhs-note {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--jv-text);
+    line-height: 1.45;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .hhs-streak {
+    flex-shrink: 0;
+  }
+
+  // ── Simple layout: note left, streak right ────────────────────────────────
+  .hhs-content--simple {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .hhs-content-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: row;
+    align-items: baseline;
+    gap: 0.4rem;
+  }
+
+  .hhs-weekday-pill {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    font-size: 0.6rem;
+    font-weight: 700;
+    color: var(--jv-brand-1);
+    background: color-mix(in srgb, var(--jv-brand-1) 12%, transparent);
+    padding: 0.1rem 0.4rem;
+    border-radius: 3px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  // ── Monthly metric chart (replaces the day list for metric habits/tasks) ────
+  // Below MIN_DAY_PX-per-day, bars/labels start overlapping — the plot gets a
+  // JS-computed min-width instead of shrinking further, and this wrapper scrolls.
+  .hhs-chart-scroll {
+    overflow-x: auto;
+    padding-bottom: 2px; // keeps the scrollbar from hugging the bottom axis labels
+  }
+
+  .hhs-chart-plot {
+    position: relative;
+  }
+
+  .hhs-chart-svg {
+    display: block;
+    width: 100%;
+    height: 260px;
+    overflow: visible;
+  }
+
+  .hhs-chart-grid {
+    stroke: var(--jv-border);
+    stroke-width: 1;
+    opacity: 0.7;
+  }
+
+  .hhs-chart-target {
+    stroke: var(--jv-faint);
+    stroke-width: 1.25;
+    stroke-dasharray: 5 4;
+  }
+
+  .hhs-chart-hit {
+    fill: transparent;
+    transition: fill 120ms ease;
+
+    &.is-hover {
+      fill: color-mix(in srgb, var(--jv-brand-1) 6%, transparent);
+    }
+  }
+
+  // fill comes from the per-month gradient set inline (see hhs-bar-grad-*) —
+  // emphasis states use `filter` so they never fight the gradient fill.
+  .hhs-bar {
+    transition: filter 140ms ease;
+
+    &.is-today {
+      filter: saturate(1.15);
+    }
+
+    &.is-hover {
+      filter: brightness(1.15) saturate(1.1) drop-shadow(0 3px 6px color-mix(in srgb, var(--jv-brand-1) 35%, transparent));
+    }
+  }
+
+  .hhs-bar-label {
+    font-size: 12px;
+    font-weight: 700;
+    fill: var(--jv-text);
+  }
+
+  .hhs-bar-day {
+    font-size: 11px;
+    font-weight: 600;
+    fill: var(--jv-faint);
+  }
+
+  // ── Hover tooltip ─────────────────────────────────────────────────────────────
+  .hhs-chart-tooltip {
+    position: absolute;
+    // .hhs-chart-scroll clips on both axes once overflow-x:auto is set (per
+    // spec, an axis left "visible" is forced to "auto" when the other isn't),
+    // so a negative offset here got clipped instead of floating above the
+    // chart. Anchoring at a small positive top keeps the whole box in bounds.
+    top: 4px;
+    transform: translateX(-50%);
+    background: var(--jv-surface-2);
+    border: 1px solid var(--jv-border-strong);
+    border-radius: 10px;
+    box-shadow: var(--jv-shadow);
+    padding: 0.5rem 0.7rem;
+    min-width: 7rem;
+    max-width: 14rem;
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  .hhs-chart-tooltip-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.4rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--jv-text);
+    margin-bottom: 0.25rem;
+    white-space: nowrap;
+  }
+
+  .hhs-chart-tooltip-streak {
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: #ea6010;
+  }
+
+  .hhs-chart-tooltip-row {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--jv-text);
+    white-space: nowrap;
+  }
+
+  .hhs-chart-tooltip-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--jv-brand-1);
+    flex-shrink: 0;
+  }
+
+  .hhs-chart-tooltip-sub {
+    margin-top: 0.2rem;
+    font-size: 0.68rem;
+    color: var(--jv-faint);
+    white-space: nowrap;
+  }
+
+  .hhs-chart-tooltip-note {
+    margin-top: 0.35rem;
+    padding-top: 0.35rem;
+    border-top: 1px solid var(--jv-border);
+    font-size: 0.7rem;
+    color: var(--jv-muted);
+    white-space: normal;
+    line-height: 1.35;
+  }
+
+  // ── Shared stats footer — metric's avg/best/total and simple's
+  // done/missed/best-streak both render through the same StatsFooter component.
+  .hhs-stats-footer {
+    display: flex;
+    align-items: center;
+    padding: 0.65rem 0.25rem 0 0.25rem;
+    margin-top: 0.5rem;
+    border-top: 1px solid var(--jv-border);
+  }
+
+  .hhs-stat-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-grow: 1;
+    flex-shrink: 1;
+    flex-basis: 0;
+    min-width: 0;
+  }
+
+  .hhs-stat-sep {
+    width: 1px;
+    height: 24px;
+    background: var(--jv-border);
+    flex-shrink: 0;
+  }
+
+  .hhs-stat {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 0.3rem;
+  }
+
+  // Below this width the three stats no longer fit side by side without
+  // truncating/overlapping — stack them into their own rows instead.
+  @media (max-width: 480px) {
+    .hhs-stats-footer {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .hhs-stat-group {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0;
+
+      &:not(:first-child) {
+        border-top: 1px solid var(--jv-border);
+      }
+    }
+
+    .hhs-stat-sep {
+      display: none;
+    }
+
+    .hhs-stat {
+      justify-content: space-between;
+      padding: 0.5rem 0;
+    }
+  }
+
+  .hhs-stat-val {
+    font-family: var(--jv-font-display);
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--jv-text);
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+
+    em {
+      font-style: normal;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--jv-muted);
+      margin-left: 0.1rem;
+    }
+  }
+
+  .hhs-stat-key {
+    font-size: 0.67rem;
+    color: var(--jv-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 600;
+  }
+
+  // ── Simple-habit month view ──────────────────────────────────────────────────
+  .hhs-simple-empty {
+    margin: 0;
+    padding: 0.5rem 0 0.25rem;
+    font-size: 0.85rem;
+    color: var(--jv-muted);
+  }
+}

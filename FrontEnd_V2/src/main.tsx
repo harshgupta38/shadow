@@ -8,6 +8,12 @@ import "@/styles/theme.scss";
 import App from "@/App";
 import { AppProviders } from "@/context/AppProviders";
 
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {/* sw registration is best-effort */});
+  });
+}
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <BrowserRouter>

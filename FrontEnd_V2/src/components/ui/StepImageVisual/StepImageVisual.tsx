@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 
+import { ANIMATION } from "@/constant/tuning";
+
 import "@/components/ui/StepImageVisual/StepImageVisual.scss";
 
 interface StepImageVisualProps {
 	images: string[];
 	activeIndex: number;
 }
-
-const VISUAL_TRANSITION_MS = 260; // also update in StepImageVisual.scss transition duration when changing this value
 
 function clampIndex(index: number, length: number): number {
 	if (length <= 0) {
@@ -32,7 +32,7 @@ export function StepImageVisual({ images, activeIndex }: StepImageVisualProps) {
 
 		const timer = window.setTimeout(() => {
 			setPreviousIndex(null);
-		}, VISUAL_TRANSITION_MS);
+		}, ANIMATION.STEP_VISUAL_TRANSITION_MS);
 
 		return () => {
 			window.clearTimeout(timer);

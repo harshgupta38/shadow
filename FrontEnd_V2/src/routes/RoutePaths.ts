@@ -2,6 +2,9 @@ export const ROUTES = {
     LANDING: "/",
     LOGIN: "/login",
     REGISTER: "/register",
+    FORGOT_PASSWORD: "/forgot-password",
+    RESET_PASSWORD: "/reset-password",
+    VERIFY_EMAIL: "/verify-email",
     DASHBOARD: "/dashboard",
 
     PLAN: "/plan",
@@ -16,14 +19,23 @@ export const ROUTES = {
     MY_GOAL_MILESTONE_UPDATE: "/my-goals/:goalId/milestones/:milestoneId/update",
     MY_GOAL_MILESTONE_TASK_CREATE: "/my-goals/:goalId/milestones/:milestoneId/tasks/new",
     MY_GOAL_MILESTONE_TASK_EDIT: "/my-goals/:goalId/milestones/:milestoneId/tasks/:taskId/edit",
+    TASK_DETAIL: "/tasks/:taskId/detail",
     
     HABIT_LIBRARY: "/habit-library",
     HABIT_LIBRARY_CREATE: "/habit-library/new",
+    HABIT_LIBRARY_DETAIL: "/habit-library/:habitId/detail",
     HABIT_LIBRARY_EDIT: "/habit-library/:habitId/edit",
     
     TRACK_PROGRESS: "/track-progress",
+    JOURNAL: "/journal",
     REPORTS: "/reports",
+    REPORTS_DETAIL: "/reports/:historyDate",
     ASSISTANT: "/assistant",
+    NOTIFICATIONS: "/notifications",
+    DAILY_BRIEF: "/daily-brief",
+    WORKOUT: "/workout",
+    DIET: "/diet",
     PROFILE: "/profile",
     SETTINGS: "/settings",
+    DEVICE_LIMIT: "/device-limit",
 }

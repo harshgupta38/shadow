@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ArrowRepeat, CalendarCheck, ChevronDown, ChevronUp, Grid3x3Gap, List, PencilSquare, PlusLg, Trash3, Link45deg } from "react-bootstrap-icons";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 
-import { api, type GoalDataResponse, type FilterState, type HabitDataResponse, type HabitCreateRequest } from "@/api";
+import { api, type DateFormat, type GoalDataResponse, type FilterState, type HabitDataResponse, type HabitCreateRequest } from "@/api";
 import { ApiError } from "@/api/client";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { FilterDropdown } from "@/components/ui/FilterDropdown/FilterDropdown";
@@ -13,9 +13,12 @@ import { useToast } from "@/context/ToastContext";
 import { GoalEditWizard } from "@/pages/my_goals/GoalEditWizard/GoalEditWizard";
 import { GoalDetailLoadingSkeleton } from "@/pages/my_goals/GoalDetailLoadingSkeleton/GoalDetailLoadingSkeleton";
 import { GoalMilestonesSection } from "@/pages/my_goals/GoalMilestonesSection/GoalMilestonesSection";
+import { useDateFormat } from "@/context/PlannerContext";
+import { formatDisplayDate, todayDate } from "@/services/date.service";
 import { HabitCard } from "@/pages/habit_library/HabitCard/HabitCard";
 import { FREQUENCY_OPTIONS, PRIORITY_OPTIONS } from "@/pages/habit_library/HabitWizard/HabitWizard.constants";
 import { DEFAULT_FILTERS, EMPTY_FILTERS, FILTER_STATUS_OPTIONS } from "@/pages/habit_library/HabitLibraryPage.constants";
+import { useWakeRefresh } from "@/hooks/useWakeRefresh";
 
 import "@/pages/my_goals/GoalDetailPage/GoalDetailPage.scss";
 import "@/pages/habit_library/HabitLibraryPage.scss";
@@ -25,25 +28,17 @@ type GoalDetailListSection = {
   items: string[];
 };
 
-function formatGoalDate(value: string): string {
-  const parsed = Date.parse(value);
-  if (Number.isNaN(parsed)) {
-    return value;
+function formatDueLabel(value: string, format: DateFormat = "dd mmmm yyyy"): string {
+  const [y, m, d] = value.split("-").map(Number);
+  if (!y || !m || !d) {
+    return formatDisplayDate(value, format);
   }
 
-  return new Date(parsed).toLocaleDateString();
-}
-
-function formatDueLabel(value: string): string {
-  const parsed = Date.parse(value);
-  if (Number.isNaN(parsed)) {
-    return formatGoalDate(value);
-  }
-
-  const today = new Date();
-  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const targetDate = new Date(parsed);
-  const targetStart = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
+  // `value` is an IST civil date ("YYYY-MM-DD"); build it as a local-midnight Date
+  // (not via Date.parse, which treats bare date strings as UTC midnight) so it can
+  // be safely diffed against todayDate(), which is IST-derived but also local-midnight.
+  const targetStart = new Date(y, m - 1, d);
+  const todayStart = todayDate();
   const diffDays = Math.round((targetStart.getTime() - todayStart.getTime()) / 86400000);
 
   if (diffDays < 0) {
@@ -94,6 +89,7 @@ export function GoalDetailPage() {
   });
 
   const toast = useToast();
+  const dateFormat = useDateFormat();
 
   const numericGoalId = Number(goalId);
 
@@ -107,10 +103,10 @@ export function GoalDetailPage() {
     try {
       await api.goals.deleteGoal(numericGoalId);
       navigate(ROUTES.MY_GOALS);
-    } catch {
+    } catch (err) {
       setDeleteBusy(false);
       setShowDeleteConfirm(false);
-      toast.error("Failed to delete goal. Please try again.");
+      toast.error(err instanceof ApiError ? err.message : "Failed to delete goal. Please try again.");
     }
   };
 
@@ -164,6 +160,10 @@ export function GoalDetailPage() {
   useEffect(() => {
     void loadHabits();
   }, [loadHabits]);
+  useWakeRefresh(() => {
+    void loadGoal();
+    void loadHabits();
+  });
 
   useEffect(() => {
     function enforceListView() {
@@ -196,8 +196,8 @@ export function GoalDetailPage() {
       const updated = await api.habits.updateHabit(habit.id, { status });
       setHabits((prev) => prev.map((item) => (item.id === habit.id ? updated : item)));
       setOpenHabitMenuId(null);
-    } catch {
-      toast.error("Could not update this habit right now. Please try again.");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Could not update this habit right now. Please try again.");
     } finally {
       setMenuActionHabitId(null);
     }
@@ -210,8 +210,8 @@ export function GoalDetailPage() {
       setHabits((prev) => prev.filter((item) => item.id !== habitId));
       setOpenHabitMenuId(null);
       setDeleteTargetHabit(null);
-    } catch {
-      toast.error("Could not delete this habit right now. Please try again.");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Could not delete this habit right now. Please try again.");
     } finally {
       setMenuActionHabitId(null);
     }
@@ -264,9 +264,9 @@ export function GoalDetailPage() {
 
   return (
     <section className="goal-detail-page">
-      <Link to={ROUTES.MY_GOALS} className="goal-detail-back-link">
-        <ArrowLeft size={16} /> Back to My Goals
-      </Link>
+      <button onClick={() => navigate(-1)} className="goal-detail-back-link">
+        <ArrowLeft size={16} /> Back
+      </button>
 
       {loadingGoal ? <GoalDetailLoadingSkeleton /> : null}
 
@@ -293,7 +293,7 @@ export function GoalDetailPage() {
                         <span className="goal-detail-category">{goal.category}</span>
                         <span className={`goal-detail-status goal-detail-status-${goal.status.toLowerCase()}`}>{goal.status}</span>
                         <span className="goal-detail-due-pill">
-                          <CalendarCheck size={12} /> {formatDueLabel(goal.target_date)}
+                          <CalendarCheck size={12} /> {formatDueLabel(goal.target_date, dateFormat)}
                         </span>
                         {goal.source_conversation_id !== null && (
                           <span className="goal-detail-link-pill" onClick={openInChat}>

@@ -1,6 +1,6 @@
 # Shadow
 
-A full-stack personal AI assistant that helps a small group of users plan their day, track goals and habits, and stay accountable through AI-generated reports and a spoken daily briefing.
+A full-stack personal AI assistant that helps a small group of users plan their day, track goals and habits, keep a daily journal, and stay accountable through AI-generated reports and a spoken daily briefing.
 
 ![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688?logo=fastapi&logoColor=white)
@@ -41,12 +41,14 @@ A full-stack personal AI assistant that helps a small group of users plan their 
 
 Shadow is a personal planning and accountability assistant built for a small, private group of users (not a public product). It combines:
 
-- A structured **planning system** (goals → milestones → tasks/habits → daily materialized plan)
+- A structured **planning system** (goals → milestones → tasks/habits → daily materialized plan) plus a **calendar of one-off and yearly scheduled tasks** with subtasks
 - A **multi-agent AI assistant** with tool-calling that can read and propose changes to a user's goals, milestones, tasks, and schedule
 - A **persistent, user-scoped AI memory** layer, separate from per-conversation context
 - **AI-generated daily and weekly reports** with an alignment score
 - A **Daily Brief** — a written and spoken (TTS) summary of the day, with word-level synced captions
-- Supporting infrastructure: multi-device session management, web push + email notifications, background schedulers, automated SQLite backups, and multi-provider LLM support (OpenAI, Anthropic Claude, Google Gemini, local Ollama)
+- A **Journal** — one rich-text entry and a mood per day, autosaved
+- A **Profile** with streaks, monthly alignment, achievements, and a per-day AI token usage chart
+- Supporting infrastructure: multi-device session management, web push + email + live (SSE) notifications, background schedulers, automated SQLite backups, multi-provider LLM support (OpenAI, Anthropic Claude, Google Gemini, local Ollama), and a two-layer read cache (browser + server) so the app stays fast on modest hardware
 
 The backend (`BackEnd_V2`) is a FastAPI application; the frontend (`FrontEnd_V2`) is a React + TypeScript single-page app. Two small supporting services — [BackOffice](#backoffice-admin-panel) (an admin panel) and [Server](#controller-server) (a process controller) — exist around the core product.
 
@@ -70,7 +72,7 @@ Screenshots below are pulled directly from `FrontEnd_V2/src/assets/landing/` (ea
 
 <sub>Dark-mode equivalents ship alongside each of the above (`*-dark.png` in the same folder).</sub>
 
-> TODO: Workout, Diet, Journal, Daily Brief, and Settings screenshots are not yet captured in the repository.
+> TODO: Schedule, Journal, Daily Brief, Profile, and Settings screenshots are not yet captured in the repository (Workout and Diet are still placeholder pages).
 
 ---
 
@@ -79,9 +81,12 @@ Screenshots below are pulled directly from `FrontEnd_V2/src/assets/landing/` (ea
 ```mermaid
 flowchart TD
     User((User)) --> FE[React 18 + TypeScript SPA]
+    FE -.-> FC["Read cache (api/cache) - GET responses, cleared on writes"]
     FE -->|HTTPS, httpOnly cookies| API["FastAPI /v2 API (app/api)"]
-    API --> SVC[Service Layer - app/services]
+    API --> RC["Response cache - per worker"]
+    RC -->|miss| SVC[Service Layer - app/services]
     SVC --> DB[(SQLite / PostgreSQL)]
+    RC -.valid only while data_versions is unchanged.-> DB
     SVC --> LLM[LLM Service - provider abstraction]
     LLM --> OpenAI[OpenAI]
     LLM --> Claude[Anthropic Claude]
@@ -99,7 +104,7 @@ flowchart TD
     CTRL -.restart/deploy.-> BO
 ```
 
-Only components that are actually implemented are shown. There is no message broker, vector database, or container orchestration layer in this system — persistence is a single SQLAlchemy-modeled database, and "background workers" are asyncio tasks inside the same FastAPI process, not separate services.
+Only components that are actually implemented are shown. There is no message broker, vector database, Redis, or container orchestration layer in this system — persistence is a single SQLAlchemy-modeled database, both caches are in-process memory, and "background workers" are asyncio tasks inside the same FastAPI process, not separate services.
 
 ---
 
@@ -113,9 +118,10 @@ BackEnd_V2/
 │   ├── models/          # SQLAlchemy 2.0 declarative models
 │   ├── schemas/         # Pydantic request/response/DB-mirror schemas (see docs/naming-conventions.md)
 │   ├── llm/             # Provider-agnostic LLM layer: base interface, providers/, tools/, cost.py, knowledge_base.py
-│   ├── core/            # Settings, JWT/security, exception hierarchy, endpoint path constants
-│   ├── db/              # Engine/session setup
+│   ├── core/            # Settings, JWT/security, exception hierarchy, endpoint path constants, response_cache.py
+│   ├── db/              # Engine/session setup, change_tracking.py (bumps the shared data version on writes)
 │   ├── analysis/        # Optional LLM usage/cost logging + Google Sheets export
+│   ├── common/          # IST timezone helpers (today_ist, to_ist) and the multi-worker proc_lock
 │   ├── validators/       # Field-level validation (email, password, date, bio, ...)
 │   └── main.py          # App wiring, middleware, lifespan (startup tasks + background loops)
 ├── docs/                # ASSISTANT_MEMORY_SYSTEM.md, naming-conventions.md
@@ -124,12 +130,14 @@ BackEnd_V2/
 
 FrontEnd_V2/
 ├── src/
-│   ├── pages/           # One folder per route: dashboard, plan, my_goals, habit_library,
-│   │                    #   track_progress, reports, assistant, daily-brief, settings, profile, auth, ...
+│   ├── pages/           # One folder per route: dashboard, plan, schedule, my_goals, habit_library,
+│   │                    #   track_progress, journal, reports, assistant, daily-brief, notifications,
+│   │                    #   settings, profile, auth, landing_page, ...
 │   ├── api/             # Axios client + one typed module per backend domain
+│   │   └── cache/       # GET read cache: cachePolicy.ts (what/how long/what clears it) + apiCache.ts (engine)
 │   ├── context/         # Auth, Theme, Accessibility, Planner, Toast providers (no Redux)
 │   ├── components/      # layout/ (Sidebar, Topbar, AppLayout) and ui/ (buttons, cards, dialogs, forms)
-│   ├── hooks/            # useLazyAudio, useUrlAnchor
+│   ├── hooks/            # useLazyAudio, useUrlAnchor (month/date kept in the URL), useWakeRefresh (refetch after sleep)
 │   ├── routes/           # Route table + auth guards (RequireAuth, RequireDeviceCheck, PublicOnly)
 │   └── constant/         # tuning.ts (animation/UX timing constants), endpoint paths, nav config
 └── firebase.json         # Static hosting config (SPA rewrites, asset caching)
@@ -186,7 +194,7 @@ How it works end to end:
 - `ReportDBM` stores one row per `(user, date, report_type)` — `daily` or `weekly` — with an `alignment_score`, a `headline`/`summary`, and structured JSON (`stats`, `goals`, `highlights`, `closing`) rather than free text, so the frontend can render structured cards instead of parsing prose.
 - Reports are generated either on demand (`POST /v2/reports/{date}/request`) or by `report_scheduler_service`, an asyncio loop that polls every 30 seconds and fires generation at each user's configured time (`UserSettingDBM.reports`, default 23:55 IST). A process-file-based singleton lock (`app/common/proc_lock.py`) ensures only one of the (potentially 4) uvicorn workers actually runs a given user's report, since they all share the same poll loop.
 - Report content mixes raw statistics (tasks/habits/schedule completion counts) computed from `DailyPlanRecordDBM` history with an LLM-authored interpretation layer (highlights, attention areas, per-goal alignment commentary, a closing message in one of several tones).
-- Reports can be emailed (`POST /v2/reports/{date}/email`) and are also shown month-by-month in the Reports UI.
+- Reports are shown month-by-month in the Reports UI and can be emailed on demand (`POST /v2/reports/{date}/email`, from an "Email report" button on the detail page). The "report ready" email is a full snapshot of the report — hero, stats, goals, highlights, closing — styled to match the detail page rather than a link-only notice. A report can also be deleted (`DELETE /v2/reports/entry/{id}/delete`).
 
 ### Daily Brief
 
@@ -200,9 +208,30 @@ The Daily Brief produces **three distinct LLM outputs from the same day's plan**
 
 Audio generation (`daily_brief_audio_service`) synthesizes `spoken_brief` with OpenAI TTS, then immediately re-transcribes that *same generated audio* with Whisper (`verbose_json`, word-level timestamps) to get real, ground-truth word timings — not a text-length heuristic. Both the MP3 bytes and the timing JSON are cached together in one `daily_brief_audio` row, keyed by `(user_id, brief_date)`, so replaying the brief never re-calls the TTS API. On the frontend, `useLazyAudio` lazy-loads the audio blob on first play, and captions are grouped into short reading lines (4–8 words, capped duration, pause-aware) synced against the real timestamps rather than estimated. A typewriter reveal of the written brief is skipped entirely when the user has reduced-motion accessibility enabled.
 
-### Wellbeing (Workout / Diet / Journal)
+### Schedule
 
-Routes for `/workout`, `/diet`, and `/journal` exist in the frontend router and sidebar, but currently render as **"coming soon" placeholder pages** — there is no corresponding backend model or service for these in `BackEnd_V2` yet. This section is intentionally left honest rather than describing planned functionality as shipped.
+A calendar of one-off and yearly tasks, separate from habits (which recur by rule). `ScheduledTaskDBM` rows carry a date, an optional end date (multi-day tasks are drawn as ranges on the calendar), preferred or specific time, duration, priority, an optional note/category/linked goal, and optional snoozing limits. `repeat_yearly` stores a `yearly_tasks` template that produces an occurrence every year, and each task can have subtasks (`scheduled_task_subtasks`). A month request returns the month's tasks plus adjacent-month overflow, so calendar edge cells aren't empty. Status (`due` / `done` / `missed`) is not edited here — it is managed by the planner when the task's plan record is completed or its time passes. The page shows the same data as a calendar or as a list.
+
+### Journal
+
+One entry per user per day (`journal_entries`, unique on `user_id + entry_date`), made of a rich-text body (Quill: headings, bold/italic/underline, colors, lists, quotes, code blocks, links) and one of five moods (great, good, okay, tough, rough). The page is a week strip, starting on the user's configured week-start day with a "Today" button when browsing a past week, above the editor.
+
+- **Saves only on real user action.** The editor ignores programmatic changes (switching dates, loading data) and schedules a save only for user edits and mood clicks, after 0.8 s of inactivity. Switching dates or leaving the page flushes the pending edit immediately instead of dropping it.
+- **No blank overwrites.** The editor and mood buttons stay locked until the visible week has loaded, empty-looking markup (`<p><br></p>`, an empty heading) is stored as an empty string, and a blank edit on a day with no entry is not saved.
+- **API:** `GET /v2/journal/entries?start=&end=` (a range of at most 31 days, one call per week) and `POST /v2/journal/entries/{date}` (an upsert that tolerates two tabs creating the same day at once). Future dates are rejected.
+- Journal data is not yet linked into reports (see [Future Work](#future-work)).
+
+### Profile & Achievements
+
+`GET /v2/profile` assembles the profile page from existing data: bio, join date, email-verified flag, current streak, goals completed, active habits, tasks completed, the month's goals/habits/tasks done versus total, an alignment percentage, and a list of achievement tiles (each with a hint and an unlocked flag) derived from history. `GET /v2/profile/usage` returns AI input/output tokens per day for a month (`daily_usage`, upserted by the LLM usage logger), shown as a bar chart. The page also hosts the account-security panel: change name or password, resend email verification, deactivate, or delete the account.
+
+### Notifications
+
+Event-driven alerts (goal or milestone due within 3 days, scheduled-task reminders, tasks due or overdue, the daily plan reminder, a habit-at-risk nudge) are produced by a notification scheduler loop and written to `notifications` with a `(user_id, event_key)` unique key, so the same event never fires twice. Delivery is in-app and live over SSE (the bell and the notifications page), Web Push, and optional email, controlled in Settings by a master toggle, separate email and reminder toggles, and quiet hours. Email unsubscribe links are supported.
+
+### Workout & Diet (not built yet)
+
+Routes for `/workout` and `/diet` exist in the frontend router and sidebar, but render **"coming soon" placeholder pages** — there is no corresponding backend model or service for them in `BackEnd_V2`. This section is intentionally left honest rather than describing planned functionality as shipped.
 
 ### Settings
 
@@ -218,7 +247,9 @@ Routes for `/workout`, `/diet`, and `/journal` exist in the frontend router and 
 | Frontend UI | Bootstrap 5 + react-bootstrap + Sass | Component styling with CSS-variable-driven light/dark theming |
 | Frontend state | React Context (Auth, Theme, Accessibility, Planner, Toast) | No Redux/Zustand — cross-tab sync is done via custom browser events + localStorage, not a state library |
 | Frontend HTTP | Axios | Single client with `withCredentials: true` (httpOnly cookies), a coordinated single-flight refresh-then-retry on 401, and normalized error shapes |
+| Frontend caching | `@tanstack/query-core` | Used imperatively inside the Axios wrapper (no React Query hooks or provider) for TTL expiry and in-flight request de-duplication of GET responses — see [Engineering Decisions](#engineering-decisions) |
 | Frontend content | react-markdown + remark-gfm + DOMPurify | Assistant replies are rendered as sanitized Markdown, not raw HTML injection |
+| Frontend rich text | react-quill | Rich-text editing for the Journal and the goal/milestone wizards |
 | Backend | Python 3.11+ + FastAPI | Routers in `app/api` stay thin; all business logic lives in `app/services`, so the same service functions are reusable from background schedulers, not just HTTP handlers |
 | ORM | SQLAlchemy 2.0 (declarative) | Models in `app/models`; schema created via `Base.metadata.create_all()` at startup |
 | Validation | Pydantic v2 + pydantic-settings | Request/response schemas plus typed `.env`-backed settings objects |
@@ -231,7 +262,7 @@ Routes for `/workout`, `/diet`, and `/journal` exist in the frontend router and 
 | Push | Web Push (VAPID via `pywebpush`) | Browser push subscriptions stored per user |
 | Email | SMTP (stdlib) | Verification, password reset, report delivery, security alerts |
 | Analytics (optional) | Google Sheets API (`gspread`) | Off by default; when enabled, every LLM call's token count and INR cost is appended to a worksheet |
-| Testing | Vitest + Testing Library (frontend), pytest (V1 backend) | See [Testing](#testing) for current coverage status |
+| Testing | Vitest + Testing Library installed (frontend), pytest (V1 backend only) | No test files are kept in V2 — see [Testing](#testing) |
 | Hosting | Firebase Hosting (frontend, static SPA build) | Backend runs as a long-lived uvicorn process (see [Deployment](#deployment)) |
 
 ---
@@ -250,9 +281,19 @@ Routes for `/workout`, `/diet`, and `/journal` exist in the frontend router and 
 
 **Scheduler coordination across multiple uvicorn workers.** The backend runs with multiple worker processes (4 by default) for throughput, but background loops (backups, reports, notifications) must only run once per tick. A procfs-based file lock (`app/common/proc_lock.py`) makes exactly one worker the active scheduler at a time, self-releasing if that worker's PID disappears.
 
+**One clock: India Standard Time.** "Today" drives plan materialization, streaks, reports, the daily brief and cache keys, so backend code gets it from `app/common/timezone.py` (`today_ist`, `now_ist`, `to_ist`) instead of calling `date.today()` or `datetime.now()` directly, and the frontend parses server timestamps through one helper. This avoids off-by-one-day bugs when the server host and the user are in different time zones, and SQLite's timezone-naive datetimes are normalized at the boundary.
+
 **Cookie-based JWT with CSRF middleware.** Access and refresh tokens are set as httpOnly cookies rather than returned to JavaScript and stored client-side, which removes them from the XSS attack surface. Because cookies are sent automatically by the browser, a custom origin-check middleware rejects non-GET/HEAD/OPTIONS requests whose `Origin` header isn't in the configured allow-list, closing the CSRF gap that cookie auth otherwise opens.
 
 **TTS and captions generated together, not separately.** Word-level caption timing is derived by re-running Whisper transcription on the exact audio just produced by TTS, rather than estimating timing from text length/word count. This guarantees the captions the frontend displays are ground-truth accurate to the actual audio file being played, at the cost of one extra API call per brief (amortized by caching).
+
+**Read cache at the HTTP layer, not per page.** Every page loaded its own data with a plain `api.x.y().then(setState)`, so flipping between months, dates or screens re-hit the server for data that hadn't changed. Rather than migrating each page to a query hook, the shared `http.get` wrapper (`FrontEnd_V2/src/api/cache/`) serves GETs from memory while they are fresh (30 s to 5 min, set in `CACHE_TTL` in `tuning.ts`), shares one request between simultaneous callers, and hands each caller a copy of the stored JSON so a page that mutates a response can't corrupt the cache. What is cacheable is an explicit allowlist in `cachePolicy.ts` (plan, schedule, reports, dashboard, goals/milestones/tasks/habits, track progress, profile, daily brief text, settings), keyed by URL plus query params. Notifications, chat, auth, Journal and the large brief audio are deliberately excluded.
+
+**Invalidation: clear on write, and fail safe.** Any write — successful or failed, since a timeout can still mean the server committed it — clears the cached groups it can affect. Habit, task, goal, schedule, planner and journal writes clear all plan-derived data, because the dashboard, profile, reports and track views are computed from it. A write the policy doesn't recognise clears everything, so forgetting to register an endpoint costs speed, never correctness. The cache is also dropped on login/logout, a lost session, a server push notification, and wake-from-sleep. Entries are keyed by a per-group epoch number instead of being removed: removing a TanStack query mid-flight rejects the callers waiting on it, and invalidating one mid-flight lets a pre-write response be stored as fresh, whereas bumping the epoch makes old entries unreachable while in-flight requests finish normally.
+
+**Server-side response cache, kept coherent across workers by a database version counter.** The expensive read-only endpoints (dashboard, profile, any day's plan, habit list, habit and task tracking, monthly report, schedule month) cache their finished JSON in memory (`app/core/response_cache.py`), so a hit skips both the queries and FastAPI's response validation — about 4 ms versus 5–31 ms on a copy of real data. With four uvicorn workers a per-process cache would normally serve stale data after a write handled by a different worker, so an entry is only served while the global `data_versions` counter is unchanged. A Session hook (`app/db/change_tracking.py`) bumps that counter inside the writing transaction for every kind of write (ORM objects, bulk `update()`/`delete()`, raw SQL) except pure-noise tables (`active_sessions`, `ip_rate_limits`), so the bump commits or rolls back atomically with the data and no service has to remember to invalidate anything; a new table is covered by default. The version is read *before* a response is computed, so a write that lands mid-computation can only make the new entry unusable, never stale. Entries are keyed by user, endpoint, parameters and today's IST date, expire after 30–60 s (which bounds staleness from clock-derived data and from writes made outside the app, such as the BackOffice editing the database file), are capped in count and bytes, and the whole layer can be turned off with `RESPONSE_CACHE_ENABLED=false`. Responses carry an `X-Cache: HIT | MISS | BYPASS` header. Endpoints that cost a single query are not cached, because the version check would cost as much as the work.
+
+**Streak math is memoized.** The recurrence-date calculation behind streaks (`planner_service._occurrence_dates`) is an `lru_cache` keyed by the plan's recurrence fields rather than the plan object, so it can never go stale and needs no invalidation; it made streak computation about 5x faster for 25 plans.
 
 ---
 
@@ -264,6 +305,8 @@ Routes for `/workout`, `/diet`, and `/journal` exist in the frontend router and 
 - **SQLite concurrency under multiple workers** — foreign keys enabled per-connection, a single-writer database, and a procfs lock so only one worker executes each scheduled job, while backups exclude the largest table (`daily_brief_audio`) to keep backup files small and fast.
 - **Historical accuracy after data changes** — daily plan records snapshot enough fields to render correctly even after their source habit/task is edited or deleted, which is what makes multi-week streaks and past reports trustworthy.
 - **Ground-truth audio captions** by transcribing the exact generated TTS output instead of estimating timing from text.
+- **Cache coherence across uvicorn workers** — a per-worker response cache is made safe by a database-backed version counter bumped inside every writing transaction, so a write handled by any worker invalidates every other worker's entries.
+- **Cache invalidation without stale or cancelled requests** — epoch-keyed entries let a write invalidate cached reads instantly while requests already in flight complete normally, and a read issued after a write can never join a pre-write response.
 - **Session security on a cookie-based auth model** — refresh coordination is single-flight on the frontend (concurrent 401s don't trigger duplicate refresh calls), and the backend independently rate-limits by IP and locks out by account after repeated failures.
 
 ---
@@ -327,6 +370,23 @@ Today's materialized plan (DailyPlanRecordDBM rows for the date)
   -> frontend fetches audio once, plays it, syncs captions off cached timings
 ```
 
+### Cached Read (Frontend)
+
+```
+Page calls api.schedule.getScheduleList(2026, 10)
+  -> http.get -> cachePolicy: "/schedule/*" is cacheable, group "schedule", fresh for 60 s
+  -> cache key = [group, group epoch, url, query params]
+       fresh entry?   -> return a copy immediately, no network request
+       in flight?     -> join the same request
+       otherwise      -> GET from the API, store it, return a copy
+Page edits a task (PATCH /task/...)
+  -> http.patch settles (success or failure)
+  -> cachePolicy: task writes clear dashboard, profile, goals, milestones, tasks, habits,
+     schedule, track, planner, reports and daily-brief
+  -> those groups' epochs are bumped, so the next read goes to the server
+Also cleared entirely on: login/logout, lost session, server push notification, wake from sleep
+```
+
 ---
 
 ## Database Architecture
@@ -334,10 +394,12 @@ Today's materialized plan (DailyPlanRecordDBM rows for the date)
 The schema is organized around one core idea: **templates describe recurring intent, records capture what actually happened on a given date.**
 
 - **Identity & access:** `users` → `active_sessions` (multi-device), `push_subscriptions`, `user_settings` (1:1, JSON per domain), `ip_rate_limits` (shared across workers).
-- **Goal hierarchy:** `goals` → `milestones` → `tasks`, plus `habits` and `scheduled_tasks` linked to a goal (nullable FK, `SET NULL` on delete — losing a goal doesn't delete the habit). `yearly_tasks` act as templates that generate `scheduled_tasks` occurrences on configured dates.
+- **Goal hierarchy:** `goals` → `milestones` → `tasks`, plus `habits` and `scheduled_tasks` linked to a goal (nullable FK, `SET NULL` on delete — losing a goal doesn't delete the habit). `yearly_tasks` act as templates that generate `scheduled_tasks` occurrences on configured dates, and `scheduled_task_subtasks` hang off a scheduled task.
 - **Planning:** `plans` (one row per `(user, source_type, source_id)` — habit/task/schedule) → `plan_records` (materialized per date, unique per `(plan_id, scheduled_date)`, `plan_id` nullable so history survives template deletion). Indexed for both "everything for this user on this date" and "has this plan already been materialized for this date" lookups.
 - **Conversations & AI:** `conversations` (per-agent-type, holding `stable_context`/`context_summary` and a `linked_items` JSON pointer to related proposals) → `messages`; separately, `user_memories` (durable, cross-conversation). Four proposal tables (`goal_proposals`, `milestone_proposals`, `task_proposals`, `scheduled_task_proposals`) link a conversation/message back to a pending, user-reviewable action.
 - **Reporting & briefing:** `reports` (one per `user + date + type`, structured JSON payload) and `daily_briefs` → `daily_brief_audio` (binary audio + JSON word timings, cached, excluded from routine backups because it's cheaply regenerable).
+- **Journal & usage:** `journal_entries` (one per user per day, unique on `user_id + entry_date`, mood restricted by a `CHECK` constraint) and `daily_usage` (AI input/output tokens per user per day, behind the profile usage chart).
+- **Cache coordination:** `data_versions`, a single-row counter bumped inside every transaction that writes user data. All workers share it, so each worker's in-memory response cache knows when to drop entries (see [Engineering Decisions](#engineering-decisions)).
 - **Notifications:** `notifications` with a `(user_id, event_key)` unique constraint used purely for deduplication of event-triggered alerts (e.g., don't send "milestone due soon" twice for the same milestone).
 
 No columns are dumped exhaustively here — the intent above is the part that matters architecturally; exact field lists live in `app/models/`.
@@ -350,11 +412,14 @@ No columns are dumped exhaustively here — the intent above is the part that ma
 - **Sessions** use short-lived JWT access tokens and longer-lived refresh tokens, both stored as **httpOnly cookies** (not `localStorage`), removing them from direct JavaScript/XSS reach. A custom middleware rejects state-changing requests whose `Origin` header isn't on the CORS allow-list, mitigating CSRF for the cookie-auth model.
 - **Account lockout**: 5 failed logins locks an account for 15 minutes; a separate, shared `ip_rate_limits` table locks out an *IP* after repeated failed logins or registrations (works correctly across multiple uvicorn workers because it's DB-backed, not in-process memory).
 - **Multi-device session management**: every login creates an `active_sessions` row; a configurable per-user device limit blocks further logins until an old session is revoked (frontend enforces this with a dedicated `/device-limit` wall).
-- **Email verification** is required, using a time-limited token; password reset follows the same pattern.
+- **Email verification** is completed on a real frontend page (`/verify-email`) rather than by a backend-rendered link, so email security scanners that pre-fetch links can't consume it. The verification token stays valid for repeat clicks, and the original backend link still works for already-sent emails.
+- **Password reset** (`/forgot-password` → emailed link → `/reset-password`) uses a signed token that expires after 10 minutes and is bound to the account's current password hash, so using it (or changing the password any other way) invalidates it automatically. The request endpoint is IP-rate-limited and never reveals whether an email is registered.
+- **Instant remote sign-out**: revoking a session from another device pushes a `logout` event over SSE (`/auth/sessions/events`), and the affected tab signs out immediately and clears its cached data.
+- **Phone-automation hook**: `POST /v2/shortcuts/update` lets an external automation (for example a phone shortcut) add progress to today's plan item. It authenticates with the user's email and password sent as request headers instead of a session cookie, so it should only be used over HTTPS.
 - **Optional IP geolocation** on failed-login security alert emails is off by default and looked up in a background thread — it never blocks or fails the request path.
 - **Secrets hygiene**: `.env` and the `credentials/` folder (Google service-account JSON used only for optional analytics export) are both git-ignored; database files (`*.db`) are also git-ignored. No API keys or credentials are committed to this repository.
 - **AI-rendered content is sanitized**: assistant Markdown replies are rendered through `react-markdown` + `DOMPurify`, not injected as raw HTML.
-- **Data isolation**: every domain query is scoped by `user_id` at the service layer; there is no cross-user data access path in the API surface reviewed.
+- **Data isolation**: every domain query is scoped by `user_id` at the service layer; there is no cross-user data access path in the API surface reviewed. Cached responses are keyed by user on the server and cleared on login/logout in the browser, so one user's data is never served to another.
 
 This documents what is implemented — it is not a claim of a completed security audit.
 
@@ -374,10 +439,10 @@ Because BackOffice and `BackEnd_V2` are co-located on the same machine, BackOffi
 
 ## Testing
 
-- **Frontend (`FrontEnd_V2`)**: Vitest + React Testing Library are fully configured (`npm run test`, `npm run test:watch`, `npm run test:coverage`), but no test files currently exist in the V2 frontend — this is a known gap, not a hidden one.
-- **Backend (`BackEnd_V2`)**: no test suite currently exists. The earlier `BackEnd/` (V1) codebase has an extensive pytest suite (`BackEnd/tests/`, covering auth, goals, memory, reports, scheduler jobs, etc.), but it targets the V1 schema/services and has not been ported to V2.
+- **Frontend (`FrontEnd_V2`)**: Vitest and React Testing Library are installed, but this project does not keep test files in the repository, so `npm run test` has nothing to run (and `vite.config.ts` references a `src/test/setup.ts` that does not exist). Changes are checked with `tsc` type checking and production builds.
+- **Backend (`BackEnd_V2`)**: no test suite exists. The earlier `BackEnd/` (V1) codebase has an extensive pytest suite (`BackEnd/tests/`, covering auth, goals, memory, reports, scheduler jobs, etc.), but it targets the V1 schema/services and has not been ported to V2.
 
-This is documented honestly rather than glossed over: **test coverage for V2 is a real, current limitation**, not a stated future improvement.
+This is documented honestly rather than glossed over: **V2 has no automated tests**, which is a real, current limitation.
 
 ---
 
@@ -401,7 +466,8 @@ uvicorn app.main:app --reload --port 8000
 
 - API root: `http://localhost:8000`
 - No Alembic migration step is required for a fresh database — tables are created automatically at startup (`Base.metadata.create_all`).
-- `.env.example` documents every supported variable, including optional SMTP, Google Sheets analytics, and DB backup scheduling.
+- `.env.example` documents every supported variable, including optional SMTP, Google Sheets analytics, DB backup scheduling, and the server response cache (`RESPONSE_CACHE_ENABLED=false` turns it off while debugging).
+- On Android under Termux, install dependencies from `requirements-termux.txt` instead of `requirements.txt`.
 
 ### Frontend (`FrontEnd_V2`)
 
@@ -422,7 +488,7 @@ npm run dev
 ## Deployment
 
 - **Frontend**: static Vite build deployed to Firebase Hosting. `package.json` defines separate `deploy` / `deploy-stg` / `deploy-dev` scripts, each building against a different mode and deploying either to production hosting or a time-limited Firebase preview channel.
-- **Backend**: runs as a long-lived `uvicorn` process with 4 workers (`restart_server.sh`), started/stopped via process-group signals (`setsid`/`pkill`) rather than a container runtime — there is no Dockerfile or systemd unit in this repository. The script waits for the port to free before restarting and logs to `server.log`.
+- **Backend**: designed for a small always-on host — it is deployed on an Android phone under Termux (`requirements-termux.txt`, and `/health` reports the phone's battery via `termux-battery-status`). It runs as a long-lived `uvicorn` process with 4 workers (`restart_server.sh`), started/stopped via process-group signals (`setsid`/`pkill`) rather than a container runtime — there is no Dockerfile or systemd unit in this repository. The script waits for the port to free before restarting and logs to `server.log`.
 - **Background workers**: not separate processes — the three scheduler loops (backup, report, notification) run as asyncio tasks inside the same FastAPI process, coordinated across the 4 uvicorn workers by a procfs-based file lock so each scheduled job only executes once.
 - **Database**: SQLite by default; switching to PostgreSQL is a single `DATABASE_URL` change with no code changes required (connection pooling is already configured conditionally in `app/db/session.py` for the non-SQLite case).
 - **Operational tooling**: [BackOffice](#backoffice-admin-panel) and [Server](#controller-server) exist specifically to operate this deployment model (restart, deploy, roll back, inspect logs/DB) without SSH-ing in for every routine action.
@@ -432,7 +498,7 @@ npm run dev
 ## Engineering Capabilities Demonstrated
 
 - **Full-stack ownership** — a FastAPI service layer and a React/TypeScript SPA, sharing a typed API contract maintained by hand across both sides.
-- **REST API design** — 18+ router modules in `app/api`, kept thin, with business logic isolated in `app/services` so it's reusable from background schedulers.
+- **REST API design** — 19 router modules in `app/api`, kept thin, with business logic isolated in `app/services` so it's reusable from background schedulers.
 - **Relational data modeling** — recurrence templates vs. dated execution records, nullable FKs to preserve history, JSON columns used deliberately (flexible AI-authored content) rather than everywhere.
 - **Authentication & session security** — httpOnly cookie JWTs, CSRF origin-check middleware, account lockout, IP rate limiting, multi-device session limits.
 - **Multi-provider AI integration** — one abstract interface across OpenAI, Anthropic, Gemini, and Ollama, with per-user override and cost tracking per call.
@@ -440,12 +506,14 @@ npm run dev
 - **Long-term AI memory design** — a from-scratch, database-backed (no vector infra) persistent memory system with explicit create/update/retire semantics, documented in `docs/ASSISTANT_MEMORY_SYSTEM.md`.
 - **Background processing & scheduling** — three asyncio scheduler loops coordinated across multiple worker processes via a custom file lock.
 - **Audio/TTS pipeline** — TTS generation paired with real transcription-based caption timing, with binary caching to avoid repeat API cost.
-- **Pragmatic engineering trade-offs, stated explicitly** — e.g., choosing SQL+prompt-injection memory over vector search for a small private user base, and being explicit in this document about what is *not* yet implemented (V2 tests, Workout/Diet/Journal) rather than overstating scope.
+- **Performance engineering** — layered read caching (a browser-side cache cleared on writes, and a server-side response cache kept coherent across workers by a transactional version counter), memoized streak math, and measuring service time before deciding what was worth caching.
+- **Pragmatic engineering trade-offs, stated explicitly** — e.g., choosing SQL+prompt-injection memory over vector search for a small private user base, and being explicit in this document about what is *not* yet implemented (V2 tests, Workout/Diet) rather than overstating scope.
 
 ---
 
 ## Future Work
 
-- Port or rewrite the automated test suite for `BackEnd_V2` and add frontend test coverage (infrastructure is already configured on both sides).
-- Implement backend support for Workout, Diet, and Journal, which currently exist only as frontend placeholder routes.
+- Link Journal entries and moods into the daily and weekly AI reports.
+- Implement backend support and real pages for Workout and Diet, which currently exist only as frontend placeholders.
+- Add automated tests for `BackEnd_V2` and the frontend, if the project decides to keep tests (see [Testing](#testing)).
 - Roll out the `save_user_memory` feature flag more broadly (currently defaults to off) once extraction quality is validated further.

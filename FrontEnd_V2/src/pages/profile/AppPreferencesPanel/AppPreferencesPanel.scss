@@ -1,0 +1,61 @@
+// ─── App Preferences Panel ──────────────────────────────────────────────────
+
+.pf-shortcut-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin: -0.25rem -0.4rem;
+}
+
+.pf-shortcut-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.55rem 0.4rem;
+  border-radius: var(--jv-radius-sm);
+  text-decoration: none;
+  color: inherit;
+  transition: background var(--jv-transition);
+
+  &:hover {
+    background: var(--jv-surface-2);
+
+    .pf-shortcut-chevron { transform: translateX(2px); color: var(--jv-brand-1); }
+  }
+}
+
+.pf-shortcut-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: var(--jv-brand-soft);
+  color: var(--jv-brand-1);
+  flex-shrink: 0;
+}
+
+.pf-shortcut-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.pf-shortcut-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--jv-text);
+}
+
+.pf-shortcut-hint {
+  font-size: 0.72rem;
+  color: var(--jv-faint);
+}
+
+.pf-shortcut-chevron {
+  color: var(--jv-faint);
+  flex-shrink: 0;
+  transition: transform var(--jv-transition), color var(--jv-transition);
+}

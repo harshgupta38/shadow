@@ -3,6 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
@@ -17,6 +19,21 @@
       rel="stylesheet"
     />
     <title>Shadow — Your Personal Assistant</title>
+    <script>
+      (function () {
+        try {
+          var raw = localStorage.getItem("dynamic_theme_cache");
+          if (raw) {
+            var cache = JSON.parse(raw);
+            if (cache && cache.effectiveTheme) {
+              var root = document.documentElement;
+              root.setAttribute("data-bs-theme", cache.effectiveTheme);
+              root.style.colorScheme = cache.effectiveTheme;
+            }
+          }
+        } catch (_) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

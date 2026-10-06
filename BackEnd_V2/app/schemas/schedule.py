@@ -1,8 +1,9 @@
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from app.common import today_ist
 from app.schemas.common import ORMModel
 from app.schemas.goals import CategoryType
 
@@ -10,12 +11,8 @@ ScheduledTaskType = Literal["simple", "metric"]
 ScheduledTaskPriority = Literal["highest", "high", "medium", "low", "lowest"]
 ScheduledTaskPreferredTime = Literal["flexible", "morning", "afternoon", "evening", "night", "custom"]
 ScheduledTaskStatus = Literal["upcoming", "completed", "snoozed", "missed"]
-
-_IST = timezone(timedelta(hours=5, minutes=30))
-
-
-def _today_ist() -> date:
-    return datetime.now(_IST).date()
+ScheduledTaskDuration = Literal["short", "long"]
+ScheduledTaskPlannerDisplay = Literal["task", "banner", "none"]
 
 
 class GoalSummary(BaseModel):
@@ -36,6 +33,12 @@ class ScheduledTaskCreateRequest(BaseModel):
     preferred_time: ScheduledTaskPreferredTime = "flexible"
     specific_time: str | None = Field(default=None, max_length=10)
 
+    task_duration: ScheduledTaskDuration = "short"
+    end_date: date | None = None
+    end_preferred_time: ScheduledTaskPreferredTime | None = None
+    end_specific_time: str | None = Field(default=None, max_length=10)
+    planner_display: ScheduledTaskPlannerDisplay | None = None
+
     allow_snoozing: bool = False
     snooze_limit: int | None = Field(default=None, gt=0)
 
@@ -44,6 +47,7 @@ class ScheduledTaskCreateRequest(BaseModel):
 
     category: CategoryType | None = Field(default=None)
     goal_id: int | None = None
+    repeat_yearly: bool = False
 
     @field_validator("title", mode="before")
     @classmethod
@@ -54,7 +58,8 @@ class ScheduledTaskCreateRequest(BaseModel):
 
     @model_validator(mode="after")
     def validate_fields(self) -> "ScheduledTaskCreateRequest":
-        if self.scheduled_date < _today_ist():
+        # For yearly tasks, any date is valid — only month + day are stored.
+        if not self.repeat_yearly and self.scheduled_date < today_ist():
             raise ValueError("scheduled_date cannot be in the past.")
 
         if self.preferred_time == "custom":
@@ -62,6 +67,29 @@ class ScheduledTaskCreateRequest(BaseModel):
                 raise ValueError("A specific time is required when 'Custom time' is selected.")
         else:
             self.specific_time = None
+
+        if self.task_duration == "long":
+            # Long-term tasks cannot recur yearly (they have an explicit end_date instead).
+            self.repeat_yearly = False
+            if self.end_date is None:
+                raise ValueError("end_date is required for long-term tasks.")
+            if self.end_date <= self.scheduled_date:
+                raise ValueError("end_date must be after scheduled_date.")
+            if not self.category:
+                raise ValueError("category is required for long-term tasks.")
+            if self.planner_display is None:
+                self.planner_display = "banner"
+            if self.end_preferred_time == "custom":
+                if not (self.end_specific_time and self.end_specific_time.strip()):
+                    raise ValueError("end_specific_time is required when end_preferred_time is 'custom'.")
+            else:
+                self.end_specific_time = None
+        else:
+            # Clear long-term fields for short tasks.
+            self.end_date = None
+            self.end_preferred_time = None
+            self.end_specific_time = None
+            self.planner_display = None
 
         if self.planner_type == "metric":
             if self.planner_target is None:
@@ -92,6 +120,12 @@ class ScheduledTaskUpdateRequest(BaseModel):
     preferred_time: ScheduledTaskPreferredTime | None = None
     specific_time: str | None = Field(default=None, max_length=10)
 
+    task_duration: ScheduledTaskDuration | None = None
+    end_date: date | None = None
+    end_preferred_time: ScheduledTaskPreferredTime | None = None
+    end_specific_time: str | None = Field(default=None, max_length=10)
+    planner_display: ScheduledTaskPlannerDisplay | None = None
+
     allow_snoozing: bool | None = None
     snooze_limit: int | None = Field(default=None, gt=0)
 
@@ -100,21 +134,45 @@ class ScheduledTaskUpdateRequest(BaseModel):
 
     category: CategoryType | None = Field(default=None)
     goal_id: int | None = None
+    repeat_yearly: bool | None = None
 
-    @field_validator("scheduled_date", mode="after")
-    @classmethod
-    def scheduled_date_not_past(cls, value: date | None) -> date | None:
-        if value is not None and value < _today_ist():
-            raise ValueError("scheduled_date cannot be in the past.")
-        return value
+    @model_validator(mode="after")
+    def validate_scheduled_date(self) -> "ScheduledTaskUpdateRequest":
+        # Mirror the create rule: yearly tasks store only month+day, so past dates are valid.
+        if self.scheduled_date is not None and self.repeat_yearly is not True:
+            if self.scheduled_date < today_ist():
+                raise ValueError("scheduled_date cannot be in the past.")
+        return self
 
 
-class ScheduledTaskDataResponse(BaseModel):
-    model_config = ORMModel.model_config
+class ScheduledTaskProposalLLMSchema(BaseModel):
+    title: str
+    scheduled_date: str
+    priority: ScheduledTaskPriority
+    planner_type: ScheduledTaskType
+    planner_target: int | None
+    value_unit: str | None
+    preferred_time: ScheduledTaskPreferredTime
+    specific_time: str | None
+    allow_snoozing: bool
+    snooze_limit: int | None
+    duration_minutes: int | None
+    note: str | None
+    category: str | None = None
+    goal_id: int | None = None
+    assistant_context: str
 
+
+class SaveScheduledTaskFromProposalRequest(BaseModel):
+    proposal_id: str
+    task: ScheduledTaskCreateRequest
+
+
+class ScheduledTaskDataResponse(ORMModel):
     id: int
     title: str
     note: str | None
+    subtasks: list["SubtaskResponse"] = []
 
     planner_type: ScheduledTaskType
     planner_target: int | None
@@ -126,10 +184,17 @@ class ScheduledTaskDataResponse(BaseModel):
     preferred_time: ScheduledTaskPreferredTime
     specific_time: str | None
 
+    task_duration: ScheduledTaskDuration = "short"
+    end_date: date | None = None
+    end_preferred_time: ScheduledTaskPreferredTime | None = None
+    end_specific_time: str | None = None
+    planner_display: ScheduledTaskPlannerDisplay | None = None
+
     allow_snoozing: bool
     snooze_limit: int | None
 
     duration_minutes: int | None
+    repeat_yearly: bool = False
 
     category: CategoryType | None
     goal: GoalSummary | None = None
@@ -138,3 +203,34 @@ class ScheduledTaskDataResponse(BaseModel):
 
     created_at: datetime
     updated_at: datetime
+
+
+# ── Sub-tasks ─────────────────────────────────────────────────────────────────
+
+SubtaskPlannerMode = Literal["task", "highlight"]
+
+
+class SubtaskCreateRequest(BaseModel):
+    subtask_date: date
+    description: str = Field(min_length=1, max_length=200)
+    planner_mode: SubtaskPlannerMode | None = None
+
+
+class SubtaskUpdateRequest(BaseModel):
+    description: str | None = Field(default=None, min_length=1, max_length=200)
+    planner_mode: SubtaskPlannerMode | None = None
+
+
+class SubtaskResponse(ORMModel):
+    id: int
+    task_id: int
+    subtask_date: date
+    description: str
+    planner_mode: SubtaskPlannerMode | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class ScheduleListResponse(BaseModel):
+    tasks: list[ScheduledTaskDataResponse]
+    overflow_tasks: list[ScheduledTaskDataResponse]

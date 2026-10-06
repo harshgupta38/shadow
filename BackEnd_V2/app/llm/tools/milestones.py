@@ -15,6 +15,8 @@ async def create_milestone_proposals(context: ToolContext, arguments: dict) -> d
     goal = get_goal_detail(context.db, context.current_user, goal_id)
     goal_data = goal.model_dump(mode="json")
 
+    # uses the env-default model — generate_milestone_proposals() doesn't accept a
+    # model override yet, so this ignores the user's ai_provider/ai_default_model setting.
     llm_service = get_llm_service()
     result = await llm_service.generate_milestone_proposals(
         goal_data=goal_data,

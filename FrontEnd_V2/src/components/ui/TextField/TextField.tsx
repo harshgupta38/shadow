@@ -8,11 +8,13 @@ interface TextFieldProps extends InputHTMLAttributes<HTMLInputElement> {
     icon?: ReactNode;
     trailing?: ReactNode;
 
+    className?: string;
+
     onClearError?: () => void;
 }
 
 export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function TextField(
-    { label, error, hint, icon, trailing, onClearError, id, className = "", ...rest }, ref,
+    { label, error, hint, icon, trailing, onClearError, id, className = "mb-3", ...rest }, ref,
 ) {
     const inputId = id ?? rest.name;
     const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -21,7 +23,7 @@ export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function T
     };
 
     return (
-        <div className="mb-3">
+        <div className={className.trim()}>
             {label && (
                 <label htmlFor={inputId} className="form-label">
                     {label}
@@ -39,7 +41,7 @@ export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function T
                 <input
                     ref={ref}
                     id={inputId}
-                    className={`form-control ${icon ? "ps-5" : ""} ${error ? "is-invalid" : ""} ${className}`.trim()}
+                    className={`form-control ${icon ? "ps-5" : ""} ${error ? "is-invalid" : ""}`.trim()}
                     style={trailing ? { paddingRight: 44 } : undefined}
                     {...rest}
                     onChange={handleChange}

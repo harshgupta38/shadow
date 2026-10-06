@@ -15,36 +15,23 @@ import {
     STEPS,
     type GoalWizardStepKey,
 } from "@/pages/my_goals/GoalCreationWizard/GoalWizard.constants";
-import { GoalWizardReview } from "@/pages/my_goals/GoalCreationWizard/GoalWizardReview";
+import {
+    GoalWizardReview,
+    mapFieldErrorsToReviewErrors,
+    type GoalReviewFieldKey,
+    type GoalReviewFieldErrors,
+} from "@/pages/my_goals/GoalCreationWizard/GoalWizardReview";
 import { GoalWizardVisual } from "@/pages/my_goals/GoalCreationWizard/GoalWizardVisual";
 import { GoalWizardStepper } from "@/pages/my_goals/GoalCreationWizard/GoalWizardStepper";
+import { ANIMATION } from "@/constant/tuning";
 
 import "@/pages/my_goals/GoalCreationWizard/GoalCreationWizard.scss";
 
-// Visual animation tuning values for the right-side boy movement.
-const BOY_MULTI_STEP_INTERVAL_MS = 260;
-const BOY_BACKWARD_FADE_MS = 200;
 const ORDERED_STEP_KEYS = STEPS.map((step) => step.key);
 
 type WizardPhase = "questions" | "understanding" | "review";
 type GoalWizardAnswers = Record<GoalWizardStepKey, string>;
 type GoalWizardStepErrors = Partial<Record<GoalWizardStepKey, string>>;
-type GoalReviewFieldKey = keyof RefineGoalFromLLMSchema;
-type GoalReviewFieldErrors = Partial<Record<GoalReviewFieldKey, string>>;
-
-const REVIEW_FIELD_KEYS: GoalReviewFieldKey[] = [
-    "title",
-    "summary",
-    "category",
-    "motivation",
-    "success_definition",
-    "current_state",
-    "target_date",
-    "challenges",
-    "strengths",
-    "success_metrics",
-    "insights",
-];
 
 const PHASE_TITLES: Record<WizardPhase, string[]> = {
     questions: ["Build Your Goal"],
@@ -112,21 +99,6 @@ function mapFieldErrorsToStepErrors(
     }
 
     return stepErrors;
-}
-
-function mapFieldErrorsToReviewErrors(
-    fieldErrors: Partial<Record<string, string>>,
-): GoalReviewFieldErrors {
-    const reviewFieldErrors: GoalReviewFieldErrors = {};
-
-    for (const key of REVIEW_FIELD_KEYS) {
-        const fieldMessage = fieldErrors[key];
-        if (typeof fieldMessage === "string" && fieldMessage.trim().length > 0) {
-            reviewFieldErrors[key] = fieldMessage;
-        }
-    }
-
-    return reviewFieldErrors;
 }
 
 interface GoalCreationWizardProps {
@@ -235,7 +207,7 @@ export function GoalCreationWizard({ open, onClose, onSubmitted }: GoalCreationW
                 setBoyStepIndex(currentStepIndex);
                 setIsBoyVisible(true);
                 clearBoyFadeTimer();
-            }, BOY_BACKWARD_FADE_MS);
+            }, ANIMATION.BOY_BACKWARD_FADE_MS);
 
             return () => {
                 clearBoyFadeTimer();
@@ -261,7 +233,7 @@ export function GoalCreationWizard({ open, onClose, onSubmitted }: GoalCreationW
 
                 return next;
             });
-        }, BOY_MULTI_STEP_INTERVAL_MS);
+        }, ANIMATION.BOY_MULTI_STEP_INTERVAL_MS);
 
         return () => {
             clearBoyStepTimer();

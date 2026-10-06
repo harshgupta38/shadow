@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ safe_subject }}</title>
+</head>
+<body style="margin:0;padding:0;background:#efeff7;font-family:Verdana,Geneva,Tahoma,sans-serif;color:#111827;">
+    <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#efeff7;padding:14px 0;">
+        <tr>
+            <td align="center">
+                <table role="presentation" cellpadding="0" cellspacing="0" width="620" style="max-width:620px;background:#ffffff;border-radius:12px;border:1px solid #e5e7eb;overflow:hidden;">
+
+                    <!-- Header -->
+                    <tr>
+                        <td align="center" style="padding:22px 22px 12px;">
+                            <div style="font-size:26px;line-height:1;color:#111827;font-weight:700;">
+                                <span style="font-size:24px;color:#6b5cff;font-weight:700;">&#10022;</span> Shadow
+                            </div>
+                            <div style="margin-top:5px;font-size:12px;color:#4b5563;">Your AI-powered life and career assistant</div>
+                        </td>
+                    </tr>
+                    <tr><td style="height:2px;background:#6b5cff;"></td></tr>
+
+                    <!-- Body -->
+                    <tr>
+                        <td align="center" style="padding:32px 22px 0;">
+                            <div style="width:64px;height:64px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#d1fae5 0%,#6ee7b7 100%);display:inline-block;text-align:center;line-height:64px;font-size:28px;">&#10003;</div>
+                            <h1 style="margin:16px 0 6px;font-size:22px;line-height:1.25;color:#111827;">Email notifications enabled</h1>
+                            <p style="margin:0;font-size:15px;font-weight:700;color:#5d51ff;">Hi {{ safe_first_name }},</p>
+                            <p style="margin:10px auto 0;max-width:480px;font-size:13px;line-height:1.6;color:#4b5563;">
+                                Email notifications are now active for your Shadow account. You'll receive emails for important alerts — such as critical updates, security events, and account activity.
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- What you'll receive -->
+                    <tr>
+                        <td style="padding:24px 40px 0;">
+                            <p style="margin:0 0 10px;font-size:13px;font-weight:700;color:#111827;">What you'll receive</p>
+                            <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border:1px solid #e5e7eb;border-radius:8px;background:#fafafa;">
+                                <tr>
+                                    <td style="padding:11px 14px;border-bottom:1px solid #e5e7eb;font-size:12px;color:#4b5563;">
+                                        <span style="color:#5f4bff;font-weight:700;margin-right:8px;">&#9679;</span>Critical system alerts and account notifications
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding:11px 14px;border-bottom:1px solid #e5e7eb;font-size:12px;color:#4b5563;">
+                                        <span style="color:#ef4444;font-weight:700;margin-right:8px;">&#9679;</span>Security alerts — unusual login attempts, account lockouts
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding:11px 14px;font-size:12px;color:#4b5563;">
+                                        <span style="color:#22c55e;font-weight:700;margin-right:8px;">&#9679;</span>Account activity — report generation and data exports
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- CTA -->
+                    <tr>
+                        <td align="center" style="padding:24px 40px 0;">
+                            <a href="{{ safe_settings_url }}" style="display:inline-block;background:#5f4bff;border-radius:8px;color:#ffffff;text-decoration:none;padding:12px 28px;font-size:14px;font-weight:700;">Manage notification settings</a>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="padding:28px 20px 20px;">
+                            <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-top:1px solid #e5e7eb;">
+                                <tr><td align="center" style="padding-top:14px;font-size:12px;color:#4b5563;">To stop receiving emails, turn off Email notifications in your settings.</td></tr>
+                                <tr><td align="center" style="padding-top:6px;font-size:12px;color:#4b5563;">Questions? Contact us at {{ safe_support_email }}</td></tr>
+                                <tr><td align="center" style="padding-top:6px;font-size:11px;color:#9ca3af;">{{ safe_footer }}</td></tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

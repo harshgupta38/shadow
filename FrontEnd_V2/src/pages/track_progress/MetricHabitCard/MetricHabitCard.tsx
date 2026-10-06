@@ -1,14 +1,18 @@
 import type React from "react";
+import { useNavigate } from "react-router-dom";
+import { CheckLg } from "react-bootstrap-icons";
 import type { MetricHabitData } from "@/api/types";
+import { GEOMETRY } from "@/constant/tuning";
+import { ROUTES } from "@/routes/RoutePaths";
 import "./MetricHabitCard.scss";
 
 // ── Sparkline SVG ─────────────────────────────────────────────────────────────
 
 function Sparkline({ values, habitId, color }: { values: number[]; habitId: number; color: string }) {
   const max = Math.max(...values, 0.01);
-  const W = 200;
-  const H = 50;
-  const padY = 4;
+  const W = GEOMETRY.SPARKLINE_WIDTH;
+  const H = GEOMETRY.SPARKLINE_HEIGHT;
+  const padY = GEOMETRY.SPARKLINE_PAD_Y;
   const step = W / Math.max(values.length - 1, 1);
 
   const pts = values.map((v, i) => ({
@@ -56,6 +60,7 @@ function Sparkline({ values, habitId, color }: { values: number[]; habitId: numb
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function MetricHabitCard({ habit: h }: { habit: MetricHabitData }) {
+  const navigate = useNavigate();
   const todayVal = h.current_value;
   const pct = Math.min(100, Math.round((todayVal / h.planner_target) * 100));
 
@@ -67,8 +72,22 @@ export function MetricHabitCard({ habit: h }: { habit: MetricHabitData }) {
   const weekTotal = h.history.reduce((a, b) => a + b, 0);
   const goalMet = pct >= 100;
 
+  function openDetail() {
+    const path = h.source_type === "habit"
+      ? ROUTES.HABIT_LIBRARY_DETAIL.replace(":habitId", String(h.id))
+      : ROUTES.TASK_DETAIL.replace(":taskId", String(h.id));
+    navigate(path);
+  }
+
   return (
-    <article className={`tp-metric-card tp-metric-card--${h.color}`}>
+    <article
+      className={`tp-metric-card tp-metric-card--${h.color}`}
+      role="button"
+      tabIndex={0}
+      onClick={openDetail}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openDetail(); } }}
+      aria-label={`Open details for ${h.title}`}
+    >
       <div className="tp-mc-inner">
 
         {/* ── Head ── */}
@@ -89,7 +108,7 @@ export function MetricHabitCard({ habit: h }: { habit: MetricHabitData }) {
             <span className="tp-mc-unit">{h.value_unit}</span>
             <span className="tp-mc-of-target">/ {h.planner_target} today</span>
           </div>
-          {goalMet && <span className="tp-mc-goal-pill">✓ Goal met</span>}
+          {goalMet && <span className="tp-mc-goal-pill"><CheckLg size={12} /></span>}
         </div>
 
         {/* ── Progress Bar ── */}

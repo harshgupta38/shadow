@@ -1,0 +1,36 @@
+// ─── Panel Header ───────────────────────────────────────────────────────────
+// Icon + title + description row, shared by any card that opens with this
+// pattern (currently the Profile page's panels — Achievements, This Month,
+// App Preferences, Account & Security, Danger Zone).
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.panel-header-icon {
+  flex-shrink: 0;
+}
+
+.panel-header-icon--success { background: var(--jv-success-soft); color: var(--jv-success); }
+.panel-header-icon--brand   { background: var(--jv-brand-soft);   color: var(--jv-brand-1); }
+.panel-header-icon--warn    { background: var(--jv-warn-soft);    color: var(--jv-warn); }
+.panel-header-icon--info    { background: var(--jv-info-soft);    color: var(--jv-info); }
+.panel-header-icon--violet  { background: var(--jv-violet-soft);  color: var(--jv-violet); }
+.panel-header-icon--danger  { background: var(--jv-danger-soft);  color: var(--jv-danger); }
+
+.panel-header-title {
+  font-family: var(--jv-font-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--jv-text);
+  margin: 0 0 0.15rem;
+}
+
+.panel-header-desc {
+  font-size: 0.775rem;
+  color: var(--jv-muted);
+  margin: 0;
+  line-height: 1.45;
+}

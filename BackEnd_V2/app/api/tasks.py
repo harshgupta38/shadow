@@ -4,7 +4,7 @@ from app.api.deps import get_current_user
 from app.core.endpoints import ENDPOINTS
 from app.db.session import get_db
 from app.models.user import UserDBM
-from app.schemas.tasks import TaskCreateRequest, TaskDataResponse, TaskUpdateRequest, SaveTaskFromProposalRequest
+from app.schemas.tasks import TaskActivityResponse, TaskCreateRequest, TaskDataResponse, TaskUpdateRequest, SaveTaskFromProposalRequest
 from app.services import tasks_service
 
 router = APIRouter(prefix=ENDPOINTS.TASKS.PREFIX, tags=["Tasks"])
@@ -46,6 +46,18 @@ def get_task_list(
     current_user: UserDBM = Depends(get_current_user),
 ) -> list[TaskDataResponse]:
     return tasks_service.get_list(db, current_user, milestone_id)
+
+
+@router.get(
+    ENDPOINTS.TASKS.ACTIVITY,
+    response_model=TaskActivityResponse,
+)
+def get_task_activity(
+    task_id: int,
+    db=Depends(get_db),
+    current_user: UserDBM = Depends(get_current_user),
+) -> TaskActivityResponse:
+    return tasks_service.get_task_activity(db, current_user, task_id)
 
 
 @router.get(

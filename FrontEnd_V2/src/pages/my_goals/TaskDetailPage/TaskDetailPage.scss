@@ -1,0 +1,34 @@
+.td-goal-link {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  color: var(--jv-brand-1);
+  gap: 0.3rem;
+
+  &:hover { text-decoration: underline; }
+}
+
+.td-status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.22rem 0.6rem;
+  border-radius: var(--jv-radius-pill);
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1;
+
+  .td-status-dot {
+    width: 0.42rem;
+    height: 0.42rem;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.9;
+  }
+
+  &--not-started { color: var(--jv-muted);   background: color-mix(in srgb, var(--jv-muted)   14%, var(--jv-surface) 86%); }
+  &--in-progress  { color: var(--jv-success); background: color-mix(in srgb, var(--jv-success) 14%, var(--jv-surface) 86%); }
+  &--paused       { color: var(--jv-warn);    background: color-mix(in srgb, var(--jv-warn)    14%, var(--jv-surface) 86%); }
+  &--completed    { color: var(--jv-success); background: color-mix(in srgb, var(--jv-success) 14%, var(--jv-surface) 86%); }
+  &--cancelled    { color: var(--jv-danger);  background: color-mix(in srgb, var(--jv-danger)  14%, var(--jv-surface) 86%); }
+}

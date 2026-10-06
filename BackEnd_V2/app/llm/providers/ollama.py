@@ -16,14 +16,21 @@ from app.llm.knowledge_base import (
     MILESTONE_PROPOSAL_SYSTEM_INSTRUCTION,
     TASK_PROPOSAL_SYSTEM_INSTRUCTION,
     RESPOND_TO_MESSAGE_SYSTEM_INSTRUCTION,
+    USER_MEMORY_EXTRACTION_SYSTEM_INSTRUCTION,
+    RESPONSE_LENGTH_INSTRUCTION,
+    AI_PERSONALITY_INSTRUCTION,
     build_goal_refinement_user_prompt,
     build_milestone_proposal_user_prompt,
     build_task_proposal_user_prompt,
+    get_report_system_instruction,
+    build_report_prompt,
     CREATE_CONVERSATION_SYSTEM_INSTRUCTION,
 )
 from app.schemas.goals import RefineGoalFromLLMSchema
 from app.schemas.milestones import MilestoneProposalListLLMSchema
 from app.schemas.tasks import TaskProposalListLLMSchema
+from app.schemas.memory import MemoryExtractionFromLLMSchema
+from app.schemas.daily_report import GenerateReportSchema
 from app.llm.models import (
     MessageToLLM,
     MessageFromLLM,
@@ -38,15 +45,34 @@ from app.llm.models import (
     NewConvoFromLLM,
     ConversationContextToLLM,
     ConversationContextFromLLM,
+    ExtractUserMemoryToLLM,
+    ExtractUserMemoryFromLLM,
+    GenerateReportToLLM,
+    GenerateReportFromLLM,
+    GenerateBriefToLLM,
+    GenerateBriefFromLLM,
 )
 from app.llm.base import BaseLLMProvider
 from app.llm.config import LLMSettings, llm_settings
+from app.llm.cost import calculate_token_cost
 from app.llm.exceptions import (
     LLMHealthCheckError,
     LLMProviderError,
     LLMRequestError,
 )
 from app.llm.tools import MAX_TOOL_ITERATIONS, AGENT_TOOL_DEFINITIONS, TERMINAL_TOOL_NAMES
+
+
+def _ollama_cost(model: str, input_tokens: int, output_tokens: int):
+    """calculate_token_cost, but tolerant of Ollama model names — those are whatever
+    the operator has pulled locally, not a fixed list the app controls, so an
+    unrecognized one should be treated as free (like every other local model)
+    instead of raising and breaking the response."""
+    try:
+        return calculate_token_cost(model_key=model, input_tokens=input_tokens, output_tokens=output_tokens)
+    except ValueError:
+        from app.llm.models import TokenCostBreakdown
+        return TokenCostBreakdown(input_token_cost=0.0, output_token_cost=0.0, total_cost=0.0)
 
 
 class OllamaProvider(BaseLLMProvider):
@@ -190,6 +216,7 @@ class OllamaProvider(BaseLLMProvider):
             usage=usage,
             response_id=completion.id,
             response_time_ms=response_time_ms,
+            cost=_ollama_cost(model, usage.input_tokens if usage else 0, usage.output_tokens if usage else 0),
         )
 
     async def generate_milestone_proposals(
@@ -261,6 +288,7 @@ class OllamaProvider(BaseLLMProvider):
             usage=usage,
             response_id=completion.id,
             response_time_ms=response_time_ms,
+            cost=_ollama_cost(model, usage.input_tokens if usage else 0, usage.output_tokens if usage else 0),
         )
 
     async def generate_task_proposals(self, request: TaskProposalsToLLM) -> TaskProposalsFromLLM:
@@ -330,18 +358,24 @@ class OllamaProvider(BaseLLMProvider):
             usage=usage,
             response_id=completion.id,
             response_time_ms=response_time_ms,
+            cost=_ollama_cost(model, usage.input_tokens if usage else 0, usage.output_tokens if usage else 0),
         )
 
     async def create_conversation(self, request: NewConvoToLLM) -> NewConvoFromLLM:
         model = self._resolve_model(request)
 
         request_data = request.request_data
+        system_content = CREATE_CONVERSATION_SYSTEM_INSTRUCTION[request_data.agent_type]
+        if request.user_memory:
+            system_content += f"\n\n{request.user_memory}"
+        if instruction := RESPONSE_LENGTH_INSTRUCTION.get(request.response_length, ""):
+            system_content += f"\n\n{instruction}"
+        if instruction := AI_PERSONALITY_INSTRUCTION.get(request.personality, ""):
+            system_content += f"\n\n{instruction}"
         messages = [
             {
                 "role": Role.SYSTEM,
-                "content": CREATE_CONVERSATION_SYSTEM_INSTRUCTION[
-                    request_data.agent_type
-                ],
+                "content": system_content,
             },
         ]
         _ctx_parts = []
@@ -550,6 +584,7 @@ class OllamaProvider(BaseLLMProvider):
             usage=usage,
             response_id=final_completion.id,
             response_time_ms=response_time_ms,
+            cost=_ollama_cost(model, total_input_tokens, total_output_tokens),
         )
 
     async def respond_to_message(self, request: MessageToLLM) -> MessageFromLLM:
@@ -559,6 +594,12 @@ class OllamaProvider(BaseLLMProvider):
             f"Stable context:\n{request.stable_context}\n\n"
             f"Conversation summary:\n{request.context_summary}"
         )
+        if request.user_memory:
+            conversation_context += f"\n\n{request.user_memory}"
+        if instruction := RESPONSE_LENGTH_INSTRUCTION.get(request.response_length, ""):
+            conversation_context += f"\n\n{instruction}"
+        if instruction := AI_PERSONALITY_INSTRUCTION.get(request.personality, ""):
+            conversation_context += f"\n\n{instruction}"
         messages = [
             {
                 "role": Role.SYSTEM,
@@ -694,6 +735,7 @@ class OllamaProvider(BaseLLMProvider):
             usage=usage,
             response_id=completion.id,
             response_time_ms=response_time_ms,
+            cost=_ollama_cost(model, total_input_tokens, total_output_tokens),
         )
 
     async def update_conversation_context(
@@ -769,12 +811,172 @@ class OllamaProvider(BaseLLMProvider):
             usage=usage,
             response_id=completion.id,
             response_time_ms=response_time_ms,
+            cost=_ollama_cost(model, usage.input_tokens if usage else 0, usage.output_tokens if usage else 0),
         )
 
-    async def health_check(self) -> bool:
-        # Ollama OpenAI compatibility includes the /models endpoint used by SDK model listing.
+    async def extract_user_memory(
+        self, request: ExtractUserMemoryToLLM
+    ) -> ExtractUserMemoryFromLLM:
+        model = self._resolve_model(request)
+
+        existing_block = (
+            json.dumps(request.existing_memories, ensure_ascii=False, indent=2)
+            if request.existing_memories
+            else "[]"
+        )
+        conversation_block = (
+            f"Stable context:\n{request.stable_context}\n\n"
+            f"Conversation summary:\n{request.context_summary}\n\n"
+            "Recent messages:\n"
+            + "\n".join(f"[{m['role']}]: {m['content']}" for m in request.messages)
+        )
+        user_prompt = (
+            f"Existing user memories:\n{existing_block}\n\n"
+            f"Conversation to analyze:\n{conversation_block}"
+        )
+
+        messages = [
+            {"role": Role.SYSTEM, "content": USER_MEMORY_EXTRACTION_SYSTEM_INSTRUCTION},
+            {"role": Role.USER, "content": user_prompt},
+        ]
+
+        started_at = perf_counter()
         try:
-            await self._client.models.list()
+            completion = await self._client.beta.chat.completions.parse(
+                model=model,
+                messages=messages,
+                response_format=MemoryExtractionFromLLMSchema,
+                temperature=request.temperature,
+                max_tokens=request.max_tokens,
+            )
+        except (APIConnectionError, APIStatusError, OpenAIError) as exc:
+            raise LLMProviderError(f"Ollama extract_user_memory failed: {exc}") from exc
+        response_time_ms = int((perf_counter() - started_at) * 1000)
+
+        await log_ollama_completion_usage_async(
+            settings=self._settings,
+            model=model,
+            completion=completion,
+            latency_ms=response_time_ms,
+            user_id=request.user_id,
+            operation="extract_user_memory",
+        )
+
+        if not completion.choices:
+            raise LLMRequestError("Ollama returned no choices for extract_user_memory.")
+
+        first_choice = completion.choices[0]
+        message = first_choice.message
+        parsed = message.parsed
+
+        if parsed is None:
+            if message.refusal:
+                raise LLMRequestError(
+                    f"Ollama refused extract_user_memory response: {message.refusal}"
+                )
+            raise LLMRequestError("Ollama returned an unparsable extract_user_memory response.")
+
+        usage = None
+        if completion.usage is not None:
+            usage = TokenUsage(
+                input_tokens=completion.usage.prompt_tokens,
+                output_tokens=completion.usage.completion_tokens,
+                total_tokens=completion.usage.total_tokens,
+            )
+
+        return ExtractUserMemoryFromLLM(
+            provider=LLMProvider.OLLAMA,
+            model=model,
+            model_str=completion.model or model,
+            llm_data=parsed,
+            finish_reason=first_choice.finish_reason,
+            usage=usage,
+            response_id=completion.id,
+            response_time_ms=response_time_ms,
+            cost=_ollama_cost(model, usage.input_tokens if usage else 0, usage.output_tokens if usage else 0),
+        )
+
+    async def generate_report(self, request: GenerateReportToLLM) -> GenerateReportFromLLM:
+        model = self._resolve_model(request)
+
+        messages = [
+            {
+                "role": Role.SYSTEM,
+                "content": get_report_system_instruction(request.report_type),
+            },
+            {
+                "role": Role.USER,
+                "content": build_report_prompt(
+                    request.report_date, request.report_type, request.day_data
+                ),
+            },
+        ]
+
+        started_at = perf_counter()
+        try:
+            completion = await self._client.beta.chat.completions.parse(
+                model=model,
+                messages=messages,
+                response_format=GenerateReportSchema,
+                temperature=request.temperature,
+                max_tokens=request.max_tokens,
+            )
+        except (APIConnectionError, APIStatusError, OpenAIError) as exc:
+            raise LLMProviderError(f"Ollama generate_report failed: {exc}") from exc
+        response_time_ms = int((perf_counter() - started_at) * 1000)
+
+        await log_ollama_completion_usage_async(
+            settings=self._settings,
+            model=model,
+            completion=completion,
+            latency_ms=response_time_ms,
+            user_id=request.user_id,
+            operation="generate_report",
+        )
+
+        if not completion.choices:
+            raise LLMRequestError("Ollama returned no choices for generate_report.")
+
+        first_choice = completion.choices[0]
+        message = first_choice.message
+        parsed = message.parsed
+
+        if parsed is None:
+            if message.refusal:
+                raise LLMRequestError(
+                    f"Ollama refused generate_report response: {message.refusal}"
+                )
+            raise LLMRequestError("Ollama returned an unparsable generate_report response.")
+
+        usage = None
+        if completion.usage is not None:
+            usage = TokenUsage(
+                input_tokens=completion.usage.prompt_tokens,
+                output_tokens=completion.usage.completion_tokens,
+                total_tokens=completion.usage.total_tokens,
+            )
+
+        return GenerateReportFromLLM(
+            provider=LLMProvider.OLLAMA,
+            model=model,
+            model_str=completion.model or model,
+            report_data=parsed,
+            finish_reason=first_choice.finish_reason,
+            usage=usage,
+            response_id=completion.id,
+            response_time_ms=response_time_ms,
+            cost=_ollama_cost(model, usage.input_tokens if usage else 0, usage.output_tokens if usage else 0),
+        )
+
+    async def generate_daily_brief(self, request: GenerateBriefToLLM) -> GenerateBriefFromLLM:
+        raise NotImplementedError("Daily brief generation is only supported by the OpenAI provider currently.")
+
+    async def health_check(self, model: str | None = None) -> bool:
+        try:
+            if model:
+                await self._client.models.retrieve(model)
+            else:
+                await self._client.models.list()
             return True
         except (APIConnectionError, APIStatusError, OpenAIError) as exc:
             raise LLMHealthCheckError(f"Ollama health check failed: {exc}") from exc

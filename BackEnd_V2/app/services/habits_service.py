@@ -3,6 +3,7 @@ from datetime import date
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session, joinedload
 
+from app.common import today_ist
 from app.core.exceptions import NotFoundError, ValidationError
 from app.models.goal import GoalDBM
 from app.models.habit import HabitDBM
@@ -13,6 +14,8 @@ from app.schemas.habits import (
     GoalSummary,
     HabitCreateRequest,
     HabitDataResponse,
+    HabitActivityRecord,
+    HabitActivityResponse,
     HabitStatus,
     HabitUpdateRequest,
     SetTrackingRequest,
@@ -45,10 +48,13 @@ def _serialize(habit: HabitDBM, streaks: tuple[int, int] = (0, 0)) -> HabitDataR
         monthly_count=habit.monthly_count,
         specific_days=habit.specific_days,
         day_fallback=habit.day_fallback,
+        include_in_report=habit.include_in_report,
+        can_skip=habit.can_skip,
+        streak_tolerance_pct=habit.streak_tolerance_pct,
         start_date=habit.start_date,
         end_date=habit.end_date,
         preferred_time=habit.preferred_time,
-        specific_time=habit.specific_time or "",
+        specific_time=habit.specific_time,
         duration_minutes=habit.duration_minutes,
         status=habit.status,
         current_streak=current_streak,
@@ -68,7 +74,7 @@ def _compute_habit_streak(db: Session, habit: HabitDBM) -> tuple[int, int]:
     )
     if plan is None:
         return 0, 0
-    return planner_service.compute_streaks_for_plan(db, plan, date.today())
+    return planner_service.compute_streaks_for_plan(db, plan, today_ist())
 
 
 def _resolve_goal(db: Session, current_user: UserDBM, goal_id: int | None) -> GoalDBM | None:
@@ -98,7 +104,7 @@ def get_list(
     if not habits:
         return []
 
-    today = date.today()
+    today = today_ist()
     habit_ids = [h.id for h in habits]
 
     plans = db.scalars(
@@ -159,6 +165,9 @@ def save_habit(
         monthly_count=data.monthly_count if "monthly" in data.frequencies else None,
         specific_days=specific_days,
         day_fallback=day_fallback,
+        include_in_report=data.include_in_report,
+        can_skip=data.can_skip,
+        streak_tolerance_pct=data.streak_tolerance_pct if is_metric else 100,
         planner_type=data.planner_type,
         planner_target=data.planner_target if is_metric else None,
         value_unit=data.value_unit.strip() if is_metric and data.value_unit and data.value_unit.strip() else None,
@@ -253,12 +262,23 @@ def update_habit(
     if "day_fallback" in fields and data.day_fallback is not None:
         current_days = habit.specific_days or []
         habit.day_fallback = data.day_fallback and any(d >= 29 for d in current_days)
+    if "include_in_report" in fields and data.include_in_report is not None:
+        habit.include_in_report = data.include_in_report
+
+    if "can_skip" in fields and data.can_skip is not None:
+        habit.can_skip = data.can_skip
 
     if "planner_type" in fields and data.planner_type is not None:
         habit.planner_type = data.planner_type
         if data.planner_type == "simple":
             habit.planner_target = None
             habit.value_unit = None
+            habit.streak_tolerance_pct = 100
+
+    # Resolve tolerance after planner_type so a simple→metric switch in the same
+    # request correctly uses the incoming type rather than the old one.
+    if "streak_tolerance_pct" in fields and data.streak_tolerance_pct is not None:
+        habit.streak_tolerance_pct = data.streak_tolerance_pct if habit.planner_type == "metric" else 100
     if "planner_target" in fields:
         habit.planner_target = data.planner_target if habit.planner_type == "metric" else None
     if "value_unit" in fields:
@@ -323,6 +343,92 @@ def update_habit(
     db.refresh(habit)
     planner_service.sync_plan_from_habit(db, habit)
     return _serialize(habit, _compute_habit_streak(db, habit))
+
+
+def get_activity(
+    db: Session,
+    current_user: UserDBM,
+    habit_id: int,
+) -> HabitActivityResponse:
+    habit = db.scalar(
+        select(HabitDBM)
+        .options(joinedload(HabitDBM.goal))
+        .where(HabitDBM.id == habit_id, HabitDBM.user_id == current_user.id)
+    )
+    if habit is None:
+        raise NotFoundError("Habit not found.")
+
+    habit_response = _serialize(habit, _compute_habit_streak(db, habit))
+
+    plan = db.scalar(
+        select(PlanDBM).where(
+            PlanDBM.source_type == "habit",
+            PlanDBM.source_id == habit_id,
+            PlanDBM.user_id == current_user.id,
+        )
+    )
+    if plan is None:
+        return HabitActivityResponse(habit=habit_response, records=[])
+
+    today = today_ist()
+    m = today.month - 11
+    y = today.year
+    if m <= 0:
+        m += 12
+        y -= 1
+    window_start = date(y, m, 1)
+
+    rows = db.execute(
+        select(
+            DailyPlanRecordDBM.scheduled_date,
+            DailyPlanRecordDBM.status,
+            DailyPlanRecordDBM.actual_value,
+            DailyPlanRecordDBM.planner_target,
+            DailyPlanRecordDBM.note,
+        ).where(
+            DailyPlanRecordDBM.plan_id == plan.id,
+            DailyPlanRecordDBM.user_id == current_user.id,
+            DailyPlanRecordDBM.scheduled_date >= window_start,
+        )
+        .order_by(DailyPlanRecordDBM.scheduled_date.desc())
+    ).all()
+
+    # Walk every applicable date (not just dates with a materialized record) so a
+    # date the habit was due but never logged correctly breaks the streak, matching
+    # planner_service.compute_streaks' semantics instead of silently skipping gaps.
+    record_status = {r.scheduled_date: r.status for r in rows}
+    running = 0
+    streak_map: dict = {}
+    for d in planner_service.applicable_occurrence_dates(plan, today):
+        status = record_status.get(d)
+        if d == today:
+            if status == "done":
+                running += 1
+            elif status == "missed":
+                running = 0
+            # "due" or no record yet: leave running unchanged — day still in progress
+        else:
+            running = running + 1 if status == "done" else 0
+        if d >= window_start:
+            streak_map[d] = running
+
+    return HabitActivityResponse(
+        habit=habit_response,
+        records=[
+            HabitActivityRecord(
+                date=r.scheduled_date,
+                status=r.status,
+                value=r.actual_value,
+                planner_target=r.planner_target,
+                note=r.note or None,
+                # Fall back for a record whose date the plan's current frequency no
+                # longer considers applicable (e.g. the habit's schedule changed) —
+                # such a date never enters the applicable-dates walk above.
+                streak=streak_map.get(r.scheduled_date, 1 if r.status == "done" else 0),
+            )
+            for r in rows
+        ],
+    )
 
 
 def set_tracking(db: Session, current_user: UserDBM, data: SetTrackingRequest) -> None:

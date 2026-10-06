@@ -1,15 +1,25 @@
-from sqlalchemy import select
+import calendar
+from datetime import date, timedelta
+
+from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session, joinedload
 
+from app.common import to_ist, today_ist
 from app.core.exceptions import NotFoundError, ValidationError
 from app.models.goal import GoalDBM
 from app.models.schedule_task import ScheduledTaskDBM
+from app.models.scheduled_task_proposal import ScheduledTaskProposalDBM
+from app.models.scheduled_task_subtask import ScheduledTaskSubtaskDBM
 from app.models.user import UserDBM
+from app.models.yearly_task import YearlyTaskDBM
 from app.schemas.schedule import (
     GoalSummary,
+    SaveScheduledTaskFromProposalRequest,
     ScheduledTaskCreateRequest,
     ScheduledTaskDataResponse,
     ScheduledTaskUpdateRequest,
+    ScheduleListResponse,
+    SubtaskResponse,
 )
 from app.services.planner_service import deactivate_plan, sync_plan_from_scheduled_task
 
@@ -23,7 +33,69 @@ def _resolve_goal(db: Session, current_user: UserDBM, goal_id: int | None) -> Go
     return goal
 
 
-def _serialize(task: ScheduledTaskDBM) -> ScheduledTaskDataResponse:
+def _serialize(
+    task: ScheduledTaskDBM,
+    subtasks: list[SubtaskResponse] | None = None,
+) -> ScheduledTaskDataResponse:
+    is_metric = task.planner_type == "metric"
+    is_long = getattr(task, "task_duration", "short") == "long"
+    goal_summary: GoalSummary | None = None
+    if task.goal_id is not None and task.goal is not None:
+        goal_summary = GoalSummary(id=task.goal.id, title=task.goal.title, category=task.goal.category)
+    return ScheduledTaskDataResponse(
+        id=task.id,
+        title=task.title,
+        note=task.note,
+        subtasks=subtasks or [],
+        planner_type=task.planner_type,
+        planner_target=task.planner_target if is_metric else None,
+        value_unit=task.value_unit if is_metric else None,
+        priority=task.priority,
+        scheduled_date=task.scheduled_date,
+        preferred_time=task.preferred_time,
+        specific_time=task.specific_time,
+        task_duration=task.task_duration if hasattr(task, "task_duration") and task.task_duration else "short",
+        end_date=task.end_date if is_long else None,
+        end_preferred_time=task.end_preferred_time if is_long else None,
+        end_specific_time=task.end_specific_time if is_long else None,
+        planner_display=task.planner_display if is_long else None,
+        allow_snoozing=task.allow_snoozing,
+        snooze_limit=task.snooze_limit if task.allow_snoozing else None,
+        duration_minutes=task.duration_minutes,
+        repeat_yearly=False,
+        category=task.category,
+        goal=goal_summary,
+        status=task.status,
+        created_at=task.created_at,
+        updated_at=task.updated_at,
+    )
+
+
+def _next_yearly_occurrence(month: int, day: int, today: date) -> date:
+    try:
+        candidate = date(today.year, month, day)
+    except ValueError:
+        last = calendar.monthrange(today.year, month)[1]
+        candidate = date(today.year, month, min(day, last))
+    if candidate >= today:
+        return candidate
+    next_year = today.year + 1
+    try:
+        return date(next_year, month, day)
+    except ValueError:
+        last = calendar.monthrange(next_year, month)[1]
+        return date(next_year, month, min(day, last))
+
+
+def _date_for_year_month(month: int, day: int, year: int) -> date:
+    try:
+        return date(year, month, day)
+    except ValueError:
+        last = calendar.monthrange(year, month)[1]
+        return date(year, month, min(day, last))
+
+
+def _serialize_yearly(task: YearlyTaskDBM, scheduled_date: date) -> ScheduledTaskDataResponse:
     is_metric = task.planner_type == "metric"
     goal_summary: GoalSummary | None = None
     if task.goal_id is not None and task.goal is not None:
@@ -36,28 +108,228 @@ def _serialize(task: ScheduledTaskDBM) -> ScheduledTaskDataResponse:
         planner_target=task.planner_target if is_metric else None,
         value_unit=task.value_unit if is_metric else None,
         priority=task.priority,
-        scheduled_date=task.scheduled_date,
+        scheduled_date=scheduled_date,
         preferred_time=task.preferred_time,
         specific_time=task.specific_time,
         allow_snoozing=task.allow_snoozing,
         snooze_limit=task.snooze_limit if task.allow_snoozing else None,
         duration_minutes=task.duration_minutes,
+        repeat_yearly=True,
         category=task.category,
         goal=goal_summary,
-        status=task.status,
+        status="upcoming",
         created_at=task.created_at,
         updated_at=task.updated_at,
     )
 
 
-def get_list(db: Session, current_user: UserDBM) -> list[ScheduledTaskDataResponse]:
+def get_list(db: Session, current_user: UserDBM, year: int, month: int) -> ScheduleListResponse:
+    first_day = date(year, month, 1)
+    last_day = date(year, month, calendar.monthrange(year, month)[1])
+
+    # Single query: tasks that start in this month OR long-term tasks that started
+    # before this month and extend into it (spanning tasks).
     tasks = db.scalars(
         select(ScheduledTaskDBM)
         .options(joinedload(ScheduledTaskDBM.goal))
-        .where(ScheduledTaskDBM.user_id == current_user.id)
-        .order_by(ScheduledTaskDBM.scheduled_date.asc(), ScheduledTaskDBM.id.asc())
+        .where(
+            ScheduledTaskDBM.user_id == current_user.id,
+            or_(
+                and_(
+                    ScheduledTaskDBM.scheduled_date >= first_day,
+                    ScheduledTaskDBM.scheduled_date <= last_day,
+                ),
+                and_(
+                    ScheduledTaskDBM.task_duration == "long",
+                    ScheduledTaskDBM.scheduled_date < first_day,
+                    ScheduledTaskDBM.end_date >= first_day,
+                ),
+            ),
+        )
     ).all()
-    return [_serialize(t) for t in tasks]
+
+    yearly_tasks = db.scalars(
+        select(YearlyTaskDBM)
+        .options(joinedload(YearlyTaskDBM.goal))
+        .where(
+            YearlyTaskDBM.user_id == current_user.id,
+            YearlyTaskDBM.recurrence_month == month,
+        )
+    ).all()
+
+    # Batch-load subtasks for all long-term tasks in the result (single query).
+    long_tasks = [t for t in tasks if t.task_duration == "long"]
+    subtasks_by_task: dict[int, list[SubtaskResponse]] = {}
+    if long_tasks:
+        long_ids = [t.id for t in long_tasks]
+        subtask_rows = db.scalars(
+            select(ScheduledTaskSubtaskDBM)
+            .where(
+                ScheduledTaskSubtaskDBM.task_id.in_(long_ids),
+                ScheduledTaskSubtaskDBM.user_id == current_user.id,
+                ScheduledTaskSubtaskDBM.subtask_date >= first_day,
+                ScheduledTaskSubtaskDBM.subtask_date <= last_day,
+            )
+            .order_by(ScheduledTaskSubtaskDBM.subtask_date, ScheduledTaskSubtaskDBM.id)
+        ).all()
+        for s in subtask_rows:
+            subtasks_by_task.setdefault(s.task_id, []).append(SubtaskResponse(
+                id=s.id,
+                task_id=s.task_id,
+                subtask_date=s.subtask_date,
+                description=s.description,
+                planner_mode=s.planner_mode,
+                created_at=s.created_at,
+                updated_at=s.updated_at,
+            ))
+
+    result: list[ScheduledTaskDataResponse] = [_serialize(t, subtasks_by_task.get(t.id)) for t in tasks]
+    result += [
+        _serialize_yearly(t, occ)
+        for t in yearly_tasks
+        if (occ := _date_for_year_month(t.recurrence_month, t.recurrence_day, year)) >= to_ist(t.created_at).date()
+    ]
+    result.sort(key=lambda r: (r.scheduled_date, r.id))
+
+    # ── Overflow tasks for adjacent-month cells visible in the calendar grid ──
+    # A calendar grid shows at most 6 days from the previous and next month.
+    overflow_start = first_day - timedelta(days=6)
+    overflow_end   = last_day  + timedelta(days=6)
+    main_ids = {t.id for t in tasks}
+
+    overflow_rows = db.scalars(
+        select(ScheduledTaskDBM)
+        .options(joinedload(ScheduledTaskDBM.goal))
+        .where(
+            ScheduledTaskDBM.user_id == current_user.id,
+            or_(
+                # Tasks whose scheduled_date falls inside the leading overflow window.
+                and_(ScheduledTaskDBM.scheduled_date >= overflow_start, ScheduledTaskDBM.scheduled_date < first_day),
+                # Tasks whose scheduled_date falls inside the trailing overflow window.
+                and_(ScheduledTaskDBM.scheduled_date > last_day,        ScheduledTaskDBM.scheduled_date <= overflow_end),
+                # Long tasks that started before the leading overflow window but span into it
+                # (end_date < first_day, so the main month query doesn't catch them).
+                and_(
+                    ScheduledTaskDBM.task_duration == "long",
+                    ScheduledTaskDBM.scheduled_date < overflow_start,
+                    ScheduledTaskDBM.end_date >= overflow_start,
+                    ScheduledTaskDBM.end_date < first_day,
+                ),
+            ),
+        )
+    ).all()
+
+    # Load subtasks for long-term overflow tasks within the overflow window.
+    ov_long_tasks = [t for t in overflow_rows if t.task_duration == "long" and t.id not in main_ids]
+    ov_subtasks_by_task: dict[int, list[SubtaskResponse]] = {}
+    if ov_long_tasks:
+        ov_long_ids = [t.id for t in ov_long_tasks]
+        ov_subtask_rows = db.scalars(
+            select(ScheduledTaskSubtaskDBM)
+            .where(
+                ScheduledTaskSubtaskDBM.task_id.in_(ov_long_ids),
+                ScheduledTaskSubtaskDBM.user_id == current_user.id,
+                ScheduledTaskSubtaskDBM.subtask_date >= overflow_start,
+                ScheduledTaskSubtaskDBM.subtask_date <= overflow_end,
+            )
+            .order_by(ScheduledTaskSubtaskDBM.subtask_date, ScheduledTaskSubtaskDBM.id)
+        ).all()
+        for s in ov_subtask_rows:
+            ov_subtasks_by_task.setdefault(s.task_id, []).append(SubtaskResponse(
+                id=s.id,
+                task_id=s.task_id,
+                subtask_date=s.subtask_date,
+                description=s.description,
+                planner_mode=s.planner_mode,
+                created_at=s.created_at,
+                updated_at=s.updated_at,
+            ))
+
+    overflow_result: list[ScheduledTaskDataResponse] = [
+        _serialize(t, ov_subtasks_by_task.get(t.id)) for t in overflow_rows if t.id not in main_ids
+    ]
+
+    # Yearly tasks whose occurrence falls in the overflow window
+    overflow_months: set[tuple[int, int]] = set()
+    if overflow_start.month != month:
+        overflow_months.add((overflow_start.month, overflow_start.year))
+    if overflow_end.month != month:
+        overflow_months.add((overflow_end.month, overflow_end.year))
+    if overflow_months:
+        ov_yearly = db.scalars(
+            select(YearlyTaskDBM)
+            .options(joinedload(YearlyTaskDBM.goal))
+            .where(
+                YearlyTaskDBM.user_id == current_user.id,
+                YearlyTaskDBM.recurrence_month.in_([m for m, _ in overflow_months]),
+            )
+        ).all()
+        for t in ov_yearly:
+            for (m, yr) in overflow_months:
+                if t.recurrence_month != m:
+                    continue
+                occ = _date_for_year_month(m, t.recurrence_day, yr)
+                if (overflow_start <= occ < first_day or last_day < occ <= overflow_end) and occ >= to_ist(t.created_at).date():
+                    overflow_result.append(_serialize_yearly(t, occ))
+
+    overflow_result.sort(key=lambda r: (r.scheduled_date, r.id))
+
+    return ScheduleListResponse(tasks=result, overflow_tasks=overflow_result)
+
+
+def get_upcoming(db: Session, current_user: UserDBM, *, days: int = 7) -> list[ScheduledTaskDataResponse]:
+    """Scheduled items (one-off + expanded yearly occurrences) due in the next `days`
+    days, status='upcoming' only. Unlike `get_list`, this isn't calendar-month-scoped
+    so it can span a month or year boundary."""
+    today = today_ist()
+    end = today + timedelta(days=days)
+
+    tasks = db.scalars(
+        select(ScheduledTaskDBM)
+        .options(joinedload(ScheduledTaskDBM.goal))
+        .where(
+            ScheduledTaskDBM.user_id == current_user.id,
+            ScheduledTaskDBM.status == "upcoming",
+            ScheduledTaskDBM.scheduled_date >= today,
+            ScheduledTaskDBM.scheduled_date <= end,
+        )
+    ).all()
+
+    yearly_tasks = db.scalars(
+        select(YearlyTaskDBM)
+        .options(joinedload(YearlyTaskDBM.goal))
+        .where(YearlyTaskDBM.user_id == current_user.id)
+    ).all()
+
+    result: list[ScheduledTaskDataResponse] = [_serialize(t) for t in tasks]
+    for t in yearly_tasks:
+        occ = _next_yearly_occurrence(t.recurrence_month, t.recurrence_day, today)
+        if occ <= end and occ >= to_ist(t.created_at).date():
+            result.append(_serialize_yearly(t, occ))
+
+    result.sort(key=lambda r: (r.scheduled_date, r.id))
+    return result
+
+
+def get_task(db: Session, current_user: UserDBM, task_id: int, is_yearly: bool) -> ScheduledTaskDataResponse:
+    if is_yearly:
+        task = db.scalar(
+            select(YearlyTaskDBM)
+            .options(joinedload(YearlyTaskDBM.goal))
+            .where(YearlyTaskDBM.id == task_id, YearlyTaskDBM.user_id == current_user.id)
+        )
+        if task is None:
+            raise NotFoundError("Yearly task not found.")
+        return _serialize_yearly(task, _next_yearly_occurrence(task.recurrence_month, task.recurrence_day, today_ist()))
+
+    task = db.scalar(
+        select(ScheduledTaskDBM)
+        .options(joinedload(ScheduledTaskDBM.goal))
+        .where(ScheduledTaskDBM.id == task_id, ScheduledTaskDBM.user_id == current_user.id)
+    )
+    if task is None:
+        raise NotFoundError("Scheduled task not found.")
+    return _serialize(task)
 
 
 def save_task(
@@ -67,6 +339,32 @@ def save_task(
 ) -> ScheduledTaskDataResponse:
     goal = _resolve_goal(db, current_user, data.goal_id)
     is_metric = data.planner_type == "metric"
+
+    if data.repeat_yearly:
+        yearly_task = YearlyTaskDBM(
+            user_id=current_user.id,
+            goal_id=goal.id if goal is not None else None,
+            title=data.title.strip(),
+            note=data.note.strip() if data.note and data.note.strip() else None,
+            category=goal.category if goal is not None else (data.category.strip() if data.category and data.category.strip() else None),
+            planner_type=data.planner_type,
+            planner_target=data.planner_target if is_metric else None,
+            value_unit=data.value_unit.strip() if is_metric and data.value_unit and data.value_unit.strip() else None,
+            priority=data.priority,
+            recurrence_month=data.scheduled_date.month,
+            recurrence_day=data.scheduled_date.day,
+            preferred_time=data.preferred_time,
+            specific_time=data.specific_time.strip() if data.preferred_time == "custom" and data.specific_time else None,
+            allow_snoozing=data.allow_snoozing,
+            snooze_limit=data.snooze_limit if data.allow_snoozing else None,
+            duration_minutes=data.duration_minutes,
+        )
+        db.add(yearly_task)
+        db.commit()
+        db.refresh(yearly_task)
+        return _serialize_yearly(yearly_task, _next_yearly_occurrence(yearly_task.recurrence_month, yearly_task.recurrence_day, today_ist()))
+
+    is_long = data.task_duration == "long"
     task = ScheduledTaskDBM(
         user_id=current_user.id,
         goal_id=goal.id if goal is not None else None,
@@ -80,6 +378,11 @@ def save_task(
         scheduled_date=data.scheduled_date,
         preferred_time=data.preferred_time,
         specific_time=data.specific_time.strip() if data.preferred_time == "custom" and data.specific_time else None,
+        task_duration=data.task_duration,
+        end_date=data.end_date if is_long else None,
+        end_preferred_time=data.end_preferred_time if is_long else None,
+        end_specific_time=data.end_specific_time if is_long and data.end_preferred_time == "custom" else None,
+        planner_display=data.planner_display if is_long else None,
         allow_snoozing=data.allow_snoozing,
         snooze_limit=data.snooze_limit if data.allow_snoozing else None,
         duration_minutes=data.duration_minutes,
@@ -92,12 +395,203 @@ def save_task(
     return _serialize(task)
 
 
+def _validate_yearly_state(yearly: YearlyTaskDBM) -> None:
+    if yearly.preferred_time != "custom":
+        yearly.specific_time = None
+    elif not yearly.specific_time or not yearly.specific_time.strip():
+        raise ValidationError(errors={"specific_time": "A specific time is required when 'Custom time' is selected."})
+    if yearly.planner_type == "metric" and yearly.planner_target is None:
+        raise ValidationError(errors={"planner_target": "planner_target is required for metric tasks."})
+    if not yearly.allow_snoozing:
+        yearly.snooze_limit = None
+
+
+def _validate_task_state(task: ScheduledTaskDBM) -> None:
+    if task.preferred_time != "custom":
+        task.specific_time = None
+    elif not task.specific_time or not task.specific_time.strip():
+        raise ValidationError(errors={"specific_time": "A specific time is required when 'Custom time' is selected."})
+    if task.planner_type == "metric" and task.planner_target is None:
+        raise ValidationError(errors={"planner_target": "planner_target is required for metric tasks."})
+    if not task.allow_snoozing:
+        task.snooze_limit = None
+    is_long = getattr(task, "task_duration", "short") == "long"
+    if is_long:
+        if not task.end_date:
+            raise ValidationError(errors={"end_date": "end_date is required for long-term tasks."})
+        if task.end_date <= task.scheduled_date:
+            raise ValidationError(errors={"end_date": "end_date must be after scheduled_date."})
+        if task.end_preferred_time != "custom":
+            task.end_specific_time = None
+        elif not task.end_specific_time or not task.end_specific_time.strip():
+            raise ValidationError(errors={"end_specific_time": "end_specific_time is required when end_preferred_time is 'custom'."})
+    else:
+        task.end_date = None
+        task.end_preferred_time = None
+        task.end_specific_time = None
+        task.planner_display = None
+
+
 def update_task(
     db: Session,
     current_user: UserDBM,
     task_id: int,
     data: ScheduledTaskUpdateRequest,
+    is_yearly: bool = False,
 ) -> ScheduledTaskDataResponse:
+    fields = data.model_fields_set
+    wants_yearly = data.repeat_yearly if "repeat_yearly" in fields else None
+
+    # ── Switch: non-yearly → yearly ──────────────────────────────────────────
+    if not is_yearly and wants_yearly is True:
+        task = db.scalar(
+            select(ScheduledTaskDBM).where(
+                ScheduledTaskDBM.id == task_id,
+                ScheduledTaskDBM.user_id == current_user.id,
+            )
+        )
+        if task is None:
+            raise NotFoundError("Scheduled task not found.")
+
+        goal_id = data.goal_id if "goal_id" in fields else task.goal_id
+        goal = _resolve_goal(db, current_user, goal_id)
+        ref_date = data.scheduled_date if "scheduled_date" in fields and data.scheduled_date else task.scheduled_date
+        planner_type = data.planner_type or task.planner_type
+        is_metric = planner_type == "metric"
+
+        yearly = YearlyTaskDBM(
+            user_id=current_user.id,
+            goal_id=goal.id if goal else task.goal_id,
+            title=(data.title or task.title).strip(),
+            note=(data.note.strip() if data.note and data.note.strip() else None) if "note" in fields else task.note,
+            category=goal.category if goal else (data.category if "category" in fields else task.category),
+            planner_type=planner_type,
+            planner_target=(data.planner_target if "planner_target" in fields else task.planner_target) if is_metric else None,
+            value_unit=(data.value_unit.strip() if data.value_unit and data.value_unit.strip() else None) if is_metric else None,
+            priority=data.priority or task.priority,
+            recurrence_month=ref_date.month,
+            recurrence_day=ref_date.day,
+            preferred_time=data.preferred_time or task.preferred_time,
+            specific_time=(data.specific_time.strip() if data.specific_time else None) if "specific_time" in fields else task.specific_time,
+            allow_snoozing=data.allow_snoozing if data.allow_snoozing is not None else task.allow_snoozing,
+            snooze_limit=data.snooze_limit if "snooze_limit" in fields else task.snooze_limit,
+            duration_minutes=data.duration_minutes if "duration_minutes" in fields else task.duration_minutes,
+        )
+        _validate_yearly_state(yearly)
+        db.add(yearly)
+        deactivate_plan(db, "schedule", task.id)
+        db.refresh(task)
+        db.delete(task)
+        db.commit()
+        db.refresh(yearly)
+        return _serialize_yearly(yearly, _next_yearly_occurrence(yearly.recurrence_month, yearly.recurrence_day, today_ist()))
+
+    # ── Switch: yearly → non-yearly ──────────────────────────────────────────
+    if is_yearly and wants_yearly is False:
+        yearly = db.scalar(
+            select(YearlyTaskDBM).where(
+                YearlyTaskDBM.id == task_id,
+                YearlyTaskDBM.user_id == current_user.id,
+            )
+        )
+        if yearly is None:
+            raise NotFoundError("Yearly task not found.")
+
+        goal_id = data.goal_id if "goal_id" in fields else yearly.goal_id
+        goal = _resolve_goal(db, current_user, goal_id)
+        scheduled_date = data.scheduled_date if "scheduled_date" in fields and data.scheduled_date else \
+            _next_yearly_occurrence(yearly.recurrence_month, yearly.recurrence_day, today_ist())
+        planner_type = data.planner_type or yearly.planner_type
+        is_metric = planner_type == "metric"
+
+        task = ScheduledTaskDBM(
+            user_id=current_user.id,
+            goal_id=goal.id if goal else yearly.goal_id,
+            title=(data.title or yearly.title).strip(),
+            note=(data.note.strip() if data.note and data.note.strip() else None) if "note" in fields else yearly.note,
+            category=goal.category if goal else (data.category if "category" in fields else yearly.category),
+            planner_type=planner_type,
+            planner_target=(data.planner_target if "planner_target" in fields else yearly.planner_target) if is_metric else None,
+            value_unit=(data.value_unit.strip() if data.value_unit and data.value_unit.strip() else None) if is_metric else None,
+            priority=data.priority or yearly.priority,
+            scheduled_date=scheduled_date,
+            preferred_time=data.preferred_time or yearly.preferred_time,
+            specific_time=(data.specific_time.strip() if data.specific_time else None) if "specific_time" in fields else yearly.specific_time,
+            allow_snoozing=data.allow_snoozing if data.allow_snoozing is not None else yearly.allow_snoozing,
+            snooze_limit=data.snooze_limit if "snooze_limit" in fields else yearly.snooze_limit,
+            duration_minutes=data.duration_minutes if "duration_minutes" in fields else yearly.duration_minutes,
+            status="upcoming",
+        )
+        _validate_task_state(task)
+        db.add(task)
+        db.delete(yearly)
+        db.commit()
+        db.refresh(task)
+        sync_plan_from_scheduled_task(db, task)
+        return _serialize(task)
+
+    # ── In-place update: yearly task ─────────────────────────────────────────
+    if is_yearly:
+        yearly = db.scalar(
+            select(YearlyTaskDBM).where(
+                YearlyTaskDBM.id == task_id,
+                YearlyTaskDBM.user_id == current_user.id,
+            )
+        )
+        if yearly is None:
+            raise NotFoundError("Yearly task not found.")
+
+        if "title" in fields and data.title is not None:
+            yearly.title = data.title.strip()
+        if "note" in fields:
+            yearly.note = data.note.strip() if data.note and data.note.strip() else None
+        if "priority" in fields and data.priority is not None:
+            yearly.priority = data.priority
+        if "scheduled_date" in fields and data.scheduled_date is not None:
+            yearly.recurrence_month = data.scheduled_date.month
+            yearly.recurrence_day = data.scheduled_date.day
+        if "preferred_time" in fields and data.preferred_time is not None:
+            yearly.preferred_time = data.preferred_time
+            if data.preferred_time != "custom":
+                yearly.specific_time = None
+        if "specific_time" in fields and yearly.preferred_time == "custom":
+            yearly.specific_time = data.specific_time.strip() if data.specific_time else None
+        if "allow_snoozing" in fields and data.allow_snoozing is not None:
+            yearly.allow_snoozing = data.allow_snoozing
+            if not data.allow_snoozing:
+                yearly.snooze_limit = None
+        if "snooze_limit" in fields and yearly.allow_snoozing:
+            yearly.snooze_limit = data.snooze_limit
+        if "duration_minutes" in fields:
+            yearly.duration_minutes = data.duration_minutes
+        if "goal_id" in fields:
+            goal = _resolve_goal(db, current_user, data.goal_id)
+            yearly.goal_id = goal.id if goal is not None else None
+        if "goal_id" in fields or "category" in fields:
+            if yearly.goal_id is not None:
+                linked_goal = db.get(GoalDBM, yearly.goal_id)
+                yearly.category = linked_goal.category if linked_goal is not None else None
+            elif "category" in fields:
+                yearly.category = data.category.strip() if data.category and data.category.strip() else None
+            else:
+                yearly.category = None
+        if "planner_type" in fields and data.planner_type is not None:
+            yearly.planner_type = data.planner_type
+            if data.planner_type == "simple":
+                yearly.planner_target = None
+                yearly.value_unit = None
+        if "planner_target" in fields:
+            yearly.planner_target = data.planner_target if yearly.planner_type == "metric" else None
+        if "value_unit" in fields:
+            yearly.value_unit = (data.value_unit.strip() if data.value_unit and data.value_unit.strip() else None) \
+                if yearly.planner_type == "metric" else None
+
+        _validate_yearly_state(yearly)
+        db.commit()
+        db.refresh(yearly)
+        return _serialize_yearly(yearly, _next_yearly_occurrence(yearly.recurrence_month, yearly.recurrence_day, today_ist()))
+
+    # ── In-place update: non-yearly task ─────────────────────────────────────
     task = db.scalar(
         select(ScheduledTaskDBM).where(
             ScheduledTaskDBM.id == task_id,
@@ -107,8 +601,6 @@ def update_task(
     if task is None:
         raise NotFoundError("Scheduled task not found.")
 
-    fields = data.model_fields_set
-
     if "title" in fields and data.title is not None:
         task.title = data.title.strip()
     if "note" in fields:
@@ -116,10 +608,10 @@ def update_task(
     if "priority" in fields and data.priority is not None:
         task.priority = data.priority
     if "scheduled_date" in fields and data.scheduled_date is not None:
-        task.scheduled_date = data.scheduled_date
-        # Rescheduling reactivates a completed or missed task.
-        if task.status in ("completed", "missed"):
-            task.status = "upcoming"
+        if data.scheduled_date != task.scheduled_date:
+            task.scheduled_date = data.scheduled_date
+            if task.status in ("completed", "missed"):
+                task.status = "upcoming"
 
     if "preferred_time" in fields and data.preferred_time is not None:
         task.preferred_time = data.preferred_time
@@ -164,33 +656,77 @@ def update_task(
         else:
             task.value_unit = None
 
-    # ── Final merged-state validation ─────────────────────────────────────────
-    # Validate the complete object after all fields have been applied, so rules
-    # that span multiple fields (e.g. metric requires planner_target) are
-    # checked against the actual final state, not just the incoming payload.
+    if "task_duration" in fields and data.task_duration is not None:
+        task.task_duration = data.task_duration
+    is_long = getattr(task, "task_duration", "short") == "long"
 
-    if task.preferred_time != "custom":
-        task.specific_time = None
-    elif not task.specific_time or not task.specific_time.strip():
-        raise ValidationError(
-            errors={"specific_time": "A specific time is required when 'Custom time' is selected."}
-        )
+    if is_long:
+        if "end_date" in fields:
+            task.end_date = data.end_date
+        if "end_preferred_time" in fields:
+            task.end_preferred_time = data.end_preferred_time
+        if "end_specific_time" in fields and task.end_preferred_time == "custom":
+            task.end_specific_time = data.end_specific_time.strip() if data.end_specific_time else None
+        if "planner_display" in fields and data.planner_display is not None:
+            task.planner_display = data.planner_display
 
-    if task.planner_type == "metric" and task.planner_target is None:
-        raise ValidationError(
-            errors={"planner_target": "planner_target is required for metric tasks."}
-        )
-
-    if not task.allow_snoozing:
-        task.snooze_limit = None
-
+    _validate_task_state(task)
     db.commit()
     db.refresh(task)
+
+    # Always sync — long-term tasks get a day-1 plan entry just like short tasks.
     sync_plan_from_scheduled_task(db, task)
+
     return _serialize(task)
 
 
-def delete_task(db: Session, current_user: UserDBM, task_id: int) -> None:
+def save_task_from_proposal(
+    db: Session,
+    current_user: UserDBM,
+    data: SaveScheduledTaskFromProposalRequest,
+) -> ScheduledTaskDataResponse:
+    proposal = db.scalar(
+        select(ScheduledTaskProposalDBM)
+        .where(ScheduledTaskProposalDBM.proposal_id == data.proposal_id)
+    )
+
+    if proposal is None or proposal.user_id != current_user.id:
+        raise NotFoundError("Scheduled task proposal not found.")
+
+    if proposal.scheduled_task_id is not None:
+        existing = db.scalar(
+            select(ScheduledTaskDBM).where(
+                ScheduledTaskDBM.id == proposal.scheduled_task_id,
+                ScheduledTaskDBM.user_id == current_user.id,
+            )
+        )
+        if existing is not None:
+            return _serialize(existing)
+
+    task_data = data.task.model_copy(update={"repeat_yearly": False})
+    result = save_task(db, current_user, task_data)
+
+    proposal.status = "saved"
+    proposal.scheduled_task_id = result.id
+    db.commit()
+
+    return result
+
+
+def delete_task(db: Session, current_user: UserDBM, task_id: int, is_yearly: bool = False) -> None:
+    if is_yearly:
+        yearly = db.scalar(
+            select(YearlyTaskDBM).where(
+                YearlyTaskDBM.id == task_id,
+                YearlyTaskDBM.user_id == current_user.id,
+            )
+        )
+        if yearly is None:
+            raise NotFoundError("Yearly task not found.")
+        db.delete(yearly)
+        db.commit()
+        return
+
     task = db.scalar(
         select(ScheduledTaskDBM).where(
             ScheduledTaskDBM.id == task_id,
@@ -199,7 +735,7 @@ def delete_task(db: Session, current_user: UserDBM, task_id: int) -> None:
     )
     if task is None:
         raise NotFoundError("Scheduled task not found.")
-    deactivate_plan(db, "schedule", task.id)  # archives plan + purges future records
+    deactivate_plan(db, "schedule", task.id)
     db.refresh(task)
     db.delete(task)
     db.commit()

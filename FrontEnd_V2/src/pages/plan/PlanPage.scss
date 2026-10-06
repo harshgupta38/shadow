@@ -20,7 +20,7 @@
     width: 100%;
     justify-content: space-between;
     gap: 0.55rem;
-    margin: 1.75rem 0 1.35rem;
+    margin: 0 0 1.35rem;
   }
 
   .date-controls,
@@ -58,6 +58,23 @@
   .plan-secondary-button:hover {
     background: var(--jv-surface-2);
     color: var(--jv-text);
+  }
+
+  .plan-header-icon-btn {
+    display: inline-flex;
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--jv-muted);
+    line-height: 0;
+    cursor: pointer;
+    flex-shrink: 0;
+
+    &:hover {
+      color: var(--jv-text);
+    }
   }
 
   .date-field {
@@ -102,6 +119,12 @@
     gap: 0.35rem;
     padding: 0 0.75rem 0 0.30rem;
   }
+
+  .plan-secondary-button:disabled,
+  .plan-primary-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
   
   .plan-secondary-button{
     padding: 0 0.75rem 0 0.75rem;
@@ -122,6 +145,11 @@
   .plan-columns {
     display: grid;
     grid-template-columns: minmax(0, 2.06fr) minmax(280px, 1fr);
+    // Grid items stretch to the row's height by default, which makes the shorter
+    // column's box exactly as tall as the taller one — leaving no room for its
+    // sticky child to actually "stick" as you scroll. Sizing it to its own
+    // content instead lets sticky use the (taller) grid area as its bound.
+    align-items: start;
     gap: var(--plan-gap);
   }
 
@@ -130,6 +158,11 @@
     min-width: 0;
     flex-direction: column;
     gap: var(--plan-gap);
+  }
+
+  .plan-column:nth-child(2) {
+    position: sticky;
+    top: 1rem;
   }
 
   .plan-panel {
@@ -142,7 +175,7 @@
 
   .progress-panel {
     display: flex;
-    min-height: 222px;
+    min-height: 210px;
     flex-direction: column;
     align-items: center;
     justify-content: center;
@@ -164,6 +197,137 @@
 
   .today-panel {
     padding: 1.1rem;
+  }
+
+  .reconstructed-state {
+    display: flex;
+    min-height: 360px;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    margin-top: 0.95rem;
+    padding: 1.4rem 1rem;
+    // border: 1px solid color-mix(in srgb, var(--jv-brand-1) 25%, var(--jv-border));
+    border-radius: 16px;
+    text-align: center;
+    // background:
+    //   radial-gradient(780px 260px at 12% -10%, color-mix(in srgb, var(--jv-brand-1) 10%, transparent), transparent 56%),
+    //   radial-gradient(640px 210px at 92% -2%, color-mix(in srgb, var(--jv-brand-2) 10%, transparent), transparent 60%),
+    //   var(--jv-surface-2);
+  }
+
+  .reconstructed-state-illustration {
+    width: min(300px, 100%);
+  }
+
+  .reconstructed-state-svg {
+    width: 100%;
+    height: auto;
+    overflow: visible;
+    animation: reconstructed-state-float 5s var(--jv-ease) infinite;
+  }
+
+  .reconstructed-state-svg-calendar {
+    fill: var(--jv-surface);
+    stroke: var(--jv-border-strong);
+    stroke-width: 1.5;
+    filter: drop-shadow(0 12px 24px rgba(20, 22, 40, 0.1));
+  }
+
+  .reconstructed-state-svg-calendar-head {
+    fill: color-mix(in srgb, var(--jv-brand-1) 16%, var(--jv-surface));
+  }
+
+  .reconstructed-state-svg-calendar-ring {
+    fill: var(--jv-brand-1);
+  }
+
+  .reconstructed-state-svg-grid-line {
+    stroke: var(--jv-faint);
+    stroke-width: 1.5;
+  }
+
+  .reconstructed-state-svg-highlight {
+    fill: color-mix(in srgb, var(--jv-brand-2) 14%, transparent);
+    stroke: var(--jv-brand-2);
+    stroke-width: 2;
+    stroke-dasharray: 3 5;
+  }
+
+  .reconstructed-state-svg-puzzle {
+    fill: var(--jv-brand-2);
+    opacity: 0.85;
+    filter: drop-shadow(0 6px 12px color-mix(in srgb, var(--jv-brand-2) 35%, transparent));
+  }
+
+  .reconstructed-state-svg-clock-shadow {
+    filter: drop-shadow(0 10px 20px color-mix(in srgb, var(--jv-brand-1) 44%, transparent));
+  }
+
+  .reconstructed-state-svg-clock-face {
+    fill: var(--jv-surface);
+    stroke: var(--jv-border);
+    stroke-width: 2;
+  }
+
+  .reconstructed-state-svg-rewind-arc {
+    stroke: var(--jv-brand-1);
+    stroke-width: 2.5;
+    stroke-linecap: round;
+  }
+
+  .reconstructed-state-svg-rewind-arrow {
+    fill: var(--jv-brand-1);
+  }
+
+  .reconstructed-state-svg-clock-hand {
+    stroke: var(--jv-text);
+    stroke-width: 2.5;
+    stroke-linecap: round;
+  }
+
+  .reconstructed-state-svg-clock-hand-min {
+    stroke: var(--jv-muted);
+    stroke-width: 2.5;
+    stroke-linecap: round;
+  }
+
+  .reconstructed-state-svg-clock-pin {
+    fill: var(--jv-text);
+  }
+
+  .reconstructed-state-svg-speck {
+    fill: var(--jv-brand-2);
+    opacity: 0.52;
+  }
+
+  .reconstructed-state-code {
+    margin: 0.18rem 0 0;
+    font-family: var(--jv-font-display);
+    font-size: 0.82rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    background: var(--jv-brand-gradient);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .reconstructed-state-title {
+    margin: 0.55rem 0 0;
+    font-family: var(--jv-font-display);
+    font-size: clamp(1.02rem, 2.1vw, 1.2rem);
+    letter-spacing: -0.01em;
+    color: var(--jv-text);
+  }
+
+  .reconstructed-state-text {
+    margin: 0.45rem 0 0;
+    max-width: 53ch;
+    color: var(--jv-muted);
+    font-size: 0.9rem;
+    line-height: 1.52;
   }
 
   .today-panel>h2 {
@@ -202,6 +366,18 @@
   .empty-state p {
     font-size: 0.88rem;
     line-height: 1.5;
+
+    .btn-link-inline {
+      background: none;
+      border: none;
+      padding: 0;
+      font: inherit;
+      color: var(--jv-brand-1);
+      text-decoration: underline;
+      cursor: pointer;
+
+      &:hover { opacity: 0.8; }
+    }
   }
 
   .plan-task-list {
@@ -272,6 +448,23 @@
     }
   }
 
+  // Pure-CSS collapse: animating grid-template-rows (0fr -> 1fr) lets the
+  // inner content's natural height be transitioned without measuring it in JS.
+  .completed-panel-collapse {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 260ms var(--jv-ease);
+
+    &.is-open {
+      grid-template-rows: 1fr;
+    }
+  }
+
+  .completed-panel-collapse-inner {
+    min-height: 0;
+    overflow: hidden;
+  }
+
   .completed-panel .plan-task-list {
     padding: 0 1.1rem 1rem;
   }
@@ -322,14 +515,137 @@
     &--chips { gap: 0.35rem; }
   }
 
+  @keyframes reconstructed-state-float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+
   @keyframes pcs-shimmer {
     0%   { transform: translateX(-100%); }
     100% { transform: translateX(100%); }
   }
 
+  // ── Banner strip ─────────────────────────────────────────────────────────────
+
+  .plan-banners {
+    display: flex;
+    gap: 0.6rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar { display: none; }
+  }
+
+  .plan-banner-card {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.42rem 0.75rem;
+    border: 1px solid var(--jv-border);
+    border-left: 3px solid var(--banner-color, var(--jv-brand-1));
+    border-radius: 9px;
+    background: color-mix(in srgb, var(--banner-color, var(--jv-brand-1)) 7%, var(--jv-surface-2));
+    flex-shrink: 0;
+    cursor: pointer;
+    text-align: left;
+    transition: background var(--jv-transition);
+
+    &:only-child {
+      width: 100%;
+    }
+
+    &:hover {
+      background: color-mix(in srgb, var(--banner-color, var(--jv-brand-1)) 14%, var(--jv-surface-2));
+    }
+
+    .plan-banner-icon {
+      font-size: 1.1rem;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+
+    .plan-banner-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .plan-banner-title {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--jv-text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .plan-banner-dates {
+      font-size: 0.68rem;
+      color: var(--jv-muted);
+      margin-top: 0.06rem;
+      white-space: nowrap;
+    }
+  }
+
+  .plan-subtasks-panel {
+    padding: 0.9rem 1.1rem;
+  }
+
+  .plan-subtasks-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+  }
+
+  .plan-subtask-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.55rem;
+
+    > div {
+      display: flex;
+      flex-direction: column;
+      gap: 0.05rem;
+      min-width: 0;
+    }
+
+    &--task .plan-subtask-bullet { background: var(--jv-brand-1); }
+    &--task .plan-subtask-task   { color: var(--jv-brand-1); }
+
+    &--highlight .plan-subtask-bullet { background: var(--jv-warn); }
+    &--highlight .plan-subtask-task   { color: var(--jv-warn); }
+  }
+
+  .plan-subtask-bullet {
+    flex-shrink: 0;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    margin-top: 0.38rem;
+  }
+
+  .plan-subtask-task {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .plan-subtask-text {
+    font-size: 0.825rem;
+    color: var(--jv-text);
+    line-height: 1.4;
+  }
+
   @media (max-width: 800px) {
     .plan-columns {
       grid-template-columns: 1fr;
+    }
+
+    .plan-column:nth-child(2) {
+      position: static;
     }
   }
 
@@ -364,6 +680,21 @@
     
     .today-panel {
       padding: 1.35rem 1rem 1rem 1rem;
+    }
+
+    .reconstructed-state {
+      min-height: 320px;
+      margin-top: 0.8rem;
+      padding: 1rem 0.85rem;
+    }
+
+    .reconstructed-state-text {
+      max-width: 38ch;
+      font-size: 0.83rem;
+    }
+
+    .reconstructed-state-illustration {
+      width: min(260px, 100%);
     }
   }
 }

@@ -1,18 +1,37 @@
-import { useState, type FormEvent } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
-import { Calendar3, EnvelopeFill, Eye, EyeSlash, LockFill, Stars } from "react-bootstrap-icons";
+import { EnvelopeFill, Eye, EyeSlash, LockFill } from "react-bootstrap-icons";
 
 import { ApiError } from "@/api/client";
 import { AuthLayout } from "@/components/layout/AuthLayout";
 import { useAuth } from "@/context/AuthContext";
+import { useToast } from "@/context/ToastContext";
 import { TextField } from "@/components/ui/TextField/TextField";
 import { ROUTES } from "@/routes/RoutePaths";
+import { TIMING } from "@/constant/tuning";
+
+function fmtCountdown(secs: number): string {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m}:${String(s).padStart(2, "0")}`;
+}
 
 export function LoginPage() {
     const { login } = useAuth();
+    const { info } = useToast();
     const navigate = useNavigate();
     const location = useLocation();
     const from = location.state?.from?.pathname ?? ROUTES.DASHBOARD;
+
+    useEffect(() => {
+        try {
+            const msg = sessionStorage.getItem("shadow.forced_logout");
+            if (msg) {
+                sessionStorage.removeItem("shadow.forced_logout");
+                info(msg);
+            }
+        } catch { /* ignore storage errors */ }
+    }, [info]);
 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -21,8 +40,34 @@ export function LoginPage() {
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const [submitting, setSubmitting] = useState(false);
 
+    // Rate-limit lockout: timestamp (ms) when the lockout expires, null when unlocked
+    const [lockedUntil, setLockedUntil] = useState<number | null>(null);
+    const [countdown, setCountdown] = useState(0);
+
+    useEffect(() => {
+        if (lockedUntil === null) return;
+
+        const tick = () => {
+            const remaining = Math.ceil((lockedUntil - Date.now()) / 1000);
+            if (remaining <= 0) {
+                setLockedUntil(null);
+                setCountdown(0);
+                setError(null);
+            } else {
+                setCountdown(remaining);
+            }
+        };
+
+        tick();
+        const id = setInterval(tick, TIMING.LOCKOUT_COUNTDOWN_TICK_MS);
+        return () => clearInterval(id);
+    }, [lockedUntil]);
+
+    const isLocked = lockedUntil !== null;
+
     async function handleSubmit(event: FormEvent) {
         event.preventDefault();
+        if (isLocked) return;
         setError(null);
         setFieldErrors({});
         setSubmitting(true);
@@ -30,11 +75,13 @@ export function LoginPage() {
         try {
             await login({ email: email.trim(), password });
             navigate(from, { replace: true });
-        } catch (error) {
-            if (error instanceof ApiError) {
-                setError(error.message);
-                if (error.fieldErrors)
-                    setFieldErrors(error.fieldErrors);
+        } catch (err) {
+            if (err instanceof ApiError) {
+                setError(err.message);
+                if (err.fieldErrors) setFieldErrors(err.fieldErrors);
+                if (err.status === 429 && err.retryAfter && err.retryAfter > 0) {
+                    setLockedUntil(Date.now() + err.retryAfter * 1000);
+                }
             } else {
                 setError("Unable to sign in. Please try again.");
             }
@@ -59,26 +106,10 @@ export function LoginPage() {
     }
 
     return (
-        <AuthLayout>
-            <div className="login-mobile-hero d-md-none">
-                <div className="login-mobile-hero-badge" aria-hidden="true">
-                    <span className="login-hero-spark s1">
-                        <Stars size={13} />
-                    </span>
-                    <span className="login-hero-spark s2">
-                        <Stars size={17} />
-                    </span>
-                    <span className="login-hero-spark s3">
-                        <Stars size={11} />
-                    </span>
-                    <div className="login-mobile-hero-icon">👋</div>
-                </div>
-                <h1 className="login-mobile-title">
-                    Welcome back <span aria-hidden="true">👋</span>
-                </h1>
-                <p className="login-mobile-subtitle">Sign in to continue your journey.</p>
-            </div>
-
+        <AuthLayout
+            mobileTitle={<>Welcome <span className="auth-aside-title-accent">back</span> 👋</>}
+            mobileSubtitle="Sign in to pick up where you left off."
+        >
             <h1 className="h3 fw-bold mb-1 d-none d-md-block">Welcome back</h1>
             <p className="text-muted-2 mb-4 d-none d-md-block">Sign in to pick up where you left off.</p>
 
@@ -106,6 +137,7 @@ export function LoginPage() {
                 <TextField
                     label="Password"
                     name="password"
+                    className="mb-1"
                     type={showPassword ? "text" : "password"}
                     autoComplete="current-password"
                     placeholder="Your password"
@@ -129,54 +161,31 @@ export function LoginPage() {
                     }
                 />
 
-                <div className="text-end d-md-none mb-2">
-                    <a href="#" className="small fw-semibold">
+                <div className="text-end mb-2">
+                    <Link to={ROUTES.FORGOT_PASSWORD} className="small fw-semibold">
                         Forgot password?
-                    </a>
+                    </Link>
                 </div>
 
                 <button
                     type="submit"
                     className="btn btn-brand btn-lg w-100 mt-2"
-                    disabled={submitting}
+                    disabled={submitting || isLocked}
                 >
-                    {submitting ? "Signing in…" : "Sign in"}
+                    {isLocked
+                        ? `Locked · ${fmtCountdown(countdown)}`
+                        : submitting
+                            ? "Signing in…"
+                            : "Sign in"}
                 </button>
-
-                <div className="login-mobile-alt d-md-none">
-                    <div className="auth-or-divider">
-                        <span>or</span>
-                    </div>
-                    <Link to={ROUTES.REGISTER} className="btn login-mobile-create w-100 fw-semibold">
-                        Create an account
-                    </Link>
-
-                    <div className="login-mobile-pill-grid">
-                        <div className="login-mobile-pill">
-                            <span className="login-mobile-pill-icon">
-                                <Stars size={18} />
-                            </span>
-                            <span>AI Powered</span>
-                        </div>
-                        <div className="login-mobile-pill">
-                            <span className="login-mobile-pill-icon">
-                                <LockFill size={18} />
-                            </span>
-                            <span>Private &amp; Secure</span>
-                        </div>
-                        <div className="login-mobile-pill">
-                            <span className="login-mobile-pill-icon">
-                                <Calendar3 size={18} />
-                            </span>
-                            <span>Daily Planning</span>
-                        </div>
-                    </div>
-
-                    <p className="text-muted-2 text-center small mb-0">
-                        Your data stays yours. Made with <span className="login-mobile-heart">❤️</span> by Harsh
-                    </p>
-                </div>
             </form>
+
+            <p className="text-center text-muted-2 mt-3 mb-0 d-md-none">
+                New to Shadow?{" "}
+                <Link to={ROUTES.REGISTER} className="fw-semibold">
+                    Create an account
+                </Link>
+            </p>
 
             <p className="text-center text-muted-2 mt-4 mb-0 d-none d-md-block">
                 New to Shadow?{" "}

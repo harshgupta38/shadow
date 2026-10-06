@@ -1,7 +1,9 @@
+import { LIMITS } from "@/constant/tuning";
+
 export function resizeTextareaToMaxLines(
     textarea: HTMLTextAreaElement,
-    maxLines: number = 8,
-    fallbackLineHeight: number = 24,
+    maxLines: number = LIMITS.TEXTAREA_MAX_LINES,
+    fallbackLineHeight: number = LIMITS.TEXTAREA_FALLBACK_LINE_HEIGHT,
 ): void {
     const computedStyle = window.getComputedStyle(textarea);
     const lineHeight = Number.parseFloat(computedStyle.lineHeight) || fallbackLineHeight;

@@ -10,6 +10,7 @@ interface NoteDialogProps {
   busy?: boolean;
   onConfirm: (note: string) => void;
   onCancel: () => void;
+  onConfirmAndDone?: (note: string) => void;
 }
 
 export function NoteDialog({
@@ -18,6 +19,7 @@ export function NoteDialog({
   busy = false,
   onConfirm,
   onCancel,
+  onConfirmAndDone,
 }: NoteDialogProps) {
   const [value, setValue] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -39,17 +41,21 @@ export function NoteDialog({
   return (
     <Modal show={show} onHide={onCancel} centered backdrop="static">
       <Modal.Body className="p-4 note-dialog">
-        <div className="empty-icon mx-auto mb-3" aria-hidden="true">
-          <ChatSquareDots size={24} />
+        <div className="note-dialog-header mb-3">
+          <div className="empty-icon" aria-hidden="true">
+            <ChatSquareDots size={24} />
+          </div>
+          <div>
+            <h2 className="h5 fw-bold mb-0">
+              {isEditing ? "Edit your note" : "Add a note"}
+            </h2>
+            <p className="text-muted-2 mb-0">
+              {isEditing
+                ? "Make changes to your note or add a new update."
+                : "Jot down a thought or update for this plan item."}
+            </p>
+          </div>
         </div>
-        <h2 className="h5 fw-bold text-center mb-1">
-          {isEditing ? "Edit your note" : "Add a note"}
-        </h2>
-        <p className="text-muted-2 text-center mb-3">
-          {isEditing
-            ? "Make changes to your note or add a new update."
-            : "Jot down a thought or update for this plan item."}
-        </p>
 
         <textarea
           ref={textareaRef}
@@ -76,6 +82,16 @@ export function NoteDialog({
           >
             Cancel
           </button>
+          {onConfirmAndDone && (
+            <button
+              type="button"
+              className="btn btn-soft"
+              onClick={() => onConfirmAndDone(value.trim())}
+              disabled={busy}
+            >
+              {busy ? "Saving…" : "Save & Done"}
+            </button>
+          )}
           <button
             type="button"
             className="btn btn-brand"

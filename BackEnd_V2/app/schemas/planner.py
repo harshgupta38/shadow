@@ -1,6 +1,19 @@
+from datetime import date
 from typing import Literal
 
 from pydantic import BaseModel
+
+from app.schemas.daily_report import ReportClosingResponse
+from app.schemas.schedule import ScheduledTaskDataResponse, SubtaskPlannerMode
+
+
+class SubtaskInPlannerResponse(BaseModel):
+    id: int
+    task_id: int
+    task_title: str
+    subtask_date: date
+    description: str
+    planner_mode: SubtaskPlannerMode
 
 PlanSourceType = Literal["habit", "task", "schedule"]
 PlannerType = Literal["simple", "metric"]
@@ -18,11 +31,15 @@ class DailyPlanSavedData(BaseModel):
     current_streak: int  # computed from recurrence + history, never stored
     max_streak: int      # computed from recurrence + history, never stored
     note: str
+    # Excused absence for today's occurrence — see DailyPlanRecordDBM.skipped.
+    # Always False for synthesized missed occurrences (no DB record to skip).
+    skipped: bool = False
 
 
 class GoalDataInPlan(BaseModel):
     id: int
     title: str
+    summary: str
     category: str | None
 
 
@@ -41,15 +58,36 @@ class DailyPlanItemResponse(BaseModel):
     duration_minutes: int | None
     # Populated when the source habit/task is linked to a goal.
     goal: GoalDataInPlan | None
+    # Whether the source habit allows skipping today's occurrence (see
+    # HabitDBM.can_skip). Always False for task/schedule sources.
+    can_skip: bool = False
     # Additional field to indicate the status of the plan for the given date.
     saved_data: DailyPlanSavedData | None
 
 
 class DailyPlanResponse(BaseModel):
     items: list[DailyPlanItemResponse]
+    # The prior day's daily-report closing message (relative to `date`), if one was
+    # generated — lets the frontend show it alongside today's plan without a second
+    # request. None when no report exists yet for that date.
+    previous_day_closing: ReportClosingResponse | None = None
+    # Lets the frontend gate the "Brief me" CTA without a separate settings call.
+    daily_brief_enabled: bool = False
+    # Whether a brief already exists for `date` — without a separate daily-brief call.
+    daily_brief_generated: bool = False
+    # True for past dates that were never opened — no DailyPlanRecordDBM rows exist,
+    # so `items` is empty (no synthesis). Always False for today (records are always
+    # materialized on load). Lets the frontend show a "reconstructed history" state
+    # instead of a plain empty state without inspecting record ids.
+    no_plan_generated: bool = False
+    # Long-term tasks with planner_display='banner' that span the requested date.
+    banner_tasks: list[ScheduledTaskDataResponse] = []
+    # Sub-tasks for long-term tasks that fall on the requested date and have a planner_mode set.
+    subtasks: list[SubtaskInPlannerResponse] = []
 
 
 class UpdatePlanRequest(BaseModel):
     status: PlanStatus | None = None
-    actual_value: int | None = None
+    add_value: int | None = None  # delta — backend adds to current DB value (safe under concurrent writes)
     note: str | None = None
+    skipped: bool | None = None

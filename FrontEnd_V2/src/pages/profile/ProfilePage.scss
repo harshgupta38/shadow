@@ -1,5 +1,16 @@
+// ─── Profile Page ───────────────────────────────────────────────────────────
+// Section-specific styling lives next to each component (ProfileHero/,
+// ProfileStats/, AchievementsPanel/, etc.) — this file only holds the page
+// shell itself.
+
+@keyframes pf-page-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 .profile-page {
-  .page-title {
-    margin: 0;
-  }
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  animation: pf-page-in 260ms var(--jv-ease) both;
 }

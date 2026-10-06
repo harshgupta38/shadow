@@ -54,6 +54,9 @@ class OllamaModel(StrEnum):
 
 
 class OpenAIModel(StrEnum):
+    # GPT-6 is not ready for our system
+    # GPT_6_ASTRA = "gpt-6-astra" # Cost: approx. INR 0.96 input / INR 4.79 output per 1K tokens 
+
     GPT_5 = "gpt-5"  # Cost: approx. INR 0.11 input / INR 0.88 output per 1K tokens
     GPT_5_MINI = "gpt-5-mini"  # Cost: approx. INR 0.022 input / INR 0.176 output per 1K tokens
     GPT_5_NANO = "gpt-5-nano"  # Cost: approx. INR 0.0044 input / INR 0.035 output per 1K tokens
@@ -67,6 +70,12 @@ class OpenAIModel(StrEnum):
     GPT_5_6_SOL = "gpt-5.6-sol"  # Cost: approx. INR 0.47 input / INR 2.82 output per 1K tokens
     GPT_5_6_TERRA = "gpt-5.6-terra"  # Cost: approx. INR 0.19 input / INR 1.13 output per 1K tokens
     GPT_5_6_LUNA = "gpt-5.6-luna"  # Cost: approx. INR 0.019 input / INR 0.113 output per 1K tokens
+
+
+class OpenAITTSModel(StrEnum):
+    GPT_4O_MINI_TTS = "gpt-4o-mini-tts"  # Cost: approx. INR 1.32 per 1K input characters
+    TTS_1 = "tts-1"  # Cost: approx. INR 1.32 per 1K input characters
+    TTS_1_HD = "tts-1-hd"  # Cost: approx. INR 2.64 per 1K input characters
 
 
 class GeminiModel(StrEnum):
@@ -128,6 +137,7 @@ class LLMModel:
     OPENAI = OpenAIModel
     GEMINI = GeminiModel
     CLAUDE = ClaudeModel
+    OPENAI_TTS = OpenAITTSModel
 
 
 ModelKey = OllamaModel | OpenAIModel | GeminiModel | ClaudeModel

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import datetime, timezone
 from typing import Any
@@ -10,7 +11,7 @@ from app.analysis.service import get_analysis_service
 # do not import LLMSettings directly from app.llm, as it will create a circular import
 from app.llm.config import LLMSettings
 from app.llm.enums import LLMProvider
-from app.llm.cost import calculate_token_cost
+from app.llm.cost import calculate_token_cost, calculate_tts_cost, calculate_transcription_cost
 
 logger = logging.getLogger(__name__)
 
@@ -189,6 +190,96 @@ async def log_claude_completion_usage_async(
         logger.exception("Failed to persist immediate Claude completion usage logging.")
 
 
+async def log_openai_audio_usage_async(
+    *,
+    settings: LLMSettings,
+    model: str,
+    text: str,
+    latency_ms: int,
+    operation: str,
+    user_id: int,
+) -> None:
+    """Persist usage metadata for an OpenAI text-to-speech call. TTS is priced per
+    input character, not per token, so cost is estimated separately from cost.py's
+    token-based MODEL_COSTS."""
+    try:
+        char_count = len(text)
+        cost = calculate_tts_cost(model, char_count)
+
+        await _write_provider_usage_log(
+            settings=settings,
+            provider=LLMProvider.OPENAI,
+            model=model,
+            model_str=model,
+            request_id=None,
+            latency_ms=latency_ms,
+            input_tokens=char_count,
+            output_tokens=0,
+            total_tokens=char_count,
+            cost=cost,
+            operation=operation,
+            user_id=user_id,
+        )
+    except Exception:
+        logger.exception("Failed to persist immediate OpenAI TTS usage logging.")
+
+
+async def log_openai_transcription_usage_async(
+    *,
+    settings: LLMSettings,
+    model: str,
+    duration_seconds: float,
+    latency_ms: int,
+    operation: str,
+    user_id: int,
+) -> None:
+    """Persist usage metadata for an OpenAI audio transcription call. Whisper is
+    priced per minute of input audio, not per token, so cost is estimated
+    separately from cost.py's token-based MODEL_COSTS."""
+    try:
+        cost = calculate_transcription_cost(duration_seconds)
+
+        await _write_provider_usage_log(
+            settings=settings,
+            provider=LLMProvider.OPENAI,
+            model=model,
+            model_str=model,
+            request_id=None,
+            latency_ms=latency_ms,
+            input_tokens=0,
+            output_tokens=0,
+            total_tokens=0,
+            cost=cost,
+            operation=operation,
+            user_id=user_id,
+        )
+    except Exception:
+        logger.exception("Failed to persist immediate OpenAI transcription usage logging.")
+
+
+def _sync_upsert_daily_usage(user_id: int, input_tokens: int, output_tokens: int) -> None:
+    from app.common import today_ist
+    from app.db.session import SessionLocal
+    from sqlalchemy import text as _text
+    with SessionLocal() as db:
+        db.execute(
+            _text(
+                "INSERT INTO daily_usage (user_id, date, input_tokens, output_tokens) "
+                "VALUES (:user_id, :date, :input_tokens, :output_tokens) "
+                "ON CONFLICT (user_id, date) DO UPDATE SET "
+                "  input_tokens = daily_usage.input_tokens + excluded.input_tokens, "
+                "  output_tokens = daily_usage.output_tokens + excluded.output_tokens"
+            ),
+            {
+                "user_id": user_id,
+                "date": today_ist(),
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+            },
+        )
+        db.commit()
+
+
 async def _write_provider_usage_log(
     *,
     settings: LLMSettings,
@@ -223,6 +314,16 @@ async def _write_provider_usage_log(
             error=None,
         )
     )
+    if user_id is not None:
+        try:
+            await asyncio.to_thread(
+                _sync_upsert_daily_usage,
+                user_id,
+                input_tokens or 0,
+                output_tokens or 0,
+            )
+        except Exception:
+            logger.exception("Failed to upsert daily usage for user %s.", user_id)
 
 
 def _utc_now() -> datetime:

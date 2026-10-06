@@ -1,0 +1,175 @@
+.notfound-page {
+    position: relative;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 2.5rem 1.5rem;
+    background:
+        radial-gradient(900px 480px at 12% -10%, color-mix(in srgb, var(--jv-brand-1) 12%, transparent), transparent 60%),
+        radial-gradient(800px 420px at 92% 8%, color-mix(in srgb, var(--jv-brand-2) 10%, transparent), transparent 55%),
+        var(--jv-bg);
+
+    &-topbar {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+    }
+
+    &-illustration {
+        width: min(340px, 82vw);
+        margin-bottom: 0.5rem;
+    }
+
+    &-svg {
+        width: 100%;
+        height: auto;
+        overflow: visible;
+        animation: notfound-float 5s var(--jv-ease) infinite;
+    }
+
+    &-svg-map {
+        fill: var(--jv-surface);
+        stroke: var(--jv-border-strong);
+        stroke-width: 1.5;
+        filter: drop-shadow(0 12px 24px rgba(20, 22, 40, 0.10));
+    }
+
+    &-svg-trail {
+        stroke: var(--jv-brand-2);
+        stroke-width: 2.5;
+        opacity: 0.7;
+    }
+
+    &-svg-dot {
+        fill: var(--jv-border-strong);
+    }
+
+    &-svg-pin {
+        fill: var(--jv-danger);
+    }
+
+    &-svg-pin-mark {
+        fill: #fff;
+        font-size: 15px;
+        font-weight: 800;
+        font-family: var(--jv-font-display);
+    }
+
+    &-svg-compass-shadow {
+        filter: drop-shadow(0 10px 20px color-mix(in srgb, var(--jv-brand-1) 45%, transparent));
+    }
+
+    &-svg-compass-face {
+        fill: var(--jv-surface);
+        stroke: var(--jv-border);
+        stroke-width: 2;
+    }
+
+    &-svg-compass-ticks line {
+        stroke: var(--jv-faint);
+        stroke-width: 2;
+        stroke-linecap: round;
+    }
+
+    &-svg-needle-n {
+        fill: var(--jv-brand-1);
+    }
+
+    &-svg-needle-s {
+        fill: var(--jv-border-strong);
+    }
+
+    &-svg-compass-pin {
+        fill: var(--jv-text);
+    }
+
+    &-svg-speck {
+        fill: var(--jv-brand-2);
+        opacity: 0.5;
+    }
+
+    &-code {
+        margin: 0;
+        font-family: var(--jv-font-display);
+        font-weight: 800;
+        font-size: clamp(3rem, 8vw, 4.5rem);
+        line-height: 1;
+        letter-spacing: -0.03em;
+        background: var(--jv-brand-gradient);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+    }
+
+    &-title {
+        margin: 0.35rem 0 0;
+        font-family: var(--jv-font-display);
+        font-size: clamp(1.15rem, 2.4vw, 1.55rem);
+        letter-spacing: -0.01em;
+        color: var(--jv-text);
+    }
+
+    &-text {
+        margin: 0.6rem 0 0;
+        max-width: 40ch;
+        color: var(--jv-muted);
+        font-size: 0.98rem;
+        line-height: 1.55;
+    }
+
+    &-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        justify-content: center;
+        margin-top: 1.75rem;
+    }
+
+    &-cta,
+    &-secondary {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        border-radius: var(--jv-radius-pill);
+        padding: 0.6rem 1.25rem;
+        font-weight: 600;
+    }
+
+    &-secondary {
+        border-color: var(--jv-border-strong);
+        color: var(--jv-text);
+        background: var(--jv-surface);
+    }
+
+    &-secondary:hover {
+        border-color: var(--jv-brand-1);
+        color: var(--jv-brand-1);
+    }
+}
+
+@keyframes notfound-float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .notfound-page-svg {
+        animation: none;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .notfound-page-actions {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .notfound-page-cta,
+    .notfound-page-secondary {
+        width: 100%;
+        justify-content: center;
+    }
+}

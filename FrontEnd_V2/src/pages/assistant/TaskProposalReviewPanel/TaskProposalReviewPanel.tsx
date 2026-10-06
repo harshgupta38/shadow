@@ -12,9 +12,11 @@ import type {
 } from "@/api/types";
 import { ROUTES } from "@/routes/RoutePaths";
 import { resizeTextareaToMaxLines } from "@/services/textarea-resize.service";
+import { ANIMATION } from "@/constant/tuning";
 
 import "@/pages/my_goals/GoalCreationWizard/GoalCreationWizard.scss";
 import "@/pages/my_goals/GoalMilestoneWizard/GoalMilestoneWizardPage.scss";
+import "@/pages/my_goals/GoalTaskWizard/GoalTaskWizardPage.scss";
 import "@/pages/assistant/RefinedGoalReviewPanel/RefinedGoalReviewPanel.scss";
 
 function parsePositiveNumber(value: string): number | null {
@@ -65,8 +67,6 @@ interface TaskProposalReviewPanelProps {
     onSaved?: (task: TaskDataResponse) => void | Promise<void>;
 }
 
-const SLIDE_OUT_DURATION_MS = 220;
-
 export function TaskProposalReviewPanel({ proposal, conversationId, onClose, onSaved }: TaskProposalReviewPanelProps) {
     const navigate = useNavigate();
 
@@ -88,7 +88,7 @@ export function TaskProposalReviewPanel({ proposal, conversationId, onClose, onS
     function requestClose() {
         if (isClosing) return;
         setIsClosing(true);
-        window.setTimeout(onClose, SLIDE_OUT_DURATION_MS);
+        window.setTimeout(onClose, ANIMATION.PANEL_SLIDE_OUT_MS);
     }
 
     useEffect(() => {

@@ -13,6 +13,12 @@ from app.llm.models import (
     MessageFromLLM,
     ConversationContextToLLM,
     ConversationContextFromLLM,
+    ExtractUserMemoryToLLM,
+    ExtractUserMemoryFromLLM,
+    GenerateReportToLLM,
+    GenerateReportFromLLM,
+    GenerateBriefToLLM,
+    GenerateBriefFromLLM,
 )
 
 
@@ -42,7 +48,19 @@ class BaseLLMProvider(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def extract_user_memory(self, request: ExtractUserMemoryToLLM) -> ExtractUserMemoryFromLLM:
+        raise NotImplementedError
+
+    @abstractmethod
     async def health_check(self) -> bool:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def generate_report(self, request: GenerateReportToLLM) -> GenerateReportFromLLM:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def generate_daily_brief(self, request: GenerateBriefToLLM) -> GenerateBriefFromLLM:
         raise NotImplementedError
 
     @abstractmethod

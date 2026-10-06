@@ -7,7 +7,7 @@ import ReactMarkdown from "react-markdown";
 import boySitting from "@/assets/boy_sitting.png";
 import { api } from "@/api";
 import { ApiError } from "@/api/client";
-import type { ConvoDataShortResponse, GoalProposal, MessageDataResponse, MilestoneProposal, TaskProposal } from "@/api/types";
+import type { ConvoDataShortResponse, GoalProposal, MessageDataResponse, MilestoneProposal, ScheduledTaskProposal, TaskProposal } from "@/api/types";
 import { ROUTES } from "@/routes/RoutePaths";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
@@ -15,11 +15,13 @@ import { TextFieldPromptDialog } from "@/components/ui/TextFieldPromptDialog/Tex
 import { AssistantMessageSkeleton } from "@/pages/assistant/AssistantMessageSkeleton";
 import { AssistantThinkingIndicator } from "@/pages/assistant/AssistantThinkingIndicator/AssistantThinkingIndicator";
 import { ASSISTANT_AGENTS, ASSISTANT_LOADER_STEPS, type AssistantAgent } from "@/pages/assistant/AssistantPage.constants";
+import { ANIMATION } from "@/constant/tuning";
 import { RefinedGoalReviewPanel } from "@/pages/assistant/RefinedGoalReviewPanel/RefinedGoalReviewPanel";
 import { MilestoneProposalReviewPanel } from "@/pages/assistant/MilestoneProposalReviewPanel/MilestoneProposalReviewPanel";
 import { TaskProposalReviewPanel } from "@/pages/assistant/TaskProposalReviewPanel/TaskProposalReviewPanel";
 import { useToast } from "@/context/ToastContext";
 import { formatChatTime } from "@/services/chat-time.service";
+import { useTimeFormat } from "@/context/PlannerContext";
 import { resizeTextareaToMaxLines } from "@/services/textarea-resize.service";
 
 import "@/pages/assistant/AssistantPage.scss";
@@ -35,6 +37,7 @@ interface State {
 
 export function AssistantPage() {
   const toast = useToast();
+  const timeFormat = useTimeFormat();
   const location = useLocation();
   const navigate = useNavigate();
   const navigationState = location.state as State | null;
@@ -87,6 +90,16 @@ export function AssistantPage() {
   }, []);
 
   useEffect(() => {
+    function handleChatCleared() {
+      setConversations([]);
+      setActiveConversation(null);
+      setMessagesCache(new Map());
+    }
+    window.addEventListener("chat:cleared", handleChatCleared);
+    return () => window.removeEventListener("chat:cleared", handleChatCleared);
+  }, []);
+
+  useEffect(() => {
     if (isLoading) return;
 
     const state = location.state as
@@ -94,7 +107,7 @@ export function AssistantPage() {
         agentType?: string;
         autoMessage?: string;
         conversationId?: number;
-        prefillMessage?: string
+        prefillMessage?: string;
         goal_id?: number;
         milestone_id?: number;
       } | null;
@@ -129,7 +142,7 @@ export function AssistantPage() {
     if (!isLoading) { setLoaderIndex(0); return; }
     const id = window.setInterval(() => {
       setLoaderIndex(i => Math.min(i + 1, ASSISTANT_LOADER_STEPS.length - 1));
-    }, 1100);
+    }, ANIMATION.WIZARD_LOADER_STEP_MS);
     return () => window.clearInterval(id);
   }, [isLoading]);
 
@@ -377,7 +390,7 @@ export function AssistantPage() {
   function copyMessage(content: string, key: string) {
     navigator.clipboard.writeText(content).then(() => {
       setCopiedMsgKey(key);
-      setTimeout(() => setCopiedMsgKey(null), 1500);
+      setTimeout(() => setCopiedMsgKey(null), ANIMATION.COPIED_FEEDBACK_MS);
     });
   }
 
@@ -391,6 +404,10 @@ export function AssistantPage() {
 
   function getActiveTaskProposals(msg: MessageDataResponse, contentIndex: number): TaskProposal[] {
     return msg.linked_items.task_proposals?.filter(p => p.content_index === contentIndex) ?? [];
+  }
+
+  function getActiveScheduledTaskProposals(msg: MessageDataResponse, contentIndex: number): ScheduledTaskProposal[] {
+    return msg.linked_items.scheduled_task_proposals?.filter(p => p.content_index === contentIndex) ?? [];
   }
 
   async function retryMessage(message: MessageDataResponse) {
@@ -435,7 +452,38 @@ export function AssistantPage() {
       return;
     }
 
-    if (!message.id) return;
+    // No server-assigned id — the original send never reached the server. Resend it
+    // as a fresh message instead of calling retryFailedMessage (which needs an id).
+    if (!message.id) {
+      const text = message.content[0];
+      if (!text) {
+        setProcessingConversationId(prev => prev === targetConvId ? null : prev);
+        return;
+      }
+      updateConversationMessages(targetConvId, prev =>
+        prev.map(m => m.created_at === message.created_at ? { ...m, request_status: "pending" } : m)
+      );
+      try {
+        const response = await api.chat.sendMessage({
+          conversation_id: targetConvId,
+          content: text,
+          goal_id: navigationState?.goal_id,
+          milestone_id: navigationState?.milestone_id,
+        });
+        updateConversationMessages(targetConvId, prev =>
+          prev.map(m => m.created_at === message.created_at ? { ...m, request_status: "completed" } : m)
+        );
+        updateConversationMessages(targetConvId, prev => [...prev, response.message_data]);
+      } catch (error) {
+        toast.error(error instanceof ApiError ? error.message : "Failed to retry. Please try again.");
+        updateConversationMessages(targetConvId, prev =>
+          prev.map(m => m.created_at === message.created_at ? { ...m, request_status: "failed" } : m)
+        );
+      } finally {
+        setProcessingConversationId(prev => prev === targetConvId ? null : prev);
+      }
+      return;
+    }
 
     try {
       const response = await api.chat.retryFailedMessage({
@@ -580,7 +628,7 @@ export function AssistantPage() {
                       <span className="d-inline-grid flex-shrink-0 icon" style={avatarStyle(agent.gradient, 38)} aria-hidden="true"><Icon size={19} /></span>
                       <div className="flex-grow-1 min-w-0 text-start">
                         <div className="fw-semibold small text-truncate chat-session-title">{title}</div>
-                        <div className="text-faint text-truncate chat-session-meta" style={{ fontSize: "0.72rem" }}>{agent.tagline} · {formatChatTime(conversation.updated_at)}</div>
+                        <div className="text-faint text-truncate chat-session-meta" style={{ fontSize: "0.72rem" }}>{agent.tagline} · {formatChatTime(conversation.updated_at, timeFormat)}</div>
                       </div>
                     </button>
                     <Dropdown
@@ -684,6 +732,7 @@ export function AssistantPage() {
                         const activeProposal = getActiveGoalProposal(msg, activeContentIndex);
                         const activeMilestoneProposals = getActiveMilestoneProposals(msg, activeContentIndex);
                         const activeTaskProposals = getActiveTaskProposals(msg, activeContentIndex);
+                        const activeScheduledTaskProposals = getActiveScheduledTaskProposals(msg, activeContentIndex);
                         return (
                           <div
                             key={msgKey}
@@ -776,6 +825,27 @@ export function AssistantPage() {
                                           >
                                             Open &rarr;
                                           </button>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                                {activeScheduledTaskProposals.length > 0 && (
+                                  <div className="task-proposals-list">
+                                    <span className="task-proposals-label">Scheduled task</span>
+                                    {activeScheduledTaskProposals.map((stp) => (
+                                      <div key={stp.proposal_id} className="task-proposal-row">
+                                        <span className="task-proposal-title">{stp.scheduled_task.title}</span>
+                                        {stp.scheduled_task_action === "create" ? (
+                                          <button
+                                            type="button"
+                                            className="btn btn-link p-0 fw-medium text-decoration-none task-proposal-cta"
+                                            onClick={() => navigate(ROUTES.SCHEDULE_CREATE, { state: { proposalDraft: stp.scheduled_task, proposalId: stp.proposal_id, returnPath: location.pathname, conversationId: activeConversation?.id } })}
+                                          >
+                                            Save &rarr;
+                                          </button>
+                                        ) : (
+                                          <span className="text-muted small">Saved</span>
                                         )}
                                       </div>
                                     ))}

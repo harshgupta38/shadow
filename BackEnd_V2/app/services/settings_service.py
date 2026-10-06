@@ -1,0 +1,409 @@
+import json
+from datetime import datetime, timezone
+
+from sqlalchemy import delete, select
+from sqlalchemy.orm import Session
+
+from app.llm.enums import ClaudeModel, GeminiModel, OllamaModel, OpenAIModel
+from app.llm.config import llm_settings
+from app.llm.exceptions import LLMError
+from app.models.chat import ConversationDBM, MessageDBM
+from app.models.goal import GoalDBM
+from app.models.habit import HabitDBM
+from app.models.memory import UserMemoryDBM
+from app.models.milestone import MilestoneDBM
+from app.models.schedule_task import ScheduledTaskDBM
+from app.models.task import TaskDBM
+from app.models.user import UserDBM
+from app.models.user_setting import UserSettingDBM
+from app.schemas.settings import (
+    AIModelResponse,
+    AIProviderHealthCheckResponse,
+    AIProviderResponse,
+    AppearanceSection,
+    AIBehaviorSection,
+    AccessibilitySection,
+    NotificationsSection,
+    PlannerSection,
+    PrivacySection,
+    ReportsSection,
+    SettingsDBS,
+    SettingsResponse,
+    UpdateSettingsRequest,
+)
+
+# ─── Defaults ────────────────────────────────────────────────────────────────
+
+_DEFAULT_APPEARANCE = AppearanceSection().model_dump()
+_DEFAULT_NOTIFICATIONS = NotificationsSection().model_dump()
+_DEFAULT_AI_BEHAVIOR = AIBehaviorSection().model_dump()
+_DEFAULT_PLANNER = PlannerSection().model_dump()
+_DEFAULT_PRIVACY = PrivacySection().model_dump()
+_DEFAULT_ACCESSIBILITY = AccessibilitySection().model_dump()
+_DEFAULT_REPORTS = ReportsSection().model_dump()
+
+# Internal feature-gating flags — no settings-page UI, not part of Update/Response
+# schemas. New keys default to False here; is_feature_enabled() also treats a
+# missing key (existing rows created before a given flag existed) as disabled.
+_DEFAULT_FEATURE_TOGGLES = {
+    "brief_audio_caption": False,
+}
+
+# ─── AI Provider catalogue ────────────────────────────────────────────────────
+
+_AI_PROVIDERS: list[AIProviderResponse] = [
+    AIProviderResponse(
+        name="OpenAI",
+        key="openai",
+        models=[AIModelResponse(name=m.replace("-", " ").title(), key=m) for m in OpenAIModel],
+    ),
+    AIProviderResponse(
+        name="Google Gemini",
+        key="gemini",
+        models=[AIModelResponse(name=m.replace("-", " ").title(), key=m) for m in GeminiModel],
+    ),
+    AIProviderResponse(
+        name="Anthropic Claude",
+        key="claude",
+        models=[AIModelResponse(name=m.replace("-", " ").title(), key=m) for m in ClaudeModel],
+    ),
+]
+
+if llm_settings.show_local_provider:
+    _AI_PROVIDERS.append(AIProviderResponse(
+        name="Ollama (Local)",
+        key="ollama",
+        models=[AIModelResponse(name=m.replace("-", " ").title(), key=m) for m in OllamaModel if m != OllamaModel.BASE_URL],
+    ))
+
+
+# ─── Helpers ─────────────────────────────────────────────────────────────────
+
+
+def _get_or_create(db: Session, user_id: int) -> UserSettingDBM:
+    setting = db.scalar(
+        select(UserSettingDBM).where(UserSettingDBM.user_id == user_id)
+    )
+    if setting is None:
+        setting = UserSettingDBM(
+            user_id=user_id,
+            appearance=_DEFAULT_APPEARANCE,
+            notifications=_DEFAULT_NOTIFICATIONS,
+            ai_behavior=_DEFAULT_AI_BEHAVIOR,
+            planner=_DEFAULT_PLANNER,
+            privacy=_DEFAULT_PRIVACY,
+            accessibility=_DEFAULT_ACCESSIBILITY,
+            reports=_DEFAULT_REPORTS,
+            feature_toggles=_DEFAULT_FEATURE_TOGGLES,
+        )
+        db.add(setting)
+        db.commit()
+        db.refresh(setting)
+    return setting
+
+
+def _to_response(setting: UserSettingDBM) -> SettingsResponse:
+    stored_key = (setting.ai_behavior or {}).get("custom_api_key", "")
+    resp = SettingsResponse.model_validate(setting)
+    resp.ai_behavior = resp.ai_behavior.model_copy(
+        update={"custom_api_key_saved": bool(stored_key and stored_key.strip())}
+    )
+    return resp
+
+
+# ─── Service functions ────────────────────────────────────────────────────────
+
+
+def get_theme_preference(db: Session, user_id: int) -> str:
+    """Lightweight read used by /auth/my-data — does NOT create a default row."""
+    setting = db.scalar(
+        select(UserSettingDBM).where(UserSettingDBM.user_id == user_id)
+    )
+    if setting is None:
+        return _DEFAULT_APPEARANCE["theme_preference"]
+    return str(setting.appearance.get("theme_preference", _DEFAULT_APPEARANCE["theme_preference"]))
+
+
+def get_week_starts_on(db: Session, user_id: int) -> str:
+    """Lightweight read — returns 'monday' or 'sunday' without creating a default row."""
+    setting = db.scalar(
+        select(UserSettingDBM).where(UserSettingDBM.user_id == user_id)
+    )
+    if setting is None:
+        return _DEFAULT_PLANNER["week_starts_on"]
+    return str(setting.planner.get("week_starts_on", _DEFAULT_PLANNER["week_starts_on"]))
+
+
+def get_startup_settings(db: Session, user_id: int) -> dict:
+    """Lightweight read for /auth/me — returns theme + planner + accessibility without creating a row."""
+    setting = db.scalar(
+        select(UserSettingDBM).where(UserSettingDBM.user_id == user_id)
+    )
+    if setting is None:
+        return {
+            "theme_preference": _DEFAULT_APPEARANCE["theme_preference"],
+            "planner": _DEFAULT_PLANNER,
+            "accessibility": _DEFAULT_ACCESSIBILITY,
+        }
+    return {
+        "theme_preference": setting.appearance.get("theme_preference", _DEFAULT_APPEARANCE["theme_preference"]),
+        "planner": {**_DEFAULT_PLANNER, **setting.planner},
+        "accessibility": {**_DEFAULT_ACCESSIBILITY, **(setting.accessibility or {})},
+    }
+
+
+def get_ai_memory_enabled(db: Session, user_id: int) -> bool:
+    """Returns whether AI memory is enabled for this user. Defaults to True if no row exists."""
+    setting = db.scalar(
+        select(UserSettingDBM).where(UserSettingDBM.user_id == user_id)
+    )
+    if setting is None:
+        return bool(_DEFAULT_PRIVACY.get("ai_memory_enabled", True))
+    return bool((setting.privacy or {}).get("ai_memory_enabled", True))
+
+
+def get_max_concurrent_devices(db: Session, user_id: int) -> int:
+    """Returns the user's max concurrent devices setting. Defaults to 2."""
+    setting = db.scalar(
+        select(UserSettingDBM).where(UserSettingDBM.user_id == user_id)
+    )
+    if setting is None:
+        return int(_DEFAULT_PRIVACY.get("max_concurrent_devices", 2))
+    return int((setting.privacy or {}).get("max_concurrent_devices", 2))
+
+
+def get_quiet_hours(db: Session, user_id: int) -> dict:
+    """Lightweight read of the quiet-hours prefs. Defaults applied if no row exists."""
+    setting = db.scalar(
+        select(UserSettingDBM).where(UserSettingDBM.user_id == user_id)
+    )
+    notifications = (setting.notifications if setting else None) or {}
+    return {
+        "enabled": bool(notifications.get(
+            "quiet_hours_enabled", _DEFAULT_NOTIFICATIONS["quiet_hours_enabled"]
+        )),
+        "start": str(notifications.get(
+            "quiet_hours_start", _DEFAULT_NOTIFICATIONS["quiet_hours_start"]
+        )),
+        "end": str(notifications.get(
+            "quiet_hours_end", _DEFAULT_NOTIFICATIONS["quiet_hours_end"]
+        )),
+        "allow_urgent": bool(notifications.get(
+            "quiet_hours_allow_urgent", _DEFAULT_NOTIFICATIONS["quiet_hours_allow_urgent"]
+        )),
+    }
+
+
+def get_reports_settings(db: Session, user_ids: list[int]) -> dict[int, dict]:
+    """Bulk read of the 'reports' section for the report scheduler — one query
+    for every candidate user per tick rather than N. Users without a settings
+    row (or without a populated 'reports' key) fall back to defaults."""
+    if not user_ids:
+        return {}
+    rows = db.execute(
+        select(UserSettingDBM.user_id, UserSettingDBM.reports)
+        .where(UserSettingDBM.user_id.in_(user_ids))
+    ).all()
+    raw_by_user = {uid: (reports or {}) for uid, reports in rows}
+    result: dict[int, dict] = {}
+    for uid in user_ids:
+        raw = raw_by_user.get(uid, {})
+        result[uid] = {
+            "daily": {**_DEFAULT_REPORTS["daily"], **(raw.get("daily") or {})},
+            "weekly": {**_DEFAULT_REPORTS["weekly"], **(raw.get("weekly") or {})},
+        }
+    return result
+
+
+def get_ai_behavior(db: Session, user_id: int) -> dict:
+    """Single read for all ai_behavior fields used by chat. Does NOT create a default row."""
+    setting = db.scalar(
+        select(UserSettingDBM).where(UserSettingDBM.user_id == user_id)
+    )
+    if setting is None:
+        return dict(_DEFAULT_AI_BEHAVIOR)
+    return {**_DEFAULT_AI_BEHAVIOR, **setting.ai_behavior}
+
+
+def is_feature_enabled(db: Session, user_id: int, feature_key: str) -> bool:
+    """Internal feature-gating check (no settings-page UI yet). Defaults to False
+    for any user without an explicit True value, including rows created before
+    `feature_toggles` or a given key existed. Does NOT create a default row."""
+    setting = db.scalar(
+        select(UserSettingDBM).where(UserSettingDBM.user_id == user_id)
+    )
+    if setting is None or not setting.feature_toggles:
+        return False
+    return bool(setting.feature_toggles.get(feature_key, False))
+
+
+def get_settings(db: Session, current_user: UserDBM) -> SettingsResponse:
+    setting = _get_or_create(db, current_user.id)
+    return _to_response(setting)
+
+
+def update_settings(
+    db: Session,
+    current_user: UserDBM,
+    data: UpdateSettingsRequest,
+) -> SettingsResponse:
+    setting = _get_or_create(db, current_user.id)
+
+    # Validate provider/model against the enabled catalogue.
+    valid_providers = {p.key: {m.key for m in p.models} for p in _AI_PROVIDERS}
+    provider = data.ai_behavior.ai_provider
+    model = data.ai_behavior.ai_default_model
+    if provider not in valid_providers:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=422, detail=f"Unknown AI provider '{provider}'.")
+    if model not in valid_providers[provider]:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=422, detail=f"Model '{model}' is not available for provider '{provider}'.")
+
+    # Detect email notifications being turned on so we can send a confirmation.
+    prev_email_enabled = (setting.notifications or {}).get("email_notifications_enabled", False)
+    new_email_enabled = data.notifications.email_notifications_enabled
+
+    setting.appearance = data.appearance.model_dump()
+    setting.notifications = data.notifications.model_dump()
+    setting.planner = data.planner.model_dump()
+    setting.privacy = data.privacy.model_dump()
+    setting.accessibility = data.accessibility.model_dump()
+    setting.reports = data.reports.model_dump()
+
+    ai_dict = data.ai_behavior.model_dump(exclude={"custom_api_key_saved"})
+    if not data.ai_behavior.custom_api_key_enabled:
+        # Feature disabled — clear the stored key.
+        ai_dict["custom_api_key"] = ""
+    elif not data.ai_behavior.custom_api_key.strip():
+        # Feature enabled, no new key sent — preserve the existing stored key.
+        existing_key = (setting.ai_behavior or {}).get("custom_api_key", "").strip()
+        if not existing_key:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=422, detail="An API key is required when 'Use my own API key' is enabled.")
+        ai_dict["custom_api_key"] = existing_key
+    setting.ai_behavior = ai_dict
+
+    db.commit()
+    db.refresh(setting)
+
+    # Send confirmation email when email notifications are first enabled.
+    if new_email_enabled and not prev_email_enabled:
+        try:
+            from app.services import email_notification_service
+            email_notification_service.send_email_enabled_confirmation(current_user)
+        except Exception:
+            pass
+
+    return _to_response(setting)
+
+
+def get_ai_providers() -> list[AIProviderResponse]:
+    return _AI_PROVIDERS
+
+
+def _row_to_dict(row) -> dict:
+    return {k: v for k, v in row.__dict__.items() if not k.startswith("_")}
+
+
+def export_user_data(db: Session, current_user: UserDBM, sections: list[str]) -> bytes:
+    uid = current_user.id
+    payload: dict = {
+        "exported_at": datetime.now(timezone.utc).isoformat(),
+        "user": {"id": uid, "name": current_user.name, "email": current_user.email},
+    }
+
+    if "goals" in sections:
+        payload["goals"] = [
+            _row_to_dict(r) for r in db.scalars(select(GoalDBM).where(GoalDBM.user_id == uid)).all()
+        ]
+        payload["milestones"] = [
+            _row_to_dict(r) for r in db.scalars(select(MilestoneDBM).where(MilestoneDBM.user_id == uid)).all()
+        ]
+        payload["tasks"] = [
+            _row_to_dict(r) for r in db.scalars(select(TaskDBM).where(TaskDBM.user_id == uid)).all()
+        ]
+
+    if "habits" in sections:
+        payload["habits"] = [
+            _row_to_dict(r) for r in db.scalars(select(HabitDBM).where(HabitDBM.user_id == uid)).all()
+        ]
+
+    if "scheduled_tasks" in sections:
+        payload["scheduled_tasks"] = [
+            _row_to_dict(r) for r in db.scalars(select(ScheduledTaskDBM).where(ScheduledTaskDBM.user_id == uid)).all()
+        ]
+
+    if "chat_history" in sections:
+        conversations = db.scalars(select(ConversationDBM).where(ConversationDBM.user_id == uid)).all()
+        payload["conversations"] = [_row_to_dict(r) for r in conversations]
+        conv_ids = [c.id for c in conversations]
+        payload["messages"] = (
+            [_row_to_dict(r) for r in db.scalars(select(MessageDBM).where(MessageDBM.conversation_id.in_(conv_ids))).all()]
+            if conv_ids else []
+        )
+
+    if "ai_memories" in sections:
+        payload["ai_memories"] = [
+            _row_to_dict(r) for r in db.scalars(select(UserMemoryDBM).where(UserMemoryDBM.user_id == uid)).all()
+        ]
+
+    if "settings" in sections:
+        setting = _get_or_create(db, uid)
+        settings_dict = SettingsDBS.model_validate(setting).model_dump()
+        # custom_api_key is not in AIBehaviorSectionResponse so it never appears.
+        # Drop the transient server-side flag too — it's meaningless outside a live session.
+        settings_dict.get("ai_behavior", {}).pop("custom_api_key_saved", None)
+        payload["settings"] = settings_dict
+
+    return json.dumps(payload, indent=2, default=str).encode()
+
+
+def clear_chat_history(db: Session, current_user: UserDBM) -> None:
+    db.execute(
+        delete(ConversationDBM).where(ConversationDBM.user_id == current_user.id)
+    )
+    db.commit()
+
+
+_PROVIDER_KEY_FIELD: dict[str, str] = {
+    "openai": "openai_api_key",
+    "gemini": "gemini_api_key",
+    "claude": "claude_api_key",
+    "ollama": "ollama_api_key",
+}
+
+
+async def test_custom_api_key(provider: str, model: str, api_key: str) -> AIProviderHealthCheckResponse:
+    from app.llm.service import _USER_PROVIDER_MAP, LLMService
+
+    provider_cls = _USER_PROVIDER_MAP.get(provider)
+    if provider_cls is None:
+        return AIProviderHealthCheckResponse(healthy=False, message=f"Unknown provider '{provider}'.")
+
+    key_field = _PROVIDER_KEY_FIELD.get(provider)
+    if not key_field:
+        return AIProviderHealthCheckResponse(healthy=False, message=f"Cannot test API key for provider '{provider}'.")
+
+    try:
+        overridden = llm_settings.model_copy(update={key_field: api_key})
+        service = LLMService(provider=provider_cls(settings=overridden))
+        await service.health_check(model=model)
+        return AIProviderHealthCheckResponse(healthy=True, message="API key is valid and connected successfully.")
+    except LLMError as exc:
+        return AIProviderHealthCheckResponse(healthy=False, message=str(exc))
+    except Exception as exc:
+        return AIProviderHealthCheckResponse(healthy=False, message=f"Unexpected error: {exc}")
+
+
+async def check_provider_health(provider: str, model: str) -> AIProviderHealthCheckResponse:
+    from app.llm.service import get_llm_service_for_user
+
+    service = get_llm_service_for_user(provider)
+    try:
+        await service.health_check(model=model)
+        return AIProviderHealthCheckResponse(healthy=True, message="Connected successfully.")
+    except LLMError as exc:
+        return AIProviderHealthCheckResponse(healthy=False, message=str(exc))
+    except Exception as exc:
+        return AIProviderHealthCheckResponse(healthy=False, message=f"Unexpected error: {exc}")

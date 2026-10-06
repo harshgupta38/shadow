@@ -206,6 +206,13 @@ def _append_control_response(lines: list[str], resp: httpx.Response) -> None:
     else:
         lines.append(json.dumps(data, indent=2))
 
+    if resp.status_code == 404:
+        lines.append(
+            "HINT: the Control Server has no such route. It is started separately and does not "
+            "update itself when the repo is pulled, so it is most likely still running an older "
+            "version — restart it on the host (Server/start_server.sh) to load the current routes."
+        )
+
 
 def _finish(db: Session, log: DeploymentLogDBM, status: str, lines: list[str]) -> None:
     log.status = status

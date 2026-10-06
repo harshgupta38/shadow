@@ -14,6 +14,7 @@ POST	/control/main/deploy	{"branch"?: str}	git fetch + checkout + pull (current 
 POST	/control/main/rollback	{"commit_sha": str}	Checks out a specific commit (detached HEAD) + restarts BackEnd_V2. No pull — temporary, for emergency recovery.
 POST	/control/backoffice/restart	—	Same restart, for BackOffice.
 POST	/control/backoffice/deploy	{"branch"?: str}	Same deploy, for BackOffice.
+POST	/control/backoffice/rollback	{"commit_sha": str}	Same rollback, for BackOffice. Used when a commit SHA or tag is deployed.
 
 
 Logs — app/api/logs.py (prefix /logs)

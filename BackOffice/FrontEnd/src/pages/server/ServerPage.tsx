@@ -10,8 +10,9 @@ import {
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { StatCard } from "@/components/ui/StatCard/StatCard";
 import { api, ApiError } from "@/api";
-import type { AppTarget, RestartLog, ServerHealth } from "@/api";
+import type { AppTarget, InstanceHealth, RestartLog, ServerHealth } from "@/api";
 import { formatDateTime, statusLabel, statusVariant, formatUptime } from "@/lib/format";
+import { createRestartWatch, describeRestart, expiredMessage, isUnreachable, usableInstance, waitingMessage } from "@/lib/restartWatch";
 
 const RESTART_POLL_MS = 1500;
 const HEALTH_WS_BASE_RECONNECT_MS = 3000;
@@ -37,6 +38,8 @@ export function ServerPage({ app }: { app: AppTarget }) {
   const [showRestartModal, setShowRestartModal] = useState(false);
 
   const [activeJob, setActiveJob] = useState<RestartLog | null>(null);
+  // Extra line under the log: "waiting for BackOffice to come back", then what the restart proved.
+  const [restartNote, setRestartNote] = useState<string | null>(null);
   const restartPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const logBodyRef = useRef<HTMLDivElement>(null);
   const jobRunning = activeJob !== null && activeJob.status === "running";
@@ -123,18 +126,43 @@ export function ServerPage({ app }: { app: AppTarget }) {
 
   function pollRestart(id: number) {
     if (restartPollRef.current) clearInterval(restartPollRef.current);
+    setRestartNote(null);
+
+    // Restarting BackOffice kills the process that tracks the job, so the page watches from
+    // outside: remember which process it started on, treat failed requests as "restarting", and
+    // give the new process a fixed window to answer before assuming the restart failed.
+    const watchesSelf = app === "backoffice";
+    const watch = createRestartWatch();
+    let before: InstanceHealth | null = null;
+    if (watchesSelf) api.system.health().then((h) => { before = usableInstance(h); }).catch(() => undefined);
+
     restartPollRef.current = setInterval(async () => {
       try {
         const record = await api.server.restartDetail(app, id);
+        const cameBack = watch.succeeded();
         setActiveJob(record);
+        setRestartNote(null);
         if (record.status !== "running") {
           clearInterval(restartPollRef.current!);
           restartPollRef.current = null;
+          if (cameBack) {
+            const after = await api.system.health().then(usableInstance).catch(() => null);
+            setRestartNote(describeRestart(before, after));
+          }
           requestHealthRefresh();
           loadHistory();
         }
-      } catch {
-        // transient hiccup — the interval will retry
+      } catch (err) {
+        // Transient hiccup — the interval will retry. For BackOffice itself, unreachable is the restart.
+        if (!watchesSelf || !isUnreachable(err)) return;
+        if (watch.failed() === "expired") {
+          clearInterval(restartPollRef.current!);
+          restartPollRef.current = null;
+          setActiveJob((prev) => (prev ? { ...prev, status: "failed" } : prev));
+          setRestartNote(expiredMessage());
+          return;
+        }
+        setRestartNote(waitingMessage(watch.secondsDown()));
       }
     }, RESTART_POLL_MS);
   }
@@ -235,6 +263,7 @@ export function ServerPage({ app }: { app: AppTarget }) {
             ) : (
               <div className="deploy-log-line">Waiting for the restart to complete…</div>
             )}
+            {restartNote && <div className="deploy-log-line">{restartNote}</div>}
             {jobRunning && <span className="deploy-log-cursor" />}
           </div>
         </div>

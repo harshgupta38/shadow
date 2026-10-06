@@ -12,8 +12,9 @@ import {
 } from "react-bootstrap-icons";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { api, ApiError } from "@/api";
-import type { AppTarget, CommitInfo, Deployment, DeployTarget } from "@/api";
+import type { AppTarget, CommitInfo, Deployment, DeployTarget, InstanceHealth } from "@/api";
 import { formatDateTime, formatRelative, statusLabel, statusVariant } from "@/lib/format";
+import { createRestartWatch, describeRestart, expiredMessage, isUnreachable, usableInstance, waitingMessage } from "@/lib/restartWatch";
 
 const PAGE_SIZE = 5;
 const COMMIT_LIMIT = 10;
@@ -64,6 +65,8 @@ export function DeployPage({ app }: { app: AppTarget }) {
 
   const [activeJob, setActiveJob] = useState<Deployment | null>(null);
   const [revealedLines, setRevealedLines] = useState<string[]>([]);
+  // Shown under the log while BackOffice is down mid-restart and the page waits for it to return.
+  const [waitNote, setWaitNote] = useState<string | null>(null);
   const logBodyRef = useRef<HTMLDivElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const revealRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -176,19 +179,47 @@ export function DeployPage({ app }: { app: AppTarget }) {
 
   function pollJob(id: number) {
     if (pollRef.current) clearInterval(pollRef.current);
+    setWaitNote(null);
+
+    // Deploying BackOffice restarts the very process that tracks the job, so it can't report its
+    // own result. For it the page watches from outside instead: it remembers which process it
+    // started on, treats failed requests as "restarting", and gives the new process a fixed
+    // window to answer before assuming the restart failed. (A Shadow deploy leaves BackOffice up.)
+    const watchesSelf = app === "backoffice";
+    const watch = createRestartWatch();
+    let before: InstanceHealth | null = null;
+    if (watchesSelf) api.system.health().then((h) => { before = usableInstance(h); }).catch(() => undefined);
+
     pollRef.current = setInterval(async () => {
       try {
         const record = await api.deploy.detail(app, id);
+        const cameBack = watch.succeeded();
+        setWaitNote(null);
         setActiveJob(record);
         if (record.status !== "running") {
           clearInterval(pollRef.current!);
           pollRef.current = null;
-          revealLog(record.log_output || "(no output)");
+          let output = record.log_output || "(no output)";
+          if (cameBack) {
+            const after = await api.system.health().then(usableInstance).catch(() => null);
+            output += `\n\n${describeRestart(before, after)}`;
+          }
+          revealLog(output);
           loadAll();
           loadCommits(); // a deploy/rollback may have moved HEAD
         }
-      } catch {
-        // transient network hiccup — keep polling, the interval will retry
+      } catch (err) {
+        // Transient hiccup — keep polling. For BackOffice itself, an unreachable API is the restart.
+        if (!watchesSelf || !isUnreachable(err)) return;
+        if (watch.failed() === "expired") {
+          clearInterval(pollRef.current!);
+          pollRef.current = null;
+          setWaitNote(null);
+          setActiveJob((prev) => (prev ? { ...prev, status: "failed" } : prev));
+          setRevealedLines((prev) => [...prev, "", expiredMessage()]);
+          return;
+        }
+        setWaitNote(waitingMessage(watch.secondsDown()));
       }
     }, POLL_INTERVAL_MS);
   }
@@ -206,6 +237,7 @@ export function DeployPage({ app }: { app: AppTarget }) {
       clearInterval(revealRef.current);
       revealRef.current = null;
     }
+    setWaitNote(null);
     setActiveJob(d);
     if (d.status === "running") {
       setRevealedLines([]);
@@ -305,6 +337,7 @@ export function DeployPage({ app }: { app: AppTarget }) {
                 <div key={i} className="deploy-log-line">{line || " "}</div>
               ))
             )}
+            {waitNote && <div className="deploy-log-line">{waitNote}</div>}
             {jobRunning && <span className="deploy-log-cursor" />}
           </div>
         </div>

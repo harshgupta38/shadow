@@ -24,6 +24,13 @@ export interface LoginResponse {
 // ─── Deploy ─────────────────────────────────────────────────────────────────
 export type DeployTarget = "Frontend" | "Backend" | "Both";
 export type DeploymentKind = "deploy" | "rollback";
+/** What BackOffice's public /health returns; instance_id changes whenever the process restarts. */
+export interface InstanceHealth {
+  status: string;
+  instance_id: string;
+  started_at: string;
+}
+
 export type DeploymentStatus = "running" | "success" | "failed" | "unknown";
 
 export interface Deployment {

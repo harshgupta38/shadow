@@ -16,6 +16,7 @@ from starlette.background import BackgroundTask
 
 from app.core.config import settings
 from app.core.endpoints import ENDPOINTS
+from app.core.instance import INSTANCE_ID, STARTED_AT
 
 router = APIRouter()
 
@@ -31,7 +32,9 @@ def root() -> dict:
 
 @router.get(ENDPOINTS.SYSTEM.HEALTH, tags=["health"])
 def health() -> dict:
-    return {"status": "ok"}
+    # instance_id/started_at identify this process, so a client can tell a restarted BackOffice
+    # from the one it was talking to before (see app/core/instance.py).
+    return {"status": "ok", "instance_id": INSTANCE_ID, "started_at": STARTED_AT.isoformat()}
 
 
 @router.get(ENDPOINTS.SYSTEM.SERVER_LOG, tags=["admin"], response_class=PlainTextResponse)

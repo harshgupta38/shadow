@@ -1,4 +1,7 @@
 export const ENDPOINTS = {
+  SYSTEM: {
+    health: "/health",
+  },
   AUTH: {
     LOGIN:   "/auth/login",
     LOGOUT:  "/auth/logout",

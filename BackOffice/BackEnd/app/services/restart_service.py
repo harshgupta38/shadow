@@ -20,7 +20,7 @@ from app.core.config import settings
 from app.db.session import SessionLocal
 from app.models.deployment_log import DeploymentLogDBM
 from app.models.restart_log import RestartLogDBM
-from app.services import shadow_client
+from app.services import self_restart, shadow_client
 
 _client = httpx.Client(timeout=60.0)
 
@@ -110,6 +110,8 @@ def run_restart_job(restart_id: int, app: str = "shadow") -> None:
         if log is None:
             return
 
+        if app == "backoffice":
+            self_restart.announce_self_restart(db, log, [])
         try:
             resp = _client.post(
                 f"{settings.control_server_url}/control/{control_segment}/restart",

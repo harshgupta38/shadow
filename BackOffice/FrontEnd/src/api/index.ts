@@ -3,6 +3,7 @@ import { deployApi } from "./deploy";
 import { databaseApi } from "./database";
 import { deletedDataApi } from "./deletedData";
 import { serverApi } from "./server";
+import { systemApi } from "./system";
 import { usersApi } from "./users";
 
 export const api = {
@@ -11,6 +12,7 @@ export const api = {
   database: databaseApi,
   deletedData: deletedDataApi,
   server: serverApi,
+  system: systemApi,
   users: usersApi,
 };
 

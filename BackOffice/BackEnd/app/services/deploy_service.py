@@ -30,7 +30,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.db.session import SessionLocal
 from app.models.deployment_log import DeploymentLogDBM
-from app.services import shadow_client
+from app.services import self_restart, shadow_client
 
 _client = httpx.Client(timeout=90.0)
 
@@ -39,8 +39,13 @@ def _headers() -> dict:
     return {"X-Control-Secret": settings.control_secret}
 
 
-def _control_post(path: str, json: dict | None = None) -> httpx.Response:
-    return _client.post(f"{settings.control_server_url}{path}", json=json, headers=_headers())
+def _control_post(path: str, json: dict | None = None, timeout: float | None = None) -> httpx.Response:
+    return _client.post(
+        f"{settings.control_server_url}{path}",
+        json=json,
+        headers=_headers(),
+        timeout=timeout if timeout is not None else httpx.USE_CLIENT_DEFAULT,
+    )
 
 
 def _control_segment(app: str) -> str:
@@ -51,9 +56,9 @@ def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def _current_commit_sha(app: str = "shadow") -> str | None:
+def _current_commit_sha(app: str = "shadow", timeout: float | None = None) -> str | None:
     try:
-        resp = _control_post(f"/git/{_control_segment(app)}", {"args": ["rev-parse", "HEAD"]})
+        resp = _control_post(f"/git/{_control_segment(app)}", {"args": ["rev-parse", "HEAD"]}, timeout=timeout)
     except httpx.RequestError:
         return None
     if resp.status_code != 200:
@@ -253,6 +258,8 @@ def run_deploy_job(deployment_id: int, git_ref: str, target: str, app: str = "sh
             ]
             endpoint, body = f"/control/{segment}/rollback", {"commit_sha": git_ref}
 
+        if app == "backoffice":
+            self_restart.announce_self_restart(db, log, lines)
         try:
             resp = _control_post(endpoint, body)
         except httpx.RequestError as e:
@@ -299,6 +306,8 @@ def run_rollback_job(deployment_id: int, commit_sha: str, app: str = "shadow") -
             return
 
         lines = [f"$ POST {settings.control_server_url}/control/{segment}/rollback  (commit_sha={commit_sha})"]
+        if app == "backoffice":
+            self_restart.announce_self_restart(db, log, lines)
         try:
             resp = _control_post(f"/control/{segment}/rollback", {"commit_sha": commit_sha})
         except httpx.RequestError as e:

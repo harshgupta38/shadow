@@ -118,6 +118,13 @@ export const TIMING = {
     WAKE_HEARTBEAT_MS: 20_000,
     /** useWakeRefresh — if more than this much time passed since the last heartbeat/visibility check, treat it as a wake-up and notify subscribers. */
     WAKE_STALE_THRESHOLD_MS: 60_000,
+
+    /** JournalPage — debounce after last keystroke/mood change before the entry is saved. */
+    JOURNAL_SAVE_DEBOUNCE_MS: 800,
+    /** JournalPage — how long the "Saved" indicator stays visible after a successful save. */
+    JOURNAL_SAVED_BANNER_MS: 2200,
+    /** JournalPage — how long the "Couldn't save" indicator stays visible after a failed save. */
+    JOURNAL_ERROR_BANNER_MS: 3000,
 } as const;
 
 // ── Pagination / batch sizes ──────────────────────────────────────────────────

@@ -993,6 +993,24 @@ export interface UsageResponse {
   monthly_output: number;
 }
 
+// ── Journal ────────────────────────────────────────────────────────────────────
+
+export type JournalMood = "great" | "good" | "okay" | "tough" | "rough";
+
+export interface JournalEntryResponse {
+  id: number;
+  entry_date: string; // YYYY-MM-DD
+  mood: JournalMood | null;
+  text: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface JournalEntryUpsertRequest {
+  mood: JournalMood | null;
+  text: string;
+}
+
 // ─── Settings ─────────────────────────────────────────────────────────────────
 
 export type ThemePreferenceValue = ThemePreference;

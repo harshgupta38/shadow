@@ -1,7 +1,7 @@
 import calendar
 from datetime import date, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.common import to_ist, today_ist
@@ -126,27 +126,24 @@ def get_list(db: Session, current_user: UserDBM, year: int, month: int) -> list[
     first_day = date(year, month, 1)
     last_day = date(year, month, calendar.monthrange(year, month)[1])
 
+    # Single query: tasks that start in this month OR long-term tasks that started
+    # before this month and extend into it (spanning tasks).
     tasks = db.scalars(
         select(ScheduledTaskDBM)
         .options(joinedload(ScheduledTaskDBM.goal))
         .where(
             ScheduledTaskDBM.user_id == current_user.id,
-            ScheduledTaskDBM.scheduled_date >= first_day,
-            ScheduledTaskDBM.scheduled_date <= last_day,
-        )
-    ).all()
-
-    # Long-term tasks that START before this month but have end_date within or beyond it.
-    # Collected IDs avoid duplicating tasks that also start in this month.
-    existing_ids = {t.id for t in tasks}
-    spanning_tasks = db.scalars(
-        select(ScheduledTaskDBM)
-        .options(joinedload(ScheduledTaskDBM.goal))
-        .where(
-            ScheduledTaskDBM.user_id == current_user.id,
-            ScheduledTaskDBM.task_duration == "long",
-            ScheduledTaskDBM.scheduled_date < first_day,
-            ScheduledTaskDBM.end_date >= first_day,
+            or_(
+                and_(
+                    ScheduledTaskDBM.scheduled_date >= first_day,
+                    ScheduledTaskDBM.scheduled_date <= last_day,
+                ),
+                and_(
+                    ScheduledTaskDBM.task_duration == "long",
+                    ScheduledTaskDBM.scheduled_date < first_day,
+                    ScheduledTaskDBM.end_date >= first_day,
+                ),
+            ),
         )
     ).all()
 
@@ -160,10 +157,10 @@ def get_list(db: Session, current_user: UserDBM, year: int, month: int) -> list[
     ).all()
 
     # Batch-load subtasks for all long-term tasks in the result (single query).
-    all_long_tasks = [t for t in tasks + [t for t in spanning_tasks if t.id not in existing_ids] if t.task_duration == "long"]
+    long_tasks = [t for t in tasks if t.task_duration == "long"]
     subtasks_by_task: dict[int, list[SubtaskResponse]] = {}
-    if all_long_tasks:
-        long_ids = [t.id for t in all_long_tasks]
+    if long_tasks:
+        long_ids = [t.id for t in long_tasks]
         subtask_rows = db.scalars(
             select(ScheduledTaskSubtaskDBM)
             .where(
@@ -186,7 +183,6 @@ def get_list(db: Session, current_user: UserDBM, year: int, month: int) -> list[
             ))
 
     result: list[ScheduledTaskDataResponse] = [_serialize(t, subtasks_by_task.get(t.id)) for t in tasks]
-    result += [_serialize(t, subtasks_by_task.get(t.id)) for t in spanning_tasks if t.id not in existing_ids]
     result += [
         _serialize_yearly(t, occ)
         for t in yearly_tasks

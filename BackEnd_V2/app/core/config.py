@@ -49,6 +49,13 @@ class Settings(BaseSettings):
     # tell apart from "this server is only ever meant to run 3."
     workers: int = Field(default=4, ge=1)
 
+    # Server-side response cache for expensive read-only endpoints (app/core/response_cache.py).
+    # Each worker holds its own copy; correctness comes from the shared data version in the DB.
+    # RESPONSE_CACHE_ENABLED=false turns it off entirely (responses are computed every time).
+    response_cache_enabled: bool = True
+    response_cache_max_entries: int = Field(default=256, ge=1)
+    response_cache_max_mb: int = Field(default=8, ge=1)
+
     # Report auto-generation scheduler — global kill-switch on top of each
     # user's own per-cadence schedule (UserSettingDBM.reports, default 23:55 IST).
     # REPORT_AUTO_GENERATE=false disables the scheduler entirely.

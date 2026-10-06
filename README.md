@@ -113,8 +113,8 @@ BackEnd_V2/
 │   ├── models/          # SQLAlchemy 2.0 declarative models
 │   ├── schemas/         # Pydantic request/response/DB-mirror schemas (see docs/naming-conventions.md)
 │   ├── llm/             # Provider-agnostic LLM layer: base interface, providers/, tools/, cost.py, knowledge_base.py
-│   ├── core/            # Settings, JWT/security, exception hierarchy, endpoint path constants
-│   ├── db/              # Engine/session setup
+│   ├── core/            # Settings, JWT/security, exception hierarchy, endpoint path constants, response_cache.py
+│   ├── db/              # Engine/session setup, change_tracking.py (bumps the shared data version on writes)
 │   ├── analysis/        # Optional LLM usage/cost logging + Google Sheets export
 │   ├── validators/       # Field-level validation (email, password, date, bio, ...)
 │   └── main.py          # App wiring, middleware, lifespan (startup tasks + background loops)
@@ -127,6 +127,7 @@ FrontEnd_V2/
 │   ├── pages/           # One folder per route: dashboard, plan, my_goals, habit_library,
 │   │                    #   track_progress, reports, assistant, daily-brief, settings, profile, auth, ...
 │   ├── api/             # Axios client + one typed module per backend domain
+│   │   └── cache/       # GET read cache: cachePolicy.ts (what/how long/what clears it) + apiCache.ts (engine)
 │   ├── context/         # Auth, Theme, Accessibility, Planner, Toast providers (no Redux)
 │   ├── components/      # layout/ (Sidebar, Topbar, AppLayout) and ui/ (buttons, cards, dialogs, forms)
 │   ├── hooks/            # useLazyAudio, useUrlAnchor
@@ -218,6 +219,7 @@ Routes for `/workout`, `/diet`, and `/journal` exist in the frontend router and 
 | Frontend UI | Bootstrap 5 + react-bootstrap + Sass | Component styling with CSS-variable-driven light/dark theming |
 | Frontend state | React Context (Auth, Theme, Accessibility, Planner, Toast) | No Redux/Zustand — cross-tab sync is done via custom browser events + localStorage, not a state library |
 | Frontend HTTP | Axios | Single client with `withCredentials: true` (httpOnly cookies), a coordinated single-flight refresh-then-retry on 401, and normalized error shapes |
+| Frontend caching | `@tanstack/query-core` | Used imperatively inside the Axios wrapper (no React Query hooks or provider) for TTL expiry and in-flight request de-duplication of GET responses — see [Engineering Decisions](#engineering-decisions) |
 | Frontend content | react-markdown + remark-gfm + DOMPurify | Assistant replies are rendered as sanitized Markdown, not raw HTML injection |
 | Backend | Python 3.11+ + FastAPI | Routers in `app/api` stay thin; all business logic lives in `app/services`, so the same service functions are reusable from background schedulers, not just HTTP handlers |
 | ORM | SQLAlchemy 2.0 (declarative) | Models in `app/models`; schema created via `Base.metadata.create_all()` at startup |
@@ -254,6 +256,14 @@ Routes for `/workout`, `/diet`, and `/journal` exist in the frontend router and 
 
 **TTS and captions generated together, not separately.** Word-level caption timing is derived by re-running Whisper transcription on the exact audio just produced by TTS, rather than estimating timing from text length/word count. This guarantees the captions the frontend displays are ground-truth accurate to the actual audio file being played, at the cost of one extra API call per brief (amortized by caching).
 
+**Read cache at the HTTP layer, not per page.** Every page loaded its own data with a plain `api.x.y().then(setState)`, so flipping between months, dates or screens re-hit the server for data that hadn't changed. Rather than migrating each page to a query hook, the shared `http.get` wrapper (`FrontEnd_V2/src/api/cache/`) serves GETs from memory while they are fresh (30 s to 5 min, set in `CACHE_TTL` in `tuning.ts`), shares one request between simultaneous callers, and hands each caller a copy of the stored JSON so a page that mutates a response can't corrupt the cache. What is cacheable is an explicit allowlist in `cachePolicy.ts` (plan, schedule, reports, dashboard, goals/milestones/tasks/habits, track progress, profile, daily brief text, settings), keyed by URL plus query params. Notifications, chat, auth, Journal and the large brief audio are deliberately excluded.
+
+**Invalidation: clear on write, and fail safe.** Any write — successful or failed, since a timeout can still mean the server committed it — clears the cached groups it can affect. Habit, task, goal, schedule, planner and journal writes clear all plan-derived data, because the dashboard, profile, reports and track views are computed from it. A write the policy doesn't recognise clears everything, so forgetting to register an endpoint costs speed, never correctness. The cache is also dropped on login/logout, a lost session, a server push notification, and wake-from-sleep. Entries are keyed by a per-group epoch number instead of being removed: removing a TanStack query mid-flight rejects the callers waiting on it, and invalidating one mid-flight lets a pre-write response be stored as fresh, whereas bumping the epoch makes old entries unreachable while in-flight requests finish normally.
+
+**Server-side response cache, kept coherent across workers by a database version counter.** The expensive read-only endpoints (dashboard, profile, any day's plan, habit list, habit and task tracking, monthly report, schedule month) cache their finished JSON in memory (`app/core/response_cache.py`), so a hit skips both the queries and FastAPI's response validation — about 4 ms versus 5–31 ms on a copy of real data. With four uvicorn workers a per-process cache would normally serve stale data after a write handled by a different worker, so an entry is only served while the global `data_versions` counter is unchanged. A Session hook (`app/db/change_tracking.py`) bumps that counter inside the writing transaction for every kind of write (ORM objects, bulk `update()`/`delete()`, raw SQL) except pure-noise tables (`active_sessions`, `ip_rate_limits`), so the bump commits or rolls back atomically with the data and no service has to remember to invalidate anything; a new table is covered by default. The version is read *before* a response is computed, so a write that lands mid-computation can only make the new entry unusable, never stale. Entries are keyed by user, endpoint, parameters and today's IST date, expire after 30–60 s (which bounds staleness from clock-derived data and from writes made outside the app, such as the BackOffice editing the database file), are capped in count and bytes, and the whole layer can be turned off with `RESPONSE_CACHE_ENABLED=false`. Responses carry an `X-Cache: HIT | MISS | BYPASS` header. Endpoints that cost a single query are not cached, because the version check would cost as much as the work.
+
+**Streak math is memoized.** The recurrence-date calculation behind streaks (`planner_service._occurrence_dates`) is an `lru_cache` keyed by the plan's recurrence fields rather than the plan object, so it can never go stale and needs no invalidation; it made streak computation about 5x faster for 25 plans.
+
 ---
 
 ## Engineering Challenges Solved
@@ -264,6 +274,8 @@ Routes for `/workout`, `/diet`, and `/journal` exist in the frontend router and 
 - **SQLite concurrency under multiple workers** — foreign keys enabled per-connection, a single-writer database, and a procfs lock so only one worker executes each scheduled job, while backups exclude the largest table (`daily_brief_audio`) to keep backup files small and fast.
 - **Historical accuracy after data changes** — daily plan records snapshot enough fields to render correctly even after their source habit/task is edited or deleted, which is what makes multi-week streaks and past reports trustworthy.
 - **Ground-truth audio captions** by transcribing the exact generated TTS output instead of estimating timing from text.
+- **Cache coherence across uvicorn workers** — a per-worker response cache is made safe by a database-backed version counter bumped inside every writing transaction, so a write handled by any worker invalidates every other worker's entries.
+- **Cache invalidation without stale or cancelled requests** — epoch-keyed entries let a write invalidate cached reads instantly while requests already in flight complete normally, and a read issued after a write can never join a pre-write response.
 - **Session security on a cookie-based auth model** — refresh coordination is single-flight on the frontend (concurrent 401s don't trigger duplicate refresh calls), and the backend independently rate-limits by IP and locks out by account after repeated failures.
 
 ---
@@ -325,6 +337,23 @@ Today's materialized plan (DailyPlanRecordDBM rows for the date)
        -> Whisper transcribes that audio -> word-level timings
        -> both cached in DailyBriefAudioDBM (audio_data + word_timings)
   -> frontend fetches audio once, plays it, syncs captions off cached timings
+```
+
+### Cached Read (Frontend)
+
+```
+Page calls api.schedule.getScheduleList(2026, 10)
+  -> http.get -> cachePolicy: "/schedule/*" is cacheable, group "schedule", fresh for 60 s
+  -> cache key = [group, group epoch, url, query params]
+       fresh entry?   -> return a copy immediately, no network request
+       in flight?     -> join the same request
+       otherwise      -> GET from the API, store it, return a copy
+Page edits a task (PATCH /task/...)
+  -> http.patch settles (success or failure)
+  -> cachePolicy: task writes clear dashboard, profile, goals, milestones, tasks, habits,
+     schedule, track, planner, reports and daily-brief
+  -> those groups' epochs are bumped, so the next read goes to the server
+Also cleared entirely on: login/logout, lost session, server push notification, wake from sleep
 ```
 
 ---

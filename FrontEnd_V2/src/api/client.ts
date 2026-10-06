@@ -14,6 +14,7 @@ import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from "axios";
 import { ApiErrorShape, FieldError } from "@/api/types";
 import { ENDPOINTS } from "@/constant/shadow-endpoints";
 import { TIMING } from "@/constant/tuning";
+import { clearCacheAfterWrite, readThroughCache } from "@/api/cache/apiCache";
 
 const REFRESH_URL  = `${ENDPOINTS.AUTH.PREFIX}${ENDPOINTS.AUTH.REFRESH}`;
 const LOGIN_URL    = `${ENDPOINTS.AUTH.PREFIX}${ENDPOINTS.AUTH.LOGIN}`;
@@ -108,26 +109,35 @@ function createClient(): AxiosInstance {
 
 const httpClient = createClient();
 
+async function write<T>(url: string, send: () => Promise<{ data: T }>): Promise<T> {
+    try {
+        return (await send()).data;
+    } finally {
+        // Cleared even when the write fails: a timeout can still mean the server committed it.
+        clearCacheAfterWrite(url);
+    }
+}
+
 export const http = {
     async get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
-        const response = await httpClient.get<T>(url, config);
-        return response.data;
+        const fetchFresh = async () => (await httpClient.get<T>(url, config)).data;
+        // Query params are part of the cache key. Any other option (blob downloads, abort
+        // signals) changes what comes back, so those requests are never cached.
+        const { params, ...otherOptions } = config ?? {};
+        const isCacheable = Object.values(otherOptions).every((value) => value === undefined);
+        return isCacheable ? readThroughCache(url, fetchFresh, params) : fetchFresh();
     },
-    async post<T>(url: string, body?: unknown, config?: AxiosRequestConfig): Promise<T> {
-        const response = await httpClient.post<T>(url, body, config);
-        return response.data;
+    post<T>(url: string, body?: unknown, config?: AxiosRequestConfig): Promise<T> {
+        return write(url, () => httpClient.post<T>(url, body, config));
     },
-    async put<T>(url: string, data?: unknown): Promise<T> {
-        const response = await httpClient.put<T>(url, data);
-        return response.data;
+    put<T>(url: string, data?: unknown): Promise<T> {
+        return write(url, () => httpClient.put<T>(url, data));
     },
-    async patch<T>(url: string, data?: unknown): Promise<T> {
-        const response = await httpClient.patch<T>(url, data);
-        return response.data;
+    patch<T>(url: string, data?: unknown): Promise<T> {
+        return write(url, () => httpClient.patch<T>(url, data));
     },
-    async delete<T>(url: string, body?: unknown): Promise<T> {
-        const response = await httpClient.delete<T>(url, body === undefined ? undefined : { data: body });
-        return response.data;
+    delete<T>(url: string, body?: unknown): Promise<T> {
+        return write(url, () => httpClient.delete<T>(url, body === undefined ? undefined : { data: body }));
     },
 };
 

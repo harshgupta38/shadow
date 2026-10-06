@@ -10,6 +10,7 @@ import {
 
 import { api, LoginRequest, RegisterRequest, type AccessibilitySettings, type PlannerSettings, type ThemePreference, type UserDataResponse } from "@/api";
 import { refreshAccessToken } from "@/api/client";
+import { clearApiCache } from "@/api/cache/apiCache";
 import { ENDPOINTS } from "@/constant/shadow-endpoints";
 import { clearSessionHint, markSessionKnown } from "@/services/session-hint.service";
 import { TIMING } from "@/constant/tuning";
@@ -62,6 +63,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, []);
 
     const logout = useCallback(() => {
+        // Immediately, not when the logout request settles, so nothing cached outlives the session.
+        clearApiCache();
         void api.auth.logout();
         clearSessionHint();
         setUser(null);

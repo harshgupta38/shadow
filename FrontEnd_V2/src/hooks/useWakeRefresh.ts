@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 
+import { clearApiCache } from "@/api/cache/apiCache";
 import { TIMING } from "@/constant/tuning";
 
 type WakeListener = () => void;
@@ -9,6 +10,8 @@ let lastTickAt = Date.now();
 let heartbeatStarted = false;
 
 function notifyWake() {
+    // Cached reads may be arbitrarily old after a sleep; drop them before listeners refetch.
+    clearApiCache();
     listeners.forEach((listener) => listener());
 }
 

@@ -127,6 +127,25 @@ export const TIMING = {
     JOURNAL_ERROR_BANNER_MS: 3000,
 } as const;
 
+// ── API read cache ───────────────────────────────────────────────────────────
+// How long a cached GET response is served without asking the server again.
+// Writes and wake-from-sleep clear the cache earlier (see src/api/cache), so these only bound
+// how stale data can look when it changed somewhere this tab can't see (another device, a
+// server-side scheduler).
+
+export const CACHE_TTL = {
+    /** Data the server recomputes as time passes (today's plan, tracking, dashboard). */
+    SHORT_MS: 30_000,
+    /** Lists, details, month/range views. */
+    STANDARD_MS: 60_000,
+    /** Content that is generated once and then rarely changes (daily brief). */
+    LONG_MS: 120_000,
+    /** User settings — only changed by this app, and every write clears them. */
+    SETTINGS_MS: 300_000,
+    /** Constant server data (e.g. the AI provider list). */
+    STATIC_MS: 3_600_000,
+} as const;
+
 // ── Pagination / batch sizes ──────────────────────────────────────────────────
 
 export const PAGE_SIZE = {

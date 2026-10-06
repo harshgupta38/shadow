@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Response, status
 
 from app.api.deps import get_current_user
 from app.core.endpoints import ENDPOINTS
+from app.core.response_cache import TTL_STANDARD_SECONDS, cached_json_response
 from app.db.session import get_db
 from app.models.user import UserDBM
 from app.schemas.schedule import (
@@ -38,8 +39,13 @@ def get_schedule_task_list(
     month: int = Query(..., ge=1, le=12),
     db=Depends(get_db),
     current_user: UserDBM = Depends(get_current_user),
-) -> ScheduleListResponse:
-    return schedule_service.get_list(db, current_user, year, month)
+) -> Response:
+    return cached_json_response(
+        db, current_user, "schedule.list",
+        lambda: schedule_service.get_list(db, current_user, year, month),
+        ttl=TTL_STANDARD_SECONDS,
+        params=(year, month),
+    )
 
 
 @router.get(ENDPOINTS.SCHEDULE.DETAIL, response_model=ScheduledTaskDataResponse)

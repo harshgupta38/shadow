@@ -67,7 +67,7 @@
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 0.5rem;
 }
 
 .stdp-rows {
@@ -309,7 +309,7 @@
         opacity: 0;
         width: 100%;
         height: 100%;
-        pointer-events: none;
+        cursor: pointer;
         border: none;
         padding: 0;
     }

@@ -211,11 +211,6 @@ export function SubtasksSection({ taskId, minDate, maxDate, onSubtasksChanged }:
                     <div className="subtask-form-top">
                         <div
                             className={`form-control form-control-sm subtask-date-display${editingId !== null ? " disabled" : ""}`}
-                            role="button"
-                            tabIndex={editingId !== null ? -1 : 0}
-                            onClick={() => { if (editingId === null) dateInputRef.current?.showPicker(); }}
-                            onKeyDown={e => { if ((e.key === "Enter" || e.key === " ") && editingId === null) dateInputRef.current?.showPicker(); }}
-                            aria-label="Open date picker"
                         >
                             {form.date
                                 ? formatDisplayDate(form.date, dateFormat)
@@ -230,8 +225,7 @@ export function SubtasksSection({ taskId, minDate, maxDate, onSubtasksChanged }:
                                 onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
                                 disabled={editingId !== null}
                                 className="schedule-date-hidden-input"
-                                tabIndex={-1}
-                                aria-hidden="true"
+                                aria-label="Select sub-task date"
                             />
                         </div>
                         <button

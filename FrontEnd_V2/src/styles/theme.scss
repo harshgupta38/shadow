@@ -466,6 +466,11 @@ a {
   font-weight: 500;
 }
 
+/* Prevent iOS Safari from zooming on input focus (triggered when font-size < 16px) */
+@supports (-webkit-touch-callout: none) {
+  input, textarea, select { font-size: max(16px, 1em) !important; }
+}
+
 .modal-backdrop { z-index: 1210; }
 .modal { z-index: 1215; }
 .modal-content {

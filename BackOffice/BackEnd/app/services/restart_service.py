@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.db.session import SessionLocal
+from app.models.deployment_log import DeploymentLogDBM
 from app.models.restart_log import RestartLogDBM
 from app.services import shadow_client
 
@@ -47,31 +48,47 @@ def get_server_uptime_seconds(db: Session, app: str = "shadow") -> int | None:
     BackOffice's own restart history rather than measured directly —
     psutil.Process.create_time() is confirmed permission-denied on at
     least one real device (needs a /proc/stat read that device refuses),
-    so this exists as the fallback. Only as accurate as BackOffice's own
-    record of restarts it triggered: a restart from anywhere else (a
-    deploy, something manual on the device, Android killing the process)
-    isn't reflected here, so this can overstate the real uptime. Only
-    "success"/"unknown" restarts count — "failed" means the request to
-    the control server itself errored, which doesn't necessarily mean
-    anything actually restarted.
+    so this exists as the fallback.
+
+    Both a plain restart and a deploy/rollback restart the app (the Control
+    Server runs restart_server.sh for all three), so the clock starts at
+    whichever of them finished last. Only restarts BackOffice itself
+    triggered are known: one from anywhere else (something manual on the
+    device, Android killing the process) isn't reflected, so this can
+    overstate the real uptime. Only "success"/"unknown" count — "failed"
+    means the request to the control server itself errored, which doesn't
+    necessarily mean anything actually restarted.
     """
-    log = (
-        db.query(RestartLogDBM)
+    last_restart = (
+        db.query(RestartLogDBM.completed_at)
         .filter(
             RestartLogDBM.app == app,
             RestartLogDBM.status.in_(["success", "unknown"]),
             RestartLogDBM.completed_at.isnot(None),
         )
         .order_by(RestartLogDBM.completed_at.desc())
-        .first()
+        .limit(1)
+        .scalar()
     )
-    if log is None or log.completed_at is None:
+    last_deploy = (
+        db.query(DeploymentLogDBM.completed_at)
+        .filter(
+            DeploymentLogDBM.app == app,
+            DeploymentLogDBM.status.in_(["success", "unknown"]),
+            DeploymentLogDBM.completed_at.isnot(None),
+        )
+        .order_by(DeploymentLogDBM.completed_at.desc())
+        .limit(1)
+        .scalar()
+    )
+    started_at = max((t for t in (last_restart, last_deploy) if t is not None), default=None)
+    if started_at is None:
         return None
-    # SQLite round-trips DateTime columns as naive — completed_at was
-    # written as datetime.now(timezone.utc), so it's UTC even though the
-    # tzinfo itself didn't survive the round trip.
-    completed_at = log.completed_at.replace(tzinfo=timezone.utc)
-    return max(0, int((datetime.now(timezone.utc) - completed_at).total_seconds()))
+    # SQLite round-trips DateTime columns as naive — both columns are written
+    # as datetime.now(timezone.utc), so they're UTC even though the tzinfo
+    # itself didn't survive the round trip.
+    started_at = started_at.replace(tzinfo=timezone.utc)
+    return max(0, int((datetime.now(timezone.utc) - started_at).total_seconds()))
 
 
 def create_restart_record(db: Session, initiated_by: str, app: str = "shadow") -> RestartLogDBM:

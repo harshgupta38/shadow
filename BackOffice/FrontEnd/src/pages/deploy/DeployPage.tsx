@@ -25,6 +25,9 @@ const POLL_INTERVAL_MS = 1500;
 // placeholder text as if it were a real, resubmittable ref.
 const UNKNOWN_GIT_REF = "(current branch)";
 
+// The branch whose commits the page lists until the person picks another.
+const DEFAULT_BRANCH = "main";
+
 // What a deploy dialog opens pre-filled with — used by "New Deployment"
 // (nothing), "Redeploy" (a past deployment's own ref/label/description/
 // target), and "Deploy" on a commit (just its SHA).
@@ -40,6 +43,7 @@ export function DeployPage({ app }: { app: AppTarget }) {
   // Empty means "not resolved (yet)" — shown as a genuinely blank
   // selection, never a placeholder like "current branch", since the
   // person looking at this has no way to know what that actually is.
+  // Once branches load it defaults to DEFAULT_BRANCH.
   const [selectedBranch, setSelectedBranch] = useState("");
   const [commits, setCommits] = useState<CommitInfo[]>([]);
   const [deployments, setDeployments] = useState<Deployment[]>([]);
@@ -105,11 +109,13 @@ export function DeployPage({ app }: { app: AppTarget }) {
       setBranches(branchesResult.value.branches);
       // Only fills in the selection if nothing's been picked yet — never
       // overwrites a branch the person already chose (this can re-run
-      // after a job finishes). If HEAD is detached there's no real
-      // current branch, so this correctly leaves it blank instead of
-      // guessing one.
-      const current = branchesResult.value.current;
-      setSelectedBranch((prev) => prev || current || "");
+      // after a job finishes). Defaults to the main branch, since the
+      // checked-out one is often a detached HEAD (after deploying a
+      // commit SHA) and would leave the commit list empty; falls back to
+      // the checked-out branch, then blank, if main doesn't exist.
+      const { branches: available, current } = branchesResult.value;
+      const defaultBranch = available.includes(DEFAULT_BRANCH) ? DEFAULT_BRANCH : current;
+      setSelectedBranch((prev) => prev || defaultBranch || "");
     }
     if (deploysResult.status === "fulfilled") setDeployments(deploysResult.value);
     setLoadError(

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Search, PlusLg, Inbox, PlayFill, Download } from "react-bootstrap-icons";
+import { Search, PlusLg, Inbox, PlayFill, Download, ArrowClockwise } from "react-bootstrap-icons";
 import { api, ApiError } from "@/api";
 import type { AppTarget, ColumnInfo, Row, TableInfo } from "@/api";
 import { Pagination } from "@/components/ui/Pagination/Pagination";
@@ -335,6 +335,16 @@ export function TableBrowser({ app }: { app: AppTarget }) {
                 >
                   <PlusLg size={14} />
                   Add row
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-soft text-nowrap d-flex align-items-center gap-2"
+                  onClick={() => void refreshAfterMutation()}
+                  disabled={rowsLoading}
+                  title="Reload this table's rows and the row counts"
+                >
+                  {rowsLoading ? <span className="spinner-border spinner-border-sm" /> : <ArrowClockwise size={14} />}
+                  Refresh
                 </button>
               </div>
             </div>

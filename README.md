@@ -343,6 +343,8 @@ sequenceDiagram
     end
 ```
 
+[![Architecture diagram of harshgupta38/shadow](https://gitdiagram.com/harshgupta38/shadow/diagram.png)](https://gitdiagram.com/harshgupta38/shadow?utm_source=readme&utm_medium=picture)
+
 ### Daily Report Generation
 
 ```

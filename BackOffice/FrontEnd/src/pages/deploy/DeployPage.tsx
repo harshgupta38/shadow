@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Dropdown, Modal } from "react-bootstrap";
 import {
   CloudArrowUpFill,
+  ArrowClockwise,
   ArrowCounterclockwise,
   ChevronLeft,
   ChevronRight,
@@ -12,7 +13,7 @@ import {
 } from "react-bootstrap-icons";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { api, ApiError } from "@/api";
-import type { AppTarget, CommitInfo, Deployment, DeployTarget, InstanceHealth } from "@/api";
+import type { AppTarget, CommitInfo, Deployment, InstanceHealth } from "@/api";
 import { formatDateTime, formatRelative, statusLabel, statusVariant } from "@/lib/format";
 import { createRestartWatch, describeRestart, expiredMessage, isUnreachable, usableInstance, waitingMessage } from "@/lib/restartWatch";
 
@@ -30,13 +31,12 @@ const UNKNOWN_GIT_REF = "(current branch)";
 const DEFAULT_BRANCH = "main";
 
 // What a deploy dialog opens pre-filled with — used by "New Deployment"
-// (nothing), "Redeploy" (a past deployment's own ref/label/description/
-// target), and "Deploy" on a commit (just its SHA).
+// (nothing), "Redeploy" (a past deployment's own ref/label/description),
+// and "Deploy" on a commit (just its SHA).
 interface DeployPrefill {
   git_ref: string;
   label?: string;
   description?: string;
-  target?: DeployTarget;
 }
 
 export function DeployPage({ app }: { app: AppTarget }) {
@@ -47,6 +47,7 @@ export function DeployPage({ app }: { app: AppTarget }) {
   // Once branches load it defaults to DEFAULT_BRANCH.
   const [selectedBranch, setSelectedBranch] = useState("");
   const [commits, setCommits] = useState<CommitInfo[]>([]);
+  const [commitsRefreshing, setCommitsRefreshing] = useState(false);
   const [deployments, setDeployments] = useState<Deployment[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -59,7 +60,6 @@ export function DeployPage({ app }: { app: AppTarget }) {
   const [formLabel, setFormLabel] = useState("");
   const [labelTouched, setLabelTouched] = useState(false);
   const [formDesc, setFormDesc] = useState("");
-  const [formTarget, setFormTarget] = useState<DeployTarget>("Backend");
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -97,7 +97,6 @@ export function DeployPage({ app }: { app: AppTarget }) {
     setFormLabel(prefill?.label ?? "");
     setLabelTouched(Boolean(prefill?.label));
     setFormDesc(prefill?.description ?? "");
-    setFormTarget(prefill?.target ?? "Backend");
     setFormError(null);
     setShowModal(true);
   }
@@ -141,6 +140,19 @@ export function DeployPage({ app }: { app: AppTarget }) {
     } catch {
       // The section just shows "no commit history available" — the
       // top-level loadError already covers a fully unreachable API.
+    }
+  }
+
+  // Pulls in commits (and branches) pushed since the page loaded. Listing a branch's commits already
+  // runs `git fetch origin` on the host first, so re-running it is what makes new ones appear.
+  async function refreshCommits() {
+    setCommitsRefreshing(true);
+    try {
+      const result = await api.deploy.branches(app).catch(() => null);
+      if (result) setBranches(result.branches); // the selection is left exactly as it is
+      await loadCommits();
+    } finally {
+      setCommitsRefreshing(false);
     }
   }
 
@@ -273,7 +285,6 @@ export function DeployPage({ app }: { app: AppTarget }) {
         git_ref: formRef.trim(),
         label: formLabel.trim(),
         description: formDesc.trim(),
-        target: formTarget,
       });
       setShowModal(false);
       setActiveJob(record);
@@ -351,7 +362,6 @@ export function DeployPage({ app }: { app: AppTarget }) {
             <thead>
               <tr>
                 <th>Label</th>
-                <th>Target</th>
                 <th>Date</th>
                 <th>Triggered By</th>
                 <th>Status</th>
@@ -361,7 +371,7 @@ export function DeployPage({ app }: { app: AppTarget }) {
             <tbody>
               {pageDeployments.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={{ textAlign: "center", color: "var(--jv-faint)", padding: "1.5rem" }}>
+                  <td colSpan={5} style={{ textAlign: "center", color: "var(--jv-faint)", padding: "1.5rem" }}>
                     {loading ? "Loading…" : "No deployments logged yet."}
                   </td>
                 </tr>
@@ -370,11 +380,6 @@ export function DeployPage({ app }: { app: AppTarget }) {
                   <tr key={d.id}>
                     <td>
                       <span className="dp-tag" title={d.description || undefined}>{d.label}</span>
-                    </td>
-                    <td>
-                      <span className={`deploy-target-pill deploy-target-pill--${d.target.toLowerCase()}`}>
-                        {d.target}
-                      </span>
                     </td>
                     <td style={{ color: "var(--jv-muted)", whiteSpace: "nowrap" }}>{formatRelative(d.started_at)}</td>
                     <td style={{ color: "var(--jv-muted)" }}>{d.triggered_by}</td>
@@ -412,7 +417,6 @@ export function DeployPage({ app }: { app: AppTarget }) {
                               git_ref: d.git_ref === UNKNOWN_GIT_REF ? "" : d.git_ref,
                               label: d.label,
                               description: d.description,
-                              target: d.target as DeployTarget,
                             })}
                           >
                             <CloudArrowUpFill size={14} /> Redeploy
@@ -466,19 +470,32 @@ export function DeployPage({ app }: { app: AppTarget }) {
       <div>
         <div className="d-flex align-items-center justify-content-between mb-2 flex-wrap gap-2">
           <h2 className="dp-section-title mb-0">Recent Commits</h2>
-          <select
-            className="form-control form-control-sm"
-            style={{ width: 240 }}
-            value={selectedBranch}
-            onChange={(e) => setSelectedBranch(e.target.value)}
-          >
-            {/* Genuinely blank, not a "current branch" placeholder — shown only
-                when selectedBranch is "" (HEAD detached, or still loading). */}
-            <option value="" />
-            {branches.map((b) => (
-              <option key={b} value={b}>{b}</option>
-            ))}
-          </select>
+          {/* stretch, not center: the button takes whatever height the dropdown renders at */}
+          <div className="d-flex align-items-stretch gap-2">
+            <select
+              className="form-control form-control-sm"
+              style={{ width: 240 }}
+              value={selectedBranch}
+              onChange={(e) => setSelectedBranch(e.target.value)}
+            >
+              {/* Genuinely blank, not a "current branch" placeholder — shown only
+                  when selectedBranch is "" (HEAD detached, or still loading). */}
+              <option value="" />
+              {branches.map((b) => (
+                <option key={b} value={b}>{b}</option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="btn btn-soft btn-sm d-flex align-items-center justify-content-center"
+              onClick={() => void refreshCommits()}
+              disabled={commitsRefreshing}
+              title="Fetch the latest commits and branches from origin"
+              aria-label="Refresh commits"
+            >
+              {commitsRefreshing ? <span className="spinner-border spinner-border-sm" /> : <ArrowClockwise size={14} />}
+            </button>
+          </div>
         </div>
         <div className="dp-table-wrap">
           <table className="dp-table">
@@ -597,27 +614,6 @@ export function DeployPage({ app }: { app: AppTarget }) {
                 onChange={(e) => setFormDesc(e.target.value)}
                 style={{ resize: "none" }}
               />
-            </div>
-            <div>
-              <label className="form-label">Deploy Target</label>
-              <div className="deploy-target-group">
-                {(["Frontend", "Backend", "Both"] as const).map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    className={`deploy-target-opt${formTarget === t ? " deploy-target-opt--active" : ""}`}
-                    onClick={() => setFormTarget(t)}
-                  >
-                    {t}
-                  </button>
-                ))}
-              </div>
-              {formTarget !== "Backend" && (
-                <div className="form-text">
-                  Only the backend is redeployed automatically. Frontend changes are deployed
-                  separately (Firebase Hosting) and aren't triggered from here.
-                </div>
-              )}
             </div>
           </Modal.Body>
           <Modal.Footer>

@@ -23,7 +23,6 @@ class DeploymentLogDBM(Base):
     # "pull latest on the tracked branch").
     label: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str] = mapped_column(Text, default="", nullable=False)
-    target: Mapped[str] = mapped_column(String(16), default="Backend", nullable=False)
 
     # Which co-located app this deploy/rollback was against — "shadow" or
     # "backoffice". Added via ensure_columns (see db/session.py) for

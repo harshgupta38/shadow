@@ -145,10 +145,10 @@ def list_recent_commits(limit: int = 10, branch: str | None = None, app: str = "
 
 
 def create_deployment_record(
-    db: Session, git_ref: str, label: str, description: str, target: str, triggered_by: str, app: str = "shadow",
+    db: Session, git_ref: str, label: str, description: str, triggered_by: str, app: str = "shadow",
 ) -> DeploymentLogDBM:
     log = DeploymentLogDBM(
-        label=label, description=description, target=target, app=app, kind="deploy",
+        label=label, description=description, app=app, kind="deploy",
         git_ref=git_ref, status="running", triggered_by=triggered_by,
     )
     db.add(log)
@@ -178,7 +178,7 @@ def _is_branch_ref(ref: str, app: str = "shadow") -> bool:
 
 def create_rollback_record(db: Session, commit_sha: str, description: str, triggered_by: str, app: str = "shadow") -> DeploymentLogDBM:
     log = DeploymentLogDBM(
-        label=f"rollback:{commit_sha[:7]}", description=description, target="Backend", app=app,
+        label=f"rollback:{commit_sha[:7]}", description=description, app=app,
         kind="rollback", git_ref=commit_sha, status="running", triggered_by=triggered_by,
     )
     db.add(log)
@@ -227,7 +227,7 @@ def _finish(db: Session, log: DeploymentLogDBM, status: str, lines: list[str]) -
     db.commit()
 
 
-def run_deploy_job(deployment_id: int, git_ref: str, target: str, app: str = "shadow") -> None:
+def run_deploy_job(deployment_id: int, git_ref: str, app: str = "shadow") -> None:
     """Runs as a FastAPI BackgroundTask — opens its own DB session since the
     request-scoped one is already closed by the time this executes.
 
@@ -271,13 +271,6 @@ def run_deploy_job(deployment_id: int, git_ref: str, target: str, app: str = "sh
         if resp.status_code >= 400:
             _finish(db, log, "failed", lines)
             return
-
-        if target != "Backend":
-            lines.append(
-                "NOTE: only the backend is redeployed by this action — frontend "
-                "changes are not automated here (Firebase Hosting is a separate "
-                "pipeline) and must be deployed independently."
-            )
 
         healthy = shadow_client.wait_for_restart(app)
         lines.append(

@@ -51,8 +51,8 @@ def new_deployment(
 ):
     git_ref = body.git_ref.strip()
     label = body.label.strip() or git_ref
-    log = deploy_service.create_deployment_record(db, git_ref, label, body.description, body.target, admin.email, app)
-    background_tasks.add_task(deploy_service.run_deploy_job, log.id, git_ref, body.target, app)
+    log = deploy_service.create_deployment_record(db, git_ref, label, body.description, admin.email, app)
+    background_tasks.add_task(deploy_service.run_deploy_job, log.id, git_ref, app)
     return log
 
 

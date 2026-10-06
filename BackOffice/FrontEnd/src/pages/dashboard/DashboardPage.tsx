@@ -70,7 +70,7 @@ export function DashboardPage() {
           variant={lastDeployment ? statusVariant(lastDeployment.status) : "brand"}
           value={lastDeployment ? lastDeployment.label : loading ? "…" : "—"}
           name="Last Deployment"
-          hint={lastDeployment ? `${lastDeployment.target} · ${formatRelative(lastDeployment.started_at)}` : "No deployments yet"}
+          hint={lastDeployment ? formatRelative(lastDeployment.started_at) : "No deployments yet"}
         />
         <StatCard
           variant={health?.reachable ? "success" : "warn"}
@@ -100,7 +100,6 @@ export function DashboardPage() {
             <thead>
               <tr>
                 <th>Label</th>
-                <th>Target</th>
                 <th>Date</th>
                 <th>Triggered By</th>
                 <th>Status</th>
@@ -109,7 +108,7 @@ export function DashboardPage() {
             <tbody>
               {deployments.length === 0 ? (
                 <tr>
-                  <td colSpan={5} style={{ textAlign: "center", color: "var(--jv-faint)", padding: "1.5rem" }}>
+                  <td colSpan={4} style={{ textAlign: "center", color: "var(--jv-faint)", padding: "1.5rem" }}>
                     {loading ? "Loading…" : "No deployments yet."}
                   </td>
                 </tr>
@@ -117,7 +116,6 @@ export function DashboardPage() {
                 deployments.map((d) => (
                   <tr key={d.id}>
                     <td><span className="dp-tag">{d.label}</span></td>
-                    <td style={{ color: "var(--jv-muted)" }}>{d.target}</td>
                     <td style={{ color: "var(--jv-muted)" }}>{formatDate(d.started_at)}</td>
                     <td style={{ color: "var(--jv-muted)" }}>{d.triggered_by}</td>
                     <td>

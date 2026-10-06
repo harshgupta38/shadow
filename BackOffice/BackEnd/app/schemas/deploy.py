@@ -11,7 +11,6 @@ class NewDeploymentRequest(BaseModel):
     # Blank defaults to git_ref itself — see new_deployment() in api/deploy.py.
     label: str = ""
     description: str = ""
-    target: str = "Backend"  # Frontend | Backend | Both — informational; see deploy_service
 
 
 class RollbackRequest(BaseModel):
@@ -25,7 +24,6 @@ class DeploymentResponse(BaseModel):
     id: int
     label: str
     description: str
-    target: str
     kind: str
     git_ref: str
     commit_sha: str | None

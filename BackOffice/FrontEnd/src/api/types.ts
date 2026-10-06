@@ -22,7 +22,6 @@ export interface LoginResponse {
 }
 
 // ─── Deploy ─────────────────────────────────────────────────────────────────
-export type DeployTarget = "Frontend" | "Backend" | "Both";
 export type DeploymentKind = "deploy" | "rollback";
 /** What BackOffice's public /health returns; instance_id changes whenever the process restarts. */
 export interface InstanceHealth {
@@ -37,7 +36,6 @@ export interface Deployment {
   id: number;
   label: string;
   description: string;
-  target: DeployTarget;
   kind: DeploymentKind;
   git_ref: string;
   commit_sha: string | null;
@@ -56,7 +54,6 @@ export interface NewDeploymentRequest {
   // Blank defaults to git_ref on the backend.
   label?: string;
   description?: string;
-  target: DeployTarget;
 }
 
 export interface RollbackRequest {

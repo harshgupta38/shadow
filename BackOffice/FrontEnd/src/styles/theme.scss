@@ -1352,29 +1352,6 @@ h1, h2, h3, h4, h5, h6, .display-font {
   white-space: nowrap;
 }
 
-.deploy-target-pill {
-  font-size: 0.72rem;
-  font-weight: 600;
-  border-radius: var(--jv-radius-pill);
-  padding: 0.15rem 0.6rem;
-  white-space: nowrap;
-
-  &--frontend {
-    background: var(--jv-brand-soft);
-    color: var(--jv-brand-1);
-  }
-
-  &--backend {
-    background: var(--jv-info-soft);
-    color: var(--jv-info);
-  }
-
-  &--both {
-    background: var(--jv-success-soft);
-    color: var(--jv-success);
-  }
-}
-
 .deploy-pagination {
   display: flex;
   align-items: center;
@@ -1487,32 +1464,6 @@ h1, h2, h3, h4, h5, h6, .display-font {
   font-weight: 700;
   color: var(--jv-text);
   margin: 0;
-}
-
-.deploy-target-group {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.deploy-target-opt {
-  flex: 1;
-  padding: 0.45rem 0;
-  border: 1.5px solid var(--jv-border-strong);
-  border-radius: var(--jv-radius-sm);
-  background: transparent;
-  color: var(--jv-muted);
-  font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: border-color var(--jv-transition), background var(--jv-transition), color var(--jv-transition);
-
-  &:hover { border-color: var(--jv-brand-1); color: var(--jv-text); }
-
-  &--active {
-    border-color: var(--jv-brand-1);
-    background: var(--jv-brand-soft);
-    color: var(--jv-brand-1);
-  }
 }
 
 // ── Database page — tabs ────────────────────────────────────────────────────────

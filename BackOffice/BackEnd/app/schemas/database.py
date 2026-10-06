@@ -63,6 +63,15 @@ class SqlQueryResponse(BaseModel):
     page_size: int = 15
 
 
+class SqlSplitRequest(BaseModel):
+    query: str
+
+
+class SqlSplitResponse(BaseModel):
+    # The statements of a pasted script, in order, each ready to run on its own.
+    statements: list[str]
+
+
 class SqlHistoryEntry(BaseModel):
     id: int
     query: str

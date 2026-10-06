@@ -2231,6 +2231,87 @@ h1, h2, h3, h4, h5, h6, .display-font {
   font-weight: 700;
 }
 
+// A pasted script run statement by statement: one block per statement, with its state at the edge.
+.sql-console-script {
+  padding-left: 0.75rem;
+  border-left: 2px solid var(--jv-brand-1);
+}
+
+.sql-console-script-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.78rem;
+  color: var(--jv-term-text);
+}
+
+.sql-console-script-status {
+  font-size: 0.74rem;
+  color: var(--jv-term-muted);
+
+  &--running { color: var(--jv-brand-1); }
+  &--done { color: var(--jv-success); }
+  &--failed { color: var(--jv-danger); }
+  &--stopped { color: var(--jv-warn); }
+}
+
+.sql-console-script-warn {
+  margin-bottom: 0.6rem;
+  padding: 0.35rem 0.6rem;
+  font-size: 0.74rem;
+  color: var(--jv-warn);
+  background: var(--jv-warn-soft);
+  border-radius: var(--jv-radius-sm);
+}
+
+.sql-console-step {
+  margin-bottom: 0.8rem;
+  padding-left: 0.7rem;
+  border-left: 2px solid var(--jv-term-border);
+
+  &--running { border-left-color: var(--jv-brand-1); }
+  &--done { border-left-color: var(--jv-success); }
+  &--failed { border-left-color: var(--jv-danger); }
+
+  // Not reached (or skipped): dimmed and kept to one line so a long script doesn't fill the screen.
+  &--queued,
+  &--skipped {
+    opacity: 0.6;
+
+    .sql-console-query-line {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+}
+
+.sql-console-step-no {
+  margin-right: 0.55rem;
+  font-size: 0.7rem;
+  color: var(--jv-term-muted);
+}
+
+.sql-console-script-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.4rem;
+  font-size: 0.78rem;
+  color: var(--jv-term-text);
+}
+
+// "ran 2h ago" after a query that was restored from the saved history when the console opened.
+.sql-console-restored-note {
+  margin-left: 0.6rem;
+  font-size: 0.7rem;
+  color: var(--jv-term-muted);
+  white-space: nowrap;
+}
+
 // A saved query and its saved output, recalled with ↑ — set apart from a live run so it can't be
 // mistaken for something that just executed.
 .sql-console-entry--saved {
@@ -2406,14 +2487,21 @@ h1, h2, h3, h4, h5, h6, .display-font {
 // picks up the body's own padding/font instead of carrying its own.
 .sql-console-input-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start; // the prompt stays on the first line while the box grows with a pasted script
   gap: 0.6rem;
   margin-top: 0.4rem;
+  line-height: 1.5;
 }
 
 .sql-console-input {
   flex: 1;
   min-width: 0;
+  padding: 0;
+  margin: 0;
+  resize: none; // grown from its content instead (see SqlConsole)
+  overflow-y: auto;
+  max-height: 16rem;
+  line-height: 1.5;
   background: transparent;
   border: none;
   outline: none;

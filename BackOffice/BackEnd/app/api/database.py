@@ -18,10 +18,12 @@ from app.schemas.database import (
     SqlHistoryEntry,
     SqlQueryRequest,
     SqlQueryResponse,
+    SqlSplitRequest,
+    SqlSplitResponse,
     TableInfo,
     UpdateRowRequest,
 )
-from app.services import backoffice_db_service, database_service, shadow_db_service, sql_history_service
+from app.services import backoffice_db_service, database_service, shadow_db_service, sql_history_service, sql_script_service
 
 router = APIRouter(prefix=ENDPOINTS.DATABASE.PREFIX, tags=["Database"])
 
@@ -110,6 +112,12 @@ def run_query(app: str, body: SqlQueryRequest, db: DbSession, admin: CurrentAdmi
             result=result, duration_ms=round((time.perf_counter() - started) * 1000),
         )
     return result
+
+
+@router.post(ENDPOINTS.DATABASE.SPLIT_SQL, response_model=SqlSplitResponse)
+def split_sql(app: str, body: SqlSplitRequest, _admin: CurrentAdmin):
+    _db_service_for(app)
+    return {"statements": sql_script_service.split_statements(body.query)}
 
 
 @router.get(ENDPOINTS.DATABASE.SQL_HISTORY, response_model=list[SqlHistoryEntry])

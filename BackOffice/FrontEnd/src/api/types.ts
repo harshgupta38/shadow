@@ -128,6 +128,11 @@ export interface SqlQueryResponse {
   page_size: number;
 }
 
+export interface SqlSplitResponse {
+  // The statements of a pasted script, in order, each ready to run on its own.
+  statements: string[];
+}
+
 /** One saved run from the SQL Console's history. */
 export interface SqlHistoryEntry {
   id: number;

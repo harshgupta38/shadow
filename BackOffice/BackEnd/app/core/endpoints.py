@@ -33,6 +33,7 @@ class Endpoints:
         BLOB = "/tables/{table_name}/blob"
         QUERY = "/query"
         SQL_HISTORY = "/sql-history"
+        SPLIT_SQL = "/split-sql"
         BACKUPS = "/backups"
         BACKUP_FILE = "/backups/{filename}"
         BACKUP_RESTORE = "/backups/{filename}/restore"

@@ -1,6 +1,6 @@
 import { http, httpBlob } from "./client";
 import { ENDPOINTS } from "@/constant/bo-endpoints";
-import type { AppTarget, BackupInfo, DeleteBackupResponse, RestoreBackupResponse, Row, RowsResponse, SqlHistoryEntry, SqlQueryResponse, TableInfo } from "./types";
+import type { AppTarget, BackupInfo, DeleteBackupResponse, RestoreBackupResponse, Row, RowsResponse, SqlHistoryEntry, SqlQueryResponse, SqlSplitResponse, TableInfo } from "./types";
 
 export const databaseApi = {
   async listTables(app: AppTarget): Promise<TableInfo[]> {
@@ -41,6 +41,12 @@ export const databaseApi = {
     return http.post<SqlQueryResponse>(ENDPOINTS.DATABASE.query(app), {
       query, page, page_size: pageSize, record_history: recordHistory,
     });
+  },
+  // Splits a pasted script into its statements using SQLite's own parser (server side), so a
+  // semicolon inside a string, a comment or a trigger body is never mistaken for a statement end.
+  async splitSql(app: AppTarget, query: string): Promise<string[]> {
+    const res = await http.post<SqlSplitResponse>(ENDPOINTS.DATABASE.splitSql(app), { query });
+    return res.statements;
   },
   async sqlHistory(app: AppTarget): Promise<SqlHistoryEntry[]> {
     return http.get<SqlHistoryEntry[]>(ENDPOINTS.DATABASE.sqlHistory(app));

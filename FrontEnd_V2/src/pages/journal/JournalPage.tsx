@@ -1,7 +1,7 @@
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BookHalf, CheckLg, ChevronLeft, ChevronRight, ExclamationCircleFill } from "react-bootstrap-icons";
+import { BookHalf, CalendarCheck, CheckLg, ChevronLeft, ChevronRight, ExclamationCircleFill } from "react-bootstrap-icons";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { todayIso } from "@/services/date.service";
 import { api } from "@/api";
@@ -183,6 +183,11 @@ export function JournalPage() {
         setSelectedDate(dates[6]);
     }
 
+    function goToToday() {
+        setWeekOffset(0);
+        setSelectedDate(TODAY);
+    }
+
     function nextWeek() {
         if (!canGoNext) return;
         const newOffset = weekOffset + 1;
@@ -198,6 +203,13 @@ export function JournalPage() {
                 title="Journal"
                 subtitle="Reflect on your day — thoughts that are written are thoughts that last."
                 icon={<BookHalf size={20} />}
+                actions={weekOffset === 0 ? [] : [{
+                    key: "today",
+                    label: "Today",
+                    icon: <CalendarCheck size={14} />,
+                    onClick: goToToday,
+                    tone: "soft",
+                }]}
             />
 
             {/* ── Week strip ─────────────────────────────────────────── */}
@@ -253,7 +265,7 @@ export function JournalPage() {
             </div>
 
             {/* ── Editor ─────────────────────────────────────────────── */}
-            <div className="surface jnl-editor">
+            <div className="surface jnl-editor mt-3">
                 <div className="jnl-editor-head">
                     <span className="jnl-editor-date">{fmtDisplayDate(selectedDate)}</span>
                     <span className="jnl-save-indicator">

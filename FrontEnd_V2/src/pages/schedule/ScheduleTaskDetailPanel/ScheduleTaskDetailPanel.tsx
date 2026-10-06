@@ -11,6 +11,7 @@ import { CATEGORY_ICONS } from "@/pages/schedule/ScheduleWizard/ScheduleWizard.c
 import { PriorityIcon } from "@/constant/priority";
 import { ANIMATION } from "@/constant/tuning";
 import { SubtasksSection } from "@/pages/schedule/ScheduleTaskDetailPanel/SubtasksSection";
+import { TaskRangeCalendar } from "@/pages/schedule/ScheduleTaskDetailPanel/TaskRangeCalendar";
 
 import "@/pages/my_goals/GoalCreationWizard/GoalCreationWizard.scss";
 import "@/pages/my_goals/GoalTaskWizard/GoalTaskWizardPage.scss";
@@ -64,6 +65,7 @@ interface ScheduleTaskDetailPanelProps {
 
 export function ScheduleTaskDetailPanel({ task, onClose, onEdit, onDuplicate, onDelete, onSubtasksChanged }: ScheduleTaskDetailPanelProps) {
     const [isClosing, setIsClosing] = useState(false);
+    const [calendarRequestedDate, setCalendarRequestedDate] = useState<string | null>(null);
 
     function requestClose() {
         if (isClosing) return;
@@ -217,12 +219,22 @@ export function ScheduleTaskDetailPanel({ task, onClose, onEdit, onDuplicate, on
                     </div>
 
                     {task.task_duration === "long" && task.end_date && (
-                        <SubtasksSection
-                            taskId={task.id}
-                            minDate={task.scheduled_date}
-                            maxDate={task.end_date}
-                            onSubtasksChanged={onSubtasksChanged}
-                        />
+                        <>
+                            <TaskRangeCalendar
+                                startDate={task.scheduled_date}
+                                endDate={task.end_date}
+                                subtaskDates={task.subtasks.map(s => s.subtask_date)}
+                                onDateClick={setCalendarRequestedDate}
+                            />
+                            <SubtasksSection
+                                taskId={task.id}
+                                minDate={task.scheduled_date}
+                                maxDate={task.end_date}
+                                onSubtasksChanged={onSubtasksChanged}
+                                requestedDate={calendarRequestedDate}
+                                onRequestedDateConsumed={() => setCalendarRequestedDate(null)}
+                            />
+                        </>
                     )}
                 </div>
 

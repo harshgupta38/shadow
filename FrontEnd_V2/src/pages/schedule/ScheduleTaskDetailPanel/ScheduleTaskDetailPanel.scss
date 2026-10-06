@@ -357,3 +357,139 @@ textarea.subtask-textarea {
     &:disabled { opacity: 0.6; }
 }
 
+// ── Task range calendar (desktop only) ───────────────────────────────────────
+
+.task-range-calendar {
+    display: none; // hidden on mobile/tablet
+
+    @media (min-width: 768px) {
+        display: block;
+        padding: 0.9rem 0 0.6rem;
+        border-top: 1px solid var(--jv-border);
+    }
+}
+
+.trc-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.55rem;
+}
+
+.trc-month-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--jv-text);
+    letter-spacing: 0.01em;
+}
+
+.trc-nav {
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    color: var(--jv-muted);
+
+    &:hover:not(:disabled) { color: var(--jv-text); }
+    &:disabled { opacity: 0.25; cursor: default; }
+}
+
+.trc-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+}
+
+.trc-weekday {
+    font-size: 0.62rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--jv-muted);
+    text-align: center;
+    padding-bottom: 0.35rem;
+}
+
+.trc-cell {
+    position: relative;
+    height: 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    // range band via pseudo-element so the number circle sits on top cleanly
+    &::before {
+        content: '';
+        position: absolute;
+        top: 3px;
+        bottom: 3px;
+        left: 0;
+        right: 0;
+        background: transparent;
+        pointer-events: none;
+    }
+
+    &.is-in-range::before { background: var(--jv-brand-soft); }
+
+    // Range start: band begins at the circle center, extends right — no left cap
+    &.is-range-start::before { left: 50%; }
+    // Range end: band ends at the circle center, extends left — no right cap
+    &.is-range-end::before   { right: 50%; }
+    // Single-day range: no band
+    &.is-range-start.is-range-end::before { background: transparent; }
+
+    // Hoverable in-range cells
+    &.is-in-range {
+        cursor: pointer;
+        &:hover .trc-num { background: color-mix(in srgb, var(--jv-brand-1) 18%, transparent); }
+    }
+
+    // Row-start (Sunday) in range, not the task start: rounded left pill cap
+    &.is-band-left:not(.is-range-start)::before {
+        left: 4px;
+        border-radius: 12px 0 0 12px;
+    }
+    // Row-end (Saturday) in range, not the task end: rounded right pill cap
+    &.is-band-right:not(.is-range-end)::before {
+        right: 4px;
+        border-radius: 0 12px 12px 0;
+    }
+}
+
+.trc-num {
+    position: relative;
+    z-index: 1;
+    font-size: 0.72rem;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    color: var(--jv-muted);
+
+    .is-in-range & { color: var(--jv-text); }
+
+    .is-range-start &,
+    .is-range-end & {
+        background: var(--jv-brand-1);
+        color: #fff;
+        font-weight: 600;
+    }
+
+    .is-today:not(.is-range-start):not(.is-range-end) & {
+        border: 1.5px solid var(--jv-brand-1);
+        color: var(--jv-brand-1);
+    }
+}
+
+.trc-dot {
+    position: absolute;
+    bottom: 2px;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--jv-brand-1);
+    z-index: 1;
+    opacity: 0.7;
+}
+

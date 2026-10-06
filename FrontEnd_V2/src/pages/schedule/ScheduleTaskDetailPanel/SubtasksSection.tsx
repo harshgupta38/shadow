@@ -15,6 +15,8 @@ interface SubtasksSectionProps {
     minDate: string; // YYYY-MM-DD — task start
     maxDate: string; // YYYY-MM-DD — task end
     onSubtasksChanged?: () => void;
+    requestedDate?: string | null;       // set by calendar click to pre-open add form
+    onRequestedDateConsumed?: () => void;
 }
 
 interface FormState {
@@ -28,7 +30,7 @@ const PLANNER_MODE_LABEL: Record<SubtaskPlannerMode, string> = {
     highlight: "Just highlight",
 };
 
-export function SubtasksSection({ taskId, minDate, maxDate, onSubtasksChanged }: SubtasksSectionProps) {
+export function SubtasksSection({ taskId, minDate, maxDate, onSubtasksChanged, requestedDate, onRequestedDateConsumed }: SubtasksSectionProps) {
     const dateFormat = useDateFormat();
     const toast = useToast();
     const [subtasks, setSubtasks] = useState<SubtaskResponse[]>([]);
@@ -50,6 +52,15 @@ export function SubtasksSection({ taskId, minDate, maxDate, onSubtasksChanged }:
         }).catch(() => { if (alive) setLoading(false); });
         return () => { alive = false; };
     }, [taskId]);
+
+    useEffect(() => {
+        if (!requestedDate) return;
+        setEditingId(null);
+        setForm({ date: requestedDate, text: "", plannerMode: "highlight" });
+        setError(null);
+        setShowForm(true);
+        onRequestedDateConsumed?.();
+    }, [requestedDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
         if (showForm && textRef.current) {

@@ -248,7 +248,10 @@
     }
 
     .ql-editor {
-        min-height: 220px;
+        // 360px accounts for: navbar + page header + week strip + editor head + toolbar + mood row
+        min-height: 180px;
+        max-height: calc(100vh - 450px);
+        overflow-y: auto;
         padding: 1rem 1.25rem;
         color: var(--jv-text);
         line-height: 1.78;
@@ -278,22 +281,6 @@
         }
     }
 }
-
-// ─── Future date state ────────────────────────────────────────────────────────
-
-.jnl-future-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 3rem 1.5rem;
-    text-align: center;
-    gap: 0.35rem;
-}
-
-.jnl-future-emoji { font-size: 2rem; line-height: 1; margin-bottom: 0.2rem; }
-.jnl-future-msg   { font-size: 0.88rem; font-weight: 600; color: var(--jv-text); margin: 0; }
-.jnl-future-hint  { font-size: 0.78rem; color: var(--jv-muted); margin: 0; }
 
 // ─── Responsive ───────────────────────────────────────────────────────────────
 

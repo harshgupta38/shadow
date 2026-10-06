@@ -4,25 +4,36 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BookHalf, CheckLg, ChevronLeft, ChevronRight, ExclamationCircleFill } from "react-bootstrap-icons";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { todayIso } from "@/services/date.service";
-import { api, ApiError } from "@/api";
+import { api } from "@/api";
 import type { JournalEntryResponse, JournalMood } from "@/api/types";
 import { MOODS, fmtDisplayDate } from "@/pages/journal/JournalPage.constants";
+import { TIMING } from "@/constant/tuning";
 import "@/pages/journal/JournalPage.scss";
 
 type SaveState = "idle" | "saving" | "saved" | "error";
+type WeekStatus = "loading" | "ready" | "error";
+interface PendingEdit { date: string; mood: JournalMood | null; text: string }
+
+// Quill represents an empty document as this markup; store it as an empty string.
+function normalizeQuillHtml(html: string): string {
+    return html === "<p><br></p>" ? "" : html;
+}
 
 const DAY_ABBR = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 const QUILL_MODULES = {
-    toolbar: [
-        ["bold", "italic", "underline", "strike"],
-        [{ list: "ordered" }, { list: "bullet" }],
-        ["blockquote"],
-        ["clean"],
-    ],
+	toolbar: [
+		[{ header: [2, 3, 4, false] }],
+		["bold", "italic", "underline"], 
+		[{ color: [] }, { background: [] }],
+		[{ list: "ordered" }, { list: "bullet" }],
+		["blockquote", "code-block"],
+		["link"],
+		["clean"],
+	],
 };
 
-const QUILL_FORMATS = ["bold", "italic", "underline", "strike", "list", "bullet", "blockquote"];
+const QUILL_FORMATS = ["header", "bold", "italic", "underline", "color", "background", "list", "bullet", "blockquote", "code-block", "link"];
 
 function computeWeekDates(today: string, offset: number): string[] {
     const todayDate = new Date(today + "T00:00:00");
@@ -47,85 +58,120 @@ export function JournalPage() {
     const [mood, setMood]           = useState<JournalMood | null>(null);
     const [text, setText]           = useState("");
     const [saveState, setSaveState] = useState<SaveState>("idle");
+    const [weekStatus, setWeekStatus] = useState<Record<string, WeekStatus>>({});
     const saveTimerRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
     const savedTimerRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
     const currentDateRef = useRef(selectedDate);
-    // Quill fires onChange when value prop changes externally; suppress that save.
-    const isSettlingRef  = useRef(false);
+    // The one edit the user made that hasn't reached the server yet. Only user actions set this.
+    const pendingRef     = useRef<PendingEdit | null>(null);
+    const entryMapRef    = useRef(entryMap);
+    const weekStatusRef  = useRef(weekStatus);
+    entryMapRef.current   = entryMap;
+    weekStatusRef.current = weekStatus;
 
     const weekDates = useMemo(() => computeWeekDates(TODAY, weekOffset), [TODAY, weekOffset]);
     const canGoNext = weekOffset < 0;
+    const weekStart = weekDates[0];
+    const status    = weekStatus[weekStart];
+    // The editor is locked until the visible week's entries are known, so a blank editor can
+    // never be saved over an entry that simply hasn't arrived yet.
+    const isReady   = status === "ready";
 
-    // ── Load entries for months visible in current week ───────────────────────
+    // ── Persist ───────────────────────────────────────────────────────────────
+
+    // Sends the pending user edit immediately. Safe to call with nothing pending.
+    function flushSave() {
+        if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null; }
+        const edit = pendingRef.current;
+        if (!edit) return;
+        pendingRef.current = null;
+
+        const isCurrent = () => currentDateRef.current === edit.date;
+        const isBlank   = edit.mood === null && edit.text === "";
+        if (isBlank && !entryMapRef.current.has(edit.date)) {
+            if (isCurrent()) setSaveState("idle");
+            return;
+        }
+
+        void api.journal.upsertEntry(edit.date, { mood: edit.mood, text: edit.text })
+            .then(entry => {
+                setEntryMap(prev => new Map(prev).set(entry.entry_date, entry));
+                if (!isCurrent()) return;
+                setSaveState("saved");
+                savedTimerRef.current = setTimeout(() => setSaveState("idle"), TIMING.JOURNAL_SAVED_BANNER_MS);
+            })
+            .catch(() => {
+                if (!isCurrent()) return;
+                setSaveState("error");
+                savedTimerRef.current = setTimeout(() => setSaveState("idle"), TIMING.JOURNAL_ERROR_BANNER_MS);
+            });
+    }
+
+    function scheduleSave(date: string, newMood: JournalMood | null, newText: string) {
+        if (saveTimerRef.current)  clearTimeout(saveTimerRef.current);
+        if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+        pendingRef.current = { date, mood: newMood, text: newText };
+        setSaveState("saving");
+        saveTimerRef.current = setTimeout(flushSave, TIMING.JOURNAL_SAVE_DEBOUNCE_MS);
+    }
+
+    // Don't lose an edit made just before leaving the page.
+    useEffect(() => () => flushSave(), []); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // ── Load entries for the visible week ─────────────────────────────────────
 
     const loadWeekEntries = useCallback(() => {
-        const monthKeys = new Set(weekDates.map(iso => iso.slice(0, 7)));
-        for (const ym of monthKeys) {
-            const [y, m] = ym.split("-").map(Number);
-            void api.journal.getMonthEntries(y, m)
-                .then(entries => {
-                    setEntryMap(prev => {
-                        const next = new Map(prev);
-                        for (const e of entries) next.set(e.entry_date, e);
-                        return next;
-                    });
-                })
-                .catch(() => {});
-        }
+        const start = weekDates[0];
+        const end   = weekDates[6];
+        if (weekStatusRef.current[start] === "ready") return;
+
+        setWeekStatus(prev => ({ ...prev, [start]: "loading" }));
+        void api.journal.getEntries(start, end)
+            .then(entries => {
+                setEntryMap(prev => {
+                    const next = new Map(prev);
+                    for (const e of entries) next.set(e.entry_date, e);
+                    return next;
+                });
+                setWeekStatus(prev => ({ ...prev, [start]: "ready" }));
+                // The editor was locked while loading, so there are no user edits to protect.
+                const entry = entries.find(e => e.entry_date === currentDateRef.current);
+                if (entry) {
+                    setMood(entry.mood ?? null);
+                    setText(entry.text ?? "");
+                }
+            })
+            .catch(() => setWeekStatus(prev => ({ ...prev, [start]: "error" })));
     }, [weekDates]);
 
     useEffect(() => { loadWeekEntries(); }, [loadWeekEntries]);
 
-    // ── Sync editor when selected date changes ────────────────────────────────
+    // ── Show the selected date's entry when the selection changes ─────────────
 
     useEffect(() => {
-        if (saveTimerRef.current)  clearTimeout(saveTimerRef.current);
-        if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+        flushSave(); // persist anything typed on the previous date before leaving it
+        if (savedTimerRef.current) { clearTimeout(savedTimerRef.current); savedTimerRef.current = null; }
         currentDateRef.current = selectedDate;
-        isSettlingRef.current = true;
-        const entry = entryMap.get(selectedDate);
+        const entry = entryMapRef.current.get(selectedDate);
         setMood(entry?.mood ?? null);
         setText(entry?.text ?? "");
         setSaveState("idle");
-        requestAnimationFrame(() => { isSettlingRef.current = false; });
     }, [selectedDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // ── Auto-save ─────────────────────────────────────────────────────────────
-
-    function scheduleSave(targetDate: string, newMood: JournalMood | null, newText: string) {
-        if (saveTimerRef.current)  clearTimeout(saveTimerRef.current);
-        if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
-        setSaveState("saving");
-        saveTimerRef.current = setTimeout(() => {
-            void api.journal.upsertEntry(targetDate, { mood: newMood, text: newText })
-                .then(entry => {
-                    if (currentDateRef.current !== targetDate) return;
-                    setEntryMap(prev => {
-                        const next = new Map(prev);
-                        next.set(entry.entry_date, entry);
-                        return next;
-                    });
-                    setSaveState("saved");
-                    savedTimerRef.current = setTimeout(() => setSaveState("idle"), 2200);
-                })
-                .catch(err => {
-                    if (currentDateRef.current !== targetDate) return;
-                    if (err instanceof ApiError && err.status === 404) { setSaveState("idle"); return; }
-                    setSaveState("error");
-                    savedTimerRef.current = setTimeout(() => setSaveState("idle"), 3000);
-                });
-        }, 800);
-    }
+    // ── User actions (the only paths that may save) ───────────────────────────
 
     function handleMoodClick(m: JournalMood) {
+        if (!isReady) return;
         const next = mood === m ? null : m;
         setMood(next);
-        scheduleSave(selectedDate, next, text);
+        scheduleSave(selectedDate, next, normalizeQuillHtml(text));
     }
 
-    function handleQuillChange(val: string) {
+    // Quill reports programmatic value changes with source "api"; only "user" is a real edit.
+    function handleQuillChange(val: string, _delta: unknown, source: string) {
+        if (source !== "user") return;
         setText(val);
-        if (!isSettlingRef.current) scheduleSave(selectedDate, mood, val);
+        scheduleSave(selectedDate, mood, normalizeQuillHtml(val));
     }
 
     // ── Week navigation ───────────────────────────────────────────────────────
@@ -144,14 +190,7 @@ export function JournalPage() {
         setSelectedDate(newOffset === 0 ? TODAY : computeWeekDates(TODAY, newOffset)[6]);
     }
 
-    function selectDate(iso: string) {
-        if (iso > TODAY) return;
-        setSelectedDate(iso);
-    }
-
     // ── Render ────────────────────────────────────────────────────────────────
-
-    const isFutureSelected = selectedDate > TODAY;
 
     return (
         <section className="jnl-page">
@@ -190,7 +229,7 @@ export function JournalPage() {
                                         isSelected && "is-selected",
                                         isFuture   && "is-future",
                                     ].filter(Boolean).join(" ")}
-                                    onClick={() => selectDate(iso)}
+                                    onClick={() => setSelectedDate(iso)}
                                     aria-label={iso}
                                     aria-pressed={isSelected}
                                 >
@@ -218,51 +257,50 @@ export function JournalPage() {
                 <div className="jnl-editor-head">
                     <span className="jnl-editor-date">{fmtDisplayDate(selectedDate)}</span>
                     <span className="jnl-save-indicator">
+                        {status === "error" && (
+                            <span className="jnl-save-error">
+                                <ExclamationCircleFill size={12} /> Couldn't load entries{" "}
+                                <button type="button" className="btn btn-link btn-sm p-0 align-baseline" onClick={loadWeekEntries}>Retry</button>
+                            </span>
+                        )}
+                        {status !== "error" && !isReady && <span className="jnl-saving">Loading…</span>}
                         {saveState === "saving" && <span className="jnl-saving">Saving…</span>}
                         {saveState === "saved"  && <span className="jnl-saved"><CheckLg size={12} /> Saved</span>}
                         {saveState === "error"  && <span className="jnl-save-error"><ExclamationCircleFill size={12} /> Couldn't save</span>}
                     </span>
                 </div>
 
-                {isFutureSelected ? (
-                    <div className="jnl-future-state">
-                        <span className="jnl-future-emoji">🔮</span>
-                        <p className="jnl-future-msg">You can't journal a future date.</p>
-                        <p className="jnl-future-hint">Come back when the day arrives.</p>
-                    </div>
-                ) : (
-                    <>
-                        <ReactQuill
-                            className="jnl-quill"
-                            theme="snow"
-                            value={text}
-                            onChange={handleQuillChange}
-                            modules={QUILL_MODULES}
-                            formats={QUILL_FORMATS}
-                            placeholder="What happened today? What's on your mind?"
-                        />
+                <ReactQuill
+                    className="jnl-quill"
+                    theme="snow"
+                    value={text}
+                    onChange={handleQuillChange}
+                    readOnly={!isReady}
+                    modules={QUILL_MODULES}
+                    formats={QUILL_FORMATS}
+                    placeholder="What happened today? What's on your mind?"
+                />
 
-                        <div className="jnl-mood-row">
-                            <span className="jnl-mood-label-text">How was your day?</span>
-                            <div className="jnl-mood-pills">
-                                {MOODS.map(m => (
-                                    <button
-                                        key={m.key}
-                                        type="button"
-                                        className={`jnl-mood-pill${mood === m.key ? " is-active" : ""}`}
-                                        style={{ "--mood-color": m.color } as React.CSSProperties}
-                                        onClick={() => handleMoodClick(m.key)}
-                                        aria-pressed={mood === m.key}
-                                        title={m.label}
-                                    >
-                                        <span className="jnl-mood-emoji" aria-hidden="true">{m.emoji}</span>
-                                        <span className="jnl-mood-pill-label">{m.label}</span>
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    </>
-                )}
+                <div className="jnl-mood-row">
+                    <span className="jnl-mood-label-text">How was your day?</span>
+                    <div className="jnl-mood-pills">
+                        {MOODS.map(m => (
+                            <button
+                                key={m.key}
+                                type="button"
+                                className={`jnl-mood-pill${mood === m.key ? " is-active" : ""}`}
+                                style={{ "--mood-color": m.color } as React.CSSProperties}
+                                onClick={() => handleMoodClick(m.key)}
+                                disabled={!isReady}
+                                aria-pressed={mood === m.key}
+                                title={m.label}
+                            >
+                                <span className="jnl-mood-emoji" aria-hidden="true">{m.emoji}</span>
+                                <span className="jnl-mood-pill-label">{m.label}</span>
+                            </button>
+                        ))}
+                    </div>
+                </div>
             </div>
         </section>
     );

@@ -3,9 +3,9 @@ import { http } from "@/api/client";
 import type { JournalEntryResponse, JournalEntryUpsertRequest } from "@/api/types";
 
 export const journalApi = {
-    async getMonthEntries(year: number, month: number): Promise<JournalEntryResponse[]> {
+    async getEntries(start: string, end: string): Promise<JournalEntryResponse[]> {
         return http.get<JournalEntryResponse[]>(
-            `${ENDPOINTS.JOURNAL.PREFIX}${ENDPOINTS.JOURNAL.LIST}?year=${year}&month=${month}`,
+            `${ENDPOINTS.JOURNAL.PREFIX}${ENDPOINTS.JOURNAL.LIST}?start=${start}&end=${end}`,
         );
     },
 
@@ -14,9 +14,5 @@ export const journalApi = {
             `${ENDPOINTS.JOURNAL.PREFIX}${ENDPOINTS.JOURNAL.ENTRY(date)}`,
             data,
         );
-    },
-
-    async deleteEntry(date: string): Promise<void> {
-        return http.delete<void>(`${ENDPOINTS.JOURNAL.PREFIX}${ENDPOINTS.JOURNAL.ENTRY(date)}`);
     },
 };

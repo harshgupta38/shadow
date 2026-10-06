@@ -132,6 +132,11 @@ class Endpoints:
         REGENERATE_RESPONSE = "/conversations/{conversation_id}/regenerate_response/{message_id}"
         RETRY_FAILED_MESSAGE = "/conversations/{conversation_id}/retry_message/{message_id}"
 
+    class JOURNAL:
+        PREFIX = "/journal"
+        LIST = "/entries"           # GET ?start=YYYY-MM-DD&end=YYYY-MM-DD
+        ENTRY = "/entries/{entry_date}"
+
     class SETTINGS:
         PREFIX = "/settings"
         AI_PROVIDERS = "/ai-providers"

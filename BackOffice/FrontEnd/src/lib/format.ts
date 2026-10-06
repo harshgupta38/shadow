@@ -10,25 +10,50 @@ export function formatFileSize(bytes: number): string {
   return `${value.toFixed(value < 10 ? 1 : 0)} ${units[unit]}`;
 }
 
+// Every time BackOffice shows is in India Standard Time, whatever the browser's own zone is.
+export const IST_TIME_ZONE = "Asia/Kolkata";
+
+// A time with no zone ("2026-10-06T16:44:58", or SQLite's "2026-10-06 16:44:58") would be read by
+// `new Date` as the browser's LOCAL time. BackOffice only ever stores UTC, so treat it as UTC.
+// (The API marks its times explicitly; this keeps one that slips through from being shifted.)
+const HAS_ZONE = /(Z|[+-]\d{2}:?\d{2})$/i;
+
+export function parseServerDate(iso: string): Date {
+  const text = iso.trim().replace(" ", "T");
+  return new Date(HAS_ZONE.test(text) ? text : `${text}Z`);
+}
+
 export function formatDate(iso: string | null | undefined): string {
   if (!iso) return "—";
-  const d = new Date(iso);
+  const d = parseServerDate(iso);
   if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: IST_TIME_ZONE });
 }
 
 export function formatDateTime(iso: string | null | undefined): string {
   if (!iso) return "—";
-  const d = new Date(iso);
+  const d = parseServerDate(iso);
   if (Number.isNaN(d.getTime())) return "—";
   return d.toLocaleString("en-GB", {
-    day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit",
+    day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: IST_TIME_ZONE,
   });
+}
+
+export function formatTime(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const d = parseServerDate(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: IST_TIME_ZONE });
+}
+
+/** The hour (0-23) it is right now in IST — for time-of-day greetings. */
+export function currentIstHour(): number {
+  return Number(new Intl.DateTimeFormat("en-GB", { hour: "2-digit", hourCycle: "h23", timeZone: IST_TIME_ZONE }).format(new Date()));
 }
 
 export function formatRelative(iso: string | null | undefined): string {
   if (!iso) return "—";
-  const d = new Date(iso);
+  const d = parseServerDate(iso);
   if (Number.isNaN(d.getTime())) return "—";
   const diffMs = Date.now() - d.getTime();
   const diffSec = Math.round(diffMs / 1000);

@@ -1,6 +1,6 @@
-from datetime import datetime
-
 from pydantic import BaseModel, ConfigDict
+
+from app.core.timezone import UtcDateTime
 
 
 class NewDeploymentRequest(BaseModel):
@@ -30,8 +30,8 @@ class DeploymentResponse(BaseModel):
     status: str
     log_output: str
     triggered_by: str
-    started_at: datetime
-    completed_at: datetime | None
+    started_at: UtcDateTime
+    completed_at: UtcDateTime | None
 
 
 class CommitInfo(BaseModel):

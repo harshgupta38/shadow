@@ -17,6 +17,7 @@ from starlette.background import BackgroundTask
 from app.core.config import settings
 from app.core.endpoints import ENDPOINTS
 from app.core.instance import INSTANCE_ID, STARTED_AT
+from app.core.timezone import IST
 
 router = APIRouter()
 
@@ -64,7 +65,7 @@ def download_database(x_admin_secret: str = Header(...)):
     # file directly — same reasoning as BackEnd_V2's /admin/database.
     backup_dir = Path("backups")
     backup_dir.mkdir(parents=True, exist_ok=True)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(IST)
     dest = backup_dir / f"backoffice-{now.strftime('%Y%m%d-%H%M%S')}.db"
 
     src_conn = sqlite3.connect(str(src))

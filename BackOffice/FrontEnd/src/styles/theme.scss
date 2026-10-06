@@ -1160,6 +1160,13 @@ h1, h2, h3, h4, h5, h6, .display-font {
   white-space: nowrap;
 }
 
+// "Deployed 5d ago" next to a commit that has been live before.
+.dp-deployed-note {
+  font-size: 0.72rem;
+  color: var(--jv-muted);
+  white-space: nowrap;
+}
+
 .verified-pill {
   font-size: 0.68rem;
   font-weight: 600;

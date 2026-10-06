@@ -1,6 +1,6 @@
-from datetime import datetime
-
 from pydantic import BaseModel, ConfigDict
+
+from app.core.timezone import UtcDateTime
 
 
 class WorkerInfo(BaseModel):
@@ -55,6 +55,6 @@ class RestartResponse(BaseModel):
     initiated_by: str
     status: str
     log_output: str
-    started_at: datetime
-    completed_at: datetime | None
+    started_at: UtcDateTime
+    completed_at: UtcDateTime | None
     duration_seconds: float | None

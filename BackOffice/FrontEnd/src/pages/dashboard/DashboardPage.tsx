@@ -3,7 +3,7 @@ import { useAuth } from "@/context/AuthContext";
 import { StatCard } from "@/components/ui/StatCard/StatCard";
 import { api } from "@/api";
 import type { Deployment, RestartLog, ServerHealth } from "@/api";
-import { formatDate, formatRelative, formatUptime, statusLabel, statusVariant } from "@/lib/format";
+import { currentIstHour, formatDate, formatRelative, formatUptime, statusLabel, statusVariant } from "@/lib/format";
 
 export function DashboardPage() {
   const { user } = useAuth();
@@ -44,7 +44,7 @@ export function DashboardPage() {
     return () => { cancelled = true; };
   }, []);
 
-  const hour = new Date().getHours();
+  const hour = currentIstHour();
   const greeting =
     hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 

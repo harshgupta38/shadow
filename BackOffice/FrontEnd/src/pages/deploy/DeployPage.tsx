@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Dropdown, Modal } from "react-bootstrap";
 import {
   CloudArrowUpFill,
@@ -29,6 +29,8 @@ const UNKNOWN_GIT_REF = "(current branch)";
 
 // The branch whose commits the page lists until the person picks another.
 const DEFAULT_BRANCH = "main";
+
+const FULL_SHA = /^[0-9a-f]{40}$/i;
 
 // What a deploy dialog opens pre-filled with — used by "New Deployment"
 // (nothing), "Redeploy" (a past deployment's own ref/label/description),
@@ -70,6 +72,20 @@ export function DeployPage({ app }: { app: AppTarget }) {
   const logBodyRef = useRef<HTMLDivElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const revealRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Which commits have been live before, matched by hash against the deployment log: the newest
+  // successful deployment that ended on each one. A record's commit_sha is what HEAD was once it
+  // finished; older records only have the SHA they were asked to deploy, kept in git_ref.
+  const deployedBySha = useMemo(() => {
+    const bySha = new Map<string, Deployment>();
+    for (const d of deployments) { // newest first
+      if (d.status !== "success") continue;
+      const sha = d.commit_sha ?? (FULL_SHA.test(d.git_ref) ? d.git_ref : null);
+      if (sha && !bySha.has(sha)) bySha.set(sha, d);
+    }
+    return bySha;
+  }, [deployments]);
+  const currentCommitIndex = commits.findIndex((c) => c.is_current);
 
   const totalPages = Math.max(1, Math.ceil(deployments.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -516,30 +532,55 @@ export function DeployPage({ app }: { app: AppTarget }) {
                   </td>
                 </tr>
               ) : (
-                commits.map((c) => (
+                commits.map((c, index) => {
+                  const deployedBefore = c.is_current ? undefined : deployedBySha.get(c.sha);
+                  // Older than what's running now (or the running commit isn't in this list to
+                  // compare against): going there is a rollback. A previously deployed commit that
+                  // is NEWER than the running one is just a normal deploy forward.
+                  const isRollback = deployedBefore !== undefined && (currentCommitIndex === -1 || index > currentCommitIndex);
+                  return (
                   <tr key={c.sha}>
                     <td>
                       <div className="d-flex align-items-center gap-2 flex-wrap">
                         <span className="dp-tag">{c.short_sha}</span>
                         {c.is_current && <span className="dp-current-badge">Current</span>}
+                        {deployedBefore && (
+                          <span className="dp-deployed-note" title={`Deployed by ${deployedBefore.triggered_by}`}>
+                            Deployed {formatRelative(deployedBefore.started_at)}
+                          </span>
+                        )}
                       </div>
                     </td>
                     <td className="deploy-desc">{c.message}</td>
                     <td style={{ color: "var(--jv-muted)" }}>{c.author}</td>
                     <td style={{ color: "var(--jv-muted)", whiteSpace: "nowrap" }}>{formatDateTime(c.date)}</td>
                     <td className="dp-table-td-actions">
-                      <button
-                        type="button"
-                        className="btn-action btn-action--ghost"
-                        disabled={jobRunning}
-                        onClick={() => openDeployModal({ git_ref: c.sha })}
-                      >
-                        <CloudArrowUpFill size={13} />
-                        Deploy
-                      </button>
+                      {isRollback ? (
+                        <button
+                          type="button"
+                          className="btn-action btn-action--ghost"
+                          disabled={jobRunning}
+                          title="Check this previously deployed commit out again and restart"
+                          onClick={() => setConfirmRollback({ ...deployedBefore, commit_sha: c.sha })}
+                        >
+                          <ArrowCounterclockwise size={13} />
+                          Roll back
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className="btn-action btn-action--ghost"
+                          disabled={jobRunning}
+                          onClick={() => openDeployModal({ git_ref: c.sha })}
+                        >
+                          <CloudArrowUpFill size={13} />
+                          Deploy
+                        </button>
+                      )}
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>

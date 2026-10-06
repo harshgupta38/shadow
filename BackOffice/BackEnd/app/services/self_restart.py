@@ -8,6 +8,7 @@ the new process being alive is the proof it worked.
 from sqlalchemy.orm import Session
 
 from app.core.instance import INSTANCE_ID, STARTED_AT
+from app.core.timezone import IST
 
 # How long the frontend waits for the new process to answer before assuming the restart failed.
 # Shown in the log text; the frontend holds its own matching constant.
@@ -33,5 +34,5 @@ def was_announced(log_output: str | None) -> bool:
 def confirmation_line() -> str:
     return (
         f"[backoffice] BackOffice came back up after the restart (process {INSTANCE_ID[:8]}, "
-        f"started {STARTED_AT:%Y-%m-%d %H:%M:%S} UTC) — restart confirmed."
+        f"started {STARTED_AT.astimezone(IST):%Y-%m-%d %H:%M:%S} IST) — restart confirmed."
     )

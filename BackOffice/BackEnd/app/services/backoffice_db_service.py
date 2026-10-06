@@ -137,14 +137,15 @@ def _parse_backup_timestamp(name: str) -> datetime | None:
         return None
     date_part, time_part = m.groups()
     try:
-        return datetime.strptime(date_part + time_part, "%Y%m%d%H%M%S")
+        # Backup file names are stamped in IST (see the backup writers), so say so.
+        return datetime.strptime(date_part + time_part, "%Y%m%d%H%M%S").replace(tzinfo=_IST)
     except ValueError:
         return None
 
 
 def _describe_backup(path: Path) -> dict:
     stat = path.stat()
-    created_at = _parse_backup_timestamp(path.name) or datetime.fromtimestamp(stat.st_mtime)
+    created_at = _parse_backup_timestamp(path.name) or datetime.fromtimestamp(stat.st_mtime, tz=_IST)
     return {"name": path.name, "created_at": created_at, "size_bytes": stat.st_size}
 
 

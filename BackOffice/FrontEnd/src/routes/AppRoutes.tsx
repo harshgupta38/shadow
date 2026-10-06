@@ -59,21 +59,24 @@ export function AppRoutes() {
 
         <Route element={<RequireAuth />}>
           <Route element={<AppLayout />}>
+            {/* Pages shared by both apps get a key per app: the Shadow and BackOffice routes render
+                the same component, so without it React reuses the instance when you switch and
+                keeps the other app's data (commits, branch, page, open log) until a full refresh. */}
             <Route path={ROUTES.HOME}     element={<DashboardPage />} />
-            <Route path={ROUTES.DEPLOY}   element={<DeployPage app="shadow" />} />
-            <Route path={ROUTES.DATABASE} element={<DatabasePage app="shadow" />} />
-            <Route path={ROUTES.SERVER}   element={<ServerPage app="shadow" />} />
+            <Route path={ROUTES.DEPLOY}   element={<DeployPage key="shadow" app="shadow" />} />
+            <Route path={ROUTES.DATABASE} element={<DatabasePage key="shadow" app="shadow" />} />
+            <Route path={ROUTES.SERVER}   element={<ServerPage key="shadow" app="shadow" />} />
 
             <Route path={ROUTES.SHADOW_USERS}      element={<ShadowUsersPage />} />
-            <Route path={ROUTES.SHADOW_DATABASE}   element={<DatabasePage app="shadow" />} />
-            <Route path={ROUTES.SHADOW_DEPLOYMENT} element={<DeployPage app="shadow" />} />
-            <Route path={ROUTES.SHADOW_SERVER}     element={<ServerPage app="shadow" />} />
-            <Route path={ROUTES.SHADOW_LOGS}       element={<LogsPage app="shadow" />} />
+            <Route path={ROUTES.SHADOW_DATABASE}   element={<DatabasePage key="shadow" app="shadow" />} />
+            <Route path={ROUTES.SHADOW_DEPLOYMENT} element={<DeployPage key="shadow" app="shadow" />} />
+            <Route path={ROUTES.SHADOW_SERVER}     element={<ServerPage key="shadow" app="shadow" />} />
+            <Route path={ROUTES.SHADOW_LOGS}       element={<LogsPage key="shadow" app="shadow" />} />
             <Route path={ROUTES.BACKOFFICE_USERS}      element={<BackOfficeUsersPage />} />
-            <Route path={ROUTES.BACKOFFICE_DATABASE}   element={<DatabasePage app="backoffice" />} />
-            <Route path={ROUTES.BACKOFFICE_DEPLOYMENT} element={<DeployPage app="backoffice" />} />
-            <Route path={ROUTES.BACKOFFICE_SERVER}     element={<ServerPage app="backoffice" />} />
-            <Route path={ROUTES.BACKOFFICE_LOGS}       element={<LogsPage app="backoffice" />} />
+            <Route path={ROUTES.BACKOFFICE_DATABASE}   element={<DatabasePage key="backoffice" app="backoffice" />} />
+            <Route path={ROUTES.BACKOFFICE_DEPLOYMENT} element={<DeployPage key="backoffice" app="backoffice" />} />
+            <Route path={ROUTES.BACKOFFICE_SERVER}     element={<ServerPage key="backoffice" app="backoffice" />} />
+            <Route path={ROUTES.BACKOFFICE_LOGS}       element={<LogsPage key="backoffice" app="backoffice" />} />
           </Route>
         </Route>
 

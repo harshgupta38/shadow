@@ -1,7 +1,8 @@
-from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, field_validator
+
+from app.core.timezone import UtcDateTime
 
 from app.validators.email import validate_email_address
 from app.validators.name import validate_name
@@ -18,7 +19,7 @@ class UserResponse(BaseModel):
     # Shadow V2's users have this; BackOffice's admins don't track it, so it's
     # left null there rather than faked — the frontend hides the pill when null.
     email_verified: bool | None = None
-    created_at: datetime
+    created_at: UtcDateTime
 
 
 class CreateAdminRequest(BaseModel):

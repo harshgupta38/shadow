@@ -20,6 +20,11 @@ from app.core.instance import INSTANCE_ID, STARTED_AT
 
 router = APIRouter()
 
+# The same health check, mounted under the API prefix (/v2/health) via app/api/router.py. The root
+# /health above is what the Control Server probes; the frontend's client is based at /v2, so it
+# can only reach the prefixed one.
+prefixed_health_router = APIRouter()
+
 
 class SqlRequest(BaseModel):
     query: str
@@ -31,6 +36,7 @@ def root() -> dict:
 
 
 @router.get(ENDPOINTS.SYSTEM.HEALTH, tags=["health"])
+@prefixed_health_router.get(ENDPOINTS.SYSTEM.HEALTH, tags=["health"])
 def health() -> dict:
     # instance_id/started_at identify this process, so a client can tell a restarted BackOffice
     # from the one it was talking to before (see app/core/instance.py).

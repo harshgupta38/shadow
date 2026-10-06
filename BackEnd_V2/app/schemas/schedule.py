@@ -229,3 +229,8 @@ class SubtaskResponse(ORMModel):
     planner_mode: SubtaskPlannerMode | None
     created_at: datetime
     updated_at: datetime
+
+
+class ScheduleListResponse(BaseModel):
+    tasks: list[ScheduledTaskDataResponse]
+    overflow_tasks: list[ScheduledTaskDataResponse]

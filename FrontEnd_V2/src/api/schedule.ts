@@ -8,6 +8,7 @@ import type {
     ScheduledTaskCreateRequest,
     ScheduledTaskDataResponse,
     ScheduledTaskUpdateRequest,
+    ScheduleListResponse,
 } from "@/api/types";
 
 export const scheduleApi = {
@@ -29,8 +30,8 @@ export const scheduleApi = {
         return http.delete<void>(`${ENDPOINTS.SCHEDULE.PREFIX}${ENDPOINTS.SCHEDULE.DETAIL(id)}${qs}`);
     },
 
-    async getScheduleList(year: number, month: number): Promise<ScheduledTaskDataResponse[]> {
-        return http.get<ScheduledTaskDataResponse[]>(
+    async getScheduleList(year: number, month: number): Promise<ScheduleListResponse> {
+        return http.get<ScheduleListResponse>(
             `${ENDPOINTS.SCHEDULE.PREFIX}${ENDPOINTS.SCHEDULE.GET_LIST}?year=${year}&month=${month}`,
         );
     },

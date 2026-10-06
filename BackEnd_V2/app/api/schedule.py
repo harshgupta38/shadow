@@ -12,6 +12,7 @@ from app.schemas.schedule import (
     ScheduledTaskDataResponse,
     ScheduledTaskUpdateRequest,
     SaveScheduledTaskFromProposalRequest,
+    ScheduleListResponse,
 )
 from app.services import schedule_service, schedule_subtask_service
 
@@ -31,13 +32,13 @@ def save_schedule_task_from_proposal(
     return schedule_service.save_task_from_proposal(db, current_user, data)
 
 
-@router.get(ENDPOINTS.SCHEDULE.GET_LIST, response_model=list[ScheduledTaskDataResponse])
+@router.get(ENDPOINTS.SCHEDULE.GET_LIST, response_model=ScheduleListResponse)
 def get_schedule_task_list(
     year: int = Query(..., ge=2020, le=2220),
     month: int = Query(..., ge=1, le=12),
     db=Depends(get_db),
     current_user: UserDBM = Depends(get_current_user),
-) -> list[ScheduledTaskDataResponse]:
+) -> ScheduleListResponse:
     return schedule_service.get_list(db, current_user, year, month)
 
 

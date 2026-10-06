@@ -18,6 +18,7 @@ from app.schemas.schedule import (
     ScheduledTaskCreateRequest,
     ScheduledTaskDataResponse,
     ScheduledTaskUpdateRequest,
+    ScheduleListResponse,
     SubtaskResponse,
 )
 from app.services.planner_service import deactivate_plan, sync_plan_from_scheduled_task
@@ -122,7 +123,7 @@ def _serialize_yearly(task: YearlyTaskDBM, scheduled_date: date) -> ScheduledTas
     )
 
 
-def get_list(db: Session, current_user: UserDBM, year: int, month: int) -> list[ScheduledTaskDataResponse]:
+def get_list(db: Session, current_user: UserDBM, year: int, month: int) -> ScheduleListResponse:
     first_day = date(year, month, 1)
     last_day = date(year, month, calendar.monthrange(year, month)[1])
 
@@ -189,7 +190,91 @@ def get_list(db: Session, current_user: UserDBM, year: int, month: int) -> list[
         if (occ := _date_for_year_month(t.recurrence_month, t.recurrence_day, year)) >= to_ist(t.created_at).date()
     ]
     result.sort(key=lambda r: (r.scheduled_date, r.id))
-    return result
+
+    # ── Overflow tasks for adjacent-month cells visible in the calendar grid ──
+    # A calendar grid shows at most 6 days from the previous and next month.
+    overflow_start = first_day - timedelta(days=6)
+    overflow_end   = last_day  + timedelta(days=6)
+    main_ids = {t.id for t in tasks}
+
+    overflow_rows = db.scalars(
+        select(ScheduledTaskDBM)
+        .options(joinedload(ScheduledTaskDBM.goal))
+        .where(
+            ScheduledTaskDBM.user_id == current_user.id,
+            or_(
+                # Tasks whose scheduled_date falls inside the leading overflow window.
+                and_(ScheduledTaskDBM.scheduled_date >= overflow_start, ScheduledTaskDBM.scheduled_date < first_day),
+                # Tasks whose scheduled_date falls inside the trailing overflow window.
+                and_(ScheduledTaskDBM.scheduled_date > last_day,        ScheduledTaskDBM.scheduled_date <= overflow_end),
+                # Long tasks that started before the leading overflow window but span into it
+                # (end_date < first_day, so the main month query doesn't catch them).
+                and_(
+                    ScheduledTaskDBM.task_duration == "long",
+                    ScheduledTaskDBM.scheduled_date < overflow_start,
+                    ScheduledTaskDBM.end_date >= overflow_start,
+                    ScheduledTaskDBM.end_date < first_day,
+                ),
+            ),
+        )
+    ).all()
+
+    # Load subtasks for long-term overflow tasks within the overflow window.
+    ov_long_tasks = [t for t in overflow_rows if t.task_duration == "long" and t.id not in main_ids]
+    ov_subtasks_by_task: dict[int, list[SubtaskResponse]] = {}
+    if ov_long_tasks:
+        ov_long_ids = [t.id for t in ov_long_tasks]
+        ov_subtask_rows = db.scalars(
+            select(ScheduledTaskSubtaskDBM)
+            .where(
+                ScheduledTaskSubtaskDBM.task_id.in_(ov_long_ids),
+                ScheduledTaskSubtaskDBM.user_id == current_user.id,
+                ScheduledTaskSubtaskDBM.subtask_date >= overflow_start,
+                ScheduledTaskSubtaskDBM.subtask_date <= overflow_end,
+            )
+            .order_by(ScheduledTaskSubtaskDBM.subtask_date, ScheduledTaskSubtaskDBM.id)
+        ).all()
+        for s in ov_subtask_rows:
+            ov_subtasks_by_task.setdefault(s.task_id, []).append(SubtaskResponse(
+                id=s.id,
+                task_id=s.task_id,
+                subtask_date=s.subtask_date,
+                description=s.description,
+                planner_mode=s.planner_mode,
+                created_at=s.created_at,
+                updated_at=s.updated_at,
+            ))
+
+    overflow_result: list[ScheduledTaskDataResponse] = [
+        _serialize(t, ov_subtasks_by_task.get(t.id)) for t in overflow_rows if t.id not in main_ids
+    ]
+
+    # Yearly tasks whose occurrence falls in the overflow window
+    overflow_months: set[tuple[int, int]] = set()
+    if overflow_start.month != month:
+        overflow_months.add((overflow_start.month, overflow_start.year))
+    if overflow_end.month != month:
+        overflow_months.add((overflow_end.month, overflow_end.year))
+    if overflow_months:
+        ov_yearly = db.scalars(
+            select(YearlyTaskDBM)
+            .options(joinedload(YearlyTaskDBM.goal))
+            .where(
+                YearlyTaskDBM.user_id == current_user.id,
+                YearlyTaskDBM.recurrence_month.in_([m for m, _ in overflow_months]),
+            )
+        ).all()
+        for t in ov_yearly:
+            for (m, yr) in overflow_months:
+                if t.recurrence_month != m:
+                    continue
+                occ = _date_for_year_month(m, t.recurrence_day, yr)
+                if (overflow_start <= occ < first_day or last_day < occ <= overflow_end) and occ >= to_ist(t.created_at).date():
+                    overflow_result.append(_serialize_yearly(t, occ))
+
+    overflow_result.sort(key=lambda r: (r.scheduled_date, r.id))
+
+    return ScheduleListResponse(tasks=result, overflow_tasks=overflow_result)
 
 
 def get_upcoming(db: Session, current_user: UserDBM, *, days: int = 7) -> list[ScheduledTaskDataResponse]:

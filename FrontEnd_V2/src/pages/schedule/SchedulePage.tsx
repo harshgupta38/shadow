@@ -76,6 +76,7 @@ export function SchedulePage() {
 
     const [loading, setLoading] = useState(true);
     const [tasks, setTasks] = useState<ScheduledTaskDataResponse[]>([]);
+    const [adjacentTasks, setAdjacentTasks] = useState<ScheduledTaskDataResponse[]>([]);
     const [selectedTask, setSelectedTask] = useState<ScheduledTaskDataResponse | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<ScheduledTaskDataResponse | null>(null);
     const [deleting, setDeleting] = useState(false);
@@ -90,14 +91,14 @@ export function SchedulePage() {
         setLoading(true);
         setSelectedTask(null);
         void api.schedule.getScheduleList(calYear, calMonth + 1)
-            .then(setTasks)
+            .then(res => { setTasks(res.tasks); setAdjacentTasks(res.overflow_tasks); })
             .catch(() => toast.error("Failed to load scheduled tasks."))
             .finally(() => setLoading(false));
     }, [calYear, calMonth]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const refreshTasksSilent = useCallback(() => {
         void api.schedule.getScheduleList(calYear, calMonth + 1)
-            .then(setTasks)
+            .then(res => { setTasks(res.tasks); setAdjacentTasks(res.overflow_tasks); })
             .catch(() => {});
     }, [calYear, calMonth]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -142,6 +143,11 @@ export function SchedulePage() {
         return acc;
     }, {}), [tasks]);
 
+    const adjacentTasksByDate = useMemo(() => adjacentTasks.reduce<Record<string, ScheduledTaskDataResponse[]>>((acc, t) => {
+        (acc[t.scheduled_date] ??= []).push(t);
+        return acc;
+    }, {}), [adjacentTasks]);
+
     // Maps each subtask_date to the subtasks (with their parent task) for calendar chips
     const subtasksByDate = useMemo(() => {
         const map: Record<string, { subtask: SubtaskResponse; parentTask: ScheduledTaskDataResponse }[]> = {};
@@ -167,6 +173,29 @@ export function SchedulePage() {
         }
         return map;
     }, [tasks]);
+
+    const adjacentSubtasksByDate = useMemo(() => {
+        const map: Record<string, { subtask: SubtaskResponse; parentTask: ScheduledTaskDataResponse }[]> = {};
+        for (const task of adjacentTasks) {
+            for (const subtask of task.subtasks ?? []) {
+                (map[subtask.subtask_date] ??= []).push({ subtask, parentTask: task });
+            }
+        }
+        return map;
+    }, [adjacentTasks]);
+
+    const adjacentSpansByDate = useMemo(() => {
+        const map: Record<string, ScheduledTaskDataResponse[]> = {};
+        for (const task of adjacentTasks) {
+            if (task.task_duration === "long" && task.end_date) {
+                (map[task.scheduled_date] ??= []).push(task);
+                for (const date of getDatesInRange(task.scheduled_date, task.end_date)) {
+                    (map[date] ??= []).push(task);
+                }
+            }
+        }
+        return map;
+    }, [adjacentTasks]);
 
     const weekStart = useWeekStart();
     const calCells = useMemo(() => buildCalendarCells(calYear, calMonth, weekStart), [calYear, calMonth, weekStart]);
@@ -313,6 +342,7 @@ export function SchedulePage() {
                                 const cellTasks = tasksByDate[cell.iso] ?? [];
                                 const cellSubtasks = subtasksByDate[cell.iso] ?? [];
                                 const spanTasks = longTermSpansByDate[cell.iso] ?? [];
+                                const adjacentSpanTasks = !cell.isCurrentMonth ? (adjacentSpansByDate[cell.iso] ?? []) : [];
                                 const isToday = cell.iso === currentTodayIso;
                                 const cellTaskLimit = PAGE_SIZE.SCHEDULE_CELL_TASK_LIMIT;
                                 const taskSlots = Math.min(cellTasks.length, cellTaskLimit);
@@ -362,8 +392,27 @@ export function SchedulePage() {
                                             {overflowCount > 0 && (
                                                 <span className="schedule-cal-overflow">+{overflowCount} more</span>
                                             )}
+                                            {!cell.isCurrentMonth && (adjacentTasksByDate[cell.iso] ?? []).slice(0, cellTaskLimit).map(t => (
+                                                <span
+                                                    key={`adj-${t.repeat_yearly ? "y" : "n"}-${t.id}`}
+                                                    className="schedule-task-chip schedule-task-chip--adjacent"
+                                                    style={{ "--chip-color": PRIORITY_COLOR[t.priority] } as React.CSSProperties}
+                                                    title={t.title}
+                                                >
+                                                    {t.title}
+                                                </span>
+                                            ))}
+                                            {!cell.isCurrentMonth && (adjacentSubtasksByDate[cell.iso] ?? []).slice(0, cellTaskLimit).map(({ subtask, parentTask }) => (
+                                                <span
+                                                    key={`adj-st-${subtask.id}`}
+                                                    className="schedule-task-chip schedule-task-chip--subtask schedule-task-chip--adjacent"
+                                                    title={`${parentTask.title} · ${subtask.description}`}
+                                                >
+                                                    {subtask.description}
+                                                </span>
+                                            ))}
                                         </div>
-                                        {spanTasks.length > 0 && (
+                                        {(spanTasks.length > 0 || adjacentSpanTasks.length > 0) && (
                                             <div className="schedule-cal-span-strip">
                                                 {spanTasks.map(t => (
                                                     <button
@@ -376,6 +425,16 @@ export function SchedulePage() {
                                                     >
                                                         {t.category ? CATEGORY_ICONS[t.category] : "📅"}
                                                     </button>
+                                                ))}
+                                                {adjacentSpanTasks.map(t => (
+                                                    <span
+                                                        key={`adj-span-${t.id}`}
+                                                        className="schedule-cal-span-icon schedule-cal-span-icon--adjacent"
+                                                        style={{ "--chip-color": PRIORITY_COLOR[t.priority] } as React.CSSProperties}
+                                                        title={t.title}
+                                                    >
+                                                        {t.category ? CATEGORY_ICONS[t.category] : "📅"}
+                                                    </span>
                                                 ))}
                                             </div>
                                         )}

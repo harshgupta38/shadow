@@ -357,16 +357,11 @@ textarea.subtask-textarea {
     &:disabled { opacity: 0.6; }
 }
 
-// ── Task range calendar (desktop only) ───────────────────────────────────────
+// ── Task range calendar ───────────────────────────────────────────────────────
 
 .task-range-calendar {
-    display: none; // hidden on mobile/tablet
-
-    @media (min-width: 768px) {
-        display: block;
-        padding: 0.9rem 0 0.6rem;
-        border-top: 1px solid var(--jv-border);
-    }
+    padding: 0.9rem 0 0.6rem;
+    border-top: 1px solid var(--jv-border);
 }
 
 .trc-header {

@@ -254,6 +254,12 @@
     &:hover {
       background: color-mix(in srgb, var(--chip-color, var(--jv-brand-1)) 20%, transparent);
     }
+
+    &--adjacent {
+      opacity: 0.38;
+      cursor: default;
+      pointer-events: none;
+    }
   }
 
   .schedule-cal-chips {
@@ -296,6 +302,12 @@
         background: var(--jv-border);
         color: var(--jv-text);
       }
+    }
+
+    &--adjacent {
+      opacity: 0.5;
+      cursor: default;
+      pointer-events: none;
     }
   }
 

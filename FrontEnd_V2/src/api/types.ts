@@ -711,6 +711,11 @@ export interface ScheduledTaskDataResponse extends Omit<ScheduledTaskCreateReque
   updated_at: string;
 }
 
+export interface ScheduleListResponse {
+  tasks: ScheduledTaskDataResponse[];
+  overflow_tasks: ScheduledTaskDataResponse[];
+}
+
 // ── Track Progress ──────────────────────────────────────────────────────────
 
 export type ColorKey = "success" | "info" | "brand" | "warn" | "violet";

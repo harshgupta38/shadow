@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Response, status
 
 from app.api.deps import get_current_user
 from app.core.endpoints import ENDPOINTS
+from app.core.response_cache import TTL_SHORT_SECONDS, cached_json_response
 from app.db.session import get_db
 from app.models.user import UserDBM
 from app.schemas.habits import SetTrackingRequest
@@ -21,9 +22,12 @@ router = APIRouter(prefix=ENDPOINTS.TRACK_PROGRESS.PREFIX, tags=["Track Progress
 def get_track_habits(
     db=Depends(get_db),
     current_user: UserDBM = Depends(get_current_user),
-) -> list[HabitTrackItem]:
-    week_starts_on = settings_service.get_week_starts_on(db, current_user.id)
-    return track_progress_service.get_habits_with_history(db, current_user, week_starts_on=week_starts_on)
+) -> Response:
+    def compute():
+        week_starts_on = settings_service.get_week_starts_on(db, current_user.id)
+        return track_progress_service.get_habits_with_history(db, current_user, week_starts_on=week_starts_on)
+
+    return cached_json_response(db, current_user, "track.habits", compute, ttl=TTL_SHORT_SECONDS)
 
 
 @router.get(ENDPOINTS.TRACK_PROGRESS.ELIGIBLE_HABITS, response_model=list[EligibleHabitItem])
@@ -47,9 +51,12 @@ def set_tracking(
 def get_track_tasks(
     db=Depends(get_db),
     current_user: UserDBM = Depends(get_current_user),
-) -> list[TaskTrackItem]:
-    week_starts_on = settings_service.get_week_starts_on(db, current_user.id)
-    return track_progress_service.get_tasks_with_history(db, current_user, week_starts_on=week_starts_on)
+) -> Response:
+    def compute():
+        week_starts_on = settings_service.get_week_starts_on(db, current_user.id)
+        return track_progress_service.get_tasks_with_history(db, current_user, week_starts_on=week_starts_on)
+
+    return cached_json_response(db, current_user, "track.tasks", compute, ttl=TTL_SHORT_SECONDS)
 
 
 @router.get(ENDPOINTS.TRACK_PROGRESS.ELIGIBLE_TASKS, response_model=list[EligibleTaskItem])

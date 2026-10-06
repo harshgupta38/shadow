@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Response, status
 
 from app.api.deps import get_current_user
 from app.core.endpoints import ENDPOINTS
+from app.core.response_cache import TTL_STANDARD_SECONDS, cached_json_response
 from app.db.session import get_db
 from app.models.user import UserDBM
 from app.schemas.habits import (
@@ -22,8 +23,13 @@ def get_habit_list(
     goal_id: int | None = None,
     db=Depends(get_db),
     current_user: UserDBM = Depends(get_current_user),
-) -> list[HabitDataResponse]:
-    return habits_service.get_list(db, current_user, status=status, goal_id=goal_id)
+) -> Response:
+    return cached_json_response(
+        db, current_user, "habits.list",
+        lambda: habits_service.get_list(db, current_user, status=status, goal_id=goal_id),
+        ttl=TTL_STANDARD_SECONDS,
+        params=(status, goal_id),
+    )
 
 
 @router.post(

@@ -44,6 +44,7 @@ from app.models.ip_rate_limit import IpRateLimitDBM
 from app.models.daily_usage import DailyUsageDBM
 from app.models.scheduled_task_subtask import ScheduledTaskSubtaskDBM
 from app.models.journal import JournalEntryDBM
+from app.models.data_version import DataVersionDBM
 from app.services import planner_service, backup_service, notification_scheduler_service, report_scheduler_service, session_event_service
 from app.api.notifications import reset_shutdown as _reset_sse_shutdown
 from app.api.notifications import signal_shutdown as _signal_sse_shutdown

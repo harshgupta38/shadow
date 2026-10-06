@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Response
 
 from app.api.deps import get_current_user
 from app.common import today_ist
 from app.core.endpoints import ENDPOINTS
+from app.core.response_cache import TTL_STANDARD_SECONDS, cached_json_response
 from app.db.session import get_db
 from app.models.user import UserDBM
 from app.schemas.profile import ProfileResponse, UpdateBioRequest, UsageResponse
@@ -15,8 +16,12 @@ router = APIRouter(prefix=ENDPOINTS.PROFILE.PREFIX, tags=["Profile"])
 def get_profile(
     db=Depends(get_db),
     current_user: UserDBM = Depends(get_current_user),
-) -> ProfileResponse:
-    return profile_service.get_profile(db, current_user)
+) -> Response:
+    return cached_json_response(
+        db, current_user, "profile",
+        lambda: profile_service.get_profile(db, current_user),
+        ttl=TTL_STANDARD_SECONDS,
+    )
 
 
 @router.patch(ENDPOINTS.PROFILE.BIO, response_model=ProfileResponse)

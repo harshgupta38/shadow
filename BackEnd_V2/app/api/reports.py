@@ -7,6 +7,7 @@ from app.api.deps import get_current_user
 from app.common import today_ist
 from app.core.endpoints import ENDPOINTS
 from app.core.exceptions import NotFoundError, ValidationError
+from app.core.response_cache import TTL_STANDARD_SECONDS, cached_json_response
 from app.db.session import get_db
 from app.models.user import UserDBM
 from app.schemas.daily_report import ReportResponse
@@ -30,8 +31,13 @@ def get_monthly_report(
     month: int = Query(..., ge=1, le=12),
     db=Depends(get_db),
     current_user: UserDBM = Depends(get_current_user),
-) -> MonthlyReportResponse:
-    return reports_service.get_monthly_report(db, current_user, year, month)
+) -> Response:
+    return cached_json_response(
+        db, current_user, "reports.monthly",
+        lambda: reports_service.get_monthly_report(db, current_user, year, month),
+        ttl=TTL_STANDARD_SECONDS,
+        params=(year, month),
+    )
 
 
 @router.get(ENDPOINTS.REPORTS.REPORT_DETAIL, response_model=list[ReportResponse])

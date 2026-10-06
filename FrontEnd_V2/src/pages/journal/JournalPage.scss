@@ -1,0 +1,326 @@
+// ─── Journal Page ─────────────────────────────────────────────────────────────
+
+@keyframes jnl-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes jnl-saved-in {
+    from { opacity: 0; transform: translateX(4px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+
+.jnl-page {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    animation: jnl-in 220ms var(--jv-ease) both;
+}
+
+// ─── Week strip card ──────────────────────────────────────────────────────────
+
+.jnl-week-card {
+    padding: 0.55rem 0.75rem 0.15rem 0.75rem;
+}
+
+// ─── Week strip ───────────────────────────────────────────────────────────────
+
+.jnl-week-strip {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.jnl-week-nav {
+    flex-shrink: 0;
+    color: var(--jv-muted);
+    padding: 0.2rem !important;
+}
+
+.jnl-week-cells {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    flex: 1;
+}
+
+.jnl-week-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 0.22rem 0.1rem 0.22rem;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    cursor: pointer;
+    transition: background 150ms var(--jv-ease);
+
+    &:hover:not(:disabled) {
+        background: color-mix(in srgb, var(--jv-brand-1) 7%, transparent);
+    }
+
+    &.is-selected .jnl-week-num {
+        background: color-mix(in srgb, var(--jv-brand-1) 14%, transparent);
+        color: var(--jv-brand-1);
+        font-weight: 700;
+    }
+
+    &.is-today .jnl-week-num {
+        background: var(--jv-brand-1);
+        color: #fff;
+        font-weight: 700;
+    }
+
+    &.is-future {
+        opacity: 0.28;
+        cursor: default;
+    }
+}
+
+.jnl-week-abbr {
+    font-size: 0.6rem;
+    font-weight: 600;
+    color: var(--jv-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    line-height: 1;
+}
+
+.jnl-week-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.6rem;
+    height: 1.6rem;
+    border-radius: 50%;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--jv-text);
+    transition: background 150ms var(--jv-ease), color 150ms var(--jv-ease);
+    line-height: 1;
+}
+
+// ─── Editor card ──────────────────────────────────────────────────────────────
+
+.jnl-editor {
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    overflow: hidden;
+}
+
+.jnl-editor-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.85rem 1.25rem 0.75rem;
+    border-bottom: 1px solid var(--jv-border);
+    flex-shrink: 0;
+}
+
+.jnl-editor-date {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--jv-text);
+}
+
+.jnl-save-indicator {
+    font-size: 0.72rem;
+    font-weight: 500;
+    flex-shrink: 0;
+}
+
+.jnl-saving {
+    color: var(--jv-muted);
+    animation: jnl-saved-in 150ms var(--jv-ease) both;
+}
+
+.jnl-saved {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    color: var(--jv-success);
+    animation: jnl-saved-in 150ms var(--jv-ease) both;
+}
+
+.jnl-save-error {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    color: var(--jv-danger);
+    animation: jnl-saved-in 150ms var(--jv-ease) both;
+}
+
+// ─── Mood picker ──────────────────────────────────────────────────────────────
+
+.jnl-mood-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.7rem 1.25rem;
+    border-top: 1px solid var(--jv-border);
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+
+.jnl-mood-label-text {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--jv-muted);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.jnl-mood-pills {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+}
+
+.jnl-mood-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.28rem 0.65rem;
+    border-radius: 20px;
+    border: 1.5px solid var(--jv-border);
+    background: transparent;
+    cursor: pointer;
+    transition:
+        background 160ms var(--jv-ease),
+        border-color 160ms var(--jv-ease),
+        transform 120ms var(--jv-ease);
+    font-size: 0.75rem;
+    color: var(--jv-muted);
+    font-weight: 500;
+
+    &:hover {
+        border-color: var(--mood-color);
+        color: var(--mood-color);
+        background: color-mix(in srgb, var(--mood-color) 8%, transparent);
+    }
+
+    &:active { transform: scale(0.96); }
+
+    &.is-active {
+        border-color: var(--mood-color);
+        background: color-mix(in srgb, var(--mood-color) 14%, transparent);
+        color: var(--mood-color);
+        font-weight: 600;
+    }
+}
+
+.jnl-mood-emoji {
+    font-size: 1rem;
+    line-height: 1;
+}
+
+// ─── Quill rich editor ────────────────────────────────────────────────────────
+
+.jnl-quill {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+
+    // Remove Quill's default borders — the surface card is the container
+    .ql-toolbar.ql-snow {
+        border: none;
+        border-bottom: 1px solid var(--jv-border);
+        padding: 0.45rem 1rem;
+        background: transparent;
+
+        .ql-stroke { stroke: var(--jv-muted); }
+        .ql-fill   { fill:   var(--jv-muted); }
+        .ql-picker-label { color: var(--jv-muted); }
+
+        button:hover .ql-stroke,
+        button.ql-active .ql-stroke { stroke: var(--jv-brand-1); }
+        button:hover .ql-fill,
+        button.ql-active .ql-fill   { fill:   var(--jv-brand-1); }
+        button:hover, button.ql-active { color: var(--jv-brand-1); }
+    }
+
+    .ql-container.ql-snow {
+        border: none;
+        font-family: var(--jv-font-body, inherit);
+        font-size: 0.92rem;
+    }
+
+    .ql-editor {
+        min-height: 220px;
+        padding: 1rem 1.25rem;
+        color: var(--jv-text);
+        line-height: 1.78;
+        caret-color: var(--jv-brand-1);
+
+        &.ql-blank::before {
+            color: var(--jv-faint);
+            font-style: normal;
+            left: 1.25rem;
+        }
+
+        // Match app text style for rich content
+        strong { font-weight: 700; }
+        em     { font-style: italic; }
+        s      { text-decoration: line-through; }
+
+        blockquote {
+            border-left: 3px solid var(--jv-brand-1);
+            margin: 0.5rem 0;
+            padding: 0.25rem 0.75rem;
+            color: var(--jv-muted);
+        }
+
+        ul, ol {
+            padding-left: 1.5rem;
+            margin: 0.25rem 0;
+        }
+    }
+}
+
+// ─── Future date state ────────────────────────────────────────────────────────
+
+.jnl-future-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 1.5rem;
+    text-align: center;
+    gap: 0.35rem;
+}
+
+.jnl-future-emoji { font-size: 2rem; line-height: 1; margin-bottom: 0.2rem; }
+.jnl-future-msg   { font-size: 0.88rem; font-weight: 600; color: var(--jv-text); margin: 0; }
+.jnl-future-hint  { font-size: 0.78rem; color: var(--jv-muted); margin: 0; }
+
+// ─── Responsive ───────────────────────────────────────────────────────────────
+
+@media (max-width: 575.98px) {
+    .jnl-mood-pill-label {
+        display: none;
+    }
+
+    .jnl-mood-pill {
+        padding: 0.3rem 0.5rem;
+    }
+
+    .jnl-mood-emoji {
+        font-size: 1.15rem;
+    }
+
+    .jnl-week-card {
+        padding: 0.3rem 0.4rem;
+    }
+
+    .jnl-week-abbr {
+        font-size: 0.55rem;
+    }
+
+    .jnl-week-num {
+        width: 1.45rem;
+        height: 1.45rem;
+        font-size: 0.75rem;
+    }
+}

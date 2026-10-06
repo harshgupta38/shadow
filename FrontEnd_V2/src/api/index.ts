@@ -21,6 +21,7 @@ import { tasksApi } from "@/api/tasks";
 import { habitsApi } from "@/api/habits";
 import { planItemsApi } from "@/api/plan_items";
 import { scheduleApi } from "@/api/schedule";
+import { journalApi } from "@/api/journal";
 import { settingsApi } from "@/api/settings";
 
 export const api = {
@@ -37,6 +38,7 @@ export const api = {
   habits: habitsApi,
   planItems: planItemsApi,
   schedule: scheduleApi,
+  journal: journalApi,
   reports: reportsApi,
   settings: settingsApi,
 };

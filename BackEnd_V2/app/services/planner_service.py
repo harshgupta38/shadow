@@ -17,6 +17,7 @@ are computed on read from history + recurrence rules and are never persisted.
 import calendar
 import threading
 from collections import defaultdict
+from functools import lru_cache
 from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import delete, func, select, update
@@ -76,8 +77,12 @@ def _last_day_of_month(d: date) -> int:
     return calendar.monthrange(d.year, d.month)[1]
 
 
-def _freq_matches(plan: PlanDBM, target: date) -> bool:
-    freqs = set(plan.frequencies)
+def _freq_matches_spec(
+    freqs: frozenset[str],
+    specific_days: tuple[int, ...],
+    day_fallback: bool,
+    target: date,
+) -> bool:
     wd = target.weekday()  # 0 = Monday … 6 = Sunday
     day = target.day
 
@@ -107,17 +112,24 @@ def _freq_matches(plan: PlanDBM, target: date) -> bool:
             return True
 
     if "specific_day" in freqs:
-        specific_days: list[int] = plan.specific_days or []
         if day in specific_days:
             return True
         # day_fallback: if all chosen days exceed the month's last day,
         # fall back to the last day of that month.
-        if plan.day_fallback:
+        if day_fallback:
             last = _last_day_of_month(target)
             if day == last and any(d > last for d in specific_days):
                 return True
 
     return False
+
+
+def _recurrence_spec(plan: PlanDBM) -> tuple[frozenset[str], tuple[int, ...], bool]:
+    return frozenset(plan.frequencies), tuple(plan.specific_days or ()), bool(plan.day_fallback)
+
+
+def _freq_matches(plan: PlanDBM, target: date) -> bool:
+    return _freq_matches_spec(*_recurrence_spec(plan), target)
 
 
 def _matches_date(plan: PlanDBM, target: date) -> bool:
@@ -153,30 +165,45 @@ def _apply_fields(plan: PlanDBM, fields: dict) -> None:
 
 # ── Streak calculation ────────────────────────────────────────────────────────
 
-def _applicable_occurrence_dates(plan: PlanDBM, as_of_date: date) -> list[date]:
-    """Return all dates plan applies to from start_date through as_of_date."""
-    freqs = set(plan.frequencies)
+@lru_cache(maxsize=2048)
+def _occurrence_dates(
+    freqs: frozenset[str],
+    specific_days: tuple[int, ...],
+    day_fallback: bool,
+    start: date,
+    end: date | None,
+    as_of_date: date,
+) -> tuple[date, ...]:
+    """Every date from start through as_of_date that the recurrence rule applies to.
 
-    start = plan.start_date or as_of_date
-    if start > as_of_date:
-        return []
-
+    A pure function of its arguments — which are the plan's recurrence fields, not the plan
+    object — so cached results can never go stale and are safe to share between workers' own
+    caches. Walking every day since a plan began, for every plan, on every request was the main
+    CPU cost behind the planner, dashboard, profile, track and habit-list routes.
+    """
     results: list[date] = []
     cursor = start
     while cursor <= as_of_date:
-        if plan.end_date and cursor > plan.end_date:
+        if end and cursor > end:
             break
-        if _freq_matches(plan, cursor):
+        if _freq_matches_spec(freqs, specific_days, day_fallback, cursor):
             results.append(cursor)
         cursor += timedelta(days=1)
+    return tuple(results)
 
-    return results
+
+def _applicable_occurrence_dates(plan: PlanDBM, as_of_date: date) -> tuple[date, ...]:
+    """Return all dates plan applies to from start_date through as_of_date."""
+    start = plan.start_date or as_of_date
+    if start > as_of_date:
+        return ()
+    return _occurrence_dates(*_recurrence_spec(plan), start, plan.end_date, as_of_date)
 
 
 def applicable_occurrence_dates(plan: PlanDBM, as_of_date: date) -> list[date]:
     """Public wrapper for _applicable_occurrence_dates, for callers outside this
     module that need per-date occurrence data (not just compute_streaks' aggregate)."""
-    return _applicable_occurrence_dates(plan, as_of_date)
+    return list(_applicable_occurrence_dates(plan, as_of_date))
 
 
 def compute_streaks(

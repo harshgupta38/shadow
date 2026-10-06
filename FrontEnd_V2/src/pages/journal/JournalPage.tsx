@@ -14,9 +14,11 @@ type SaveState = "idle" | "saving" | "saved" | "error";
 type WeekStatus = "loading" | "ready" | "error";
 interface PendingEdit { date: string; mood: JournalMood | null; text: string }
 
-// Quill represents an empty document as this markup; store it as an empty string.
+// Quill keeps empty-but-formatted markup (<p><br></p>, <h2><br></h2>, an empty list...) when the
+// text is cleared. Anything without visible text is stored as an empty string.
 function normalizeQuillHtml(html: string): string {
-    return html === "<p><br></p>" ? "" : html;
+    const visibleText = html.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim();
+    return visibleText === "" ? "" : html;
 }
 
 const DAY_ABBR = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];

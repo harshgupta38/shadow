@@ -501,6 +501,8 @@ def update_task(
         goal = _resolve_goal(db, current_user, goal_id)
         scheduled_date = data.scheduled_date if "scheduled_date" in fields and data.scheduled_date else \
             _next_yearly_occurrence(yearly.recurrence_month, yearly.recurrence_day, today_ist())
+        if scheduled_date < today_ist():
+            raise ValidationError(errors={"scheduled_date": "scheduled_date cannot be in the past."})
         planner_type = data.planner_type or yearly.planner_type
         is_metric = planner_type == "metric"
 
@@ -609,6 +611,8 @@ def update_task(
         task.priority = data.priority
     if "scheduled_date" in fields and data.scheduled_date is not None:
         if data.scheduled_date != task.scheduled_date:
+            if data.scheduled_date < today_ist():
+                raise ValidationError(errors={"scheduled_date": "scheduled_date cannot be in the past."})
             task.scheduled_date = data.scheduled_date
             if task.status in ("completed", "missed"):
                 task.status = "upcoming"

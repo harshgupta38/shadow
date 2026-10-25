@@ -136,14 +136,6 @@ class ScheduledTaskUpdateRequest(BaseModel):
     goal_id: int | None = None
     repeat_yearly: bool | None = None
 
-    @model_validator(mode="after")
-    def validate_scheduled_date(self) -> "ScheduledTaskUpdateRequest":
-        # Mirror the create rule: yearly tasks store only month+day, so past dates are valid.
-        if self.scheduled_date is not None and self.repeat_yearly is not True:
-            if self.scheduled_date < today_ist():
-                raise ValueError("scheduled_date cannot be in the past.")
-        return self
-
 
 class ScheduledTaskProposalLLMSchema(BaseModel):
     title: str

@@ -56,7 +56,7 @@ export function UsagePanel() {
   const maxTotal = Math.max(...entries.map(e => e.input_tokens + e.output_tokens), 1);
 
   return (
-    <div className="surface panel-card">
+    <div className="surface panel-card pb-2">
       {/* Header */}
       <div className="usage-panel-header">
         <div className="usage-panel-header-left">

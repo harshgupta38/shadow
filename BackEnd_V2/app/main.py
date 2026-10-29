@@ -68,6 +68,10 @@ async def lifespan(_app: FastAPI):
         if "streak_tolerance_pct" not in _cols:
             _conn.execute(_sql_text("ALTER TABLE habits ADD COLUMN streak_tolerance_pct INTEGER NOT NULL DEFAULT 100"))
             _conn.commit()
+        _report_cols = {row[1] for row in _conn.execute(_sql_text("PRAGMA table_info(reports)")).fetchall()}
+        if "weekly_insights" not in _report_cols:
+            _conn.execute(_sql_text("ALTER TABLE reports ADD COLUMN weekly_insights JSON"))
+            _conn.commit()
     with SessionLocal() as db:
         planner_service.sync_all_plans(db)
 

@@ -2,7 +2,6 @@
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
-  height: 100%;
 }
 
 .wi-vs-hero {
@@ -41,9 +40,18 @@
   color: var(--jv-faint);
 }
 
+.wi-vs-first {
+  margin: 0.4rem 0 0;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--jv-muted);
+}
+
+.wi-vs-none { text-align: right; font-size: 0.7rem; }
+
 .wi-vs-list {
   list-style: none;
-  margin: auto 0 0;
+  margin: 0.2rem 0 0;
   padding: 0.5rem 0 0;
   border-top: 1px solid var(--jv-border);
   display: flex;

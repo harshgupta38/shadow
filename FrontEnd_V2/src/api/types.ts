@@ -883,6 +883,7 @@ export interface DailyReportDetail {
   goals: GoalAlignment[];
   highlights: { good: string[]; attention: string[] };
   closing: { tone: "motivate" | "guide" | "celebrate"; message: string };
+  weekly_insights?: WeeklyInsights | null; // weekly reports only
 }
 
 // ── Weekly report insights ─────────────────────────────────────────────────────
@@ -898,16 +899,22 @@ export interface WeeklyDay {
   tasks_total: number;
   habits_done: number;
   habits_total: number;
-  prev_completion_pct: number | null; // same weekday last week; null = nothing planned
+  score_pct: number | null;      // partial-credit day score, same formula as the monthly calendar; null = nothing planned
+  prev_score_pct: number | null; // same weekday last week
 }
 
 export interface WeeklyMetricComparison {
   id: "alignment" | "tasks" | "habits" | "strong_days" | "focus_time";
   label: string;
   value: number;
-  previous: number;
+  previous: number | null; // null when last week has nothing to compare against
   kind: WeeklyMetricKind;
   suffix?: string; // appended to the value, e.g. "%" or "/7"
+}
+
+export interface WeeklyScorePoint {
+  week_end: string;      // "YYYY-MM-DD" Saturday of that week
+  score: number | null;  // that week's alignment score; null = no weekly report that week
 }
 
 export interface WeeklyHabit {
@@ -944,7 +951,7 @@ export interface WeeklyGoalMomentum {
   title: string;
   milestone_title: string;
   alignment_pct: number;
-  prev_alignment_pct: number;
+  prev_alignment_pct: number | null; // null when last week's report had no entry for this goal
   daily_pct: (number | null)[];
   milestone_done: number;
   milestone_total: number;
@@ -962,11 +969,12 @@ export interface WeeklyFocus {
 export interface WeeklyInsights {
   days: WeeklyDay[];
   comparison: WeeklyMetricComparison[];
-  score_trend: number[]; // oldest → current week, alignment score 0–100
+  score_trend: WeeklyScorePoint[]; // oldest → current week, fixed 6 slots
   habits: WeeklyHabit[];
   priorities: WeeklyPriorityTier[];
   top_priority_misses: string[]; // titles of highest-priority items left undone
   time_slots: WeeklyTimeSlot[];
+  unslotted_count: number; // planned items with no time slot (flexible), left out of time_slots
   most_missed: WeeklyMissedItem[];
   goals: WeeklyGoalMomentum[];
   focus: WeeklyFocus;

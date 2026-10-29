@@ -40,7 +40,7 @@ export function GoalMomentum({ goals, labels }: GoalMomentumProps) {
 
             <div className="wi-goal-score">
               <span className="wi-goal-pct">{g.alignment_pct}%</span>
-              <Delta delta={g.alignment_pct - g.prev_alignment_pct} kind="points" />
+              {g.prev_alignment_pct !== null && <Delta delta={g.alignment_pct - g.prev_alignment_pct} kind="points" />}
             </div>
 
             <div className="wi-goal-ms">

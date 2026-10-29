@@ -14,18 +14,29 @@
 
 // ── Layout ───────────────────────────────────────────────────────────────────
 
-.wi-grid {
+.wi-cols {
   display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr);
   gap: 0.875rem;
-  align-items: stretch;
+  align-items: start; // columns size to their own content instead of matching each other
+}
 
-  &--chart-side { grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr); }
-  &--wide-narrow { grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); }
+.wi-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  min-width: 0;
+}
 
-  @media (max-width: 900px) {
-    &--chart-side,
-    &--wide-narrow { grid-template-columns: minmax(0, 1fr); }
+// One column: dissolve the two wrappers so every card joins a single flex column and
+// the inline `order` on each card restores the interleaved reading order.
+@media (max-width: 900px) {
+  .wi-cols {
+    display: flex;
+    flex-direction: column;
   }
+
+  .wi-col { display: contents; }
 }
 
 .wi-card {
@@ -50,18 +61,6 @@
   font-size: 0.8rem;
   font-weight: 700;
   color: var(--jv-text);
-}
-
-.wi-preview-chip {
-  font-size: 0.66rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  color: var(--jv-warn);
-  background: color-mix(in srgb, var(--jv-warn) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--jv-warn) 35%, transparent);
-  border-radius: var(--jv-radius-pill);
-  padding: 1px 9px;
-  cursor: help;
 }
 
 // ── Shared: legend, chips, insight line, tags, callouts ──────────────────────

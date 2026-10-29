@@ -12,7 +12,7 @@ from app.db.session import get_db
 from app.models.user import UserDBM
 from app.schemas.daily_report import ReportResponse
 from app.schemas.reports import MonthlyReportResponse
-from app.services import reports_service
+from app.services import reports_service, weekly_insights_service
 from app.services.report_service import (
     delete_report,
     generate_report_background,
@@ -47,6 +47,8 @@ def get_report_detail(
     current_user: UserDBM = Depends(get_current_user),
 ) -> list[ReportResponse]:
     reports = get_reports(db, current_user.id, report_date)
+    # Weekly reports generated before insights existed are filled in on first open.
+    weekly_insights_service.ensure_weekly_insights(db, reports)
     return [to_report_response(r) for r in reports]
 
 

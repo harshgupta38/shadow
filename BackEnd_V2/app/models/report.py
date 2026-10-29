@@ -43,6 +43,10 @@ class ReportDBM(Base):
     highlights: Mapped[dict] = mapped_column(JSON, nullable=False)
     closing: Mapped[dict] = mapped_column(JSON, nullable=False)
 
+    # Weekly reports only: analytics snapshot (see WeeklyInsightsResponse). NULL on
+    # daily reports and on weekly reports not yet backfilled.
+    weekly_insights: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+
     model_used: Mapped[str | None] = mapped_column(String(200), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(

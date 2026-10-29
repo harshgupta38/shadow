@@ -9,8 +9,8 @@ export interface WeekLabels {
   dayNumbers: string[];
   /** Full short date per day in the user's date format, e.g. "21 October". */
   dayDates: string[];
-  /** Saturday that ended the week `weeksBack` weeks before this one. */
-  weekEnding: (weeksBack: number) => string;
+  /** Any "YYYY-MM-DD" date in the user's date format, without the year. */
+  formatDate: (iso: string) => string;
 }
 
 // weekEnd is the Saturday the report is dated; index 0 is the Sunday six days earlier.
@@ -22,7 +22,7 @@ export function useWeekLabels(weekEnd: string): WeekLabels {
     return {
       dayNumbers: isos.map((iso) => String(Number(iso.slice(8)))),
       dayDates: isos.map((iso) => formatDisplayDateShort(iso, dateFormat)),
-      weekEnding: (weeksBack) => formatDisplayDateShort(shiftIso(weekEnd, -7 * weeksBack), dateFormat),
+      formatDate: (iso) => formatDisplayDateShort(iso, dateFormat),
     };
   }, [weekEnd, dateFormat]);
 }

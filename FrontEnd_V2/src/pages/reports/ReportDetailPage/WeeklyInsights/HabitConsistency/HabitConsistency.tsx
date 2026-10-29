@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { ArrowDownShort, CheckLg } from "react-bootstrap-icons";
 
 import type { WeeklyHabit } from "@/api/types";
@@ -36,6 +36,13 @@ function rankHabits(habits: WeeklyHabit[]) {
 export function HabitConsistency({ habits, labels }: HabitConsistencyProps) {
   const { wrapRef, show, hide, node } = useChartTooltip();
   const { rows, mostConsistentId, slippedId } = useMemo(() => rankHabits(habits), [habits]);
+  const [expanded, setExpanded] = useState(false);
+
+  // rows are sorted strongest → weakest, so a long list keeps both ends and hides the middle.
+  const collapsible = rows.length > THRESHOLDS.HABITS_COLLAPSE_ABOVE;
+  const visible = collapsible && !expanded
+    ? [...rows.slice(0, THRESHOLDS.HABITS_SHOWN_PER_END), ...rows.slice(-THRESHOLDS.HABITS_SHOWN_PER_END)]
+    : rows;
 
   return (
     <div ref={wrapRef} className="wi-habits">
@@ -49,7 +56,7 @@ export function HabitConsistency({ habits, labels }: HabitConsistencyProps) {
         <span className="wi-habit-trend">vs last wk</span>
       </div>
 
-      {rows.map(({ h, done, planned, value, trend }) => (
+      {visible.map(({ h, done, planned, value, trend }) => (
         <div
           key={h.id}
           className="wi-habit-row"
@@ -97,11 +104,21 @@ export function HabitConsistency({ habits, labels }: HabitConsistencyProps) {
         </div>
       ))}
 
-      <div className="wi-legend wi-legend--dots">
-        <span className="wi-legend-item"><i className="wi-dot wi-dot--done" /> Done</span>
-        <span className="wi-legend-item"><i className="wi-dot wi-dot--missed" /> Missed</span>
-        <span className="wi-legend-item"><i className="wi-dot wi-dot--skipped" /> Skipped</span>
-        <span className="wi-legend-item"><i className="wi-dot wi-dot--none" /> Not planned</span>
+      <div className="wi-habit-foot">
+        {collapsible && (
+          <button type="button" className="wi-more" aria-expanded={expanded} onClick={() => setExpanded((v) => !v)}>
+            {expanded
+              ? "Show fewer"
+              : `Show all ${rows.length} habits · ${rows.length - visible.length} hidden`}
+          </button>
+        )}
+
+        <div className="wi-legend wi-legend--dots">
+          <span className="wi-legend-item"><i className="wi-dot wi-dot--done" /> Done</span>
+          <span className="wi-legend-item"><i className="wi-dot wi-dot--missed" /> Missed</span>
+          <span className="wi-legend-item"><i className="wi-dot wi-dot--skipped" /> Skipped</span>
+          <span className="wi-legend-item"><i className="wi-dot wi-dot--none" /> Not planned</span>
+        </div>
       </div>
       {node}
     </div>

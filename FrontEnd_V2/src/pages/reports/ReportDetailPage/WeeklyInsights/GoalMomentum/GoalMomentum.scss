@@ -1,0 +1,91 @@
+.wi-goals {
+  display: flex;
+  flex-direction: column;
+}
+
+.wi-goal-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) 120px 92px minmax(130px, 1fr);
+  align-items: center;
+  gap: 1rem;
+  padding: 0.6rem 0;
+  border-top: 1px solid var(--jv-border);
+
+  &:first-child { border-top: none; padding-top: 0.1rem; }
+  &:last-child { padding-bottom: 0.1rem; }
+
+  @media (max-width: 760px) {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.5rem 1rem;
+
+    .wi-goal-main { grid-column: 1 / -1; }
+    .wi-goal-ms { grid-column: 1 / -1; }
+  }
+}
+
+.wi-goal-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+
+.wi-goal-title {
+  font-size: 0.8rem;
+  font-weight: 650;
+  color: var(--jv-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wi-goal-milestone {
+  align-self: flex-start;
+  max-width: 100%;
+  font-size: 0.64rem;
+  color: var(--jv-muted);
+  background: var(--jv-surface-2);
+  border: 1px solid var(--jv-border);
+  border-radius: var(--jv-radius-pill);
+  padding: 0 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wi-goal-score { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
+
+.wi-goal-pct {
+  font-family: var(--jv-font-display);
+  font-size: 1.2rem;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: var(--jv-text);
+}
+
+.wi-goal-ms { display: flex; flex-direction: column; gap: 4px; }
+
+.wi-goal-ms-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.66rem;
+  color: var(--jv-muted);
+
+  strong { color: var(--jv-success); font-weight: 700; white-space: nowrap; }
+}
+
+.wi-goal-ms-track {
+  position: relative;
+  height: 6px;
+  border-radius: 0 3px 3px 0;
+  background: color-mix(in srgb, var(--jv-brand-1) 10%, var(--jv-surface-2));
+  overflow: hidden;
+}
+
+.wi-goal-ms-prev,
+.wi-goal-ms-gain {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 0 3px 3px 0;
+}
+
+// Last week's progress is solid; this week's gain is the lighter stretch beyond it.
+.wi-goal-ms-prev { background: var(--jv-brand-1); }
+.wi-goal-ms-gain { background: color-mix(in srgb, var(--jv-brand-1) 42%, var(--jv-surface)); }

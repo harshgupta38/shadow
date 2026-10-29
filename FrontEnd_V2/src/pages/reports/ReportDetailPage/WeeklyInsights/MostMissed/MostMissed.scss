@@ -1,0 +1,49 @@
+.wi-missed {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.wi-missed-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding-bottom: 0.55rem;
+  border-bottom: 1px solid var(--jv-border);
+
+  &:last-child { padding-bottom: 0; border-bottom: none; }
+}
+
+.wi-missed-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.wi-missed-title { font-size: 0.78rem; font-weight: 650; color: var(--jv-text); min-width: 0; }
+.wi-missed-count { flex-shrink: 0; font-size: 0.7rem; font-weight: 800; color: var(--jv-danger); }
+
+.wi-missed-kind {
+  align-self: flex-start;
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: var(--jv-muted);
+  background: var(--jv-surface-2);
+  border: 1px solid var(--jv-border);
+  border-radius: var(--jv-radius-pill);
+  padding: 0 8px;
+}
+
+.wi-missed-note {
+  margin: 0.1rem 0 0;
+  padding-left: 0.6rem;
+  border-left: 2px solid var(--jv-border-strong);
+  font-size: 0.72rem;
+  font-style: italic;
+  line-height: 1.5;
+  color: var(--jv-muted);
+}

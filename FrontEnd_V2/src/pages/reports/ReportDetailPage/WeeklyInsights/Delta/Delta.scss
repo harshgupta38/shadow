@@ -1,0 +1,14 @@
+.wi-delta {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  white-space: nowrap;
+
+  svg { margin-right: -1px; }
+
+  &--good { color: var(--jv-success); }
+  &--bad { color: var(--jv-danger); }
+  &--flat { color: var(--jv-faint); font-weight: 600; }
+}

@@ -1,0 +1,105 @@
+.wi-habits {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.wi-habit-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 140px 74px 58px 76px;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.35rem;
+  border-radius: 8px;
+  font-size: 0.76rem;
+  transition: background 120ms;
+
+  &:not(&--head):hover { background: var(--jv-surface-2); }
+
+  &--head {
+    padding-top: 0;
+    padding-bottom: 0.1rem;
+    font-size: 0.6rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--jv-faint);
+  }
+
+  @media (max-width: 620px) {
+    grid-template-columns: auto 1fr auto auto;
+    row-gap: 0.15rem;
+
+    .wi-habit-name { grid-column: 1 / -1; }
+    &--head { display: none; }
+  }
+}
+
+.wi-habit-name {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.wi-habit-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  color: var(--jv-text);
+}
+
+.wi-habit-dots {
+  display: grid;
+  grid-template-columns: repeat(7, 20px);
+}
+
+.wi-habit-initial { text-align: center; }
+
+.wi-dot-hit {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 24px;
+  cursor: default;
+}
+
+.wi-dot {
+  display: inline-block;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  transition: transform 120ms;
+
+  &--done { width: 10px; height: 10px; border-radius: 50%; background: var(--jv-success); }
+  &--missed {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 2px solid var(--jv-danger);
+    background: transparent;
+  }
+  &--skipped { width: 9px; height: 2px; border-radius: 1px; background: var(--jv-muted); }
+  &--none { width: 4px; height: 4px; border-radius: 50%; background: var(--jv-border-strong); }
+}
+
+.wi-dot-hit:hover .wi-dot { transform: scale(1.35); }
+
+.wi-legend--dots {
+  margin-top: 0.15rem;
+
+  .wi-dot { transform: none; }
+}
+
+.wi-habit-count {
+  color: var(--jv-muted);
+  white-space: nowrap;
+
+  strong { color: var(--jv-text); }
+}
+
+.wi-habit-pct { margin-left: 0.3rem; font-size: 0.66rem; color: var(--jv-faint); }
+.wi-habit-streak { font-size: 0.72rem; font-weight: 700; color: var(--jv-text); white-space: nowrap; }
+.wi-habit-trend { display: flex; justify-content: flex-end; font-size: 0.68rem; }

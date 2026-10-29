@@ -23,6 +23,8 @@ import { useToast } from "@/context/ToastContext";
 import { CLOSING_EMOJI, fmtTime, ringColor } from "./ReportDetailPage.constants";
 import { useDateFormat, useTimeFormat } from "@/context/PlannerContext";
 import { GEOMETRY, PAGE_SIZE } from "@/constant/tuning";
+import { WeeklyInsights } from "./WeeklyInsights/WeeklyInsights";
+import { WEEKLY_INSIGHTS_MOCK } from "./WeeklyInsights/WeeklyInsights.mock";
 import "./ReportDetailPage.scss";
 
 // ── Progress Ring ─────────────────────────────────────────────────────────────
@@ -473,6 +475,9 @@ export function ReportDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Weekly insights are rendered from preview mock data until the backend provides them. */}
+      {report.report_type === "weekly" && <WeeklyInsights data={WEEKLY_INSIGHTS_MOCK} weekEnd={report.date} />}
 
       {/* ── Goal Alignment ───────────────────────────────────────────────── */}
       <section className="rdp-section mt-3">

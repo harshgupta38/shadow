@@ -1,0 +1,97 @@
+.wi-prio {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.wi-prio-row {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr) 40px 34px;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.35rem 0.35rem;
+  border-radius: 8px;
+  font-size: 0.74rem;
+  outline: none;
+  transition: background 120ms;
+
+  &:hover,
+  &:focus-visible { background: var(--jv-surface-2); }
+  &:focus-visible { box-shadow: 0 0 0 2px var(--jv-ring); }
+}
+
+.wi-prio-label { font-weight: 600; color: var(--jv-text); }
+
+.wi-prio-track {
+  position: relative;
+  height: 10px;
+  border-radius: 0 5px 5px 0;
+  background: color-mix(in srgb, var(--jv-brand-1) 10%, var(--jv-surface-2));
+  overflow: hidden;
+}
+
+.wi-prio-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 0 4px 4px 0;
+  background: var(--jv-brand-1);
+  transform-origin: left center;
+  animation: wi-grow-x 620ms var(--jv-ease) both;
+
+  &--0 { opacity: 1; }
+  &--1 { opacity: 0.82; }
+  &--2 { opacity: 0.64; }
+  &--3 { opacity: 0.48; }
+}
+
+@keyframes wi-grow-x { from { transform: scaleX(0); } }
+
+.wi-prio-val { font-weight: 800; color: var(--jv-text); text-align: right; }
+.wi-prio-count { font-size: 0.66rem; color: var(--jv-faint); text-align: right; }
+
+.wi-prio-misses {
+  margin-top: 0.3rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--jv-border);
+
+  ul {
+    list-style: none;
+    margin: 0.35rem 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  li {
+    position: relative;
+    padding-left: 0.9rem;
+    font-size: 0.74rem;
+    color: var(--jv-text);
+
+    &::before {
+      content: "";
+      position: absolute;
+      left: 0.1rem;
+      top: 0.45em;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      border: 2px solid var(--jv-danger);
+      box-sizing: border-box;
+    }
+  }
+}
+
+.wi-prio-misses-head {
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--jv-faint);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wi-prio-fill { animation: none; }
+}

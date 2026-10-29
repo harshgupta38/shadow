@@ -885,6 +885,93 @@ export interface DailyReportDetail {
   closing: { tone: "motivate" | "guide" | "celebrate"; message: string };
 }
 
+// ── Weekly report insights ─────────────────────────────────────────────────────
+// Every per-day array is ordered Sunday → Saturday (the weekly report window).
+
+export type WeeklyMetricKind = "points" | "days" | "minutes";
+export type WeeklyHabitDayState = "done" | "missed" | "skipped" | "none";
+export type WeeklyTimeSlotId = "morning" | "afternoon" | "evening" | "night";
+export type WeeklyPriorityId = "highest" | "high" | "medium" | "low";
+
+export interface WeeklyDay {
+  tasks_done: number;
+  tasks_total: number;
+  habits_done: number;
+  habits_total: number;
+  prev_completion_pct: number | null; // same weekday last week; null = nothing planned
+}
+
+export interface WeeklyMetricComparison {
+  id: "alignment" | "tasks" | "habits" | "strong_days" | "focus_time";
+  label: string;
+  value: number;
+  previous: number;
+  kind: WeeklyMetricKind;
+  suffix?: string; // appended to the value, e.g. "%" or "/7"
+}
+
+export interface WeeklyHabit {
+  id: number;
+  title: string;
+  cells: WeeklyHabitDayState[];
+  streak: number;
+  prev_done: number;
+  prev_planned: number;
+}
+
+export interface WeeklyPriorityTier {
+  priority: WeeklyPriorityId;
+  done: number;
+  total: number;
+}
+
+export interface WeeklyTimeSlot {
+  id: WeeklyTimeSlotId;
+  done: number[];
+  planned: number[];
+}
+
+export interface WeeklyMissedItem {
+  id: number;
+  title: string;
+  kind: "habit" | "task" | "schedule";
+  misses: number;
+  note: string | null;
+}
+
+export interface WeeklyGoalMomentum {
+  id: number;
+  title: string;
+  milestone_title: string;
+  alignment_pct: number;
+  prev_alignment_pct: number;
+  daily_pct: (number | null)[];
+  milestone_done: number;
+  milestone_total: number;
+  milestone_done_prev_week: number;
+}
+
+export interface WeeklyFocus {
+  title: string;
+  rationale: string;
+  metric_label: string;
+  current_pct: number;
+  target_pct: number;
+}
+
+export interface WeeklyInsights {
+  days: WeeklyDay[];
+  comparison: WeeklyMetricComparison[];
+  score_trend: number[]; // oldest → current week, alignment score 0–100
+  habits: WeeklyHabit[];
+  priorities: WeeklyPriorityTier[];
+  top_priority_misses: string[]; // titles of highest-priority items left undone
+  time_slots: WeeklyTimeSlot[];
+  most_missed: WeeklyMissedItem[];
+  goals: WeeklyGoalMomentum[];
+  focus: WeeklyFocus;
+}
+
 // ── Dashboard ──────────────────────────────────────────────────────────────────
 
 // A single habit's Sun–Sat completion row, used by both TrackProgressPage's

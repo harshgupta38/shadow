@@ -1,0 +1,27 @@
+.wi-spark {
+  position: relative;
+  flex-shrink: 0;
+  color: var(--jv-brand-1);
+
+  &--fluid { width: 100%; }
+}
+
+.wi-spark-svg { display: block; overflow: visible; }
+
+.wi-spark-line {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.wi-spark-area { fill: currentColor; opacity: 0.1; }
+
+.wi-spark-end {
+  fill: currentColor;
+  stroke: var(--jv-surface);
+  stroke-width: 2;
+}
+
+.wi-spark-hit { fill: transparent; cursor: crosshair; }

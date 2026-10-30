@@ -21,9 +21,11 @@ from pathlib import Path
 
 from sqlalchemy.orm import Session
 
+from app.common import format_duration
 from app.core.config import settings
 from app.models.user import UserDBM
 from app.schemas.daily_report import GoalAlignmentResponse, ReportHighlightsResponse, ReportResponse, ReportStatsResponse
+from app.schemas.weekly_insights import WEEKDAYS_LONG, WEEKDAYS_SHORT, WeeklyInsightsResponse
 from app.services import email_service
 
 logger = logging.getLogger(__name__)
@@ -622,6 +624,103 @@ def _build_highlights_block(highlights: ReportHighlightsResponse, report_type: s
     )
 
 
+_BAR_MAX_PX = 80
+
+
+def _delta_cell(value: int, previous: int | None, kind: str) -> str:
+    """Signed change versus last week. Direction is spelled out with an arrow, not colour alone."""
+    if previous is None:
+        return '<span style="color:#9ca3af;">&ndash;</span>'
+    diff = value - previous
+    if diff == 0:
+        return '<span style="color:#9ca3af;">even</span>'
+    mag = abs(diff)
+    if kind == "minutes":
+        text = format_duration(mag)
+    elif kind == "days":
+        text = f"{mag} day{'s' if mag != 1 else ''}"
+    else:
+        text = f"{mag} pts"
+    color, arrow = ("#16a97a", "&#9650;") if diff > 0 else ("#dc2626", "&#9660;")
+    return f'<span style="color:{color};font-weight:700;">{arrow} {_e(text)}</span>'
+
+
+def _week_bar_cell(index: int, score: int | None, tone: str) -> str:
+    color = {"best": "#7c6cff", "worst": "#e0913a"}.get(tone, "#cfc9ff")
+    if score is None:
+        bar = '<div style="height:3px;line-height:3px;font-size:0;">&nbsp;</div>'
+        label = "&ndash;"
+    else:
+        height = max(3, round(score * _BAR_MAX_PX / 100))
+        bar = (
+            f'<div style="width:20px;height:{height}px;background:{color};border-radius:4px 4px 0 0;'
+            'margin:0 auto;line-height:0;font-size:0;">&nbsp;</div>'
+        )
+        label = f"{score}%"
+    return (
+        '<td valign="bottom" align="center" style="padding:0 2px;">'
+        f'<div style="font-size:10px;font-weight:700;color:#111827;padding-bottom:3px;">{label}</div>{bar}'
+        f'<div style="border-top:1px solid #e5e7eb;font-size:10.5px;font-weight:700;color:#4b5563;padding-top:4px;">{WEEKDAYS_SHORT[index]}</div>'
+        "</td>"
+    )
+
+
+def _build_weekly_block(wi: WeeklyInsightsResponse | None) -> str:
+    """Compact "Week in depth" section for weekly report emails: day-score bars, the
+    comparison with last week, and next week's focus. Empty for daily reports."""
+    if wi is None:
+        return ""
+
+    scored = [(i, d.score_pct) for i, d in enumerate(wi.days) if d.score_pct is not None]
+    best = max(scored, key=lambda t: t[1]) if scored else None
+    worst = min(scored, key=lambda t: t[1]) if scored else None
+    contrast = best is not None and worst is not None and len(scored) > 1 and best[1] != worst[1]
+    bars = "".join(
+        _week_bar_cell(
+            i, d.score_pct,
+            "best" if contrast and best and i == best[0] else "worst" if contrast and worst and i == worst[0] else "base",
+        )
+        for i, d in enumerate(wi.days)
+    )
+    insight = ""
+    if best is not None:
+        insight = f"Strongest on <b>{WEEKDAYS_LONG[best[0]]}</b> ({best[1]}%)"
+        if contrast and worst is not None:
+            insight += f" &middot; softest on <b>{WEEKDAYS_LONG[worst[0]]}</b> ({worst[1]}%)"
+
+    rows = ""
+    for m in wi.comparison:
+        value = format_duration(m.value) if m.kind == "minutes" else f"{m.value}{m.suffix or ''}"
+        rows += (
+            "<tr>"
+            f'<td style="padding:5px 0;font-size:12px;color:#6b7280;border-top:1px solid #f3f4f6;">{_e(m.label)}</td>'
+            f'<td align="right" style="padding:5px 10px;font-size:12px;font-weight:700;color:#111827;border-top:1px solid #f3f4f6;">{_e(value)}</td>'
+            f'<td align="right" width="84" style="padding:5px 0;font-size:11.5px;border-top:1px solid #f3f4f6;">{_delta_cell(m.value, m.previous, m.kind)}</td>'
+            "</tr>"
+        )
+
+    focus = wi.focus
+    return (
+        '<tr><td style="padding:26px 36px 4px;">'
+        '<div style="font-size:11px;font-weight:700;color:#111827;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px;">Week in depth</div>'
+        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e4e0ff;border-radius:10px;">'
+        '<tr><td style="padding:14px 14px 6px;">'
+        '<div style="font-size:11px;font-weight:700;color:#4b5563;margin-bottom:8px;">Day score, Sunday to Saturday</div>'
+        f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>{bars}</tr></table>'
+        f'<div style="margin-top:8px;font-size:11.5px;color:#6b7280;">{insight}</div>'
+        "</td></tr>"
+        f'<tr><td style="padding:6px 14px 10px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0">{rows}</table></td></tr>'
+        '<tr><td style="padding:0 14px 14px;">'
+        '<div style="background:#f1efff;border-left:3px solid #7c6cff;border-radius:0 8px 8px 0;padding:10px 12px;">'
+        '<div style="font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;">Try this next week</div>'
+        f'<div style="margin-top:2px;font-size:14px;font-weight:800;color:#111827;">{_e(focus.title)}</div>'
+        f'<div style="margin-top:3px;font-size:12px;color:#4b5563;line-height:1.5;">{_e(focus.rationale)}</div>'
+        f'<div style="margin-top:6px;font-size:11px;color:#6b7280;">{_e(focus.metric_label)}: <b style="color:#111827;">{focus.current_pct}%</b> to <b style="color:#111827;">{focus.target_pct}%</b></div>'
+        "</div></td></tr>"
+        "</table></td></tr>"
+    )
+
+
 def send_report_email(db: Session, user: UserDBM, report: ReportResponse, *, force: bool = False) -> bool:
     """Full report snapshot, shaped to match ReportDetailPage.tsx. Sent
     automatically when a report finishes generating — gated by BOTH the
@@ -652,6 +751,7 @@ def send_report_email(db: Session, user: UserDBM, report: ReportResponse, *, for
         "safe_headline": _e(report.headline),
         "safe_summary": _e(report.summary),
         "stats_block": _build_stats_block(report.stats, report.goals, report.report_type),
+        "weekly_block": _build_weekly_block(report.weekly_insights),
         "goals_block": _build_goals_block(report.goals),
         "highlights_block": _build_highlights_block(report.highlights, report.report_type),
         "safe_closing_emoji": _CLOSING_EMOJI.get(report.closing.tone, "\U0001F9ED"),
@@ -676,6 +776,9 @@ def send_report_email(db: Session, user: UserDBM, report: ReportResponse, *, for
         text_lines += ["", "Went well:"] + [f"  - {t}" for t in report.highlights.good]
     if report.highlights.attention:
         text_lines += ["", "Needs attention:"] + [f"  - {t}" for t in report.highlights.attention]
+    if report.weekly_insights:
+        focus = report.weekly_insights.focus
+        text_lines += ["", f"Try this next week: {focus.title}", focus.rationale]
     text_lines += ["", report.closing.message, "", f"View full report: {cta_url}", "", f"Unsubscribe: {unsub}"]
     text_body = "\n".join(text_lines)
 

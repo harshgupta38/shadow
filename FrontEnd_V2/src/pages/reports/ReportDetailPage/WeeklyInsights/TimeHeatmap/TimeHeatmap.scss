@@ -52,8 +52,24 @@
 
 .wi-heat-rate { text-align: right; font-size: 0.72rem; font-weight: 700; color: var(--jv-text); }
 
+// Note on the left, colour scale pushed to the right; wraps onto two lines on narrow cards.
+.wi-heat-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem 0.9rem;
+}
+
+.wi-heat-note {
+  margin: 0;
+  font-size: 0.66rem;
+  color: var(--jv-faint);
+}
+
 .wi-heat-scale {
   display: flex;
+  margin-left: auto;
   align-items: center;
   gap: 4px;
   font-size: 0.62rem;

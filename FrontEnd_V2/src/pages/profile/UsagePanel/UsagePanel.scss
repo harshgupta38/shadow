@@ -141,6 +141,34 @@
   height: 1.6rem;       // fixed — must never change or the chart shifts and breaks hover
   overflow: hidden;
   flex-wrap: nowrap;
+  container-type: inline-size; // lets the hover detail drop Input/Output on narrow cards
+}
+
+// Too narrow for the full hover detail next to the month total: keep date + Total only.
+@container (max-width: 440px) {
+  .usage-footer-io { display: none; }
+}
+
+// Hover detail sits on the left and is the part that gives way on narrow cards.
+.usage-footer-detail {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+// Selected month's total, pinned to the right end of the same row.
+.usage-footer-month {
+  margin-left: auto;
+  flex-shrink: 0;
+  white-space: nowrap;
+
+  strong {
+    color: var(--jv-text);
+    font-weight: 600;
+  }
 }
 
 .usage-footer-date {

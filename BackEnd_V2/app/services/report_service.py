@@ -2,6 +2,7 @@ import logging
 from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
 
+from pydantic import ValidationError
 from sqlalchemy import select, desc
 from sqlalchemy.orm import Session
 
@@ -17,8 +18,10 @@ from app.models.report import ReportDBM
 from app.models.task import TaskDBM
 from app.models.user import UserDBM
 from app.schemas.daily_report import ReportResponse
+from app.schemas.weekly_insights import WeeklyInsightsResponse
 from app.services import notifications_service
 from app.services import settings_service
+from app.services import weekly_insights_service
 
 logger = logging.getLogger(__name__)
 
@@ -249,7 +252,7 @@ def build_day_data(db: Session, user_id: int, report_date: date, report_type: st
         if days:
             goal_history.append({"goal_id": goal.id, "days": days})
 
-    return {
+    day_data = {
         "stats": {
             "tasks_done": sum(1 for r in task_recs if r.status == "done"),
             "tasks_total": len(task_recs),
@@ -262,6 +265,17 @@ def build_day_data(db: Session, user_id: int, report_date: date, report_type: st
         "history": history,
         "goal_history": goal_history,
     }
+
+    if report_type == "weekly":
+        # Analytics are an extra: if they fail the report is still generated, and the
+        # missing insights are backfilled the next time the report is opened.
+        try:
+            day_data["weekly_insights"] = weekly_insights_service.compute_weekly_metrics(db, user_id, report_date)
+        except Exception:
+            logger.exception("Weekly insights computation failed for user=%d date=%s", user_id, report_date)
+            day_data["weekly_insights"] = None
+
+    return day_data
 
 
 def get_reports(db: Session, user_id: int, report_date: date) -> list[ReportDBM]:
@@ -314,7 +328,19 @@ def get_latest_report(db: Session, user_id: int) -> ReportDBM | None:
     )
 
 
-def to_report_response(report: ReportDBM) -> ReportResponse:
+def _parse_weekly_insights(report: ReportDBM) -> WeeklyInsightsResponse | None:
+    """Stored insights that no longer match the schema (e.g. after a later change to it)
+    degrade to 'no insights' instead of failing the whole report."""
+    if not report.weekly_insights:
+        return None
+    try:
+        return WeeklyInsightsResponse.model_validate(report.weekly_insights)
+    except ValidationError:
+        logger.warning("Stored weekly insights for report id=%s don't match the schema", report.id, exc_info=True)
+        return None
+
+
+def to_report_response(report: ReportDBM, *, include_weekly_insights: bool = True) -> ReportResponse:
     return ReportResponse.model_validate({
         "id": report.id,
         "date": report.report_date,
@@ -327,6 +353,7 @@ def to_report_response(report: ReportDBM) -> ReportResponse:
         "goals": report.goals,
         "highlights": report.highlights,
         "closing": report.closing,
+        "weekly_insights": _parse_weekly_insights(report) if include_weekly_insights else None,
     })
 
 
@@ -369,7 +396,21 @@ def save_report(
             "message": parsed.closing_message,
         },
         "model_used": llm_result.model_str or str(llm_result.model),
+        "weekly_insights": None,
     }
+
+    metrics = day_data.get("weekly_insights")
+    if report_type == "weekly" and metrics:
+        try:
+            fields["weekly_insights"] = weekly_insights_service.finalize_weekly_insights(
+                metrics,
+                alignment_score=parsed.alignment_score,
+                goal_alignment={gid: g.alignment_pct for gid, g in llm_goal_map.items()},
+                focus_title=parsed.focus_title,
+                focus_rationale=parsed.focus_rationale,
+            )
+        except Exception:
+            logger.exception("Weekly insights finalize failed for user=%d date=%s", user_id, report_date)
 
     db.add(ReportDBM(user_id=user_id, report_date=report_date, report_type=report_type, **fields))
     db.commit()

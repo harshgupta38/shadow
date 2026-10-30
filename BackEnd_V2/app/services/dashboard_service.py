@@ -45,7 +45,11 @@ def get_dashboard(db: Session, current_user: UserDBM) -> DashboardResponse:
     ]
 
     latest_report_row = report_service.get_latest_report(db, current_user.id)
-    latest_report = report_service.to_report_response(latest_report_row) if latest_report_row else None
+    # The dashboard only shows the headline numbers, so skip the heavier weekly analytics.
+    latest_report = (
+        report_service.to_report_response(latest_report_row, include_weekly_insights=False)
+        if latest_report_row else None
+    )
 
     month_report = reports_service.get_monthly_report(db, current_user, today.year, today.month)
 

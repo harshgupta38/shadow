@@ -1,0 +1,18 @@
+.wk-wd { display: inline-flex; gap: 0.25rem; }
+
+.wk-wd-dot {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--jv-faint);
+  background: var(--jv-surface-3);
+
+  &.is-on {
+    color: #fff;
+    background: var(--jv-brand-1);
+  }
+}

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { ArrowDownShort, CheckLg } from "react-bootstrap-icons";
 
 import type { WeeklyHabit } from "@/api/types";
@@ -23,7 +23,8 @@ function rankHabits(habits: WeeklyHabit[]) {
       // Nothing planned this week (e.g. fully skipped): no rate and no trend to report.
       return { h, done, planned, value, trend: planned === 0 || prevValue === null ? null : value - prevValue };
     })
-    .sort((a, b) => b.value - a.value || b.h.streak - a.h.streak);
+    // Unplanned habits sort last, so a fully skipped week never ranks as the weakest.
+    .sort((a, b) => Number(a.planned === 0) - Number(b.planned === 0) || b.value - a.value || b.h.streak - a.h.streak);
 
   const mostConsistentId = rows.length > 0 && rows[0].value >= THRESHOLDS.CONSISTENT_HABIT_PCT ? rows[0].h.id : null;
   const slippedId = rows
@@ -36,6 +37,13 @@ function rankHabits(habits: WeeklyHabit[]) {
 export function HabitConsistency({ habits, labels }: HabitConsistencyProps) {
   const { wrapRef, show, hide, node } = useChartTooltip();
   const { rows, mostConsistentId, slippedId } = useMemo(() => rankHabits(habits), [habits]);
+  const [expanded, setExpanded] = useState(false);
+
+  // rows are sorted strongest → weakest, so a long list keeps both ends and hides the middle.
+  const collapsible = rows.length > THRESHOLDS.HABITS_COLLAPSE_ABOVE;
+  const visible = collapsible && !expanded
+    ? [...rows.slice(0, THRESHOLDS.HABITS_SHOWN_PER_END), ...rows.slice(-THRESHOLDS.HABITS_SHOWN_PER_END)]
+    : rows;
 
   return (
     <div ref={wrapRef} className="wi-habits">
@@ -49,7 +57,7 @@ export function HabitConsistency({ habits, labels }: HabitConsistencyProps) {
         <span className="wi-habit-trend">vs last wk</span>
       </div>
 
-      {rows.map(({ h, done, planned, value, trend }) => (
+      {visible.map(({ h, done, planned, value, trend }) => (
         <div
           key={h.id}
           className="wi-habit-row"
@@ -66,21 +74,27 @@ export function HabitConsistency({ habits, labels }: HabitConsistencyProps) {
             )}
           </span>
           <span className="wi-habit-dots">
-            {h.cells.map((state, i) => (
-              <span
-                key={i}
-                className="wi-dot-hit"
-                onPointerEnter={(e) => show(e.currentTarget, (
-                  <>
-                    <TipTitle>{h.title}</TipTitle>
-                    <TipLine label={`${WEEKDAYS_LONG[i]}, ${labels.dayDates[i]}`} value={HABIT_STATE_LABEL[state]} />
-                  </>
-                ))}
-                onPointerLeave={hide}
-              >
-                <i className={`wi-dot wi-dot--${state}`} />
-              </span>
-            ))}
+            {h.cells.map((state, i) => {
+              const tip = (
+                <>
+                  <TipTitle>{h.title}</TipTitle>
+                  <TipLine label={`${WEEKDAYS_LONG[i]}, ${labels.dayDates[i]}`} value={HABIT_STATE_LABEL[state]} />
+                </>
+              );
+              return (
+                <span
+                  key={i}
+                  className="wi-dot-hit"
+                  tabIndex={0}
+                  onPointerEnter={(e) => show(e.currentTarget, tip)}
+                  onPointerLeave={hide}
+                  onFocus={(e) => show(e.currentTarget, tip)}
+                  onBlur={hide}
+                >
+                  <i className={`wi-dot wi-dot--${state}`} />
+                </span>
+              );
+            })}
           </span>
           <span className="wi-habit-count">
             {planned === 0 ? <span className="wi-muted">–</span> : (
@@ -97,11 +111,21 @@ export function HabitConsistency({ habits, labels }: HabitConsistencyProps) {
         </div>
       ))}
 
-      <div className="wi-legend wi-legend--dots">
-        <span className="wi-legend-item"><i className="wi-dot wi-dot--done" /> Done</span>
-        <span className="wi-legend-item"><i className="wi-dot wi-dot--missed" /> Missed</span>
-        <span className="wi-legend-item"><i className="wi-dot wi-dot--skipped" /> Skipped</span>
-        <span className="wi-legend-item"><i className="wi-dot wi-dot--none" /> Not planned</span>
+      <div className="wi-habit-foot">
+        {collapsible && (
+          <button type="button" className="wi-more" aria-expanded={expanded} onClick={() => setExpanded((v) => !v)}>
+            {expanded
+              ? "Show fewer"
+              : `Show all ${rows.length} habits · ${rows.length - visible.length} hidden`}
+          </button>
+        )}
+
+        <div className="wi-legend wi-legend--dots">
+          <span className="wi-legend-item"><i className="wi-dot wi-dot--done" /> Done</span>
+          <span className="wi-legend-item"><i className="wi-dot wi-dot--missed" /> Missed</span>
+          <span className="wi-legend-item"><i className="wi-dot wi-dot--skipped" /> Skipped</span>
+          <span className="wi-legend-item"><i className="wi-dot wi-dot--none" /> Not planned</span>
+        </div>
       </div>
       {node}
     </div>

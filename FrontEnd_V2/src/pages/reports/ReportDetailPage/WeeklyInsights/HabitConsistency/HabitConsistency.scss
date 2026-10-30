@@ -87,8 +87,19 @@
 
 .wi-dot-hit:hover .wi-dot { transform: scale(1.35); }
 
+// Toggle on the left, legend pushed to the right; wraps onto two lines on narrow cards.
+.wi-habit-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem 0.9rem;
+  margin-top: 0.25rem;
+  padding-left: 0.35rem;
+}
+
 .wi-legend--dots {
-  margin-top: 0.15rem;
+  margin-left: auto;
 
   .wi-dot { transform: none; }
 }
@@ -103,3 +114,19 @@
 .wi-habit-pct { margin-left: 0.3rem; font-size: 0.66rem; color: var(--jv-faint); }
 .wi-habit-streak { font-size: 0.72rem; font-weight: 700; color: var(--jv-text); white-space: nowrap; }
 .wi-habit-trend { display: flex; justify-content: flex-end; font-size: 0.68rem; }
+
+.wi-more {
+  padding: 0.15rem 0.7rem;
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--jv-brand-1);
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--jv-brand-1) 35%, var(--jv-border));
+  border-radius: var(--jv-radius-pill);
+  cursor: pointer;
+  transition: background 120ms;
+
+  &:hover { background: color-mix(in srgb, var(--jv-brand-1) 8%, transparent); }
+  &:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--jv-ring); }
+}

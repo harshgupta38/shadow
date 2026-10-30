@@ -883,6 +883,7 @@ export interface DailyReportDetail {
   goals: GoalAlignment[];
   highlights: { good: string[]; attention: string[] };
   closing: { tone: "motivate" | "guide" | "celebrate"; message: string };
+  weekly_insights?: WeeklyInsights | null; // weekly reports only
 }
 
 // ── Weekly report insights ─────────────────────────────────────────────────────
@@ -898,16 +899,22 @@ export interface WeeklyDay {
   tasks_total: number;
   habits_done: number;
   habits_total: number;
-  prev_completion_pct: number | null; // same weekday last week; null = nothing planned
+  score_pct: number | null;      // partial-credit day score, same formula as the monthly calendar; null = nothing planned
+  prev_score_pct: number | null; // same weekday last week
 }
 
 export interface WeeklyMetricComparison {
   id: "alignment" | "tasks" | "habits" | "strong_days" | "focus_time";
   label: string;
   value: number;
-  previous: number;
+  previous: number | null; // null when last week has nothing to compare against
   kind: WeeklyMetricKind;
-  suffix?: string; // appended to the value, e.g. "%" or "/7"
+  suffix?: string | null; // appended to the value, e.g. "%" or "/7"
+}
+
+export interface WeeklyScorePoint {
+  week_end: string;      // "YYYY-MM-DD" Saturday of that week
+  score: number | null;  // that week's alignment score; null = no weekly report that week
 }
 
 export interface WeeklyHabit {
@@ -944,7 +951,7 @@ export interface WeeklyGoalMomentum {
   title: string;
   milestone_title: string;
   alignment_pct: number;
-  prev_alignment_pct: number;
+  prev_alignment_pct: number | null; // null when last week's report had no entry for this goal
   daily_pct: (number | null)[];
   milestone_done: number;
   milestone_total: number;
@@ -962,11 +969,12 @@ export interface WeeklyFocus {
 export interface WeeklyInsights {
   days: WeeklyDay[];
   comparison: WeeklyMetricComparison[];
-  score_trend: number[]; // oldest → current week, alignment score 0–100
+  score_trend: WeeklyScorePoint[]; // oldest → current week, fixed 6 slots
   habits: WeeklyHabit[];
   priorities: WeeklyPriorityTier[];
   top_priority_misses: string[]; // titles of highest-priority items left undone
   time_slots: WeeklyTimeSlot[];
+  unslotted_count: number; // planned items with no time slot (flexible), left out of time_slots
   most_missed: WeeklyMissedItem[];
   goals: WeeklyGoalMomentum[];
   focus: WeeklyFocus;
@@ -1225,4 +1233,227 @@ export interface FullSettings {
   privacy: PrivacySettings;
   accessibility: AccessibilitySettings;
   reports: ReportsSettings;
+}
+
+// ── Workout ───────────────────────────────────────────────────────────────────
+
+export type MuscleId =
+  | "chest" | "shoulders" | "traps" | "biceps" | "triceps" | "forearms" | "abs" | "obliques"
+  | "lats" | "lower_back" | "glutes" | "quads" | "hamstrings" | "calves";
+
+export type WorkoutEquipment =
+  | "bodyweight" | "dumbbell" | "barbell" | "machine" | "cable" | "kettlebell" | "band" | "other";
+export type WorkoutLevel = "beginner" | "intermediate" | "advanced";
+export type WorkoutGoal = "build_muscle" | "lose_fat" | "strength" | "endurance" | "general_fitness";
+export type ExerciseMechanic = "compound" | "isolation";
+export type ExerciseKind = "strength" | "cardio" | "warmup";
+// How an exercise is counted: one block of time, sets of a fixed time, or sets of reps (kg optional).
+export type ExerciseMeasure = "minutes" | "seconds" | "reps";
+export type WorkoutPlanSource = "predefined" | "custom";
+
+// Weekdays are 0 (Sunday) to 6 (Saturday) throughout the workout API.
+
+export interface ExerciseSummary {
+  id: number;
+  name: string;
+  image_url: string | null; // null → the UI draws a muscle diagram instead
+  primary_muscles: MuscleId[];
+  secondary_muscles: MuscleId[];
+  equipment: WorkoutEquipment;
+  level: WorkoutLevel;
+  mechanic: ExerciseMechanic;
+  kind: ExerciseKind;
+  measure: ExerciseMeasure;
+  default_sets: number;
+  default_reps: string; // "8-12", "12", "30 sec" or "20 min"
+  default_rest_seconds: number;
+}
+
+interface ExercisePerformance {
+  date: string; // "YYYY-MM-DD"
+  weight_kg: number | null;
+  reps: number | null;
+  seconds: number | null;
+  sets: number; // sets completed in that session
+}
+
+export interface ExerciseDetail extends ExerciseSummary {
+  description: string;
+  image_urls: string[]; // gallery (e.g. start and end position); may be empty
+  instructions: string[];
+  tips: string[];
+  common_mistakes: string[];
+  last_performance: ExercisePerformance | null; // the user's best set last time; null if never done
+  warm_up_with: ExerciseSummary[]; // lifts: one cardio that suits the lift, then up to three drills
+  good_warm_up_for: ExerciseSummary[]; // cardio and drills: the lifts they prepare
+}
+
+interface PlanExercise {
+  id: number | null; // null for rows not saved yet (builder)
+  exercise: ExerciseSummary;
+  sets: number;
+  reps: string;
+  rest_seconds: number;
+  weight_kg: number | null;
+  note: string | null;
+}
+
+export interface PlanDay {
+  id: number | null;
+  weekday: number;
+  name: string;
+  estimated_minutes: number;
+  exercises: PlanExercise[];
+}
+
+export interface WorkoutPlanSummary {
+  id: number;
+  name: string;
+  description: string;
+  goal: WorkoutGoal;
+  level: WorkoutLevel;
+  source: WorkoutPlanSource;
+  is_active: boolean;
+  days_per_week: number;
+  weekdays: number[]; // which weekdays have a session
+  avg_minutes: number;
+  muscles: MuscleId[]; // muscles the plan trains most
+  equipment: WorkoutEquipment[];
+  cover_image_url: string | null;
+}
+
+export interface WorkoutPlanDetail extends WorkoutPlanSummary {
+  days: PlanDay[];
+}
+
+interface PlanExerciseSaveInput {
+  exercise_id: number;
+  sets: number;
+  reps: string;
+  rest_seconds: number;
+  weight_kg: number | null;
+  note: string | null;
+}
+
+interface PlanDaySaveInput {
+  weekday: number;
+  name: string;
+  exercises: PlanExerciseSaveInput[];
+}
+
+export interface WorkoutPlanSaveRequest {
+  name: string;
+  description: string;
+  goal: WorkoutGoal;
+  level: WorkoutLevel;
+  days: PlanDaySaveInput[];
+}
+
+export interface SessionSet {
+  reps: number | null;
+  seconds: number | null;
+  weight_kg: number | null;
+  done: boolean;
+}
+
+export interface SessionExercise {
+  id: number | null; // null for exercises added during the session and not saved yet
+  exercise: ExerciseSummary;
+  target_sets: number;
+  target_reps: string;
+  rest_seconds: number;
+  note: string | null;
+  sets: SessionSet[];
+  previous_sets: SessionSet[]; // what the user did last time, for reference
+}
+
+type WorkoutSessionStatus = "in_progress" | "completed";
+
+export interface WorkoutSessionSummary {
+  id: number;
+  name: string;
+  date: string; // "YYYY-MM-DD"
+  status: WorkoutSessionStatus;
+  plan_name: string | null;
+  duration_seconds: number;
+  exercise_count: number;
+  sets_done: number;
+  volume_kg: number;
+  muscles: MuscleId[];
+}
+
+export interface WorkoutSessionDetail extends WorkoutSessionSummary {
+  plan_id: number | null;
+  plan_day_id: number | null;
+  started_at: string;
+  note: string | null;
+  exercises: SessionExercise[];
+}
+
+export interface SessionStartRequest {
+  plan_day_id: number | null; // null → an empty, ad-hoc workout
+  name: string | null;
+}
+
+interface SessionExerciseSaveInput {
+  id: number | null;
+  exercise_id: number;
+  sets: SessionSet[];
+  note: string | null;
+}
+
+export interface SessionSaveRequest {
+  note: string | null;
+  exercises: SessionExerciseSaveInput[];
+}
+
+type WorkoutWeekStatus = "done" | "today" | "upcoming" | "missed" | "rest";
+
+export interface WorkoutWeekDay {
+  date: string;
+  weekday: number;
+  label: string | null; // the plan day's name, null on rest days
+  status: WorkoutWeekStatus;
+}
+
+export interface MuscleSets {
+  muscle: MuscleId;
+  sets: number;
+}
+
+export interface WorkoutOverview {
+  active_plan: WorkoutPlanSummary | null;
+  today_date: string;
+  today_plan_day: PlanDay | null; // null on a rest day, or when there is no active plan
+  is_rest_day: boolean;
+  in_progress_session_id: number | null;
+  completed_today: WorkoutSessionSummary | null;
+  week: WorkoutWeekDay[]; // Sunday → Saturday
+  sessions_this_week: number;
+  sessions_target: number;
+  volume_kg_week: number;
+  minutes_week: number;
+  muscles_this_week: MuscleSets[];
+}
+
+export interface WorkoutProgressWeek {
+  week_start: string; // Sunday, "YYYY-MM-DD"
+  sessions: number;
+  volume_kg: number;
+  minutes: number;
+}
+
+interface PersonalRecord {
+  exercise: ExerciseSummary;
+  weight_kg: number;
+  reps: number;
+  date: string;
+}
+
+export interface WorkoutProgress {
+  weeks: WorkoutProgressWeek[]; // oldest → newest
+  muscles: MuscleSets[]; // sets per muscle over the last 30 days
+  personal_records: PersonalRecord[];
+  total_sessions: number;
+  current_streak_weeks: number;
 }

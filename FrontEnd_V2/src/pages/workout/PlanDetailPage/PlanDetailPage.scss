@@ -1,0 +1,231 @@
+// wk-page / wk-pd = Workout page shell and Plan Detail
+
+.wk-page {
+  display: flex;
+  flex-direction: column;
+}
+
+.wk-pd-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 1rem;
+  align-items: start;
+
+  @media (max-width: 1000px) { grid-template-columns: minmax(0, 1fr); }
+}
+
+.wk-pd-main,
+.wk-pd-aside {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.wk-pd-sticky {
+  position: sticky;
+  top: 1rem;
+
+  @media (max-width: 1000px) { position: static; }
+}
+
+.wk-pd-card { padding: 1rem 1.1rem; }
+
+.wk-pd-h {
+  margin: 0 0 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--jv-muted);
+
+  &--lg {
+    margin: 0;
+    font-size: 1.15rem;
+    letter-spacing: -0.01em;
+    text-transform: none;
+    color: var(--jv-text);
+  }
+}
+
+.wk-pd-sub {
+  margin: 0.15rem 0 0;
+  font-size: 0.8rem;
+  color: var(--jv-muted);
+
+  &--tight { margin: -0.3rem 0 0.8rem; }
+}
+
+.wk-pd-desc {
+  margin: 0 0 0.8rem;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--jv-text);
+}
+
+.wk-pd-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+
+  .pill { gap: 0.3rem; }
+}
+
+// ── Week strip ───────────────────────────────────────────────────────────────
+
+.wk-pd-week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.4rem;
+
+  @media (max-width: 640px) {
+    display: flex;
+    overflow-x: auto;
+    scrollbar-width: none;
+    .wk-pd-day { flex: 0 0 96px; }
+  }
+}
+
+.wk-pd-day {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  min-width: 0;
+  padding: 0.55rem 0.6rem;
+  text-align: left;
+  font: inherit;
+  border-radius: 12px;
+  border: 1px solid var(--jv-border);
+  background: var(--jv-surface);
+  color: var(--jv-text);
+  cursor: pointer;
+  transition: border-color 140ms, background 140ms, transform 140ms;
+
+  &:hover:not(:disabled) { border-color: var(--jv-border-strong); transform: translateY(-1px); }
+  &:focus-visible { outline: none; box-shadow: var(--jv-ring); }
+
+  &.is-selected {
+    border-color: var(--jv-brand-1);
+    background: var(--jv-brand-soft);
+  }
+
+  &.is-rest {
+    cursor: default;
+    background: transparent;
+    border-style: dashed;
+    color: var(--jv-faint);
+  }
+}
+
+.wk-pd-day-label {
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--jv-muted);
+
+  .is-selected & { color: var(--jv-brand-1); }
+}
+
+.wk-pd-day-name {
+  width: 100%;
+  font-size: 0.8rem;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wk-pd-day-count { font-size: 0.68rem; color: var(--jv-muted); }
+
+// ── Day detail ───────────────────────────────────────────────────────────────
+
+.wk-pd-day-head { margin-bottom: 0.8rem; }
+
+.wk-pd-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.wk-pd-ex {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1.4rem 64px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.7rem 0.5rem 0.5rem;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  border: 1px solid var(--jv-border);
+  border-radius: 12px;
+  background: var(--jv-surface);
+  cursor: pointer;
+  transition: border-color 140ms, background 140ms;
+
+  &:hover { border-color: var(--jv-border-strong); background: var(--jv-surface-2); }
+  &:focus-visible { outline: none; box-shadow: var(--jv-ring); }
+
+  @media (max-width: 560px) {
+    grid-template-columns: 1.2rem 52px minmax(0, 1fr);
+    .wk-pd-ex-dose { grid-column: 2 / -1; align-items: flex-start; }
+  }
+}
+
+.wk-pd-ex-num {
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-align: center;
+  color: var(--jv-faint);
+}
+
+.wk-pd-ex-thumb {
+  width: 64px;
+  height: 52px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--jv-border);
+
+  @media (max-width: 560px) { width: 52px; height: 44px; }
+}
+
+.wk-pd-ex-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.wk-pd-ex-name {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--jv-text);
+}
+
+.wk-pd-ex-dose {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.1rem;
+  text-align: right;
+
+  strong { font-size: 0.95rem; font-weight: 800; color: var(--jv-text); white-space: nowrap; }
+  small { font-size: 0.7rem; color: var(--jv-muted); white-space: nowrap; }
+}
+
+// ── Aside ────────────────────────────────────────────────────────────────────
+
+.wk-pd-aside-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+
+  .wk-pd-h { margin: 0; }
+}

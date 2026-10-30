@@ -18,6 +18,7 @@ from app.api import (
     settings,
     tasks,
     track_progress,
+    workout,
 )
 from app.api.deps import require_device_limit_resolved
 
@@ -46,6 +47,7 @@ for _module in (
     settings,
     tasks,
     track_progress,
+    workout,
 ):
     kwargs = {} if _module in _DEVICE_LIMIT_EXEMPT else {"dependencies": _device_limit_dep}
     api_router.include_router(_module.router, **kwargs)

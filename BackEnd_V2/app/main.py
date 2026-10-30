@@ -1,19 +1,25 @@
 from contextlib import asynccontextmanager
 
 import asyncio
+import json
 import logging
 
+from pathlib import Path
 from typing import Callable
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from starlette.types import Scope
 from fastapi.responses import JSONResponse, Response
 from fastapi.exceptions import RequestValidationError
+from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app.api.router import api_router
 from app.api.system import router as system_router
 from app.api.shortcuts import router as shortcuts_router
 from app.core.config import settings
+from app.core.endpoints import ENDPOINTS
 
 from app.db.session import SessionLocal, engine
 from app.models.base import Base
@@ -44,13 +50,52 @@ from app.models.ip_rate_limit import IpRateLimitDBM
 from app.models.daily_usage import DailyUsageDBM
 from app.models.scheduled_task_subtask import ScheduledTaskSubtaskDBM
 from app.models.journal import JournalEntryDBM
+from app.models.workout import (
+    WorkoutExerciseDBM,
+    WorkoutPlanDayDBM,
+    WorkoutPlanDBM,
+    WorkoutPlanExerciseDBM,
+    WorkoutSessionDBM,
+    WorkoutSessionExerciseDBM,
+    WorkoutSettingDBM,
+)
 from app.models.data_version import DataVersionDBM
-from app.services import planner_service, backup_service, notification_scheduler_service, report_scheduler_service, session_event_service
+from app.services import planner_service, backup_service, notification_scheduler_service, report_scheduler_service, session_event_service, workout_seed_service
 from app.api.notifications import reset_shutdown as _reset_sse_shutdown
 from app.api.notifications import signal_shutdown as _signal_sse_shutdown
 
 
 _startup_logger = logging.getLogger(__name__)
+
+
+def _fold_session_sets_into_exercises(conn) -> None:
+    """Moves each session's sets from workout_session_sets into a JSON column on its exercise row, then drops the old table.
+
+    One transaction. BEGIN IMMEDIATE makes workers that start together take turns, so the second one finds nothing left to do.
+    """
+    from sqlalchemy import text as _sql_text  # pyright: ignore[reportMissingImports]
+
+    conn.exec_driver_sql("BEGIN IMMEDIATE")
+    try:
+        tables = {row[0] for row in conn.execute(_sql_text("SELECT name FROM sqlite_master WHERE type = 'table'"))}
+        if "workout_session_sets" in tables:
+            conn.execute(_sql_text("ALTER TABLE workout_session_exercises ADD COLUMN sets JSON NOT NULL DEFAULT '[]'"))
+            sets_by_entry: dict[int, list[dict]] = {}
+            rows = conn.execute(
+                _sql_text("SELECT session_exercise_id, reps, weight_kg, done FROM workout_session_sets ORDER BY session_exercise_id, position")
+            ).fetchall()
+            for entry_id, reps, weight_kg, done in rows:
+                sets_by_entry.setdefault(entry_id, []).append({"reps": reps, "weight_kg": weight_kg, "done": bool(done)})
+            for entry_id, sets in sets_by_entry.items():
+                conn.execute(
+                    _sql_text("UPDATE workout_session_exercises SET sets = :sets WHERE id = :id"),
+                    {"sets": json.dumps(sets), "id": entry_id},
+                )
+            conn.execute(_sql_text("DROP TABLE workout_session_sets"))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
 
 
 @asynccontextmanager
@@ -68,6 +113,39 @@ async def lifespan(_app: FastAPI):
         if "streak_tolerance_pct" not in _cols:
             _conn.execute(_sql_text("ALTER TABLE habits ADD COLUMN streak_tolerance_pct INTEGER NOT NULL DEFAULT 100"))
             _conn.commit()
+        _exercise_cols = {row[1] for row in _conn.execute(_sql_text("PRAGMA table_info(workout_exercises)")).fetchall()}
+        if "kind" not in _exercise_cols:
+            _conn.execute(
+                _sql_text("ALTER TABLE workout_exercises ADD COLUMN kind VARCHAR(16) NOT NULL DEFAULT 'strength'")
+            )
+            _conn.commit()
+        if "measure" not in _exercise_cols:
+            _conn.execute(
+                _sql_text("ALTER TABLE workout_exercises ADD COLUMN measure VARCHAR(12) NOT NULL DEFAULT 'reps'")
+            )
+            _conn.commit()
+        _settings_cols = {row[1] for row in _conn.execute(_sql_text("PRAGMA table_info(workout_settings)")).fetchall()}
+        if "active_plan_started_on" not in _settings_cols:
+            try:
+                _conn.execute(_sql_text("ALTER TABLE workout_settings ADD COLUMN active_plan_started_on DATE"))
+                _conn.commit()
+            except OperationalError as exc:  # another worker added the column first
+                if "duplicate column name" not in str(exc):
+                    raise
+        _fold_session_sets_into_exercises(_conn)
+        _report_cols = {row[1] for row in _conn.execute(_sql_text("PRAGMA table_info(reports)")).fetchall()}
+        if "weekly_insights" not in _report_cols:
+            _conn.execute(_sql_text("ALTER TABLE reports ADD COLUMN weekly_insights JSON"))
+            _conn.commit()
+    with SessionLocal() as db:
+        try:
+            workout_seed_service.sync_seed(db)
+            workout_seed_service.normalise_plan_doses(db)
+        except IntegrityError:
+            db.rollback()  # another worker seeded the same rows first; its copy is the one kept
+        except Exception:
+            db.rollback()
+            _startup_logger.exception("Workout library seed failed; the workout page will show an empty library.")
     with SessionLocal() as db:
         planner_service.sync_all_plans(db)
 
@@ -100,7 +178,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    max_age=30,
+    max_age=600,
 )
 
 
@@ -159,6 +237,23 @@ async def handle_validation_error(
             "errors": errors,
         },
     )
+
+
+class CachedStaticFiles(StaticFiles):
+    """Photos are served under versioned URLs (see workout_media), so the browser can keep each one for good."""
+
+    async def get_response(self, path: str, scope: Scope) -> Response:
+        response = await super().get_response(path, scope)
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        return response
+
+
+# Exercise photos and GIFs. They are served beside the API, so the frontend bundle no longer carries them.
+app.mount(
+    f"{settings.api_prefix}{ENDPOINTS.WORKOUT.PREFIX}/media",
+    CachedStaticFiles(directory=Path(__file__).resolve().parent / "data" / "workout" / "media"),
+    name="workout-media",
+)
 
 
 app.include_router(system_router)

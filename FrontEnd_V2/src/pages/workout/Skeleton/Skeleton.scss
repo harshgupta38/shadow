@@ -1,0 +1,12 @@
+.wk-skel {
+  border-radius: 12px;
+  background: linear-gradient(90deg, var(--jv-surface-2), var(--jv-surface-3), var(--jv-surface-2));
+  background-size: 200% 100%;
+  animation: wk-shimmer 1.4s infinite linear;
+}
+
+@keyframes wk-shimmer { to { background-position: -200% 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .wk-skel { animation: none; }
+}

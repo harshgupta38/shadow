@@ -15,10 +15,33 @@ import { ApiErrorShape, FieldError } from "@/api/types";
 import { ENDPOINTS } from "@/constant/shadow-endpoints";
 import { TIMING } from "@/constant/tuning";
 import { clearCacheAfterWrite, readThroughCache } from "@/api/cache/apiCache";
+import { resolveMediaPaths } from "@/api/media";
 
 const REFRESH_URL  = `${ENDPOINTS.AUTH.PREFIX}${ENDPOINTS.AUTH.REFRESH}`;
 const LOGIN_URL    = `${ENDPOINTS.AUTH.PREFIX}${ENDPOINTS.AUTH.LOGIN}`;
 const REGISTER_URL = `${ENDPOINTS.AUTH.PREFIX}${ENDPOINTS.AUTH.REGISTER}`;
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/api";
+
+// Only workout responses carry media paths, so only they are walked.
+function withMediaPaths<T>(url: string, data: T): T {
+    return url.startsWith(ENDPOINTS.WORKOUT.PREFIX) ? resolveMediaPaths(data, API_BASE_URL) : data;
+}
+
+/** Opens the connection to the API host while the app boots, so the first request and photo skip the handshake. */
+export function preconnectApiHost(): void {
+    let origin: string;
+    try {
+        origin = new URL(API_BASE_URL, window.location.href).origin;
+    } catch {
+        return; // A malformed base URL fails on the first request; it must not stop the app from booting.
+    }
+    if (origin === window.location.origin) return;
+    const link = document.createElement("link");
+    link.rel = "preconnect";
+    link.href = origin;
+    document.head.append(link);
+}
 
 // One-time migration: remove pre-cookie legacy tokens from localStorage
 try {
@@ -62,7 +85,7 @@ export async function refreshAccessToken(): Promise<void> {
 }
 
 function createClient(): AxiosInstance {
-    const baseURL = import.meta.env.VITE_API_BASE_URL ?? "/api";
+    const baseURL = API_BASE_URL;
     const timeoutMs = Number(import.meta.env.VITE_API_TIMEOUT_SECONDS ?? TIMING.API_DEFAULT_TIMEOUT_MS / 1000) * 1000;
 
     const instance = axios.create({
@@ -111,7 +134,7 @@ const httpClient = createClient();
 
 async function write<T>(url: string, send: () => Promise<{ data: T }>): Promise<T> {
     try {
-        return (await send()).data;
+        return withMediaPaths(url, (await send()).data);
     } finally {
         // Cleared even when the write fails: a timeout can still mean the server committed it.
         clearCacheAfterWrite(url);
@@ -120,7 +143,7 @@ async function write<T>(url: string, send: () => Promise<{ data: T }>): Promise<
 
 export const http = {
     async get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
-        const fetchFresh = async () => (await httpClient.get<T>(url, config)).data;
+        const fetchFresh = async () => withMediaPaths(url, (await httpClient.get<T>(url, config)).data);
         // Query params are part of the cache key. Any other option (blob downloads, abort
         // signals) changes what comes back, so those requests are never cached.
         const { params, ...otherOptions } = config ?? {};

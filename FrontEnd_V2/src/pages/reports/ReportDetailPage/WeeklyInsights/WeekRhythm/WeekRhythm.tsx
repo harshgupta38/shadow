@@ -2,7 +2,7 @@ import { useMemo } from "react";
 
 import type { WeeklyDay } from "@/api/types";
 import { TipLine, TipTitle, useChartTooltip } from "../ChartTooltip/ChartTooltip";
-import { THRESHOLDS, WEEKDAYS_LONG, WEEKDAYS_SHORT, pct } from "../WeeklyInsights.constants";
+import { THRESHOLDS, WEEKDAYS_LONG, WEEKDAYS_SHORT } from "../WeeklyInsights.constants";
 import type { WeekLabels } from "../useWeekLabels";
 import "./WeekRhythm.scss";
 
@@ -22,8 +22,8 @@ function summarize(days: WeeklyDay[]) {
   const rows: DayRow[] = days.map((day, index) => ({
     index,
     day,
-    value: pct(day.tasks_done + day.habits_done, day.tasks_total + day.habits_total),
-    prev: day.prev_completion_pct,
+    value: day.score_pct,
+    prev: day.prev_score_pct,
   }));
   const planned = rows.filter((r) => r.value !== null);
 
@@ -66,7 +66,7 @@ export function WeekRhythm({ days, labels }: WeekRhythmProps) {
             const when = `${WEEKDAYS_LONG[r.index]}, ${labels.dayDates[r.index]}`;
             const spoken = r.value === null
               ? `${when}: nothing planned`
-              : `${when}: ${r.value}% complete, ${r.day.tasks_done} of ${r.day.tasks_total} tasks, ${r.day.habits_done} of ${r.day.habits_total} habits`;
+              : `${when}: day score ${r.value}%, ${r.day.tasks_done} of ${r.day.tasks_total} tasks, ${r.day.habits_done} of ${r.day.habits_total} habits`;
             const tip = (
               <>
                 <TipTitle>{when}</TipTitle>
@@ -74,7 +74,7 @@ export function WeekRhythm({ days, labels }: WeekRhythmProps) {
                   <TipLine label="Nothing planned" value="–" />
                 ) : (
                   <>
-                    <TipLine label="Completed" value={`${r.value}%`} />
+                    <TipLine label="Day score" value={`${r.value}%`} />
                     <TipLine label="Tasks" value={`${r.day.tasks_done}/${r.day.tasks_total}`} />
                     <TipLine label="Habits" value={`${r.day.habits_done}/${r.day.habits_total}`} />
                   </>

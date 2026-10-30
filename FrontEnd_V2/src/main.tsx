@@ -7,12 +7,15 @@ import "@/styles/theme.scss";
 
 import App from "@/App";
 import { AppProviders } from "@/context/AppProviders";
+import { preconnectApiHost } from "@/api/client";
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("/sw.js").catch(() => {/* sw registration is best-effort */});
   });
 }
+
+preconnectApiHost();
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

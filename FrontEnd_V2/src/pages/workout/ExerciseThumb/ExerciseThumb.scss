@@ -1,0 +1,24 @@
+.wk-thumb {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: var(--jv-surface-3);
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  // The diagram sits on a soft tint so it reads as an illustration rather than empty space.
+  &--map {
+    background:
+      radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--jv-brand-1) 10%, transparent), transparent 70%),
+      var(--jv-surface-2);
+    padding: 0.35rem 0;
+  }
+}

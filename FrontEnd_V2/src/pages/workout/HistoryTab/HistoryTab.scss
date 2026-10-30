@@ -1,0 +1,228 @@
+.wk-hist-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 1rem;
+  align-items: start;
+
+  @media (max-width: 1000px) { grid-template-columns: minmax(0, 1fr); }
+}
+
+.wk-hist-main,
+.wk-hist-aside { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
+
+.wk-hist-card { display: flex; flex-direction: column; gap: 0.9rem; padding: 1rem 1.1rem; }
+
+.wk-hist-head { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; }
+
+.wk-hist-h {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--jv-muted);
+
+  svg { align-self: center; color: var(--jv-warn); }
+  small { font-size: 0.68rem; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--jv-faint); }
+}
+
+.wk-hist-muted { margin: 0; font-size: 0.84rem; color: var(--jv-muted); line-height: 1.5; }
+
+.wk-hist-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1.5rem 1rem;
+  text-align: center;
+  color: var(--jv-muted);
+
+  p { margin: 0; font-size: 0.88rem; }
+}
+
+// ── Segmented control ────────────────────────────────────────────────────────
+
+.wk-seg {
+  display: inline-flex;
+  padding: 0.2rem;
+  gap: 0.15rem;
+  border-radius: var(--jv-radius-pill);
+  background: var(--jv-surface-2);
+  border: 1px solid var(--jv-border);
+
+  button {
+    padding: 0.25rem 0.8rem;
+    font: inherit;
+    font-size: 0.76rem;
+    font-weight: 700;
+    color: var(--jv-muted);
+    background: transparent;
+    border: none;
+    border-radius: var(--jv-radius-pill);
+    cursor: pointer;
+
+    &.is-active { color: var(--jv-brand-1); background: var(--jv-surface); box-shadow: var(--jv-shadow); }
+    &:focus-visible { outline: none; box-shadow: var(--jv-ring); }
+  }
+}
+
+// ── Chart ────────────────────────────────────────────────────────────────────
+
+.wk-chart {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 0.5rem;
+  align-items: end;
+}
+
+.wk-chart-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.wk-chart-val { font-size: 0.72rem; font-weight: 800; color: var(--jv-text); white-space: nowrap; }
+
+.wk-chart-track {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: 100%;
+  height: 150px;
+  border-bottom: 1px solid var(--jv-border);
+}
+
+.wk-chart-bar {
+  display: block;
+  width: min(30px, 70%);
+  border-radius: 5px 5px 0 0;
+  background: color-mix(in srgb, var(--jv-brand-1) 38%, var(--jv-surface));
+  transform-origin: bottom center;
+  animation: wk-chart-grow 560ms var(--jv-ease) both;
+  transition: filter 140ms;
+
+  &.is-latest { background: var(--jv-brand-1); }
+}
+
+.wk-chart-col:hover .wk-chart-bar { filter: brightness(1.08) saturate(1.1); }
+
+@keyframes wk-chart-grow { from { transform: scaleY(0); } }
+
+.wk-chart-label { font-size: 0.64rem; color: var(--jv-muted); white-space: nowrap; }
+
+// ── Log ──────────────────────────────────────────────────────────────────────
+
+.wk-log { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.4rem; }
+
+.wk-log-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 3rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.6rem 0.8rem;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: var(--jv-surface);
+  border: 1px solid var(--jv-border);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: border-color 140ms, background 140ms;
+
+  &:hover { border-color: var(--jv-border-strong); background: var(--jv-surface-2); }
+  &:focus-visible { outline: none; box-shadow: var(--jv-ring); }
+
+  @media (max-width: 560px) {
+    grid-template-columns: 2.6rem minmax(0, 1fr);
+    .wk-log-stats { grid-column: 2; align-items: flex-start; text-align: left; }
+  }
+}
+
+.wk-log-date {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.35rem 0;
+  border-radius: 10px;
+  background: var(--jv-brand-soft);
+  color: var(--jv-brand-1);
+
+  strong { font-size: 1.05rem; font-weight: 800; line-height: 1.1; }
+  small { font-size: 0.62rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; }
+}
+
+.wk-log-main { display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; }
+.wk-log-name { font-size: 0.92rem; font-weight: 700; color: var(--jv-text); }
+.wk-log-plan { font-size: 0.74rem; color: var(--jv-muted); }
+
+.wk-log-stats {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+
+  strong { font-size: 0.92rem; color: var(--jv-text); }
+  small { font-size: 0.72rem; color: var(--jv-muted); white-space: nowrap; }
+}
+
+// ── Aside ────────────────────────────────────────────────────────────────────
+
+.wk-hist-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+
+  > div { display: flex; flex-direction: column; gap: 0.15rem; text-align: center; }
+  strong {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.2rem;
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: var(--jv-text);
+    line-height: 1.1;
+
+    svg { color: var(--jv-warn); }
+  }
+  span { font-size: 0.66rem; color: var(--jv-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+}
+
+.wk-pr { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.55rem; }
+
+.wk-pr li {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.wk-pr-thumb { width: 44px; height: 38px; border-radius: 8px; overflow: hidden; border: 1px solid var(--jv-border); }
+
+.wk-pr-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+
+  strong { font-size: 0.84rem; color: var(--jv-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  small { font-size: 0.7rem; color: var(--jv-muted); }
+}
+
+.wk-pr-best {
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: var(--jv-text);
+  white-space: nowrap;
+
+  small { font-size: 0.74rem; font-weight: 600; color: var(--jv-muted); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wk-chart-bar { animation: none; }
+}

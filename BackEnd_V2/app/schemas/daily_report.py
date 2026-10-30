@@ -4,6 +4,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 from app.schemas.common import ORMModel
+from app.schemas.weekly_insights import WeeklyInsightsResponse
 
 
 # ── LLM output schema (structured output contract with the model) ─────────────
@@ -22,6 +23,14 @@ class GenerateReportSchema(BaseModel):
     highlights_good: list[str] = Field(description="2–4 specific achievements or positive patterns, not activity titles")
     highlights_attention: list[str] = Field(description="1–3 specific gaps that genuinely matter")
     closing_message: str = Field(description="1–2 sentences with a concrete next action or focus area")
+    focus_title: str | None = Field(
+        default=None,
+        description="WEEKLY reports only: 2–5 word imperative title for next week's focus. Must be null for daily reports.",
+    )
+    focus_rationale: str | None = Field(
+        default=None,
+        description="WEEKLY reports only: 1–2 short sentences explaining the focus using only the numbers provided. Must be null for daily reports.",
+    )
 
 
 # ── API response schemas (returned to the frontend) ───────────────────────────
@@ -66,3 +75,4 @@ class ReportResponse(ORMModel):
     goals: list[GoalAlignmentResponse]
     highlights: ReportHighlightsResponse
     closing: ReportClosingResponse
+    weekly_insights: WeeklyInsightsResponse | None = None  # weekly reports only

@@ -1,0 +1,96 @@
+.wk-pick-dialog { max-width: 760px; }
+
+.wk-pick-title { font-size: 1.1rem; font-weight: 800; }
+
+.wk-pick-list {
+  list-style: none;
+  margin: 0.9rem 0 0.6rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.wk-pick-empty { margin: 1.5rem 0; text-align: center; color: var(--jv-muted); font-size: 0.88rem; }
+
+.wk-pick-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0.35rem;
+  border: 1px solid var(--jv-border);
+  border-radius: 12px;
+  background: var(--jv-surface);
+  transition: border-color 140ms, background 140ms;
+
+  &:hover { border-color: var(--jv-border-strong); }
+
+  &.is-picked {
+    border-color: var(--jv-brand-1);
+    background: var(--jv-brand-soft);
+  }
+
+  &.is-taken { opacity: 0.55; }
+}
+
+.wk-pick-main {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 22px 56px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.45rem 0.3rem 0.45rem 0.7rem;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+
+  &:disabled { cursor: not-allowed; }
+  &:focus-visible { outline: none; box-shadow: var(--jv-ring); }
+}
+
+.wk-pick-check {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  border: 2px solid var(--jv-border-strong);
+  color: #fff;
+  background: var(--jv-surface);
+  transition: background 120ms, border-color 120ms;
+
+  .is-picked & { background: var(--jv-brand-1); border-color: var(--jv-brand-1); }
+}
+
+.wk-pick-thumb {
+  width: 56px;
+  height: 46px;
+  border-radius: 9px;
+  overflow: hidden;
+  border: 1px solid var(--jv-border);
+}
+
+.wk-pick-info { display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; }
+.wk-pick-name { font-size: 0.88rem; font-weight: 700; color: var(--jv-text); }
+.wk-pick-meta { font-size: 0.72rem; font-weight: 600; color: var(--jv-muted); white-space: nowrap; }
+
+.wk-pick-info-btn {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  border: none;
+  border-left: 1px solid var(--jv-border);
+  border-radius: 0 12px 12px 0;
+  background: none;
+  color: var(--jv-muted);
+  cursor: pointer;
+
+  &:hover { color: var(--jv-brand-1); background: var(--jv-surface-2); }
+  &:focus-visible { outline: none; box-shadow: var(--jv-ring); }
+}
+
+.wk-pick-count { margin-right: auto; font-size: 0.8rem; color: var(--jv-muted); }

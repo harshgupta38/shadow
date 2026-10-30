@@ -8,6 +8,7 @@ import "./TimeHeatmap.scss";
 
 interface TimeHeatmapProps {
   slots: WeeklyTimeSlot[];
+  unslottedCount: number;
   labels: WeekLabels;
 }
 
@@ -44,7 +45,7 @@ function buildHeatmap(slots: WeeklyTimeSlot[]) {
   return { rows, best: hasContrast ? best : null, worst: hasContrast ? worst : null };
 }
 
-export function TimeHeatmap({ slots, labels }: TimeHeatmapProps) {
+export function TimeHeatmap({ slots, unslottedCount, labels }: TimeHeatmapProps) {
   const { wrapRef, show, hide, node } = useChartTooltip();
   const { rows, best, worst } = useMemo(() => buildHeatmap(slots), [slots]);
 
@@ -60,32 +61,46 @@ export function TimeHeatmap({ slots, labels }: TimeHeatmapProps) {
         {rows.map(({ slot, rate, cells }) => (
           <div key={slot.id} className="wi-heat-line" role="row">
             <span className="wi-heat-slot" role="rowheader">{SLOT_LABEL[slot.id]}</span>
-            {cells.map((c, i) => (
-              <span
-                key={i}
-                role="cell"
-                className={`wi-heat-cell${c.planned === 0 ? " wi-heat-cell--empty" : ""}${c.dark ? " wi-heat-cell--dark" : ""}`}
-                style={c.style}
-                onPointerEnter={(e) => show(e.currentTarget, (
-                  <>
-                    <TipTitle>{SLOT_LABEL[slot.id]} · {WEEKDAYS_LONG[i]} {labels.dayDates[i]}</TipTitle>
-                    <TipLine label="Completed" value={c.planned === 0 ? "Nothing planned" : `${c.count} of ${c.planned}`} />
-                  </>
-                ))}
-                onPointerLeave={hide}
-              >
-                {c.planned === 0 ? "" : c.count}
-              </span>
-            ))}
+            {cells.map((c, i) => {
+              const tip = (
+                <>
+                  <TipTitle>{SLOT_LABEL[slot.id]} · {WEEKDAYS_LONG[i]} {labels.dayDates[i]}</TipTitle>
+                  <TipLine label="Completed" value={c.planned === 0 ? "Nothing planned" : `${c.count} of ${c.planned}`} />
+                </>
+              );
+              return (
+                <span
+                  key={i}
+                  role="cell"
+                  tabIndex={0}
+                  className={`wi-heat-cell${c.planned === 0 ? " wi-heat-cell--empty" : ""}${c.dark ? " wi-heat-cell--dark" : ""}`}
+                  style={c.style}
+                  onPointerEnter={(e) => show(e.currentTarget, tip)}
+                  onPointerLeave={hide}
+                  onFocus={(e) => show(e.currentTarget, tip)}
+                  onBlur={hide}
+                >
+                  {c.planned === 0 ? "" : c.count}
+                </span>
+              );
+            })}
             <span className="wi-heat-rate" role="cell">{rate === null ? "–" : `${rate}%`}</span>
           </div>
         ))}
       </div>
 
-      <div className="wi-heat-scale" aria-hidden="true">
-        <span>Fewer</span>
-        {SCALE_STEPS.map((s) => <i key={s} style={{ background: brandMix(s) }} />)}
-        <span>More completed</span>
+      <div className="wi-heat-foot">
+        {unslottedCount > 0 && (
+          <p className="wi-heat-note">
+            {unslottedCount} flexible {unslottedCount === 1 ? "item has" : "items have"} no fixed time, so {unslottedCount === 1 ? "it isn't" : "they aren't"} shown here.
+          </p>
+        )}
+
+        <div className="wi-heat-scale" aria-hidden="true">
+          <span>Fewer</span>
+          {SCALE_STEPS.map((s) => <i key={s} style={{ background: brandMix(s) }} />)}
+          <span>More completed</span>
+        </div>
       </div>
 
       {best && worst && (

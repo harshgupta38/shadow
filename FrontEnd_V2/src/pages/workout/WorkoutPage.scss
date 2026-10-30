@@ -1,0 +1,12 @@
+.wk-shell { display: flex; flex-direction: column; }
+
+.wk-shell-tabs {
+  margin-bottom: 1rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar { display: none; }
+
+  .nav-tabs-jv { min-width: min-content; }
+  .nav-tab-jv { white-space: nowrap; }
+}

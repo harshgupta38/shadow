@@ -1,6 +1,6 @@
 from datetime import date
 
-from app.common import today_ist
+from app.common import format_duration, today_ist
 from app.llm.common import build_schema_prompt
 from app.schemas.chat import (
     ConversationContextFromLLMSchema,
@@ -12,6 +12,7 @@ from app.schemas.goals import RefineGoalRequest, RefineGoalFromLLMSchema
 from app.schemas.milestones import MilestoneProposalListLLMSchema
 from app.schemas.tasks import TaskProposalListLLMSchema
 from app.schemas.daily_report import GenerateReportSchema
+from app.schemas.weekly_insights import WEEKDAYS_SHORT
 
 # ---------------------------------------------------------------------------
 # Goal refinement: turns five collected discovery answers into a structured
@@ -571,6 +572,9 @@ _GENERATE_DAILY_REPORT_SYSTEM_INSTRUCTION = (
     "=== CLOSING ===\n"
     "closing_message: 1–2 sentences naming one concrete action or focus area for tomorrow.\n\n"
 
+    "=== WEEKLY-ONLY FIELDS ===\n"
+    "focus_title and focus_rationale are for weekly reports only. Always return null for both in a daily report.\n\n"
+
     "=== CROSS-SECTION RULE ===\n"
     "Each insight must appear in at most one section. If a gap is named in the summary, omit it from highlights_attention. If a win is named in a goal note, omit it from highlights_good.\n\n"
 
@@ -625,14 +629,25 @@ _GENERATE_WEEKLY_REPORT_SYSTEM_INSTRUCTION = (
     "  Good: 'Kept SDE study going 5 out of 7 days' or 'Hit hydration target every day this week'.\n"
     "highlights_attention: 1–3 specific gaps or weak areas across the week that genuinely matter. Do not repeat what's in summary or goal notes.\n\n"
 
+    "=== WEEKLY ANALYTICS ===\n"
+    "A WEEKLY ANALYTICS block gives exact, pre-computed numbers: day scores, comparisons with last week, priority and time-of-day completion, habit consistency, and the most-missed items.\n"
+    "Use it to find real patterns and describe them in plain words. Never contradict it and never invent a number that is not in the data.\n"
+    "The user already sees these numbers as charts on the same page, so analyse them — do not recite them.\n\n"
+
+    "=== NEXT-WEEK FOCUS ===\n"
+    "A NEXT-WEEK FOCUS CANDIDATE block names the one measurable thing to improve next week.\n"
+    "focus_title: 2–5 words, imperative, everyday words. Example: 'Protect your evenings'.\n"
+    "focus_rationale: 1–2 short sentences, under 240 characters, saying why this matters using only the numbers in the candidate block, and ending with one small concrete step.\n"
+    "Write both for exactly that candidate. The banned words above apply here too.\n\n"
+
     "=== CLOSING ===\n"
-    "closing_message: 1–2 sentences naming one concrete action or focus area for next week.\n\n"
+    "closing_message: 1 short, warm sentence that sends the user into next week. Do NOT repeat focus_title or focus_rationale.\n\n"
 
     "=== CROSS-SECTION RULE ===\n"
-    "Each insight must appear in at most one section. If a gap is named in the summary, omit it from highlights_attention. If a win is named in a goal note, omit it from highlights_good.\n\n"
+    "Each insight must appear in at most one section. If a gap is named in the summary, omit it from highlights_attention. If a win is named in a goal note, omit it from highlights_good. The focus candidate belongs only in focus_title and focus_rationale — do not repeat it in the summary, highlights, or closing.\n\n"
 
     "=== PATTERN RULE ===\n"
-    "Never claim a cross-week recurring pattern unless the provided previous-week history data explicitly shows it.\n\n"
+    "Never claim a cross-week recurring pattern unless the provided previous-week history data or the WEEKLY ANALYTICS comparisons explicitly show it.\n\n"
 
     "Return only the structured JSON required by the schema. No commentary outside the schema."
 )
@@ -779,7 +794,87 @@ def build_report_prompt(report_date: str, report_type: str, day_data: dict) -> s
         for r in all_records:
             lines.append(_format_record_line(r, indent="  "))
 
+    if is_weekly and day_data.get("weekly_insights"):
+        lines += _format_weekly_analytics(day_data["weekly_insights"])
+
     return "\n".join(lines)
+
+
+_ANALYTICS_HABIT_LIMIT = 5  # best and worst habits listed, to keep the prompt compact
+
+
+def _pct_text(done: int, total: int) -> str:
+    return f"{done}/{total} ({round(done / total * 100)}%)" if total else "none planned"
+
+
+def _format_weekly_analytics(wi: dict) -> list[str]:
+    """Prompt block with the exact, pre-computed weekly analytics (see weekly_insights_service)."""
+    days = wi.get("days", [])
+    lines = ["", "=== WEEKLY ANALYTICS (exact, pre-computed — treat as ground truth) ==="]
+
+    def day_scores(key: str) -> str:
+        return ", ".join(
+            f"{WEEKDAYS_SHORT[i]} {d[key] if d[key] is not None else '-'}" for i, d in enumerate(days)
+        )
+
+    lines.append(f"Day scores this week (Sun→Sat, % with partial credit for metric items): {day_scores('score_pct')}")
+    lines.append(f"Same days last week: {day_scores('prev_score_pct')}")
+
+    for c in wi.get("comparison", []):
+        value = format_duration(c["value"]) if c["kind"] == "minutes" else f"{c['value']}{c.get('suffix') or ''}"
+        prev = c["previous"]
+        prev_text = "no data" if prev is None else (format_duration(prev) if c["kind"] == "minutes" else f"{prev}{c.get('suffix') or ''}")
+        lines.append(f"{c['label']}: {value} (last week {prev_text})")
+    if wi.get("prev_alignment_score") is not None:
+        lines.append(f"Last week's alignment score: {wi['prev_alignment_score']}")
+
+    tiers = wi.get("priorities", [])
+    if tiers:
+        lines.append("Follow-through by priority: " + ", ".join(
+            f"{t['priority']} {_pct_text(t['done'], t['total'])}" for t in tiers
+        ))
+
+    slots = wi.get("time_slots", [])
+    if slots:
+        lines.append("Completion by planned time of day: " + ", ".join(
+            f"{s['id']} {_pct_text(sum(s['done']), sum(s['planned']))}" for s in slots
+        ))
+        if wi.get("unslotted_count"):
+            lines.append(f"({wi['unslotted_count']} items have no fixed time slot and are not counted above.)")
+
+    habits = wi.get("habits", [])
+    if habits:
+        def habit_rate(h: dict) -> float:
+            planned = sum(1 for c in h["cells"] if c in ("done", "missed"))
+            return (sum(1 for c in h["cells"] if c == "done") / planned) if planned else -1.0
+
+        ranked = sorted((h for h in habits if habit_rate(h) >= 0), key=habit_rate)
+        shown = {id(h): h for h in ranked[:_ANALYTICS_HABIT_LIMIT] + ranked[-_ANALYTICS_HABIT_LIMIT:]}
+        if shown:
+            lines.append("Habit consistency (weakest and strongest):")
+            for h in sorted(shown.values(), key=habit_rate):
+                done = sum(1 for c in h["cells"] if c == "done")
+                planned = sum(1 for c in h["cells"] if c in ("done", "missed"))
+                prev = _pct_text(h["prev_done"], h["prev_planned"])
+                streak = f", {h['streak']}-day streak" if h["streak"] > 1 else ""
+                lines.append(f"  - {h['title']}: {done}/{planned} this week (last week {prev}{streak})")
+
+    missed = wi.get("most_missed", [])
+    if missed:
+        lines.append("Most missed this week:")
+        for m in missed:
+            note = f' — user note: "{m["note"]}"' if m.get("note") else ""
+            lines.append(f"  - {m['title']} ×{m['misses']}{note}")
+
+    focus = wi.get("focus_candidate")
+    if focus:
+        lines += [
+            "",
+            "=== NEXT-WEEK FOCUS CANDIDATE (write focus_title and focus_rationale for exactly this) ===",
+            f"Metric: {focus['metric_label']} — now {focus['current_pct']}%, target {focus['target_pct']}%",
+            f"Evidence: {focus['evidence']}",
+        ]
+    return lines
 
 
 # ---------------------------------------------------------------------------

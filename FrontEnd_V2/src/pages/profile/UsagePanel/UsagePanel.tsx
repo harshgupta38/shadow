@@ -56,7 +56,7 @@ export function UsagePanel() {
   const maxTotal = Math.max(...entries.map(e => e.input_tokens + e.output_tokens), 1);
 
   return (
-    <div className="surface panel-card">
+    <div className="surface panel-card pb-2">
       {/* Header */}
       <div className="usage-panel-header">
         <div className="usage-panel-header-left">
@@ -125,28 +125,33 @@ export function UsagePanel() {
         </div>
       )}
 
-      {/* Footer — hover detail */}
+      {/* Footer — hover detail on the left, selected month's total on the right */}
       {hasData && !loading && (
         <div className="usage-footer">
-          {hovered ? (
-            <>
-              <span className="usage-footer-date">{formatDate(hovered.date)}</span>
-              <span className="usage-footer-sep" />
-              <span className="usage-footer-stat">
-                Input <strong>{fmtTokens(hovered.input_tokens)}</strong>
-              </span>
-              <span className="usage-footer-sep" />
-              <span className="usage-footer-stat">
-                Output <strong>{fmtTokens(hovered.output_tokens)}</strong>
-              </span>
-              <span className="usage-footer-sep" />
-              <span className="usage-footer-stat">
-                Total <strong>{fmtTokens(hovered.input_tokens + hovered.output_tokens)}</strong>
-              </span>
-            </>
-          ) : (
-            <span className="usage-footer-hint">Hover a bar to see details</span>
-          )}
+          <div className="usage-footer-detail">
+            {hovered ? (
+              <>
+                <span className="usage-footer-date">{formatDate(hovered.date)}</span>
+                <span className="usage-footer-sep usage-footer-io" />
+                <span className="usage-footer-stat usage-footer-io">
+                  Input <strong>{fmtTokens(hovered.input_tokens)}</strong>
+                </span>
+                <span className="usage-footer-sep usage-footer-io" />
+                <span className="usage-footer-stat usage-footer-io">
+                  Output <strong>{fmtTokens(hovered.output_tokens)}</strong>
+                </span>
+                <span className="usage-footer-sep" />
+                <span className="usage-footer-stat">
+                  Total <strong>{fmtTokens(hovered.input_tokens + hovered.output_tokens)}</strong>
+                </span>
+              </>
+            ) : (
+              <span className="usage-footer-hint">Hover a bar to see details</span>
+            )}
+          </div>
+          <span className="usage-footer-month" title={`${totalSum.toLocaleString()} tokens`}>
+            {MONTH_NAMES[month - 1]} total <strong>{fmtTokens(totalSum)}</strong>
+          </span>
         </div>
       )}
     </div>

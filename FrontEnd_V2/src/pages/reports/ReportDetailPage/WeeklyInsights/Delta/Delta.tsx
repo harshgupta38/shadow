@@ -12,7 +12,7 @@ interface DeltaProps {
 
 function formatMagnitude(mag: number, kind: WeeklyMetricKind): string {
   if (kind === "minutes") return formatDuration(mag);
-  if (kind === "days") return `${mag}d`;
+  if (kind === "days") return `${mag} ${mag === 1 ? "day" : "days"}`;
   return `${mag} pts`;
 }
 

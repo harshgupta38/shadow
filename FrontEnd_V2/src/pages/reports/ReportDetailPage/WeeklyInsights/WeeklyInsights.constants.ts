@@ -45,6 +45,9 @@ export const THRESHOLDS = {
   PRIORITY_GOOD_PCT: 80,
   // Slots with fewer planned items than this are too thin to call strongest or weakest.
   MIN_SLOT_SAMPLE: 10,
+  // Past this many habits the table collapses to the strongest and weakest few.
+  HABITS_COLLAPSE_ABOVE: 8,
+  HABITS_SHOWN_PER_END: 4,
 } as const;
 
 export const SPARK_SIZE = {

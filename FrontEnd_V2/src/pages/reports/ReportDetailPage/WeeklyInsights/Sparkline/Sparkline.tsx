@@ -65,6 +65,9 @@ export function Sparkline({ values, width, height, fluid = false, ariaLabel, des
 
   if (!geo) return null;
   const hovered = hover !== null && hover !== geo.last.i ? geo.points[hover] : null;
+  // Hover and keyboard focus share one path, so a tap on a touch screen (which focuses the point) keeps the tooltip.
+  const reveal = (i: number, el: Element) => { setHover(i); show(el, describe(i, values[i] as number)); };
+  const conceal = () => { setHover(null); hide(); };
 
   return (
     <div
@@ -95,8 +98,11 @@ export function Sparkline({ values, width, height, fluid = false, ariaLabel, des
             cy={p.y}
             r={HIT_RADIUS}
             className="wi-spark-hit"
-            onPointerEnter={(e) => { setHover(p.i); show(e.currentTarget, describe(p.i, values[p.i] as number)); }}
-            onPointerLeave={() => { setHover(null); hide(); }}
+            tabIndex={0}
+            onPointerEnter={(e) => reveal(p.i, e.currentTarget)}
+            onPointerLeave={conceal}
+            onFocus={(e) => reveal(p.i, e.currentTarget)}
+            onBlur={conceal}
           />
         ))}
       </svg>

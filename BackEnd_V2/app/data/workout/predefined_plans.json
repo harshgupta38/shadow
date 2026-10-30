@@ -1,0 +1,1080 @@
+[
+  {
+    "slug": "push-pull-legs",
+    "name": "Push Pull Legs",
+    "description": "A classic six-day split. Pushing muscles, pulling muscles and legs each get trained twice a week, so every muscle gets frequent, focused volume.",
+    "goal": "build_muscle",
+    "level": "intermediate",
+    "days": [
+      {
+        "weekday": 1,
+        "name": "Push A",
+        "exercises": [
+          {
+            "exercise": "barbell-bench-press",
+            "sets": 4,
+            "reps": "6-10",
+            "rest_seconds": 120,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "overhead-press",
+            "sets": 3,
+            "reps": "8-10",
+            "rest_seconds": 90,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "incline-dumbbell-press",
+            "sets": 3,
+            "reps": "8-12",
+            "rest_seconds": 90,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "lateral-raise",
+            "sets": 3,
+            "reps": "12-15",
+            "rest_seconds": 60,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "triceps-pushdown",
+            "sets": 3,
+            "reps": "10-12",
+            "rest_seconds": 60,
+            "weight_kg": null,
+            "note": null
+          }
+        ]
+      },
+      {
+        "weekday": 2,
+        "name": "Pull A",
+        "exercises": [
+          {
+            "exercise": "deadlift",
+            "sets": 3,
+            "reps": "5",
+            "rest_seconds": 150,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "pull-up",
+            "sets": 4,
+            "reps": "6-10",
+            "rest_seconds": 90,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "barbell-row",
+            "sets": 3,
+            "reps": "8-10",
+            "rest_seconds": 90,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "face-pull",
+            "sets": 3,
+            "reps": "12-15",
+            "rest_seconds": 60,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "barbell-curl",
+            "sets": 3,
+            "reps": "10-12",
+            "rest_seconds": 60,
+            "weight_kg": null,
+            "note": null
+          }
+        ]
+      },
+      {
+        "weekday": 3,
+        "name": "Legs A",
+        "exercises": [
+          {
+            "exercise": "barbell-back-squat",
+            "sets": 4,
+            "reps": "5-8",
+            "rest_seconds": 150,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "romanian-deadlift",
+            "sets": 3,
+            "reps": "8-10",
+            "rest_seconds": 90,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "leg-press",
+            "sets": 3,
+            "reps": "10-12",
+            "rest_seconds": 90,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "lying-leg-curl",
+            "sets": 3,
+            "reps": "10-12",
+            "rest_seconds": 60,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "standing-calf-raise",
+            "sets": 4,
+            "reps": "12-15",
+            "rest_seconds": 45,
+            "weight_kg": null,
+            "note": null
+          }
+        ]
+      },
+      {
+        "weekday": 4,
+        "name": "Push B",
+        "exercises": [
+          {
+            "exercise": "dumbbell-shoulder-press",
+            "sets": 4,
+            "reps": "8-10",
+            "rest_seconds": 90,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "dumbbell-bench-press",
+            "sets": 3,
+            "reps": "8-12",
+            "rest_seconds": 90,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "cable-fly",
+            "sets": 3,
+            "reps": "12-15",
+            "rest_seconds": 60,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "lateral-raise",
+            "sets": 3,
+            "reps": "12-15",
+            "rest_seconds": 60,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "overhead-triceps-extension",
+            "sets": 3,
+            "reps": "10-12",
+            "rest_seconds": 60,
+            "weight_kg": null,
+            "note": null
+          }
+        ]
+      },
+      {
+        "weekday": 5,
+        "name": "Pull B",
+        "exercises": [
+          {
+            "exercise": "lat-pulldown",
+            "sets": 4,
+            "reps": "8-12",
+            "rest_seconds": 90,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "seated-cable-row",
+            "sets": 3,
+            "reps": "8-12",
+            "rest_seconds": 90,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "one-arm-dumbbell-row",
+            "sets": 3,
+            "reps": "10-12",
+            "rest_seconds": 75,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "rear-delt-fly",
+            "sets": 3,
+            "reps": "12-15",
+            "rest_seconds": 60,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "hammer-curl",
+            "sets": 3,
+            "reps": "10-12",
+            "rest_seconds": 60,
+            "weight_kg": null,
+            "note": null
+          }
+        ]
+      },
+      {
+        "weekday": 6,
+        "name": "Legs B",
+        "exercises": [
+          {
+            "exercise": "front-squat",
+            "sets": 4,
+            "reps": "6-8",
+            "rest_seconds": 120,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "hip-thrust",
+            "sets": 3,
+            "reps": "8-12",
+            "rest_seconds": 90,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "walking-lunge",
+            "sets": 3,
+            "reps": "10 each",
+            "rest_seconds": 75,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "seated-leg-curl",
+            "sets": 3,
+            "reps": "10-12",
+            "rest_seconds": 60,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "seated-calf-raise",
+            "sets": 4,
+            "reps": "12-15",
+            "rest_seconds": 45,
+            "weight_kg": null,
+            "note": null
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "slug": "full-body-starter",
+    "name": "Full Body Starter",
+    "description": "Three simple full-body sessions a week. Perfect for learning the basic lifts and building a base before moving to a split.",
+    "goal": "general_fitness",
+    "level": "beginner",
+    "days": [
+      {
+        "weekday": 1,
+        "name": "Full Body A",
+        "exercises": [
+          {
+            "exercise": "goblet-squat",
+            "sets": 3,
+            "reps": "10-12",
+            "rest_seconds": 75,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "dumbbell-bench-press",
+            "sets": 3,
+            "reps": "8-12",
+            "rest_seconds": 75,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "lat-pulldown",
+            "sets": 3,
+            "reps": "10-12",
+            "rest_seconds": 75,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "dumbbell-shoulder-press",
+            "sets": 2,
+            "reps": "8-10",
+            "rest_seconds": 75,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "plank",
+            "sets": 3,
+            "reps": "30-45s",
+            "rest_seconds": 45,
+            "weight_kg": null,
+            "note": null
+          }
+        ]
+      },
+      {
+        "weekday": 3,
+        "name": "Full Body B",
+        "exercises": [
+          {
+            "exercise": "romanian-deadlift",
+            "sets": 3,
+            "reps": "8-10",
+            "rest_seconds": 90,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "incline-push-up",
+            "sets": 3,
+            "reps": "8-12",
+            "rest_seconds": 60,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "seated-cable-row",
+            "sets": 3,
+            "reps": "10-12",
+            "rest_seconds": 75,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "lateral-raise",
+            "sets": 2,
+            "reps": "12-15",
+            "rest_seconds": 60,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "crunch",
+            "sets": 3,
+            "reps": "15-20",
+            "rest_seconds": 45,
+            "weight_kg": null,
+            "note": null
+          }
+        ]
+      },
+      {
+        "weekday": 5,
+        "name": "Full Body C",
+        "exercises": [
+          {
+            "exercise": "leg-press",
+            "sets": 3,
+            "reps": "10-12",
+            "rest_seconds": 75,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "push-up",
+            "sets": 3,
+            "reps": "8-12",
+            "rest_seconds": 60,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "one-arm-dumbbell-row",
+            "sets": 3,
+            "reps": "10-12",
+            "rest_seconds": 60,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "dumbbell-curl",
+            "sets": 2,
+            "reps": "10-12",
+            "rest_seconds": 60,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "triceps-pushdown",
+            "sets": 2,
+            "reps": "10-12",
+            "rest_seconds": 60,
+            "weight_kg": null,
+            "note": null
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "slug": "upper-lower-split",
+    "name": "Upper / Lower Split",
+    "description": "Four days a week alternating upper and lower body, with heavy compound lifts first. A strong middle ground between full-body and push/pull/legs.",
+    "goal": "strength",
+    "level": "intermediate",
+    "days": [
+      {
+        "weekday": 1,
+        "name": "Upper Strength",
+        "exercises": [
+          {
+            "exercise": "barbell-bench-press",
+            "sets": 5,
+            "reps": "3-5",
+            "rest_seconds": 180,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "barbell-row",
+            "sets": 4,
+            "reps": "5-6",
+            "rest_seconds": 150,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "overhead-press",
+            "sets": 3,
+            "reps": "6-8",
+            "rest_seconds": 120,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "pull-up",
+            "sets": 3,
+            "reps": "6-8",
+            "rest_seconds": 90,
+            "weight_kg": null,
+            "note": null
+          }
+        ]
+      },
+      {
+        "weekday": 2,
+        "name": "Lower Strength",
+        "exercises": [
+          {
+            "exercise": "barbell-back-squat",
+            "sets": 5,
+            "reps": "3-5",
+            "rest_seconds": 180,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "romanian-deadlift",
+            "sets": 3,
+            "reps": "6-8",
+            "rest_seconds": 120,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "leg-press",
+            "sets": 3,
+            "reps": "8-10",
+            "rest_seconds": 90,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "standing-calf-raise",
+            "sets": 4,
+            "reps": "10-12",
+            "rest_seconds": 60,
+            "weight_kg": null,
+            "note": null
+          }
+        ]
+      },
+      {
+        "weekday": 4,
+        "name": "Upper Volume",
+        "exercises": [
+          {
+            "exercise": "incline-dumbbell-press",
+            "sets": 4,
+            "reps": "8-12",
+            "rest_seconds": 90,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "seated-cable-row",
+            "sets": 4,
+            "reps": "8-12",
+            "rest_seconds": 90,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "lateral-raise",
+            "sets": 3,
+            "reps": "12-15",
+            "rest_seconds": 60,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "hammer-curl",
+            "sets": 3,
+            "reps": "10-12",
+            "rest_seconds": 60,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "skull-crusher",
+            "sets": 3,
+            "reps": "10-12",
+            "rest_seconds": 60,
+            "weight_kg": null,
+            "note": null
+          }
+        ]
+      },
+      {
+        "weekday": 5,
+        "name": "Lower Volume",
+        "exercises": [
+          {
+            "exercise": "walking-lunge",
+            "sets": 3,
+            "reps": "10 each",
+            "rest_seconds": 90,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "hip-thrust",
+            "sets": 4,
+            "reps": "8-12",
+            "rest_seconds": 90,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "lying-leg-curl",
+            "sets": 3,
+            "reps": "10-12",
+            "rest_seconds": 60,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "plank",
+            "sets": 3,
+            "reps": "45s",
+            "rest_seconds": 45,
+            "weight_kg": null,
+            "note": null
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "slug": "home-bodyweight-basics",
+    "name": "Home Bodyweight Basics",
+    "description": "No equipment, no gym. Three short circuits a week built from push-ups, planks and squats to burn fat and build base fitness.",
+    "goal": "lose_fat",
+    "level": "beginner",
+    "days": [
+      {
+        "weekday": 1,
+        "name": "Circuit 1",
+        "exercises": [
+          {
+            "exercise": "push-up",
+            "sets": 4,
+            "reps": "10-15",
+            "rest_seconds": 45,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "bodyweight-squat",
+            "sets": 4,
+            "reps": "15-20",
+            "rest_seconds": 45,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "plank",
+            "sets": 3,
+            "reps": "40s",
+            "rest_seconds": 30,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "bench-dips",
+            "sets": 3,
+            "reps": "10-15",
+            "rest_seconds": 45,
+            "weight_kg": null,
+            "note": null
+          }
+        ]
+      },
+      {
+        "weekday": 3,
+        "name": "Circuit 2",
+        "exercises": [
+          {
+            "exercise": "incline-push-up",
+            "sets": 4,
+            "reps": "12-15",
+            "rest_seconds": 45,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "single-leg-glute-bridge",
+            "sets": 3,
+            "reps": "12 each",
+            "rest_seconds": 45,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "mountain-climbers",
+            "sets": 3,
+            "reps": "30s",
+            "rest_seconds": 30,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "bicycle-crunch",
+            "sets": 3,
+            "reps": "20",
+            "rest_seconds": 30,
+            "weight_kg": null,
+            "note": null
+          }
+        ]
+      },
+      {
+        "weekday": 5,
+        "name": "Circuit 3",
+        "exercises": [
+          {
+            "exercise": "push-up",
+            "sets": 4,
+            "reps": "10-15",
+            "rest_seconds": 45,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "dumbbell-step-up",
+            "sets": 3,
+            "reps": "10 each",
+            "rest_seconds": 45,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "side-plank",
+            "sets": 3,
+            "reps": "30s each",
+            "rest_seconds": 30,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "sit-up",
+            "sets": 3,
+            "reps": "15-20",
+            "rest_seconds": 30,
+            "weight_kg": null,
+            "note": null
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "slug": "5-day-body-part-split",
+    "name": "5-Day Body-Part Split",
+    "description": "One focused day per muscle group: chest, back, shoulders, arms and legs. Lots of volume per muscle, with a full week to recover before it is hit again.",
+    "goal": "build_muscle",
+    "level": "intermediate",
+    "days": [
+      {
+        "weekday": 1,
+        "name": "Chest",
+        "exercises": [
+          {
+            "exercise": "barbell-bench-press",
+            "sets": 4,
+            "reps": "6-10",
+            "rest_seconds": 120,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "incline-dumbbell-press",
+            "sets": 4,
+            "reps": "8-12",
+            "rest_seconds": 90,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "cable-fly",
+            "sets": 3,
+            "reps": "12-15",
+            "rest_seconds": 60,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "pec-deck-fly",
+            "sets": 3,
+            "reps": "12-15",
+            "rest_seconds": 60,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "push-up",
+            "sets": 2,
+            "reps": "to failure",
+            "rest_seconds": 60,
+            "weight_kg": null,
+            "note": null
+          }
+        ]
+      },
+      {
+        "weekday": 2,
+        "name": "Back",
+        "exercises": [
+          {
+            "exercise": "pull-up",
+            "sets": 4,
+            "reps": "6-10",
+            "rest_seconds": 90,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "barbell-row",
+            "sets": 4,
+            "reps": "8-10",
+            "rest_seconds": 90,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "lat-pulldown",
+            "sets": 3,
+            "reps": "10-12",
+            "rest_seconds": 75,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "seated-cable-row",
+            "sets": 3,
+            "reps": "10-12",
+            "rest_seconds": 75,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "back-extension",
+            "sets": 3,
+            "reps": "12-15",
+            "rest_seconds": 60,
+            "weight_kg": null,
+            "note": null
+          }
+        ]
+      },
+      {
+        "weekday": 3,
+        "name": "Shoulders",
+        "exercises": [
+          {
+            "exercise": "overhead-press",
+            "sets": 4,
+            "reps": "6-10",
+            "rest_seconds": 105,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "lateral-raise",
+            "sets": 4,
+            "reps": "12-15",
+            "rest_seconds": 60,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "rear-delt-fly",
+            "sets": 3,
+            "reps": "12-15",
+            "rest_seconds": 60,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "front-raise",
+            "sets": 3,
+            "reps": "12-15",
+            "rest_seconds": 60,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "dumbbell-shrug",
+            "sets": 3,
+            "reps": "10-15",
+            "rest_seconds": 60,
+            "weight_kg": null,
+            "note": null
+          }
+        ]
+      },
+      {
+        "weekday": 4,
+        "name": "Arms",
+        "exercises": [
+          {
+            "exercise": "barbell-curl",
+            "sets": 4,
+            "reps": "8-12",
+            "rest_seconds": 75,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "close-grip-barbell-bench-press",
+            "sets": 4,
+            "reps": "6-10",
+            "rest_seconds": 90,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "hammer-curl",
+            "sets": 3,
+            "reps": "10-12",
+            "rest_seconds": 60,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "skull-crusher",
+            "sets": 3,
+            "reps": "10-12",
+            "rest_seconds": 60,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "concentration-curl",
+            "sets": 3,
+            "reps": "10-12",
+            "rest_seconds": 45,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "rope-pushdown",
+            "sets": 3,
+            "reps": "12-15",
+            "rest_seconds": 45,
+            "weight_kg": null,
+            "note": null
+          }
+        ]
+      },
+      {
+        "weekday": 5,
+        "name": "Legs",
+        "exercises": [
+          {
+            "exercise": "barbell-back-squat",
+            "sets": 4,
+            "reps": "5-8",
+            "rest_seconds": 150,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "romanian-deadlift",
+            "sets": 3,
+            "reps": "8-10",
+            "rest_seconds": 105,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "leg-press",
+            "sets": 3,
+            "reps": "10-12",
+            "rest_seconds": 90,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "leg-extension",
+            "sets": 3,
+            "reps": "12-15",
+            "rest_seconds": 60,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "lying-leg-curl",
+            "sets": 3,
+            "reps": "10-12",
+            "rest_seconds": 60,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "standing-calf-raise",
+            "sets": 4,
+            "reps": "12-15",
+            "rest_seconds": 45,
+            "weight_kg": null,
+            "note": null
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "slug": "strength-3x5",
+    "name": "Strength 3x5",
+    "description": "Two alternating full-body workouts built around heavy sets of five on the big lifts. Simple, hard and very effective for getting stronger fast.",
+    "goal": "strength",
+    "level": "intermediate",
+    "days": [
+      {
+        "weekday": 1,
+        "name": "Workout A",
+        "exercises": [
+          {
+            "exercise": "barbell-back-squat",
+            "sets": 3,
+            "reps": "5",
+            "rest_seconds": 180,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "barbell-bench-press",
+            "sets": 3,
+            "reps": "5",
+            "rest_seconds": 180,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "barbell-row",
+            "sets": 3,
+            "reps": "5",
+            "rest_seconds": 150,
+            "weight_kg": null,
+            "note": null
+          }
+        ]
+      },
+      {
+        "weekday": 3,
+        "name": "Workout B",
+        "exercises": [
+          {
+            "exercise": "barbell-back-squat",
+            "sets": 3,
+            "reps": "5",
+            "rest_seconds": 180,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "overhead-press",
+            "sets": 3,
+            "reps": "5",
+            "rest_seconds": 150,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "deadlift",
+            "sets": 1,
+            "reps": "5",
+            "rest_seconds": 240,
+            "weight_kg": null,
+            "note": null
+          }
+        ]
+      },
+      {
+        "weekday": 5,
+        "name": "Workout A",
+        "exercises": [
+          {
+            "exercise": "barbell-back-squat",
+            "sets": 3,
+            "reps": "5",
+            "rest_seconds": 180,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "barbell-bench-press",
+            "sets": 3,
+            "reps": "5",
+            "rest_seconds": 180,
+            "weight_kg": null,
+            "note": null
+          },
+          {
+            "exercise": "barbell-row",
+            "sets": 3,
+            "reps": "5",
+            "rest_seconds": 150,
+            "weight_kg": null,
+            "note": null
+          }
+        ]
+      }
+    ]
+  }
+]

@@ -1,0 +1,181 @@
+.wk-session {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  max-width: 860px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+// ── Sticky top bar ───────────────────────────────────────────────────────────
+
+.wk-session-bar {
+  position: sticky;
+  top: 0.5rem; // the page scrolls inside .app-main, which already starts below the topbar
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 0.8rem 1rem;
+  flex-wrap: wrap;
+  padding: 0.65rem 0.9rem 0.8rem;
+  overflow: hidden;
+  backdrop-filter: blur(10px);
+}
+
+.wk-session-back {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--jv-border-strong);
+  border-radius: 10px;
+  background: var(--jv-surface);
+  color: var(--jv-muted);
+  cursor: pointer;
+
+  &:hover { color: var(--jv-text); background: var(--jv-surface-2); }
+  &:focus-visible { outline: none; box-shadow: var(--jv-ring); }
+}
+
+.wk-session-id {
+  flex: 1 1 160px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+
+  h1 { margin: 0; font-size: 1.05rem; font-weight: 800; letter-spacing: -0.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  span { font-size: 0.74rem; color: var(--jv-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+
+.wk-session-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  font-size: 0.82rem;
+  color: var(--jv-muted);
+}
+
+.wk-session-clock {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--jv-text);
+
+  svg { color: var(--jv-brand-1); }
+}
+
+.wk-session-sets { strong { color: var(--jv-text); } }
+
+.wk-session-save {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 4.4rem;
+  font-size: 0.74rem;
+  font-weight: 600;
+
+  &.is-saved { color: var(--jv-success); }
+
+  button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0;
+    font: inherit;
+    font-weight: 700;
+    color: var(--jv-danger);
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-decoration: underline;
+  }
+
+  @media (max-width: 560px) { display: none; }
+}
+
+.wk-session-finish { display: inline-flex; align-items: center; gap: 0.4rem; font-weight: 700; }
+
+.wk-session-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: var(--jv-surface-3);
+
+  span { display: block; height: 100%; background: var(--jv-brand-gradient); transition: width 400ms var(--jv-ease); }
+}
+
+// ── Body ─────────────────────────────────────────────────────────────────────
+
+.wk-session-list { display: flex; flex-direction: column; gap: 0.75rem; }
+
+.wk-session-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.85rem;
+  font: inherit;
+  font-weight: 700;
+  color: var(--jv-brand-1);
+  background: transparent;
+  border: 2px dashed var(--jv-border-strong);
+  border-radius: var(--jv-radius);
+  cursor: pointer;
+  transition: border-color 140ms, background 140ms;
+
+  &:hover { border-color: var(--jv-brand-1); background: var(--jv-brand-soft); }
+  &:focus-visible { outline: none; box-shadow: var(--jv-ring); }
+}
+
+.wk-session-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 2rem 1.5rem;
+  text-align: center;
+
+  h2 { margin: 0; font-size: 1.1rem; font-weight: 800; }
+  p { margin: 0; font-size: 0.88rem; color: var(--jv-muted); }
+}
+
+.wk-session-note {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.8rem 1rem;
+
+  span { font-size: 0.74rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; color: var(--jv-muted); }
+
+  textarea {
+    width: 100%;
+    resize: vertical;
+    padding: 0.5rem 0.65rem;
+    font: inherit;
+    font-size: 0.88rem;
+    color: var(--jv-text);
+    background: var(--jv-surface);
+    border: 1px solid var(--jv-border-strong);
+    border-radius: 10px;
+
+    &:focus { outline: none; border-color: var(--jv-brand-1); box-shadow: var(--jv-ring); }
+  }
+}
+
+.wk-session-discard {
+  align-self: center;
+  padding: 0.4rem 0.8rem;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--jv-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+
+  &:hover:not(:disabled) { color: var(--jv-danger); text-decoration: underline; }
+}

@@ -1,0 +1,68 @@
+// The muscle picker in the exercise grid. On wide screens it covers the top-right corner and the cards wrap around it.
+// The grid sets its height, and the map fills the rest of it.
+
+.wk-mp {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 0.7rem 0.8rem 0.8rem;
+}
+
+.wk-mp-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+
+  h3 {
+    margin: 0;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--jv-muted);
+  }
+}
+
+.wk-mp-hint {
+  font-size: 0.72rem;
+  color: var(--jv-faint);
+}
+
+.wk-mp-clear {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--jv-brand-1);
+  cursor: pointer;
+
+  &:hover { text-decoration: underline; }
+}
+
+.wk-mp-map {
+  flex: 1;
+  position: relative;
+  min-height: 200px;
+
+  // Taken out of the flow, so the map's own size never pushes the card rows taller. The figures are as large as the
+  // width allows, centred in the box.
+  .mm {
+    position: absolute;
+    inset: 0;
+    align-items: center;
+  }
+
+  .mm-figure {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .mm-svg {
+    width: 100%;
+    height: auto;
+  }
+}

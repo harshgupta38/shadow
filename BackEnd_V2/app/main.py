@@ -9,6 +9,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from fastapi.exceptions import RequestValidationError
+from sqlalchemy.exc import IntegrityError
 
 from app.api.router import api_router
 from app.api.system import router as system_router
@@ -44,8 +45,18 @@ from app.models.ip_rate_limit import IpRateLimitDBM
 from app.models.daily_usage import DailyUsageDBM
 from app.models.scheduled_task_subtask import ScheduledTaskSubtaskDBM
 from app.models.journal import JournalEntryDBM
+from app.models.workout import (
+    WorkoutExerciseDBM,
+    WorkoutPlanDayDBM,
+    WorkoutPlanDBM,
+    WorkoutPlanExerciseDBM,
+    WorkoutSessionDBM,
+    WorkoutSessionExerciseDBM,
+    WorkoutSessionSetDBM,
+    WorkoutSettingDBM,
+)
 from app.models.data_version import DataVersionDBM
-from app.services import planner_service, backup_service, notification_scheduler_service, report_scheduler_service, session_event_service
+from app.services import planner_service, backup_service, notification_scheduler_service, report_scheduler_service, session_event_service, workout_seed_service
 from app.api.notifications import reset_shutdown as _reset_sse_shutdown
 from app.api.notifications import signal_shutdown as _signal_sse_shutdown
 
@@ -72,6 +83,14 @@ async def lifespan(_app: FastAPI):
         if "weekly_insights" not in _report_cols:
             _conn.execute(_sql_text("ALTER TABLE reports ADD COLUMN weekly_insights JSON"))
             _conn.commit()
+    with SessionLocal() as db:
+        try:
+            workout_seed_service.sync_seed(db)
+        except IntegrityError:
+            db.rollback()  # another worker seeded the same rows first; its copy is the one kept
+        except Exception:
+            db.rollback()
+            _startup_logger.exception("Workout library seed failed; the workout page will show an empty library.")
     with SessionLocal() as db:
         planner_service.sync_all_plans(db)
 

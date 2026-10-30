@@ -1234,3 +1234,218 @@ export interface FullSettings {
   accessibility: AccessibilitySettings;
   reports: ReportsSettings;
 }
+
+// ── Workout ───────────────────────────────────────────────────────────────────
+
+export type MuscleId =
+  | "chest" | "shoulders" | "traps" | "biceps" | "triceps" | "forearms" | "abs" | "obliques"
+  | "lats" | "lower_back" | "glutes" | "quads" | "hamstrings" | "calves";
+
+export type WorkoutEquipment =
+  | "bodyweight" | "dumbbell" | "barbell" | "machine" | "cable" | "kettlebell" | "band" | "other";
+export type WorkoutLevel = "beginner" | "intermediate" | "advanced";
+export type WorkoutGoal = "build_muscle" | "lose_fat" | "strength" | "endurance" | "general_fitness";
+export type ExerciseMechanic = "compound" | "isolation";
+export type WorkoutPlanSource = "predefined" | "custom";
+
+// Weekdays are 0 (Sunday) to 6 (Saturday) throughout the workout API.
+
+export interface ExerciseSummary {
+  id: number;
+  name: string;
+  image_url: string | null; // null → the UI draws a muscle diagram instead
+  primary_muscles: MuscleId[];
+  secondary_muscles: MuscleId[];
+  equipment: WorkoutEquipment;
+  level: WorkoutLevel;
+  mechanic: ExerciseMechanic;
+}
+
+export interface ExercisePerformance {
+  date: string; // "YYYY-MM-DD"
+  weight_kg: number | null;
+  reps: number | null;
+  sets: number; // sets completed in that session
+}
+
+export interface ExerciseDetail extends ExerciseSummary {
+  description: string;
+  image_urls: string[]; // gallery (e.g. start and end position); may be empty
+  instructions: string[];
+  tips: string[];
+  common_mistakes: string[];
+  default_sets: number;
+  default_reps: string; // "8-12", "12" or "30s"
+  default_rest_seconds: number;
+  last_performance: ExercisePerformance | null; // the user's best set last time; null if never done
+}
+
+export interface PlanExercise {
+  id: number | null; // null for rows not saved yet (builder)
+  exercise: ExerciseSummary;
+  sets: number;
+  reps: string;
+  rest_seconds: number;
+  weight_kg: number | null;
+  note: string | null;
+}
+
+export interface PlanDay {
+  id: number | null;
+  weekday: number;
+  name: string;
+  estimated_minutes: number;
+  exercises: PlanExercise[];
+}
+
+export interface WorkoutPlanSummary {
+  id: number;
+  name: string;
+  description: string;
+  goal: WorkoutGoal;
+  level: WorkoutLevel;
+  source: WorkoutPlanSource;
+  is_active: boolean;
+  days_per_week: number;
+  weekdays: number[]; // which weekdays have a session
+  avg_minutes: number;
+  muscles: MuscleId[]; // muscles the plan trains most
+  equipment: WorkoutEquipment[];
+  cover_image_url: string | null;
+}
+
+export interface WorkoutPlanDetail extends WorkoutPlanSummary {
+  days: PlanDay[];
+}
+
+export interface PlanExerciseSaveInput {
+  exercise_id: number;
+  sets: number;
+  reps: string;
+  rest_seconds: number;
+  weight_kg: number | null;
+  note: string | null;
+}
+
+export interface PlanDaySaveInput {
+  weekday: number;
+  name: string;
+  exercises: PlanExerciseSaveInput[];
+}
+
+export interface WorkoutPlanSaveRequest {
+  name: string;
+  description: string;
+  goal: WorkoutGoal;
+  level: WorkoutLevel;
+  days: PlanDaySaveInput[];
+}
+
+export interface SessionSet {
+  reps: number | null;
+  weight_kg: number | null;
+  done: boolean;
+}
+
+export interface SessionExercise {
+  id: number | null; // null for exercises added during the session and not saved yet
+  exercise: ExerciseSummary;
+  target_sets: number;
+  target_reps: string;
+  rest_seconds: number;
+  note: string | null;
+  sets: SessionSet[];
+  previous_sets: SessionSet[]; // what the user did last time, for reference
+}
+
+export type WorkoutSessionStatus = "in_progress" | "completed";
+
+export interface WorkoutSessionSummary {
+  id: number;
+  name: string;
+  date: string; // "YYYY-MM-DD"
+  status: WorkoutSessionStatus;
+  plan_name: string | null;
+  duration_seconds: number;
+  exercise_count: number;
+  sets_done: number;
+  volume_kg: number;
+  muscles: MuscleId[];
+}
+
+export interface WorkoutSessionDetail extends WorkoutSessionSummary {
+  plan_id: number | null;
+  plan_day_id: number | null;
+  started_at: string;
+  finished_at: string | null;
+  note: string | null;
+  exercises: SessionExercise[];
+}
+
+export interface SessionStartRequest {
+  plan_day_id: number | null; // null → an empty, ad-hoc workout
+  name: string | null;
+}
+
+export interface SessionExerciseSaveInput {
+  id: number | null;
+  exercise_id: number;
+  sets: SessionSet[];
+  note: string | null;
+}
+
+export interface SessionSaveRequest {
+  note: string | null;
+  exercises: SessionExerciseSaveInput[];
+}
+
+export type WorkoutWeekStatus = "done" | "today" | "upcoming" | "missed" | "rest";
+
+export interface WorkoutWeekDay {
+  date: string;
+  weekday: number;
+  label: string | null; // the plan day's name, null on rest days
+  status: WorkoutWeekStatus;
+}
+
+export interface MuscleSets {
+  muscle: MuscleId;
+  sets: number;
+}
+
+export interface WorkoutOverview {
+  active_plan: WorkoutPlanSummary | null;
+  today_date: string;
+  today_plan_day: PlanDay | null; // null on a rest day, or when there is no active plan
+  is_rest_day: boolean;
+  in_progress_session_id: number | null;
+  completed_today: WorkoutSessionSummary | null;
+  week: WorkoutWeekDay[]; // Sunday → Saturday
+  sessions_this_week: number;
+  sessions_target: number;
+  volume_kg_week: number;
+  minutes_week: number;
+  muscles_this_week: MuscleSets[];
+}
+
+export interface WorkoutProgressWeek {
+  week_start: string; // Sunday, "YYYY-MM-DD"
+  sessions: number;
+  volume_kg: number;
+  minutes: number;
+}
+
+export interface PersonalRecord {
+  exercise: ExerciseSummary;
+  weight_kg: number;
+  reps: number;
+  date: string;
+}
+
+export interface WorkoutProgress {
+  weeks: WorkoutProgressWeek[]; // oldest → newest
+  muscles: MuscleSets[]; // sets per muscle over the last 30 days
+  personal_records: PersonalRecord[];
+  total_sessions: number;
+  current_streak_weeks: number;
+}

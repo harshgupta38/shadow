@@ -137,6 +137,21 @@ class Endpoints:
         LIST = "/entries"           # GET ?start=YYYY-MM-DD&end=YYYY-MM-DD
         ENTRY = "/entries/{entry_date}"
 
+    class WORKOUT:
+        PREFIX = "/workout"
+        OVERVIEW = "/overview"
+        PROGRESS = "/progress"
+        EXERCISES = "/exercises"
+        EXERCISE_DETAIL = "/exercises/{exercise_id}"
+        PLANS = "/plans"
+        PLANS_DEACTIVATE = "/plans/deactivate"
+        PLAN_DETAIL = "/plans/{plan_id}"
+        PLAN_ACTIVATE = "/plans/{plan_id}/activate"
+        PLAN_DUPLICATE = "/plans/{plan_id}/duplicate"
+        SESSIONS = "/sessions"
+        SESSION_DETAIL = "/sessions/{session_id}"
+        SESSION_FINISH = "/sessions/{session_id}/finish"
+
     class SETTINGS:
         PREFIX = "/settings"
         AI_PROVIDERS = "/ai-providers"

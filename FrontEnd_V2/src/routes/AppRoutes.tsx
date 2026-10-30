@@ -42,6 +42,9 @@ const SettingsPage = lazy(() => import("@/pages/settings/SettingsPage").then(m =
 const NotificationsPage = lazy(() => import("@/pages/notifications/NotificationsPage").then(m => ({ default: m.NotificationsPage })));
 const DailyBriefPage = lazy(() => import("@/pages/daily-brief/DailyBriefPage").then(m => ({ default: m.DailyBriefPage })));
 const WorkoutPage = lazy(() => import("@/pages/workout/WorkoutPage").then(m => ({ default: m.WorkoutPage })));
+const WorkoutPlanDetailPage = lazy(() => import("@/pages/workout/PlanDetailPage/PlanDetailPage").then(m => ({ default: m.PlanDetailPage })));
+const WorkoutPlanBuilderPage = lazy(() => import("@/pages/workout/PlanBuilderPage/PlanBuilderPage").then(m => ({ default: m.PlanBuilderPage })));
+const WorkoutSessionPage = lazy(() => import("@/pages/workout/SessionPage/SessionPage").then(m => ({ default: m.SessionPage })));
 const DietPage = lazy(() => import("@/pages/diet/DietPage").then(m => ({ default: m.DietPage })));
 const NotFoundPage = lazy(() => import("@/pages/not-found/NotFoundPage").then(m => ({ default: m.NotFoundPage })));
 const DeviceLimitPage = lazy(() => import("@/pages/device-limit/DeviceLimitPage").then(m => ({ default: m.DeviceLimitPage })));
@@ -97,6 +100,10 @@ export function AppRoutes() {
 						<Route path={ROUTES.NOTIFICATIONS} element={<NotificationsPage />} />
 						<Route path={ROUTES.DAILY_BRIEF} element={<DailyBriefPage />} />
 						<Route path={ROUTES.WORKOUT} element={<WorkoutPage />} />
+						<Route path={ROUTES.WORKOUT_PLAN_CREATE} element={<WorkoutPlanBuilderPage />} />
+						<Route path={ROUTES.WORKOUT_PLAN_DETAIL} element={<WorkoutPlanDetailPage />} />
+						<Route path={ROUTES.WORKOUT_PLAN_EDIT} element={<WorkoutPlanBuilderPage />} />
+						<Route path={ROUTES.WORKOUT_SESSION} element={<WorkoutSessionPage />} />
 						<Route path={ROUTES.DIET} element={<DietPage />} />
 						<Route path={ROUTES.PROFILE} element={<ProfilePage />} />
 						<Route path={ROUTES.SETTINGS} element={<SettingsPage />} />

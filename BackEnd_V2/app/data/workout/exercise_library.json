@@ -13,6 +13,7 @@
       "triceps"
     ],
     "images": [
+      "/workout-exercises/barbell-bench-press/demo.gif",
       "/workout-exercises/barbell-bench-press/0.jpg",
       "/workout-exercises/barbell-bench-press/1.jpg"
     ],
@@ -50,6 +51,7 @@
       "triceps"
     ],
     "images": [
+      "/workout-exercises/incline-dumbbell-press/demo.gif",
       "/workout-exercises/incline-dumbbell-press/0.jpg",
       "/workout-exercises/incline-dumbbell-press/1.jpg"
     ],
@@ -89,6 +91,7 @@
       "triceps"
     ],
     "images": [
+      "/workout-exercises/dumbbell-bench-press/demo.gif",
       "/workout-exercises/dumbbell-bench-press/0.jpg",
       "/workout-exercises/dumbbell-bench-press/1.jpg"
     ],
@@ -125,6 +128,7 @@
       "triceps"
     ],
     "images": [
+      "/workout-exercises/decline-barbell-bench-press/demo.gif",
       "/workout-exercises/decline-barbell-bench-press/0.jpg",
       "/workout-exercises/decline-barbell-bench-press/1.jpg"
     ],
@@ -163,6 +167,7 @@
       "abs"
     ],
     "images": [
+      "/workout-exercises/push-up/demo.gif",
       "/workout-exercises/push-up/0.jpg",
       "/workout-exercises/push-up/1.jpg"
     ],
@@ -199,6 +204,7 @@
       "triceps"
     ],
     "images": [
+      "/workout-exercises/incline-push-up/demo.gif",
       "/workout-exercises/incline-push-up/0.jpg",
       "/workout-exercises/incline-push-up/1.jpg"
     ],
@@ -232,6 +238,7 @@
       "shoulders"
     ],
     "images": [
+      "/workout-exercises/cable-fly/demo.gif",
       "/workout-exercises/cable-fly/0.jpg",
       "/workout-exercises/cable-fly/1.jpg"
     ],
@@ -267,6 +274,7 @@
       "shoulders"
     ],
     "images": [
+      "/workout-exercises/dumbbell-fly/demo.gif",
       "/workout-exercises/dumbbell-fly/0.jpg",
       "/workout-exercises/dumbbell-fly/1.jpg"
     ],
@@ -300,6 +308,7 @@
     ],
     "secondary_muscles": [],
     "images": [
+      "/workout-exercises/pec-deck-fly/demo.gif",
       "/workout-exercises/pec-deck-fly/0.jpg",
       "/workout-exercises/pec-deck-fly/1.jpg"
     ],
@@ -336,6 +345,7 @@
       "shoulders"
     ],
     "images": [
+      "/workout-exercises/chest-dips/demo.gif",
       "/workout-exercises/chest-dips/0.jpg",
       "/workout-exercises/chest-dips/1.jpg"
     ],
@@ -372,6 +382,7 @@
       "forearms"
     ],
     "images": [
+      "/workout-exercises/pull-up/demo.gif",
       "/workout-exercises/pull-up/0.jpg",
       "/workout-exercises/pull-up/1.jpg"
     ],
@@ -410,6 +421,7 @@
       "forearms"
     ],
     "images": [
+      "/workout-exercises/chin-up/demo.gif",
       "/workout-exercises/chin-up/0.jpg",
       "/workout-exercises/chin-up/1.jpg"
     ],
@@ -446,6 +458,7 @@
       "traps"
     ],
     "images": [
+      "/workout-exercises/lat-pulldown/demo.gif",
       "/workout-exercises/lat-pulldown/0.jpg",
       "/workout-exercises/lat-pulldown/1.jpg"
     ],
@@ -484,6 +497,7 @@
       "traps"
     ],
     "images": [
+      "/workout-exercises/close-grip-lat-pulldown/demo.gif",
       "/workout-exercises/close-grip-lat-pulldown/0.jpg",
       "/workout-exercises/close-grip-lat-pulldown/1.jpg"
     ],
@@ -523,6 +537,7 @@
       "lower_back"
     ],
     "images": [
+      "/workout-exercises/barbell-row/demo.gif",
       "/workout-exercises/barbell-row/0.jpg",
       "/workout-exercises/barbell-row/1.jpg"
     ],
@@ -560,6 +575,7 @@
       "shoulders"
     ],
     "images": [
+      "/workout-exercises/seated-cable-row/demo.gif",
       "/workout-exercises/seated-cable-row/0.jpg",
       "/workout-exercises/seated-cable-row/1.jpg"
     ],
@@ -599,6 +615,7 @@
       "shoulders"
     ],
     "images": [
+      "/workout-exercises/one-arm-dumbbell-row/demo.gif",
       "/workout-exercises/one-arm-dumbbell-row/0.jpg",
       "/workout-exercises/one-arm-dumbbell-row/1.jpg"
     ],
@@ -640,6 +657,7 @@
       "shoulders"
     ],
     "images": [
+      "/workout-exercises/t-bar-row/demo.gif",
       "/workout-exercises/t-bar-row/0.jpg",
       "/workout-exercises/t-bar-row/1.jpg"
     ],
@@ -682,6 +700,7 @@
       "lats"
     ],
     "images": [
+      "/workout-exercises/deadlift/demo.gif",
       "/workout-exercises/deadlift/0.jpg",
       "/workout-exercises/deadlift/1.jpg"
     ],
@@ -719,6 +738,7 @@
       "hamstrings"
     ],
     "images": [
+      "/workout-exercises/back-extension/demo.gif",
       "/workout-exercises/back-extension/0.jpg",
       "/workout-exercises/back-extension/1.jpg"
     ],
@@ -756,6 +776,7 @@
       "traps"
     ],
     "images": [
+      "/workout-exercises/overhead-press/demo.gif",
       "/workout-exercises/overhead-press/0.jpg",
       "/workout-exercises/overhead-press/1.jpg"
     ],
@@ -793,6 +814,7 @@
       "triceps"
     ],
     "images": [
+      "/workout-exercises/dumbbell-shoulder-press/demo.gif",
       "/workout-exercises/dumbbell-shoulder-press/0.jpg",
       "/workout-exercises/dumbbell-shoulder-press/1.jpg"
     ],
@@ -829,6 +851,7 @@
       "triceps"
     ],
     "images": [
+      "/workout-exercises/arnold-press/demo.gif",
       "/workout-exercises/arnold-press/0.jpg",
       "/workout-exercises/arnold-press/1.jpg"
     ],
@@ -862,6 +885,7 @@
     ],
     "secondary_muscles": [],
     "images": [
+      "/workout-exercises/lateral-raise/demo.gif",
       "/workout-exercises/lateral-raise/0.jpg",
       "/workout-exercises/lateral-raise/1.jpg"
     ],
@@ -895,6 +919,7 @@
     ],
     "secondary_muscles": [],
     "images": [
+      "/workout-exercises/front-raise/demo.gif",
       "/workout-exercises/front-raise/0.jpg",
       "/workout-exercises/front-raise/1.jpg"
     ],
@@ -929,6 +954,7 @@
       "traps"
     ],
     "images": [
+      "/workout-exercises/rear-delt-fly/demo.gif",
       "/workout-exercises/rear-delt-fly/0.jpg",
       "/workout-exercises/rear-delt-fly/1.jpg"
     ],
@@ -995,6 +1021,7 @@
     ],
     "secondary_muscles": [],
     "images": [
+      "/workout-exercises/barbell-shrug/demo.gif",
       "/workout-exercises/barbell-shrug/0.jpg",
       "/workout-exercises/barbell-shrug/1.jpg"
     ],
@@ -1027,6 +1054,7 @@
     ],
     "secondary_muscles": [],
     "images": [
+      "/workout-exercises/dumbbell-shrug/demo.gif",
       "/workout-exercises/dumbbell-shrug/0.jpg",
       "/workout-exercises/dumbbell-shrug/1.jpg"
     ],
@@ -1061,6 +1089,7 @@
       "forearms"
     ],
     "images": [
+      "/workout-exercises/barbell-curl/demo.gif",
       "/workout-exercises/barbell-curl/0.jpg",
       "/workout-exercises/barbell-curl/1.jpg"
     ],
@@ -1097,6 +1126,7 @@
       "forearms"
     ],
     "images": [
+      "/workout-exercises/dumbbell-curl/demo.gif",
       "/workout-exercises/dumbbell-curl/0.jpg",
       "/workout-exercises/dumbbell-curl/1.jpg"
     ],
@@ -1130,6 +1160,7 @@
     ],
     "secondary_muscles": [],
     "images": [
+      "/workout-exercises/hammer-curl/demo.gif",
       "/workout-exercises/hammer-curl/0.jpg",
       "/workout-exercises/hammer-curl/1.jpg"
     ],
@@ -1164,6 +1195,7 @@
     ],
     "secondary_muscles": [],
     "images": [
+      "/workout-exercises/preacher-curl/demo.gif",
       "/workout-exercises/preacher-curl/0.jpg",
       "/workout-exercises/preacher-curl/1.jpg"
     ],
@@ -1199,6 +1231,7 @@
       "forearms"
     ],
     "images": [
+      "/workout-exercises/concentration-curl/demo.gif",
       "/workout-exercises/concentration-curl/0.jpg",
       "/workout-exercises/concentration-curl/1.jpg"
     ],
@@ -1233,6 +1266,7 @@
     ],
     "secondary_muscles": [],
     "images": [
+      "/workout-exercises/rope-hammer-curl/demo.gif",
       "/workout-exercises/rope-hammer-curl/0.jpg",
       "/workout-exercises/rope-hammer-curl/1.jpg"
     ],
@@ -1269,6 +1303,7 @@
     ],
     "secondary_muscles": [],
     "images": [
+      "/workout-exercises/triceps-pushdown/demo.gif",
       "/workout-exercises/triceps-pushdown/0.jpg",
       "/workout-exercises/triceps-pushdown/1.jpg"
     ],
@@ -1303,6 +1338,7 @@
     ],
     "secondary_muscles": [],
     "images": [
+      "/workout-exercises/rope-pushdown/demo.gif",
       "/workout-exercises/rope-pushdown/0.jpg",
       "/workout-exercises/rope-pushdown/1.jpg"
     ],
@@ -1338,6 +1374,7 @@
       "forearms"
     ],
     "images": [
+      "/workout-exercises/skull-crusher/demo.gif",
       "/workout-exercises/skull-crusher/0.jpg",
       "/workout-exercises/skull-crusher/1.jpg"
     ],
@@ -1371,6 +1408,7 @@
     ],
     "secondary_muscles": [],
     "images": [
+      "/workout-exercises/overhead-triceps-extension/demo.gif",
       "/workout-exercises/overhead-triceps-extension/0.jpg",
       "/workout-exercises/overhead-triceps-extension/1.jpg"
     ],
@@ -1407,6 +1445,7 @@
       "shoulders"
     ],
     "images": [
+      "/workout-exercises/parallel-bar-dips/demo.gif",
       "/workout-exercises/parallel-bar-dips/0.jpg",
       "/workout-exercises/parallel-bar-dips/1.jpg"
     ],
@@ -1444,6 +1483,7 @@
       "shoulders"
     ],
     "images": [
+      "/workout-exercises/bench-dips/demo.gif",
       "/workout-exercises/bench-dips/0.jpg",
       "/workout-exercises/bench-dips/1.jpg"
     ],
@@ -1479,6 +1519,7 @@
       "shoulders"
     ],
     "images": [
+      "/workout-exercises/close-grip-barbell-bench-press/demo.gif",
       "/workout-exercises/close-grip-barbell-bench-press/0.jpg",
       "/workout-exercises/close-grip-barbell-bench-press/1.jpg"
     ],
@@ -1549,6 +1590,7 @@
       "shoulders"
     ],
     "images": [
+      "/workout-exercises/side-plank/demo.gif",
       "/workout-exercises/side-plank/0.jpg",
       "/workout-exercises/side-plank/1.jpg"
     ],
@@ -1576,6 +1618,7 @@
     ],
     "secondary_muscles": [],
     "images": [
+      "/workout-exercises/crunch/demo.gif",
       "/workout-exercises/crunch/0.jpg",
       "/workout-exercises/crunch/1.jpg"
     ],
@@ -1610,6 +1653,7 @@
     ],
     "secondary_muscles": [],
     "images": [
+      "/workout-exercises/sit-up/demo.gif",
       "/workout-exercises/sit-up/0.jpg",
       "/workout-exercises/sit-up/1.jpg"
     ],
@@ -1643,6 +1687,7 @@
     ],
     "secondary_muscles": [],
     "images": [
+      "/workout-exercises/cable-crunch/demo.gif",
       "/workout-exercises/cable-crunch/0.jpg",
       "/workout-exercises/cable-crunch/1.jpg"
     ],
@@ -1678,6 +1723,7 @@
     ],
     "secondary_muscles": [],
     "images": [
+      "/workout-exercises/bicycle-crunch/demo.gif",
       "/workout-exercises/bicycle-crunch/0.jpg",
       "/workout-exercises/bicycle-crunch/1.jpg"
     ],
@@ -1717,6 +1763,7 @@
       "lower_back"
     ],
     "images": [
+      "/workout-exercises/russian-twist/demo.gif",
       "/workout-exercises/russian-twist/0.jpg",
       "/workout-exercises/russian-twist/1.jpg"
     ],
@@ -1755,6 +1802,7 @@
       "obliques"
     ],
     "images": [
+      "/workout-exercises/hanging-leg-raise/demo.gif",
       "/workout-exercises/hanging-leg-raise/0.jpg",
       "/workout-exercises/hanging-leg-raise/1.jpg"
     ],
@@ -1788,6 +1836,7 @@
     ],
     "secondary_muscles": [],
     "images": [
+      "/workout-exercises/bench-leg-pull-in/demo.gif",
       "/workout-exercises/bench-leg-pull-in/0.jpg",
       "/workout-exercises/bench-leg-pull-in/1.jpg"
     ],
@@ -1824,6 +1873,7 @@
       "lats"
     ],
     "images": [
+      "/workout-exercises/ab-roller/demo.gif",
       "/workout-exercises/ab-roller/0.jpg",
       "/workout-exercises/ab-roller/1.jpg"
     ],
@@ -1860,6 +1910,7 @@
       "chest"
     ],
     "images": [
+      "/workout-exercises/mountain-climbers/demo.gif",
       "/workout-exercises/mountain-climbers/0.jpg",
       "/workout-exercises/mountain-climbers/1.jpg"
     ],
@@ -1895,6 +1946,7 @@
       "calves"
     ],
     "images": [
+      "/workout-exercises/barbell-back-squat/demo.gif",
       "/workout-exercises/barbell-back-squat/0.jpg",
       "/workout-exercises/barbell-back-squat/1.jpg"
     ],
@@ -1934,6 +1986,7 @@
       "abs"
     ],
     "images": [
+      "/workout-exercises/front-squat/demo.gif",
       "/workout-exercises/front-squat/0.jpg",
       "/workout-exercises/front-squat/1.jpg"
     ],
@@ -1974,6 +2027,7 @@
       "calves"
     ],
     "images": [
+      "/workout-exercises/smith-machine-squat/demo.gif",
       "/workout-exercises/smith-machine-squat/0.jpg",
       "/workout-exercises/smith-machine-squat/1.jpg"
     ],
@@ -2014,6 +2068,7 @@
       "calves"
     ],
     "images": [
+      "/workout-exercises/hack-squat/demo.gif",
       "/workout-exercises/hack-squat/0.jpg",
       "/workout-exercises/hack-squat/1.jpg"
     ],
@@ -2055,6 +2110,7 @@
       "abs"
     ],
     "images": [
+      "/workout-exercises/goblet-squat/demo.gif",
       "/workout-exercises/goblet-squat/0.jpg",
       "/workout-exercises/goblet-squat/1.jpg"
     ],
@@ -2126,6 +2182,7 @@
       "hamstrings"
     ],
     "images": [
+      "/workout-exercises/leg-press/demo.gif",
       "/workout-exercises/leg-press/0.jpg",
       "/workout-exercises/leg-press/1.jpg"
     ],
@@ -2160,6 +2217,7 @@
     ],
     "secondary_muscles": [],
     "images": [
+      "/workout-exercises/leg-extension/demo.gif",
       "/workout-exercises/leg-extension/0.jpg",
       "/workout-exercises/leg-extension/1.jpg"
     ],
@@ -2196,6 +2254,7 @@
       "forearms"
     ],
     "images": [
+      "/workout-exercises/romanian-deadlift/demo.gif",
       "/workout-exercises/romanian-deadlift/0.jpg",
       "/workout-exercises/romanian-deadlift/1.jpg"
     ],
@@ -2233,6 +2292,7 @@
       "lower_back"
     ],
     "images": [
+      "/workout-exercises/stiff-leg-deadlift/demo.gif",
       "/workout-exercises/stiff-leg-deadlift/0.jpg",
       "/workout-exercises/stiff-leg-deadlift/1.jpg"
     ],
@@ -2268,6 +2328,7 @@
     ],
     "secondary_muscles": [],
     "images": [
+      "/workout-exercises/lying-leg-curl/demo.gif",
       "/workout-exercises/lying-leg-curl/0.jpg",
       "/workout-exercises/lying-leg-curl/1.jpg"
     ],
@@ -2300,6 +2361,7 @@
     ],
     "secondary_muscles": [],
     "images": [
+      "/workout-exercises/seated-leg-curl/demo.gif",
       "/workout-exercises/seated-leg-curl/0.jpg",
       "/workout-exercises/seated-leg-curl/1.jpg"
     ],
@@ -2337,6 +2399,7 @@
       "calves"
     ],
     "images": [
+      "/workout-exercises/dumbbell-lunge/demo.gif",
       "/workout-exercises/dumbbell-lunge/0.jpg",
       "/workout-exercises/dumbbell-lunge/1.jpg"
     ],
@@ -2375,6 +2438,7 @@
       "calves"
     ],
     "images": [
+      "/workout-exercises/walking-lunge/demo.gif",
       "/workout-exercises/walking-lunge/0.jpg",
       "/workout-exercises/walking-lunge/1.jpg"
     ],
@@ -2413,6 +2477,7 @@
       "calves"
     ],
     "images": [
+      "/workout-exercises/dumbbell-step-up/demo.gif",
       "/workout-exercises/dumbbell-step-up/0.jpg",
       "/workout-exercises/dumbbell-step-up/1.jpg"
     ],
@@ -2450,6 +2515,7 @@
       "quads"
     ],
     "images": [
+      "/workout-exercises/hip-thrust/demo.gif",
       "/workout-exercises/hip-thrust/0.jpg",
       "/workout-exercises/hip-thrust/1.jpg"
     ],
@@ -2484,6 +2550,7 @@
       "hamstrings"
     ],
     "images": [
+      "/workout-exercises/single-leg-glute-bridge/demo.gif",
       "/workout-exercises/single-leg-glute-bridge/0.jpg",
       "/workout-exercises/single-leg-glute-bridge/1.jpg"
     ],
@@ -2520,6 +2587,7 @@
       "shoulders"
     ],
     "images": [
+      "/workout-exercises/kettlebell-swing/demo.gif",
       "/workout-exercises/kettlebell-swing/0.jpg",
       "/workout-exercises/kettlebell-swing/1.jpg"
     ],
@@ -2549,6 +2617,7 @@
     ],
     "secondary_muscles": [],
     "images": [
+      "/workout-exercises/standing-calf-raise/demo.gif",
       "/workout-exercises/standing-calf-raise/0.jpg",
       "/workout-exercises/standing-calf-raise/1.jpg"
     ],
@@ -2583,6 +2652,7 @@
     ],
     "secondary_muscles": [],
     "images": [
+      "/workout-exercises/seated-calf-raise/demo.gif",
       "/workout-exercises/seated-calf-raise/0.jpg",
       "/workout-exercises/seated-calf-raise/1.jpg"
     ],

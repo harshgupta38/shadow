@@ -7,7 +7,7 @@ import { ExerciseCard } from "@/pages/workout/ExercisesTab/ExerciseCard/Exercise
 import { MusclePicker } from "@/pages/workout/ExercisesTab/MusclePicker/MusclePicker";
 import { ExerciseFilterBar } from "@/pages/workout/ExerciseFilterBar/ExerciseFilterBar";
 import {
-  EMPTY_EXERCISE_FILTERS,
+  DEFAULT_EXERCISE_FILTERS,
   applyExerciseFilters,
   type ExerciseFilters,
 } from "@/pages/workout/ExerciseFilterBar/exerciseFilters";
@@ -33,7 +33,7 @@ interface ExercisesTabProps {
 
 export function ExercisesTab({ onOpenExercise }: ExercisesTabProps) {
   const { exercises, loading, error, reload } = useExerciseLibrary();
-  const [filters, setFilters] = useState<ExerciseFilters>(EMPTY_EXERCISE_FILTERS);
+  const [filters, setFilters] = useState<ExerciseFilters>(DEFAULT_EXERCISE_FILTERS);
   const [rows, setRows] = useState(ROWS_PER_PAGE);
   const [grid, setGrid] = useState<HTMLDivElement | null>(null);
   const [columns, setColumns] = useState(0);
@@ -106,7 +106,7 @@ export function ExercisesTab({ onOpenExercise }: ExercisesTabProps) {
             <div className="empty-icon mx-auto mb-3"><Search size={24} /></div>
             <h2 className="h6 fw-bold">No exercises match</h2>
             <p className="mb-3">Try a different muscle or clear some filters.</p>
-            <button type="button" className="btn btn-soft" onClick={() => changeFilters(EMPTY_EXERCISE_FILTERS)}>
+            <button type="button" className="btn btn-soft" onClick={() => changeFilters(DEFAULT_EXERCISE_FILTERS)}>
               Clear filters
             </button>
           </div>

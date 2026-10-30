@@ -70,7 +70,7 @@ def active_plan(db: Session, user: UserDBM) -> WorkoutPlanDBM | None:
 
 
 def day_minutes(day: WorkoutPlanDayDBM) -> int:
-    return estimate_minutes((entry.sets, entry.rest_seconds) for entry in day.exercises)
+    return estimate_minutes((entry.sets, entry.rest_seconds, entry.reps) for entry in day.exercises)
 
 
 def day_response(day: WorkoutPlanDayDBM) -> PlanDayResponse:
@@ -102,10 +102,11 @@ def plan_summary(plan: WorkoutPlanDBM, active_id: int | None) -> WorkoutPlanSumm
         minutes.append(day_minutes(day))
         for entry in day.exercises:
             exercise = entry.exercise
-            for muscle in exercise.primary_muscles:
-                weights[muscle] = weights.get(muscle, 0) + entry.sets
-            for muscle in exercise.secondary_muscles:
-                weights[muscle] = weights.get(muscle, 0) + entry.sets * SECONDARY_CREDIT
+            if exercise.kind == "strength":  # cardio and warm-ups are not counted as muscle work
+                for muscle in exercise.primary_muscles:
+                    weights[muscle] = weights.get(muscle, 0) + entry.sets
+                for muscle in exercise.secondary_muscles:
+                    weights[muscle] = weights.get(muscle, 0) + entry.sets * SECONDARY_CREDIT
             if exercise.equipment not in equipment:
                 equipment.append(exercise.equipment)
 

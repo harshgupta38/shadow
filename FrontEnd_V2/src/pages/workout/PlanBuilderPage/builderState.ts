@@ -40,7 +40,7 @@ export const MAX_SETS = 20;
 const MAX_REPS_TEXT = 12;
 
 let keyCounter = 0;
-export const nextKey = () => `x${++keyCounter}`;
+const nextKey = () => `x${++keyCounter}`;
 
 export const EMPTY_DRAFT: PlanDraft = {
   name: "",

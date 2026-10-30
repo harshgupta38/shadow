@@ -1246,6 +1246,7 @@ export type WorkoutEquipment =
 export type WorkoutLevel = "beginner" | "intermediate" | "advanced";
 export type WorkoutGoal = "build_muscle" | "lose_fat" | "strength" | "endurance" | "general_fitness";
 export type ExerciseMechanic = "compound" | "isolation";
+export type ExerciseKind = "strength" | "cardio" | "warmup";
 export type WorkoutPlanSource = "predefined" | "custom";
 
 // Weekdays are 0 (Sunday) to 6 (Saturday) throughout the workout API.
@@ -1259,6 +1260,7 @@ export interface ExerciseSummary {
   equipment: WorkoutEquipment;
   level: WorkoutLevel;
   mechanic: ExerciseMechanic;
+  kind: ExerciseKind;
 }
 
 export interface ExercisePerformance {
@@ -1278,6 +1280,8 @@ export interface ExerciseDetail extends ExerciseSummary {
   default_reps: string; // "8-12", "12" or "30s"
   default_rest_seconds: number;
   last_performance: ExercisePerformance | null; // the user's best set last time; null if never done
+  warm_up_with: ExerciseSummary[]; // lifts: one cardio that suits the lift, then up to three drills
+  good_warm_up_for: ExerciseSummary[]; // cardio and drills: the lifts they prepare
 }
 
 export interface PlanExercise {

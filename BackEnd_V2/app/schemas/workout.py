@@ -11,6 +11,7 @@ Equipment = Literal["bodyweight", "dumbbell", "barbell", "machine", "cable", "ke
 Level = Literal["beginner", "intermediate", "advanced"]
 Goal = Literal["build_muscle", "lose_fat", "strength", "endurance", "general_fitness"]
 Mechanic = Literal["compound", "isolation"]
+ExerciseKind = Literal["strength", "cardio", "warmup"]
 PlanSource = Literal["predefined", "custom"]
 SessionStatus = Literal["in_progress", "completed"]
 WeekStatus = Literal["done", "today", "upcoming", "missed", "rest"]
@@ -119,6 +120,7 @@ class ExerciseSummaryResponse(BaseModel):
     equipment: Equipment
     level: Level
     mechanic: Mechanic
+    kind: ExerciseKind
 
 
 class ExercisePerformanceResponse(BaseModel):
@@ -138,6 +140,8 @@ class ExerciseDetailResponse(ExerciseSummaryResponse):
     default_reps: str
     default_rest_seconds: int
     last_performance: ExercisePerformanceResponse | None
+    warm_up_with: list[ExerciseSummaryResponse]
+    good_warm_up_for: list[ExerciseSummaryResponse]
 
 
 # ── Plans ─────────────────────────────────────────────────────────────────────

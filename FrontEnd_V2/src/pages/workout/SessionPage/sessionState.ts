@@ -5,7 +5,7 @@ const DEFAULT_REPS = "8-12";
 const DEFAULT_REST_SECONDS = 90;
 
 /** "8-12" → 8, "12" → 12, "30s" → 30, "AMRAP" → null. */
-export function firstNumber(text: string): number | null {
+function firstNumber(text: string): number | null {
   const match = text.match(/\d+/);
   return match ? Number(match[0]) : null;
 }

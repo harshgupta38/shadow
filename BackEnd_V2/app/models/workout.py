@@ -22,6 +22,7 @@ from app.models.base import Base
 EQUIPMENT_VALUES = ("bodyweight", "dumbbell", "barbell", "machine", "cable", "kettlebell", "band", "other")
 LEVEL_VALUES = ("beginner", "intermediate", "advanced")
 MECHANIC_VALUES = ("compound", "isolation")
+KIND_VALUES = ("strength", "cardio", "warmup")
 GOAL_VALUES = ("build_muscle", "lose_fat", "strength", "endurance", "general_fitness")
 SESSION_STATUS_VALUES = ("in_progress", "completed")
 
@@ -38,6 +39,7 @@ class WorkoutExerciseDBM(Base):
         CheckConstraint(_one_of("equipment", EQUIPMENT_VALUES), name="ck_workout_exercises_equipment"),
         CheckConstraint(_one_of("level", LEVEL_VALUES), name="ck_workout_exercises_level"),
         CheckConstraint(_one_of("mechanic", MECHANIC_VALUES), name="ck_workout_exercises_mechanic"),
+        CheckConstraint(_one_of("kind", KIND_VALUES), name="ck_workout_exercises_kind"),
         CheckConstraint("default_sets BETWEEN 1 AND 20", name="ck_workout_exercises_default_sets"),
         CheckConstraint("default_rest_seconds BETWEEN 0 AND 900", name="ck_workout_exercises_default_rest"),
     )
@@ -45,6 +47,7 @@ class WorkoutExerciseDBM(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     slug: Mapped[str] = mapped_column(String(80), unique=True, nullable=False)
     name: Mapped[str] = mapped_column(String(120), nullable=False)
+    kind: Mapped[str] = mapped_column(String(16), nullable=False, default="strength")
     equipment: Mapped[str] = mapped_column(String(16), nullable=False)
     level: Mapped[str] = mapped_column(String(16), nullable=False)
     mechanic: Mapped[str] = mapped_column(String(16), nullable=False)

@@ -7,7 +7,7 @@ import { IllustratedErrorState } from "@/components/ui/IllustratedErrorState/Ill
 import { ExerciseDetailModal } from "@/pages/workout/ExerciseDetailModal/ExerciseDetailModal";
 import { ExerciseFilterBar } from "@/pages/workout/ExerciseFilterBar/ExerciseFilterBar";
 import {
-  EMPTY_EXERCISE_FILTERS,
+  DEFAULT_EXERCISE_FILTERS,
   applyExerciseFilters,
   type ExerciseFilters,
 } from "@/pages/workout/ExerciseFilterBar/exerciseFilters";
@@ -31,7 +31,7 @@ interface ExercisePickerModalProps {
 
 export function ExercisePickerModal({ show, onClose, onPick, excludeIds = [], title = "Add exercises" }: ExercisePickerModalProps) {
   const { exercises, loading, error, reload } = useExerciseLibrary();
-  const [filters, setFilters] = useState<ExerciseFilters>(EMPTY_EXERCISE_FILTERS);
+  const [filters, setFilters] = useState<ExerciseFilters>(DEFAULT_EXERCISE_FILTERS);
   const [selected, setSelected] = useState<number[]>([]);
   const [visible, setVisible] = useState(PAGE);
   const [previewId, setPreviewId] = useState<number | null>(null);
@@ -40,7 +40,7 @@ export function ExercisePickerModal({ show, onClose, onPick, excludeIds = [], ti
   useEffect(() => {
     if (show) {
       setSelected([]);
-      setFilters(EMPTY_EXERCISE_FILTERS);
+      setFilters(DEFAULT_EXERCISE_FILTERS);
       setVisible(PAGE);
     }
   }, [show]);

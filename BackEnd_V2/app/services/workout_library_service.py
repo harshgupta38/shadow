@@ -23,6 +23,7 @@ def exercise_summary(exercise: WorkoutExerciseDBM) -> ExerciseSummaryResponse:
         equipment=exercise.equipment,
         level=exercise.level,
         mechanic=exercise.mechanic,
+        kind=exercise.kind,
     )
 
 
@@ -87,6 +88,57 @@ def last_performance(db: Session, user_id: int, exercise_id: int) -> ExercisePer
     )
 
 
+def _overlap_score(a: WorkoutExerciseDBM, b: WorkoutExerciseDBM) -> int:
+    """How much two exercises train the same muscles. A shared primary muscle counts double."""
+    a_primary, b_primary = set(a.primary_muscles), set(b.primary_muscles)
+    return (
+        2 * len(a_primary & b_primary)
+        + len(a_primary & set(b.secondary_muscles))
+        + len(set(a.secondary_muscles) & b_primary)
+    )
+
+
+def _scored_matches(
+    db: Session,
+    exercise: WorkoutExerciseDBM,
+    kinds: tuple[str, ...],
+    levels: tuple[str, ...] | None = None,
+) -> list[tuple[int, WorkoutExerciseDBM]]:
+    """Other library items of the given kinds, best muscle match first. Ties keep the library's order."""
+    query = select(WorkoutExerciseDBM).where(
+        WorkoutExerciseDBM.kind.in_(kinds),
+        WorkoutExerciseDBM.id != exercise.id,
+    )
+    if levels is not None:
+        query = query.where(WorkoutExerciseDBM.level.in_(levels))
+    scored = [(_overlap_score(exercise, item), item) for item in db.scalars(query).all()]
+    scored.sort(key=lambda pair: (-pair[0], pair[1].position, pair[1].name))
+    return scored
+
+
+_GENERAL_CARDIO = "brisk-walk"  # the warm-up when no cardio works the same muscles as the lift
+
+
+def _warm_up_with(db: Session, exercise: WorkoutExerciseDBM) -> list[ExerciseSummaryResponse]:
+    """Before a lift: a cardio that works one of its primary muscles (or a brisk walk), then up to three drills."""
+    if exercise.kind != "strength":
+        return []
+    cardio = [pair for pair in _scored_matches(db, exercise, ("cardio",)) if pair[1].level != "advanced"]
+    matched = [pair for pair in cardio if pair[0] >= 2]
+    general = [pair for pair in cardio if pair[1].slug == _GENERAL_CARDIO]
+    pick = (matched or general)[:1]  # empty when the library has no cardio, rather than failing
+    drills = [pair for pair in _scored_matches(db, exercise, ("warmup",)) if pair[0] > 0][:3]
+    return [exercise_summary(item) for _, item in pick + drills]
+
+
+def _good_warm_up_for(db: Session, exercise: WorkoutExerciseDBM) -> list[ExerciseSummaryResponse]:
+    """The lifts a cardio or warm-up item prepares: those training one of its primary muscles, strongest first."""
+    if exercise.kind == "strength" or exercise.level == "advanced":
+        return []
+    lifts = [pair for pair in _scored_matches(db, exercise, ("strength",)) if pair[0] >= 2][:6]
+    return [exercise_summary(item) for _, item in lifts]
+
+
 def get_exercise(db: Session, user_id: int, exercise_id: int) -> ExerciseDetailResponse:
     exercise = db.get(WorkoutExerciseDBM, exercise_id)
     if exercise is None:
@@ -102,4 +154,6 @@ def get_exercise(db: Session, user_id: int, exercise_id: int) -> ExerciseDetailR
         default_reps=exercise.default_reps,
         default_rest_seconds=exercise.default_rest_seconds,
         last_performance=last_performance(db, user_id, exercise_id),
+        warm_up_with=_warm_up_with(db, exercise),
+        good_warm_up_for=_good_warm_up_for(db, exercise),
     )

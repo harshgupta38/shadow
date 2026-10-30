@@ -136,6 +136,8 @@ def _refresh_totals(session: WorkoutSessionDBM) -> None:
         if not done:
             continue
         sets_done += len(done)
+        if entry.exercise.kind != "strength":
+            continue  # cardio and warm-ups count toward the workout, not toward strength volume or muscle credit
         volume += sum((s.weight_kg or 0) * (s.reps or 0) for s in done)
         for muscle in entry.exercise.primary_muscles:
             if muscle not in muscles:

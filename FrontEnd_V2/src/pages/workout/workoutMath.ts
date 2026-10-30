@@ -8,11 +8,19 @@ interface HasVolume extends HasExercise {
   sets: number;
 }
 
-/** Muscles a list of exercises trains: every primary muscle, plus secondaries that aren't already primary. */
+// Cardio and warm-ups are not muscle work. The backend leaves them out of plan and session muscle totals too,
+// so every page that adds up muscles goes through this rule.
+const isMuscleWork = (exercise: ExerciseSummary) => exercise.kind === "strength";
+
+/**
+ * Muscles a list of exercises trains: every primary muscle, plus secondaries that aren't already primary.
+ * Cardio and warm-ups are left out.
+ */
 export function musclesOf(items: HasExercise[]): { primary: MuscleId[]; secondary: MuscleId[] } {
   const primary = new Set<MuscleId>();
   const secondary = new Set<MuscleId>();
   for (const { exercise } of items) {
+    if (!isMuscleWork(exercise)) continue;
     exercise.primary_muscles.forEach((m) => primary.add(m));
     exercise.secondary_muscles.forEach((m) => secondary.add(m));
   }
@@ -21,11 +29,12 @@ export function musclesOf(items: HasExercise[]): { primary: MuscleId[]; secondar
 
 /**
  * Training volume per muscle: a set counts fully for each primary muscle and half for each
- * secondary one, which is how most programme planners estimate it.
+ * secondary one, which is how most programme planners estimate it. Cardio and warm-ups are left out.
  */
 export function setsByMuscle(items: HasVolume[]): MuscleSets[] {
   const totals = new Map<MuscleId, number>();
   for (const { exercise, sets } of items) {
+    if (!isMuscleWork(exercise)) continue;
     exercise.primary_muscles.forEach((m) => totals.set(m, (totals.get(m) ?? 0) + sets));
     exercise.secondary_muscles.forEach((m) => totals.set(m, (totals.get(m) ?? 0) + sets / 2));
   }
@@ -36,11 +45,18 @@ export function setsByMuscle(items: HasVolume[]): MuscleSets[] {
 
 const SECONDS_PER_SET = 45;
 const SETUP_MINUTES = 5;
+const TIMED_REPS = /(\d+)\s*min\b/;
+
+// Timed reps such as "20 min" say how long one set takes; anything else gets the usual allowance.
+function secondsPerSet(reps: string): number {
+  const match = TIMED_REPS.exec(reps);
+  return match ? Number(match[1]) * 60 : SECONDS_PER_SET;
+}
 
 /** Rough session length: time under tension plus rest for every set, plus a few minutes of setup. */
-export function estimateMinutes(rows: { sets: number; rest_seconds: number }[]): number {
+export function estimateMinutes(rows: { sets: number; rest_seconds: number; reps: string }[]): number {
   if (rows.length === 0) return 0;
-  const seconds = rows.reduce((total, r) => total + r.sets * (SECONDS_PER_SET + r.rest_seconds), 0);
+  const seconds = rows.reduce((total, r) => total + r.sets * (secondsPerSet(r.reps) + r.rest_seconds), 0);
   return Math.round(seconds / 60) + SETUP_MINUTES;
 }
 

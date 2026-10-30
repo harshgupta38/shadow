@@ -2,6 +2,7 @@
   {
     "slug": "barbell-bench-press",
     "name": "Barbell Bench Press",
+    "kind": "strength",
     "equipment": "barbell",
     "level": "intermediate",
     "mechanic": "compound",
@@ -40,6 +41,7 @@
   {
     "slug": "incline-dumbbell-press",
     "name": "Incline Dumbbell Press",
+    "kind": "strength",
     "equipment": "dumbbell",
     "level": "intermediate",
     "mechanic": "compound",
@@ -80,6 +82,7 @@
   {
     "slug": "dumbbell-bench-press",
     "name": "Dumbbell Bench Press",
+    "kind": "strength",
     "equipment": "dumbbell",
     "level": "beginner",
     "mechanic": "compound",
@@ -117,6 +120,7 @@
   {
     "slug": "decline-barbell-bench-press",
     "name": "Decline Barbell Bench Press",
+    "kind": "strength",
     "equipment": "barbell",
     "level": "intermediate",
     "mechanic": "compound",
@@ -155,6 +159,7 @@
   {
     "slug": "push-up",
     "name": "Push-Up",
+    "kind": "strength",
     "equipment": "bodyweight",
     "level": "beginner",
     "mechanic": "compound",
@@ -193,6 +198,7 @@
   {
     "slug": "incline-push-up",
     "name": "Incline Push-Up",
+    "kind": "strength",
     "equipment": "bodyweight",
     "level": "beginner",
     "mechanic": "compound",
@@ -228,6 +234,7 @@
   {
     "slug": "cable-fly",
     "name": "Cable Fly",
+    "kind": "strength",
     "equipment": "cable",
     "level": "intermediate",
     "mechanic": "isolation",
@@ -264,6 +271,7 @@
   {
     "slug": "dumbbell-fly",
     "name": "Dumbbell Fly",
+    "kind": "strength",
     "equipment": "dumbbell",
     "level": "beginner",
     "mechanic": "isolation",
@@ -300,6 +308,7 @@
   {
     "slug": "pec-deck-fly",
     "name": "Pec Deck Fly",
+    "kind": "strength",
     "equipment": "machine",
     "level": "beginner",
     "mechanic": "isolation",
@@ -334,6 +343,7 @@
   {
     "slug": "chest-dips",
     "name": "Chest Dips",
+    "kind": "strength",
     "equipment": "bodyweight",
     "level": "intermediate",
     "mechanic": "compound",
@@ -370,6 +380,7 @@
   {
     "slug": "pull-up",
     "name": "Pull-Up",
+    "kind": "strength",
     "equipment": "bodyweight",
     "level": "intermediate",
     "mechanic": "compound",
@@ -409,6 +420,7 @@
   {
     "slug": "chin-up",
     "name": "Chin-Up",
+    "kind": "strength",
     "equipment": "bodyweight",
     "level": "intermediate",
     "mechanic": "compound",
@@ -447,6 +459,7 @@
   {
     "slug": "lat-pulldown",
     "name": "Lat Pulldown",
+    "kind": "strength",
     "equipment": "cable",
     "level": "beginner",
     "mechanic": "compound",
@@ -486,6 +499,7 @@
   {
     "slug": "close-grip-lat-pulldown",
     "name": "Close-Grip Lat Pulldown",
+    "kind": "strength",
     "equipment": "cable",
     "level": "beginner",
     "mechanic": "compound",
@@ -524,6 +538,7 @@
   {
     "slug": "barbell-row",
     "name": "Barbell Row",
+    "kind": "strength",
     "equipment": "barbell",
     "level": "intermediate",
     "mechanic": "compound",
@@ -563,6 +578,7 @@
   {
     "slug": "seated-cable-row",
     "name": "Seated Cable Row",
+    "kind": "strength",
     "equipment": "cable",
     "level": "beginner",
     "mechanic": "compound",
@@ -603,6 +619,7 @@
   {
     "slug": "one-arm-dumbbell-row",
     "name": "One-Arm Dumbbell Row",
+    "kind": "strength",
     "equipment": "dumbbell",
     "level": "beginner",
     "mechanic": "compound",
@@ -645,6 +662,7 @@
   {
     "slug": "t-bar-row",
     "name": "T-Bar Row",
+    "kind": "strength",
     "equipment": "barbell",
     "level": "intermediate",
     "mechanic": "compound",
@@ -685,6 +703,7 @@
   {
     "slug": "deadlift",
     "name": "Deadlift",
+    "kind": "strength",
     "equipment": "barbell",
     "level": "advanced",
     "mechanic": "compound",
@@ -727,6 +746,7 @@
   {
     "slug": "back-extension",
     "name": "Back Extension",
+    "kind": "strength",
     "equipment": "bodyweight",
     "level": "beginner",
     "mechanic": "isolation",
@@ -765,6 +785,7 @@
   {
     "slug": "overhead-press",
     "name": "Overhead Press",
+    "kind": "strength",
     "equipment": "barbell",
     "level": "intermediate",
     "mechanic": "compound",
@@ -804,6 +825,7 @@
   {
     "slug": "dumbbell-shoulder-press",
     "name": "Dumbbell Shoulder Press",
+    "kind": "strength",
     "equipment": "dumbbell",
     "level": "intermediate",
     "mechanic": "compound",
@@ -841,6 +863,7 @@
   {
     "slug": "arnold-press",
     "name": "Arnold Press",
+    "kind": "strength",
     "equipment": "dumbbell",
     "level": "intermediate",
     "mechanic": "compound",
@@ -877,6 +900,7 @@
   {
     "slug": "lateral-raise",
     "name": "Lateral Raise",
+    "kind": "strength",
     "equipment": "dumbbell",
     "level": "beginner",
     "mechanic": "isolation",
@@ -911,6 +935,7 @@
   {
     "slug": "front-raise",
     "name": "Front Raise",
+    "kind": "strength",
     "equipment": "dumbbell",
     "level": "beginner",
     "mechanic": "isolation",
@@ -944,6 +969,7 @@
   {
     "slug": "rear-delt-fly",
     "name": "Rear Delt Fly",
+    "kind": "strength",
     "equipment": "dumbbell",
     "level": "beginner",
     "mechanic": "isolation",
@@ -981,6 +1007,7 @@
   {
     "slug": "face-pull",
     "name": "Face Pull",
+    "kind": "strength",
     "equipment": "cable",
     "level": "beginner",
     "mechanic": "compound",
@@ -1013,6 +1040,7 @@
   {
     "slug": "barbell-shrug",
     "name": "Barbell Shrug",
+    "kind": "strength",
     "equipment": "barbell",
     "level": "beginner",
     "mechanic": "isolation",
@@ -1046,6 +1074,7 @@
   {
     "slug": "dumbbell-shrug",
     "name": "Dumbbell Shrug",
+    "kind": "strength",
     "equipment": "dumbbell",
     "level": "beginner",
     "mechanic": "isolation",
@@ -1079,6 +1108,7 @@
   {
     "slug": "barbell-curl",
     "name": "Barbell Curl",
+    "kind": "strength",
     "equipment": "barbell",
     "level": "beginner",
     "mechanic": "isolation",
@@ -1116,6 +1146,7 @@
   {
     "slug": "dumbbell-curl",
     "name": "Dumbbell Curl",
+    "kind": "strength",
     "equipment": "dumbbell",
     "level": "beginner",
     "mechanic": "isolation",
@@ -1151,6 +1182,7 @@
   {
     "slug": "hammer-curl",
     "name": "Hammer Curl",
+    "kind": "strength",
     "equipment": "dumbbell",
     "level": "beginner",
     "mechanic": "isolation",
@@ -1187,6 +1219,7 @@
   {
     "slug": "preacher-curl",
     "name": "Preacher Curl",
+    "kind": "strength",
     "equipment": "barbell",
     "level": "beginner",
     "mechanic": "isolation",
@@ -1221,6 +1254,7 @@
   {
     "slug": "concentration-curl",
     "name": "Concentration Curl",
+    "kind": "strength",
     "equipment": "dumbbell",
     "level": "beginner",
     "mechanic": "isolation",
@@ -1257,6 +1291,7 @@
   {
     "slug": "rope-hammer-curl",
     "name": "Rope Hammer Curl",
+    "kind": "strength",
     "equipment": "cable",
     "level": "beginner",
     "mechanic": "isolation",
@@ -1295,6 +1330,7 @@
   {
     "slug": "triceps-pushdown",
     "name": "Triceps Pushdown",
+    "kind": "strength",
     "equipment": "cable",
     "level": "beginner",
     "mechanic": "isolation",
@@ -1330,6 +1366,7 @@
   {
     "slug": "rope-pushdown",
     "name": "Rope Pushdown",
+    "kind": "strength",
     "equipment": "cable",
     "level": "beginner",
     "mechanic": "isolation",
@@ -1364,6 +1401,7 @@
   {
     "slug": "skull-crusher",
     "name": "Skull Crusher",
+    "kind": "strength",
     "equipment": "barbell",
     "level": "intermediate",
     "mechanic": "isolation",
@@ -1400,6 +1438,7 @@
   {
     "slug": "overhead-triceps-extension",
     "name": "Overhead Triceps Extension",
+    "kind": "strength",
     "equipment": "dumbbell",
     "level": "beginner",
     "mechanic": "isolation",
@@ -1434,6 +1473,7 @@
   {
     "slug": "parallel-bar-dips",
     "name": "Parallel Bar Dips",
+    "kind": "strength",
     "equipment": "bodyweight",
     "level": "intermediate",
     "mechanic": "compound",
@@ -1472,6 +1512,7 @@
   {
     "slug": "bench-dips",
     "name": "Bench Dips",
+    "kind": "strength",
     "equipment": "bodyweight",
     "level": "beginner",
     "mechanic": "compound",
@@ -1508,6 +1549,7 @@
   {
     "slug": "close-grip-barbell-bench-press",
     "name": "Close-Grip Barbell Bench Press",
+    "kind": "strength",
     "equipment": "barbell",
     "level": "intermediate",
     "mechanic": "compound",
@@ -1545,6 +1587,7 @@
   {
     "slug": "plank",
     "name": "Plank",
+    "kind": "strength",
     "equipment": "bodyweight",
     "level": "beginner",
     "mechanic": "isolation",
@@ -1579,6 +1622,7 @@
   {
     "slug": "side-plank",
     "name": "Side Plank",
+    "kind": "strength",
     "equipment": "bodyweight",
     "level": "beginner",
     "mechanic": "isolation",
@@ -1610,6 +1654,7 @@
   {
     "slug": "crunch",
     "name": "Crunch",
+    "kind": "strength",
     "equipment": "bodyweight",
     "level": "beginner",
     "mechanic": "isolation",
@@ -1645,6 +1690,7 @@
   {
     "slug": "sit-up",
     "name": "Sit-Up",
+    "kind": "strength",
     "equipment": "bodyweight",
     "level": "beginner",
     "mechanic": "isolation",
@@ -1679,6 +1725,7 @@
   {
     "slug": "cable-crunch",
     "name": "Cable Crunch",
+    "kind": "strength",
     "equipment": "cable",
     "level": "beginner",
     "mechanic": "isolation",
@@ -1714,6 +1761,7 @@
   {
     "slug": "bicycle-crunch",
     "name": "Bicycle Crunch",
+    "kind": "strength",
     "equipment": "bodyweight",
     "level": "beginner",
     "mechanic": "compound",
@@ -1752,6 +1800,7 @@
   {
     "slug": "russian-twist",
     "name": "Russian Twist",
+    "kind": "strength",
     "equipment": "bodyweight",
     "level": "intermediate",
     "mechanic": "compound",
@@ -1791,6 +1840,7 @@
   {
     "slug": "hanging-leg-raise",
     "name": "Hanging Leg Raise",
+    "kind": "strength",
     "equipment": "bodyweight",
     "level": "advanced",
     "mechanic": "isolation",
@@ -1828,6 +1878,7 @@
   {
     "slug": "bench-leg-pull-in",
     "name": "Bench Leg Pull-In",
+    "kind": "strength",
     "equipment": "bodyweight",
     "level": "beginner",
     "mechanic": "compound",
@@ -1862,6 +1913,7 @@
   {
     "slug": "ab-roller",
     "name": "Ab Roller",
+    "kind": "strength",
     "equipment": "other",
     "level": "intermediate",
     "mechanic": "compound",
@@ -1898,6 +1950,7 @@
   {
     "slug": "mountain-climbers",
     "name": "Mountain Climbers",
+    "kind": "strength",
     "equipment": "bodyweight",
     "level": "beginner",
     "mechanic": "compound",
@@ -1933,6 +1986,7 @@
   {
     "slug": "barbell-back-squat",
     "name": "Barbell Back Squat",
+    "kind": "strength",
     "equipment": "barbell",
     "level": "intermediate",
     "mechanic": "compound",
@@ -1974,6 +2028,7 @@
   {
     "slug": "front-squat",
     "name": "Front Squat",
+    "kind": "strength",
     "equipment": "barbell",
     "level": "advanced",
     "mechanic": "compound",
@@ -2015,6 +2070,7 @@
   {
     "slug": "smith-machine-squat",
     "name": "Smith Machine Squat",
+    "kind": "strength",
     "equipment": "machine",
     "level": "beginner",
     "mechanic": "compound",
@@ -2056,6 +2112,7 @@
   {
     "slug": "hack-squat",
     "name": "Hack Squat",
+    "kind": "strength",
     "equipment": "machine",
     "level": "beginner",
     "mechanic": "compound",
@@ -2098,6 +2155,7 @@
   {
     "slug": "goblet-squat",
     "name": "Goblet Squat",
+    "kind": "strength",
     "equipment": "kettlebell",
     "level": "beginner",
     "mechanic": "compound",
@@ -2135,6 +2193,7 @@
   {
     "slug": "bodyweight-squat",
     "name": "Bodyweight Squat",
+    "kind": "strength",
     "equipment": "bodyweight",
     "level": "beginner",
     "mechanic": "compound",
@@ -2171,6 +2230,7 @@
   {
     "slug": "leg-press",
     "name": "Leg Press",
+    "kind": "strength",
     "equipment": "machine",
     "level": "beginner",
     "mechanic": "compound",
@@ -2209,6 +2269,7 @@
   {
     "slug": "leg-extension",
     "name": "Leg Extension",
+    "kind": "strength",
     "equipment": "machine",
     "level": "beginner",
     "mechanic": "isolation",
@@ -2242,6 +2303,7 @@
   {
     "slug": "romanian-deadlift",
     "name": "Romanian Deadlift",
+    "kind": "strength",
     "equipment": "barbell",
     "level": "intermediate",
     "mechanic": "compound",
@@ -2281,6 +2343,7 @@
   {
     "slug": "stiff-leg-deadlift",
     "name": "Stiff-Leg Deadlift",
+    "kind": "strength",
     "equipment": "barbell",
     "level": "intermediate",
     "mechanic": "compound",
@@ -2320,6 +2383,7 @@
   {
     "slug": "lying-leg-curl",
     "name": "Lying Leg Curl",
+    "kind": "strength",
     "equipment": "machine",
     "level": "beginner",
     "mechanic": "isolation",
@@ -2353,6 +2417,7 @@
   {
     "slug": "seated-leg-curl",
     "name": "Seated Leg Curl",
+    "kind": "strength",
     "equipment": "machine",
     "level": "beginner",
     "mechanic": "isolation",
@@ -2387,6 +2452,7 @@
   {
     "slug": "dumbbell-lunge",
     "name": "Dumbbell Lunge",
+    "kind": "strength",
     "equipment": "dumbbell",
     "level": "beginner",
     "mechanic": "compound",
@@ -2426,6 +2492,7 @@
   {
     "slug": "walking-lunge",
     "name": "Walking Lunge",
+    "kind": "strength",
     "equipment": "barbell",
     "level": "intermediate",
     "mechanic": "compound",
@@ -2465,6 +2532,7 @@
   {
     "slug": "dumbbell-step-up",
     "name": "Dumbbell Step-Up",
+    "kind": "strength",
     "equipment": "dumbbell",
     "level": "intermediate",
     "mechanic": "compound",
@@ -2504,6 +2572,7 @@
   {
     "slug": "hip-thrust",
     "name": "Hip Thrust",
+    "kind": "strength",
     "equipment": "barbell",
     "level": "intermediate",
     "mechanic": "compound",
@@ -2540,6 +2609,7 @@
   {
     "slug": "single-leg-glute-bridge",
     "name": "Single-Leg Glute Bridge",
+    "kind": "strength",
     "equipment": "bodyweight",
     "level": "beginner",
     "mechanic": "isolation",
@@ -2575,6 +2645,7 @@
   {
     "slug": "kettlebell-swing",
     "name": "Kettlebell Swing",
+    "kind": "strength",
     "equipment": "kettlebell",
     "level": "intermediate",
     "mechanic": "compound",
@@ -2609,6 +2680,7 @@
   {
     "slug": "standing-calf-raise",
     "name": "Standing Calf Raise",
+    "kind": "strength",
     "equipment": "machine",
     "level": "beginner",
     "mechanic": "isolation",
@@ -2644,6 +2716,7 @@
   {
     "slug": "seated-calf-raise",
     "name": "Seated Calf Raise",
+    "kind": "strength",
     "equipment": "machine",
     "level": "beginner",
     "mechanic": "isolation",
@@ -2675,5 +2748,1204 @@
     "default_sets": 3,
     "default_reps": "12-20",
     "default_rest_seconds": 60
+  },
+  {
+    "slug": "brisk-walk",
+    "name": "Brisk Walk",
+    "kind": "cardio",
+    "equipment": "bodyweight",
+    "level": "beginner",
+    "mechanic": "compound",
+    "primary_muscles": [
+      "quads",
+      "glutes",
+      "calves"
+    ],
+    "secondary_muscles": [
+      "hamstrings",
+      "abs"
+    ],
+    "images": [],
+    "description": "Walking at a pace where you can talk but not sing. It is the most accessible cardio there is, and a good first step for older adults or anyone coming back to exercise.",
+    "instructions": [
+      "Stand tall with your shoulders relaxed and your chest open.",
+      "Swing your arms naturally, bent at the elbows, in time with your legs.",
+      "Land heel first and roll through to the toes with each step.",
+      "Build up to a pace where you are slightly out of breath but can still speak in short sentences."
+    ],
+    "tips": [
+      "Public health guidelines suggest about 150 minutes of moderate activity a week, and brisk walking counts.",
+      "Short walks spread through the day still add up toward that total."
+    ],
+    "common_mistakes": [
+      "Leaning forward from the hips or looking at the ground.",
+      "Taking short, shuffling steps that never raise the pace."
+    ],
+    "default_sets": 1,
+    "default_reps": "20 min",
+    "default_rest_seconds": 0
+  },
+  {
+    "slug": "treadmill-walk",
+    "name": "Treadmill Walk",
+    "kind": "cardio",
+    "equipment": "machine",
+    "level": "beginner",
+    "mechanic": "compound",
+    "primary_muscles": [
+      "quads",
+      "glutes",
+      "calves"
+    ],
+    "secondary_muscles": [
+      "hamstrings"
+    ],
+    "images": [
+      "/workout-exercises/treadmill-walk/demo.gif"
+    ],
+    "description": "Walking on a treadmill at a speed and incline you control. The handrails are there for balance, not for leaning on.",
+    "instructions": [
+      "Hold the side rails, set a slow speed, then step onto the belt.",
+      "Start at a comfortable walking pace and build up gradually.",
+      "Keep your chest up and your eyes forward, not on your feet.",
+      "Add a small incline to work the glutes and calves harder."
+    ],
+    "tips": [
+      "A slow walk with a small incline is gentler on the knees than running.",
+      "Hold the rails only when you need them, and let go as your balance improves."
+    ],
+    "common_mistakes": [
+      "Gripping the handrails and leaning on them.",
+      "Starting at a fast speed before the body is warm."
+    ],
+    "default_sets": 1,
+    "default_reps": "20 min",
+    "default_rest_seconds": 0
+  },
+  {
+    "slug": "treadmill-jog",
+    "name": "Treadmill Jog",
+    "kind": "cardio",
+    "equipment": "machine",
+    "level": "intermediate",
+    "mechanic": "compound",
+    "primary_muscles": [
+      "quads",
+      "calves",
+      "glutes"
+    ],
+    "secondary_muscles": [
+      "hamstrings",
+      "abs"
+    ],
+    "images": [],
+    "description": "A steady jog on a treadmill. It has more impact than walking, so it suits people who are already comfortable on their feet.",
+    "instructions": [
+      "Warm up with five minutes of walking.",
+      "Pick a pace where you can say a few words at a time.",
+      "Land softly with your feet under your hips, not out in front.",
+      "Finish with three minutes of walking to cool down."
+    ],
+    "tips": [
+      "Several short jogs spread across the week are easier on the joints than one long run.",
+      "Stop if you feel sharp joint pain, and walk instead."
+    ],
+    "common_mistakes": [
+      "Overstriding, with the heel landing well in front of the body.",
+      "Running too fast too soon."
+    ],
+    "default_sets": 1,
+    "default_reps": "15 min",
+    "default_rest_seconds": 0
+  },
+  {
+    "slug": "stationary-bike",
+    "name": "Stationary Bike",
+    "kind": "cardio",
+    "equipment": "machine",
+    "level": "beginner",
+    "mechanic": "compound",
+    "primary_muscles": [
+      "quads",
+      "glutes"
+    ],
+    "secondary_muscles": [
+      "hamstrings",
+      "calves"
+    ],
+    "images": [],
+    "description": "Pedalling a stationary bike. Low impact and easy on the knees, and the seat takes your body weight, which makes it a good choice for older adults and people returning to exercise.",
+    "instructions": [
+      "Set the seat so your knee has a slight bend at the bottom of each pedal stroke.",
+      "Sit tall with your hands resting lightly on the handlebars.",
+      "Pedal at a steady pace, around 60 to 90 turns a minute.",
+      "Add resistance gradually until you feel working but can still talk."
+    ],
+    "tips": [
+      "Keep the effort even. A smooth rhythm matters more than a high resistance.",
+      "Use the pedal straps, or hold the pedals firmly, for control."
+    ],
+    "common_mistakes": [
+      "A seat set too low, which strains the knees.",
+      "Leaning hard on the handlebars or bouncing in the saddle."
+    ],
+    "default_sets": 1,
+    "default_reps": "20 min",
+    "default_rest_seconds": 0
+  },
+  {
+    "slug": "recumbent-bike",
+    "name": "Recumbent Bike",
+    "kind": "cardio",
+    "equipment": "machine",
+    "level": "beginner",
+    "mechanic": "compound",
+    "primary_muscles": [
+      "quads",
+      "glutes"
+    ],
+    "secondary_muscles": [
+      "hamstrings",
+      "calves"
+    ],
+    "images": [],
+    "description": "A bike with a backrest and a low, supported seat. It is the easiest bike to get on and off, and the most comfortable for people with back, hip, or balance concerns.",
+    "instructions": [
+      "Sit back fully against the backrest.",
+      "Adjust the seat so your knee has a slight bend at the bottom of the pedal stroke.",
+      "Hold the handles lightly and pedal at a steady pace.",
+      "Increase the resistance gradually as your fitness improves."
+    ],
+    "tips": [
+      "A good first choice if balance is a concern."
+    ],
+    "common_mistakes": [
+      "Sitting forward, away from the backrest.",
+      "Starting with heavy resistance too early."
+    ],
+    "default_sets": 1,
+    "default_reps": "20 min",
+    "default_rest_seconds": 0
+  },
+  {
+    "slug": "elliptical-trainer",
+    "name": "Elliptical Trainer",
+    "kind": "cardio",
+    "equipment": "machine",
+    "level": "beginner",
+    "mechanic": "compound",
+    "primary_muscles": [
+      "quads",
+      "glutes"
+    ],
+    "secondary_muscles": [
+      "lats",
+      "shoulders",
+      "hamstrings"
+    ],
+    "images": [
+      "/workout-exercises/elliptical-trainer/demo.gif"
+    ],
+    "description": "A smooth, gliding motion that works the legs and arms together with no impact. A good option for joints that do not like running.",
+    "instructions": [
+      "Step onto the pedals with your feet flat and your weight evenly balanced.",
+      "Hold the moving handles lightly, with your chest up and shoulders down.",
+      "Push through the whole foot, not just the toes.",
+      "Keep a steady rhythm and change the resistance or incline as you go."
+    ],
+    "tips": [
+      "Push and pull the handles to bring the arms into the work, instead of just holding on."
+    ],
+    "common_mistakes": [
+      "Hunching over the handles.",
+      "Leaning on the handles so the legs do less of the work."
+    ],
+    "default_sets": 1,
+    "default_reps": "20 min",
+    "default_rest_seconds": 0
+  },
+  {
+    "slug": "rowing-machine",
+    "name": "Rowing Machine",
+    "kind": "cardio",
+    "equipment": "machine",
+    "level": "intermediate",
+    "mechanic": "compound",
+    "primary_muscles": [
+      "lats",
+      "traps",
+      "lower_back"
+    ],
+    "secondary_muscles": [
+      "biceps",
+      "quads",
+      "glutes"
+    ],
+    "images": [],
+    "description": "Full-body cardio that drives from the legs, then the back and arms. Low impact, and very efficient for the time it takes.",
+    "instructions": [
+      "Strap your feet in, sit tall, and grip the handle with straight arms.",
+      "Drive with the legs first, lean back slightly, then pull the handle to your lower ribs.",
+      "To return, reverse the order: extend the arms, hinge forward, then bend the knees.",
+      "Keep a steady rhythm rather than rushing each stroke."
+    ],
+    "tips": [
+      "Most of the power comes from the legs. Go legs, body, arms on the way in, and arms, body, legs on the way out."
+    ],
+    "common_mistakes": [
+      "Pulling with the arms before the legs have pushed.",
+      "Rounding the lower back or shrugging the shoulders up."
+    ],
+    "default_sets": 1,
+    "default_reps": "15 min",
+    "default_rest_seconds": 0
+  },
+  {
+    "slug": "stair-climber",
+    "name": "Stair Climber",
+    "kind": "cardio",
+    "equipment": "machine",
+    "level": "intermediate",
+    "mechanic": "compound",
+    "primary_muscles": [
+      "quads",
+      "glutes",
+      "calves"
+    ],
+    "secondary_muscles": [
+      "hamstrings"
+    ],
+    "images": [],
+    "description": "Climbing steps on a machine that moves under your feet. It builds leg and glute strength while raising your heart rate.",
+    "instructions": [
+      "Stand with your feet hip-width apart on the steps.",
+      "Hold the rails lightly, for balance only.",
+      "Step down through the whole foot at a steady pace.",
+      "Keep your torso upright and your head up."
+    ],
+    "tips": [
+      "Start slowly. The pace adds up quickly."
+    ],
+    "common_mistakes": [
+      "Leaning your full weight on the rails.",
+      "Taking very small, quick steps on the balls of the feet."
+    ],
+    "default_sets": 1,
+    "default_reps": "15 min",
+    "default_rest_seconds": 0
+  },
+  {
+    "slug": "seated-marching",
+    "name": "Seated Marching",
+    "kind": "cardio",
+    "equipment": "bodyweight",
+    "level": "beginner",
+    "mechanic": "compound",
+    "primary_muscles": [
+      "quads",
+      "abs"
+    ],
+    "secondary_muscles": [
+      "glutes"
+    ],
+    "images": [],
+    "description": "Lifting the knees in turn while sitting tall in a sturdy chair. A gentle warm-up, and a cardio option when standing is hard.",
+    "instructions": [
+      "Sit near the front of a sturdy chair with both feet flat on the floor.",
+      "Sit tall and lift one knee toward your hip, then lower it.",
+      "Swing the opposite arm forward as the knee comes up.",
+      "Keep a steady, comfortable rhythm for the full time."
+    ],
+    "tips": [
+      "Hold the armrests for support if you need them."
+    ],
+    "common_mistakes": [
+      "Leaning back into the chair.",
+      "Holding your breath."
+    ],
+    "default_sets": 1,
+    "default_reps": "5 min",
+    "default_rest_seconds": 0
+  },
+  {
+    "slug": "march-in-place",
+    "name": "March in Place",
+    "kind": "cardio",
+    "equipment": "bodyweight",
+    "level": "beginner",
+    "mechanic": "compound",
+    "primary_muscles": [
+      "quads",
+      "calves"
+    ],
+    "secondary_muscles": [
+      "glutes",
+      "abs"
+    ],
+    "images": [],
+    "description": "A standing march that raises your heart rate gently. A good first step before walking or lifting.",
+    "instructions": [
+      "Stand tall with your feet hip-width apart.",
+      "Lift one knee toward hip height, then lower it.",
+      "Swing the opposite arm as you march.",
+      "Keep a steady rhythm and breathe normally."
+    ],
+    "tips": [
+      "Hold a wall or the back of a chair if your balance feels unsteady."
+    ],
+    "common_mistakes": [
+      "Stomping hard on each step.",
+      "Leaning forward from the hips."
+    ],
+    "default_sets": 1,
+    "default_reps": "5 min",
+    "default_rest_seconds": 0
+  },
+  {
+    "slug": "jumping-jacks",
+    "name": "Jumping Jacks",
+    "kind": "cardio",
+    "equipment": "bodyweight",
+    "level": "beginner",
+    "mechanic": "compound",
+    "primary_muscles": [
+      "calves",
+      "quads",
+      "shoulders"
+    ],
+    "secondary_muscles": [
+      "glutes",
+      "abs"
+    ],
+    "images": [],
+    "description": "Jumping with the feet wide and the arms overhead, then back together. A simple full-body cardio move.",
+    "instructions": [
+      "Stand with your feet together and your arms by your sides.",
+      "Jump your feet wide while raising your arms overhead.",
+      "Jump back to the start position.",
+      "Keep a steady rhythm and land softly."
+    ],
+    "tips": [
+      "Step-jacks, where one foot steps out at a time, are a lower-impact option."
+    ],
+    "common_mistakes": [
+      "Landing hard on the heels.",
+      "Locking the knees on landing."
+    ],
+    "default_sets": 1,
+    "default_reps": "3 min",
+    "default_rest_seconds": 0
+  },
+  {
+    "slug": "high-knees",
+    "name": "High Knees",
+    "kind": "cardio",
+    "equipment": "bodyweight",
+    "level": "intermediate",
+    "mechanic": "compound",
+    "primary_muscles": [
+      "quads",
+      "abs"
+    ],
+    "secondary_muscles": [
+      "glutes",
+      "calves"
+    ],
+    "images": [],
+    "description": "Running on the spot and driving each knee up toward hip height. Quick cardio that also works the core.",
+    "instructions": [
+      "Stand tall with your feet hip-width apart.",
+      "Run on the spot, bringing each knee up toward hip height.",
+      "Pump your arms in opposition to your legs.",
+      "Stay light on the balls of your feet."
+    ],
+    "tips": [
+      "Start with 30-second bursts and build up."
+    ],
+    "common_mistakes": [
+      "Leaning back as the knees come up.",
+      "Letting the arms hang still."
+    ],
+    "default_sets": 1,
+    "default_reps": "2 min",
+    "default_rest_seconds": 0
+  },
+  {
+    "slug": "jump-rope",
+    "name": "Jump Rope",
+    "kind": "cardio",
+    "equipment": "other",
+    "level": "intermediate",
+    "mechanic": "compound",
+    "primary_muscles": [
+      "calves"
+    ],
+    "secondary_muscles": [
+      "quads",
+      "shoulders",
+      "forearms"
+    ],
+    "images": [
+      "/workout-exercises/jump-rope/demo.gif"
+    ],
+    "description": "Skipping with a rope. One of the most efficient forms of cardio, and high impact, so build up gradually.",
+    "instructions": [
+      "Hold the handles at hip height with your elbows close to your sides.",
+      "Turn the rope with your wrists, not your arms.",
+      "Jump only a few centimetres off the floor and land softly on the balls of your feet.",
+      "Start with short skips and rest between rounds."
+    ],
+    "tips": [
+      "Practise the turning motion without jumping first."
+    ],
+    "common_mistakes": [
+      "Jumping too high and landing hard.",
+      "Swinging the whole arms instead of turning from the wrists."
+    ],
+    "default_sets": 1,
+    "default_reps": "5 min",
+    "default_rest_seconds": 0
+  },
+  {
+    "slug": "swimming-freestyle",
+    "name": "Swimming Freestyle",
+    "kind": "cardio",
+    "equipment": "other",
+    "level": "beginner",
+    "mechanic": "compound",
+    "primary_muscles": [
+      "lats",
+      "shoulders"
+    ],
+    "secondary_muscles": [
+      "quads",
+      "glutes",
+      "abs"
+    ],
+    "images": [],
+    "description": "Swimming laps with freestyle. Very low impact and works the whole body, so it suits joints that dislike running and older swimmers.",
+    "instructions": [
+      "Find a steady pace you can keep for the whole session.",
+      "Reach forward, catch the water with a high elbow, and pull back past your hip.",
+      "Rotate your body with each stroke and kick from the hips.",
+      "Breathe to the side in a relaxed rhythm, without lifting your head."
+    ],
+    "tips": [
+      "If you are new to freestyle, ask a qualified coach for basic drills."
+    ],
+    "common_mistakes": [
+      "Lifting the head to breathe.",
+      "Kicking from the knees rather than the hips."
+    ],
+    "default_sets": 1,
+    "default_reps": "15 min",
+    "default_rest_seconds": 0
+  },
+  {
+    "slug": "burpee",
+    "name": "Burpee",
+    "kind": "cardio",
+    "equipment": "bodyweight",
+    "level": "advanced",
+    "mechanic": "compound",
+    "primary_muscles": [
+      "quads",
+      "chest",
+      "abs"
+    ],
+    "secondary_muscles": [
+      "shoulders",
+      "triceps",
+      "glutes"
+    ],
+    "images": [
+      "/workout-exercises/burpee/demo.gif"
+    ],
+    "description": "A squat, a drop to the floor, a plank, and a jump back up. Full-body cardio for people who are already fit.",
+    "instructions": [
+      "Stand with your feet shoulder-width apart.",
+      "Squat down and place your hands on the floor.",
+      "Step or jump your feet back to a plank.",
+      "Step or jump your feet back to your hands and stand up, reaching overhead."
+    ],
+    "tips": [
+      "Step back instead of jumping to keep the pace lower-impact."
+    ],
+    "common_mistakes": [
+      "Letting the lower back sag in the plank.",
+      "Rushing so the form breaks down."
+    ],
+    "default_sets": 1,
+    "default_reps": "2 min",
+    "default_rest_seconds": 0
+  },
+  {
+    "slug": "shadow-boxing",
+    "name": "Shadow Boxing",
+    "kind": "cardio",
+    "equipment": "bodyweight",
+    "level": "beginner",
+    "mechanic": "compound",
+    "primary_muscles": [
+      "shoulders",
+      "abs"
+    ],
+    "secondary_muscles": [
+      "triceps",
+      "obliques",
+      "quads"
+    ],
+    "images": [],
+    "description": "Throwing punches into the air with a steady rhythm. A fun cardio option that works the shoulders and core, and can be done at any pace.",
+    "instructions": [
+      "Stand with your feet shoulder-width apart and your knees soft.",
+      "Hold your fists at chin height with your elbows in.",
+      "Step and rotate the hips as you jab, cross, and hook.",
+      "Return each punch to the guard position."
+    ],
+    "tips": [
+      "Keep your feet moving lightly rather than standing still."
+    ],
+    "common_mistakes": [
+      "Holding the fists too low.",
+      "Locking the elbows at full extension."
+    ],
+    "default_sets": 1,
+    "default_reps": "3 min",
+    "default_rest_seconds": 0
+  },
+  {
+    "slug": "interval-walking",
+    "name": "Interval Walking",
+    "kind": "cardio",
+    "equipment": "bodyweight",
+    "level": "beginner",
+    "mechanic": "compound",
+    "primary_muscles": [
+      "quads",
+      "glutes",
+      "calves"
+    ],
+    "secondary_muscles": [
+      "hamstrings"
+    ],
+    "images": [],
+    "description": "Alternating a faster walk with an easy walk. It builds fitness faster than a steady stroll, and the easy periods make it manageable for beginners.",
+    "instructions": [
+      "Warm up with five minutes of easy walking.",
+      "Walk briskly for one minute, breathing harder but still able to talk.",
+      "Walk easily for two minutes to recover.",
+      "Repeat the cycle, then finish with five minutes of easy walking."
+    ],
+    "tips": [
+      "Start with one or two cycles and add more as you get fitter."
+    ],
+    "common_mistakes": [
+      "Making every fast section too hard, so there is no real recovery."
+    ],
+    "default_sets": 1,
+    "default_reps": "20 min",
+    "default_rest_seconds": 0
+  },
+  {
+    "slug": "sprint-intervals",
+    "name": "Sprint Intervals",
+    "kind": "cardio",
+    "equipment": "bodyweight",
+    "level": "advanced",
+    "mechanic": "compound",
+    "primary_muscles": [
+      "quads",
+      "glutes",
+      "calves"
+    ],
+    "secondary_muscles": [
+      "hamstrings",
+      "abs"
+    ],
+    "images": [],
+    "description": "Short, hard sprints with full recovery between them. High demand, so only for people who are already conditioned and cleared to train hard.",
+    "instructions": [
+      "Warm up with ten minutes of easy running or cycling.",
+      "Sprint at near-maximum effort for 20 to 30 seconds.",
+      "Recover with 90 seconds of easy movement.",
+      "Repeat for four to six rounds, then cool down."
+    ],
+    "tips": [
+      "Stop if you feel chest pain, dizziness, or unusual breathlessness."
+    ],
+    "common_mistakes": [
+      "Starting the sprints without a proper warm-up.",
+      "Skipping recovery and going into every round exhausted."
+    ],
+    "default_sets": 1,
+    "default_reps": "10 min",
+    "default_rest_seconds": 0
+  },
+  {
+    "slug": "arm-circles",
+    "name": "Arm Circles",
+    "kind": "warmup",
+    "equipment": "bodyweight",
+    "level": "beginner",
+    "mechanic": "isolation",
+    "primary_muscles": [
+      "shoulders"
+    ],
+    "secondary_muscles": [
+      "traps"
+    ],
+    "images": [],
+    "description": "Small, then larger circles with the arms out to the sides. It gets the shoulders moving before pressing or raising.",
+    "instructions": [
+      "Stand tall with your arms out to the sides at shoulder height.",
+      "Make small circles forward for about 10 seconds.",
+      "Reverse the direction for another 10 seconds.",
+      "Gradually make the circles larger, keeping the shoulders relaxed."
+    ],
+    "tips": [
+      "Keep the movement smooth. Do not force the range."
+    ],
+    "common_mistakes": [
+      "Shrugging the shoulders up toward the ears.",
+      "Moving so fast that the circles become sloppy."
+    ],
+    "default_sets": 1,
+    "default_reps": "10 each way",
+    "default_rest_seconds": 0
+  },
+  {
+    "slug": "wrist-and-elbow-circles",
+    "name": "Wrist and Elbow Circles",
+    "kind": "warmup",
+    "equipment": "bodyweight",
+    "level": "beginner",
+    "mechanic": "isolation",
+    "primary_muscles": [
+      "forearms"
+    ],
+    "secondary_muscles": [
+      "biceps"
+    ],
+    "images": [],
+    "description": "Loosens the wrists and elbows before curls, pulling and any lift that works the grip hard.",
+    "instructions": [
+      "Stand tall and hold the arms out in front at shoulder height, palms down.",
+      "Make slow circles with the wrists, about 10 each way.",
+      "Bend the elbows and turn the forearms in small circles from the elbow, about 10 each way.",
+      "Keep the grip relaxed and the movement smooth."
+    ],
+    "tips": [
+      "Go only as far as feels easy and widen the circles gradually."
+    ],
+    "common_mistakes": [
+      "Locking the elbows and forcing the circles.",
+      "Holding the breath while moving."
+    ],
+    "default_sets": 1,
+    "default_reps": "10 each way",
+    "default_rest_seconds": 0
+  },
+  {
+    "slug": "band-pull-apart",
+    "name": "Band Pull-Apart",
+    "kind": "warmup",
+    "equipment": "band",
+    "level": "beginner",
+    "mechanic": "isolation",
+    "primary_muscles": [
+      "traps",
+      "shoulders"
+    ],
+    "secondary_muscles": [
+      "lats"
+    ],
+    "images": [],
+    "description": "Pulling a light band apart at chest height to warm up the upper back and rear shoulders, which most pressing sessions neglect.",
+    "instructions": [
+      "Hold a light band in front of you at shoulder height with straight arms.",
+      "Pull the band apart until your hands reach your chest, squeezing the shoulder blades together.",
+      "Return slowly, keeping the arms straight."
+    ],
+    "tips": [
+      "Choose a light band. This is a warm-up, not a strength set."
+    ],
+    "common_mistakes": [
+      "Bending the elbows so it becomes a row.",
+      "Shrugging the shoulders up during the pull."
+    ],
+    "default_sets": 1,
+    "default_reps": "15 reps",
+    "default_rest_seconds": 0
+  },
+  {
+    "slug": "band-shoulder-dislocate",
+    "name": "Band Shoulder Dislocate",
+    "kind": "warmup",
+    "equipment": "band",
+    "level": "beginner",
+    "mechanic": "isolation",
+    "primary_muscles": [
+      "shoulders"
+    ],
+    "secondary_muscles": [
+      "chest",
+      "traps"
+    ],
+    "images": [],
+    "description": "Sweeping a band overhead and behind the body to open the shoulders. A key mobility drill before any overhead work.",
+    "instructions": [
+      "Hold a band with a wide grip, arms straight, in front of your hips.",
+      "Raise the band overhead and continue it down behind your back, keeping the arms straight.",
+      "Reverse the path back to the front.",
+      "Go only as far as is comfortable, and narrow the grip if it is too hard."
+    ],
+    "tips": [
+      "Widen the grip as the shoulders loosen."
+    ],
+    "common_mistakes": [
+      "Bending the elbows to make the path easier.",
+      "Forcing a range that pinches at the front of the shoulder."
+    ],
+    "default_sets": 1,
+    "default_reps": "10 reps",
+    "default_rest_seconds": 0
+  },
+  {
+    "slug": "scapular-push-up",
+    "name": "Scapular Push-Up",
+    "kind": "warmup",
+    "equipment": "bodyweight",
+    "level": "beginner",
+    "mechanic": "isolation",
+    "primary_muscles": [
+      "shoulders",
+      "chest"
+    ],
+    "secondary_muscles": [
+      "triceps",
+      "abs"
+    ],
+    "images": [],
+    "description": "A push-up position where only the shoulder blades move. It wakes up the muscles that stabilise the shoulder before pressing.",
+    "instructions": [
+      "Start in a high plank with your hands under your shoulders and your arms straight.",
+      "Keep the elbows locked and the body still.",
+      "Let the shoulder blades move together, then press the floor away so they spread apart.",
+      "Repeat slowly."
+    ],
+    "tips": [
+      "Think about pushing the floor away rather than pushing yourself up."
+    ],
+    "common_mistakes": [
+      "Bending the elbows, which turns it into a regular push-up.",
+      "Letting the hips sag."
+    ],
+    "default_sets": 1,
+    "default_reps": "10 reps",
+    "default_rest_seconds": 0
+  },
+  {
+    "slug": "cat-cow",
+    "name": "Cat-Cow",
+    "kind": "warmup",
+    "equipment": "bodyweight",
+    "level": "beginner",
+    "mechanic": "compound",
+    "primary_muscles": [
+      "lower_back"
+    ],
+    "secondary_muscles": [
+      "abs"
+    ],
+    "images": [],
+    "description": "Moving the spine between rounding and arching on hands and knees. It warms up the back and the core.",
+    "instructions": [
+      "Start on hands and knees, with your hands under your shoulders and your knees under your hips.",
+      "Breathe out and round the spine, tucking the chin and the pelvis.",
+      "Breathe in and let the belly drop while lifting the chest and tailbone.",
+      "Move slowly, linking each movement to your breath."
+    ],
+    "tips": [
+      "Move the spine as one wave rather than in one spot."
+    ],
+    "common_mistakes": [
+      "Moving only the neck, or only the lower back.",
+      "Rushing through without breathing."
+    ],
+    "default_sets": 1,
+    "default_reps": "10 reps",
+    "default_rest_seconds": 0
+  },
+  {
+    "slug": "open-book-stretch",
+    "name": "Open Book Stretch",
+    "kind": "warmup",
+    "equipment": "bodyweight",
+    "level": "beginner",
+    "mechanic": "isolation",
+    "primary_muscles": [
+      "obliques"
+    ],
+    "secondary_muscles": [
+      "chest",
+      "shoulders"
+    ],
+    "images": [],
+    "description": "Lying on your side and opening the top arm to the ceiling to rotate the upper back. It loosens the mid-back for overhead and rotational work.",
+    "instructions": [
+      "Lie on your side with your knees bent and stacked, and your arms straight in front.",
+      "Open the top arm out to the other side, letting your chest and eyes follow it.",
+      "Pause briefly, then return slowly."
+    ],
+    "tips": [
+      "Keep the knees together so the work stays in the upper back."
+    ],
+    "common_mistakes": [
+      "Forcing the top knee down toward the floor.",
+      "Letting the hips roll back."
+    ],
+    "default_sets": 1,
+    "default_reps": "8 each side",
+    "default_rest_seconds": 0
+  },
+  {
+    "slug": "worlds-greatest-stretch",
+    "name": "World's Greatest Stretch",
+    "kind": "warmup",
+    "equipment": "bodyweight",
+    "level": "intermediate",
+    "mechanic": "compound",
+    "primary_muscles": [
+      "quads",
+      "glutes",
+      "hamstrings"
+    ],
+    "secondary_muscles": [
+      "lower_back",
+      "shoulders",
+      "obliques"
+    ],
+    "images": [
+      "/workout-exercises/worlds-greatest-stretch/demo.gif"
+    ],
+    "description": "A deep lunge with one hand to the floor and the other arm reaching to the sky. It opens the hips, hamstrings, and upper back in one movement.",
+    "instructions": [
+      "Step into a deep lunge with your front foot flat.",
+      "Place both hands on the floor inside your front foot.",
+      "Rotate the back arm up toward the ceiling and hold briefly.",
+      "Return the hand to the floor, straighten the front leg a little, and repeat on the other side."
+    ],
+    "tips": [
+      "Move at your own pace and stay inside a comfortable range."
+    ],
+    "common_mistakes": [
+      "Rushing through the rotation.",
+      "Letting the back knee drop with no control."
+    ],
+    "default_sets": 1,
+    "default_reps": "5 each side",
+    "default_rest_seconds": 0
+  },
+  {
+    "slug": "leg-swings",
+    "name": "Leg Swings",
+    "kind": "warmup",
+    "equipment": "bodyweight",
+    "level": "beginner",
+    "mechanic": "isolation",
+    "primary_muscles": [
+      "hamstrings",
+      "glutes"
+    ],
+    "secondary_muscles": [
+      "quads",
+      "calves"
+    ],
+    "images": [],
+    "description": "Swinging one leg forward and back while holding a support. It warms up the hips and hamstrings before squats, lunges, and hinge lifts.",
+    "instructions": [
+      "Hold a wall or a rack for balance.",
+      "Swing one leg forward and back in a relaxed, controlled arc.",
+      "Keep your torso upright and your hips facing forward.",
+      "Do the set, then switch legs."
+    ],
+    "tips": [
+      "Increase the height of the swing gradually."
+    ],
+    "common_mistakes": [
+      "Using momentum from the back to throw the leg.",
+      "Rotating the hips from side to side."
+    ],
+    "default_sets": 1,
+    "default_reps": "10 each leg",
+    "default_rest_seconds": 0
+  },
+  {
+    "slug": "hip-circles",
+    "name": "Hip Circles",
+    "kind": "warmup",
+    "equipment": "bodyweight",
+    "level": "beginner",
+    "mechanic": "isolation",
+    "primary_muscles": [
+      "glutes"
+    ],
+    "secondary_muscles": [
+      "obliques",
+      "lower_back"
+    ],
+    "images": [],
+    "description": "Standing on one leg and drawing circles with the other knee to loosen the hip joint.",
+    "instructions": [
+      "Stand tall, holding a wall for balance.",
+      "Lift one knee to about hip height.",
+      "Draw a slow circle out to the side, then back, keeping the hip level.",
+      "Reverse the direction, then switch legs."
+    ],
+    "tips": [
+      "Keep the standing leg soft rather than locked."
+    ],
+    "common_mistakes": [
+      "Rocking the upper body to make the circle.",
+      "Making the circle too big before the hip is ready."
+    ],
+    "default_sets": 1,
+    "default_reps": "10 each way",
+    "default_rest_seconds": 0
+  },
+  {
+    "slug": "glute-bridge",
+    "name": "Glute Bridge",
+    "kind": "warmup",
+    "equipment": "bodyweight",
+    "level": "beginner",
+    "mechanic": "compound",
+    "primary_muscles": [
+      "glutes",
+      "hamstrings"
+    ],
+    "secondary_muscles": [
+      "lower_back",
+      "abs"
+    ],
+    "images": [
+      "/workout-exercises/glute-bridge/demo.gif"
+    ],
+    "description": "Lying on your back with your feet flat, driving the hips up. A simple way to wake up the glutes before squats and deadlifts.",
+    "instructions": [
+      "Lie on your back with your knees bent and feet flat, hip-width apart.",
+      "Squeeze the glutes and press through the heels to lift the hips.",
+      "Lift until the body forms a straight line from the knees to the shoulders.",
+      "Lower slowly and repeat."
+    ],
+    "tips": [
+      "Pause for a second at the top."
+    ],
+    "common_mistakes": [
+      "Arching the lower back at the top.",
+      "Pushing through the toes instead of the heels."
+    ],
+    "default_sets": 1,
+    "default_reps": "10 reps",
+    "default_rest_seconds": 0
+  },
+  {
+    "slug": "inchworm",
+    "name": "Inchworm",
+    "kind": "warmup",
+    "equipment": "bodyweight",
+    "level": "intermediate",
+    "mechanic": "compound",
+    "primary_muscles": [
+      "hamstrings",
+      "shoulders"
+    ],
+    "secondary_muscles": [
+      "abs",
+      "calves",
+      "chest"
+    ],
+    "images": [
+      "/workout-exercises/inchworm/demo.gif"
+    ],
+    "description": "Walking the hands out to a plank and back to the feet. It warms up the hamstrings, shoulders, and core together.",
+    "instructions": [
+      "Stand tall, then bend forward and place your hands on the floor.",
+      "Walk your hands forward into a plank position.",
+      "Walk your feet toward your hands, keeping the legs as straight as is comfortable.",
+      "Repeat slowly."
+    ],
+    "tips": [
+      "Bend the knees slightly if the hamstrings are tight."
+    ],
+    "common_mistakes": [
+      "Letting the hips sag in the plank.",
+      "Locking the knees hard at the top."
+    ],
+    "default_sets": 1,
+    "default_reps": "5 reps",
+    "default_rest_seconds": 0
+  },
+  {
+    "slug": "ankle-circles",
+    "name": "Ankle Circles",
+    "kind": "warmup",
+    "equipment": "bodyweight",
+    "level": "beginner",
+    "mechanic": "isolation",
+    "primary_muscles": [
+      "calves"
+    ],
+    "secondary_muscles": [],
+    "images": [
+      "/workout-exercises/ankle-circles/demo.gif"
+    ],
+    "description": "Rotating each ankle to loosen the joint before squats, lunges, or any movement on the feet.",
+    "instructions": [
+      "Sit or stand on one leg, with the other foot lifted off the floor.",
+      "Rotate the ankle slowly in circles, about 10 times one way.",
+      "Reverse the direction and switch feet."
+    ],
+    "tips": [
+      "Hold a chair for balance if you need to."
+    ],
+    "common_mistakes": [
+      "Rotating from the knee instead of the ankle."
+    ],
+    "default_sets": 1,
+    "default_reps": "10 each way",
+    "default_rest_seconds": 0
+  },
+  {
+    "slug": "wall-slide",
+    "name": "Wall Slide",
+    "kind": "warmup",
+    "equipment": "bodyweight",
+    "level": "beginner",
+    "mechanic": "isolation",
+    "primary_muscles": [
+      "shoulders"
+    ],
+    "secondary_muscles": [
+      "traps"
+    ],
+    "images": [],
+    "description": "Sliding the arms up a wall while keeping the back, head, and wrists in contact. Helpful for shoulder mobility and posture, especially for older adults.",
+    "instructions": [
+      "Stand with your back, head, and wrists against a wall.",
+      "Bend the elbows to about 90 degrees, with the backs of the hands touching the wall.",
+      "Slide the arms up overhead while keeping contact.",
+      "Slide back down with control."
+    ],
+    "tips": [
+      "Keep the ribs down so the back stays flat against the wall."
+    ],
+    "common_mistakes": [
+      "Arching the back to climb higher.",
+      "Letting the wrists or elbows lose contact with the wall."
+    ],
+    "default_sets": 1,
+    "default_reps": "10 reps",
+    "default_rest_seconds": 0
+  },
+  {
+    "slug": "bird-dog",
+    "name": "Bird Dog",
+    "kind": "warmup",
+    "equipment": "bodyweight",
+    "level": "beginner",
+    "mechanic": "compound",
+    "primary_muscles": [
+      "lower_back",
+      "abs"
+    ],
+    "secondary_muscles": [
+      "glutes",
+      "shoulders"
+    ],
+    "images": [],
+    "description": "Extending the opposite arm and leg from hands and knees. A core stability warm-up that supports the lower back.",
+    "instructions": [
+      "Start on hands and knees with a neutral spine.",
+      "Extend one arm forward and the opposite leg back, keeping the hips level.",
+      "Hold for two seconds, then return and switch sides."
+    ],
+    "tips": [
+      "Imagine balancing a glass of water on your back so you do not tip."
+    ],
+    "common_mistakes": [
+      "Rotating the hips to lift the leg higher.",
+      "Arching the lower back as the leg lifts."
+    ],
+    "default_sets": 1,
+    "default_reps": "8 each side",
+    "default_rest_seconds": 0
+  },
+  {
+    "slug": "standing-torso-twist",
+    "name": "Standing Torso Twist",
+    "kind": "warmup",
+    "equipment": "bodyweight",
+    "level": "beginner",
+    "mechanic": "isolation",
+    "primary_muscles": [
+      "obliques"
+    ],
+    "secondary_muscles": [
+      "abs"
+    ],
+    "images": [],
+    "description": "Rotating the upper body while the hips stay facing forward. It warms up the trunk before rotational or lifting work.",
+    "instructions": [
+      "Stand with your feet hip-width apart and your arms relaxed or bent at chest height.",
+      "Rotate the upper body to one side while keeping the hips facing forward.",
+      "Return to the centre and rotate to the other side.",
+      "Keep the movement smooth and controlled."
+    ],
+    "tips": [
+      "Let the arms swing naturally."
+    ],
+    "common_mistakes": [
+      "Twisting from the knees or hips instead of the waist.",
+      "Going too fast to control."
+    ],
+    "default_sets": 1,
+    "default_reps": "10 each side",
+    "default_rest_seconds": 0
+  },
+  {
+    "slug": "chair-sit-to-stand",
+    "name": "Chair Sit-to-Stand",
+    "kind": "warmup",
+    "equipment": "bodyweight",
+    "level": "beginner",
+    "mechanic": "compound",
+    "primary_muscles": [
+      "quads",
+      "glutes"
+    ],
+    "secondary_muscles": [
+      "calves",
+      "abs"
+    ],
+    "images": [],
+    "description": "Standing up from a chair and sitting back down with control. A safe, practical warm-up for squats and for everyday strength.",
+    "instructions": [
+      "Sit near the front of a sturdy chair with your feet flat and hip-width apart.",
+      "Lean forward slightly, then stand up using your legs.",
+      "Sit back down slowly, touching the chair lightly.",
+      "Repeat the set."
+    ],
+    "tips": [
+      "Keep your hands on your thighs rather than pushing off the armrests."
+    ],
+    "common_mistakes": [
+      "Using momentum to bounce up.",
+      "Letting the knees cave inward."
+    ],
+    "default_sets": 1,
+    "default_reps": "8 reps",
+    "default_rest_seconds": 0
   }
 ]

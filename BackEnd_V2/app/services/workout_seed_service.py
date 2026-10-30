@@ -17,6 +17,7 @@ _DATA_DIR = Path(__file__).resolve().parents[1] / "data" / "workout"
 
 _EXERCISE_FIELDS = (
     "name",
+    "kind",
     "equipment",
     "level",
     "mechanic",
@@ -40,6 +41,11 @@ def _load(filename: str) -> list[dict]:
 
 def _fingerprint(spec: dict) -> str:
     return hashlib.sha256(json.dumps(spec, sort_keys=True).encode("utf-8")).hexdigest()
+
+
+def _exercise_fingerprint(spec: dict) -> str:
+    """Covers the fields the sync writes, so adding one to _EXERCISE_FIELDS refreshes every row on the next start."""
+    return _fingerprint({field: spec[field] for field in _EXERCISE_FIELDS})
 
 
 def _build_days(spec: dict, exercise_ids: dict[str, int]) -> list[WorkoutPlanDayDBM]:
@@ -72,7 +78,7 @@ def sync_seed(db: Session) -> None:
         if row is None:
             row = WorkoutExerciseDBM(slug=spec["slug"])
             db.add(row)
-        fingerprint = _fingerprint(spec)
+        fingerprint = _exercise_fingerprint(spec)
         if row.seed_hash != fingerprint:
             for field in _EXERCISE_FIELDS:
                 setattr(row, field, spec[field])

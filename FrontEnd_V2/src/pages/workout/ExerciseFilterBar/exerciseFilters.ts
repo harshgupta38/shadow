@@ -1,4 +1,4 @@
-import type { ExerciseSummary, MuscleId, WorkoutEquipment, WorkoutLevel } from "@/api";
+import type { ExerciseKind, ExerciseSummary, MuscleId, WorkoutEquipment, WorkoutLevel } from "@/api";
 import { MUSCLE_GROUPS, MUSCLE_LABEL } from "@/pages/workout/WorkoutPage.constants";
 
 export interface ExerciseFilters {
@@ -9,12 +9,25 @@ export interface ExerciseFilters {
   muscle: MuscleId | null;
   equipment: WorkoutEquipment[];
   level: WorkoutLevel[];
+  /** Kinds to show. All three are on by default; with none on, nothing is shown. */
+  kinds: ExerciseKind[];
 }
 
-export const EMPTY_EXERCISE_FILTERS: ExerciseFilters = { query: "", group: "all", muscle: null, equipment: [], level: [] };
+const ALL_EXERCISE_KINDS: ExerciseKind[] = ["strength", "cardio", "warmup"];
+
+export const DEFAULT_EXERCISE_FILTERS: ExerciseFilters = {
+  query: "", group: "all", muscle: null, equipment: [], level: [], kinds: [...ALL_EXERCISE_KINDS],
+};
 
 export function hasActiveFilters(f: ExerciseFilters): boolean {
-  return f.query.trim() !== "" || f.group !== "all" || f.muscle !== null || f.equipment.length > 0 || f.level.length > 0;
+  return (
+    f.query.trim() !== "" ||
+    f.group !== "all" ||
+    f.muscle !== null ||
+    f.equipment.length > 0 ||
+    f.level.length > 0 ||
+    ALL_EXERCISE_KINDS.some((kind) => !f.kinds.includes(kind))
+  );
 }
 
 export function applyExerciseFilters(list: ExerciseSummary[], f: ExerciseFilters): ExerciseSummary[] {
@@ -28,6 +41,7 @@ export function applyExerciseFilters(list: ExerciseSummary[], f: ExerciseFilters
       if (muscle && !ex.primary_muscles.includes(muscle) && !ex.secondary_muscles.includes(muscle)) return false;
       if (f.equipment.length > 0 && !f.equipment.includes(ex.equipment)) return false;
       if (f.level.length > 0 && !f.level.includes(ex.level)) return false;
+      if (!f.kinds.includes(ex.kind)) return false;
       if (query) {
         const haystack = [ex.name, ...ex.primary_muscles.map((m) => MUSCLE_LABEL[m])].join(" ").toLowerCase();
         if (!haystack.includes(query)) return false;

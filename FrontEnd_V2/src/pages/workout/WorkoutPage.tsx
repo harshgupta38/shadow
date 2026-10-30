@@ -1,10 +1,8 @@
-import { useState } from "react";
 import { HeartPulseFill, PlusLg } from "react-bootstrap-icons";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { ROUTES } from "@/routes/RoutePaths";
-import { ExerciseDetailModal } from "@/pages/workout/ExerciseDetailModal/ExerciseDetailModal";
 import { ExercisesTab } from "@/pages/workout/ExercisesTab/ExercisesTab";
 import { HistoryTab } from "@/pages/workout/HistoryTab/HistoryTab";
 import { PlansTab } from "@/pages/workout/PlansTab/PlansTab";
@@ -23,7 +21,7 @@ const TABS: { id: TabId; label: string }[] = [
 export function WorkoutPage() {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
-  const [exerciseId, setExerciseId] = useState<number | null>(null);
+  const openExercise = (id: number) => navigate(ROUTES.WORKOUT_EXERCISE.replace(":exerciseId", String(id)));
 
   // The tab lives in the URL so a refresh, a back button, or a link from another page lands on the right one.
   const requested = params.get("tab");
@@ -61,13 +59,11 @@ export function WorkoutPage() {
       </div>
 
       <div id="wk-tabpanel" role="tabpanel" aria-labelledby={`wk-tab-${tab}`}>
-        {tab === "today" && <TodayTab onOpenExercise={setExerciseId} />}
+        {tab === "today" && <TodayTab onOpenExercise={openExercise} />}
         {tab === "plans" && <PlansTab />}
-        {tab === "exercises" && <ExercisesTab onOpenExercise={setExerciseId} />}
+        {tab === "exercises" && <ExercisesTab onOpenExercise={openExercise} />}
         {tab === "history" && <HistoryTab />}
       </div>
-
-      <ExerciseDetailModal exerciseId={exerciseId} onClose={() => setExerciseId(null)} />
     </div>
   );
 }

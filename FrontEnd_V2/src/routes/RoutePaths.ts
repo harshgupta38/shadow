@@ -38,6 +38,7 @@ export const ROUTES = {
     WORKOUT_PLAN_DETAIL: "/workout/plans/:planId",
     WORKOUT_PLAN_EDIT: "/workout/plans/:planId/edit",
     WORKOUT_SESSION: "/workout/session/:sessionId",
+    WORKOUT_EXERCISE: "/workout/exercises/:exerciseId",
     DIET: "/diet",
     PROFILE: "/profile",
     SETTINGS: "/settings",

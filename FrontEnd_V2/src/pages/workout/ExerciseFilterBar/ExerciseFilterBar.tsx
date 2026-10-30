@@ -1,11 +1,12 @@
+import type { ExerciseKind, WorkoutEquipment, WorkoutLevel } from "@/api";
 import { FilterDropdown } from "@/components/ui/FilterDropdown/FilterDropdown";
 import {
-  EMPTY_EXERCISE_FILTERS,
+  DEFAULT_EXERCISE_FILTERS,
   hasActiveFilters,
   type ExerciseFilters,
 } from "@/pages/workout/ExerciseFilterBar/exerciseFilters";
 import { SearchBox } from "@/pages/workout/SearchBox/SearchBox";
-import { EQUIPMENT_OPTIONS, LEVEL_OPTIONS, MUSCLE_GROUPS } from "@/pages/workout/WorkoutPage.constants";
+import { EQUIPMENT_OPTIONS, KIND_OPTIONS, LEVEL_OPTIONS, MUSCLE_GROUPS } from "@/pages/workout/WorkoutPage.constants";
 import "./ExerciseFilterBar.scss";
 
 interface ExerciseFilterBarProps {
@@ -38,7 +39,7 @@ export function ExerciseFilterBar({ filters, onChange, resultLabel }: ExerciseFi
         <FilterDropdown
           label="Filters"
           width={280}
-          onReset={() => onChange({ ...EMPTY_EXERCISE_FILTERS, query: filters.query, muscle: filters.muscle })}
+          onReset={() => onChange({ ...DEFAULT_EXERCISE_FILTERS, query: filters.query, muscle: filters.muscle })}
           sections={[
             {
               key: "group",
@@ -49,25 +50,32 @@ export function ExerciseFilterBar({ filters, onChange, resultLabel }: ExerciseFi
               onToggle: (v) => onChange({ ...filters, group: v, muscle: null }),
             },
             {
+              key: "kind",
+              label: "Kind",
+              options: KIND_OPTIONS,
+              selected: filters.kinds,
+              onToggle: (v) => onChange({ ...filters, kinds: toggle(filters.kinds, v as ExerciseKind) }),
+            },
+            {
               key: "equipment",
               label: "Equipment",
               options: EQUIPMENT_OPTIONS,
               selected: filters.equipment,
-              onToggle: (v) => onChange({ ...filters, equipment: toggle(filters.equipment, v as never) }),
+              onToggle: (v) => onChange({ ...filters, equipment: toggle(filters.equipment, v as WorkoutEquipment) }),
             },
             {
               key: "level",
               label: "Level",
               options: LEVEL_OPTIONS,
               selected: filters.level,
-              onToggle: (v) => onChange({ ...filters, level: toggle(filters.level, v as never) }),
+              onToggle: (v) => onChange({ ...filters, level: toggle(filters.level, v as WorkoutLevel) }),
             },
           ]}
         />
 
         {resultLabel && <span className="wk-filter-count">{resultLabel}</span>}
         {active && (
-          <button type="button" className="wk-filter-clear" onClick={() => onChange(EMPTY_EXERCISE_FILTERS)}>
+          <button type="button" className="wk-filter-clear" onClick={() => onChange(DEFAULT_EXERCISE_FILTERS)}>
             Clear all
           </button>
         )}

@@ -1,21 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { Modal } from "react-bootstrap";
-import { ClockHistory, ExclamationTriangleFill, LightbulbFill, PlusLg } from "react-bootstrap-icons";
+import { PlusLg } from "react-bootstrap-icons";
 
 import { api, ApiError } from "@/api";
 import type { ExerciseDetail } from "@/api";
-import { formatDisplayDateShort } from "@/services/date.service";
-import { useDateFormat } from "@/context/PlannerContext";
-import { ExerciseThumb } from "@/pages/workout/ExerciseThumb/ExerciseThumb";
-import { Skeleton } from "@/pages/workout/Skeleton/Skeleton";
-import { MuscleChips, MuscleLegend, MuscleMap } from "@/pages/workout/MuscleMap/MuscleMap";
-import {
-  EQUIPMENT_LABEL,
-  LEVEL_LABEL,
-  LEVEL_PILL,
-  MECHANIC_LABEL,
-  formatRest,
-} from "@/pages/workout/WorkoutPage.constants";
+import { ExerciseDetailBody, ExerciseDetailSkeleton } from "@/pages/workout/ExerciseDetailBody/ExerciseDetailBody";
 import "./ExerciseDetailModal.scss";
 
 interface ExerciseDetailModalProps {
@@ -27,33 +16,16 @@ interface ExerciseDetailModalProps {
   addLabel?: string;
 }
 
-function DetailSkeleton() {
-  return (
-    <div className="wk-detail-grid" aria-hidden="true">
-      <div className="wk-detail-col">
-        <Skeleton height={300} />
-      </div>
-      <div className="wk-detail-col">
-        <Skeleton height={22} width="55%" />
-        <Skeleton height={64} />
-        <Skeleton height={150} />
-      </div>
-    </div>
-  );
-}
-
+// The popup version of the exercise detail. Screens that can navigate away use the exercise page instead.
 export function ExerciseDetailModal({ exerciseId, onClose, onAdd, addLabel = "Add to workout" }: ExerciseDetailModalProps) {
-  const dateFormat = useDateFormat();
   const [detail, setDetail] = useState<ExerciseDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeImage, setActiveImage] = useState(0);
 
   const load = useCallback(async (id: number) => {
     setLoading(true);
     setError(null);
     setDetail(null);
-    setActiveImage(0);
     try {
       setDetail(await api.workout.getExercise(id));
     } catch (err) {
@@ -66,9 +38,6 @@ export function ExerciseDetailModal({ exerciseId, onClose, onAdd, addLabel = "Ad
   useEffect(() => {
     if (exerciseId !== null) void load(exerciseId);
   }, [exerciseId, load]);
-
-  const images = detail ? (detail.image_urls.length > 0 ? detail.image_urls : detail.image_url ? [detail.image_url] : []) : [];
-  const last = detail?.last_performance ?? null;
 
   return (
     <Modal
@@ -85,7 +54,7 @@ export function ExerciseDetailModal({ exerciseId, onClose, onAdd, addLabel = "Ad
       </Modal.Header>
 
       <Modal.Body>
-        {loading && <DetailSkeleton />}
+        {loading && <ExerciseDetailSkeleton />}
 
         {error && !loading && (
           <div className="wk-detail-error" role="alert">
@@ -96,128 +65,7 @@ export function ExerciseDetailModal({ exerciseId, onClose, onAdd, addLabel = "Ad
           </div>
         )}
 
-        {detail && !loading && (
-          <div className="wk-detail-grid">
-            {/* Left: what it looks like and which muscles it trains */}
-            <div className="wk-detail-col">
-              {images.length > 0 && (
-                <div className="wk-detail-media">
-                  <div className="wk-detail-hero">
-                    <ExerciseThumb exercise={detail} imageUrl={images[activeImage] ?? null} />
-                  </div>
-                  {images.length > 1 && (
-                    <div className="wk-detail-thumbs" role="tablist" aria-label="Exercise images">
-                      {images.map((src, i) => (
-                        <button
-                          key={src}
-                          type="button"
-                          role="tab"
-                          aria-selected={i === activeImage}
-                          aria-label={`Image ${i + 1} of ${images.length}`}
-                          className={`wk-detail-thumb${i === activeImage ? " is-active" : ""}`}
-                          onClick={() => setActiveImage(i)}
-                        >
-                          <img src={src} alt="" loading="lazy" />
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <section className="wk-detail-card">
-                <header className="wk-detail-card-head">
-                  <h3 className="wk-detail-h">Muscles worked</h3>
-                  <MuscleLegend />
-                </header>
-                <MuscleMap
-                  size="lg"
-                  primary={detail.primary_muscles}
-                  secondary={detail.secondary_muscles}
-                />
-                <dl className="wk-detail-muscles">
-                  <div>
-                    <dt>Primary</dt>
-                    <dd><MuscleChips primary={detail.primary_muscles} /></dd>
-                  </div>
-                  {detail.secondary_muscles.length > 0 && (
-                    <div>
-                      <dt>Secondary</dt>
-                      <dd><MuscleChips primary={[]} secondary={detail.secondary_muscles} /></dd>
-                    </div>
-                  )}
-                </dl>
-              </section>
-            </div>
-
-            {/* Right: how to do it */}
-            <div className="wk-detail-col">
-              <div className="wk-detail-badges">
-                <span className={`pill ${LEVEL_PILL[detail.level]}`}>{LEVEL_LABEL[detail.level]}</span>
-                <span className="pill">{EQUIPMENT_LABEL[detail.equipment]}</span>
-                <span className="pill">{MECHANIC_LABEL[detail.mechanic]}</span>
-              </div>
-
-              {detail.description && <p className="wk-detail-desc">{detail.description}</p>}
-
-              <div className="wk-detail-targets" aria-label="Recommended volume">
-                <div><strong>{detail.default_sets}</strong><span>sets</span></div>
-                <div><strong>{detail.default_reps}</strong><span>reps</span></div>
-                <div><strong>{formatRest(detail.default_rest_seconds)}</strong><span>rest</span></div>
-              </div>
-
-              {last && (
-                <div className="wk-detail-last">
-                  <ClockHistory size={16} aria-hidden="true" />
-                  <span>
-                    Last time ({formatDisplayDateShort(last.date, dateFormat)}):{" "}
-                    <strong>
-                      {last.weight_kg !== null ? `${last.weight_kg} kg` : "bodyweight"}
-                      {last.reps !== null ? ` × ${last.reps}` : ""}
-                    </strong>{" "}
-                    best set, {last.sets} {last.sets === 1 ? "set" : "sets"} done
-                  </span>
-                </div>
-              )}
-
-              {detail.instructions.length > 0 && (
-                <section>
-                  <h3 className="wk-detail-h">How to do it</h3>
-                  <ol className="wk-steps">
-                    {detail.instructions.map((step, i) => (
-                      <li key={i}>
-                        <span className="wk-step-num">{i + 1}</span>
-                        <span>{step}</span>
-                      </li>
-                    ))}
-                  </ol>
-                </section>
-              )}
-
-              {detail.tips.length > 0 && (
-                <section>
-                  <h3 className="wk-detail-h">Pro tips</h3>
-                  <ul className="wk-notes wk-notes--tip">
-                    {detail.tips.map((t, i) => (
-                      <li key={i}><LightbulbFill size={13} aria-hidden="true" /><span>{t}</span></li>
-                    ))}
-                  </ul>
-                </section>
-              )}
-
-              {detail.common_mistakes.length > 0 && (
-                <section>
-                  <h3 className="wk-detail-h">Common mistakes</h3>
-                  <ul className="wk-notes wk-notes--warn">
-                    {detail.common_mistakes.map((t, i) => (
-                      <li key={i}><ExclamationTriangleFill size={13} aria-hidden="true" /><span>{t}</span></li>
-                    ))}
-                  </ul>
-                </section>
-              )}
-            </div>
-          </div>
-        )}
+        {detail && !loading && <ExerciseDetailBody key={detail.id} detail={detail} />}
       </Modal.Body>
 
       {onAdd && detail && !loading && (

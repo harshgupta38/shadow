@@ -1,20 +1,27 @@
 """Pure helpers shared by the workout services: time estimates, muscle credit and week maths."""
 
+import re
 from collections.abc import Iterable
 from datetime import date, datetime, timedelta, timezone
 
 SECONDS_PER_SET = 45  # rough time under the bar for one set; the builder's live estimate uses the same number
 SETUP_MINUTES = 5  # warm-up and changeover allowance per session
 SECONDARY_CREDIT = 0.5  # a secondary muscle earns half a set for each set of the exercise
+TIMED_REPS = re.compile(r"(\d+)\s*min\b")  # reps such as "20 min" name the time for one set
 
 
-def estimate_minutes(sets_and_rest: Iterable[tuple[int, int]]) -> int:
-    """Estimated length of a session from (sets, rest_seconds) pairs. Zero when there is nothing to do."""
-    pairs = list(sets_and_rest)
-    if not pairs:
+def estimate_minutes(sets_rest_and_reps: Iterable[tuple[int, int, str]]) -> int:
+    """Estimated length of a session from (sets, rest_seconds, reps) rows. Zero when there is nothing to do."""
+    rows = list(sets_rest_and_reps)
+    if not rows:
         return 0
-    seconds = sum(sets * (SECONDS_PER_SET + rest) for sets, rest in pairs)
+    seconds = sum(sets * (_seconds_per_set(reps) + rest) for sets, rest, reps in rows)
     return int(seconds / 60 + 0.5) + SETUP_MINUTES
+
+
+def _seconds_per_set(reps: str) -> int:
+    match = TIMED_REPS.search(reps)
+    return int(match.group(1)) * 60 if match else SECONDS_PER_SET
 
 
 def sunday_based_weekday(day: date) -> int:

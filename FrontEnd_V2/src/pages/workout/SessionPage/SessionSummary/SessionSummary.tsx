@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { ArrowLeft, CheckCircleFill, Trash3Fill } from "react-bootstrap-icons";
+import { useNavigate } from "react-router-dom";
 
 import type { WorkoutSessionDetail } from "@/api";
 import { useDateFormat } from "@/context/PlannerContext";
 import { formatDisplayDate } from "@/services/date.service";
-import { ExerciseDetailModal } from "@/pages/workout/ExerciseDetailModal/ExerciseDetailModal";
+import { ROUTES } from "@/routes/RoutePaths";
 import { MuscleChips, MuscleLegend, MuscleMap } from "@/pages/workout/MuscleMap/MuscleMap";
 import { SessionExerciseCard } from "@/pages/workout/SessionPage/SessionExerciseCard/SessionExerciseCard";
 import { formatSessionDuration, formatVolume, pluralize } from "@/pages/workout/WorkoutPage.constants";
@@ -22,7 +23,7 @@ interface SessionSummaryProps {
 
 export function SessionSummary({ session, justFinished, deleting = false, onBack, onDelete }: SessionSummaryProps) {
   const dateFormat = useDateFormat();
-  const [detailId, setDetailId] = useState<number | null>(null);
+  const navigate = useNavigate();
 
   // Only exercises with at least one logged set count as trained.
   const trained = useMemo(() => session.exercises.filter((e) => e.sets.some((s) => s.done)), [session.exercises]);
@@ -59,7 +60,7 @@ export function SessionSummary({ session, justFinished, deleting = false, onBack
             <p className="wk-sum-none">No sets were logged in this workout.</p>
           ) : (
             trained.map((item) => (
-              <SessionExerciseCard key={item.id ?? item.exercise.id} item={item} readOnly onOpen={() => setDetailId(item.exercise.id)} />
+              <SessionExerciseCard key={item.id ?? item.exercise.id} item={item} readOnly onOpen={() => navigate(ROUTES.WORKOUT_EXERCISE.replace(":exerciseId", String(item.exercise.id)))} />
             ))
           )}
           {session.note && (
@@ -71,22 +72,22 @@ export function SessionSummary({ session, justFinished, deleting = false, onBack
         </div>
 
         <aside className="wk-sum-aside">
-          <section className="surface wk-sum-card">
-            <header>
-              <h2>Muscles trained</h2>
-              <MuscleLegend />
-            </header>
-            <MuscleMap size="md" primary={muscles.primary} secondary={muscles.secondary} />
-            <MuscleChips primary={muscles.primary} secondary={muscles.secondary} />
-          </section>
+          {muscles.primary.length + muscles.secondary.length > 0 && (
+            <section className="surface wk-sum-card">
+              <header>
+                <h2>Muscles trained</h2>
+                <MuscleLegend />
+              </header>
+              <MuscleMap size="md" primary={muscles.primary} secondary={muscles.secondary} />
+              <MuscleChips primary={muscles.primary} secondary={muscles.secondary} />
+            </section>
+          )}
 
           <button type="button" className="wk-sum-delete" disabled={deleting} onClick={onDelete}>
             <Trash3Fill size={13} /> {deleting ? "Deleting…" : `Delete this workout (${pluralize(session.sets_done, "set")})`}
           </button>
         </aside>
       </div>
-
-      <ExerciseDetailModal exerciseId={detailId} onClose={() => setDetailId(null)} />
     </div>
   );
 }

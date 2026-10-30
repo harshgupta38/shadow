@@ -45,6 +45,7 @@ const WorkoutPage = lazy(() => import("@/pages/workout/WorkoutPage").then(m => (
 const WorkoutPlanDetailPage = lazy(() => import("@/pages/workout/PlanDetailPage/PlanDetailPage").then(m => ({ default: m.PlanDetailPage })));
 const WorkoutPlanBuilderPage = lazy(() => import("@/pages/workout/PlanBuilderPage/PlanBuilderPage").then(m => ({ default: m.PlanBuilderPage })));
 const WorkoutSessionPage = lazy(() => import("@/pages/workout/SessionPage/SessionPage").then(m => ({ default: m.SessionPage })));
+const ExerciseDetailPage = lazy(() => import("@/pages/workout/ExerciseDetailPage/ExerciseDetailPage").then(m => ({ default: m.ExerciseDetailPage })));
 const DietPage = lazy(() => import("@/pages/diet/DietPage").then(m => ({ default: m.DietPage })));
 const NotFoundPage = lazy(() => import("@/pages/not-found/NotFoundPage").then(m => ({ default: m.NotFoundPage })));
 const DeviceLimitPage = lazy(() => import("@/pages/device-limit/DeviceLimitPage").then(m => ({ default: m.DeviceLimitPage })));
@@ -104,6 +105,7 @@ export function AppRoutes() {
 						<Route path={ROUTES.WORKOUT_PLAN_DETAIL} element={<WorkoutPlanDetailPage />} />
 						<Route path={ROUTES.WORKOUT_PLAN_EDIT} element={<WorkoutPlanBuilderPage />} />
 						<Route path={ROUTES.WORKOUT_SESSION} element={<WorkoutSessionPage />} />
+						<Route path={ROUTES.WORKOUT_EXERCISE} element={<ExerciseDetailPage />} />
 						<Route path={ROUTES.DIET} element={<DietPage />} />
 						<Route path={ROUTES.PROFILE} element={<ProfilePage />} />
 						<Route path={ROUTES.SETTINGS} element={<SettingsPage />} />

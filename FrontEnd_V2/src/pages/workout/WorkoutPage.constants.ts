@@ -1,4 +1,5 @@
 import type {
+  ExerciseKind,
   ExerciseMechanic,
   MuscleId,
   WorkoutEquipment,
@@ -27,7 +28,7 @@ export const MUSCLE_LABEL: Record<MuscleId, string> = {
   calves: "Calves",
 };
 
-export interface MuscleGroup {
+interface MuscleGroup {
   id: string;
   label: string;
   muscles: MuscleId[];
@@ -95,6 +96,8 @@ export const EQUIPMENT_OPTIONS = (Object.keys(EQUIPMENT_LABEL) as WorkoutEquipme
   label: EQUIPMENT_LABEL[value],
 }));
 export const LEVEL_OPTIONS = (Object.keys(LEVEL_LABEL) as WorkoutLevel[]).map((value) => ({ value, label: LEVEL_LABEL[value] }));
+export const KIND_LABEL: Record<ExerciseKind, string> = { strength: "Strength", cardio: "Cardio", warmup: "Warm-up" };
+export const KIND_OPTIONS = (Object.keys(KIND_LABEL) as ExerciseKind[]).map((value) => ({ value, label: KIND_LABEL[value] }));
 export const GOAL_OPTIONS = (Object.keys(GOAL_LABEL) as WorkoutGoal[]).map((value) => ({ value, label: GOAL_LABEL[value] }));
 
 // ── Calendar ─────────────────────────────────────────────────────────────────

@@ -41,6 +41,8 @@ export function SessionExerciseCard({
 }: SessionExerciseCardProps) {
   const doneCount = item.sets.filter((s) => s.done).length;
   const allDone = item.sets.length > 0 && doneCount === item.sets.length;
+  // Weight and reps only make sense for lifts; cardio and warm-ups just get ticked off.
+  const isLift = item.exercise.kind === "strength";
   // A finished workout only shows what was actually done, numbered 1..n; the original index
   // is kept so the "previous" column still lines up with the right set.
   const rows = item.sets.map((set, index) => ({ set, index })).filter(({ set }) => !readOnly || set.done);
@@ -71,12 +73,16 @@ export function SessionExerciseCard({
         </div>
       </header>
 
-      <div className="wk-sx-table" role="table" aria-label={`${item.exercise.name} sets`}>
+      <div className={`wk-sx-table${isLift ? "" : " is-tick-only"}`} role="table" aria-label={`${item.exercise.name} sets`}>
         <div className="wk-sx-row wk-sx-row--head" role="row">
           <span role="columnheader">Set</span>
           <span role="columnheader">Previous</span>
-          <span role="columnheader">kg</span>
-          <span role="columnheader">Reps</span>
+          {isLift && (
+            <>
+              <span role="columnheader">kg</span>
+              <span role="columnheader">Reps</span>
+            </>
+          )}
           <span role="columnheader" className="visually-hidden">Done</span>
         </div>
 
@@ -87,34 +93,42 @@ export function SessionExerciseCard({
 
             {readOnly ? (
               <>
-                <span className="wk-sx-val" role="cell">{s.weight_kg ?? "BW"}</span>
-                <span className="wk-sx-val" role="cell">{s.reps ?? "–"}</span>
+                {isLift && (
+                  <>
+                    <span className="wk-sx-val" role="cell">{s.weight_kg ?? "BW"}</span>
+                    <span className="wk-sx-val" role="cell">{s.reps ?? "–"}</span>
+                  </>
+                )}
                 <span className={`wk-sx-tick${s.done ? " is-on" : ""}`} role="cell">{s.done && <CheckLg size={14} aria-label="Done" />}</span>
               </>
             ) : (
               <>
-                <input
-                  className="wk-sx-input"
-                  type="number"
-                  inputMode="decimal"
-                  min={0}
-                  step={0.5}
-                  placeholder="–"
-                  aria-label={`Set ${i + 1} weight in kilograms`}
-                  value={s.weight_kg ?? ""}
-                  onChange={(e) => onEditSet?.(i, { weight_kg: numberOrNull(e.target.value) })}
-                />
-                <input
-                  className="wk-sx-input"
-                  type="number"
-                  inputMode="numeric"
-                  min={0}
-                  step={1}
-                  placeholder="–"
-                  aria-label={`Set ${i + 1} reps`}
-                  value={s.reps ?? ""}
-                  onChange={(e) => onEditSet?.(i, { reps: numberOrNull(e.target.value) })}
-                />
+                {isLift && (
+                  <>
+                    <input
+                      className="wk-sx-input"
+                      type="number"
+                      inputMode="decimal"
+                      min={0}
+                      step={0.5}
+                      placeholder="–"
+                      aria-label={`Set ${i + 1} weight in kilograms`}
+                      value={s.weight_kg ?? ""}
+                      onChange={(e) => onEditSet?.(i, { weight_kg: numberOrNull(e.target.value) })}
+                    />
+                    <input
+                      className="wk-sx-input"
+                      type="number"
+                      inputMode="numeric"
+                      min={0}
+                      step={1}
+                      placeholder="–"
+                      aria-label={`Set ${i + 1} reps`}
+                      value={s.reps ?? ""}
+                      onChange={(e) => onEditSet?.(i, { reps: numberOrNull(e.target.value) })}
+                    />
+                  </>
+                )}
                 <button
                   type="button"
                   className={`wk-sx-tick${s.done ? " is-on" : ""}`}

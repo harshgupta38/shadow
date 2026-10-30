@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.common import today_ist
 from app.common.workout import sunday_based_weekday, week_start
 from app.models.user import UserDBM
-from app.models.workout import WorkoutSessionDBM, WorkoutSessionExerciseDBM, WorkoutSessionSetDBM
+from app.models.workout import WorkoutSessionDBM, WorkoutSessionExerciseDBM
 from app.schemas.workout import (
     MuscleSetsResponse,
     PersonalRecordResponse,
@@ -122,29 +122,19 @@ def overview(db: Session, user: UserDBM) -> WorkoutOverviewResponse:
 def _personal_records(db: Session, user_id: int) -> list[PersonalRecordResponse]:
     """The best set per exercise (heaviest, then most reps), newest records first."""
     rows = db.execute(
-        select(
-            WorkoutSessionExerciseDBM.exercise_id,
-            WorkoutSessionSetDBM.weight_kg,
-            WorkoutSessionSetDBM.reps,
-            WorkoutSessionDBM.session_date,
-        )
+        select(WorkoutSessionExerciseDBM.exercise_id, WorkoutSessionExerciseDBM.sets, WorkoutSessionDBM.session_date)
         .join(WorkoutSessionDBM, WorkoutSessionDBM.id == WorkoutSessionExerciseDBM.session_id)
-        .join(WorkoutSessionSetDBM, WorkoutSessionSetDBM.session_exercise_id == WorkoutSessionExerciseDBM.id)
-        .where(
-            WorkoutSessionDBM.user_id == user_id,
-            WorkoutSessionDBM.status == "completed",
-            WorkoutSessionSetDBM.done.is_(True),
-            WorkoutSessionSetDBM.weight_kg > 0,
-            WorkoutSessionSetDBM.reps > 0,
-        )
+        .where(WorkoutSessionDBM.user_id == user_id, WorkoutSessionDBM.status == "completed")
     ).all()
 
     best: dict[int, tuple[float, int, date]] = {}
-    for exercise_id, weight, reps, day in rows:
-        candidate = (weight, reps, day)
-        current = best.get(exercise_id)
-        if current is None or candidate > current:
-            best[exercise_id] = candidate
+    for exercise_id, sets, day in rows:
+        for s in sets:
+            if s["done"] and (s["weight_kg"] or 0) > 0 and (s["reps"] or 0) > 0:
+                candidate = (s["weight_kg"], s["reps"], day)
+                current = best.get(exercise_id)
+                if current is None or candidate > current:
+                    best[exercise_id] = candidate
 
     newest = sorted(best.items(), key=lambda item: item[1][2], reverse=True)[:RECORD_COUNT]
     library = library_by_id(db, [exercise_id for exercise_id, _ in newest])

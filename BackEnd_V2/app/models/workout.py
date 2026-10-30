@@ -1,7 +1,6 @@
 from datetime import date, datetime
 
 from sqlalchemy import (
-    Boolean,
     CheckConstraint,
     Date,
     DateTime,
@@ -246,28 +245,7 @@ class WorkoutSessionExerciseDBM(Base):
     target_reps: Mapped[str] = mapped_column(String(20), nullable=False)
     rest_seconds: Mapped[int] = mapped_column(Integer, nullable=False)
     note: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    sets: Mapped[list[dict]] = mapped_column(JSON, nullable=False, default=list)  # one {reps, weight_kg, done} per set, in order
 
     session: Mapped[WorkoutSessionDBM] = relationship(back_populates="exercises")
     exercise: Mapped[WorkoutExerciseDBM] = relationship(lazy="joined")
-    sets: Mapped[list["WorkoutSessionSetDBM"]] = relationship(
-        back_populates="session_exercise",
-        cascade="all, delete-orphan",
-        order_by="WorkoutSessionSetDBM.position",
-    )
-
-
-class WorkoutSessionSetDBM(Base):
-    __tablename__ = "workout_session_sets"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    session_exercise_id: Mapped[int] = mapped_column(
-        ForeignKey("workout_session_exercises.id", ondelete="CASCADE"),
-        index=True,
-        nullable=False,
-    )
-    position: Mapped[int] = mapped_column(Integer, nullable=False)
-    reps: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    weight_kg: Mapped[float | None] = mapped_column(Float, nullable=True)
-    done: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-
-    session_exercise: Mapped[WorkoutSessionExerciseDBM] = relationship(back_populates="sets")

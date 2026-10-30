@@ -4,7 +4,7 @@ from collections.abc import Iterable
 from datetime import datetime
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session, contains_eager, selectinload
+from sqlalchemy.orm import Session, contains_eager
 
 from app.core.exceptions import NotFoundError
 from app.models.workout import WorkoutExerciseDBM, WorkoutSessionDBM, WorkoutSessionExerciseDBM
@@ -60,7 +60,7 @@ def recent_done_entries(
             WorkoutSessionDBM.status == "completed",
             WorkoutSessionExerciseDBM.exercise_id == exercise_id,
         )
-        .options(contains_eager(WorkoutSessionExerciseDBM.session), selectinload(WorkoutSessionExerciseDBM.sets))
+        .options(contains_eager(WorkoutSessionExerciseDBM.session))
         .order_by(WorkoutSessionDBM.started_at.desc(), WorkoutSessionDBM.id.desc())
         .limit(_HISTORY_SCAN_LIMIT)
     )
@@ -69,7 +69,7 @@ def recent_done_entries(
 
     found: list[WorkoutSessionExerciseDBM] = []
     for entry in db.scalars(query).all():
-        if any(s.done for s in entry.sets):
+        if any(s["done"] for s in entry.sets):
             found.append(entry)
             if len(found) == limit:
                 break
@@ -81,12 +81,12 @@ def last_performance(db: Session, user_id: int, exercise_id: int) -> ExercisePer
     if not entries:
         return None
     entry = entries[0]
-    done = [s for s in entry.sets if s.done]
-    best = max(done, key=lambda s: (s.weight_kg or 0, s.reps or 0))
+    done = [s for s in entry.sets if s["done"]]
+    best = max(done, key=lambda s: (s["weight_kg"] or 0, s["reps"] or 0))
     return ExercisePerformanceResponse(
         date=entry.session.session_date,
-        weight_kg=best.weight_kg,
-        reps=best.reps,
+        weight_kg=best["weight_kg"],
+        reps=best["reps"],
         sets=len(done),
     )
 

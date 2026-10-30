@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 
 import asyncio
+import json
 import logging
 
 from typing import Callable
@@ -52,7 +53,6 @@ from app.models.workout import (
     WorkoutPlanExerciseDBM,
     WorkoutSessionDBM,
     WorkoutSessionExerciseDBM,
-    WorkoutSessionSetDBM,
     WorkoutSettingDBM,
 )
 from app.models.data_version import DataVersionDBM
@@ -62,6 +62,36 @@ from app.api.notifications import signal_shutdown as _signal_sse_shutdown
 
 
 _startup_logger = logging.getLogger(__name__)
+
+
+def _fold_session_sets_into_exercises(conn) -> None:
+    """Moves each session's sets from workout_session_sets into a JSON column on its exercise row, then drops the old table.
+
+    One transaction. BEGIN IMMEDIATE makes workers that start together take turns, so the second one finds nothing left to do.
+    """
+    from sqlalchemy import text as _sql_text  # pyright: ignore[reportMissingImports]
+
+    conn.exec_driver_sql("BEGIN IMMEDIATE")
+    try:
+        tables = {row[0] for row in conn.execute(_sql_text("SELECT name FROM sqlite_master WHERE type = 'table'"))}
+        if "workout_session_sets" in tables:
+            conn.execute(_sql_text("ALTER TABLE workout_session_exercises ADD COLUMN sets JSON NOT NULL DEFAULT '[]'"))
+            sets_by_entry: dict[int, list[dict]] = {}
+            rows = conn.execute(
+                _sql_text("SELECT session_exercise_id, reps, weight_kg, done FROM workout_session_sets ORDER BY session_exercise_id, position")
+            ).fetchall()
+            for entry_id, reps, weight_kg, done in rows:
+                sets_by_entry.setdefault(entry_id, []).append({"reps": reps, "weight_kg": weight_kg, "done": bool(done)})
+            for entry_id, sets in sets_by_entry.items():
+                conn.execute(
+                    _sql_text("UPDATE workout_session_exercises SET sets = :sets WHERE id = :id"),
+                    {"sets": json.dumps(sets), "id": entry_id},
+                )
+            conn.execute(_sql_text("DROP TABLE workout_session_sets"))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
 
 
 @asynccontextmanager
@@ -93,6 +123,7 @@ async def lifespan(_app: FastAPI):
             except OperationalError as exc:  # another worker added the column first
                 if "duplicate column name" not in str(exc):
                     raise
+        _fold_session_sets_into_exercises(_conn)
         _report_cols = {row[1] for row in _conn.execute(_sql_text("PRAGMA table_info(reports)")).fetchall()}
         if "weekly_insights" not in _report_cols:
             _conn.execute(_sql_text("ALTER TABLE reports ADD COLUMN weekly_insights JSON"))

@@ -15,7 +15,6 @@ from app.models.workout import (
     WorkoutPlanDBM,
     WorkoutSessionDBM,
     WorkoutSessionExerciseDBM,
-    WorkoutSessionSetDBM,
 )
 from app.schemas.workout import (
     SessionSaveRequest,
@@ -29,7 +28,7 @@ from app.services.workout_library_service import exercise_summary, library_by_id
 
 _DEFAULT_NAME = "Quick workout"
 
-_SESSION_LOAD = selectinload(WorkoutSessionDBM.exercises).selectinload(WorkoutSessionExerciseDBM.sets)
+_SESSION_LOAD = selectinload(WorkoutSessionDBM.exercises)
 
 
 def now_utc() -> datetime:
@@ -66,7 +65,7 @@ def _session_detail(db: Session, session: WorkoutSessionDBM, now: datetime) -> W
             before=as_utc(session.started_at),
         )
         previous_sets = (
-            [SessionSetResponse(reps=s.reps, weight_kg=s.weight_kg, done=True) for s in previous[0].sets if s.done]
+            [SessionSetResponse(reps=s["reps"], weight_kg=s["weight_kg"], done=True) for s in previous[0].sets if s["done"]]
             if previous
             else []
         )
@@ -78,7 +77,7 @@ def _session_detail(db: Session, session: WorkoutSessionDBM, now: datetime) -> W
                 target_reps=entry.target_reps,
                 rest_seconds=entry.rest_seconds,
                 note=entry.note,
-                sets=[SessionSetResponse(reps=s.reps, weight_kg=s.weight_kg, done=s.done) for s in entry.sets],
+                sets=[SessionSetResponse(reps=s["reps"], weight_kg=s["weight_kg"], done=s["done"]) for s in entry.sets],
                 previous_sets=previous_sets,
             )
         )
@@ -132,13 +131,13 @@ def _refresh_totals(session: WorkoutSessionDBM) -> None:
     muscles: list[str] = []
     credit: dict[str, float] = {}
     for entry in session.exercises:
-        done = [s for s in entry.sets if s.done]
+        done = [s for s in entry.sets if s["done"]]
         if not done:
             continue
         sets_done += len(done)
         if entry.exercise.kind != "strength":
             continue  # cardio and warm-ups count toward the workout, not toward strength volume or muscle credit
-        volume += sum((s.weight_kg or 0) * (s.reps or 0) for s in done)
+        volume += sum((s["weight_kg"] or 0) * (s["reps"] or 0) for s in done)
         for muscle in entry.exercise.primary_muscles:
             if muscle not in muscles:
                 muscles.append(muscle)
@@ -177,10 +176,7 @@ def _apply_save(db: Session, session: WorkoutSessionDBM, data: SessionSaveReques
         entry.exercise = exercise
         entry.position = position
         entry.note = item.note
-        entry.sets = [
-            WorkoutSessionSetDBM(position=n, reps=s.reps, weight_kg=s.weight_kg, done=s.done)
-            for n, s in enumerate(item.sets)
-        ]
+        entry.sets = [{"reps": s.reps, "weight_kg": s.weight_kg, "done": s.done} for s in item.sets]
         entries.append(entry)
 
     session.exercises = entries  # entries that were dropped from the list are deleted with it
@@ -275,10 +271,7 @@ def start_session(db: Session, user: UserDBM, data: SessionStartRequest) -> Work
                     target_reps=planned.reps,
                     rest_seconds=planned.rest_seconds,
                     note=planned.note,
-                    sets=[
-                        WorkoutSessionSetDBM(position=n, reps=None, weight_kg=planned.weight_kg, done=False)
-                        for n in range(planned.sets)
-                    ],
+                    sets=[{"reps": None, "weight_kg": planned.weight_kg, "done": False} for _ in range(planned.sets)],
                 )
             )
     _refresh_totals(session)

@@ -1,3 +1,4 @@
+import re
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -12,7 +13,7 @@ from app.api.router import api_router
 from app.api.system import router as system_router
 from app.core.config import settings
 from app.core.exceptions import AppError
-from app.db.session import SessionLocal, engine
+from app.db.session import SessionLocal, drop_column_if_present, engine
 from app.models.base import Base
 from app.services import model_constraints
 
@@ -26,6 +27,16 @@ from app.services import deploy_service, self_restart
 
 
 _COMMIT_LOOKUP_TIMEOUT_S = 3.0
+_COMMIT_SHA = re.compile(r"[0-9a-f]{7,40}", re.IGNORECASE)
+
+
+def _restart_is_confirmed(row, model) -> bool:
+    """The new process being alive proves that a restart happened, not which commit it is running.
+    A request that named a commit can be checked against the commit read just now; a branch name
+    can't, so the restart is taken as the proof, as before."""
+    if model is not DeploymentLogDBM or not _COMMIT_SHA.fullmatch(row.git_ref):
+        return True
+    return (row.commit_sha or "").lower().startswith(row.git_ref.lower())
 
 
 def _reconcile_interrupted_jobs() -> None:
@@ -40,7 +51,8 @@ def _reconcile_interrupted_jobs() -> None:
         request to the Control Server (recorded beforehand, see
         services/self_restart.py) can only have been interrupted by the restart
         it asked for — and this process being alive is the proof it worked, so
-        it becomes "success".
+        it becomes "success". If the request named a commit SHA, the commit checked out now
+        must match it, or it becomes "unknown".
       * Anything else is honestly relabeled "unknown": we don't know whether it
         finished, only that nothing here saw it happen.
     """
@@ -50,12 +62,19 @@ def _reconcile_interrupted_jobs() -> None:
             for row in db.query(model).filter(model.status == "running").all():
                 row.completed_at = now
                 if row.app == "backoffice" and self_restart.was_announced(row.log_output):
-                    row.status = "success"
-                    row.log_output = f"{row.log_output}\n{self_restart.confirmation_line()}"
                     if model is DeploymentLogDBM:
                         # What the rollback feature later targets; best effort and short, since
                         # the API doesn't accept requests until startup finishes.
                         row.commit_sha = deploy_service._current_commit_sha("backoffice", timeout=_COMMIT_LOOKUP_TIMEOUT_S)
+                    if _restart_is_confirmed(row, model):
+                        row.status = "success"
+                        row.log_output = f"{row.log_output}\n{self_restart.confirmation_line()}"
+                    else:
+                        row.status = "unknown"
+                        row.log_output = (
+                            f"{row.log_output}\n[backoffice] BackOffice came back up, but it could not be "
+                            f"confirmed to be running {row.git_ref} (checked-out commit: {row.commit_sha or 'unknown'})."
+                        )
                 else:
                     row.status = "unknown"
                     row.log_output = f"{row.log_output}\n[backoffice] Interrupted by a BackOffice restart before this finished."
@@ -66,6 +85,9 @@ def _reconcile_interrupted_jobs() -> None:
 async def lifespan(_app: FastAPI):
     # BackOffice's own database — separate file from Shadow V2's shadow.db.
     Base.metadata.create_all(bind=engine)
+    # deployment_logs.target was retired. Databases created before that still have it as NOT NULL,
+    # which rejects every new deployment row, so it is dropped before anything writes.
+    drop_column_if_present("deployment_logs", "target")
     _reconcile_interrupted_jobs()
     # Re-read (never import/copy) BackEnd_V2's own model files so row edits
     # can be checked against its real constraints — see model_constraints.py.

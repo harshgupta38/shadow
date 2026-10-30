@@ -249,6 +249,8 @@ export function SqlConsole({ app }: { app: AppTarget }) {
   const idRef = useRef(0);
   // Set by the Stop button; checked between the statements of a running script.
   const stopRef = useRef(false);
+  // Cleared when the console unmounts (the query tab was left), so a script still running stops too.
+  const mountedRef = useRef(true);
   // What was typed before ↑ started walking through saved queries, so walking back down restores it.
   const draftRef = useRef("");
 
@@ -266,6 +268,13 @@ export function SqlConsole({ app }: { app: AppTarget }) {
       .catch(() => { /* history is a convenience — the console works without it */ });
     return () => { cancelled = true; };
   }, [app]);
+
+  // Leaving the query tab unmounts the console while a script may still be running. Its loop would
+  // otherwise keep sending statements in the background, so runSteps checks this before each one.
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   useEffect(() => {
     if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
@@ -360,7 +369,7 @@ export function SqlConsole({ app }: { app: AppTarget }) {
         patchStep(id, i, { state: "skipped", note: TRANSACTION_NOTE });
         continue;
       }
-      if (stopRef.current) {
+      if (stopRef.current || !mountedRef.current) {
         patchScript(id, (script) => ({ ...script, status: "stopped" }));
         return;
       }

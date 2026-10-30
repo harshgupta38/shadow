@@ -36,7 +36,8 @@ def get_branches(app: str, _admin: CurrentAdmin):
 @router.get(ENDPOINTS.DEPLOY.DETAIL, response_model=DeploymentResponse)
 def get_deployment(app: str, deployment_id: int, db: DbSession, _admin: CurrentAdmin):
     log = db.get(DeploymentLogDBM, deployment_id)
-    if log is None:
+    # Ids are shared by both apps, so another app's row must not be served under this app's URL.
+    if log is None or log.app != app:
         raise NotFoundError("Deployment not found.")
     return log
 

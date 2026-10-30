@@ -20,7 +20,19 @@ from app.models.data_version import DATA_VERSION_ROW_ID, DataVersionDBM
 # Writes to these tables never change anything a cached response contains: the version row itself,
 # and per-request session/rate-limit bookkeeping that would otherwise invalidate every few minutes.
 # Everything else bumps the version, so a new table is covered by default.
-IGNORED_TABLES = frozenset({DataVersionDBM.__tablename__, "active_sessions", "ip_rate_limits"})
+# Workout tables: no cached endpoint reads workout data, so remove these once one does.
+IGNORED_TABLES = frozenset({
+    DataVersionDBM.__tablename__,
+    "active_sessions",
+    "ip_rate_limits",
+    "workout_exercises",
+    "workout_plans",
+    "workout_plan_days",
+    "workout_plan_exercises",
+    "workout_settings",
+    "workout_sessions",
+    "workout_session_exercises",
+})
 
 _BUMPED_FLAG = "data_version_bumped"
 

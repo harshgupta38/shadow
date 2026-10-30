@@ -871,7 +871,8 @@ def _format_weekly_analytics(wi: dict) -> list[str]:
         lines += [
             "",
             "=== NEXT-WEEK FOCUS CANDIDATE (write focus_title and focus_rationale for exactly this) ===",
-            f"Metric: {focus['metric_label']} — now {focus['current_pct']}%, target {focus['target_pct']}%",
+            f"Metric: {focus['metric_label']} — now {focus['current_pct']}%"
+            + (f", target {focus['target_pct']}%" if focus["target_pct"] is not None else ", already at 100%"),
             f"Evidence: {focus['evidence']}",
         ]
     return lines

@@ -18,7 +18,7 @@ from datetime import date, timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.common import to_ist
+from app.common import today_ist, to_ist
 from app.models.goal import GoalDBM
 from app.models.habit import HabitDBM
 from app.models.milestone import MilestoneDBM
@@ -108,10 +108,21 @@ def _slot_for(r: DailyPlanRecordDBM) -> str | None:
     return None
 
 
-def _nice_target(current: int, wanted: int) -> int:
-    """A reachable, round-ish target strictly above the current value."""
+def _nice_target(current: int, wanted: int) -> int | None:
+    """A reachable, round-ish target strictly above the current value; None when there is no room above it."""
     target = min(100, int(round(wanted / 5.0)) * 5)
-    return target if target > current else min(100, current + 5)
+    return target if target > current else None
+
+
+def clamp_pct(value: int) -> int:
+    """Percentages written by the LLM are clamped into 0..100 rather than rejecting the whole report."""
+    return min(100, max(0, value))
+
+
+def _in_progress(r: DailyPlanRecordDBM, today: date) -> bool:
+    """A record still due on today or a later day is in progress, not missed: the planner reads a
+    due record as missed only once its day has passed. Skipped records are excused, never in progress."""
+    return not r.skipped and r.status == "due" and r.scheduled_date >= today
 
 
 def _clean_text(value: str | None, max_chars: int) -> str | None:
@@ -267,7 +278,7 @@ def _build_habits(
     return rows[:MAX_HABITS]
 
 
-def _build_priorities(cur: list[DailyPlanRecordDBM]) -> tuple[list[dict], list[str]]:
+def _build_priorities(cur: list[DailyPlanRecordDBM]) -> list[dict]:
     totals = {t: [0, 0] for t in _TIERS}  # [done, total]
     for r in cur:
         tier = _TIER_OF.get(r.priority)
@@ -276,15 +287,16 @@ def _build_priorities(cur: list[DailyPlanRecordDBM]) -> tuple[list[dict], list[s
         totals[tier][1] += 1
         if r.status == "done":
             totals[tier][0] += 1
-    tiers = [{"priority": t, "done": totals[t][0], "total": totals[t][1]} for t in _TIERS if totals[t][1] > 0]
+    return [{"priority": t, "done": totals[t][0], "total": totals[t][1]} for t in _TIERS if totals[t][1] > 0]
 
+
+def _build_top_misses(settled: list[DailyPlanRecordDBM]) -> list[str]:
     missed_highest: dict[str, int] = defaultdict(int)
-    for r in cur:
+    for r in settled:
         if r.priority == "highest" and r.status != "done":
             missed_highest[r.title] += 1
     ranked = sorted(missed_highest.items(), key=lambda kv: (-kv[1], kv[0].lower()))[:MAX_TOP_PRIORITY_MISSES]
-    misses = [f"{title} ×{n}" if n > 1 else title for title, n in ranked]
-    return tiers, misses
+    return [f"{title} ×{n}" if n > 1 else title for title, n in ranked]
 
 
 def _build_time_slots(cur: list[DailyPlanRecordDBM], week_start: date) -> tuple[list[dict], int]:
@@ -360,9 +372,16 @@ def _build_goals(
 ) -> list[dict]:
     task_ids = {r.source_id for r in cur if r.source_type == "task" and r.source_id}
     sched_ids = {r.source_id for r in cur if r.source_type == "schedule" and r.source_id}
-    task_goal = dict(db.execute(select(TaskDBM.id, TaskDBM.goal_id).where(TaskDBM.id.in_(task_ids))).all()) if task_ids else {}
+    task_goal = (
+        dict(db.execute(select(TaskDBM.id, TaskDBM.goal_id).where(TaskDBM.id.in_(task_ids), TaskDBM.user_id == user_id)).all())
+        if task_ids else {}
+    )
     sched_goal = (
-        dict(db.execute(select(ScheduledTaskDBM.id, ScheduledTaskDBM.goal_id).where(ScheduledTaskDBM.id.in_(sched_ids))).all())
+        dict(db.execute(
+            select(ScheduledTaskDBM.id, ScheduledTaskDBM.goal_id).where(
+                ScheduledTaskDBM.id.in_(sched_ids), ScheduledTaskDBM.user_id == user_id,
+            )
+        ).all())
         if sched_ids else {}
     )
 
@@ -569,7 +588,7 @@ def compute_weekly_metrics(db: Session, user_id: int, week_end: date) -> dict | 
 
     habit_ids = {r.source_id for r in rows if r.source_type == "habit" and r.source_id}
     habits = (
-        {h.id: h for h in db.scalars(select(HabitDBM).where(HabitDBM.id.in_(habit_ids))).all()}
+        {h.id: h for h in db.scalars(select(HabitDBM).where(HabitDBM.id.in_(habit_ids), HabitDBM.user_id == user_id)).all()}
         if habit_ids else {}
     )
     # Habits the user opted out of report accounting vanish from every aggregate.
@@ -581,13 +600,17 @@ def compute_weekly_metrics(db: Session, user_id: int, week_end: date) -> dict | 
     # Skipped occurrences are excused absences: they never count toward any total.
     cur = [r for r in cur_all if not r.skipped]
     prev = [r for r in prev_all if not r.skipped]
-    if not cur:
+    # Due on today or a later day is still in progress, not missed. The day bars and the tier and
+    # slot totals show the day so far; miss lists and the next-week focus use settled records only.
+    today = today_ist()
+    settled = [r for r in cur if not _in_progress(r, today)]
+    settled_all = [r for r in cur_all if not _in_progress(r, today)]
+    if not settled:
         return None
 
-    overall = _score(cur) or 0
+    overall = _score(settled) or 0
     days = _build_days(cur, prev, week_start)
-    habit_rows = _build_habits(db, user_id, cur_all, prev, week_start, week_end)
-    priorities, top_misses = _build_priorities(cur)
+    habit_rows = _build_habits(db, user_id, settled_all, prev, week_start, week_end)
     slots, unslotted = _build_time_slots(cur, week_start)
 
     prior_reports = _previous_weekly_reports(db, user_id, week_end)
@@ -603,24 +626,27 @@ def compute_weekly_metrics(db: Session, user_id: int, week_end: date) -> dict | 
         report = prior_reports.get(d)
         trend_prior.append({"week_end": d.isoformat(), "score": report.alignment_score if report else None})
 
+    # The open day's bar is left out of the focus: its score is still moving.
+    focus_days = [{**d, "score_pct": None} if week_start + timedelta(days=i) >= today else d for i, d in enumerate(days)]
     return {
         "week_end": week_end.isoformat(),
-        "overall_score": overall,
         "days": days,
         "comparison": _build_comparison(days, cur, prev),
         "prev_alignment_score": prev_report.alignment_score if prev_report else None,
         "trend_prior": trend_prior,
         "habits": habit_rows,
-        "priorities": priorities,
-        "top_priority_misses": top_misses,
+        "priorities": _build_priorities(cur),
+        "top_priority_misses": _build_top_misses(settled),
         "time_slots": slots,
         "unslotted_count": unslotted,
-        "most_missed": _build_most_missed(cur),
+        "most_missed": _build_most_missed(settled),
         "goals": _build_goals(
             db, user_id, cur, {hid: h.goal_id for hid, h in habits.items()},
             week_start, week_end, prev_goal_alignment,
         ),
-        "focus_candidate": _pick_focus(overall, days, priorities, habit_rows, slots),
+        "focus_candidate": _pick_focus(
+            overall, focus_days, _build_priorities(settled), habit_rows, _build_time_slots(settled, week_start)[0],
+        ),
     }
 
 
@@ -634,6 +660,8 @@ def finalize_weekly_insights(
 ) -> dict:
     """Merge the LLM-dependent values into the pre-computed metrics and validate the result.
     Returns the JSON-ready dict stored on ReportDBM.weekly_insights."""
+    alignment_score = clamp_pct(alignment_score)
+    goal_alignment = {gid: clamp_pct(pct) for gid, pct in goal_alignment.items()}
     candidate = metrics["focus_candidate"]
     title = _clean_text(focus_title, FOCUS_TITLE_MAX_CHARS)
     rationale = _clean_text(focus_rationale, FOCUS_RATIONALE_MAX_CHARS)

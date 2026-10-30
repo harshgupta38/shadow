@@ -68,7 +68,7 @@ class Settings(BaseSettings):
     # who got deleted, not something BackEnd_V2 itself needs to know about.
     deleted_data_db_filename: str = "deleted_data.db"
 
-    # Shared secret for BackOffice's OWN /admin/sql and /admin/database.
+    # Shared secret for BackOffice's OWN /admin/database (a whole-file download of backoffice.db).
     admin_secret: str = _INSECURE_ADMIN_SECRET
 
     @field_validator("admin_secret")
@@ -77,9 +77,8 @@ class Settings(BaseSettings):
         if not value or value == _INSECURE_ADMIN_SECRET:
             raise ValueError(
                 "ADMIN_SECRET is not set (or still the placeholder default) in .env — "
-                "refusing to start. This guards /admin/sql and /admin/database, which "
-                "can run arbitrary SQL against backoffice.db or download the whole "
-                "file; it must never be left at its code default."
+                "refusing to start. This guards /admin/database, which downloads the "
+                "whole backoffice.db file; it must never be left at its code default."
             )
         return value
 

@@ -63,7 +63,11 @@ def _current_commit_sha(app: str = "shadow", timeout: float | None = None) -> st
         return None
     if resp.status_code != 200:
         return None
-    sha = resp.json().get("stdout", "").strip()
+    try:
+        sha = resp.json().get("stdout", "").strip()
+    except (ValueError, AttributeError):
+        # Not the Control Server's JSON (e.g. a proxy page): there is no commit to report.
+        return None
     return sha or None
 
 
@@ -221,9 +225,17 @@ def _append_control_response(lines: list[str], resp: httpx.Response) -> None:
 
 def _finish(db: Session, log: DeploymentLogDBM, status: str, lines: list[str]) -> None:
     log.status = status
-    log.commit_sha = _current_commit_sha()
+    log.commit_sha = _current_commit_sha(log.app)
     log.log_output = "\n".join(lines)
     log.completed_at = _utcnow()
+    db.commit()
+
+
+def _leave_running(db: Session, log: DeploymentLogDBM, lines: list[str]) -> None:
+    """For a BackOffice job whose Control Server call failed. The Control Server may still be running
+    the restart (its git steps can outlast our client timeout), and that restart ends this process.
+    So keep the transcript, leave the row "running", and let startup reconciliation settle it."""
+    log.log_output = "\n".join(lines)
     db.commit()
 
 
@@ -264,7 +276,10 @@ def run_deploy_job(deployment_id: int, git_ref: str, app: str = "shadow") -> Non
             resp = _control_post(endpoint, body)
         except httpx.RequestError as e:
             lines.append(f"ERROR: could not reach control server: {e}")
-            _finish(db, log, "failed", lines)
+            if app == "backoffice":
+                _leave_running(db, log, lines)
+            else:
+                _finish(db, log, "failed", lines)
             return
         _append_control_response(lines, resp)
 
@@ -305,7 +320,10 @@ def run_rollback_job(deployment_id: int, commit_sha: str, app: str = "shadow") -
             resp = _control_post(f"/control/{segment}/rollback", {"commit_sha": commit_sha})
         except httpx.RequestError as e:
             lines.append(f"ERROR: could not reach control server: {e}")
-            _finish(db, log, "failed", lines)
+            if app == "backoffice":
+                _leave_running(db, log, lines)
+            else:
+                _finish(db, log, "failed", lines)
             return
         _append_control_response(lines, resp)
 

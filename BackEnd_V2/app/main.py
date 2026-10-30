@@ -98,6 +98,21 @@ def _fold_session_sets_into_exercises(conn) -> None:
         raise
 
 
+def _add_column_if_missing(conn, table: str, column: str, ddl: str) -> None:
+    """Runs an ADD COLUMN unless the column is already there. Workers start together, so another one may add it first."""
+    from sqlalchemy import text as _sql_text  # pyright: ignore[reportMissingImports]
+
+    existing = {row[1] for row in conn.execute(_sql_text(f"PRAGMA table_info({table})")).fetchall()}
+    if column in existing:
+        return
+    try:
+        conn.execute(_sql_text(ddl))
+        conn.commit()
+    except OperationalError as exc:  # another worker added the column first
+        if "duplicate column name" not in str(exc):
+            raise
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     if not settings.smtp_host or not settings.smtp_from_email:
@@ -109,34 +124,24 @@ async def lifespan(_app: FastAPI):
     # Add columns that didn't exist when the DB was first created.
     from sqlalchemy import text as _sql_text  # pyright: ignore[reportMissingImports]
     with engine.connect() as _conn:
-        _cols = {row[1] for row in _conn.execute(_sql_text("PRAGMA table_info(habits)")).fetchall()}
-        if "streak_tolerance_pct" not in _cols:
-            _conn.execute(_sql_text("ALTER TABLE habits ADD COLUMN streak_tolerance_pct INTEGER NOT NULL DEFAULT 100"))
-            _conn.commit()
-        _exercise_cols = {row[1] for row in _conn.execute(_sql_text("PRAGMA table_info(workout_exercises)")).fetchall()}
-        if "kind" not in _exercise_cols:
-            _conn.execute(
-                _sql_text("ALTER TABLE workout_exercises ADD COLUMN kind VARCHAR(16) NOT NULL DEFAULT 'strength'")
-            )
-            _conn.commit()
-        if "measure" not in _exercise_cols:
-            _conn.execute(
-                _sql_text("ALTER TABLE workout_exercises ADD COLUMN measure VARCHAR(12) NOT NULL DEFAULT 'reps'")
-            )
-            _conn.commit()
-        _settings_cols = {row[1] for row in _conn.execute(_sql_text("PRAGMA table_info(workout_settings)")).fetchall()}
-        if "active_plan_started_on" not in _settings_cols:
-            try:
-                _conn.execute(_sql_text("ALTER TABLE workout_settings ADD COLUMN active_plan_started_on DATE"))
-                _conn.commit()
-            except OperationalError as exc:  # another worker added the column first
-                if "duplicate column name" not in str(exc):
-                    raise
+        _add_column_if_missing(
+            _conn, "habits", "streak_tolerance_pct",
+            "ALTER TABLE habits ADD COLUMN streak_tolerance_pct INTEGER NOT NULL DEFAULT 100",
+        )
+        _add_column_if_missing(
+            _conn, "workout_exercises", "kind",
+            "ALTER TABLE workout_exercises ADD COLUMN kind VARCHAR(16) NOT NULL DEFAULT 'strength'",
+        )
+        _add_column_if_missing(
+            _conn, "workout_exercises", "measure",
+            "ALTER TABLE workout_exercises ADD COLUMN measure VARCHAR(12) NOT NULL DEFAULT 'reps'",
+        )
+        _add_column_if_missing(
+            _conn, "workout_settings", "active_plan_started_on",
+            "ALTER TABLE workout_settings ADD COLUMN active_plan_started_on DATE",
+        )
         _fold_session_sets_into_exercises(_conn)
-        _report_cols = {row[1] for row in _conn.execute(_sql_text("PRAGMA table_info(reports)")).fetchall()}
-        if "weekly_insights" not in _report_cols:
-            _conn.execute(_sql_text("ALTER TABLE reports ADD COLUMN weekly_insights JSON"))
-            _conn.commit()
+        _add_column_if_missing(_conn, "reports", "weekly_insights", "ALTER TABLE reports ADD COLUMN weekly_insights JSON")
     with SessionLocal() as db:
         try:
             workout_seed_service.sync_seed(db)

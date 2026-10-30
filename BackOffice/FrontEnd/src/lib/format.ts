@@ -11,14 +11,14 @@ export function formatFileSize(bytes: number): string {
 }
 
 // Every time BackOffice shows is in India Standard Time, whatever the browser's own zone is.
-export const IST_TIME_ZONE = "Asia/Kolkata";
+const IST_TIME_ZONE = "Asia/Kolkata";
 
 // A time with no zone ("2026-10-06T16:44:58", or SQLite's "2026-10-06 16:44:58") would be read by
 // `new Date` as the browser's LOCAL time. BackOffice only ever stores UTC, so treat it as UTC.
 // (The API marks its times explicitly; this keeps one that slips through from being shifted.)
 const HAS_ZONE = /(Z|[+-]\d{2}:?\d{2})$/i;
 
-export function parseServerDate(iso: string): Date {
+function parseServerDate(iso: string): Date {
   const text = iso.trim().replace(" ", "T");
   return new Date(HAS_ZONE.test(text) ? text : `${text}Z`);
 }

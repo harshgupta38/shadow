@@ -14,8 +14,8 @@ class RestartLogDBM(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     trigger: Mapped[str] = mapped_column(String(32), default="manual", nullable=False)
     # Which co-located app this restart was against — "shadow" or
-    # "backoffice". Added via ensure_columns (see db/session.py) for
-    # existing rows; new rows always set it explicitly.
+    # "backoffice". Rows written before the column existed read as the "shadow"
+    # default; new rows always set it explicitly.
     app: Mapped[str] = mapped_column(String(16), default="shadow", server_default="shadow", nullable=False)
     initiated_by: Mapped[str] = mapped_column(String(80), nullable=False)
     status: Mapped[str] = mapped_column(String(16), default="running", nullable=False)

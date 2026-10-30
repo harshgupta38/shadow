@@ -1,17 +1,16 @@
 """BackOffice's own public system endpoints — mirrors BackEnd_V2's
-app/api/system.py (health, server log, admin database/sql).
+app/api/system.py (health, server log, admin database).
 
 Deploys and restarts are handled by the Control Server (Server/) running on
 port 9000, not by endpoints inside this API.
 """
 
 import sqlite3
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 
 from fastapi import APIRouter, Header, HTTPException
 from fastapi.responses import FileResponse, PlainTextResponse
-from pydantic import BaseModel
 from starlette.background import BackgroundTask
 
 from app.core.config import settings
@@ -25,10 +24,6 @@ router = APIRouter()
 # /health above is what the Control Server probes; the frontend's client is based at /v2, so it
 # can only reach the prefixed one.
 prefixed_health_router = APIRouter()
-
-
-class SqlRequest(BaseModel):
-    query: str
 
 
 @router.get(ENDPOINTS.SYSTEM.ROOT, tags=["health"])
@@ -84,30 +79,3 @@ def download_database(x_admin_secret: str = Header(...)):
         filename="backoffice.db",
         background=BackgroundTask(dest.unlink, missing_ok=True),
     )
-
-
-@router.post(ENDPOINTS.SYSTEM.ADMIN_SQL, tags=["admin"])
-def run_sql(body: SqlRequest, x_admin_secret: str = Header(...)):
-    if x_admin_secret != settings.admin_secret:
-        raise HTTPException(status_code=403, detail="Forbidden.")
-
-    conn = sqlite3.connect("backoffice.db")
-    conn.row_factory = sqlite3.Row
-    cur = conn.cursor()
-    try:
-        cur.execute(body.query)
-        conn.commit()
-        rows = cur.fetchall()
-        columns = [d[0] for d in cur.description] if cur.description else []
-        return {
-            "rowcount": cur.rowcount,
-            "columns": columns,
-            "rows": [dict(r) for r in rows],
-        }
-    except Exception as e:
-        conn.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
-    finally:
-        conn.close()
-
-

@@ -683,10 +683,8 @@ def _build_weekly_block(wi: WeeklyInsightsResponse | None) -> str:
         for i, d in enumerate(wi.days)
     )
     insight = ""
-    if best is not None:
-        insight = f"Strongest on <b>{WEEKDAYS_LONG[best[0]]}</b> ({best[1]}%)"
-        if contrast and worst is not None:
-            insight += f" &middot; softest on <b>{WEEKDAYS_LONG[worst[0]]}</b> ({worst[1]}%)"
+    if contrast:  # ties and single-day weeks have no strongest or softest day to name
+        insight = f"Strongest on <b>{WEEKDAYS_LONG[best[0]]}</b> ({best[1]}%) &middot; softest on <b>{WEEKDAYS_LONG[worst[0]]}</b> ({worst[1]}%)"
 
     rows = ""
     for m in wi.comparison:
@@ -700,6 +698,7 @@ def _build_weekly_block(wi: WeeklyInsightsResponse | None) -> str:
         )
 
     focus = wi.focus
+    target = f' to <b style="color:#111827;">{focus.target_pct}%</b>' if focus.target_pct is not None else ""
     return (
         '<tr><td style="padding:26px 36px 4px;">'
         '<div style="font-size:11px;font-weight:700;color:#111827;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px;">Week in depth</div>'
@@ -715,7 +714,7 @@ def _build_weekly_block(wi: WeeklyInsightsResponse | None) -> str:
         '<div style="font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;">Try this next week</div>'
         f'<div style="margin-top:2px;font-size:14px;font-weight:800;color:#111827;">{_e(focus.title)}</div>'
         f'<div style="margin-top:3px;font-size:12px;color:#4b5563;line-height:1.5;">{_e(focus.rationale)}</div>'
-        f'<div style="margin-top:6px;font-size:11px;color:#6b7280;">{_e(focus.metric_label)}: <b style="color:#111827;">{focus.current_pct}%</b> to <b style="color:#111827;">{focus.target_pct}%</b></div>'
+        f'<div style="margin-top:6px;font-size:11px;color:#6b7280;">{_e(focus.metric_label)}: <b style="color:#111827;">{focus.current_pct}%</b>{target}</div>'
         "</div></td></tr>"
         "</table></td></tr>"
     )

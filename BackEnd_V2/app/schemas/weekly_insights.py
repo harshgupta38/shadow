@@ -84,7 +84,7 @@ class WeeklyFocusResponse(BaseModel):
     rationale: str
     metric_label: str
     current_pct: int
-    target_pct: int
+    target_pct: int | None  # None when the current value is already 100 and there is nothing higher to aim for
 
 
 class WeeklyInsightsResponse(BaseModel):

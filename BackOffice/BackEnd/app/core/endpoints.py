@@ -3,7 +3,6 @@ class Endpoints:
         ROOT = "/"
         HEALTH = "/health"
         SERVER_LOG = "/server/log"
-        ADMIN_SQL = "/admin/sql"
         ADMIN_DATABASE = "/admin/database"
 
     class AUTH:

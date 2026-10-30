@@ -72,6 +72,8 @@ export function DeployPage({ app }: { app: AppTarget }) {
   const logBodyRef = useRef<HTMLDivElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const revealRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // The job the log panel shows. A poll response for any other job arrived after the panel moved on.
+  const shownJobIdRef = useRef<number | null>(null);
 
   // Which commits have been live before, matched by hash against the deployment log: the newest
   // successful deployment that ended on each one. A record's commit_sha is what HEAD was once it
@@ -107,7 +109,7 @@ export function DeployPage({ app }: { app: AppTarget }) {
 
   // Opens the New Deployment dialog — blank for a fresh deployment, or
   // pre-filled for "Redeploy" (reuses a past deployment's ref/label/
-  // description/target) and "Deploy" on a specific commit (just its SHA).
+  // description) and "Deploy" on a specific commit (just its SHA).
   function openDeployModal(prefill?: DeployPrefill) {
     setFormRef(prefill?.git_ref ?? "");
     setFormLabel(prefill?.label ?? "");
@@ -207,6 +209,7 @@ export function DeployPage({ app }: { app: AppTarget }) {
 
   function pollJob(id: number) {
     if (pollRef.current) clearInterval(pollRef.current);
+    shownJobIdRef.current = id;
     setWaitNote(null);
 
     // Deploying BackOffice restarts the very process that tracks the job, so it can't report its
@@ -221,6 +224,12 @@ export function DeployPage({ app }: { app: AppTarget }) {
     pollRef.current = setInterval(async () => {
       try {
         const record = await api.deploy.detail(app, id);
+        if (shownJobIdRef.current !== id) {
+          // Show logs moved the panel to another job while this was in flight, so the panel stays as it
+          // is. The list still needs the outcome of a job that has finished.
+          if (record.status !== "running") loadAll();
+          return;
+        }
         const cameBack = watch.succeeded();
         setWaitNote(null);
         setActiveJob(record);
@@ -238,7 +247,7 @@ export function DeployPage({ app }: { app: AppTarget }) {
         }
       } catch (err) {
         // Transient hiccup — keep polling. For BackOffice itself, an unreachable API is the restart.
-        if (!watchesSelf || !isUnreachable(err)) return;
+        if (shownJobIdRef.current !== id || !watchesSelf || !isUnreachable(err)) return;
         if (watch.failed() === "expired") {
           clearInterval(pollRef.current!);
           pollRef.current = null;
@@ -265,6 +274,7 @@ export function DeployPage({ app }: { app: AppTarget }) {
       clearInterval(revealRef.current);
       revealRef.current = null;
     }
+    shownJobIdRef.current = d.id;
     setWaitNote(null);
     setActiveJob(d);
     if (d.status === "running") {
@@ -351,7 +361,7 @@ export function DeployPage({ app }: { app: AppTarget }) {
                   </span>}
             </div>
             {!jobRunning && (
-              <button type="button" className="btn btn-ghost btn-icon" onClick={() => setActiveJob(null)}>
+              <button type="button" className="btn btn-ghost btn-icon" onClick={() => { shownJobIdRef.current = null; setActiveJob(null); }}>
                 <XLg size={13} />
               </button>
             )}

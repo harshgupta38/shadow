@@ -25,8 +25,8 @@ class DeploymentLogDBM(Base):
     description: Mapped[str] = mapped_column(Text, default="", nullable=False)
 
     # Which co-located app this deploy/rollback was against — "shadow" or
-    # "backoffice". Added via ensure_columns (see db/session.py) for
-    # existing rows; new rows always set it explicitly.
+    # "backoffice". Rows written before the column existed read as the "shadow"
+    # default; new rows always set it explicitly.
     app: Mapped[str] = mapped_column(String(16), default="shadow", server_default="shadow", nullable=False)
 
     kind: Mapped[str] = mapped_column(String(16), nullable=False)  # "deploy" | "rollback"

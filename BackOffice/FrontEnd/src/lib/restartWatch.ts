@@ -12,9 +12,9 @@ import { formatTime } from "@/lib/format";
 
 // How long BackOffice may stay unreachable before the restart is assumed to have failed.
 // Matches RECOVERY_TIMEOUT_SECONDS in the backend's services/self_restart.py.
-export const RESTART_RECOVERY_TIMEOUT_MS = 30_000;
+const RESTART_RECOVERY_TIMEOUT_MS = 30_000;
 
-export type OutageState = "waiting" | "expired";
+type OutageState = "waiting" | "expired";
 
 /**
  * True for a failure that means BackOffice can't be reached: no response at all (the API client
@@ -76,6 +76,11 @@ export function describeRestart(before: InstanceHealth | null, after: InstanceHe
     return "BackOffice answered again, but it is the same process as before — it did not restart.";
   }
   const startedAt = `${formatTime(after.started_at)} IST`;
-  const previous = before ? ` (previous process ${before.instance_id.slice(0, 8)})` : "";
+  if (before === null) {
+    // The process it replaced is unknown, so the new one cannot be shown to be a restart of it.
+    return `BackOffice is back as a new process ${after.instance_id.slice(0, 8)}, started at ${startedAt}. `
+      + "The process it replaced was not recorded, so the restart is unconfirmed.";
+  }
+  const previous = ` (previous process ${before.instance_id.slice(0, 8)})`;
   return `Restart confirmed — BackOffice is back as a new process ${after.instance_id.slice(0, 8)}, started at ${startedAt}${previous}.`;
 }

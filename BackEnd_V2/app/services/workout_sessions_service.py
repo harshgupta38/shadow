@@ -65,7 +65,7 @@ def _session_detail(db: Session, session: WorkoutSessionDBM, now: datetime) -> W
             before=as_utc(session.started_at),
         )
         previous_sets = (
-            [SessionSetResponse(reps=s["reps"], weight_kg=s["weight_kg"], done=True) for s in previous[0].sets if s["done"]]
+            [SessionSetResponse(reps=s["reps"], seconds=s.get("seconds"), weight_kg=s["weight_kg"], done=True) for s in previous[0].sets if s["done"]]
             if previous
             else []
         )
@@ -77,7 +77,7 @@ def _session_detail(db: Session, session: WorkoutSessionDBM, now: datetime) -> W
                 target_reps=entry.target_reps,
                 rest_seconds=entry.rest_seconds,
                 note=entry.note,
-                sets=[SessionSetResponse(reps=s["reps"], weight_kg=s["weight_kg"], done=s["done"]) for s in entry.sets],
+                sets=[SessionSetResponse(reps=s["reps"], seconds=s.get("seconds"), weight_kg=s["weight_kg"], done=s["done"]) for s in entry.sets],
                 previous_sets=previous_sets,
             )
         )
@@ -87,7 +87,6 @@ def _session_detail(db: Session, session: WorkoutSessionDBM, now: datetime) -> W
         plan_id=session.plan_id,
         plan_day_id=session.plan_day_id,
         started_at=as_utc(session.started_at),
-        finished_at=as_utc(session.finished_at) if session.finished_at else None,
         note=session.note,
         exercises=exercises,
     )
@@ -176,7 +175,7 @@ def _apply_save(db: Session, session: WorkoutSessionDBM, data: SessionSaveReques
         entry.exercise = exercise
         entry.position = position
         entry.note = item.note
-        entry.sets = [{"reps": s.reps, "weight_kg": s.weight_kg, "done": s.done} for s in item.sets]
+        entry.sets = [{"reps": s.reps, "seconds": s.seconds, "weight_kg": s.weight_kg, "done": s.done} for s in item.sets]
         entries.append(entry)
 
     session.exercises = entries  # entries that were dropped from the list are deleted with it
@@ -271,7 +270,7 @@ def start_session(db: Session, user: UserDBM, data: SessionStartRequest) -> Work
                     target_reps=planned.reps,
                     rest_seconds=planned.rest_seconds,
                     note=planned.note,
-                    sets=[{"reps": None, "weight_kg": planned.weight_kg, "done": False} for _ in range(planned.sets)],
+                    sets=[{"reps": None, "seconds": None, "weight_kg": planned.weight_kg, "done": False} for _ in range(planned.sets)],
                 )
             )
     _refresh_totals(session)

@@ -12,6 +12,7 @@ Level = Literal["beginner", "intermediate", "advanced"]
 Goal = Literal["build_muscle", "lose_fat", "strength", "endurance", "general_fitness"]
 Mechanic = Literal["compound", "isolation"]
 ExerciseKind = Literal["strength", "cardio", "warmup"]
+ExerciseMeasure = Literal["minutes", "seconds", "reps"]
 PlanSource = Literal["predefined", "custom"]
 SessionStatus = Literal["in_progress", "completed"]
 WeekStatus = Literal["done", "today", "upcoming", "missed", "rest"]
@@ -92,6 +93,7 @@ class SessionStartRequest(BaseModel):
 
 class SessionSetInput(BaseModel):
     reps: int | None = Field(default=None, ge=0, le=1000)
+    seconds: int | None = Field(default=None, ge=0, le=3600)
     weight_kg: float | None = Field(default=None, ge=0, le=1000)
     done: bool = False
 
@@ -121,6 +123,7 @@ class ExerciseSummaryResponse(BaseModel):
     level: Level
     mechanic: Mechanic
     kind: ExerciseKind
+    measure: ExerciseMeasure
     default_sets: int
     default_reps: str
     default_rest_seconds: int
@@ -130,6 +133,7 @@ class ExercisePerformanceResponse(BaseModel):
     date: date
     weight_kg: float | None
     reps: int | None
+    seconds: int | None
     sets: int
 
 
@@ -190,6 +194,7 @@ class WorkoutPlanDetailResponse(WorkoutPlanSummaryResponse):
 
 class SessionSetResponse(BaseModel):
     reps: int | None
+    seconds: int | None = None
     weight_kg: float | None
     done: bool
 
@@ -222,7 +227,6 @@ class WorkoutSessionDetailResponse(WorkoutSessionSummaryResponse):
     plan_id: int | None
     plan_day_id: int | None
     started_at: datetime
-    finished_at: datetime | None
     note: str | None
     exercises: list[SessionExerciseResponse]
 

@@ -251,7 +251,7 @@ export function PlanDetailPage() {
                         <MuscleChips primary={pe.exercise.primary_muscles} secondary={pe.exercise.secondary_muscles} max={3} />
                       </span>
                       <span className="wk-pd-ex-dose">
-                        <strong>{formatDose(pe.exercise.kind, pe.sets, pe.reps)}</strong>
+                        <strong>{formatDose(pe.exercise.measure, pe.sets, pe.reps)}</strong>
                         <small>
                           rest {formatRest(pe.rest_seconds)}
                           {pe.weight_kg !== null ? ` · ${pe.weight_kg} kg` : ""}

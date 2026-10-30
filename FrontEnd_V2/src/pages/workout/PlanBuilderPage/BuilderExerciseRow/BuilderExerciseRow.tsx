@@ -4,7 +4,16 @@ import { GripVertical, Trash3 } from "react-bootstrap-icons";
 
 import { ExerciseThumb } from "@/pages/workout/ExerciseThumb/ExerciseThumb";
 import { MuscleChips } from "@/pages/workout/MuscleMap/MuscleMap";
-import { MAX_CARDIO_MINUTES, MAX_SETS, REST_OPTIONS, minutesOf, type DraftExercise } from "@/pages/workout/PlanBuilderPage/builderState";
+import {
+  MAX_CARDIO_MINUTES,
+  MAX_SECONDS_PER_SET,
+  MAX_SETS,
+  MIN_SECONDS_PER_SET,
+  REST_OPTIONS,
+  minutesOf,
+  secondsOf,
+  type DraftExercise,
+} from "@/pages/workout/PlanBuilderPage/builderState";
 import { formatRest } from "@/pages/workout/WorkoutPage.constants";
 import "./BuilderExerciseRow.scss";
 
@@ -18,6 +27,7 @@ interface BuilderExerciseRowProps {
 
 export function BuilderExerciseRow({ item, index, onChange, onRemove, onOpen }: BuilderExerciseRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.key });
+  const { measure } = item.exercise;
 
   const restOptions = REST_OPTIONS.includes(item.rest_seconds) ? REST_OPTIONS : [...REST_OPTIONS, item.rest_seconds].sort((a, b) => a - b);
 
@@ -49,7 +59,7 @@ export function BuilderExerciseRow({ item, index, onChange, onRemove, onOpen }: 
         </span>
       </button>
 
-      {item.exercise.kind === "cardio" ? (
+      {measure === "minutes" ? (
         <div className="wk-brow-fields is-single">
           <label>
             <span>Minutes</span>
@@ -65,7 +75,7 @@ export function BuilderExerciseRow({ item, index, onChange, onRemove, onOpen }: 
           </label>
         </div>
       ) : (
-        <div className="wk-brow-fields">
+        <div className={`wk-brow-fields${measure === "seconds" ? " is-three" : ""}`}>
           <label>
             <span>Sets</span>
             <input
@@ -77,34 +87,52 @@ export function BuilderExerciseRow({ item, index, onChange, onRemove, onOpen }: 
               onChange={(e) => onChange({ sets: Number(e.target.value) })}
             />
           </label>
-          <label>
-            <span>Reps</span>
-            <input
-              type="text"
-              maxLength={12}
-              placeholder="8-12"
-              value={item.reps}
-              onChange={(e) => onChange({ reps: e.target.value })}
-            />
-          </label>
+          {measure === "seconds" ? (
+            <label>
+              <span>Seconds</span>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={MIN_SECONDS_PER_SET}
+                max={MAX_SECONDS_PER_SET}
+                step={1}
+                placeholder="30"
+                value={secondsOf(item.reps) ?? ""}
+                onChange={(e) => onChange({ reps: e.target.value === "" ? "" : `${Math.round(Number(e.target.value))} sec` })}
+              />
+            </label>
+          ) : (
+            <label>
+              <span>Reps</span>
+              <input
+                type="text"
+                maxLength={12}
+                placeholder="8-12"
+                value={item.reps}
+                onChange={(e) => onChange({ reps: e.target.value })}
+              />
+            </label>
+          )}
           <label>
             <span>Rest</span>
             <select value={item.rest_seconds} onChange={(e) => onChange({ rest_seconds: Number(e.target.value) })}>
               {restOptions.map((s) => <option key={s} value={s}>{formatRest(s)}</option>)}
             </select>
           </label>
-          <label>
-            <span>kg <em>(optional)</em></span>
-            <input
-              type="number"
-              inputMode="decimal"
-              min={0}
-              step={0.5}
-              placeholder="–"
-              value={item.weight_kg ?? ""}
-              onChange={(e) => onChange({ weight_kg: e.target.value === "" ? null : Math.max(0, Number(e.target.value)) })}
-            />
-          </label>
+          {measure === "reps" && (
+            <label>
+              <span>kg <em>(optional)</em></span>
+              <input
+                type="number"
+                inputMode="decimal"
+                min={0}
+                step={0.5}
+                placeholder="–"
+                value={item.weight_kg ?? ""}
+                onChange={(e) => onChange({ weight_kg: e.target.value === "" ? null : Math.max(0, Number(e.target.value)) })}
+              />
+            </label>
+          )}
         </div>
       )}
 

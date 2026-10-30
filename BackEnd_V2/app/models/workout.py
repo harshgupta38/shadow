@@ -22,6 +22,7 @@ EQUIPMENT_VALUES = ("bodyweight", "dumbbell", "barbell", "machine", "cable", "ke
 LEVEL_VALUES = ("beginner", "intermediate", "advanced")
 MECHANIC_VALUES = ("compound", "isolation")
 KIND_VALUES = ("strength", "cardio", "warmup")
+MEASURE_VALUES = ("minutes", "seconds", "reps")  # how an exercise is counted: one block of time, sets of time, or sets of reps
 GOAL_VALUES = ("build_muscle", "lose_fat", "strength", "endurance", "general_fitness")
 SESSION_STATUS_VALUES = ("in_progress", "completed")
 
@@ -39,6 +40,7 @@ class WorkoutExerciseDBM(Base):
         CheckConstraint(_one_of("level", LEVEL_VALUES), name="ck_workout_exercises_level"),
         CheckConstraint(_one_of("mechanic", MECHANIC_VALUES), name="ck_workout_exercises_mechanic"),
         CheckConstraint(_one_of("kind", KIND_VALUES), name="ck_workout_exercises_kind"),
+        CheckConstraint(_one_of("measure", MEASURE_VALUES), name="ck_workout_exercises_measure"),
         CheckConstraint("default_sets BETWEEN 1 AND 20", name="ck_workout_exercises_default_sets"),
         CheckConstraint("default_rest_seconds BETWEEN 0 AND 900", name="ck_workout_exercises_default_rest"),
     )
@@ -47,6 +49,7 @@ class WorkoutExerciseDBM(Base):
     slug: Mapped[str] = mapped_column(String(80), unique=True, nullable=False)
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     kind: Mapped[str] = mapped_column(String(16), nullable=False, default="strength")
+    measure: Mapped[str] = mapped_column(String(12), nullable=False, default="reps")
     equipment: Mapped[str] = mapped_column(String(16), nullable=False)
     level: Mapped[str] = mapped_column(String(16), nullable=False)
     mechanic: Mapped[str] = mapped_column(String(16), nullable=False)

@@ -132,6 +132,12 @@
   @media (max-width: 760px) { grid-template-columns: 5.2rem; justify-content: end; }
 }
 
+.wk-brow-fields.is-three {
+  grid-template-columns: 4.2rem 5.2rem 5.4rem;
+
+  @media (max-width: 760px) { grid-template-columns: 1fr 1fr 1fr; }
+}
+
 .wk-brow-remove {
   display: grid;
   place-items: center;

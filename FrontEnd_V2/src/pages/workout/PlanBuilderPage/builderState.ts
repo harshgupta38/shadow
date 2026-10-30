@@ -38,7 +38,10 @@ export const MAX_NAME = 80;
 export const MAX_DESCRIPTION = 500;
 export const MAX_SETS = 20;
 export const MAX_CARDIO_MINUTES = 240;
+export const MIN_SECONDS_PER_SET = 5;
+export const MAX_SECONDS_PER_SET = 600;
 const MAX_REPS_TEXT = 12;
+const TIMED_TEXT = /\d\s*(min|sec)\b/i; // a time, which a counted-reps row must not carry
 
 let keyCounter = 0;
 const nextKey = () => `x${++keyCounter}`;
@@ -75,25 +78,30 @@ export function draftFromPlan(plan: WorkoutPlanDetail): PlanDraft {
   };
 }
 
-/** The minutes in a cardio target such as "20 min"; null for anything else. */
+/** The minutes in a timed block such as "20 min"; null for anything else. */
 export function minutesOf(reps: string): number | null {
   const match = reps.trim().match(/^(\d+)\s*min$/i);
   return match ? Number(match[1]) : null;
 }
 
-/** Sensible starting numbers: heavy compound lifts get fewer reps and more rest than isolation work. */
+/** The seconds per set in a timed target such as "30 sec"; null for anything else. */
+export function secondsOf(reps: string): number | null {
+  const match = reps.trim().match(/^(\d+)\s*sec$/i);
+  return match ? Number(match[1]) : null;
+}
+
+/** Starting numbers come from the library: one timed block for minutes, the library's sets, time and rest otherwise. */
 export function newDraftExercise(exercise: ExerciseSummary): DraftExercise {
-  if (exercise.kind === "cardio") {
-    // Cardio is counted in minutes: one timed block, with no rest and no weight.
+  if (exercise.measure === "minutes") {
+    // One timed block, with no rest and no weight.
     return { key: nextKey(), exercise, sets: 1, reps: exercise.default_reps, rest_seconds: 0, weight_kg: null, note: null };
   }
-  const compound = exercise.mechanic === "compound";
   return {
     key: nextKey(),
     exercise,
-    sets: compound ? 4 : 3,
-    reps: compound ? "6-10" : "10-15",
-    rest_seconds: compound ? 120 : 60,
+    sets: exercise.default_sets,
+    reps: exercise.default_reps,
+    rest_seconds: exercise.default_rest_seconds,
     weight_kg: null,
     note: null,
   };
@@ -114,11 +122,11 @@ export function toSaveRequest(draft: PlanDraft): WorkoutPlanSaveRequest {
       name: d.name.trim(),
       exercises: d.exercises.map((e) => ({
         exercise_id: e.exercise.id,
-        // Cardio is saved as one timed block, whatever the row held before.
-        sets: e.exercise.kind === "cardio" ? 1 : e.sets,
+        // A timed block is saved as one set with no rest; only counted reps carry weight.
+        sets: e.exercise.measure === "minutes" ? 1 : e.sets,
         reps: e.reps.trim(),
-        rest_seconds: e.exercise.kind === "cardio" ? 0 : e.rest_seconds,
-        weight_kg: e.exercise.kind === "cardio" ? null : e.weight_kg,
+        rest_seconds: e.exercise.measure === "minutes" ? 0 : e.rest_seconds,
+        weight_kg: e.exercise.measure === "reps" ? e.weight_kg : null,
         note: e.note,
       })),
     })),
@@ -136,7 +144,7 @@ export function validateDraft(draft: PlanDraft): string[] {
     if (!day.name.trim()) problems.push(`${label} needs a name.`);
     if (day.exercises.length === 0) problems.push(`${label} has no exercises yet.`);
     for (const e of day.exercises) {
-      if (e.exercise.kind === "cardio") {
+      if (e.exercise.measure === "minutes") {
         const minutes = minutesOf(e.reps);
         if (minutes === null || minutes < 1 || minutes > MAX_CARDIO_MINUTES) {
           problems.push(`${label}: ${e.exercise.name} needs a time between 1 and ${MAX_CARDIO_MINUTES} minutes.`);
@@ -146,7 +154,12 @@ export function validateDraft(draft: PlanDraft): string[] {
       if (!Number.isInteger(e.sets) || e.sets < 1 || e.sets > MAX_SETS) {
         problems.push(`${label}: ${e.exercise.name} needs between 1 and ${MAX_SETS} sets.`);
       }
-      if (!e.reps.trim() || e.reps.trim().length > MAX_REPS_TEXT) {
+      if (e.exercise.measure === "seconds") {
+        const seconds = secondsOf(e.reps);
+        if (seconds === null || seconds < MIN_SECONDS_PER_SET || seconds > MAX_SECONDS_PER_SET) {
+          problems.push(`${label}: ${e.exercise.name} needs a time per set between ${MIN_SECONDS_PER_SET} and ${MAX_SECONDS_PER_SET} seconds.`);
+        }
+      } else if (!e.reps.trim() || e.reps.trim().length > MAX_REPS_TEXT || TIMED_TEXT.test(e.reps)) {
         problems.push(`${label}: ${e.exercise.name} needs a rep target such as 8-12.`);
       }
     }

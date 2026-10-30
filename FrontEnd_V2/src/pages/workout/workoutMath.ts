@@ -45,12 +45,12 @@ export function setsByMuscle(items: HasVolume[]): MuscleSets[] {
 
 const SECONDS_PER_SET = 45;
 const SETUP_MINUTES = 5;
-const TIMED_REPS = /(\d+)\s*min\b/;
+const TIMED_REPS = /(\d+)\s*(min|sec)\b/;
 
-// Timed reps such as "20 min" say how long one set takes; anything else gets the usual allowance.
+// A timed dose such as "20 min" or "30 sec" says how long one set takes; anything else gets the usual allowance.
 function secondsPerSet(reps: string): number {
   const match = TIMED_REPS.exec(reps);
-  return match ? Number(match[1]) * 60 : SECONDS_PER_SET;
+  return match ? Number(match[1]) * (match[2] === "min" ? 60 : 1) : SECONDS_PER_SET;
 }
 
 /** Rough session length: time under tension plus rest for every set, plus a few minutes of setup. */

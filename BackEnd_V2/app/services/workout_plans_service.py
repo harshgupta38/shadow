@@ -6,7 +6,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.common import today_ist
-from app.common.workout import SECONDARY_CREDIT, estimate_minutes
+from app.common.workout import SECONDARY_CREDIT, TIMED_REPS, estimate_minutes, timed_amount
 from app.core.exceptions import ForbiddenError, NotFoundError, ValidationError
 from app.models.user import UserDBM
 from app.models.workout import (
@@ -19,6 +19,7 @@ from app.models.workout import (
 from app.schemas.workout import (
     PlanDayInput,
     PlanDayResponse,
+    PlanExerciseInput,
     PlanExerciseResponse,
     PlanSource,
     WorkoutPlanDetailResponse,
@@ -30,6 +31,9 @@ from app.services.workout_library_service import exercise_summary
 _PLAN_NAME_MAX = 80
 _COPY_SUFFIX = " (copy)"
 _TOP_MUSCLE_COUNT = 6
+_MAX_MINUTES = 240
+_MIN_SECONDS = 5
+_MAX_SECONDS = 600
 
 
 def _plan_query():
@@ -143,10 +147,35 @@ def plan_detail(plan: WorkoutPlanDBM, active_id: int | None) -> WorkoutPlanDetai
     )
 
 
+def _dose_error(message: str) -> ValidationError:
+    return ValidationError(message, errors={"days": message})
+
+
+def _dose(exercise: WorkoutExerciseDBM, entry: PlanExerciseInput) -> dict:
+    """The stored dose for one plan entry, checked against how the exercise is counted."""
+    if exercise.measure == "minutes":
+        minutes = timed_amount(entry.reps, "min")
+        if minutes is None or not 1 <= minutes <= _MAX_MINUTES:
+            raise _dose_error(
+                f"{exercise.name} is counted in minutes. Enter a time from 1 to {_MAX_MINUTES} minutes, such as 20 min."
+            )
+        return {"sets": 1, "reps": f"{minutes} min", "rest_seconds": 0, "weight_kg": None}
+    if exercise.measure == "seconds":
+        seconds = timed_amount(entry.reps, "sec")
+        if seconds is None or not _MIN_SECONDS <= seconds <= _MAX_SECONDS:
+            raise _dose_error(
+                f"{exercise.name} is counted in seconds per set. Enter a time from {_MIN_SECONDS} to {_MAX_SECONDS} seconds, such as 30 sec."
+            )
+        return {"sets": entry.sets, "reps": f"{seconds} sec", "rest_seconds": entry.rest_seconds, "weight_kg": None}
+    if TIMED_REPS.search(entry.reps):
+        raise _dose_error(f"{exercise.name} is counted in reps. Enter a rep target such as 8-12.")
+    return {"sets": entry.sets, "reps": entry.reps, "rest_seconds": entry.rest_seconds, "weight_kg": entry.weight_kg}
+
+
 def _build_days(db: Session, days: list[PlanDayInput]) -> list[WorkoutPlanDayDBM]:
     wanted = {entry.exercise_id for day in days for entry in day.exercises}
-    known = set(db.scalars(select(WorkoutExerciseDBM.id).where(WorkoutExerciseDBM.id.in_(wanted))).all())
-    if wanted - known:
+    library = {row.id: row for row in db.scalars(select(WorkoutExerciseDBM).where(WorkoutExerciseDBM.id.in_(wanted))).all()}
+    if wanted - library.keys():
         message = "Some exercises are no longer in the library. Remove them and try again."
         raise ValidationError(message, errors={"days": message})
 
@@ -158,10 +187,7 @@ def _build_days(db: Session, days: list[PlanDayInput]) -> list[WorkoutPlanDayDBM
                 WorkoutPlanExerciseDBM(
                     position=position,
                     exercise_id=entry.exercise_id,
-                    sets=entry.sets,
-                    reps=entry.reps,
-                    rest_seconds=entry.rest_seconds,
-                    weight_kg=entry.weight_kg,
+                    **_dose(library[entry.exercise_id], entry),
                     note=entry.note,
                 )
                 for position, entry in enumerate(day.exercises)

@@ -25,6 +25,7 @@ def exercise_summary(exercise: WorkoutExerciseDBM) -> ExerciseSummaryResponse:
         level=exercise.level,
         mechanic=exercise.mechanic,
         kind=exercise.kind,
+        measure=exercise.measure,
         default_sets=exercise.default_sets,
         default_reps=exercise.default_reps,
         default_rest_seconds=exercise.default_rest_seconds,
@@ -83,11 +84,12 @@ def last_performance(db: Session, user_id: int, exercise_id: int) -> ExercisePer
         return None
     entry = entries[0]
     done = [s for s in entry.sets if s["done"]]
-    best = max(done, key=lambda s: (s["weight_kg"] or 0, s["reps"] or 0))
+    best = max(done, key=lambda s: (s["weight_kg"] or 0, s["reps"] or 0, s.get("seconds") or 0))
     return ExercisePerformanceResponse(
         date=entry.session.session_date,
         weight_kg=best["weight_kg"],
         reps=best["reps"],
+        seconds=best.get("seconds"),
         sets=len(done),
     )
 

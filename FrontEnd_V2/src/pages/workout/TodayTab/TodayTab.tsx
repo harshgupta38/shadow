@@ -126,7 +126,7 @@ export function TodayTab({ onOpenExercise }: TodayTabProps) {
   const openSessionId = data.in_progress_session_id;
   const showResume = openSessionId !== null && (!day || data.completed_today !== null);
   const resumeBanner = showResume ? (
-    <div className="wk-today-resume" role="status">
+    <div className="wk-today-resume mb-3" role="status">
       <PlayFill size={16} aria-hidden="true" />
       <div>
         <strong>You have a workout in progress.</strong>
@@ -233,7 +233,7 @@ export function TodayTab({ onOpenExercise }: TodayTabProps) {
                       <span className="wk-today-ex-name">{pe.exercise.name}</span>
                       <MuscleChips primary={pe.exercise.primary_muscles} max={2} />
                     </span>
-                    <span className="wk-today-ex-dose">{formatDose(pe.exercise.kind, pe.sets, pe.reps)}</span>
+                    <span className="wk-today-ex-dose">{formatDose(pe.exercise.measure, pe.sets, pe.reps)}</span>
                   </button>
                 </li>
               ))}

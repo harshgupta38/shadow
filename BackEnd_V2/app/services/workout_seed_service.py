@@ -11,6 +11,7 @@ from pathlib import Path
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.common.workout import dose_fits
 from app.models.workout import WorkoutExerciseDBM, WorkoutPlanDayDBM, WorkoutPlanDBM, WorkoutPlanExerciseDBM
 
 _DATA_DIR = Path(__file__).resolve().parents[1] / "data" / "workout"
@@ -18,6 +19,7 @@ _DATA_DIR = Path(__file__).resolve().parents[1] / "data" / "workout"
 _EXERCISE_FIELDS = (
     "name",
     "kind",
+    "measure",
     "equipment",
     "level",
     "mechanic",
@@ -68,6 +70,25 @@ def _build_days(spec: dict, exercise_ids: dict[str, int]) -> list[WorkoutPlanDay
             )
         days.append(WorkoutPlanDayDBM(weekday=day["weekday"], name=day["name"], exercises=exercises))
     return days
+
+
+def normalise_plan_doses(db: Session) -> None:
+    """Plan rows saved before exercises had a measure can hold a dose that no longer fits, such as a plank as
+    3 x 8-12. Such rows take the exercise's own default dose. Rows that already fit are left alone."""
+    changed = False
+    for row in db.scalars(select(WorkoutPlanExerciseDBM)).all():
+        exercise = row.exercise
+        if exercise.measure == "minutes" and (row.sets, row.rest_seconds, row.weight_kg) != (1, 0, None):
+            row.sets, row.rest_seconds, row.weight_kg = 1, 0, None
+            changed = True
+        if exercise.measure == "seconds" and row.weight_kg is not None:
+            row.weight_kg = None
+            changed = True
+        if not dose_fits(exercise.measure, row.reps):
+            row.reps = exercise.default_reps
+            changed = True
+    if changed:
+        db.commit()
 
 
 def sync_seed(db: Session) -> None:

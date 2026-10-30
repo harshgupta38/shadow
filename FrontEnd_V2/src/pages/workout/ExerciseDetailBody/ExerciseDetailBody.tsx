@@ -143,12 +143,12 @@ export function ExerciseDetailBody({
         {detail.description && <p className="wk-detail-desc">{detail.description}</p>}
 
         <div className="wk-detail-targets" aria-label="Recommended volume">
-          {detail.kind === "cardio" ? (
+          {detail.measure === "minutes" ? (
             <div><strong>{detail.default_reps}</strong><span>time</span></div>
           ) : (
             <>
               <div><strong>{detail.default_sets}</strong><span>sets</span></div>
-              <div><strong>{detail.default_reps}</strong><span>reps</span></div>
+              <div><strong>{detail.default_reps}</strong><span>{detail.measure === "seconds" ? "per set" : "reps"}</span></div>
               <div><strong>{formatRest(detail.default_rest_seconds)}</strong><span>rest</span></div>
             </>
           )}
@@ -159,7 +159,14 @@ export function ExerciseDetailBody({
             <ClockHistory size={16} aria-hidden="true" />
             <span>
               Last time ({formatDisplayDateShort(last.date, dateFormat)}):{" "}
-              {detail.kind === "strength" ? (
+              {detail.kind !== "strength" ? (
+                <strong>done</strong>
+              ) : detail.measure === "seconds" ? (
+                <>
+                  <strong>{last.seconds === null ? "–" : `${last.seconds} sec`}</strong>{" "}
+                  best set, {last.sets} {last.sets === 1 ? "set" : "sets"} done
+                </>
+              ) : (
                 <>
                   <strong>
                     {last.weight_kg !== null ? `${last.weight_kg} kg` : "bodyweight"}
@@ -167,8 +174,6 @@ export function ExerciseDetailBody({
                   </strong>{" "}
                   best set, {last.sets} {last.sets === 1 ? "set" : "sets"} done
                 </>
-              ) : (
-                <strong>done</strong>
               )}
             </span>
           </div>

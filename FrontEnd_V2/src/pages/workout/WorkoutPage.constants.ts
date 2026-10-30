@@ -1,5 +1,6 @@
 import type {
   ExerciseKind,
+  ExerciseMeasure,
   ExerciseMechanic,
   MuscleId,
   WorkoutEquipment,
@@ -134,9 +135,9 @@ export function formatRest(seconds: number): string {
   return s === 0 ? `${m} min` : `${m}m ${s}s`;
 }
 
-/** Cardio is counted in minutes, so its dose is the time alone. Lifts and drills read as sets × reps. */
-export function formatDose(kind: ExerciseKind, sets: number, reps: string): string {
-  return kind === "cardio" ? reps : `${sets} × ${reps}`;
+/** A block of time reads as the time alone; sets of time or reps read as sets × dose. */
+export function formatDose(measure: ExerciseMeasure, sets: number, reps: string): string {
+  return measure === "minutes" ? reps : `${sets} × ${reps}`;
 }
 
 export function pluralize(n: number, word: string): string {

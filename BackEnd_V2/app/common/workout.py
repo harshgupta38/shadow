@@ -7,7 +7,7 @@ from datetime import date, datetime, timedelta, timezone
 SECONDS_PER_SET = 45  # rough time under the bar for one set; the builder's live estimate uses the same number
 SETUP_MINUTES = 5  # warm-up and changeover allowance per session
 SECONDARY_CREDIT = 0.5  # a secondary muscle earns half a set for each set of the exercise
-TIMED_REPS = re.compile(r"(\d+)\s*min\b")  # reps such as "20 min" name the time for one set
+TIMED_REPS = re.compile(r"(\d+)\s*(min|sec)\b")  # a timed dose such as "20 min" or "30 sec" names the time for one set
 
 
 def estimate_minutes(sets_rest_and_reps: Iterable[tuple[int, int, str]]) -> int:
@@ -21,7 +21,24 @@ def estimate_minutes(sets_rest_and_reps: Iterable[tuple[int, int, str]]) -> int:
 
 def _seconds_per_set(reps: str) -> int:
     match = TIMED_REPS.search(reps)
-    return int(match.group(1)) * 60 if match else SECONDS_PER_SET
+    if not match:
+        return SECONDS_PER_SET
+    return int(match.group(1)) * (60 if match.group(2) == "min" else 1)
+
+
+def timed_amount(dose: str, unit: str) -> int | None:
+    """The number in a dose written only as "N min" or "N sec", otherwise None."""
+    match = re.fullmatch(rf"(\d{{1,3}})\s*{unit}", dose.strip())
+    return int(match.group(1)) if match else None
+
+
+def dose_fits(measure: str, dose: str) -> bool:
+    """Whether a rep text suits how the exercise is counted: minutes take "N min", seconds take "N sec", reps take neither."""
+    if measure == "minutes":
+        return timed_amount(dose, "min") is not None
+    if measure == "seconds":
+        return timed_amount(dose, "sec") is not None
+    return TIMED_REPS.search(dose) is None
 
 
 def sunday_based_weekday(day: date) -> int:

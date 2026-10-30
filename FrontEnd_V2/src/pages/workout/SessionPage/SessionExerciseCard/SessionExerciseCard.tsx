@@ -17,14 +17,26 @@ interface SessionExerciseCardProps {
   onRemove?: () => void;
 }
 
+/** What each set is logged as: kg and reps for counted lifts, seconds for timed sets, a bare tick otherwise. */
+type SetLogging = "reps" | "seconds" | "tick";
+
+const loggingOf = (item: SessionExercise): SetLogging => {
+  if (item.exercise.kind !== "strength") return "tick";
+  if (item.exercise.measure === "seconds") return "seconds";
+  if (item.exercise.measure === "reps") return "reps";
+  return "tick";
+};
+
 const numberOrNull = (raw: string): number | null => {
   if (raw.trim() === "") return null;
   const n = Number(raw);
   return Number.isFinite(n) && n >= 0 ? n : null;
 };
 
-const formatSet = (s: SessionSet | undefined): string => {
-  if (!s || (s.weight_kg === null && s.reps === null)) return "–";
+const formatSet = (s: SessionSet | undefined, logging: SetLogging): string => {
+  if (!s) return "–";
+  if (logging === "seconds") return s.seconds === null ? "–" : `${s.seconds} sec`;
+  if (s.weight_kg === null && s.reps === null) return "–";
   const weight = s.weight_kg === null ? "BW" : `${s.weight_kg}`;
   return s.reps === null ? weight : `${weight} × ${s.reps}`;
 };
@@ -41,11 +53,11 @@ export function SessionExerciseCard({
 }: SessionExerciseCardProps) {
   const doneCount = item.sets.filter((s) => s.done).length;
   const allDone = item.sets.length > 0 && doneCount === item.sets.length;
-  // Weight and reps only make sense for lifts; cardio and warm-ups just get ticked off.
-  const isLift = item.exercise.kind === "strength";
+  const logging = loggingOf(item);
   // A finished workout only shows what was actually done, numbered 1..n; the original index
   // is kept so the "previous" column still lines up with the right set.
   const rows = item.sets.map((set, index) => ({ set, index })).filter(({ set }) => !readOnly || set.done);
+  const tableModifier = logging === "tick" ? " is-tick-only" : logging === "seconds" ? " is-timed" : "";
 
   return (
     <section className={`wk-sx surface${allDone ? " is-complete" : ""}`}>
@@ -62,7 +74,7 @@ export function SessionExerciseCard({
 
         <div className="wk-sx-side">
           <span className="wk-sx-target">
-            {formatDose(item.exercise.kind, item.target_sets, item.target_reps)}
+            {formatDose(item.exercise.measure, item.target_sets, item.target_reps)}
             <small>rest {formatRest(item.rest_seconds)}</small>
           </span>
           {!readOnly && onRemove && (
@@ -73,37 +85,41 @@ export function SessionExerciseCard({
         </div>
       </header>
 
-      <div className={`wk-sx-table${isLift ? "" : " is-tick-only"}`} role="table" aria-label={`${item.exercise.name} sets`}>
+      <div className={`wk-sx-table${tableModifier}`} role="table" aria-label={`${item.exercise.name} sets`}>
         <div className="wk-sx-row wk-sx-row--head" role="row">
           <span role="columnheader">Set</span>
           <span role="columnheader">Previous</span>
-          {isLift && (
+          {logging === "reps" && (
             <>
               <span role="columnheader">kg</span>
               <span role="columnheader">Reps</span>
             </>
           )}
+          {logging === "seconds" && <span role="columnheader">Seconds</span>}
           <span role="columnheader" className="visually-hidden">Done</span>
         </div>
 
         {rows.map(({ set: s, index: i }, n) => (
           <div key={i} className={`wk-sx-row${s.done ? " is-done" : ""}`} role="row">
             <span className="wk-sx-num" role="cell">{n + 1}</span>
-            <span className="wk-sx-prev" role="cell">{formatSet(item.previous_sets[i])}</span>
+            <span className="wk-sx-prev" role="cell">{formatSet(item.previous_sets[i], logging)}</span>
 
             {readOnly ? (
               <>
-                {isLift && (
+                {logging === "reps" && (
                   <>
                     <span className="wk-sx-val" role="cell">{s.weight_kg ?? "BW"}</span>
                     <span className="wk-sx-val" role="cell">{s.reps ?? "–"}</span>
                   </>
                 )}
+                {logging === "seconds" && (
+                  <span className="wk-sx-val" role="cell">{s.seconds === null ? "–" : `${s.seconds} sec`}</span>
+                )}
                 <span className={`wk-sx-tick${s.done ? " is-on" : ""}`} role="cell">{s.done && <CheckLg size={14} aria-label="Done" />}</span>
               </>
             ) : (
               <>
-                {isLift && (
+                {logging === "reps" && (
                   <>
                     <input
                       className="wk-sx-input"
@@ -128,6 +144,19 @@ export function SessionExerciseCard({
                       onChange={(e) => onEditSet?.(i, { reps: numberOrNull(e.target.value) })}
                     />
                   </>
+                )}
+                {logging === "seconds" && (
+                  <input
+                    className="wk-sx-input"
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    step={1}
+                    placeholder="–"
+                    aria-label={`Set ${i + 1} seconds`}
+                    value={s.seconds ?? ""}
+                    onChange={(e) => onEditSet?.(i, { seconds: numberOrNull(e.target.value) })}
+                  />
                 )}
                 <button
                   type="button"

@@ -89,6 +89,12 @@
   @media (max-width: 420px) { grid-template-columns: 1.6rem minmax(0, 1fr) 2.4rem; }
 }
 
+.wk-sx-table.is-timed .wk-sx-row {
+  grid-template-columns: 2rem minmax(0, 1fr) 5.2rem 2.6rem;
+
+  @media (max-width: 420px) { grid-template-columns: 1.6rem minmax(0, 1fr) 4.4rem 2.4rem; }
+}
+
 .wk-sx-row {
   display: grid;
   grid-template-columns: 2rem minmax(0, 1fr) 5.2rem 4.6rem 2.6rem;

@@ -19,7 +19,7 @@
 
 .wk-mb-track {
   height: 8px;
-  border-radius: 0 4px 4px 0;
+  border-radius: 4px;
   background: color-mix(in srgb, var(--jv-brand-1) 10%, var(--jv-surface-2));
   overflow: hidden;
 }
@@ -27,7 +27,7 @@
 .wk-mb-fill {
   display: block;
   height: 100%;
-  border-radius: 0 4px 4px 0;
+  border-radius: 4px;
   background: var(--jv-brand-1);
   transform-origin: left center;
   animation: wk-mb-grow 520ms var(--jv-ease) both;

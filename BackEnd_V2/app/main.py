@@ -119,6 +119,11 @@ async def lifespan(_app: FastAPI):
                 _sql_text("ALTER TABLE workout_exercises ADD COLUMN kind VARCHAR(16) NOT NULL DEFAULT 'strength'")
             )
             _conn.commit()
+        if "measure" not in _exercise_cols:
+            _conn.execute(
+                _sql_text("ALTER TABLE workout_exercises ADD COLUMN measure VARCHAR(12) NOT NULL DEFAULT 'reps'")
+            )
+            _conn.commit()
         _settings_cols = {row[1] for row in _conn.execute(_sql_text("PRAGMA table_info(workout_settings)")).fetchall()}
         if "active_plan_started_on" not in _settings_cols:
             try:
@@ -135,6 +140,7 @@ async def lifespan(_app: FastAPI):
     with SessionLocal() as db:
         try:
             workout_seed_service.sync_seed(db)
+            workout_seed_service.normalise_plan_doses(db)
         except IntegrityError:
             db.rollback()  # another worker seeded the same rows first; its copy is the one kept
         except Exception:

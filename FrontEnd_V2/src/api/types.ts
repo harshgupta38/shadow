@@ -1247,6 +1247,8 @@ export type WorkoutLevel = "beginner" | "intermediate" | "advanced";
 export type WorkoutGoal = "build_muscle" | "lose_fat" | "strength" | "endurance" | "general_fitness";
 export type ExerciseMechanic = "compound" | "isolation";
 export type ExerciseKind = "strength" | "cardio" | "warmup";
+// How an exercise is counted: one block of time, sets of a fixed time, or sets of reps (kg optional).
+export type ExerciseMeasure = "minutes" | "seconds" | "reps";
 export type WorkoutPlanSource = "predefined" | "custom";
 
 // Weekdays are 0 (Sunday) to 6 (Saturday) throughout the workout API.
@@ -1261,8 +1263,9 @@ export interface ExerciseSummary {
   level: WorkoutLevel;
   mechanic: ExerciseMechanic;
   kind: ExerciseKind;
+  measure: ExerciseMeasure;
   default_sets: number;
-  default_reps: string; // "8-12", "12" or "30s"
+  default_reps: string; // "8-12", "12", "30 sec" or "20 min"
   default_rest_seconds: number;
 }
 
@@ -1270,6 +1273,7 @@ interface ExercisePerformance {
   date: string; // "YYYY-MM-DD"
   weight_kg: number | null;
   reps: number | null;
+  seconds: number | null;
   sets: number; // sets completed in that session
 }
 
@@ -1347,6 +1351,7 @@ export interface WorkoutPlanSaveRequest {
 
 export interface SessionSet {
   reps: number | null;
+  seconds: number | null;
   weight_kg: number | null;
   done: boolean;
 }
@@ -1381,7 +1386,6 @@ export interface WorkoutSessionDetail extends WorkoutSessionSummary {
   plan_id: number | null;
   plan_day_id: number | null;
   started_at: string;
-  finished_at: string | null;
   note: string | null;
   exercises: SessionExercise[];
 }

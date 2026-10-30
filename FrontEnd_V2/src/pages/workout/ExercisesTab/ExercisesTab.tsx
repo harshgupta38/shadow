@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { Search } from "react-bootstrap-icons";
 
 import type { MuscleId } from "@/api/types";
@@ -27,18 +27,35 @@ const MUSCLE_CHIPS: MuscleId[] = [
   "traps", "lats", "triceps", "lower_back", "glutes", "hamstrings", "calves",
 ];
 
+// Search and filters are kept for this browser tab, so they survive a visit to an exercise and back.
+const FILTERS_KEY = "workout.library.filters";
+
+function readStoredFilters(): ExerciseFilters {
+  try {
+    const stored = JSON.parse(sessionStorage.getItem(FILTERS_KEY) ?? "null") as Partial<ExerciseFilters> | null;
+    if (stored && typeof stored.query === "string" && Array.isArray(stored.kinds)) return { ...DEFAULT_EXERCISE_FILTERS, ...stored };
+  } catch { /* ignore: storage blocked or unreadable */ }
+  return DEFAULT_EXERCISE_FILTERS;
+}
+
 interface ExercisesTabProps {
   onOpenExercise: (id: number) => void;
 }
 
 export function ExercisesTab({ onOpenExercise }: ExercisesTabProps) {
   const { exercises, loading, error, reload } = useExerciseLibrary();
-  const [filters, setFilters] = useState<ExerciseFilters>(DEFAULT_EXERCISE_FILTERS);
+  const [filters, setFilters] = useState<ExerciseFilters>(readStoredFilters);
   const [rows, setRows] = useState(ROWS_PER_PAGE);
   const [grid, setGrid] = useState<HTMLDivElement | null>(null);
   const [columns, setColumns] = useState(0);
 
   const results = useMemo(() => applyExerciseFilters(exercises, filters), [exercises, filters]);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(FILTERS_KEY, JSON.stringify(filters));
+    } catch { /* ignore: storage full or blocked */ }
+  }, [filters]);
 
   // Cards beside the picker fill its rows first. Each page then ends on a whole row, so no row is left short.
   const wide = columns > PICKER_COLUMNS;

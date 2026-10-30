@@ -9,7 +9,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from fastapi.exceptions import RequestValidationError
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app.api.router import api_router
 from app.api.system import router as system_router
@@ -85,6 +85,14 @@ async def lifespan(_app: FastAPI):
                 _sql_text("ALTER TABLE workout_exercises ADD COLUMN kind VARCHAR(16) NOT NULL DEFAULT 'strength'")
             )
             _conn.commit()
+        _settings_cols = {row[1] for row in _conn.execute(_sql_text("PRAGMA table_info(workout_settings)")).fetchall()}
+        if "active_plan_started_on" not in _settings_cols:
+            try:
+                _conn.execute(_sql_text("ALTER TABLE workout_settings ADD COLUMN active_plan_started_on DATE"))
+                _conn.commit()
+            except OperationalError as exc:  # another worker added the column first
+                if "duplicate column name" not in str(exc):
+                    raise
         _report_cols = {row[1] for row in _conn.execute(_sql_text("PRAGMA table_info(reports)")).fetchall()}
         if "weekly_insights" not in _report_cols:
             _conn.execute(_sql_text("ALTER TABLE reports ADD COLUMN weekly_insights JSON"))

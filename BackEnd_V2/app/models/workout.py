@@ -170,6 +170,7 @@ class WorkoutSettingDBM(Base):
         index=True,
         nullable=True,
     )
+    active_plan_started_on: Mapped[date | None] = mapped_column(Date, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

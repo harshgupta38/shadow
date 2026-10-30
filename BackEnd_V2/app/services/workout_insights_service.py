@@ -58,6 +58,7 @@ def overview(db: Session, user: UserDBM) -> WorkoutOverviewResponse:
     end = start + timedelta(days=6)
 
     plan = workout_plans_service.active_plan(db, user)
+    started_on = workout_plans_service.active_plan_started_on(db, user.id)
     scheduled = {day.weekday: day for day in plan.days} if plan is not None else {}
     plan_day = scheduled.get(sunday_based_weekday(today))
 
@@ -87,7 +88,8 @@ def overview(db: Session, user: UserDBM) -> WorkoutOverviewResponse:
     for offset in range(7):
         day = start + timedelta(days=offset)
         logged = [s for s in this_week if s.session_date == day]
-        planned = scheduled.get(offset)
+        # Days before the plan was followed have nothing planned, so they read as rest rather than missed.
+        planned = scheduled.get(offset) if started_on is None or day >= started_on else None
         if logged:
             status = "done"
         elif planned is None:

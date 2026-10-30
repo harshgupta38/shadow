@@ -1,9 +1,5 @@
 import type { ExerciseSummary, SessionExercise, SessionSaveRequest, SessionSet } from "@/api/types";
 
-const DEFAULT_SETS = 3;
-const DEFAULT_REPS = "8-12";
-const DEFAULT_REST_SECONDS = 90;
-
 /** "8-12" → 8, "12" → 12, "30s" → 30, "AMRAP" → null. */
 function firstNumber(text: string): number | null {
   const match = text.match(/\d+/);
@@ -14,16 +10,16 @@ export function emptySet(weight: number | null = null): SessionSet {
   return { reps: null, weight_kg: weight, done: false };
 }
 
-/** An exercise added on the fly during a workout. */
+/** An exercise added on the fly during a workout. It starts from the library's own targets, as a plan day would. */
 export function newSessionExercise(exercise: ExerciseSummary): SessionExercise {
   return {
     id: null,
     exercise,
-    target_sets: DEFAULT_SETS,
-    target_reps: DEFAULT_REPS,
-    rest_seconds: DEFAULT_REST_SECONDS,
+    target_sets: exercise.default_sets,
+    target_reps: exercise.default_reps,
+    rest_seconds: exercise.default_rest_seconds,
     note: null,
-    sets: Array.from({ length: DEFAULT_SETS }, () => emptySet()),
+    sets: Array.from({ length: exercise.default_sets }, () => emptySet()),
     previous_sets: [],
   };
 }
@@ -33,6 +29,8 @@ export function newSessionExercise(exercise: ExerciseSummary): SessionExercise {
  * set last time, else the set before it in this workout, else the first number of the rep target.
  */
 export function prefillSet(item: SessionExercise, index: number): SessionSet {
+  // Cardio and warm-ups are a single tick, so there is nothing to fill in.
+  if (item.exercise.kind !== "strength") return item.sets[index];
   const set = item.sets[index];
   const previous = item.previous_sets[index];
   const lastDone = [...item.sets.slice(0, index)].reverse().find((s) => s.done);

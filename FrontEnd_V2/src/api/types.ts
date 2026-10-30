@@ -1261,6 +1261,9 @@ export interface ExerciseSummary {
   level: WorkoutLevel;
   mechanic: ExerciseMechanic;
   kind: ExerciseKind;
+  default_sets: number;
+  default_reps: string; // "8-12", "12" or "30s"
+  default_rest_seconds: number;
 }
 
 export interface ExercisePerformance {
@@ -1276,9 +1279,6 @@ export interface ExerciseDetail extends ExerciseSummary {
   instructions: string[];
   tips: string[];
   common_mistakes: string[];
-  default_sets: number;
-  default_reps: string; // "8-12", "12" or "30s"
-  default_rest_seconds: number;
   last_performance: ExercisePerformance | null; // the user's best set last time; null if never done
   warm_up_with: ExerciseSummary[]; // lifts: one cardio that suits the lift, then up to three drills
   good_warm_up_for: ExerciseSummary[]; // cardio and drills: the lifts they prepare

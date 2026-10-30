@@ -121,6 +121,9 @@ class ExerciseSummaryResponse(BaseModel):
     level: Level
     mechanic: Mechanic
     kind: ExerciseKind
+    default_sets: int
+    default_reps: str
+    default_rest_seconds: int
 
 
 class ExercisePerformanceResponse(BaseModel):
@@ -136,9 +139,6 @@ class ExerciseDetailResponse(ExerciseSummaryResponse):
     instructions: list[str]
     tips: list[str]
     common_mistakes: list[str]
-    default_sets: int
-    default_reps: str
-    default_rest_seconds: int
     last_performance: ExercisePerformanceResponse | None
     warm_up_with: list[ExerciseSummaryResponse]
     good_warm_up_for: list[ExerciseSummaryResponse]

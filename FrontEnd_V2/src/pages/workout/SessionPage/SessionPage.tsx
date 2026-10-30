@@ -28,6 +28,8 @@ import "./SessionPage.scss";
 
 const AUTOSAVE_DELAY_MS = 700;
 const REST_OVER_VISIBLE_MS = 4000;
+const RETRY_BASE_MS = 2000;
+const RETRY_MAX_MS = 30000;
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 type Dialog =
@@ -41,6 +43,12 @@ interface RestState {
   endsAt: number;
   total: number;
   name: string;
+}
+
+/** Network trouble, timeouts and server errors are worth another try. A request the server refused is not. */
+function isRetryable(err: unknown): boolean {
+  if (!(err instanceof ApiError) || err.status === undefined) return true;
+  return err.status >= 500 || err.status === 408 || err.status === 429;
 }
 
 export function SessionPage() {
@@ -73,6 +81,9 @@ export function SessionPage() {
   const latest = useRef({ session, exercises, note, revision });
   latest.current = { session, exercises, note, revision };
   const savedRevision = useRef(0);
+  const inFlight = useRef(false);
+  const retryTimer = useRef<number | undefined>(undefined);
+  const failures = useRef(0);
 
   const goBack = () => navigate(ROUTES.WORKOUT);
 
@@ -120,19 +131,36 @@ export function SessionPage() {
   }, [remaining, rest]);
 
   // ── Autosave ───────────────────────────────────────────────────────────────
+  // One save is in flight at a time, so a slow reply can't land after a newer one. A failed save is retried
+  // with a growing pause, and again as soon as the connection comes back.
   const persist = useCallback(async () => {
     const cur = latest.current;
-    if (!cur.session || cur.session.status !== "in_progress") return;
+    if (inFlight.current || !cur.session || cur.session.status !== "in_progress") return;
+    if (cur.revision === savedRevision.current) return;
     const revisionAtSave = cur.revision;
+    inFlight.current = true;
+    window.clearTimeout(retryTimer.current);
     setSaveState("saving");
+    let saved = false;
     try {
       const res = await api.workout.saveSession(cur.session.id, toSaveRequest(cur.exercises, cur.note.trim() || null));
       savedRevision.current = revisionAtSave;
+      failures.current = 0;
+      saved = true;
       setExercises((prev) => adoptServerIds(prev, res.exercises));
       setSaveState(latest.current.revision === revisionAtSave ? "saved" : "saving");
-    } catch {
+    } catch (err) {
       setSaveState("error");
+      if (isRetryable(err)) {
+        failures.current += 1;
+        const delay = Math.min(RETRY_BASE_MS * 2 ** (failures.current - 1), RETRY_MAX_MS);
+        retryTimer.current = window.setTimeout(() => void persist(), delay);
+      }
+    } finally {
+      inFlight.current = false;
     }
+    // Edits made while the request was in flight are sent next.
+    if (saved && latest.current.revision !== savedRevision.current) void persist();
   }, []);
 
   useEffect(() => {
@@ -141,15 +169,26 @@ export function SessionPage() {
     return () => window.clearTimeout(timer);
   }, [revision, live, persist]);
 
+  // Back online, or the phone is being put away: send whatever has not gone yet.
+  useEffect(() => {
+    const flush = () => void persist();
+    const onHide = () => {
+      if (document.visibilityState === "hidden") flush();
+    };
+    window.addEventListener("online", flush);
+    document.addEventListener("visibilitychange", onHide);
+    return () => {
+      window.removeEventListener("online", flush);
+      document.removeEventListener("visibilitychange", onHide);
+    };
+  }, [persist]);
+
   // Leaving the page with an unsaved edit: send it on the way out.
   useEffect(
     () => () => {
-      const cur = latest.current;
-      if (cur.session?.status === "in_progress" && cur.revision !== savedRevision.current) {
-        void api.workout.saveSession(cur.session.id, toSaveRequest(cur.exercises, cur.note.trim() || null)).catch(() => undefined);
-      }
+      void persist();
     },
-    [],
+    [persist],
   );
 
   // ── Editing ────────────────────────────────────────────────────────────────

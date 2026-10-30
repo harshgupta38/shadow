@@ -1,8 +1,11 @@
 """Training plans: the ready-made library, the user's own plans, and which plan the user follows."""
 
+from datetime import date
+
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, selectinload
 
+from app.common import today_ist
 from app.common.workout import SECONDARY_CREDIT, estimate_minutes
 from app.core.exceptions import ForbiddenError, NotFoundError, ValidationError
 from app.models.user import UserDBM
@@ -60,6 +63,11 @@ def _owned(db: Session, user: UserDBM, plan_id: int) -> WorkoutPlanDBM:
 def active_plan_id(db: Session, user_id: int) -> int | None:
     setting = db.get(WorkoutSettingDBM, user_id)
     return setting.active_plan_id if setting else None
+
+
+def active_plan_started_on(db: Session, user_id: int) -> date | None:
+    setting = db.get(WorkoutSettingDBM, user_id)
+    return setting.active_plan_started_on if setting else None
 
 
 def active_plan(db: Session, user: UserDBM) -> WorkoutPlanDBM | None:
@@ -261,11 +269,17 @@ def _settings_for_update(db: Session, user_id: int) -> WorkoutSettingDBM:
 
 def activate_plan(db: Session, user: UserDBM, plan_id: int) -> WorkoutPlanSummaryResponse:
     plan = _visible(db, user, plan_id)
-    _settings_for_update(db, user.id).active_plan_id = plan.id
+    setting = _settings_for_update(db, user.id)
+    # Following a plan starts it today. Selecting the plan already followed keeps its start day.
+    if setting.active_plan_id != plan.id:
+        setting.active_plan_id = plan.id
+        setting.active_plan_started_on = today_ist()
     db.commit()
     return plan_summary(plan, plan.id)
 
 
 def deactivate_plan(db: Session, user: UserDBM) -> None:
-    _settings_for_update(db, user.id).active_plan_id = None
+    setting = _settings_for_update(db, user.id)
+    setting.active_plan_id = None
+    setting.active_plan_started_on = None
     db.commit()

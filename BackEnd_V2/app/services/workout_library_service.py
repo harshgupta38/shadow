@@ -24,6 +24,9 @@ def exercise_summary(exercise: WorkoutExerciseDBM) -> ExerciseSummaryResponse:
         level=exercise.level,
         mechanic=exercise.mechanic,
         kind=exercise.kind,
+        default_sets=exercise.default_sets,
+        default_reps=exercise.default_reps,
+        default_rest_seconds=exercise.default_rest_seconds,
     )
 
 
@@ -150,9 +153,6 @@ def get_exercise(db: Session, user_id: int, exercise_id: int) -> ExerciseDetailR
         instructions=exercise.instructions,
         tips=exercise.tips,
         common_mistakes=exercise.common_mistakes,
-        default_sets=exercise.default_sets,
-        default_reps=exercise.default_reps,
-        default_rest_seconds=exercise.default_rest_seconds,
         last_performance=last_performance(db, user_id, exercise_id),
         warm_up_with=_warm_up_with(db, exercise),
         good_warm_up_for=_good_warm_up_for(db, exercise),

@@ -73,7 +73,7 @@ export function ExerciseFilterBar({ filters, onChange, resultLabel }: ExerciseFi
           ]}
         />
 
-        {resultLabel && <span className="wk-filter-count">{resultLabel}</span>}
+        {active && resultLabel && <span className="wk-filter-count">{resultLabel}</span>}
         {active && (
           <button type="button" className="wk-filter-clear" onClick={() => onChange(DEFAULT_EXERCISE_FILTERS)}>
             Clear all

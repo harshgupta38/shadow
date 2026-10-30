@@ -4,10 +4,13 @@ import asyncio
 import json
 import logging
 
+from pathlib import Path
 from typing import Callable
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from starlette.types import Scope
 from fastapi.responses import JSONResponse, Response
 from fastapi.exceptions import RequestValidationError
 from sqlalchemy.exc import IntegrityError, OperationalError
@@ -16,6 +19,7 @@ from app.api.router import api_router
 from app.api.system import router as system_router
 from app.api.shortcuts import router as shortcuts_router
 from app.core.config import settings
+from app.core.endpoints import ENDPOINTS
 
 from app.db.session import SessionLocal, engine
 from app.models.base import Base
@@ -227,6 +231,23 @@ async def handle_validation_error(
             "errors": errors,
         },
     )
+
+
+class CachedStaticFiles(StaticFiles):
+    """Serves files that only change when they are replaced, so browsers may keep them for a week."""
+
+    async def get_response(self, path: str, scope: Scope) -> Response:
+        response = await super().get_response(path, scope)
+        response.headers["Cache-Control"] = "public, max-age=604800"
+        return response
+
+
+# Exercise photos and GIFs. They are served beside the API, so the frontend bundle no longer carries them.
+app.mount(
+    f"{settings.api_prefix}{ENDPOINTS.WORKOUT.PREFIX}/media",
+    CachedStaticFiles(directory=Path(__file__).resolve().parent / "data" / "workout" / "media"),
+    name="workout-media",
+)
 
 
 app.include_router(system_router)

@@ -40,3 +40,12 @@ def get_db() -> Generator[Session, None, None]:
     finally:
         db.close()
 
+
+def drop_column_if_present(table: str, column: str) -> None:
+    """Startup migration for a column the models no longer declare. SQLite drops it in place
+    (3.35+); once the column is gone this does nothing, so it is safe to run on every start."""
+    with engine.begin() as conn:
+        present = [row[1] for row in conn.exec_driver_sql(f"PRAGMA table_info({table})")]
+        if column in present:
+            conn.exec_driver_sql(f"ALTER TABLE {table} DROP COLUMN {column}")
+

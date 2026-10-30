@@ -172,7 +172,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    max_age=30,
+    max_age=600,
 )
 
 
@@ -234,11 +234,11 @@ async def handle_validation_error(
 
 
 class CachedStaticFiles(StaticFiles):
-    """Serves files that only change when they are replaced, so browsers may keep them for a week."""
+    """Photos are served under versioned URLs (see workout_media), so the browser can keep each one for good."""
 
     async def get_response(self, path: str, scope: Scope) -> Response:
         response = await super().get_response(path, scope)
-        response.headers["Cache-Control"] = "public, max-age=604800"
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
         return response
 
 

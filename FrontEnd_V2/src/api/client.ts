@@ -23,6 +23,16 @@ const REGISTER_URL = `${ENDPOINTS.AUTH.PREFIX}${ENDPOINTS.AUTH.REGISTER}`;
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/api";
 
+/** Opens the connection to the API host while the app boots, so the first request and photo skip the handshake. */
+export function preconnectApiHost(): void {
+    const origin = new URL(API_BASE_URL, window.location.href).origin;
+    if (origin === window.location.origin) return;
+    const link = document.createElement("link");
+    link.rel = "preconnect";
+    link.href = origin;
+    document.head.append(link);
+}
+
 // One-time migration: remove pre-cookie legacy tokens from localStorage
 try {
     localStorage.removeItem("shadow.token");

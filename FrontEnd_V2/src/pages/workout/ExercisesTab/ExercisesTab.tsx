@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { Search } from "react-bootstrap-icons";
 
+import { prefetchImages } from "@/api/media";
 import type { MuscleId } from "@/api/types";
 import { IllustratedErrorState } from "@/components/ui/IllustratedErrorState/IllustratedErrorState";
 import { ExerciseCard } from "@/pages/workout/ExercisesTab/ExerciseCard/ExerciseCard";
@@ -61,6 +62,13 @@ export function ExercisesTab({ onOpenExercise }: ExercisesTabProps) {
   const wide = columns > PICKER_COLUMNS;
   const beside = wide ? (columns - PICKER_COLUMNS) * PICKER_ROWS : 0;
   const visible = beside + columns * rows;
+
+  // The next page's photos start downloading while this page is on screen, so "Show more" shows them at once.
+  const nextPhotos = useMemo(
+    () => results.slice(visible, visible + columns * ROWS_PER_PAGE).map((ex) => ex.image_url),
+    [results, visible, columns],
+  );
+  useEffect(() => prefetchImages(nextPhotos), [nextPhotos]);
 
   // The column count depends on the width, so read it back from the grid whenever the grid resizes.
   useLayoutEffect(() => {

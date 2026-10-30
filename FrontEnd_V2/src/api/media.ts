@@ -22,3 +22,27 @@ export function resolveMediaPaths<T>(value: T, apiBase: string): T {
   }
   return value;
 }
+
+// Photos the page is about to show start downloading once the browser is idle. The browser keeps them under their
+// versioned URLs, so the cards draw at once when the user reaches them. Skipped on data-saver and slow connections.
+const warming = new Set<HTMLImageElement>();
+
+export function prefetchImages(urls: Array<string | null>): void {
+  const connection = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
+  if (connection?.saveData || /2g/.test(connection?.effectiveType ?? "")) return;
+
+  const start = () => {
+    for (const url of new Set(urls)) {
+      if (!url) continue;
+      const image = new Image();
+      image.decoding = "async";
+      const done = () => warming.delete(image);
+      image.onload = done;
+      image.onerror = done;
+      warming.add(image);
+      image.src = url;
+    }
+  };
+  if ("requestIdleCallback" in window) window.requestIdleCallback(start);
+  else setTimeout(start, 200);
+}

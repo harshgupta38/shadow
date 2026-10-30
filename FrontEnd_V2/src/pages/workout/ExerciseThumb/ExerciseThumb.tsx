@@ -27,7 +27,7 @@ export function ExerciseThumb({ exercise, imageUrl, mapSize = "sm", view = "auto
   return (
     <div className={`wk-thumb${showPhoto ? "" : " wk-thumb--map"}${className ? ` ${className}` : ""}`}>
       {showPhoto ? (
-        <img src={imageUrl as string} alt={exercise.name} loading="lazy" onError={() => setFailed(true)} />
+        <img src={imageUrl as string} alt={exercise.name} loading="lazy" decoding="async" onError={() => setFailed(true)} />
       ) : (
         <MuscleMap
           view={view}

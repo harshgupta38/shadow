@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, contains_eager
 
 from app.core.exceptions import NotFoundError
+from app.core.workout_media import media_url, thumbnail_url
 from app.models.workout import WorkoutExerciseDBM, WorkoutSessionDBM, WorkoutSessionExerciseDBM
 from app.schemas.workout import ExerciseDetailResponse, ExercisePerformanceResponse, ExerciseSummaryResponse
 
@@ -17,7 +18,7 @@ def exercise_summary(exercise: WorkoutExerciseDBM) -> ExerciseSummaryResponse:
     return ExerciseSummaryResponse(
         id=exercise.id,
         name=exercise.name,
-        image_url=exercise.images[0] if exercise.images else None,
+        image_url=thumbnail_url(exercise.slug) if exercise.images else None,
         primary_muscles=exercise.primary_muscles,
         secondary_muscles=exercise.secondary_muscles,
         equipment=exercise.equipment,
@@ -147,9 +148,10 @@ def get_exercise(db: Session, user_id: int, exercise_id: int) -> ExerciseDetailR
     if exercise is None:
         raise NotFoundError("Exercise not found.")
     return ExerciseDetailResponse(
-        **exercise_summary(exercise).model_dump(),
+        **exercise_summary(exercise).model_dump(exclude={"image_url"}),
+        image_url=media_url(exercise.images[0]) if exercise.images else None,
         description=exercise.description,
-        image_urls=list(exercise.images),
+        image_urls=[media_url(path) for path in exercise.images],
         instructions=exercise.instructions,
         tips=exercise.tips,
         common_mistakes=exercise.common_mistakes,

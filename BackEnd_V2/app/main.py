@@ -122,7 +122,6 @@ async def lifespan(_app: FastAPI):
         )
     Base.metadata.create_all(bind=engine)
     # Add columns that didn't exist when the DB was first created.
-    from sqlalchemy import text as _sql_text  # pyright: ignore[reportMissingImports]
     with engine.connect() as _conn:
         _add_column_if_missing(
             _conn, "habits", "streak_tolerance_pct",

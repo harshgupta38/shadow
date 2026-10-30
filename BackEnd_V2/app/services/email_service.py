@@ -22,6 +22,11 @@ class EmailAttachment(TypedDict):
     mime_type: str
 
 
+def smtp_configured() -> bool:
+    """Email is off unless a server is set (SMTP_HOST); the sender address alone is not enough."""
+    return bool(settings.smtp_host and settings.smtp_from_email)
+
+
 def _sender_display() -> str:
     if settings.smtp_from_name and settings.smtp_from_email:
         return f"{settings.smtp_from_name} <{settings.smtp_from_email}>"
@@ -85,7 +90,7 @@ def send_email(
     Returns True on success, False when SMTP is unconfigured or all attempts fail.
     Non-retryable errors (e.g. invalid recipient 5xx) are not retried.
     """
-    if not settings.smtp_host or not settings.smtp_from_email:
+    if not smtp_configured():
         logger.debug("SMTP not configured; skipping email to %s", to_email)
         return False
 

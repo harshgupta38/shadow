@@ -4,6 +4,7 @@ import type { WeeklyFocus } from "@/api/types";
 import "./NextWeekFocus.scss";
 
 export function NextWeekFocus({ focus }: { focus: WeeklyFocus }) {
+  const target = focus.target_pct;
   return (
     <div className="wi-focus">
       <span className="wi-focus-icon" aria-hidden="true"><Bullseye size={18} /></span>
@@ -15,15 +16,18 @@ export function NextWeekFocus({ focus }: { focus: WeeklyFocus }) {
       <div className="wi-focus-meter">
         <div className="wi-focus-meter-top">
           <span>{focus.metric_label}</span>
-          <span><strong>{focus.current_pct}%</strong> to <strong>{focus.target_pct}%</strong></span>
+          <span>
+            <strong>{focus.current_pct}%</strong>
+            {target !== null && <> to <strong>{target}%</strong></>}
+          </span>
         </div>
         <div
           className="wi-focus-track"
           role="img"
-          aria-label={`${focus.metric_label}: ${focus.current_pct}% now, target ${focus.target_pct}%`}
+          aria-label={`${focus.metric_label}: ${focus.current_pct}% now${target === null ? "" : `, target ${target}%`}`}
         >
           <span className="wi-focus-fill" style={{ width: `${focus.current_pct}%` }} />
-          <span className="wi-focus-target" style={{ left: `${focus.target_pct}%` }} />
+          {target !== null && <span className="wi-focus-target" style={{ left: `${target}%` }} />}
         </div>
       </div>
     </div>

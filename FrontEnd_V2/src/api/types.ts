@@ -963,7 +963,7 @@ export interface WeeklyFocus {
   rationale: string;
   metric_label: string;
   current_pct: number;
-  target_pct: number;
+  target_pct: number | null; // null when the current value is already 100
 }
 
 export interface WeeklyInsights {

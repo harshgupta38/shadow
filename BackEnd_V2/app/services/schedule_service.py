@@ -543,6 +543,12 @@ def update_task(
         if yearly is None:
             raise NotFoundError("Yearly task not found.")
 
+        # Same rule as the create path: a past date needs repeat_yearly. The shown date is the next
+        # occurrence (never in the past), so any past date in the request is a change.
+        if "scheduled_date" in fields and data.scheduled_date is not None and wants_yearly is not True:
+            if data.scheduled_date < today_ist():
+                raise ValidationError(errors={"scheduled_date": "scheduled_date cannot be in the past."})
+
         if "title" in fields and data.title is not None:
             yearly.title = data.title.strip()
         if "note" in fields:
@@ -603,6 +609,11 @@ def update_task(
     if task is None:
         raise NotFoundError("Scheduled task not found.")
 
+    # Checked before anything is assigned, so a rejected edit leaves the task untouched.
+    if "scheduled_date" in fields and data.scheduled_date is not None and data.scheduled_date != task.scheduled_date:
+        if data.scheduled_date < today_ist():
+            raise ValidationError(errors={"scheduled_date": "scheduled_date cannot be in the past."})
+
     if "title" in fields and data.title is not None:
         task.title = data.title.strip()
     if "note" in fields:
@@ -611,8 +622,6 @@ def update_task(
         task.priority = data.priority
     if "scheduled_date" in fields and data.scheduled_date is not None:
         if data.scheduled_date != task.scheduled_date:
-            if data.scheduled_date < today_ist():
-                raise ValidationError(errors={"scheduled_date": "scheduled_date cannot be in the past."})
             task.scheduled_date = data.scheduled_date
             if task.status in ("completed", "missed"):
                 task.status = "upcoming"

@@ -64,8 +64,13 @@ def _session_detail(db: Session, session: WorkoutSessionDBM, now: datetime) -> W
             entry.exercise.id,
             before=as_utc(session.started_at),
         )
+        # One entry per set of the previous session, in order, so the frontend can read them by set position.
         previous_sets = (
-            [SessionSetResponse(reps=s["reps"], seconds=s.get("seconds"), weight_kg=s["weight_kg"], done=True) for s in previous[0].sets if s["done"]]
+            [
+                SessionSetResponse(reps=s["reps"], seconds=s.get("seconds"), weight_kg=s["weight_kg"], done=True)
+                if s["done"] else SessionSetResponse(reps=None, seconds=None, weight_kg=None, done=False)
+                for s in previous[0].sets
+            ]
             if previous
             else []
         )

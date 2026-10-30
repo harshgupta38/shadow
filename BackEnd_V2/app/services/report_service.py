@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
@@ -368,13 +369,21 @@ def save_report(
     """Persist a generated report version into the reports table."""
     parsed = llm_result.report_data
     stats = day_data["stats"]
+    alignment = weekly_insights_service.clamp_pct(parsed.alignment_score)
 
     llm_goal_map = {g.goal_id: g for g in parsed.goals}
+    # A weekly goal the LLM left out gets the fallback the weekly insights show (computed_pct), so a
+    # later backfill reads the same number. Daily reports have no fallback and keep 0.
+    weekly_goals = (day_data.get("weekly_insights") or {}).get("goals", []) if report_type == "weekly" else []
+    fallback_pct = {g["id"]: g["computed_pct"] for g in weekly_goals}
     goals_payload = [
         {
             "id": gd["goal_id"],
             "title": gd["title"],
-            "alignment_pct": llm_goal_map[gd["goal_id"]].alignment_pct if gd["goal_id"] in llm_goal_map else 0,
+            "alignment_pct": (
+                weekly_insights_service.clamp_pct(llm_goal_map[gd["goal_id"]].alignment_pct)
+                if gd["goal_id"] in llm_goal_map else fallback_pct.get(gd["goal_id"], 0)
+            ),
             "milestone_title": gd["active_milestone"],
             "note": llm_goal_map[gd["goal_id"]].note if gd["goal_id"] in llm_goal_map else "",
             "tasks_done": gd["tasks_done"],
@@ -385,14 +394,14 @@ def save_report(
 
     fields: dict = {
         "generated_at": datetime.now(timezone.utc),
-        "alignment_score": parsed.alignment_score,
+        "alignment_score": alignment,
         "headline": parsed.headline,
         "summary": parsed.summary,
         "stats": {k: stats[k] for k in ("tasks_done", "tasks_total", "habits_done", "habits_total", "best_streak")},
         "goals": goals_payload,
         "highlights": {"good": parsed.highlights_good, "attention": parsed.highlights_attention},
         "closing": {
-            "tone": "celebrate" if parsed.alignment_score >= 80 else ("motivate" if parsed.alignment_score < 40 else "guide"),
+            "tone": "celebrate" if alignment >= 80 else ("motivate" if alignment < 40 else "guide"),
             "message": parsed.closing_message,
         },
         "model_used": llm_result.model_str or str(llm_result.model),
@@ -404,8 +413,8 @@ def save_report(
         try:
             fields["weekly_insights"] = weekly_insights_service.finalize_weekly_insights(
                 metrics,
-                alignment_score=parsed.alignment_score,
-                goal_alignment={gid: g.alignment_pct for gid, g in llm_goal_map.items()},
+                alignment_score=alignment,
+                goal_alignment={g["id"]: g["alignment_pct"] for g in goals_payload},
                 focus_title=parsed.focus_title,
                 focus_rationale=parsed.focus_rationale,
             )
@@ -497,8 +506,11 @@ async def generate_report_background(
             )
             if report:
                 try:
-                    from app.services import email_notification_service
-                    email_notification_service.send_report_email(db, user, to_report_response(report))
+                    from app.services import email_notification_service, email_service
+                    content = email_notification_service.build_report_email(db, user, to_report_response(report))
+                    if content is not None:
+                        # SMTP retries can sleep for tens of seconds, so the send runs off the event loop.
+                        await asyncio.to_thread(email_service.send_email, **content)
                 except Exception:
                     logger.warning(
                         "Failed to send report-ready email for user=%d date=%s type=%s",
@@ -528,33 +540,4 @@ async def generate_report_background(
             )
     finally:
         _in_progress.discard(key)
-        db.close()
-
-
-def send_report_email_background(user_id: int, report_date: date, report_type: str) -> None:
-    """Background task for the Report Details page's "Email report" button.
-    Opens its own session — same reasoning as generate_report_background: the
-    request-scoped session is already closed by the time a background task
-    actually runs."""
-    from app.services import email_notification_service
-
-    db = SessionLocal()
-    try:
-        user = db.get(UserDBM, user_id)
-        if user is None:
-            return
-        reports = [r for r in get_reports(db, user_id, report_date) if r.report_type == report_type]
-        if not reports:
-            logger.info(
-                "No report to email for user=%d date=%s type=%s — skipping",
-                user_id, report_date, report_type,
-            )
-            return
-        email_notification_service.send_report_email(db, user, to_report_response(reports[0]), force=True)
-    except Exception:
-        logger.exception(
-            "Failed to email report for user=%d date=%s type=%s",
-            user_id, report_date, report_type,
-        )
-    finally:
         db.close()

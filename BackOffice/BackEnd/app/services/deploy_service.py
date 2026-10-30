@@ -232,7 +232,7 @@ def _finish(db: Session, log: DeploymentLogDBM, status: str, lines: list[str]) -
 
 
 def _leave_running(db: Session, log: DeploymentLogDBM, lines: list[str]) -> None:
-    """For a BackOffice job whose Control Server call failed. The Control Server may still be running
+    """For a BackOffice job whose Control Server call timed out. The Control Server may still be running
     the restart (its git steps can outlast our client timeout), and that restart ends this process.
     So keep the transcript, leave the row "running", and let startup reconciliation settle it."""
     log.log_output = "\n".join(lines)
@@ -276,7 +276,8 @@ def run_deploy_job(deployment_id: int, git_ref: str, app: str = "shadow") -> Non
             resp = _control_post(endpoint, body)
         except httpx.RequestError as e:
             lines.append(f"ERROR: could not reach control server: {e}")
-            if app == "backoffice":
+            # Only a timeout can mean the Control Server is mid-restart; any other error means the call never arrived.
+            if app == "backoffice" and isinstance(e, httpx.ReadTimeout):
                 _leave_running(db, log, lines)
             else:
                 _finish(db, log, "failed", lines)
@@ -320,7 +321,8 @@ def run_rollback_job(deployment_id: int, commit_sha: str, app: str = "shadow") -
             resp = _control_post(f"/control/{segment}/rollback", {"commit_sha": commit_sha})
         except httpx.RequestError as e:
             lines.append(f"ERROR: could not reach control server: {e}")
-            if app == "backoffice":
+            # Only a timeout can mean the Control Server is mid-restart; any other error means the call never arrived.
+            if app == "backoffice" and isinstance(e, httpx.ReadTimeout):
                 _leave_running(db, log, lines)
             else:
                 _finish(db, log, "failed", lines)

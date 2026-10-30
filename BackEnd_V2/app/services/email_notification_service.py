@@ -720,17 +720,16 @@ def _build_weekly_block(wi: WeeklyInsightsResponse | None) -> str:
     )
 
 
-def send_report_email(db: Session, user: UserDBM, report: ReportResponse, *, force: bool = False) -> bool:
-    """Full report snapshot, shaped to match ReportDetailPage.tsx. Sent
-    automatically when a report finishes generating — gated by BOTH the
-    general email-notifications preference (like any other type!="security"
-    email) AND the report-cadence-specific opt-out (UserSettingDBM.reports.
-    {daily,weekly}.email_enabled), since a user may want emails in general
-    but not for this particular cadence. Sent again on-demand from the
-    "Email report" button on that page (`force=True` — an explicit user
-    action shouldn't be silently swallowed by either passive preference)."""
+def build_report_email(db: Session, user: UserDBM, report: ReportResponse, *, force: bool = False) -> dict | None:
+    """Arguments for email_service.send_email, or None when the preferences hold the email back.
+    All database reads happen here, so a caller can run the blocking SMTP send in a worker thread.
+
+    Gated by BOTH the general email-notifications preference (like any other type!="security"
+    email) AND the report-cadence-specific opt-out (UserSettingDBM.reports.{daily,weekly}.email_enabled),
+    since a user may want emails in general but not for this particular cadence. `force=True` (the
+    "Email report" button) skips both: an explicit user action shouldn't be silently swallowed."""
     if not force and not (_email_enabled(db, user.id) and _report_email_enabled(db, user.id, report.report_type)):
-        return False
+        return None
 
     first_name = user.name.split()[0] if user.name else "there"
     label = report.report_type.capitalize()
@@ -781,9 +780,15 @@ def send_report_email(db: Session, user: UserDBM, report: ReportResponse, *, for
     text_lines += ["", report.closing.message, "", f"View full report: {cta_url}", "", f"Unsubscribe: {unsub}"]
     text_body = "\n".join(text_lines)
 
-    return email_service.send_email(
-        to_email=user.email,
-        subject=f"Your {label} report for {report.date.strftime('%d %b')} is ready",
-        text_body=text_body,
-        html_body=html_body,
-    )
+    return {
+        "to_email": user.email,
+        "subject": f"Your {label} report for {report.date.strftime('%d %b')} is ready",
+        "text_body": text_body,
+        "html_body": html_body,
+    }
+
+
+def send_report_email(db: Session, user: UserDBM, report: ReportResponse, *, force: bool = False) -> bool:
+    """Sends the report snapshot email (see build_report_email). Returns whether it was sent."""
+    content = build_report_email(db, user, report, force=force)
+    return content is not None and email_service.send_email(**content)

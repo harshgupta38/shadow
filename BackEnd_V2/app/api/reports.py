@@ -6,19 +6,18 @@ from fastapi.responses import Response
 from app.api.deps import get_current_user
 from app.common import today_ist
 from app.core.endpoints import ENDPOINTS
-from app.core.exceptions import NotFoundError, ValidationError
+from app.core.exceptions import AppError, NotFoundError, ValidationError
 from app.core.response_cache import TTL_STANDARD_SECONDS, cached_json_response
 from app.db.session import get_db
 from app.models.user import UserDBM
 from app.schemas.daily_report import ReportResponse
 from app.schemas.reports import MonthlyReportResponse
-from app.services import reports_service, weekly_insights_service
+from app.services import email_notification_service, email_service, reports_service, weekly_insights_service
 from app.services.report_service import (
     delete_report,
     generate_report_background,
     get_reports,
     has_planned_items,
-    send_report_email_background,
     to_report_response,
 )
 
@@ -73,15 +72,19 @@ async def request_report(
 @router.post(ENDPOINTS.REPORTS.EMAIL_REPORT_REQUEST, status_code=status.HTTP_204_NO_CONTENT)
 def email_report(
     report_date: date,
-    background_tasks: BackgroundTasks,
     report_type: str = Query(default="daily", pattern="^(daily|weekly)$"),
     db=Depends(get_db),
     current_user: UserDBM = Depends(get_current_user),
 ) -> None:
+    if not email_service.smtp_configured():
+        raise AppError("Email is not set up on this server, so the report was not sent.")
     reports = [r for r in get_reports(db, current_user.id, report_date) if r.report_type == report_type]
     if not reports:
         raise NotFoundError("No report found for this date.")
-    background_tasks.add_task(send_report_email_background, current_user.id, report_date, report_type)
+    # Sent inline so a failed send reaches the user. This is a sync endpoint, so FastAPI runs it in a worker thread.
+    sent = email_notification_service.send_report_email(db, current_user, to_report_response(reports[0]), force=True)
+    if not sent:
+        raise AppError("The report email could not be sent. Please try again later.")
 
 
 @router.delete(ENDPOINTS.REPORTS.DELETE_REPORT, status_code=status.HTTP_204_NO_CONTENT)

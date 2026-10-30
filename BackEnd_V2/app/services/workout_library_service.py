@@ -4,7 +4,7 @@ from collections.abc import Iterable
 from datetime import datetime
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session, contains_eager
+from sqlalchemy.orm import Session, contains_eager, defer
 
 from app.core.exceptions import NotFoundError
 from app.core.workout_media import media_url, thumbnail_url
@@ -41,7 +41,17 @@ def library_by_id(db: Session, exercise_ids: Iterable[int]) -> dict[int, Workout
 
 
 def list_exercises(db: Session) -> list[ExerciseSummaryResponse]:
-    rows = db.scalars(select(WorkoutExerciseDBM).order_by(WorkoutExerciseDBM.position, WorkoutExerciseDBM.id)).all()
+    # The list shows only summary fields, so the long text columns are left out of the query.
+    rows = db.scalars(
+        select(WorkoutExerciseDBM)
+        .options(
+            defer(WorkoutExerciseDBM.description),
+            defer(WorkoutExerciseDBM.instructions),
+            defer(WorkoutExerciseDBM.tips),
+            defer(WorkoutExerciseDBM.common_mistakes),
+        )
+        .order_by(WorkoutExerciseDBM.position, WorkoutExerciseDBM.id)
+    ).all()
     return [exercise_summary(row) for row in rows]
 
 

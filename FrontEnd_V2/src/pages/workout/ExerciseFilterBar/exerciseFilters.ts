@@ -30,8 +30,19 @@ export function hasActiveFilters(f: ExerciseFilters): boolean {
   );
 }
 
+// Each word must match, as typed or as its singular, and hyphens are ignored: "leg raises" finds "Leg Raise",
+// "pullups" finds "Pull-Up" and "crunches" finds "Crunch".
+function matchesWord(haystack: string, word: string): boolean {
+  if (haystack.includes(word)) return true;
+  if (word.length <= 3) return false;
+  return (word.endsWith("es") && haystack.includes(word.slice(0, -2))) ||
+    (word.endsWith("s") && haystack.includes(word.slice(0, -1)));
+}
+
 export function applyExerciseFilters(list: ExerciseSummary[], f: ExerciseFilters): ExerciseSummary[] {
-  const query = f.query.trim().toLowerCase();
+  const query = f.query.trim().toLowerCase().replace(/-/g, "");
+  const words = query.split(/\s+/).filter(Boolean);
+  const joined = query.replace(/\s/g, "");
   const groupMuscles = f.group === "all" ? null : (MUSCLE_GROUPS.find((g) => g.id === f.group)?.muscles ?? []);
   const muscle = f.muscle;
 
@@ -42,9 +53,13 @@ export function applyExerciseFilters(list: ExerciseSummary[], f: ExerciseFilters
       if (f.equipment.length > 0 && !f.equipment.includes(ex.equipment)) return false;
       if (f.level.length > 0 && !f.level.includes(ex.level)) return false;
       if (!f.kinds.includes(ex.kind)) return false;
-      if (query) {
-        const haystack = [ex.name, ...ex.primary_muscles.map((m) => MUSCLE_LABEL[m])].join(" ").toLowerCase();
-        if (!haystack.includes(query)) return false;
+      if (words.length > 0) {
+        const haystack = [ex.name, ...ex.primary_muscles.map((m) => MUSCLE_LABEL[m])]
+          .join(" ").toLowerCase().replace(/-/g, "");
+        // The whole query with its spaces removed counts too, so "push ups" finds "Push-Up".
+        const matched = words.every((word) => matchesWord(haystack, word)) ||
+          matchesWord(haystack.replace(/\s/g, ""), joined);
+        if (!matched) return false;
       }
       return true;
     })

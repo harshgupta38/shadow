@@ -134,6 +134,11 @@ export function formatRest(seconds: number): string {
   return s === 0 ? `${m} min` : `${m}m ${s}s`;
 }
 
+/** Cardio is counted in minutes, so its dose is the time alone. Lifts and drills read as sets × reps. */
+export function formatDose(kind: ExerciseKind, sets: number, reps: string): string {
+  return kind === "cardio" ? reps : `${sets} × ${reps}`;
+}
+
 export function pluralize(n: number, word: string): string {
   return `${n} ${word}${n === 1 ? "" : "s"}`;
 }

@@ -1266,7 +1266,7 @@ export interface ExerciseSummary {
   default_rest_seconds: number;
 }
 
-export interface ExercisePerformance {
+interface ExercisePerformance {
   date: string; // "YYYY-MM-DD"
   weight_kg: number | null;
   reps: number | null;
@@ -1284,7 +1284,7 @@ export interface ExerciseDetail extends ExerciseSummary {
   good_warm_up_for: ExerciseSummary[]; // cardio and drills: the lifts they prepare
 }
 
-export interface PlanExercise {
+interface PlanExercise {
   id: number | null; // null for rows not saved yet (builder)
   exercise: ExerciseSummary;
   sets: number;
@@ -1322,7 +1322,7 @@ export interface WorkoutPlanDetail extends WorkoutPlanSummary {
   days: PlanDay[];
 }
 
-export interface PlanExerciseSaveInput {
+interface PlanExerciseSaveInput {
   exercise_id: number;
   sets: number;
   reps: string;
@@ -1331,7 +1331,7 @@ export interface PlanExerciseSaveInput {
   note: string | null;
 }
 
-export interface PlanDaySaveInput {
+interface PlanDaySaveInput {
   weekday: number;
   name: string;
   exercises: PlanExerciseSaveInput[];
@@ -1362,7 +1362,7 @@ export interface SessionExercise {
   previous_sets: SessionSet[]; // what the user did last time, for reference
 }
 
-export type WorkoutSessionStatus = "in_progress" | "completed";
+type WorkoutSessionStatus = "in_progress" | "completed";
 
 export interface WorkoutSessionSummary {
   id: number;
@@ -1391,7 +1391,7 @@ export interface SessionStartRequest {
   name: string | null;
 }
 
-export interface SessionExerciseSaveInput {
+interface SessionExerciseSaveInput {
   id: number | null;
   exercise_id: number;
   sets: SessionSet[];
@@ -1403,7 +1403,7 @@ export interface SessionSaveRequest {
   exercises: SessionExerciseSaveInput[];
 }
 
-export type WorkoutWeekStatus = "done" | "today" | "upcoming" | "missed" | "rest";
+type WorkoutWeekStatus = "done" | "today" | "upcoming" | "missed" | "rest";
 
 export interface WorkoutWeekDay {
   date: string;
@@ -1439,7 +1439,7 @@ export interface WorkoutProgressWeek {
   minutes: number;
 }
 
-export interface PersonalRecord {
+interface PersonalRecord {
   exercise: ExerciseSummary;
   weight_kg: number;
   reps: number;

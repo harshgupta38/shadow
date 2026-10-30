@@ -23,6 +23,7 @@ import { Skeleton } from "@/pages/workout/Skeleton/Skeleton";
 import {
   WEEKDAY_LONG,
   WEEKDAY_SHORT,
+  formatDose,
   formatSessionDuration,
   formatVolume,
   pluralize,
@@ -232,7 +233,7 @@ export function TodayTab({ onOpenExercise }: TodayTabProps) {
                       <span className="wk-today-ex-name">{pe.exercise.name}</span>
                       <MuscleChips primary={pe.exercise.primary_muscles} max={2} />
                     </span>
-                    <span className="wk-today-ex-dose">{pe.sets} × {pe.reps}</span>
+                    <span className="wk-today-ex-dose">{formatDose(pe.exercise.kind, pe.sets, pe.reps)}</span>
                   </button>
                 </li>
               ))}

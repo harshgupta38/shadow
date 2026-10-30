@@ -143,9 +143,15 @@ export function ExerciseDetailBody({
         {detail.description && <p className="wk-detail-desc">{detail.description}</p>}
 
         <div className="wk-detail-targets" aria-label="Recommended volume">
-          <div><strong>{detail.default_sets}</strong><span>sets</span></div>
-          <div><strong>{detail.default_reps}</strong><span>reps</span></div>
-          <div><strong>{formatRest(detail.default_rest_seconds)}</strong><span>rest</span></div>
+          {detail.kind === "cardio" ? (
+            <div><strong>{detail.default_reps}</strong><span>time</span></div>
+          ) : (
+            <>
+              <div><strong>{detail.default_sets}</strong><span>sets</span></div>
+              <div><strong>{detail.default_reps}</strong><span>reps</span></div>
+              <div><strong>{formatRest(detail.default_rest_seconds)}</strong><span>rest</span></div>
+            </>
+          )}
         </div>
 
         {last && (

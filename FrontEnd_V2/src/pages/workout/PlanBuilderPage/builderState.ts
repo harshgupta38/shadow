@@ -37,6 +37,7 @@ export const REST_OPTIONS = [30, 45, 60, 75, 90, 120, 150, 180, 240, 300];
 export const MAX_NAME = 80;
 export const MAX_DESCRIPTION = 500;
 export const MAX_SETS = 20;
+export const MAX_CARDIO_MINUTES = 240;
 const MAX_REPS_TEXT = 12;
 
 let keyCounter = 0;
@@ -74,8 +75,18 @@ export function draftFromPlan(plan: WorkoutPlanDetail): PlanDraft {
   };
 }
 
+/** The minutes in a cardio target such as "20 min"; null for anything else. */
+export function minutesOf(reps: string): number | null {
+  const match = reps.trim().match(/^(\d+)\s*min$/i);
+  return match ? Number(match[1]) : null;
+}
+
 /** Sensible starting numbers: heavy compound lifts get fewer reps and more rest than isolation work. */
 export function newDraftExercise(exercise: ExerciseSummary): DraftExercise {
+  if (exercise.kind === "cardio") {
+    // Cardio is counted in minutes: one timed block, with no rest and no weight.
+    return { key: nextKey(), exercise, sets: 1, reps: exercise.default_reps, rest_seconds: 0, weight_kg: null, note: null };
+  }
   const compound = exercise.mechanic === "compound";
   return {
     key: nextKey(),
@@ -103,10 +114,11 @@ export function toSaveRequest(draft: PlanDraft): WorkoutPlanSaveRequest {
       name: d.name.trim(),
       exercises: d.exercises.map((e) => ({
         exercise_id: e.exercise.id,
-        sets: e.sets,
+        // Cardio is saved as one timed block, whatever the row held before.
+        sets: e.exercise.kind === "cardio" ? 1 : e.sets,
         reps: e.reps.trim(),
-        rest_seconds: e.rest_seconds,
-        weight_kg: e.weight_kg,
+        rest_seconds: e.exercise.kind === "cardio" ? 0 : e.rest_seconds,
+        weight_kg: e.exercise.kind === "cardio" ? null : e.weight_kg,
         note: e.note,
       })),
     })),
@@ -124,6 +136,13 @@ export function validateDraft(draft: PlanDraft): string[] {
     if (!day.name.trim()) problems.push(`${label} needs a name.`);
     if (day.exercises.length === 0) problems.push(`${label} has no exercises yet.`);
     for (const e of day.exercises) {
+      if (e.exercise.kind === "cardio") {
+        const minutes = minutesOf(e.reps);
+        if (minutes === null || minutes < 1 || minutes > MAX_CARDIO_MINUTES) {
+          problems.push(`${label}: ${e.exercise.name} needs a time between 1 and ${MAX_CARDIO_MINUTES} minutes.`);
+        }
+        continue;
+      }
       if (!Number.isInteger(e.sets) || e.sets < 1 || e.sets > MAX_SETS) {
         problems.push(`${label}: ${e.exercise.name} needs between 1 and ${MAX_SETS} sets.`);
       }

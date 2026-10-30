@@ -3,7 +3,7 @@ import { CheckLg, PlusLg, Trash3 } from "react-bootstrap-icons";
 import type { SessionExercise, SessionSet } from "@/api";
 import { ExerciseThumb } from "@/pages/workout/ExerciseThumb/ExerciseThumb";
 import { MuscleChips } from "@/pages/workout/MuscleMap/MuscleMap";
-import { formatRest } from "@/pages/workout/WorkoutPage.constants";
+import { formatDose, formatRest } from "@/pages/workout/WorkoutPage.constants";
 import "./SessionExerciseCard.scss";
 
 interface SessionExerciseCardProps {
@@ -62,7 +62,7 @@ export function SessionExerciseCard({
 
         <div className="wk-sx-side">
           <span className="wk-sx-target">
-            {item.target_sets} × {item.target_reps}
+            {formatDose(item.exercise.kind, item.target_sets, item.target_reps)}
             <small>rest {formatRest(item.rest_seconds)}</small>
           </span>
           {!readOnly && onRemove && (

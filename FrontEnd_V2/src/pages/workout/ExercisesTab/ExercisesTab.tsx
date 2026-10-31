@@ -48,6 +48,7 @@ export function ExercisesTab({ onOpenExercise }: ExercisesTabProps) {
   const [filters, setFilters] = useState<ExerciseFilters>(readStoredFilters);
   const [rows, setRows] = useState(ROWS_PER_PAGE);
   const [grid, setGrid] = useState<HTMLDivElement | null>(null);
+  const [sentinel, setSentinel] = useState<HTMLDivElement | null>(null);
   const [columns, setColumns] = useState(0);
 
   const results = useMemo(() => applyExerciseFilters(exercises, filters), [exercises, filters]);
@@ -62,8 +63,9 @@ export function ExercisesTab({ onOpenExercise }: ExercisesTabProps) {
   const wide = columns > PICKER_COLUMNS;
   const beside = wide ? (columns - PICKER_COLUMNS) * PICKER_ROWS : 0;
   const visible = beside + columns * rows;
+  const hasMore = !loading && visible < results.length;
 
-  // The next page's photos start downloading while this page is on screen, so "Show more" shows them at once.
+  // The next page's photos start downloading while this page is on screen, so they appear as soon as the user scrolls down.
   const nextPhotos = useMemo(
     () => results.slice(visible, visible + columns * ROWS_PER_PAGE).map((ex) => ex.image_url),
     [results, visible, columns],
@@ -80,14 +82,32 @@ export function ExercisesTab({ onOpenExercise }: ExercisesTabProps) {
     return () => observer.disconnect();
   }, [grid]);
 
+  // Loads the next page when the user scrolls near the end of the list. The observer is rebuilt after every page,
+  // because it only reports a change: a screen tall enough to still show the end keeps loading until it is full.
+  useEffect(() => {
+    if (!sentinel || !hasMore) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) setRows((r) => r + ROWS_PER_PAGE);
+      },
+      { rootMargin: "600px 0px" },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [sentinel, hasMore, visible]);
+
   function changeFilters(next: ExerciseFilters) {
     setFilters(next);
     setRows(ROWS_PER_PAGE);
   }
 
-  // Picking the muscle that is already picked clears it. A muscle is narrower than a group tab, so it resets the group.
+  // Each muscle toggles independently, so more than one can be picked at once. Muscles are narrower than a
+  // group tab, so picking any muscle resets the group.
   function pickMuscle(muscle: MuscleId) {
-    changeFilters({ ...filters, muscle: filters.muscle === muscle ? null : muscle, group: "all" });
+    const muscles = filters.muscles.includes(muscle)
+      ? filters.muscles.filter((m) => m !== muscle)
+      : [...filters.muscles, muscle];
+    changeFilters({ ...filters, muscles, group: "all" });
   }
 
   if (error) return <IllustratedErrorState onRetry={() => void reload()} />;
@@ -107,8 +127,8 @@ export function ExercisesTab({ onOpenExercise }: ExercisesTabProps) {
           <button
             key={m}
             type="button"
-            className={`wk-group${filters.muscle === m ? " is-active" : ""}`}
-            aria-pressed={filters.muscle === m}
+            className={`wk-group${filters.muscles.includes(m) ? " is-active" : ""}`}
+            aria-pressed={filters.muscles.includes(m)}
             onClick={() => pickMuscle(m)}
           >
             {MUSCLE_LABEL[m]}
@@ -119,9 +139,9 @@ export function ExercisesTab({ onOpenExercise }: ExercisesTabProps) {
       {/* The picker takes the top-right corner, so the cards wrap around it the way text wraps around a picture. */}
       <div ref={setGrid} className={`wk-ex-grid${wide ? "" : " is-narrow"}`}>
         <MusclePicker
-          selected={filters.muscle}
+          selected={filters.muscles}
           onSelect={pickMuscle}
-          onClear={() => changeFilters({ ...filters, muscle: null })}
+          onClear={() => changeFilters({ ...filters, muscles: [] })}
         />
 
         {loading ? (
@@ -142,13 +162,7 @@ export function ExercisesTab({ onOpenExercise }: ExercisesTabProps) {
         )}
       </div>
 
-      {!loading && visible < results.length && (
-        <div className="text-center">
-          <button type="button" className="btn btn-soft px-4" onClick={() => setRows((r) => r + ROWS_PER_PAGE)}>
-            Show more ({results.length - visible} left)
-          </button>
-        </div>
-      )}
+      {hasMore && <div ref={setSentinel} aria-hidden="true" />}
     </div>
   );
 }

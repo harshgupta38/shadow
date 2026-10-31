@@ -28,9 +28,6 @@ export const ANIMATION = {
     /** GoalCreationWizard's walking-character: fade duration when jumping backward multiple steps. */
     BOY_BACKWARD_FADE_MS: 200,
 
-    /** ThemeContext — duration before removing the `theme-transitioning` class; must match the CSS transition. */
-    THEME_TRANSITION_MS: 350,
-
     /** ToastContext — auto-dismiss duration for toasts. */
     TOAST_AUTO_DISMISS_MS: 4200,
 

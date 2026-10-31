@@ -2,7 +2,6 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 
 import { api, type ChildProps, type EffectiveTheme, type ThemePreference } from "@/api";
 import { DEFAULTS } from "@/constant/data";
-import { ANIMATION } from "@/constant/tuning";
 import { getUserLocation } from "@/services/location.service";
 import { hasKnownSession } from "@/services/session-hint.service";
 
@@ -10,15 +9,18 @@ import { hasKnownSession } from "@/services/session-hint.service";
 
 function applyTheme(effectiveTheme: EffectiveTheme, skipTransition = false): void {
 	const root = document.documentElement;
-	if (!skipTransition) {
-		root.classList.add("theme-transitioning");
-		void root.offsetHeight; // force repaint so the browser captures the "before" state
+	const change = () => {
+		root.setAttribute("data-bs-theme", effectiveTheme);
+		root.style.colorScheme = effectiveTheme;
+	};
+	// The browser snapshots the page, applies the change, and cross-fades the two. Every element fades together, text and
+	// gradients included, and nothing animates per element, so a long list switches as smoothly as a short one.
+	const reducedMotion = root.dataset.reducedMotion === "true";
+	if (skipTransition || reducedMotion || !document.startViewTransition) {
+		change();
+		return;
 	}
-	root.setAttribute("data-bs-theme", effectiveTheme);
-	root.style.colorScheme = effectiveTheme;
-	if (!skipTransition) {
-		window.setTimeout(() => root.classList.remove("theme-transitioning"), ANIMATION.THEME_TRANSITION_MS);
-	}
+	document.startViewTransition(change);
 }
 
 function getBrowserTheme(): EffectiveTheme {

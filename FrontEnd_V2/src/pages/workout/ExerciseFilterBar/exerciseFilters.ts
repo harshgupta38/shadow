@@ -5,8 +5,8 @@ export interface ExerciseFilters {
   query: string;
   /** A MUSCLE_GROUPS id, or "all". */
   group: string;
-  /** One muscle picked in the muscle picker. Matches primary and secondary muscles. */
-  muscle: MuscleId | null;
+  /** Muscles picked in the muscle picker (toggled on/off). Matches primary and secondary muscles. */
+  muscles: MuscleId[];
   equipment: WorkoutEquipment[];
   level: WorkoutLevel[];
   /** Kinds to show. All three are on by default; with none on, nothing is shown. */
@@ -16,14 +16,14 @@ export interface ExerciseFilters {
 const ALL_EXERCISE_KINDS: ExerciseKind[] = ["strength", "cardio", "warmup"];
 
 export const DEFAULT_EXERCISE_FILTERS: ExerciseFilters = {
-  query: "", group: "all", muscle: null, equipment: [], level: [], kinds: [...ALL_EXERCISE_KINDS],
+  query: "", group: "all", muscles: [], equipment: [], level: [], kinds: [...ALL_EXERCISE_KINDS],
 };
 
 export function hasActiveFilters(f: ExerciseFilters): boolean {
   return (
     f.query.trim() !== "" ||
     f.group !== "all" ||
-    f.muscle !== null ||
+    f.muscles.length > 0 ||
     f.equipment.length > 0 ||
     f.level.length > 0 ||
     ALL_EXERCISE_KINDS.some((kind) => !f.kinds.includes(kind))
@@ -44,12 +44,12 @@ export function applyExerciseFilters(list: ExerciseSummary[], f: ExerciseFilters
   const words = query.split(/\s+/).filter(Boolean);
   const joined = query.replace(/\s/g, "");
   const groupMuscles = f.group === "all" ? null : (MUSCLE_GROUPS.find((g) => g.id === f.group)?.muscles ?? []);
-  const muscle = f.muscle;
+  const muscles = f.muscles;
 
   return list
     .filter((ex) => {
       if (groupMuscles && !ex.primary_muscles.some((m) => groupMuscles.includes(m))) return false;
-      if (muscle && !ex.primary_muscles.includes(muscle) && !ex.secondary_muscles.includes(muscle)) return false;
+      if (muscles.length > 0 && !ex.primary_muscles.some((m) => muscles.includes(m)) && !ex.secondary_muscles.some((m) => muscles.includes(m))) return false;
       if (f.equipment.length > 0 && !f.equipment.includes(ex.equipment)) return false;
       if (f.level.length > 0 && !f.level.includes(ex.level)) return false;
       if (!f.kinds.includes(ex.kind)) return false;
@@ -64,9 +64,10 @@ export function applyExerciseFilters(list: ExerciseSummary[], f: ExerciseFilters
       return true;
     })
     .sort((a, b) => {
-      // With a muscle picked, the exercises that train it directly come before the ones that only support it.
-      if (muscle) {
-        const byRole = Number(!a.primary_muscles.includes(muscle)) - Number(!b.primary_muscles.includes(muscle));
+      // With muscles picked, the exercises that train any of them directly come before the ones that only support them.
+      if (muscles.length > 0) {
+        const trainsDirectly = (ex: ExerciseSummary) => ex.primary_muscles.some((m) => muscles.includes(m));
+        const byRole = Number(!trainsDirectly(a)) - Number(!trainsDirectly(b));
         if (byRole !== 0) return byRole;
       }
       return a.name.localeCompare(b.name);

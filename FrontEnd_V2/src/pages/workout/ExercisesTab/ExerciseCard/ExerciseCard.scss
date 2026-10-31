@@ -8,9 +8,11 @@
   color: inherit;
   cursor: pointer;
   overflow: hidden;
+  text-decoration: none;
   transition: transform 160ms var(--jv-ease), box-shadow 160ms var(--jv-ease), border-color 160ms var(--jv-ease);
 
   &:hover {
+    text-decoration: none;
     transform: translateY(-2px);
     box-shadow: var(--jv-shadow-lg);
     border-color: var(--jv-border-strong);

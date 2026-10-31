@@ -1,0 +1,12 @@
+.dt-skel {
+  border-radius: 12px;
+  background: linear-gradient(90deg, var(--jv-surface-2), var(--jv-surface-3), var(--jv-surface-2));
+  background-size: 200% 100%;
+  animation: dt-shimmer 1.4s infinite linear;
+}
+
+@keyframes dt-shimmer { to { background-position: -200% 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .dt-skel { animation: none; }
+}

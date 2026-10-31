@@ -32,6 +32,8 @@ from app.schemas.tasks import TaskProposalListLLMSchema
 from app.schemas.memory import MemoryExtractionFromLLMSchema
 from app.schemas.daily_report import GenerateReportSchema
 from app.llm.models import (
+    StructuredToLLM,
+    StructuredFromLLM,
     MessageToLLM,
     MessageFromLLM,
     TokenUsage,
@@ -970,6 +972,62 @@ class OllamaProvider(BaseLLMProvider):
 
     async def generate_daily_brief(self, request: GenerateBriefToLLM) -> GenerateBriefFromLLM:
         raise NotImplementedError("Daily brief generation is only supported by the OpenAI provider currently.")
+
+    async def generate_structured(self, request: StructuredToLLM) -> StructuredFromLLM:
+        model = self._resolve_model(request)
+        messages = [
+            {"role": Role.SYSTEM, "content": request.system_instruction},
+            {"role": Role.USER, "content": request.user_content},
+        ]
+
+        started_at = perf_counter()
+        try:
+            kwargs = {"model": model, "messages": messages, "response_format": request.schema_cls}
+            if request.temperature is not None:
+                kwargs["temperature"] = request.temperature
+            if request.max_tokens is not None:
+                kwargs["max_tokens"] = request.max_tokens
+            completion = await self._client.beta.chat.completions.parse(**kwargs)
+        except (APIConnectionError, APIStatusError, OpenAIError) as exc:
+            raise LLMProviderError(f"Ollama {request.operation} failed: {exc}") from exc
+        response_time_ms = int((perf_counter() - started_at) * 1000)
+
+        await log_ollama_completion_usage_async(
+            settings=self._settings,
+            model=model,
+            completion=completion,
+            latency_ms=response_time_ms,
+            user_id=request.user_id,
+            operation=request.operation,
+        )
+
+        if not completion.choices:
+            raise LLMRequestError(f"Ollama returned no choices for {request.operation}.")
+        first_choice = completion.choices[0]
+        parsed = first_choice.message.parsed
+        if parsed is None:
+            if first_choice.message.refusal:
+                raise LLMRequestError(f"Ollama refused {request.operation}: {first_choice.message.refusal}")
+            raise LLMRequestError(f"Ollama returned an unparsable {request.operation} response.")
+
+        usage = None
+        if completion.usage is not None:
+            usage = TokenUsage(
+                input_tokens=completion.usage.prompt_tokens,
+                output_tokens=completion.usage.completion_tokens,
+                total_tokens=completion.usage.total_tokens,
+            )
+        return StructuredFromLLM(
+            provider=LLMProvider.OLLAMA,
+            model=model,
+            model_str=completion.model or model,
+            data=parsed,
+            finish_reason=first_choice.finish_reason,
+            usage=usage,
+            response_id=completion.id,
+            response_time_ms=response_time_ms,
+            cost=_ollama_cost(model, usage.input_tokens if usage else 0, usage.output_tokens if usage else 0),
+        )
 
     async def health_check(self, model: str | None = None) -> bool:
         try:

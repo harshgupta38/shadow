@@ -63,8 +63,20 @@ from app.models.workout import (
     WorkoutSessionExerciseDBM,
     WorkoutSettingDBM,
 )
+from app.models.diet import (
+    DietAgentRunDBM,
+    DietProfileDBM,
+    DietProposalDBM,
+    FoodDBM,
+    FoodFavouriteDBM,
+    FoodOverrideDBM,
+    FoodLogDBM,
+    FoodLogItemDBM,
+    SavedMealDBM,
+    WaterLogDBM,
+)
 from app.models.data_version import DataVersionDBM
-from app.services import planner_service, backup_service, notification_scheduler_service, report_scheduler_service, session_event_service, workout_seed_service, workout_sessions_service
+from app.services import planner_service, backup_service, diet_seed_service, notification_scheduler_service, report_scheduler_service, session_event_service, workout_seed_service, workout_sessions_service
 from app.api.notifications import reset_shutdown as _reset_sse_shutdown
 from app.api.notifications import signal_shutdown as _signal_sse_shutdown
 
@@ -234,6 +246,14 @@ async def lifespan(_app: FastAPI):
         except Exception:
             db.rollback()
             _startup_logger.exception("Workout library seed failed; the workout page will show an empty library.")
+    with SessionLocal() as db:
+        try:
+            diet_seed_service.sync_seed(db)
+        except IntegrityError:
+            db.rollback()  # another worker seeded the same rows first; its copy is the one kept
+        except Exception:
+            db.rollback()
+            _startup_logger.exception("Food library seed failed; food search will be empty until it is fixed.")
     with SessionLocal() as db:
         planner_service.sync_all_plans(db)
 

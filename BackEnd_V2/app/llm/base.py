@@ -19,6 +19,8 @@ from app.llm.models import (
     GenerateReportFromLLM,
     GenerateBriefToLLM,
     GenerateBriefFromLLM,
+    StructuredToLLM,
+    StructuredFromLLM,
 )
 
 
@@ -49,6 +51,10 @@ class BaseLLMProvider(ABC):
 
     @abstractmethod
     async def extract_user_memory(self, request: ExtractUserMemoryToLLM) -> ExtractUserMemoryFromLLM:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def generate_structured(self, request: StructuredToLLM) -> StructuredFromLLM:
         raise NotImplementedError
 
     @abstractmethod

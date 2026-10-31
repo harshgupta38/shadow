@@ -1,0 +1,4472 @@
+[
+ {
+  "slug": "chapati",
+  "name": "Chapati (roti)",
+  "alt_names": [
+   "roti",
+   "phulka",
+   "chapathi",
+   "fulka",
+   "whole wheat roti"
+  ],
+  "category": "bread",
+  "cuisine": "indian",
+  "prep_method": "cooked, no oil",
+  "diet_tags": [
+   "vegan",
+   "gluten"
+  ],
+  "calories": 297,
+  "protein_g": 9.8,
+  "carbs_g": 54,
+  "fat_g": 3.7,
+  "fibre_g": 7.0,
+  "micronutrients": {},
+  "serving_grams": {
+   "piece": 40
+  },
+  "default_unit": "piece",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "roti-ghee",
+  "name": "Roti with ghee",
+  "alt_names": [
+   "chapati with ghee",
+   "ghee roti",
+   "buttered roti"
+  ],
+  "category": "bread",
+  "cuisine": "indian",
+  "prep_method": "cooked with ghee",
+  "diet_tags": [
+   "vegetarian",
+   "gluten",
+   "dairy"
+  ],
+  "calories": 330,
+  "protein_g": 9,
+  "carbs_g": 52,
+  "fat_g": 9,
+  "fibre_g": 6.5,
+  "micronutrients": {},
+  "serving_grams": {
+   "piece": 45
+  },
+  "default_unit": "piece",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "paratha-plain",
+  "name": "Paratha (plain)",
+  "alt_names": [
+   "plain paratha",
+   "parantha"
+  ],
+  "category": "bread",
+  "cuisine": "indian",
+  "prep_method": "pan-fried",
+  "diet_tags": [
+   "vegetarian",
+   "gluten",
+   "dairy"
+  ],
+  "calories": 326,
+  "protein_g": 7.5,
+  "carbs_g": 45,
+  "fat_g": 13,
+  "fibre_g": 4,
+  "micronutrients": {},
+  "serving_grams": {
+   "piece": 70
+  },
+  "default_unit": "piece",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "aloo-paratha",
+  "name": "Aloo paratha",
+  "alt_names": [
+   "potato paratha",
+   "aloo parantha"
+  ],
+  "category": "bread",
+  "cuisine": "indian",
+  "prep_method": "pan-fried",
+  "diet_tags": [
+   "vegetarian",
+   "gluten",
+   "dairy",
+   "root_vegetable"
+  ],
+  "calories": 260,
+  "protein_g": 5.5,
+  "carbs_g": 34,
+  "fat_g": 10.5,
+  "fibre_g": 3,
+  "micronutrients": {},
+  "serving_grams": {
+   "piece": 90
+  },
+  "default_unit": "piece",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.7
+ },
+ {
+  "slug": "naan",
+  "name": "Naan",
+  "alt_names": [
+   "plain naan",
+   "tandoori naan",
+   "butter naan"
+  ],
+  "category": "bread",
+  "cuisine": "indian",
+  "prep_method": "tandoor",
+  "diet_tags": [
+   "vegetarian",
+   "gluten",
+   "dairy"
+  ],
+  "calories": 290,
+  "protein_g": 9,
+  "carbs_g": 50,
+  "fat_g": 5.5,
+  "fibre_g": 2.2,
+  "micronutrients": {},
+  "serving_grams": {
+   "piece": 90
+  },
+  "default_unit": "piece",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "puri",
+  "name": "Puri",
+  "alt_names": [
+   "poori",
+   "fried bread"
+  ],
+  "category": "bread",
+  "cuisine": "indian",
+  "prep_method": "deep-fried",
+  "diet_tags": [
+   "vegan",
+   "gluten"
+  ],
+  "calories": 350,
+  "protein_g": 7.5,
+  "carbs_g": 45,
+  "fat_g": 16,
+  "fibre_g": 3,
+  "micronutrients": {},
+  "serving_grams": {
+   "piece": 30
+  },
+  "default_unit": "piece",
+  "default_quantity": 2,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "rice-white",
+  "name": "Rice, white (cooked)",
+  "alt_names": [
+   "steamed rice",
+   "chawal",
+   "plain rice",
+   "boiled rice",
+   "bhaat"
+  ],
+  "category": "grain",
+  "cuisine": "indian",
+  "prep_method": "boiled",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 130,
+  "protein_g": 2.7,
+  "carbs_g": 28.2,
+  "fat_g": 0.3,
+  "fibre_g": 0.4,
+  "micronutrients": {},
+  "serving_grams": {
+   "bowl": 150,
+   "katori": 150,
+   "cup": 160,
+   "plate": 250
+  },
+  "default_unit": "bowl",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "rice-brown",
+  "name": "Rice, brown (cooked)",
+  "alt_names": [
+   "brown rice",
+   "boiled brown rice"
+  ],
+  "category": "grain",
+  "cuisine": "international",
+  "prep_method": "boiled",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 112,
+  "protein_g": 2.6,
+  "carbs_g": 23.5,
+  "fat_g": 0.9,
+  "fibre_g": 1.8,
+  "micronutrients": {},
+  "serving_grams": {
+   "bowl": 150,
+   "katori": 150,
+   "cup": 195
+  },
+  "default_unit": "bowl",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "rice-raw",
+  "name": "Rice, white (raw)",
+  "alt_names": [
+   "uncooked rice",
+   "raw rice"
+  ],
+  "category": "grain",
+  "cuisine": "indian",
+  "prep_method": "raw",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 360,
+  "protein_g": 6.7,
+  "carbs_g": 79,
+  "fat_g": 0.6,
+  "fibre_g": 1.3,
+  "micronutrients": {},
+  "serving_grams": {
+   "cup": 185
+  },
+  "default_unit": "g",
+  "default_quantity": 100,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "jeera-rice",
+  "name": "Jeera rice",
+  "alt_names": [
+   "cumin rice"
+  ],
+  "category": "grain",
+  "cuisine": "indian",
+  "prep_method": "cooked with ghee",
+  "diet_tags": [
+   "vegetarian",
+   "dairy"
+  ],
+  "calories": 150,
+  "protein_g": 3,
+  "carbs_g": 27,
+  "fat_g": 3,
+  "fibre_g": 0.6,
+  "micronutrients": {},
+  "serving_grams": {
+   "bowl": 150,
+   "katori": 150,
+   "plate": 250
+  },
+  "default_unit": "bowl",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.7
+ },
+ {
+  "slug": "veg-pulao",
+  "name": "Vegetable pulao",
+  "alt_names": [
+   "veg pulav",
+   "pulav",
+   "pulao"
+  ],
+  "category": "grain",
+  "cuisine": "indian",
+  "prep_method": "cooked",
+  "diet_tags": [
+   "vegetarian",
+   "dairy"
+  ],
+  "calories": 150,
+  "protein_g": 3.3,
+  "carbs_g": 26,
+  "fat_g": 3.5,
+  "fibre_g": 1.5,
+  "micronutrients": {},
+  "serving_grams": {
+   "bowl": 180,
+   "plate": 300
+  },
+  "default_unit": "plate",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.7
+ },
+ {
+  "slug": "chicken-biryani",
+  "name": "Chicken biryani",
+  "alt_names": [
+   "biryani",
+   "biriyani",
+   "chicken biriyani"
+  ],
+  "category": "mixed_dish",
+  "cuisine": "indian",
+  "prep_method": "cooked",
+  "diet_tags": [
+   "non_vegetarian",
+   "dairy"
+  ],
+  "calories": 180,
+  "protein_g": 8,
+  "carbs_g": 22,
+  "fat_g": 6,
+  "fibre_g": 1,
+  "micronutrients": {},
+  "serving_grams": {
+   "bowl": 200,
+   "plate": 300
+  },
+  "default_unit": "plate",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.7
+ },
+ {
+  "slug": "veg-biryani",
+  "name": "Vegetable biryani",
+  "alt_names": [
+   "veg biriyani",
+   "veg biryani"
+  ],
+  "category": "mixed_dish",
+  "cuisine": "indian",
+  "prep_method": "cooked",
+  "diet_tags": [
+   "vegetarian",
+   "dairy"
+  ],
+  "calories": 160,
+  "protein_g": 3.5,
+  "carbs_g": 25,
+  "fat_g": 5,
+  "fibre_g": 1.5,
+  "micronutrients": {},
+  "serving_grams": {
+   "bowl": 200,
+   "plate": 300
+  },
+  "default_unit": "plate",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.7
+ },
+ {
+  "slug": "dal-khichdi",
+  "name": "Dal khichdi",
+  "alt_names": [
+   "khichdi",
+   "khichri",
+   "moong dal khichdi"
+  ],
+  "category": "mixed_dish",
+  "cuisine": "indian",
+  "prep_method": "cooked",
+  "diet_tags": [
+   "vegetarian",
+   "dairy"
+  ],
+  "calories": 110,
+  "protein_g": 4.2,
+  "carbs_g": 18,
+  "fat_g": 2.2,
+  "fibre_g": 1.8,
+  "micronutrients": {},
+  "serving_grams": {
+   "bowl": 200,
+   "katori": 150,
+   "plate": 300
+  },
+  "default_unit": "bowl",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.7
+ },
+ {
+  "slug": "poha",
+  "name": "Poha (cooked)",
+  "alt_names": [
+   "flattened rice",
+   "aval",
+   "chivda poha",
+   "kanda poha"
+  ],
+  "category": "grain",
+  "cuisine": "indian",
+  "prep_method": "cooked",
+  "diet_tags": [
+   "vegan",
+   "peanut"
+  ],
+  "calories": 130,
+  "protein_g": 2.6,
+  "carbs_g": 22,
+  "fat_g": 3.5,
+  "fibre_g": 1.5,
+  "micronutrients": {},
+  "serving_grams": {
+   "plate": 180,
+   "bowl": 150
+  },
+  "default_unit": "plate",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.7
+ },
+ {
+  "slug": "upma",
+  "name": "Upma",
+  "alt_names": [
+   "rava upma",
+   "sooji upma",
+   "semolina upma"
+  ],
+  "category": "grain",
+  "cuisine": "indian",
+  "prep_method": "cooked",
+  "diet_tags": [
+   "vegetarian",
+   "gluten",
+   "dairy"
+  ],
+  "calories": 140,
+  "protein_g": 3.2,
+  "carbs_g": 21,
+  "fat_g": 4.8,
+  "fibre_g": 1.8,
+  "micronutrients": {},
+  "serving_grams": {
+   "plate": 200,
+   "bowl": 180
+  },
+  "default_unit": "plate",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.7
+ },
+ {
+  "slug": "idli",
+  "name": "Idli",
+  "alt_names": [
+   "idly",
+   "steamed rice cake"
+  ],
+  "category": "grain",
+  "cuisine": "indian",
+  "prep_method": "steamed",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 146,
+  "protein_g": 4.5,
+  "carbs_g": 31,
+  "fat_g": 0.5,
+  "fibre_g": 0.9,
+  "micronutrients": {},
+  "serving_grams": {
+   "piece": 40
+  },
+  "default_unit": "piece",
+  "default_quantity": 2,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "dosa-plain",
+  "name": "Dosa (plain)",
+  "alt_names": [
+   "plain dosa",
+   "dosai",
+   "sada dosa"
+  ],
+  "category": "grain",
+  "cuisine": "indian",
+  "prep_method": "pan-fried",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 168,
+  "protein_g": 3.9,
+  "carbs_g": 29,
+  "fat_g": 3.7,
+  "fibre_g": 1,
+  "micronutrients": {},
+  "serving_grams": {
+   "piece": 100
+  },
+  "default_unit": "piece",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "masala-dosa",
+  "name": "Masala dosa",
+  "alt_names": [
+   "masala dosai",
+   "potato dosa"
+  ],
+  "category": "mixed_dish",
+  "cuisine": "indian",
+  "prep_method": "pan-fried",
+  "diet_tags": [
+   "vegan",
+   "root_vegetable"
+  ],
+  "calories": 190,
+  "protein_g": 4,
+  "carbs_g": 26,
+  "fat_g": 7.5,
+  "fibre_g": 2,
+  "micronutrients": {},
+  "serving_grams": {
+   "piece": 180
+  },
+  "default_unit": "piece",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.7
+ },
+ {
+  "slug": "uttapam",
+  "name": "Uttapam",
+  "alt_names": [
+   "uthappam",
+   "oothappam"
+  ],
+  "category": "grain",
+  "cuisine": "indian",
+  "prep_method": "pan-fried",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 170,
+  "protein_g": 5,
+  "carbs_g": 27,
+  "fat_g": 4.5,
+  "fibre_g": 1.5,
+  "micronutrients": {},
+  "serving_grams": {
+   "piece": 120
+  },
+  "default_unit": "piece",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "oats-dry",
+  "name": "Oats, rolled (dry)",
+  "alt_names": [
+   "oatmeal",
+   "rolled oats",
+   "porridge oats"
+  ],
+  "category": "grain",
+  "cuisine": "international",
+  "prep_method": "raw",
+  "diet_tags": [
+   "vegan",
+   "gluten"
+  ],
+  "calories": 389,
+  "protein_g": 16.9,
+  "carbs_g": 66,
+  "fat_g": 6.9,
+  "fibre_g": 10.6,
+  "micronutrients": {},
+  "serving_grams": {
+   "cup": 80,
+   "tbsp": 8
+  },
+  "default_unit": "g",
+  "default_quantity": 40,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "oats-cooked",
+  "name": "Oats porridge (cooked in water)",
+  "alt_names": [
+   "oatmeal cooked",
+   "porridge"
+  ],
+  "category": "grain",
+  "cuisine": "international",
+  "prep_method": "boiled",
+  "diet_tags": [
+   "vegan",
+   "gluten"
+  ],
+  "calories": 71,
+  "protein_g": 2.5,
+  "carbs_g": 12,
+  "fat_g": 1.5,
+  "fibre_g": 1.7,
+  "micronutrients": {},
+  "serving_grams": {
+   "bowl": 240,
+   "cup": 240
+  },
+  "default_unit": "bowl",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "bread-white",
+  "name": "Bread, white",
+  "alt_names": [
+   "white bread",
+   "bread slice",
+   "sandwich bread"
+  ],
+  "category": "bread",
+  "cuisine": "international",
+  "prep_method": "baked",
+  "diet_tags": [
+   "vegetarian",
+   "gluten",
+   "dairy"
+  ],
+  "calories": 265,
+  "protein_g": 9,
+  "carbs_g": 49,
+  "fat_g": 3.2,
+  "fibre_g": 2.7,
+  "micronutrients": {},
+  "serving_grams": {
+   "slice": 28
+  },
+  "default_unit": "slice",
+  "default_quantity": 2,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "bread-brown",
+  "name": "Bread, whole wheat",
+  "alt_names": [
+   "brown bread",
+   "whole wheat bread",
+   "multigrain bread"
+  ],
+  "category": "bread",
+  "cuisine": "international",
+  "prep_method": "baked",
+  "diet_tags": [
+   "vegetarian",
+   "gluten",
+   "dairy"
+  ],
+  "calories": 247,
+  "protein_g": 13,
+  "carbs_g": 41,
+  "fat_g": 3.4,
+  "fibre_g": 7,
+  "micronutrients": {},
+  "serving_grams": {
+   "slice": 30
+  },
+  "default_unit": "slice",
+  "default_quantity": 2,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "cornflakes",
+  "name": "Cornflakes",
+  "alt_names": [
+   "corn flakes",
+   "breakfast cereal"
+  ],
+  "category": "grain",
+  "cuisine": "international",
+  "prep_method": "dry",
+  "diet_tags": [
+   "vegan",
+   "gluten"
+  ],
+  "calories": 357,
+  "protein_g": 7.5,
+  "carbs_g": 84,
+  "fat_g": 0.4,
+  "fibre_g": 3.3,
+  "micronutrients": {},
+  "serving_grams": {
+   "bowl": 40,
+   "cup": 28
+  },
+  "default_unit": "bowl",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "besan-chilla",
+  "name": "Besan chilla",
+  "alt_names": [
+   "besan cheela",
+   "gram flour pancake",
+   "chickpea pancake"
+  ],
+  "category": "grain",
+  "cuisine": "indian",
+  "prep_method": "pan-fried",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 190,
+  "protein_g": 8,
+  "carbs_g": 22,
+  "fat_g": 7,
+  "fibre_g": 4,
+  "micronutrients": {},
+  "serving_grams": {
+   "piece": 80
+  },
+  "default_unit": "piece",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.7
+ },
+ {
+  "slug": "pasta-cooked",
+  "name": "Pasta (cooked)",
+  "alt_names": [
+   "spaghetti",
+   "macaroni",
+   "penne"
+  ],
+  "category": "grain",
+  "cuisine": "international",
+  "prep_method": "boiled",
+  "diet_tags": [
+   "vegan",
+   "gluten"
+  ],
+  "calories": 158,
+  "protein_g": 5.8,
+  "carbs_g": 31,
+  "fat_g": 0.9,
+  "fibre_g": 1.8,
+  "micronutrients": {},
+  "serving_grams": {
+   "bowl": 200,
+   "cup": 140
+  },
+  "default_unit": "bowl",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "noodles-instant",
+  "name": "Instant noodles (cooked)",
+  "alt_names": [
+   "maggi",
+   "maggie",
+   "ramen noodles"
+  ],
+  "category": "grain",
+  "cuisine": "international",
+  "prep_method": "boiled",
+  "diet_tags": [
+   "vegetarian",
+   "gluten",
+   "dairy"
+  ],
+  "calories": 140,
+  "protein_g": 3.5,
+  "carbs_g": 20,
+  "fat_g": 5,
+  "fibre_g": 1,
+  "micronutrients": {},
+  "serving_grams": {
+   "bowl": 200
+  },
+  "default_unit": "bowl",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.7
+ },
+ {
+  "slug": "quinoa-cooked",
+  "name": "Quinoa (cooked)",
+  "alt_names": [
+   "quinoa"
+  ],
+  "category": "grain",
+  "cuisine": "international",
+  "prep_method": "boiled",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 120,
+  "protein_g": 4.4,
+  "carbs_g": 21,
+  "fat_g": 1.9,
+  "fibre_g": 2.8,
+  "micronutrients": {},
+  "serving_grams": {
+   "cup": 185,
+   "bowl": 185
+  },
+  "default_unit": "bowl",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "atta",
+  "name": "Wheat flour (atta)",
+  "alt_names": [
+   "whole wheat flour",
+   "atta",
+   "gehun ka atta"
+  ],
+  "category": "grain",
+  "cuisine": "indian",
+  "prep_method": "raw",
+  "diet_tags": [
+   "vegan",
+   "gluten"
+  ],
+  "calories": 340,
+  "protein_g": 12,
+  "carbs_g": 71,
+  "fat_g": 1.7,
+  "fibre_g": 11,
+  "micronutrients": {},
+  "serving_grams": {
+   "cup": 120,
+   "tbsp": 8
+  },
+  "default_unit": "g",
+  "default_quantity": 40,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "dal-tadka",
+  "name": "Dal tadka",
+  "alt_names": [
+   "toor dal",
+   "arhar dal",
+   "dal fry",
+   "yellow dal",
+   "dal"
+  ],
+  "category": "dal",
+  "cuisine": "indian",
+  "prep_method": "cooked with tempering",
+  "diet_tags": [
+   "vegetarian",
+   "dairy"
+  ],
+  "calories": 95,
+  "protein_g": 5.5,
+  "carbs_g": 13,
+  "fat_g": 2.5,
+  "fibre_g": 2.5,
+  "micronutrients": {},
+  "serving_grams": {
+   "katori": 150,
+   "bowl": 200,
+   "cup": 240
+  },
+  "default_unit": "katori",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.7
+ },
+ {
+  "slug": "moong-dal",
+  "name": "Moong dal (cooked)",
+  "alt_names": [
+   "mung dal",
+   "green gram dal",
+   "yellow moong dal"
+  ],
+  "category": "dal",
+  "cuisine": "indian",
+  "prep_method": "boiled",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 105,
+  "protein_g": 7,
+  "carbs_g": 19,
+  "fat_g": 0.4,
+  "fibre_g": 3,
+  "micronutrients": {},
+  "serving_grams": {
+   "katori": 150,
+   "bowl": 200
+  },
+  "default_unit": "katori",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "masoor-dal",
+  "name": "Masoor dal (cooked)",
+  "alt_names": [
+   "red lentils",
+   "masur dal"
+  ],
+  "category": "dal",
+  "cuisine": "indian",
+  "prep_method": "boiled",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 116,
+  "protein_g": 9,
+  "carbs_g": 20,
+  "fat_g": 0.4,
+  "fibre_g": 7.9,
+  "micronutrients": {},
+  "serving_grams": {
+   "katori": 150,
+   "bowl": 200
+  },
+  "default_unit": "katori",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "chana-dal",
+  "name": "Chana dal (cooked)",
+  "alt_names": [
+   "split chickpea dal",
+   "bengal gram dal"
+  ],
+  "category": "dal",
+  "cuisine": "indian",
+  "prep_method": "boiled",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 130,
+  "protein_g": 8,
+  "carbs_g": 22,
+  "fat_g": 1.5,
+  "fibre_g": 6,
+  "micronutrients": {},
+  "serving_grams": {
+   "katori": 150,
+   "bowl": 200
+  },
+  "default_unit": "katori",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "dal-makhani",
+  "name": "Dal makhani",
+  "alt_names": [
+   "makhani dal",
+   "black dal"
+  ],
+  "category": "dal",
+  "cuisine": "indian",
+  "prep_method": "cooked with cream",
+  "diet_tags": [
+   "vegetarian",
+   "dairy"
+  ],
+  "calories": 130,
+  "protein_g": 5.5,
+  "carbs_g": 13,
+  "fat_g": 6.5,
+  "fibre_g": 3,
+  "micronutrients": {},
+  "serving_grams": {
+   "katori": 150,
+   "bowl": 200
+  },
+  "default_unit": "katori",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.7
+ },
+ {
+  "slug": "toor-dal-raw",
+  "name": "Toor dal (raw)",
+  "alt_names": [
+   "arhar dal raw",
+   "pigeon pea dal dry"
+  ],
+  "category": "dal",
+  "cuisine": "indian",
+  "prep_method": "raw",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 335,
+  "protein_g": 22,
+  "carbs_g": 58,
+  "fat_g": 1.5,
+  "fibre_g": 15,
+  "micronutrients": {},
+  "serving_grams": {
+   "cup": 200
+  },
+  "default_unit": "g",
+  "default_quantity": 50,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "rajma",
+  "name": "Rajma curry",
+  "alt_names": [
+   "rajma masala",
+   "kidney beans curry",
+   "rajma chawal curry"
+  ],
+  "category": "legume",
+  "cuisine": "indian",
+  "prep_method": "cooked with gravy",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 120,
+  "protein_g": 6,
+  "carbs_g": 16,
+  "fat_g": 3.5,
+  "fibre_g": 5,
+  "micronutrients": {},
+  "serving_grams": {
+   "katori": 150,
+   "bowl": 200
+  },
+  "default_unit": "katori",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.7
+ },
+ {
+  "slug": "chole",
+  "name": "Chole (chana masala)",
+  "alt_names": [
+   "chhole",
+   "chana masala",
+   "chickpea curry",
+   "choley"
+  ],
+  "category": "legume",
+  "cuisine": "indian",
+  "prep_method": "cooked with gravy",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 150,
+  "protein_g": 6.5,
+  "carbs_g": 19,
+  "fat_g": 5.5,
+  "fibre_g": 5.5,
+  "micronutrients": {},
+  "serving_grams": {
+   "katori": 150,
+   "bowl": 200
+  },
+  "default_unit": "katori",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.7
+ },
+ {
+  "slug": "chickpeas-boiled",
+  "name": "Chickpeas (boiled)",
+  "alt_names": [
+   "kabuli chana",
+   "white chana",
+   "garbanzo"
+  ],
+  "category": "legume",
+  "cuisine": "indian",
+  "prep_method": "boiled",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 164,
+  "protein_g": 8.9,
+  "carbs_g": 27.4,
+  "fat_g": 2.6,
+  "fibre_g": 7.6,
+  "micronutrients": {},
+  "serving_grams": {
+   "katori": 150,
+   "cup": 164
+  },
+  "default_unit": "katori",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "sambar",
+  "name": "Sambar",
+  "alt_names": [
+   "sambhar",
+   "lentil vegetable stew"
+  ],
+  "category": "dal",
+  "cuisine": "indian",
+  "prep_method": "cooked",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 55,
+  "protein_g": 2.5,
+  "carbs_g": 8,
+  "fat_g": 1.5,
+  "fibre_g": 1.8,
+  "micronutrients": {},
+  "serving_grams": {
+   "bowl": 200,
+   "katori": 150,
+   "cup": 240
+  },
+  "default_unit": "bowl",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.7
+ },
+ {
+  "slug": "soya-chunks",
+  "name": "Soya chunks (dry)",
+  "alt_names": [
+   "soy chunks",
+   "nutrela",
+   "meal maker",
+   "soya nuggets"
+  ],
+  "category": "legume",
+  "cuisine": "indian",
+  "prep_method": "dry",
+  "diet_tags": [
+   "vegan",
+   "soy"
+  ],
+  "calories": 345,
+  "protein_g": 52,
+  "carbs_g": 33,
+  "fat_g": 0.5,
+  "fibre_g": 13,
+  "micronutrients": {},
+  "serving_grams": {
+   "cup": 40
+  },
+  "default_unit": "g",
+  "default_quantity": 30,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "sprouts-moong",
+  "name": "Moong sprouts",
+  "alt_names": [
+   "sprouted moong",
+   "sprouts",
+   "sprouted green gram"
+  ],
+  "category": "legume",
+  "cuisine": "indian",
+  "prep_method": "raw or steamed",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 62,
+  "protein_g": 5,
+  "carbs_g": 10,
+  "fat_g": 0.4,
+  "fibre_g": 3.3,
+  "micronutrients": {},
+  "serving_grams": {
+   "bowl": 100,
+   "katori": 100
+  },
+  "default_unit": "bowl",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "hummus",
+  "name": "Hummus",
+  "alt_names": [
+   "chickpea dip"
+  ],
+  "category": "legume",
+  "cuisine": "international",
+  "prep_method": "ready",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 166,
+  "protein_g": 8,
+  "carbs_g": 14,
+  "fat_g": 9.6,
+  "fibre_g": 6,
+  "micronutrients": {},
+  "serving_grams": {
+   "tbsp": 15
+  },
+  "default_unit": "tbsp",
+  "default_quantity": 2,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "tofu",
+  "name": "Tofu",
+  "alt_names": [
+   "soya paneer",
+   "bean curd"
+  ],
+  "category": "legume",
+  "cuisine": "international",
+  "prep_method": "raw",
+  "diet_tags": [
+   "vegan",
+   "soy"
+  ],
+  "calories": 76,
+  "protein_g": 8,
+  "carbs_g": 1.9,
+  "fat_g": 4.8,
+  "fibre_g": 0.3,
+  "micronutrients": {},
+  "serving_grams": {
+   "slice": 40
+  },
+  "default_unit": "g",
+  "default_quantity": 100,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "paneer",
+  "name": "Paneer",
+  "alt_names": [
+   "cottage cheese",
+   "indian cottage cheese",
+   "fresh paneer"
+  ],
+  "category": "dairy",
+  "cuisine": "indian",
+  "prep_method": "raw",
+  "diet_tags": [
+   "vegetarian",
+   "dairy"
+  ],
+  "calories": 265,
+  "protein_g": 18.3,
+  "carbs_g": 1.2,
+  "fat_g": 20.8,
+  "fibre_g": 0,
+  "micronutrients": {},
+  "serving_grams": {
+   "cube": 15,
+   "slice": 25
+  },
+  "default_unit": "g",
+  "default_quantity": 100,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "paneer-bhurji",
+  "name": "Paneer bhurji",
+  "alt_names": [
+   "scrambled paneer"
+  ],
+  "category": "mixed_dish",
+  "cuisine": "indian",
+  "prep_method": "pan-cooked",
+  "diet_tags": [
+   "vegetarian",
+   "dairy"
+  ],
+  "calories": 230,
+  "protein_g": 13,
+  "carbs_g": 4,
+  "fat_g": 18,
+  "fibre_g": 0.5,
+  "micronutrients": {},
+  "serving_grams": {
+   "katori": 120,
+   "bowl": 180
+  },
+  "default_unit": "katori",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.7
+ },
+ {
+  "slug": "palak-paneer",
+  "name": "Palak paneer",
+  "alt_names": [
+   "spinach paneer",
+   "saag paneer"
+  ],
+  "category": "mixed_dish",
+  "cuisine": "indian",
+  "prep_method": "cooked with gravy",
+  "diet_tags": [
+   "vegetarian",
+   "dairy"
+  ],
+  "calories": 170,
+  "protein_g": 8,
+  "carbs_g": 6,
+  "fat_g": 13,
+  "fibre_g": 2,
+  "micronutrients": {},
+  "serving_grams": {
+   "katori": 150,
+   "bowl": 200
+  },
+  "default_unit": "katori",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.7
+ },
+ {
+  "slug": "paneer-butter-masala",
+  "name": "Paneer butter masala",
+  "alt_names": [
+   "paneer makhani",
+   "paneer masala"
+  ],
+  "category": "mixed_dish",
+  "cuisine": "indian",
+  "prep_method": "cooked with gravy",
+  "diet_tags": [
+   "vegetarian",
+   "dairy",
+   "nuts"
+  ],
+  "calories": 190,
+  "protein_g": 7,
+  "carbs_g": 8,
+  "fat_g": 15,
+  "fibre_g": 1,
+  "micronutrients": {},
+  "serving_grams": {
+   "katori": 150,
+   "bowl": 200
+  },
+  "default_unit": "katori",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.7
+ },
+ {
+  "slug": "curd",
+  "name": "Curd (dahi), whole milk",
+  "alt_names": [
+   "dahi",
+   "yogurt",
+   "yoghurt",
+   "plain curd",
+   "thayir"
+  ],
+  "category": "dairy",
+  "cuisine": "indian",
+  "prep_method": "set",
+  "diet_tags": [
+   "vegetarian",
+   "dairy"
+  ],
+  "calories": 61,
+  "protein_g": 3.5,
+  "carbs_g": 4.7,
+  "fat_g": 3.3,
+  "fibre_g": 0,
+  "micronutrients": {},
+  "serving_grams": {
+   "katori": 100,
+   "bowl": 150,
+   "cup": 245
+  },
+  "default_unit": "katori",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "curd-low-fat",
+  "name": "Curd, low fat",
+  "alt_names": [
+   "low fat dahi",
+   "toned curd",
+   "light curd"
+  ],
+  "category": "dairy",
+  "cuisine": "indian",
+  "prep_method": "set",
+  "diet_tags": [
+   "vegetarian",
+   "dairy"
+  ],
+  "calories": 45,
+  "protein_g": 4,
+  "carbs_g": 5,
+  "fat_g": 1,
+  "fibre_g": 0,
+  "micronutrients": {},
+  "serving_grams": {
+   "katori": 100,
+   "bowl": 150,
+   "cup": 245
+  },
+  "default_unit": "katori",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "greek-yogurt",
+  "name": "Greek yogurt (plain, low fat)",
+  "alt_names": [
+   "greek yoghurt",
+   "hung curd"
+  ],
+  "category": "dairy",
+  "cuisine": "international",
+  "prep_method": "strained",
+  "diet_tags": [
+   "vegetarian",
+   "dairy"
+  ],
+  "calories": 73,
+  "protein_g": 10,
+  "carbs_g": 3.9,
+  "fat_g": 1.9,
+  "fibre_g": 0,
+  "micronutrients": {},
+  "serving_grams": {
+   "bowl": 150,
+   "cup": 245,
+   "katori": 100
+  },
+  "default_unit": "bowl",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "raita",
+  "name": "Raita",
+  "alt_names": [
+   "curd raita",
+   "boondi raita",
+   "cucumber raita"
+  ],
+  "category": "dairy",
+  "cuisine": "indian",
+  "prep_method": "mixed",
+  "diet_tags": [
+   "vegetarian",
+   "dairy"
+  ],
+  "calories": 60,
+  "protein_g": 3,
+  "carbs_g": 5,
+  "fat_g": 3,
+  "fibre_g": 0.3,
+  "micronutrients": {},
+  "serving_grams": {
+   "katori": 100,
+   "bowl": 150
+  },
+  "default_unit": "katori",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.7
+ },
+ {
+  "slug": "milk-whole",
+  "name": "Milk, whole",
+  "alt_names": [
+   "full cream milk",
+   "doodh",
+   "cow milk",
+   "full fat milk"
+  ],
+  "category": "dairy",
+  "cuisine": "indian",
+  "prep_method": "liquid",
+  "diet_tags": [
+   "vegetarian",
+   "dairy"
+  ],
+  "calories": 62,
+  "protein_g": 3.2,
+  "carbs_g": 4.8,
+  "fat_g": 3.3,
+  "fibre_g": 0,
+  "micronutrients": {},
+  "serving_grams": {
+   "glass": 250,
+   "cup": 240,
+   "ml": 1.03
+  },
+  "default_unit": "glass",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "milk-toned",
+  "name": "Milk, toned",
+  "alt_names": [
+   "toned milk",
+   "double toned milk"
+  ],
+  "category": "dairy",
+  "cuisine": "indian",
+  "prep_method": "liquid",
+  "diet_tags": [
+   "vegetarian",
+   "dairy"
+  ],
+  "calories": 58,
+  "protein_g": 3.1,
+  "carbs_g": 4.7,
+  "fat_g": 3,
+  "fibre_g": 0,
+  "micronutrients": {},
+  "serving_grams": {
+   "glass": 250,
+   "cup": 240,
+   "ml": 1.03
+  },
+  "default_unit": "glass",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "milk-skimmed",
+  "name": "Milk, skimmed",
+  "alt_names": [
+   "skim milk",
+   "fat free milk"
+  ],
+  "category": "dairy",
+  "cuisine": "international",
+  "prep_method": "liquid",
+  "diet_tags": [
+   "vegetarian",
+   "dairy"
+  ],
+  "calories": 35,
+  "protein_g": 3.4,
+  "carbs_g": 5,
+  "fat_g": 0.1,
+  "fibre_g": 0,
+  "micronutrients": {},
+  "serving_grams": {
+   "glass": 250,
+   "cup": 240,
+   "ml": 1.03
+  },
+  "default_unit": "glass",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "buttermilk",
+  "name": "Buttermilk (chaas)",
+  "alt_names": [
+   "chaas",
+   "chhaas",
+   "mattha",
+   "lassi plain",
+   "salted lassi"
+  ],
+  "category": "beverage",
+  "cuisine": "indian",
+  "prep_method": "liquid",
+  "diet_tags": [
+   "vegetarian",
+   "dairy"
+  ],
+  "calories": 40,
+  "protein_g": 2.2,
+  "carbs_g": 4.8,
+  "fat_g": 1.1,
+  "fibre_g": 0,
+  "micronutrients": {},
+  "serving_grams": {
+   "glass": 250,
+   "ml": 1.0
+  },
+  "default_unit": "glass",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "lassi-sweet",
+  "name": "Lassi (sweet)",
+  "alt_names": [
+   "sweet lassi"
+  ],
+  "category": "beverage",
+  "cuisine": "indian",
+  "prep_method": "liquid",
+  "diet_tags": [
+   "vegetarian",
+   "dairy"
+  ],
+  "calories": 90,
+  "protein_g": 3,
+  "carbs_g": 14,
+  "fat_g": 2.5,
+  "fibre_g": 0,
+  "micronutrients": {},
+  "serving_grams": {
+   "glass": 250,
+   "ml": 1.0
+  },
+  "default_unit": "glass",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "cheese-slice",
+  "name": "Cheese slice (processed)",
+  "alt_names": [
+   "amul cheese slice",
+   "cheese",
+   "processed cheese"
+  ],
+  "category": "dairy",
+  "cuisine": "international",
+  "prep_method": "ready",
+  "diet_tags": [
+   "vegetarian",
+   "dairy"
+  ],
+  "calories": 290,
+  "protein_g": 17,
+  "carbs_g": 5,
+  "fat_g": 22,
+  "fibre_g": 0,
+  "micronutrients": {},
+  "serving_grams": {
+   "slice": 20
+  },
+  "default_unit": "slice",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "cheese-cheddar",
+  "name": "Cheese, cheddar",
+  "alt_names": [
+   "cheddar",
+   "hard cheese"
+  ],
+  "category": "dairy",
+  "cuisine": "international",
+  "prep_method": "ready",
+  "diet_tags": [
+   "vegetarian",
+   "dairy"
+  ],
+  "calories": 403,
+  "protein_g": 25,
+  "carbs_g": 1.3,
+  "fat_g": 33,
+  "fibre_g": 0,
+  "micronutrients": {},
+  "serving_grams": {
+   "slice": 20,
+   "cube": 17
+  },
+  "default_unit": "slice",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "ghee",
+  "name": "Ghee",
+  "alt_names": [
+   "clarified butter",
+   "desi ghee"
+  ],
+  "category": "oil_fat",
+  "cuisine": "indian",
+  "prep_method": "ready",
+  "diet_tags": [
+   "vegetarian",
+   "dairy"
+  ],
+  "calories": 900,
+  "protein_g": 0,
+  "carbs_g": 0,
+  "fat_g": 100,
+  "fibre_g": 0,
+  "micronutrients": {},
+  "serving_grams": {
+   "tsp": 5,
+   "tbsp": 14
+  },
+  "default_unit": "tsp",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "butter",
+  "name": "Butter",
+  "alt_names": [
+   "makhan",
+   "salted butter",
+   "amul butter"
+  ],
+  "category": "oil_fat",
+  "cuisine": "international",
+  "prep_method": "ready",
+  "diet_tags": [
+   "vegetarian",
+   "dairy"
+  ],
+  "calories": 717,
+  "protein_g": 0.9,
+  "carbs_g": 0.1,
+  "fat_g": 81,
+  "fibre_g": 0,
+  "micronutrients": {},
+  "serving_grams": {
+   "tsp": 5,
+   "tbsp": 14
+  },
+  "default_unit": "tsp",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "egg-boiled",
+  "name": "Egg, boiled",
+  "alt_names": [
+   "boiled egg",
+   "anda",
+   "hard boiled egg",
+   "whole egg",
+   "egg"
+  ],
+  "category": "egg",
+  "cuisine": "international",
+  "prep_method": "boiled",
+  "diet_tags": [
+   "egg"
+  ],
+  "calories": 155,
+  "protein_g": 12.6,
+  "carbs_g": 1.1,
+  "fat_g": 10.6,
+  "fibre_g": 0,
+  "micronutrients": {},
+  "serving_grams": {
+   "piece": 50
+  },
+  "default_unit": "piece",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "egg-white",
+  "name": "Egg white",
+  "alt_names": [
+   "egg whites",
+   "boiled egg white"
+  ],
+  "category": "egg",
+  "cuisine": "international",
+  "prep_method": "boiled",
+  "diet_tags": [
+   "egg"
+  ],
+  "calories": 52,
+  "protein_g": 11,
+  "carbs_g": 0.7,
+  "fat_g": 0.2,
+  "fibre_g": 0,
+  "micronutrients": {},
+  "serving_grams": {
+   "piece": 33
+  },
+  "default_unit": "piece",
+  "default_quantity": 2,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "omelette",
+  "name": "Omelette (plain)",
+  "alt_names": [
+   "omlet",
+   "omelet",
+   "egg omelette"
+  ],
+  "category": "egg",
+  "cuisine": "international",
+  "prep_method": "pan-fried",
+  "diet_tags": [
+   "egg"
+  ],
+  "calories": 200,
+  "protein_g": 10.5,
+  "carbs_g": 0.8,
+  "fat_g": 16.5,
+  "fibre_g": 0,
+  "micronutrients": {},
+  "serving_grams": {
+   "piece": 60
+  },
+  "default_unit": "piece",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.7
+ },
+ {
+  "slug": "egg-bhurji",
+  "name": "Egg bhurji",
+  "alt_names": [
+   "anda bhurji",
+   "egg burji",
+   "scrambled egg indian"
+  ],
+  "category": "egg",
+  "cuisine": "indian",
+  "prep_method": "pan-cooked",
+  "diet_tags": [
+   "egg"
+  ],
+  "calories": 180,
+  "protein_g": 11,
+  "carbs_g": 3.5,
+  "fat_g": 13.5,
+  "fibre_g": 0.5,
+  "micronutrients": {},
+  "serving_grams": {
+   "katori": 100,
+   "bowl": 150
+  },
+  "default_unit": "katori",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.7
+ },
+ {
+  "slug": "egg-curry",
+  "name": "Egg curry",
+  "alt_names": [
+   "anda curry",
+   "egg masala"
+  ],
+  "category": "egg",
+  "cuisine": "indian",
+  "prep_method": "cooked with gravy",
+  "diet_tags": [
+   "egg"
+  ],
+  "calories": 135,
+  "protein_g": 8,
+  "carbs_g": 4.5,
+  "fat_g": 9.5,
+  "fibre_g": 1,
+  "micronutrients": {},
+  "serving_grams": {
+   "katori": 150,
+   "bowl": 200
+  },
+  "default_unit": "katori",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.7
+ },
+ {
+  "slug": "chicken-breast-cooked",
+  "name": "Chicken breast (cooked, skinless)",
+  "alt_names": [
+   "grilled chicken",
+   "boiled chicken breast",
+   "chicken breast"
+  ],
+  "category": "meat",
+  "cuisine": "international",
+  "prep_method": "grilled or boiled",
+  "diet_tags": [
+   "non_vegetarian"
+  ],
+  "calories": 165,
+  "protein_g": 31,
+  "carbs_g": 0,
+  "fat_g": 3.6,
+  "fibre_g": 0,
+  "micronutrients": {},
+  "serving_grams": {
+   "piece": 120,
+   "breast": 170
+  },
+  "default_unit": "g",
+  "default_quantity": 100,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "chicken-breast-raw",
+  "name": "Chicken breast (raw)",
+  "alt_names": [
+   "raw chicken"
+  ],
+  "category": "meat",
+  "cuisine": "international",
+  "prep_method": "raw",
+  "diet_tags": [
+   "non_vegetarian"
+  ],
+  "calories": 120,
+  "protein_g": 22.5,
+  "carbs_g": 0,
+  "fat_g": 2.6,
+  "fibre_g": 0,
+  "micronutrients": {},
+  "serving_grams": {
+   "breast": 200
+  },
+  "default_unit": "g",
+  "default_quantity": 100,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "chicken-curry",
+  "name": "Chicken curry",
+  "alt_names": [
+   "murgh curry",
+   "home style chicken curry",
+   "chicken gravy"
+  ],
+  "category": "meat",
+  "cuisine": "indian",
+  "prep_method": "cooked with gravy",
+  "diet_tags": [
+   "non_vegetarian"
+  ],
+  "calories": 150,
+  "protein_g": 14,
+  "carbs_g": 4,
+  "fat_g": 8.5,
+  "fibre_g": 1,
+  "micronutrients": {},
+  "serving_grams": {
+   "katori": 150,
+   "bowl": 250
+  },
+  "default_unit": "katori",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.7
+ },
+ {
+  "slug": "butter-chicken",
+  "name": "Butter chicken",
+  "alt_names": [
+   "murgh makhani",
+   "chicken makhani"
+  ],
+  "category": "meat",
+  "cuisine": "indian",
+  "prep_method": "cooked with gravy",
+  "diet_tags": [
+   "non_vegetarian",
+   "dairy",
+   "nuts"
+  ],
+  "calories": 180,
+  "protein_g": 13,
+  "carbs_g": 6,
+  "fat_g": 11,
+  "fibre_g": 1,
+  "micronutrients": {},
+  "serving_grams": {
+   "katori": 150,
+   "bowl": 250
+  },
+  "default_unit": "katori",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.7
+ },
+ {
+  "slug": "tandoori-chicken",
+  "name": "Tandoori chicken",
+  "alt_names": [
+   "chicken tandoori",
+   "tandoori leg"
+  ],
+  "category": "meat",
+  "cuisine": "indian",
+  "prep_method": "tandoor",
+  "diet_tags": [
+   "non_vegetarian",
+   "dairy"
+  ],
+  "calories": 160,
+  "protein_g": 24,
+  "carbs_g": 2.5,
+  "fat_g": 6,
+  "fibre_g": 0.3,
+  "micronutrients": {},
+  "serving_grams": {
+   "piece": 100
+  },
+  "default_unit": "piece",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.7
+ },
+ {
+  "slug": "chicken-tikka",
+  "name": "Chicken tikka",
+  "alt_names": [
+   "tikka",
+   "chicken tikka kebab"
+  ],
+  "category": "meat",
+  "cuisine": "indian",
+  "prep_method": "tandoor",
+  "diet_tags": [
+   "non_vegetarian",
+   "dairy"
+  ],
+  "calories": 150,
+  "protein_g": 22,
+  "carbs_g": 3,
+  "fat_g": 5.5,
+  "fibre_g": 0.5,
+  "micronutrients": {},
+  "serving_grams": {
+   "piece": 30
+  },
+  "default_unit": "piece",
+  "default_quantity": 4,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.7
+ },
+ {
+  "slug": "mutton-curry",
+  "name": "Mutton curry",
+  "alt_names": [
+   "goat curry",
+   "lamb curry",
+   "mutton gravy",
+   "gosht"
+  ],
+  "category": "meat",
+  "cuisine": "indian",
+  "prep_method": "cooked with gravy",
+  "diet_tags": [
+   "non_vegetarian"
+  ],
+  "calories": 200,
+  "protein_g": 16,
+  "carbs_g": 4,
+  "fat_g": 13,
+  "fibre_g": 1,
+  "micronutrients": {},
+  "serving_grams": {
+   "katori": 150,
+   "bowl": 250
+  },
+  "default_unit": "katori",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.7
+ },
+ {
+  "slug": "fish-curry",
+  "name": "Fish curry",
+  "alt_names": [
+   "machli curry",
+   "rohu curry",
+   "fish gravy",
+   "meen curry"
+  ],
+  "category": "fish",
+  "cuisine": "indian",
+  "prep_method": "cooked with gravy",
+  "diet_tags": [
+   "non_vegetarian",
+   "fish"
+  ],
+  "calories": 110,
+  "protein_g": 12,
+  "carbs_g": 3,
+  "fat_g": 5.5,
+  "fibre_g": 0.5,
+  "micronutrients": {},
+  "serving_grams": {
+   "katori": 150,
+   "bowl": 250
+  },
+  "default_unit": "katori",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.7
+ },
+ {
+  "slug": "fish-fried",
+  "name": "Fish, fried",
+  "alt_names": [
+   "fish fry",
+   "fried fish",
+   "machli fry"
+  ],
+  "category": "fish",
+  "cuisine": "indian",
+  "prep_method": "pan-fried",
+  "diet_tags": [
+   "non_vegetarian",
+   "fish"
+  ],
+  "calories": 200,
+  "protein_g": 18,
+  "carbs_g": 6,
+  "fat_g": 12,
+  "fibre_g": 0.3,
+  "micronutrients": {},
+  "serving_grams": {
+   "piece": 80
+  },
+  "default_unit": "piece",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.7
+ },
+ {
+  "slug": "salmon-cooked",
+  "name": "Salmon (cooked)",
+  "alt_names": [
+   "grilled salmon",
+   "salmon fillet"
+  ],
+  "category": "fish",
+  "cuisine": "international",
+  "prep_method": "grilled",
+  "diet_tags": [
+   "non_vegetarian",
+   "fish"
+  ],
+  "calories": 206,
+  "protein_g": 22,
+  "carbs_g": 0,
+  "fat_g": 12,
+  "fibre_g": 0,
+  "micronutrients": {},
+  "serving_grams": {
+   "fillet": 150
+  },
+  "default_unit": "fillet",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "tuna-canned",
+  "name": "Tuna, canned in water",
+  "alt_names": [
+   "canned tuna"
+  ],
+  "category": "fish",
+  "cuisine": "international",
+  "prep_method": "canned",
+  "diet_tags": [
+   "non_vegetarian",
+   "fish"
+  ],
+  "calories": 116,
+  "protein_g": 25.5,
+  "carbs_g": 0,
+  "fat_g": 0.8,
+  "fibre_g": 0,
+  "micronutrients": {},
+  "serving_grams": {
+   "can": 140
+  },
+  "default_unit": "g",
+  "default_quantity": 100,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "prawns-cooked",
+  "name": "Prawns (cooked)",
+  "alt_names": [
+   "shrimp",
+   "jhinga",
+   "prawn"
+  ],
+  "category": "fish",
+  "cuisine": "international",
+  "prep_method": "boiled",
+  "diet_tags": [
+   "non_vegetarian",
+   "shellfish"
+  ],
+  "calories": 99,
+  "protein_g": 24,
+  "carbs_g": 0.2,
+  "fat_g": 0.3,
+  "fibre_g": 0,
+  "micronutrients": {},
+  "serving_grams": {
+   "piece": 12
+  },
+  "default_unit": "g",
+  "default_quantity": 100,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "aloo-sabzi",
+  "name": "Aloo sabzi (potato curry)",
+  "alt_names": [
+   "potato sabzi",
+   "aloo masala",
+   "aloo curry"
+  ],
+  "category": "vegetable",
+  "cuisine": "indian",
+  "prep_method": "cooked",
+  "diet_tags": [
+   "vegan",
+   "root_vegetable"
+  ],
+  "calories": 100,
+  "protein_g": 2,
+  "carbs_g": 15,
+  "fat_g": 4.5,
+  "fibre_g": 2,
+  "micronutrients": {},
+  "serving_grams": {
+   "katori": 150,
+   "bowl": 200
+  },
+  "default_unit": "katori",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.7
+ },
+ {
+  "slug": "aloo-gobi",
+  "name": "Aloo gobi",
+  "alt_names": [
+   "potato cauliflower curry",
+   "gobi aloo"
+  ],
+  "category": "vegetable",
+  "cuisine": "indian",
+  "prep_method": "cooked",
+  "diet_tags": [
+   "vegan",
+   "root_vegetable"
+  ],
+  "calories": 85,
+  "protein_g": 2.3,
+  "carbs_g": 10,
+  "fat_g": 4,
+  "fibre_g": 2.5,
+  "micronutrients": {},
+  "serving_grams": {
+   "katori": 150,
+   "bowl": 200
+  },
+  "default_unit": "katori",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.7
+ },
+ {
+  "slug": "bhindi",
+  "name": "Bhindi sabzi",
+  "alt_names": [
+   "okra",
+   "ladyfinger",
+   "bhindi masala",
+   "bhindi fry"
+  ],
+  "category": "vegetable",
+  "cuisine": "indian",
+  "prep_method": "cooked",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 95,
+  "protein_g": 2,
+  "carbs_g": 7,
+  "fat_g": 6.5,
+  "fibre_g": 3,
+  "micronutrients": {},
+  "serving_grams": {
+   "katori": 120,
+   "bowl": 180
+  },
+  "default_unit": "katori",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.7
+ },
+ {
+  "slug": "mixed-veg",
+  "name": "Mixed vegetable curry",
+  "alt_names": [
+   "mix veg",
+   "sabzi",
+   "mixed sabzi",
+   "vegetable curry"
+  ],
+  "category": "vegetable",
+  "cuisine": "indian",
+  "prep_method": "cooked",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 85,
+  "protein_g": 2.5,
+  "carbs_g": 9,
+  "fat_g": 4.5,
+  "fibre_g": 2.5,
+  "micronutrients": {},
+  "serving_grams": {
+   "katori": 150,
+   "bowl": 200
+  },
+  "default_unit": "katori",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.7
+ },
+ {
+  "slug": "baingan-bharta",
+  "name": "Baingan bharta",
+  "alt_names": [
+   "brinjal bharta",
+   "eggplant bharta",
+   "roasted brinjal"
+  ],
+  "category": "vegetable",
+  "cuisine": "indian",
+  "prep_method": "cooked",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 90,
+  "protein_g": 2,
+  "carbs_g": 8,
+  "fat_g": 6,
+  "fibre_g": 3,
+  "micronutrients": {},
+  "serving_grams": {
+   "katori": 150,
+   "bowl": 200
+  },
+  "default_unit": "katori",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.7
+ },
+ {
+  "slug": "spinach-cooked",
+  "name": "Spinach (cooked)",
+  "alt_names": [
+   "palak",
+   "spinach sabzi",
+   "boiled spinach"
+  ],
+  "category": "vegetable",
+  "cuisine": "international",
+  "prep_method": "boiled",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 23,
+  "protein_g": 2.9,
+  "carbs_g": 3.6,
+  "fat_g": 0.4,
+  "fibre_g": 2.2,
+  "micronutrients": {},
+  "serving_grams": {
+   "katori": 100,
+   "bowl": 150
+  },
+  "default_unit": "katori",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "salad-mixed",
+  "name": "Green salad (mixed)",
+  "alt_names": [
+   "salad",
+   "kachumber",
+   "garden salad",
+   "cucumber tomato onion salad"
+  ],
+  "category": "vegetable",
+  "cuisine": "international",
+  "prep_method": "raw",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 20,
+  "protein_g": 1.2,
+  "carbs_g": 3.5,
+  "fat_g": 0.2,
+  "fibre_g": 1.5,
+  "micronutrients": {},
+  "serving_grams": {
+   "bowl": 100,
+   "plate": 150
+  },
+  "default_unit": "bowl",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "cucumber",
+  "name": "Cucumber",
+  "alt_names": [
+   "kheera",
+   "kakdi",
+   "cucumber raw"
+  ],
+  "category": "vegetable",
+  "cuisine": "international",
+  "prep_method": "raw",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 15,
+  "protein_g": 0.7,
+  "carbs_g": 3.6,
+  "fat_g": 0.1,
+  "fibre_g": 0.5,
+  "micronutrients": {},
+  "serving_grams": {
+   "piece": 150,
+   "cup": 100
+  },
+  "default_unit": "piece",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "tomato",
+  "name": "Tomato",
+  "alt_names": [
+   "tamatar",
+   "raw tomato"
+  ],
+  "category": "vegetable",
+  "cuisine": "international",
+  "prep_method": "raw",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 18,
+  "protein_g": 0.9,
+  "carbs_g": 3.9,
+  "fat_g": 0.2,
+  "fibre_g": 1.2,
+  "micronutrients": {},
+  "serving_grams": {
+   "piece": 100
+  },
+  "default_unit": "piece",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "onion",
+  "name": "Onion",
+  "alt_names": [
+   "pyaz",
+   "kanda",
+   "raw onion"
+  ],
+  "category": "vegetable",
+  "cuisine": "international",
+  "prep_method": "raw",
+  "diet_tags": [
+   "vegan",
+   "root_vegetable"
+  ],
+  "calories": 40,
+  "protein_g": 1.1,
+  "carbs_g": 9.3,
+  "fat_g": 0.1,
+  "fibre_g": 1.7,
+  "micronutrients": {},
+  "serving_grams": {
+   "piece": 110
+  },
+  "default_unit": "piece",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "carrot",
+  "name": "Carrot",
+  "alt_names": [
+   "gajar",
+   "raw carrot"
+  ],
+  "category": "vegetable",
+  "cuisine": "international",
+  "prep_method": "raw",
+  "diet_tags": [
+   "vegan",
+   "root_vegetable"
+  ],
+  "calories": 41,
+  "protein_g": 0.9,
+  "carbs_g": 9.6,
+  "fat_g": 0.2,
+  "fibre_g": 2.8,
+  "micronutrients": {},
+  "serving_grams": {
+   "piece": 70
+  },
+  "default_unit": "piece",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "cauliflower",
+  "name": "Cauliflower (cooked)",
+  "alt_names": [
+   "gobi",
+   "phool gobi",
+   "gobhi"
+  ],
+  "category": "vegetable",
+  "cuisine": "international",
+  "prep_method": "boiled",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 25,
+  "protein_g": 1.9,
+  "carbs_g": 5,
+  "fat_g": 0.3,
+  "fibre_g": 2,
+  "micronutrients": {},
+  "serving_grams": {
+   "cup": 124,
+   "katori": 100
+  },
+  "default_unit": "katori",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "cabbage",
+  "name": "Cabbage (cooked)",
+  "alt_names": [
+   "patta gobi",
+   "band gobi",
+   "cabbage sabzi"
+  ],
+  "category": "vegetable",
+  "cuisine": "international",
+  "prep_method": "boiled",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 25,
+  "protein_g": 1.3,
+  "carbs_g": 5.8,
+  "fat_g": 0.1,
+  "fibre_g": 2.5,
+  "micronutrients": {},
+  "serving_grams": {
+   "cup": 150,
+   "katori": 100
+  },
+  "default_unit": "katori",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "broccoli",
+  "name": "Broccoli (cooked)",
+  "alt_names": [
+   "steamed broccoli"
+  ],
+  "category": "vegetable",
+  "cuisine": "international",
+  "prep_method": "steamed",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 34,
+  "protein_g": 2.8,
+  "carbs_g": 6.6,
+  "fat_g": 0.4,
+  "fibre_g": 2.6,
+  "micronutrients": {},
+  "serving_grams": {
+   "cup": 156,
+   "katori": 100
+  },
+  "default_unit": "katori",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "potato-boiled",
+  "name": "Potato (boiled)",
+  "alt_names": [
+   "aloo",
+   "boiled potato",
+   "aloo boiled"
+  ],
+  "category": "vegetable",
+  "cuisine": "international",
+  "prep_method": "boiled",
+  "diet_tags": [
+   "vegan",
+   "root_vegetable"
+  ],
+  "calories": 87,
+  "protein_g": 1.9,
+  "carbs_g": 20,
+  "fat_g": 0.1,
+  "fibre_g": 1.8,
+  "micronutrients": {},
+  "serving_grams": {
+   "piece": 150
+  },
+  "default_unit": "piece",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "sweet-potato",
+  "name": "Sweet potato (boiled)",
+  "alt_names": [
+   "shakarkandi",
+   "shakarkand"
+  ],
+  "category": "vegetable",
+  "cuisine": "international",
+  "prep_method": "boiled",
+  "diet_tags": [
+   "vegan",
+   "root_vegetable"
+  ],
+  "calories": 76,
+  "protein_g": 1.4,
+  "carbs_g": 17.7,
+  "fat_g": 0.1,
+  "fibre_g": 2.5,
+  "micronutrients": {},
+  "serving_grams": {
+   "piece": 130
+  },
+  "default_unit": "piece",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "peas-cooked",
+  "name": "Green peas (cooked)",
+  "alt_names": [
+   "matar",
+   "green peas",
+   "peas"
+  ],
+  "category": "vegetable",
+  "cuisine": "international",
+  "prep_method": "boiled",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 84,
+  "protein_g": 5.4,
+  "carbs_g": 14,
+  "fat_g": 0.2,
+  "fibre_g": 5.5,
+  "micronutrients": {},
+  "serving_grams": {
+   "katori": 100,
+   "cup": 160
+  },
+  "default_unit": "katori",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "french-fries",
+  "name": "French fries",
+  "alt_names": [
+   "fries",
+   "chips",
+   "potato fries"
+  ],
+  "category": "snack",
+  "cuisine": "international",
+  "prep_method": "deep-fried",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 312,
+  "protein_g": 3.4,
+  "carbs_g": 41,
+  "fat_g": 15,
+  "fibre_g": 3.8,
+  "micronutrients": {},
+  "serving_grams": {
+   "serving": 120
+  },
+  "default_unit": "serving",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "avocado",
+  "name": "Avocado",
+  "alt_names": [
+   "butter fruit"
+  ],
+  "category": "fruit",
+  "cuisine": "international",
+  "prep_method": "raw",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 160,
+  "protein_g": 2,
+  "carbs_g": 8.5,
+  "fat_g": 14.7,
+  "fibre_g": 6.7,
+  "micronutrients": {},
+  "serving_grams": {
+   "piece": 150,
+   "half": 75
+  },
+  "default_unit": "half",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "banana",
+  "name": "Banana",
+  "alt_names": [
+   "kela",
+   "ripe banana"
+  ],
+  "category": "fruit",
+  "cuisine": "indian",
+  "prep_method": "raw",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 89,
+  "protein_g": 1.1,
+  "carbs_g": 22.8,
+  "fat_g": 0.3,
+  "fibre_g": 2.6,
+  "micronutrients": {},
+  "serving_grams": {
+   "piece": 100
+  },
+  "default_unit": "piece",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "apple",
+  "name": "Apple",
+  "alt_names": [
+   "seb"
+  ],
+  "category": "fruit",
+  "cuisine": "international",
+  "prep_method": "raw",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 52,
+  "protein_g": 0.3,
+  "carbs_g": 13.8,
+  "fat_g": 0.2,
+  "fibre_g": 2.4,
+  "micronutrients": {},
+  "serving_grams": {
+   "piece": 180
+  },
+  "default_unit": "piece",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "orange",
+  "name": "Orange",
+  "alt_names": [
+   "santra",
+   "mosambi",
+   "sweet lime",
+   "narangi"
+  ],
+  "category": "fruit",
+  "cuisine": "indian",
+  "prep_method": "raw",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 47,
+  "protein_g": 0.9,
+  "carbs_g": 11.8,
+  "fat_g": 0.1,
+  "fibre_g": 2.4,
+  "micronutrients": {},
+  "serving_grams": {
+   "piece": 130
+  },
+  "default_unit": "piece",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "mango",
+  "name": "Mango",
+  "alt_names": [
+   "aam",
+   "ripe mango"
+  ],
+  "category": "fruit",
+  "cuisine": "indian",
+  "prep_method": "raw",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 60,
+  "protein_g": 0.8,
+  "carbs_g": 15,
+  "fat_g": 0.4,
+  "fibre_g": 1.6,
+  "micronutrients": {},
+  "serving_grams": {
+   "cup": 165,
+   "piece": 150
+  },
+  "default_unit": "cup",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "papaya",
+  "name": "Papaya",
+  "alt_names": [
+   "papita"
+  ],
+  "category": "fruit",
+  "cuisine": "indian",
+  "prep_method": "raw",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 43,
+  "protein_g": 0.5,
+  "carbs_g": 10.8,
+  "fat_g": 0.3,
+  "fibre_g": 1.7,
+  "micronutrients": {},
+  "serving_grams": {
+   "bowl": 150,
+   "cup": 145
+  },
+  "default_unit": "bowl",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "watermelon",
+  "name": "Watermelon",
+  "alt_names": [
+   "tarbooz"
+  ],
+  "category": "fruit",
+  "cuisine": "indian",
+  "prep_method": "raw",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 30,
+  "protein_g": 0.6,
+  "carbs_g": 7.6,
+  "fat_g": 0.2,
+  "fibre_g": 0.4,
+  "micronutrients": {},
+  "serving_grams": {
+   "bowl": 150,
+   "cup": 152
+  },
+  "default_unit": "bowl",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "grapes",
+  "name": "Grapes",
+  "alt_names": [
+   "angoor"
+  ],
+  "category": "fruit",
+  "cuisine": "indian",
+  "prep_method": "raw",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 69,
+  "protein_g": 0.7,
+  "carbs_g": 18,
+  "fat_g": 0.2,
+  "fibre_g": 0.9,
+  "micronutrients": {},
+  "serving_grams": {
+   "bowl": 100,
+   "cup": 150
+  },
+  "default_unit": "bowl",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "guava",
+  "name": "Guava",
+  "alt_names": [
+   "amrud",
+   "peru"
+  ],
+  "category": "fruit",
+  "cuisine": "indian",
+  "prep_method": "raw",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 68,
+  "protein_g": 2.6,
+  "carbs_g": 14.3,
+  "fat_g": 1,
+  "fibre_g": 5.4,
+  "micronutrients": {},
+  "serving_grams": {
+   "piece": 100
+  },
+  "default_unit": "piece",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "pomegranate",
+  "name": "Pomegranate",
+  "alt_names": [
+   "anar",
+   "pomegranate seeds"
+  ],
+  "category": "fruit",
+  "cuisine": "indian",
+  "prep_method": "raw",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 83,
+  "protein_g": 1.7,
+  "carbs_g": 18.7,
+  "fat_g": 1.2,
+  "fibre_g": 4,
+  "micronutrients": {},
+  "serving_grams": {
+   "bowl": 100,
+   "cup": 174
+  },
+  "default_unit": "bowl",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "pineapple",
+  "name": "Pineapple",
+  "alt_names": [
+   "ananas"
+  ],
+  "category": "fruit",
+  "cuisine": "indian",
+  "prep_method": "raw",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 50,
+  "protein_g": 0.5,
+  "carbs_g": 13,
+  "fat_g": 0.1,
+  "fibre_g": 1.4,
+  "micronutrients": {},
+  "serving_grams": {
+   "bowl": 150,
+   "cup": 165
+  },
+  "default_unit": "bowl",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "dates",
+  "name": "Dates (khajoor)",
+  "alt_names": [
+   "khajur",
+   "khajoor",
+   "dried dates"
+  ],
+  "category": "fruit",
+  "cuisine": "indian",
+  "prep_method": "dried",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 277,
+  "protein_g": 1.8,
+  "carbs_g": 75,
+  "fat_g": 0.2,
+  "fibre_g": 6.7,
+  "micronutrients": {},
+  "serving_grams": {
+   "piece": 8
+  },
+  "default_unit": "piece",
+  "default_quantity": 3,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "almonds",
+  "name": "Almonds",
+  "alt_names": [
+   "badam",
+   "almond"
+  ],
+  "category": "nuts_seeds",
+  "cuisine": "indian",
+  "prep_method": "raw",
+  "diet_tags": [
+   "vegan",
+   "nuts"
+  ],
+  "calories": 579,
+  "protein_g": 21,
+  "carbs_g": 22,
+  "fat_g": 50,
+  "fibre_g": 12.5,
+  "micronutrients": {},
+  "serving_grams": {
+   "piece": 1.2,
+   "handful": 28
+  },
+  "default_unit": "piece",
+  "default_quantity": 10,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "walnuts",
+  "name": "Walnuts",
+  "alt_names": [
+   "akhrot",
+   "walnut"
+  ],
+  "category": "nuts_seeds",
+  "cuisine": "indian",
+  "prep_method": "raw",
+  "diet_tags": [
+   "vegan",
+   "nuts"
+  ],
+  "calories": 654,
+  "protein_g": 15,
+  "carbs_g": 14,
+  "fat_g": 65,
+  "fibre_g": 6.7,
+  "micronutrients": {},
+  "serving_grams": {
+   "handful": 28,
+   "piece": 4
+  },
+  "default_unit": "handful",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "cashews",
+  "name": "Cashews",
+  "alt_names": [
+   "kaju",
+   "cashew nuts"
+  ],
+  "category": "nuts_seeds",
+  "cuisine": "indian",
+  "prep_method": "raw",
+  "diet_tags": [
+   "vegan",
+   "nuts"
+  ],
+  "calories": 553,
+  "protein_g": 18,
+  "carbs_g": 30,
+  "fat_g": 44,
+  "fibre_g": 3.3,
+  "micronutrients": {},
+  "serving_grams": {
+   "piece": 1.5,
+   "handful": 28
+  },
+  "default_unit": "piece",
+  "default_quantity": 8,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "peanuts-roasted",
+  "name": "Peanuts (roasted)",
+  "alt_names": [
+   "moongphali",
+   "groundnut",
+   "mungfali",
+   "peanut"
+  ],
+  "category": "nuts_seeds",
+  "cuisine": "indian",
+  "prep_method": "roasted",
+  "diet_tags": [
+   "vegan",
+   "peanut"
+  ],
+  "calories": 585,
+  "protein_g": 23.7,
+  "carbs_g": 21.5,
+  "fat_g": 49.7,
+  "fibre_g": 8,
+  "micronutrients": {},
+  "serving_grams": {
+   "handful": 30
+  },
+  "default_unit": "handful",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "peanut-butter",
+  "name": "Peanut butter",
+  "alt_names": [
+   "pb"
+  ],
+  "category": "nuts_seeds",
+  "cuisine": "international",
+  "prep_method": "ready",
+  "diet_tags": [
+   "vegan",
+   "peanut"
+  ],
+  "calories": 588,
+  "protein_g": 25,
+  "carbs_g": 20,
+  "fat_g": 50,
+  "fibre_g": 6,
+  "micronutrients": {},
+  "serving_grams": {
+   "tbsp": 16,
+   "tsp": 5
+  },
+  "default_unit": "tbsp",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "chia-seeds",
+  "name": "Chia seeds",
+  "alt_names": [
+   "chia",
+   "sabja"
+  ],
+  "category": "nuts_seeds",
+  "cuisine": "international",
+  "prep_method": "raw",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 486,
+  "protein_g": 16.5,
+  "carbs_g": 42,
+  "fat_g": 31,
+  "fibre_g": 34,
+  "micronutrients": {},
+  "serving_grams": {
+   "tbsp": 12,
+   "tsp": 4
+  },
+  "default_unit": "tbsp",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "whey-protein",
+  "name": "Whey protein powder",
+  "alt_names": [
+   "whey",
+   "protein powder",
+   "protein supplement"
+  ],
+  "category": "supplement",
+  "cuisine": "international",
+  "prep_method": "powder",
+  "diet_tags": [
+   "vegetarian",
+   "dairy"
+  ],
+  "calories": 400,
+  "protein_g": 80,
+  "carbs_g": 8,
+  "fat_g": 6,
+  "fibre_g": 0,
+  "micronutrients": {},
+  "serving_grams": {
+   "scoop": 30
+  },
+  "default_unit": "scoop",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "samosa",
+  "name": "Samosa",
+  "alt_names": [
+   "aloo samosa",
+   "punjabi samosa"
+  ],
+  "category": "snack",
+  "cuisine": "indian",
+  "prep_method": "deep-fried",
+  "diet_tags": [
+   "vegan",
+   "gluten",
+   "root_vegetable"
+  ],
+  "calories": 308,
+  "protein_g": 5.5,
+  "carbs_g": 31,
+  "fat_g": 18,
+  "fibre_g": 2.8,
+  "micronutrients": {},
+  "serving_grams": {
+   "piece": 80
+  },
+  "default_unit": "piece",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.7
+ },
+ {
+  "slug": "pakora",
+  "name": "Pakora (bhajiya)",
+  "alt_names": [
+   "pakoda",
+   "bhajji",
+   "onion pakora",
+   "bhajiya"
+  ],
+  "category": "snack",
+  "cuisine": "indian",
+  "prep_method": "deep-fried",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 300,
+  "protein_g": 6,
+  "carbs_g": 27,
+  "fat_g": 19,
+  "fibre_g": 3.5,
+  "micronutrients": {},
+  "serving_grams": {
+   "piece": 25
+  },
+  "default_unit": "piece",
+  "default_quantity": 4,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.7
+ },
+ {
+  "slug": "dhokla",
+  "name": "Dhokla",
+  "alt_names": [
+   "khaman dhokla",
+   "besan dhokla"
+  ],
+  "category": "snack",
+  "cuisine": "indian",
+  "prep_method": "steamed",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 160,
+  "protein_g": 7,
+  "carbs_g": 24,
+  "fat_g": 4,
+  "fibre_g": 2,
+  "micronutrients": {},
+  "serving_grams": {
+   "piece": 40
+  },
+  "default_unit": "piece",
+  "default_quantity": 2,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.7
+ },
+ {
+  "slug": "vada-pav",
+  "name": "Vada pav",
+  "alt_names": [
+   "vadapav",
+   "batata vada pav"
+  ],
+  "category": "snack",
+  "cuisine": "indian",
+  "prep_method": "deep-fried",
+  "diet_tags": [
+   "vegan",
+   "gluten",
+   "root_vegetable"
+  ],
+  "calories": 290,
+  "protein_g": 6,
+  "carbs_g": 36,
+  "fat_g": 13,
+  "fibre_g": 2.5,
+  "micronutrients": {},
+  "serving_grams": {
+   "piece": 130
+  },
+  "default_unit": "piece",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.7
+ },
+ {
+  "slug": "pav-bhaji",
+  "name": "Pav bhaji",
+  "alt_names": [
+   "bhaji pav"
+  ],
+  "category": "mixed_dish",
+  "cuisine": "indian",
+  "prep_method": "cooked",
+  "diet_tags": [
+   "vegetarian",
+   "gluten",
+   "dairy",
+   "root_vegetable"
+  ],
+  "calories": 140,
+  "protein_g": 3.5,
+  "carbs_g": 20,
+  "fat_g": 5.5,
+  "fibre_g": 3,
+  "micronutrients": {},
+  "serving_grams": {
+   "plate": 300
+  },
+  "default_unit": "plate",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.7
+ },
+ {
+  "slug": "bhel-puri",
+  "name": "Bhel puri",
+  "alt_names": [
+   "bhelpuri",
+   "bhel"
+  ],
+  "category": "snack",
+  "cuisine": "indian",
+  "prep_method": "assembled",
+  "diet_tags": [
+   "vegan",
+   "gluten",
+   "peanut"
+  ],
+  "calories": 150,
+  "protein_g": 3.5,
+  "carbs_g": 25,
+  "fat_g": 4.5,
+  "fibre_g": 2,
+  "micronutrients": {},
+  "serving_grams": {
+   "plate": 150
+  },
+  "default_unit": "plate",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.7
+ },
+ {
+  "slug": "namkeen-mix",
+  "name": "Namkeen mixture (chivda)",
+  "alt_names": [
+   "mixture",
+   "bhujia",
+   "farsan",
+   "chivda"
+  ],
+  "category": "snack",
+  "cuisine": "indian",
+  "prep_method": "fried",
+  "diet_tags": [
+   "vegan",
+   "peanut"
+  ],
+  "calories": 530,
+  "protein_g": 12,
+  "carbs_g": 45,
+  "fat_g": 33,
+  "fibre_g": 5,
+  "micronutrients": {},
+  "serving_grams": {
+   "handful": 30
+  },
+  "default_unit": "handful",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "khakhra",
+  "name": "Khakhra",
+  "alt_names": [
+   "thepla crisp",
+   "gujarati khakhra"
+  ],
+  "category": "snack",
+  "cuisine": "indian",
+  "prep_method": "roasted",
+  "diet_tags": [
+   "vegetarian",
+   "gluten",
+   "dairy"
+  ],
+  "calories": 390,
+  "protein_g": 12,
+  "carbs_g": 60,
+  "fat_g": 10,
+  "fibre_g": 8,
+  "micronutrients": {},
+  "serving_grams": {
+   "piece": 20
+  },
+  "default_unit": "piece",
+  "default_quantity": 2,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "makhana",
+  "name": "Makhana (roasted)",
+  "alt_names": [
+   "fox nuts",
+   "phool makhana",
+   "lotus seeds"
+  ],
+  "category": "snack",
+  "cuisine": "indian",
+  "prep_method": "roasted",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 347,
+  "protein_g": 9.7,
+  "carbs_g": 76.9,
+  "fat_g": 0.1,
+  "fibre_g": 14.5,
+  "micronutrients": {},
+  "serving_grams": {
+   "handful": 30,
+   "cup": 25
+  },
+  "default_unit": "handful",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "roasted-chana",
+  "name": "Roasted chana",
+  "alt_names": [
+   "bhuna chana",
+   "roasted gram",
+   "chana roasted"
+  ],
+  "category": "snack",
+  "cuisine": "indian",
+  "prep_method": "roasted",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 364,
+  "protein_g": 19,
+  "carbs_g": 60,
+  "fat_g": 5.2,
+  "fibre_g": 17,
+  "micronutrients": {},
+  "serving_grams": {
+   "handful": 30
+  },
+  "default_unit": "handful",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "biscuit-marie",
+  "name": "Biscuit (Marie)",
+  "alt_names": [
+   "marie biscuit",
+   "tea biscuit",
+   "plain biscuit"
+  ],
+  "category": "snack",
+  "cuisine": "indian",
+  "prep_method": "baked",
+  "diet_tags": [
+   "vegetarian",
+   "gluten",
+   "dairy"
+  ],
+  "calories": 440,
+  "protein_g": 7,
+  "carbs_g": 74,
+  "fat_g": 12,
+  "fibre_g": 2,
+  "micronutrients": {},
+  "serving_grams": {
+   "piece": 7
+  },
+  "default_unit": "piece",
+  "default_quantity": 4,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "biscuit-digestive",
+  "name": "Biscuit (digestive)",
+  "alt_names": [
+   "digestive",
+   "whole wheat biscuit"
+  ],
+  "category": "snack",
+  "cuisine": "international",
+  "prep_method": "baked",
+  "diet_tags": [
+   "vegetarian",
+   "gluten",
+   "dairy"
+  ],
+  "calories": 470,
+  "protein_g": 7,
+  "carbs_g": 68,
+  "fat_g": 19,
+  "fibre_g": 3,
+  "micronutrients": {},
+  "serving_grams": {
+   "piece": 15
+  },
+  "default_unit": "piece",
+  "default_quantity": 2,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "chocolate-dark",
+  "name": "Chocolate, dark",
+  "alt_names": [
+   "dark chocolate"
+  ],
+  "category": "sweet",
+  "cuisine": "international",
+  "prep_method": "ready",
+  "diet_tags": [
+   "vegetarian",
+   "dairy",
+   "nuts"
+  ],
+  "calories": 546,
+  "protein_g": 5,
+  "carbs_g": 61,
+  "fat_g": 31,
+  "fibre_g": 7,
+  "micronutrients": {},
+  "serving_grams": {
+   "square": 10
+  },
+  "default_unit": "square",
+  "default_quantity": 2,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "chocolate-milk",
+  "name": "Chocolate, milk",
+  "alt_names": [
+   "milk chocolate",
+   "chocolate bar"
+  ],
+  "category": "sweet",
+  "cuisine": "international",
+  "prep_method": "ready",
+  "diet_tags": [
+   "vegetarian",
+   "dairy",
+   "nuts"
+  ],
+  "calories": 535,
+  "protein_g": 7.7,
+  "carbs_g": 59,
+  "fat_g": 30,
+  "fibre_g": 3.4,
+  "micronutrients": {},
+  "serving_grams": {
+   "square": 10
+  },
+  "default_unit": "square",
+  "default_quantity": 2,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "ice-cream",
+  "name": "Ice cream (vanilla)",
+  "alt_names": [
+   "icecream",
+   "vanilla ice cream"
+  ],
+  "category": "sweet",
+  "cuisine": "international",
+  "prep_method": "frozen",
+  "diet_tags": [
+   "vegetarian",
+   "dairy"
+  ],
+  "calories": 207,
+  "protein_g": 3.5,
+  "carbs_g": 24,
+  "fat_g": 11,
+  "fibre_g": 0.7,
+  "micronutrients": {},
+  "serving_grams": {
+   "scoop": 66
+  },
+  "default_unit": "scoop",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "gulab-jamun",
+  "name": "Gulab jamun",
+  "alt_names": [
+   "gulabjamun"
+  ],
+  "category": "sweet",
+  "cuisine": "indian",
+  "prep_method": "fried in syrup",
+  "diet_tags": [
+   "vegetarian",
+   "dairy",
+   "gluten"
+  ],
+  "calories": 325,
+  "protein_g": 5,
+  "carbs_g": 52,
+  "fat_g": 11,
+  "fibre_g": 0.5,
+  "micronutrients": {},
+  "serving_grams": {
+   "piece": 40
+  },
+  "default_unit": "piece",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.7
+ },
+ {
+  "slug": "jalebi",
+  "name": "Jalebi",
+  "alt_names": [
+   "jilebi",
+   "imarti"
+  ],
+  "category": "sweet",
+  "cuisine": "indian",
+  "prep_method": "fried in syrup",
+  "diet_tags": [
+   "vegetarian",
+   "gluten",
+   "dairy"
+  ],
+  "calories": 400,
+  "protein_g": 2.3,
+  "carbs_g": 68,
+  "fat_g": 13.5,
+  "fibre_g": 0.5,
+  "micronutrients": {},
+  "serving_grams": {
+   "piece": 30
+  },
+  "default_unit": "piece",
+  "default_quantity": 2,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.7
+ },
+ {
+  "slug": "rasgulla",
+  "name": "Rasgulla",
+  "alt_names": [
+   "rosogolla",
+   "rasagolla"
+  ],
+  "category": "sweet",
+  "cuisine": "indian",
+  "prep_method": "boiled in syrup",
+  "diet_tags": [
+   "vegetarian",
+   "dairy"
+  ],
+  "calories": 190,
+  "protein_g": 4,
+  "carbs_g": 40,
+  "fat_g": 1.2,
+  "fibre_g": 0,
+  "micronutrients": {},
+  "serving_grams": {
+   "piece": 40
+  },
+  "default_unit": "piece",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.7
+ },
+ {
+  "slug": "kheer",
+  "name": "Kheer",
+  "alt_names": [
+   "rice kheer",
+   "payasam",
+   "rice pudding"
+  ],
+  "category": "sweet",
+  "cuisine": "indian",
+  "prep_method": "boiled",
+  "diet_tags": [
+   "vegetarian",
+   "dairy",
+   "nuts"
+  ],
+  "calories": 140,
+  "protein_g": 3.5,
+  "carbs_g": 20,
+  "fat_g": 5,
+  "fibre_g": 0.3,
+  "micronutrients": {},
+  "serving_grams": {
+   "bowl": 150,
+   "katori": 100
+  },
+  "default_unit": "bowl",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.7
+ },
+ {
+  "slug": "sugar",
+  "name": "Sugar",
+  "alt_names": [
+   "chini",
+   "cheeni",
+   "white sugar"
+  ],
+  "category": "sweet",
+  "cuisine": "indian",
+  "prep_method": "ready",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 387,
+  "protein_g": 0,
+  "carbs_g": 100,
+  "fat_g": 0,
+  "fibre_g": 0,
+  "micronutrients": {},
+  "serving_grams": {
+   "tsp": 4,
+   "tbsp": 12
+  },
+  "default_unit": "tsp",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "honey",
+  "name": "Honey",
+  "alt_names": [
+   "shahad",
+   "madhu"
+  ],
+  "category": "sweet",
+  "cuisine": "indian",
+  "prep_method": "ready",
+  "diet_tags": [
+   "vegetarian"
+  ],
+  "calories": 304,
+  "protein_g": 0.3,
+  "carbs_g": 82.4,
+  "fat_g": 0,
+  "fibre_g": 0.2,
+  "micronutrients": {},
+  "serving_grams": {
+   "tsp": 7,
+   "tbsp": 21
+  },
+  "default_unit": "tsp",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "jaggery",
+  "name": "Jaggery",
+  "alt_names": [
+   "gur",
+   "gud"
+  ],
+  "category": "sweet",
+  "cuisine": "indian",
+  "prep_method": "ready",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 383,
+  "protein_g": 0.4,
+  "carbs_g": 98,
+  "fat_g": 0.1,
+  "fibre_g": 0,
+  "micronutrients": {},
+  "serving_grams": {
+   "tsp": 5,
+   "piece": 20
+  },
+  "default_unit": "tsp",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "pizza-cheese",
+  "name": "Pizza (cheese)",
+  "alt_names": [
+   "cheese pizza",
+   "margherita pizza",
+   "pizza slice"
+  ],
+  "category": "mixed_dish",
+  "cuisine": "international",
+  "prep_method": "baked",
+  "diet_tags": [
+   "vegetarian",
+   "gluten",
+   "dairy"
+  ],
+  "calories": 266,
+  "protein_g": 11,
+  "carbs_g": 33,
+  "fat_g": 10,
+  "fibre_g": 2.3,
+  "micronutrients": {},
+  "serving_grams": {
+   "slice": 107
+  },
+  "default_unit": "slice",
+  "default_quantity": 2,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.7
+ },
+ {
+  "slug": "burger-chicken",
+  "name": "Chicken burger",
+  "alt_names": [
+   "burger",
+   "chicken burger"
+  ],
+  "category": "mixed_dish",
+  "cuisine": "international",
+  "prep_method": "assembled",
+  "diet_tags": [
+   "non_vegetarian",
+   "gluten",
+   "dairy",
+   "egg"
+  ],
+  "calories": 250,
+  "protein_g": 13,
+  "carbs_g": 25,
+  "fat_g": 11,
+  "fibre_g": 1.5,
+  "micronutrients": {},
+  "serving_grams": {
+   "piece": 200
+  },
+  "default_unit": "piece",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.7
+ },
+ {
+  "slug": "sandwich-veg",
+  "name": "Veg sandwich",
+  "alt_names": [
+   "vegetable sandwich",
+   "veg grilled sandwich"
+  ],
+  "category": "mixed_dish",
+  "cuisine": "international",
+  "prep_method": "assembled",
+  "diet_tags": [
+   "vegetarian",
+   "gluten",
+   "dairy"
+  ],
+  "calories": 200,
+  "protein_g": 6,
+  "carbs_g": 28,
+  "fat_g": 7,
+  "fibre_g": 2,
+  "micronutrients": {},
+  "serving_grams": {
+   "piece": 120
+  },
+  "default_unit": "piece",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.7
+ },
+ {
+  "slug": "chai",
+  "name": "Tea with milk and sugar (chai)",
+  "alt_names": [
+   "chai",
+   "masala chai",
+   "tea",
+   "milk tea",
+   "doodh chai"
+  ],
+  "category": "beverage",
+  "cuisine": "indian",
+  "prep_method": "boiled",
+  "diet_tags": [
+   "vegetarian",
+   "dairy"
+  ],
+  "calories": 50,
+  "protein_g": 1.3,
+  "carbs_g": 7,
+  "fat_g": 1.8,
+  "fibre_g": 0,
+  "micronutrients": {},
+  "serving_grams": {
+   "cup": 150,
+   "glass": 200,
+   "ml": 1.0
+  },
+  "default_unit": "cup",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.7
+ },
+ {
+  "slug": "coffee-black",
+  "name": "Coffee, black",
+  "alt_names": [
+   "black coffee",
+   "americano",
+   "filter coffee black"
+  ],
+  "category": "beverage",
+  "cuisine": "international",
+  "prep_method": "brewed",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 2,
+  "protein_g": 0.1,
+  "carbs_g": 0,
+  "fat_g": 0,
+  "fibre_g": 0,
+  "micronutrients": {},
+  "serving_grams": {
+   "cup": 240,
+   "ml": 1.0
+  },
+  "default_unit": "cup",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "coffee-milk",
+  "name": "Coffee with milk and sugar",
+  "alt_names": [
+   "milk coffee",
+   "filter coffee",
+   "cafe latte",
+   "cappuccino"
+  ],
+  "category": "beverage",
+  "cuisine": "international",
+  "prep_method": "brewed",
+  "diet_tags": [
+   "vegetarian",
+   "dairy"
+  ],
+  "calories": 45,
+  "protein_g": 1.4,
+  "carbs_g": 6,
+  "fat_g": 1.7,
+  "fibre_g": 0,
+  "micronutrients": {},
+  "serving_grams": {
+   "cup": 150,
+   "ml": 1.0
+  },
+  "default_unit": "cup",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.7
+ },
+ {
+  "slug": "green-tea",
+  "name": "Green tea",
+  "alt_names": [
+   "tea green",
+   "black tea unsweetened"
+  ],
+  "category": "beverage",
+  "cuisine": "international",
+  "prep_method": "brewed",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 1,
+  "protein_g": 0,
+  "carbs_g": 0.2,
+  "fat_g": 0,
+  "fibre_g": 0,
+  "micronutrients": {},
+  "serving_grams": {
+   "cup": 240,
+   "ml": 1.0
+  },
+  "default_unit": "cup",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "juice-orange",
+  "name": "Orange juice",
+  "alt_names": [
+   "juice",
+   "fresh orange juice",
+   "mosambi juice"
+  ],
+  "category": "beverage",
+  "cuisine": "international",
+  "prep_method": "liquid",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 45,
+  "protein_g": 0.7,
+  "carbs_g": 10.4,
+  "fat_g": 0.2,
+  "fibre_g": 0.2,
+  "micronutrients": {},
+  "serving_grams": {
+   "glass": 250,
+   "ml": 1.04
+  },
+  "default_unit": "glass",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "cola",
+  "name": "Cola (soft drink)",
+  "alt_names": [
+   "coke",
+   "pepsi",
+   "soda",
+   "soft drink",
+   "thums up"
+  ],
+  "category": "beverage",
+  "cuisine": "international",
+  "prep_method": "liquid",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 42,
+  "protein_g": 0,
+  "carbs_g": 10.6,
+  "fat_g": 0,
+  "fibre_g": 0,
+  "micronutrients": {},
+  "serving_grams": {
+   "can": 330,
+   "bottle": 500,
+   "ml": 1.0
+  },
+  "default_unit": "can",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "coconut-water",
+  "name": "Coconut water",
+  "alt_names": [
+   "nariyal pani",
+   "tender coconut water"
+  ],
+  "category": "beverage",
+  "cuisine": "indian",
+  "prep_method": "liquid",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 19,
+  "protein_g": 0.7,
+  "carbs_g": 3.7,
+  "fat_g": 0.2,
+  "fibre_g": 1.1,
+  "micronutrients": {},
+  "serving_grams": {
+   "glass": 240,
+   "ml": 1.0
+  },
+  "default_unit": "glass",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "oil-cooking",
+  "name": "Cooking oil",
+  "alt_names": [
+   "vegetable oil",
+   "sunflower oil",
+   "mustard oil",
+   "refined oil",
+   "groundnut oil"
+  ],
+  "category": "oil_fat",
+  "cuisine": "indian",
+  "prep_method": "ready",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 884,
+  "protein_g": 0,
+  "carbs_g": 0,
+  "fat_g": 100,
+  "fibre_g": 0,
+  "micronutrients": {},
+  "serving_grams": {
+   "tsp": 4.5,
+   "tbsp": 13.5
+  },
+  "default_unit": "tsp",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ },
+ {
+  "slug": "oil-olive",
+  "name": "Olive oil",
+  "alt_names": [
+   "extra virgin olive oil",
+   "evoo"
+  ],
+  "category": "oil_fat",
+  "cuisine": "international",
+  "prep_method": "ready",
+  "diet_tags": [
+   "vegan"
+  ],
+  "calories": 884,
+  "protein_g": 0,
+  "carbs_g": 0,
+  "fat_g": 100,
+  "fibre_g": 0,
+  "micronutrients": {},
+  "serving_grams": {
+   "tsp": 4.5,
+   "tbsp": 13.5
+  },
+  "default_unit": "tsp",
+  "default_quantity": 1,
+  "source": "Seed library: approximate typical values, not lab-verified",
+  "verification": "estimated",
+  "confidence": 0.85
+ }
+]

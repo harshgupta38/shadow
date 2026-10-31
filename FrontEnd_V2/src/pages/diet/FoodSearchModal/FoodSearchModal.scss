@@ -1,0 +1,194 @@
+.dt-fsm-dialog { max-width: 760px; }
+
+.dt-fsm-title { font-size: 1.1rem; font-weight: 800; }
+
+.dt-fsm-tabs {
+  margin-bottom: 0.9rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar { display: none; }
+  .nav-tab-jv { white-space: nowrap; }
+}
+
+.dt-fsm-search {
+  position: relative;
+
+  svg {
+    position: absolute;
+    left: 0.85rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--jv-faint);
+    pointer-events: none;
+  }
+
+  .form-control { padding-left: 2.3rem; }
+}
+
+.dt-fsm-heading {
+  margin: 0 0 0.45rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--jv-muted);
+}
+
+.dt-fsm-quick { margin-top: 1rem; }
+
+.dt-fsm-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+
+.dt-fsm-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0.7rem;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--jv-text);
+  background: var(--jv-surface-2);
+  border: 1px solid var(--jv-border);
+  border-radius: var(--jv-radius-pill);
+  cursor: pointer;
+  transition: border-color 140ms, background 140ms;
+
+  &:hover { border-color: var(--jv-brand-1); background: var(--jv-brand-soft); }
+  &:focus-visible { outline: none; box-shadow: var(--jv-ring); }
+}
+
+.dt-fsm-empty {
+  margin: 1.4rem 0;
+  text-align: center;
+  color: var(--jv-muted);
+  font-size: 0.88rem;
+}
+
+.dt-fsm-list {
+  list-style: none;
+  margin: 0.8rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.dt-fsm-row {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--jv-border);
+  border-radius: 12px;
+  background: var(--jv-surface);
+  transition: border-color 140ms;
+
+  &:hover { border-color: var(--jv-border-strong); }
+}
+
+.dt-fsm-add {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-areas:
+    "name badges plus"
+    "meta meta plus";
+  align-items: center;
+  column-gap: 0.6rem;
+  row-gap: 0.1rem;
+  padding: 0.55rem 0.4rem 0.55rem 0.8rem;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+
+  &:disabled { cursor: progress; opacity: 0.7; }
+  &:focus-visible { outline: none; box-shadow: var(--jv-ring); }
+}
+
+.dt-fsm-name { grid-area: name; font-weight: 700; font-size: 0.92rem; overflow-wrap: anywhere; }
+.dt-fsm-meta { grid-area: meta; font-size: 0.76rem; color: var(--jv-muted); overflow-wrap: anywhere; }
+.dt-fsm-badges { grid-area: badges; display: flex; gap: 0.3rem; }
+.dt-fsm-plus { grid-area: plus; color: var(--jv-brand-1); }
+
+.dt-fsm-star {
+  flex: none;
+  width: 2.6rem;
+  display: grid;
+  place-items: center;
+  color: var(--jv-faint);
+  background: none;
+  border: none;
+  border-left: 1px solid var(--jv-border);
+  border-radius: 0 12px 12px 0;
+  cursor: pointer;
+
+  &.is-on { color: var(--jv-warn); }
+  &:hover { color: var(--jv-warn); }
+  &:focus-visible { outline: none; box-shadow: var(--jv-ring); }
+}
+
+.dt-fsm-cart {
+  margin-top: 1.2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--jv-border);
+}
+
+.dt-fsm-cart-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.dt-fsm-cart-row {
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--jv-border);
+  border-radius: 12px;
+  background: var(--jv-surface-2);
+}
+
+.dt-fsm-cart-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 0.45rem;
+}
+
+.dt-fsm-remove {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  color: var(--jv-muted);
+  background: none;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+
+  &:hover { color: var(--jv-danger); background: var(--jv-danger-soft); }
+  &:focus-visible { outline: none; box-shadow: var(--jv-ring); }
+}
+
+.dt-fsm-time {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.8rem;
+  font-size: 0.85rem;
+
+  .form-control { width: 8rem; }
+}
+
+.dt-fsm-count {
+  margin-right: auto;
+  font-size: 0.82rem;
+  color: var(--jv-muted);
+}

@@ -27,7 +27,7 @@ class UserSettingDBM(Base):
     reports: Mapped[dict] = mapped_column(JSON, nullable=False)
     # Internal feature-gating flags (e.g. {"brief_audio_caption": false}) — no
     # settings-page UI yet; toggled directly for select users. Nullable: added
-    # via ALTER TABLE on existing DBs (see db/session.ensure_columns), and a
+    # via ALTER TABLE on existing DBs (see _add_column_if_missing in main.py), and a
     # missing/absent key is always treated as disabled (see settings_service.is_feature_enabled).
     feature_toggles: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 

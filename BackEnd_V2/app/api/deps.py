@@ -62,6 +62,3 @@ def require_device_limit_resolved(
     if count > max_devices:
         raise ForbiddenError("Device limit exceeded — sign out of a device before continuing.")
 
-
-DbSession = Annotated[Session, Depends(get_db)]
-CurrentUser = Annotated[UserDBM, Depends(get_current_user)]

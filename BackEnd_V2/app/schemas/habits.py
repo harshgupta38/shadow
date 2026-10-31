@@ -284,13 +284,6 @@ class SetTrackingRequest(BaseModel):
     enabled_ids: list[int]
 
 
-class HabitHistoryStats(BaseModel):
-    total_records: int
-    total_done: int
-    total_missed: int
-    completion_rate: float  # 0.0 – 1.0
-
-
 class HabitActivityRecord(BaseModel):
     date: date
     status: str

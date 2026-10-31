@@ -51,11 +51,6 @@ export function getPreferredTimeLabel(habit: HabitDataResponse, format: TimeForm
   return option?.label.split(" (")[0] ?? habit.preferred_time;
 }
 
-export function getPrimaryFrequencyLabel(frequencies: string[]): string {
-  if (frequencies.length === 0) return "Flexible";
-  return frequencyLabelMap.get(frequencies[0]) ?? frequencies[0];
-}
-
 // ── Metric frequency label ────────────────────────────────────────────────────
 
 const NAMED_DAYS = new Set(["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"]);

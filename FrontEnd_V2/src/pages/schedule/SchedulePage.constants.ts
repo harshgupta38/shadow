@@ -2,9 +2,6 @@ import type { ScheduledTaskPreferredTime, ScheduledTaskPriority, ScheduledTaskSt
 
 // ── Calendar display ─────────────────────────────────────────────────────────
 
-// Use weekDayLabels(weekStart) from weekUtils for rendered headers.
-export const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
 export const MONTH_NAMES = [
     "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December",

@@ -121,7 +121,7 @@ def send_push(
         return False
 
     try:
-        from pywebpush import webpush, WebPushException  # type: ignore[import-untyped]
+        from pywebpush import webpush  # type: ignore[import-untyped]
 
         webpush(
             subscription_info={"endpoint": endpoint, "keys": {"p256dh": p256dh, "auth": auth}},

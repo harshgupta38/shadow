@@ -24,7 +24,6 @@ ACTIVITY_VALUES = ("sedentary", "light", "moderate", "active", "very_active")
 OBJECTIVE_VALUES = ("fat_loss", "muscle_gain", "maintenance", "wellness", "custom")
 DIET_PREFERENCE_VALUES = ("no_preference", "vegetarian", "eggetarian", "vegan", "pescatarian", "jain")
 COOKING_VALUES = ("none", "minimal", "moderate", "plenty")
-TARGET_SOURCE_VALUES = ("estimated", "user", "prescribed")
 STANDARD_MEAL_TYPES = ("breakfast", "morning_snack", "lunch", "evening_snack", "dinner")
 VERIFICATION_VALUES = ("verified", "estimated", "user")  # how far a food's nutrition can be trusted
 CERTAINTY_VALUES = ("exact", "estimated")  # how sure the logged quantity is

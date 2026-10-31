@@ -30,21 +30,7 @@ export interface AccountPasswordConfirmRequest {
   current_password: string;
 }
 
-export interface ForgotPasswordRequest {
-  email: string;
-}
-
-export interface ResetPasswordRequest {
-  uid: number;
-  token: string;
-  new_password: string;
-}
-
 // TokenResponse is defined below alongside SessionInfo
-
-export interface RefreshRequest {
-  refresh_token: string;
-}
 
 export interface ChildProps {
   children?: React.ReactNode;
@@ -530,13 +516,6 @@ export interface HabitDataResponse extends Omit<HabitCreateRequest, "goal_id"> {
 
 export interface HabitUpdateRequest extends Partial<HabitCreateRequest> {
   status?: HabitStatus;
-}
-
-export interface HabitHistoryStats {
-  total_records: number;
-  total_done: number;
-  total_missed: number;
-  completion_rate: number; // 0.0 – 1.0
 }
 
 // ── Planner ─────────────────────────────────────────────────────────────────

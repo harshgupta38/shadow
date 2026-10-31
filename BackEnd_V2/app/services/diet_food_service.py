@@ -411,11 +411,3 @@ def restriction_warnings(profile: DietProfileDBM | None, food: FoodDBM) -> list[
             break
     return warnings
 
-
-def require_serving(food: FoodDBM, unit: str) -> None:
-    """Raises a clear error early when a unit cannot be converted for this food."""
-    if unit.strip().lower() not in diet_calc_service.FIXED_GRAM_UNITS and unit.strip().lower() not in food.serving_grams:
-        raise ValidationError(
-            f"{food.name} has no '{unit}' serving.",
-            errors={"unit": f"Use one of: {', '.join(sorted(food.serving_grams))} or grams."},
-        )

@@ -31,7 +31,7 @@ class DailyBriefDBM(Base):
     brief_date: Mapped[date_type] = mapped_column(Date, nullable=False)
     complete_brief: Mapped[str] = mapped_column(Text, nullable=False)
     # Nullable: rows written before this feature existed have none — added via
-    # ALTER TABLE on existing DBs (see db/session.ensure_columns), so it can't
+    # ALTER TABLE on existing DBs (see _add_column_if_missing in main.py), so it can't
     # carry a NOT NULL constraint there. Falls back to complete_brief for TTS.
     spoken_brief: Mapped[str | None] = mapped_column(Text, nullable=True)
 

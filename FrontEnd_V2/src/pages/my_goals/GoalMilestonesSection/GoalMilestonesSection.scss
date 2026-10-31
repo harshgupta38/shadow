@@ -253,22 +253,6 @@
   background: var(--jv-brand-soft);
 }
 
-.goal-milestone-chip {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.14rem 0.5rem;
-  border-radius: var(--jv-radius-pill);
-  font-size: 0.75rem;
-  color: var(--jv-muted);
-  background: color-mix(in srgb, var(--jv-border) 52%, var(--jv-surface) 48%);
-}
-
-.goal-milestone-expand-btn {
-  width: 30px !important;
-  height: 30px !important;
-  transition: transform 0.2s ease;
-}
-
 .goal-milestone-inline-loading {
   border-top: 1px solid var(--jv-border);
   margin-top: 0.7rem;
@@ -525,34 +509,6 @@
       left: 0;
       right: auto;
     }
-  }
-}
-
-/* ─── Feedback (loading / error) ─────────────────────────── */
-
-.goal-milestones-feedback {
-  min-height: 100px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.65rem;
-  margin-top: 0.9rem;
-  text-align: center;
-}
-
-.goal-milestones-feedback-error {
-  border-radius: var(--jv-radius);
-  background: color-mix(in srgb, var(--jv-danger, #c0392b) 7%, transparent);
-}
-
-.goal-milestones-feedback-text {
-  margin: 0;
-  font-size: 0.88rem;
-  color: var(--jv-muted);
-
-  .goal-milestones-feedback-error & {
-    color: var(--jv-danger, #c0392b);
   }
 }
 

@@ -20,7 +20,6 @@ read lockout_until=None before either committed.
 """
 
 import logging
-import math
 import threading
 from datetime import datetime, timedelta, timezone
 

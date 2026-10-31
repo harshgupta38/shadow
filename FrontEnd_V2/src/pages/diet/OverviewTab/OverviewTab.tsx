@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Droplet, PlusLg, ArrowCounterclockwise } from "react-bootstrap-icons";
+import { Droplet, Floppy, PlusLg } from "react-bootstrap-icons";
 
 import { api } from "@/api";
 import type { DietOverview, WaterDay, WaterHistoryPoint } from "@/api";
@@ -82,9 +82,8 @@ export function OverviewTab({ onLogFood }: OverviewTabProps) {
   if (error || !overview || !water) return <IllustratedErrorState onRetry={() => { setLoading(true); void load(); }} />;
 
   const { calories, score } = overview;
-  const lastEntry = water.entries[water.entries.length - 1];
   const customAmount = Math.round(Number(customMl));
-  const customValid = customAmount >= 1 && customAmount <= 5000; // the server's limits
+  const customValid = customAmount !== 0 && Math.abs(customAmount) <= 10000;
   const waterTarget = overview.water.target;
   const hasMeals = overview.meals.length > 0;
 
@@ -132,23 +131,35 @@ export function OverviewTab({ onLogFood }: OverviewTabProps) {
                 +{ml} ml
               </button>
             ))}
-            <form
-              className="dt-ov-water-custom"
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (!customValid) return;
-                void changeWater(() => api.diet.addWater(customAmount), "Couldn't add water.").then((ok) => ok && setCustomMl(""));
-              }}
-            >
-              <label className="visually-hidden" htmlFor="dt-water-custom">Custom amount in ml</label>
-              <input id="dt-water-custom" type="number" min="1" max="5000" inputMode="numeric" className="form-control form-control-sm" placeholder="ml" value={customMl} onChange={(e) => setCustomMl(e.target.value)} />
-              <button type="submit" className="btn btn-soft btn-sm" disabled={waterBusy || !customValid}>Add</button>
-            </form>
-            {lastEntry && (
-              <button type="button" className="btn btn-ghost btn-sm" disabled={waterBusy} onClick={() => void changeWater(() => api.diet.deleteWater(lastEntry.id), "Couldn't undo that.")}>
-                <ArrowCounterclockwise size={12} /> Undo {lastEntry.amount_ml} ml
-              </button>
-            )}
+            <div className="dt-ov-water-custom">
+              <label className="visually-hidden" htmlFor="dt-water-custom">Amount in ml (negative to remove)</label>
+              {customMl && customValid && (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-icon border-0 dt-ov-water-save"
+                  aria-label="Add water"
+                  disabled={waterBusy}
+                  onClick={() => void changeWater(() => api.diet.addWater(customAmount), "Couldn't update water.").then((ok) => ok && setCustomMl(""))}
+                >
+                  <Floppy size={13} />
+                </button>
+              )}
+              <input
+                id="dt-water-custom"
+                type="number"
+                inputMode="numeric"
+                className="dt-ov-water-input"
+                placeholder="Add..."
+                value={customMl}
+                disabled={waterBusy}
+                onChange={(e) => setCustomMl(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && customValid) {
+                    void changeWater(() => api.diet.addWater(customAmount), "Couldn't update water.").then((ok) => ok && setCustomMl(""));
+                  }
+                }}
+              />
+            </div>
           </div>
           <div className="dt-ov-history" role="img" aria-label={`Water over the last ${history.length} days: ${history.map((p) => `${fmt(p.total_ml)} ml`).join(", ")}`}>
             {history.map((point) => (

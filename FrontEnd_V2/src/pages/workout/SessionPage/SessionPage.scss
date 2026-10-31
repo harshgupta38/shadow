@@ -1,4 +1,8 @@
 .wk-session {
+  // The set rows carry visually-hidden labels, which are absolutely positioned. Without a positioned ancestor they
+  // resolve against the whole document, and the one far down the page makes the document taller than the window
+  // (a second scrollbar, and the sidebar pushed up). This keeps them inside the page, which scrolls in .app-main.
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 0.85rem;

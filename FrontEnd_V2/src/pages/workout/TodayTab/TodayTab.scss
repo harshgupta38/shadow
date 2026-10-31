@@ -195,6 +195,13 @@
 .wk-week-day { font-size: 0.64rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
 .wk-week-icon { height: 20px; display: grid; place-items: center; }
 
+// Grey by default, same as any outline-secondary button; only turns red on hover.
+.wk-stop-following-btn:hover:not(:disabled) {
+  --bs-btn-hover-bg: var(--jv-danger-soft);
+  --bs-btn-hover-border-color: var(--jv-danger);
+  --bs-btn-hover-color: var(--jv-danger);
+}
+
 .wk-week-name {
   max-width: 100%;
   padding: 0 0.2rem;

@@ -40,6 +40,7 @@ import { useToast } from "@/context/ToastContext";
 import { ANIMATION, TIMING } from "@/constant/tuning";
 import { useWakeRefresh } from "@/hooks/useWakeRefresh";
 import "@/pages/plan/PlanPage.scss";
+import "@/styles/date-toolbar.scss";
 
 const COMPLETE_ANIM_MS = ANIMATION.PLAN_ITEM_COMPLETE_MS;
 const TODAY_REFRESH_MS = TIMING.PLAN_DAY_ROLLOVER_CHECK_MS;

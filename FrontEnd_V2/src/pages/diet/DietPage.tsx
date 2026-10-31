@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { EggFried, Sliders } from "react-bootstrap-icons";
+import { EggFried } from "react-bootstrap-icons";
 import { useSearchParams } from "react-router-dom";
 
 import { api } from "@/api";
@@ -29,6 +29,7 @@ export function DietPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
+  const [setupOpen, setSetupOpen] = useState(false);
 
   const load = useCallback(async () => {
     setError(false);
@@ -57,11 +58,7 @@ export function DietPage() {
       title="Diet"
       subtitle="Know what you eat, without overthinking it."
       icon={<EggFried />}
-      actions={
-        onboarded && !editingProfile
-          ? [{ key: "profile", label: "Profile & targets", icon: <Sliders size={14} />, tone: "soft", onClick: () => setEditingProfile(true) }]
-          : []
-      }
+      actions={[]}
     />
   );
 
@@ -86,20 +83,36 @@ export function DietPage() {
     );
   }
 
-  if (!onboarded || editingProfile) {
+  // Not set up yet: the page offers the setup, and the wizard opens from that button, the way goal setup opens from the goals page.
+  if (!onboarded && !setupOpen) {
     return (
       <div className="dt-shell">
         {header}
-        <OnboardingWizard
-          initial={editingProfile ? profile : null}
-          onCancel={editingProfile ? () => setEditingProfile(false) : undefined}
-          onDone={(saved) => {
-            setProfile(saved);
-            setOnboarded(true);
-            setEditingProfile(false);
-          }}
-        />
+        <section className="surface dt-setup">
+          <h2 className="dt-setup-title">Set up your nutrition</h2>
+          <p className="dt-setup-subtitle">
+            Tell Shadow a little about you, and it suggests daily targets for calories, protein, carbs, fat, fibre and water.
+          </p>
+          <button type="button" className="btn btn-brand dt-setup-cta" onClick={() => setSetupOpen(true)}>
+            Setup Diet
+          </button>
+        </section>
       </div>
+    );
+  }
+
+  // The wizard takes over the whole page while it is open, so it has no page header of its own.
+  if (!onboarded || editingProfile) {
+    return (
+      <OnboardingWizard
+        initial={editingProfile ? profile : null}
+        onCancel={() => (editingProfile ? setEditingProfile(false) : setSetupOpen(false))}
+        onDone={(saved) => {
+          setProfile(saved);
+          setOnboarded(true);
+          setEditingProfile(false);
+        }}
+      />
     );
   }
 
@@ -134,7 +147,7 @@ export function DietPage() {
 
       <div id="dt-tabpanel" role="tabpanel" aria-labelledby={`dt-tab-${tab}`}>
         {tab === "overview" && <OverviewTab onLogFood={() => selectTab("diary")} />}
-        {tab === "diary" && profile && <DiaryTab profile={profile} />}
+        {tab === "diary" && profile && <DiaryTab profile={profile} onEditProfile={() => setEditingProfile(true)} />}
         {tab === "library" && <LibraryTab />}
       </div>
     </div>

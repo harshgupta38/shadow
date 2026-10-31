@@ -210,6 +210,102 @@ def _migrate_workout(engine) -> None:
     _keep_one_open_workout_per_user()
 
 
+def _rebuild_diet_profiles_if_outdated(engine) -> None:
+    """SQLite cannot change a CHECK constraint in place. A diet_profiles table made before non-vegetarian and the height
+    unit existed keeps the old constraints, so its rows are copied into a table built from the current model. Runs inside
+    BEGIN IMMEDIATE: workers that start together take turns, and the one that comes second finds the table already rebuilt."""
+    from sqlalchemy import text as _sql_text  # pyright: ignore[reportMissingImports]
+    from sqlalchemy.schema import CreateTable  # pyright: ignore[reportMissingImports]
+
+    from app.models.diet import DietProfileDBM  # pyright: ignore[reportMissingImports]
+
+    table = DietProfileDBM.__table__
+    with engine.connect() as conn:
+        # Foreign keys are off for the copy, as SQLite's guide to rebuilding a table asks. The switch does nothing inside a
+        # transaction, so it comes first, and it is turned back on however the rebuild ends.
+        conn.exec_driver_sql("PRAGMA foreign_keys=OFF")
+        try:
+            conn.exec_driver_sql("BEGIN IMMEDIATE")
+            current = conn.execute(
+                _sql_text("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'diet_profiles'")
+            ).scalar()
+            if current is None or ("'non_vegetarian'" in current and "height_unit" in current):
+                conn.rollback()
+                return
+            # The model's own CREATE TABLE, with only the name changed: a copy of the table in another MetaData
+            # cannot resolve its foreign key to users.
+            ddl = str(CreateTable(table).compile(dialect=conn.dialect)).replace(
+                "CREATE TABLE diet_profiles (", "CREATE TABLE diet_profiles_rebuild (", 1
+            )
+            conn.exec_driver_sql(ddl)
+            existing = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(diet_profiles)")}
+            shared = ", ".join(column.name for column in table.columns if column.name in existing)
+            conn.exec_driver_sql(f"INSERT INTO diet_profiles_rebuild ({shared}) SELECT {shared} FROM diet_profiles")
+            conn.exec_driver_sql("DROP TABLE diet_profiles")
+            conn.exec_driver_sql("ALTER TABLE diet_profiles_rebuild RENAME TO diet_profiles")
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.exec_driver_sql("PRAGMA foreign_keys=ON")
+
+
+def _migrate_water_logs(engine) -> None:
+    """Collapse any multi-row (user, day) pairs into one row storing the daily total, and add a UNIQUE constraint.
+    Old schema: CHECK(amount_ml BETWEEN 1 AND 5000), multiple rows per day.
+    New schema: CHECK(amount_ml >= 0), UNIQUE(user_id, log_date).
+    Idempotent: skips when the unique constraint is already present."""
+    from sqlalchemy import text as _sql_text  # pyright: ignore[reportMissingImports]
+
+    with engine.connect() as conn:
+        current = conn.execute(
+            _sql_text("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'water_logs'")
+        ).scalar()
+        if current is None or "uq_water_logs_user_date" in current:
+            return  # table missing (will be created fresh) or already migrated
+
+        conn.exec_driver_sql("PRAGMA foreign_keys=OFF")
+        try:
+            conn.exec_driver_sql("BEGIN IMMEDIATE")
+            conn.exec_driver_sql("""
+                CREATE TABLE water_logs_rebuild (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    log_date DATE NOT NULL,
+                    amount_ml INTEGER NOT NULL CHECK (amount_ml >= 0),
+                    created_at DATETIME NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+                    CONSTRAINT uq_water_logs_user_date UNIQUE (user_id, log_date)
+                )
+            """)
+            conn.exec_driver_sql("""
+                INSERT INTO water_logs_rebuild (user_id, log_date, amount_ml)
+                SELECT user_id, log_date,
+                       CASE WHEN SUM(amount_ml) > 0 THEN SUM(amount_ml) ELSE 0 END
+                FROM water_logs
+                GROUP BY user_id, log_date
+            """)
+            conn.exec_driver_sql("DROP TABLE water_logs")
+            conn.exec_driver_sql("ALTER TABLE water_logs_rebuild RENAME TO water_logs")
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.exec_driver_sql("PRAGMA foreign_keys=ON")
+
+
+def _migrate_diet(engine) -> None:
+    """Brings diet_profiles up to date: the unit the height was typed in, and the rebuilt table for the eating styles.
+    Idempotent, like the workout migration."""
+    with engine.connect() as _conn:
+        _add_column_if_missing(
+            _conn, "diet_profiles", "height_unit",
+            "ALTER TABLE diet_profiles ADD COLUMN height_unit VARCHAR(8) NOT NULL DEFAULT 'cm'",
+        )
+    _rebuild_diet_profiles_if_outdated(engine)
+
+
 def _create_schema(engine) -> None:
     """Creates missing tables, then runs the workout migration. Workers start together, and the first one to take the
     write lock creates the new tables, so a sibling can find a table already there ("already exists") or wait past
@@ -218,6 +314,8 @@ def _create_schema(engine) -> None:
         try:
             Base.metadata.create_all(bind=engine)
             _migrate_workout(engine)
+            _migrate_diet(engine)
+            _migrate_water_logs(engine)
             return
         except OperationalError as exc:
             transient = "already exists" in str(exc) or "database is locked" in str(exc)

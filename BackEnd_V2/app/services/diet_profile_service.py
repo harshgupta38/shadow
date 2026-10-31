@@ -55,7 +55,7 @@ def estimate(request: EstimateRequest) -> EstimateResponse:
     result = diet_calc_service.estimate_targets(
         sex=request.sex,
         age=request.age,
-        height_cm=request.height_cm,
+        height_cm=request.centimetres,
         weight_kg=request.weight_kg,
         activity_level=request.activity_level,
         objective=request.objective,
@@ -90,7 +90,7 @@ def save_profile(db: Session, user: UserDBM, request: ProfileSaveRequest) -> Pro
         estimated = diet_calc_service.estimate_targets(
             sex=request.sex or "",
             age=request.age,
-            height_cm=request.height_cm,
+            height_cm=request.centimetres,
             weight_kg=request.weight_kg,
             activity_level=request.activity_level,
             objective=request.objective,
@@ -122,7 +122,7 @@ def save_profile(db: Session, user: UserDBM, request: ProfileSaveRequest) -> Pro
         row = DietProfileDBM(user_id=user.id)
         db.add(row)
     for field in (
-        "age", "sex", "height_cm", "weight_kg", "target_weight_kg", "activity_level", "objective", "objective_note",
+        "age", "sex", "height_cm", "height_unit", "weight_kg", "target_weight_kg", "activity_level", "objective", "objective_note",
         "dietary_preference", "allergies", "intolerances", "liked_foods", "disliked_foods", "cuisines", "meals_per_day",
         "meal_times", "cooking_availability", "daily_budget",
     ):
@@ -133,7 +133,7 @@ def save_profile(db: Session, user: UserDBM, request: ProfileSaveRequest) -> Pro
     if estimated is not None:
         row.bmr, row.tdee = estimated.bmr, estimated.tdee
     elif request.sex:
-        bmr = diet_calc_service.calc_bmr(sex=request.sex, weight_kg=request.weight_kg, height_cm=request.height_cm, age=request.age)
+        bmr = diet_calc_service.calc_bmr(sex=request.sex, weight_kg=request.weight_kg, height_cm=request.centimetres, age=request.age)
         row.bmr, row.tdee = bmr, diet_calc_service.calc_tdee(bmr, request.activity_level)
     db.commit()
     db.refresh(row)

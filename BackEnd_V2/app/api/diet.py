@@ -272,11 +272,6 @@ def water_history(
     return diet_water_service.history(db, current_user, days)
 
 
-@router.delete(ENDPOINTS.DIET.WATER_ENTRY, response_model=WaterDayResponse)
-def delete_water(entry_id: int, db=Depends(get_db), current_user: UserDBM = Depends(get_current_user)) -> WaterDayResponse:
-    return diet_water_service.delete(db, current_user, entry_id)
-
-
 # ── AI food logging (propose, review, confirm) ────────────────────────────────
 
 

@@ -269,7 +269,7 @@ export function TodayTab({ onOpenExercise }: TodayTabProps) {
         <section className="surface wk-today-card">
           <header className="wk-today-week-head">
             <h2 className="wk-h">This week</h2>
-            <button type="button" className="btn btn-outline-danger btn-sm" disabled={stopping} onClick={() => setConfirmStop(true)}>
+            <button type="button" className="btn btn-outline-secondary btn-sm wk-stop-following-btn" disabled={stopping} onClick={() => setConfirmStop(true)}>
               {stopping ? "Stopping…" : "Stop following"}
             </button>
           </header>

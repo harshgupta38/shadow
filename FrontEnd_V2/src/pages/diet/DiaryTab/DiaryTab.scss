@@ -4,38 +4,9 @@
   gap: 1rem;
 }
 
-.dt-diary-nav {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.dt-diary-date {
-  display: flex;
-  flex-direction: column;
-  min-width: 8.5rem;
-  line-height: 1.2;
-  text-align: center;
-
-  strong { font-size: 1rem; }
-  span { font-size: 0.76rem; color: var(--jv-muted); }
-}
-
-.dt-diary-picker { width: 10.5rem; margin-left: auto; }
 
 .dt-nl {
   padding: 1rem 1.1rem;
-}
-
-.dt-nl-label {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  margin-bottom: 0.5rem;
-  font-weight: 800;
-  font-size: 0.95rem;
-  color: var(--jv-brand-1);
 }
 
 .dt-nl-input { resize: vertical; min-height: 3.4rem; }
@@ -91,7 +62,6 @@
 }
 
 @media (max-width: 575.98px) {
-  .dt-diary-picker { margin-left: 0; width: 100%; }
   .dt-nl-row { flex-wrap: wrap; }
   .dt-nl-meal { max-width: none; flex: 1; }
 }

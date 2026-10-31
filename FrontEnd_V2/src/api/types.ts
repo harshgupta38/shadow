@@ -1467,7 +1467,9 @@ export interface WorkoutProgress {
 export type DietSex = "male" | "female";
 export type DietActivityLevel = "sedentary" | "light" | "moderate" | "active" | "very_active";
 export type DietObjective = "fat_loss" | "muscle_gain" | "maintenance" | "wellness" | "custom";
-export type DietaryPreference = "no_preference" | "vegetarian" | "eggetarian" | "vegan" | "pescatarian" | "jain";
+export type DietaryPreference = "no_preference" | "vegetarian" | "eggetarian" | "vegan" | "pescatarian" | "jain" | "non_vegetarian";
+/** The unit the height was typed in. The server converts feet and inches to centimetres. */
+export type DietHeightUnit = "cm" | "ft_in";
 export type CookingAvailability = "none" | "minimal" | "moderate" | "plenty";
 export type NutritionVerification = "verified" | "estimated" | "user";
 export type QuantityCertainty = "exact" | "estimated";
@@ -1486,10 +1488,17 @@ export interface DietTargetOverrides extends Partial<DietTargetValues> {
   prescribed?: boolean;
 }
 
-export interface DietProfileSaveRequest {
+/** A height in one of the two units. Only the fields for the chosen unit are sent. */
+export interface DietHeightInput {
+  height_unit: DietHeightUnit;
+  height_cm?: number;
+  height_feet?: number;
+  height_inches?: number;
+}
+
+export interface DietProfileSaveRequest extends DietHeightInput {
   age: number;
   sex: DietSex | null;
-  height_cm: number;
   weight_kg: number;
   target_weight_kg: number | null;
   activity_level: DietActivityLevel;
@@ -1509,10 +1518,9 @@ export interface DietProfileSaveRequest {
   recalculate_targets: boolean;
 }
 
-export interface DietEstimateRequest {
+export interface DietEstimateRequest extends DietHeightInput {
   age: number;
   sex: DietSex;
-  height_cm: number;
   weight_kg: number;
   activity_level: DietActivityLevel;
   objective: DietObjective;
@@ -1530,6 +1538,7 @@ export interface DietProfile extends DietTargetValues {
   age: number;
   sex: DietSex | null;
   height_cm: number;
+  height_unit: DietHeightUnit;
   weight_kg: number;
   target_weight_kg: number | null;
   activity_level: DietActivityLevel;
@@ -1704,16 +1713,10 @@ export interface SavedMeal {
   items: { food_id: number; name: string; quantity: number; unit: string }[];
 }
 
-export interface WaterEntry {
-  id: number;
-  amount_ml: number;
-}
-
 export interface WaterDay {
   date: string;
   total_ml: number;
   target_ml: number | null;
-  entries: WaterEntry[];
 }
 
 export interface WaterHistoryPoint {

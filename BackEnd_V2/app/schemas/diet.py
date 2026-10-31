@@ -1,14 +1,15 @@
 from datetime import date, time
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.schemas.common import ORMModel
 
 Sex = Literal["male", "female"]
+HeightUnit = Literal["cm", "ft_in"]
 ActivityLevel = Literal["sedentary", "light", "moderate", "active", "very_active"]
 Objective = Literal["fat_loss", "muscle_gain", "maintenance", "wellness", "custom"]
-DietaryPreference = Literal["no_preference", "vegetarian", "eggetarian", "vegan", "pescatarian", "jain"]
+DietaryPreference = Literal["no_preference", "vegetarian", "eggetarian", "vegan", "pescatarian", "jain", "non_vegetarian"]
 CookingAvailability = Literal["none", "minimal", "moderate", "plenty"]
 Verification = Literal["verified", "estimated", "user"]
 Certainty = Literal["exact", "estimated"]
@@ -26,6 +27,39 @@ def _clean_list(values: list[str]) -> list[str]:
         if text and text.lower() not in seen:
             seen[text.lower()] = text[:60]
     return list(seen.values())
+
+
+CM_PER_FOOT = 30.48
+CM_PER_INCH = 2.54
+
+
+class HeightInput(BaseModel):
+    """The height as the user typed it: centimetres, or feet and inches. Feet and inches are converted to centimetres here,
+    so everything after this point (the estimate, the stored profile) works in centimetres."""
+
+    height_unit: HeightUnit = "cm"
+    height_cm: float | None = Field(default=None, ge=100, le=250)
+    height_feet: int | None = Field(default=None, ge=3, le=8)
+    height_inches: float | None = Field(default=None, ge=0, lt=12)
+
+    @model_validator(mode="after")
+    def _to_centimetres(self) -> "HeightInput":
+        if self.height_unit == "cm":
+            if self.height_cm is None:
+                raise ValueError("Enter your height in centimetres.")
+            return self
+        if self.height_feet is None or self.height_inches is None:
+            raise ValueError("Enter your height in feet and inches.")
+        centimetres = self.height_feet * CM_PER_FOOT + self.height_inches * CM_PER_INCH
+        if not 100 <= centimetres <= 250:
+            raise ValueError("Enter a height from 3 ft 4 in to 8 ft 2 in.")
+        self.height_cm = round(centimetres, 1)
+        return self
+
+    @property
+    def centimetres(self) -> float:
+        assert self.height_cm is not None  # set by _to_centimetres
+        return self.height_cm
 
 
 # ---------- profile ----------
@@ -52,16 +86,15 @@ class TargetOverrides(BaseModel):
     prescribed: bool = False  # set when these come from a doctor or dietitian rather than the user's own choice
 
 
-class ProfileSaveRequest(BaseModel):
+class ProfileSaveRequest(HeightInput):
     age: int = Field(ge=14, le=100)
     sex: Sex | None = None
-    height_cm: float = Field(ge=100, le=250)
     weight_kg: float = Field(ge=30, le=300)
     target_weight_kg: float | None = Field(default=None, ge=30, le=300)
     activity_level: ActivityLevel = "light"
     objective: Objective = "maintenance"
     objective_note: str = Field(default="", max_length=200)
-    dietary_preference: DietaryPreference = "no_preference"
+    dietary_preference: DietaryPreference = "vegetarian"
     allergies: list[str] = Field(default_factory=list, max_length=30)
     intolerances: list[str] = Field(default_factory=list, max_length=30)
     liked_foods: list[str] = Field(default_factory=list, max_length=50)
@@ -94,10 +127,9 @@ class ProfileSaveRequest(BaseModel):
         return value
 
 
-class EstimateRequest(BaseModel):
+class EstimateRequest(HeightInput):
     age: int = Field(ge=14, le=100)
     sex: Sex
-    height_cm: float = Field(ge=100, le=250)
     weight_kg: float = Field(ge=30, le=300)
     activity_level: ActivityLevel = "light"
     objective: Objective = "maintenance"
@@ -115,6 +147,7 @@ class ProfileResponse(ORMModel):
     age: int
     sex: Sex | None
     height_cm: float
+    height_unit: HeightUnit
     weight_kg: float
     target_weight_kg: float | None
     activity_level: ActivityLevel
@@ -384,20 +417,20 @@ class SavedMealLogRequest(BaseModel):
 
 
 class WaterAddRequest(BaseModel):
-    amount_ml: int = Field(ge=1, le=5000)
+    delta_ml: int = Field(ge=-10000, le=10000)
     log_date: date | None = None
 
-
-class WaterEntryResponse(ORMModel):
-    id: int
-    amount_ml: int
+    @model_validator(mode="after")
+    def _not_zero(self) -> "WaterAddRequest":
+        if self.delta_ml == 0:
+            raise ValueError("delta_ml must not be zero")
+        return self
 
 
 class WaterDayResponse(BaseModel):
     date: date
     total_ml: int
     target_ml: int | None
-    entries: list[WaterEntryResponse]
 
 
 class WaterHistoryPoint(BaseModel):

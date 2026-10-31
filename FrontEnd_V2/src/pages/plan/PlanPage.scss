@@ -3,61 +3,10 @@
   --plan-gap: 1.35rem;
   color: var(--jv-text);
 
-  .plan-actions,
-  .date-controls,
-  .plan-action-buttons {
-    display: flex;
-    align-items: center;
-  }
-
   .progress-panel p,
   .empty-state p {
     margin: 0;
     color: var(--jv-muted);
-  }
-
-  .plan-actions {
-    width: 100%;
-    justify-content: space-between;
-    gap: 0.55rem;
-    margin: 0 0 1.35rem;
-  }
-
-  .date-controls,
-  .plan-action-buttons {
-    gap: 0.45rem;
-  }
-
-  .plan-icon-button,
-  .plan-secondary-button,
-  .plan-primary-button {
-    height: 35px;
-    border: 1px solid var(--jv-border-strong);
-    border-radius: 9px;
-    background: var(--jv-surface);
-    color: var(--jv-muted);
-    font: inherit;
-    font-size: 0.88rem;
-    font-weight: 600;
-    cursor: pointer;
-  }
-
-  .plan-icon-button {
-    width: 35px;
-    display: grid;
-    place-items: center;
-    padding: 0;
-
-    &:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-  }
-
-  .plan-icon-button:hover,
-  .plan-secondary-button:hover {
-    background: var(--jv-surface-2);
-    color: var(--jv-text);
   }
 
   .plan-header-icon-btn {
@@ -75,71 +24,6 @@
     &:hover {
       color: var(--jv-text);
     }
-  }
-
-  .date-field {
-    position: relative;
-    display: flex;
-    height: 39px;
-    align-items: center;
-  }
-
-  .date-display {
-    display: flex;
-    width: 100%;
-    height: 100%;
-    align-items: center;
-    padding: 0 3rem 0 0.8rem;
-    border: 1px solid var(--jv-border-strong);
-    border-radius: 9px;
-    background: var(--jv-surface);
-    color: var(--jv-text);
-    font-size: 0.88rem;
-  }
-
-  .date-calendar-icon {
-    position: absolute;
-    right: 0.8rem;
-    color: var(--jv-text);
-    pointer-events: none;
-  }
-
-  .date-field input {
-    position: absolute;
-    inset: 0;
-    z-index: 1;
-    cursor: pointer;
-    opacity: 0;
-  }
-
-  .plan-secondary-button,
-  .plan-primary-button {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    padding: 0 0.75rem 0 0.30rem;
-  }
-
-  .plan-secondary-button:disabled,
-  .plan-primary-button:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-  
-  .plan-secondary-button{
-    padding: 0 0.75rem 0 0.75rem;
-  }
-
-  .plan-primary-button {
-    border-color: transparent;
-    color: #fff;
-    background: var(--jv-brand-gradient);
-    box-shadow: 0 6px 16px color-mix(in srgb, var(--jv-brand-1) 28%, transparent);
-  }
-
-  .plan-primary-button:hover {
-    color: #fff;
-    filter: brightness(1.05);
   }
 
   .plan-columns {
@@ -650,26 +534,6 @@
   }
 
   @media (max-width: 520px) {
-    .plan-actions {
-      align-items: stretch;
-      flex-direction: column;
-    }
-
-    .date-controls,
-    .plan-action-buttons {
-      width: 100%;
-    }
-
-    .date-field {
-      flex: 1;
-    }
-
-    .plan-secondary-button,
-    .plan-primary-button {
-      flex: 1;
-      justify-content: center;
-    }
-
     .desktop-break {
       display: none;
     }

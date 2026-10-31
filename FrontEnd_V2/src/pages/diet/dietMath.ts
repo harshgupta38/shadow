@@ -51,6 +51,12 @@ export function fmt(value: number, digits = 0): string {
   return value.toLocaleString("en-IN", { maximumFractionDigits: digits, minimumFractionDigits: 0 });
 }
 
+/** A saved height in centimetres, split into whole feet and inches, so the form can show it in the unit the user chose. */
+export function feetAndInchesFromCm(cm: number): { feet: number; inches: number } {
+  const totalInches = Math.round(cm / 2.54);
+  return { feet: Math.floor(totalInches / 12), inches: totalInches % 12 };
+}
+
 /** Bar width: 0–100, even when the real percentage overshoots. */
 export function barPercent(percent: number): number {
   if (!Number.isFinite(percent)) return 0;
@@ -141,12 +147,13 @@ export const OBJECTIVE_OPTIONS: { value: DietObjective; label: string; hint: str
 ];
 
 export const DIET_PREFERENCE_OPTIONS: { value: DietaryPreference; label: string }[] = [
-  { value: "no_preference", label: "No preference" },
   { value: "vegetarian", label: "Vegetarian" },
+  { value: "non_vegetarian", label: "Non-vegetarian" },
   { value: "eggetarian", label: "Eggetarian" },
-  { value: "vegan", label: "Vegan" },
   { value: "pescatarian", label: "Pescatarian" },
+  { value: "vegan", label: "Vegan" },
   { value: "jain", label: "Jain" },
+  { value: "no_preference", label: "No preference" },
 ];
 
 export const COOKING_OPTIONS: { value: CookingAvailability; label: string }[] = [

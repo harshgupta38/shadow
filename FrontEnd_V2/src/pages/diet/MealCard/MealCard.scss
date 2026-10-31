@@ -1,7 +1,7 @@
 .dt-meal {
   padding: 1rem 1.1rem;
 
-  &.is-empty { background: transparent; border-style: dashed; box-shadow: none; }
+  &.is-empty { background: transparent; border-style: dashed; box-shadow: none; border-color: var(--jv-faint); }
 }
 
 .dt-meal-head {

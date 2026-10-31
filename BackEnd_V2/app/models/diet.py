@@ -22,7 +22,8 @@ from app.models.base import Base
 SEX_VALUES = ("male", "female")
 ACTIVITY_VALUES = ("sedentary", "light", "moderate", "active", "very_active")
 OBJECTIVE_VALUES = ("fat_loss", "muscle_gain", "maintenance", "wellness", "custom")
-DIET_PREFERENCE_VALUES = ("no_preference", "vegetarian", "eggetarian", "vegan", "pescatarian", "jain")
+DIET_PREFERENCE_VALUES = ("no_preference", "vegetarian", "eggetarian", "vegan", "pescatarian", "jain", "non_vegetarian")
+HEIGHT_UNIT_VALUES = ("cm", "ft_in")  # the unit the height was typed in; the stored height is always centimetres
 COOKING_VALUES = ("none", "minimal", "moderate", "plenty")
 TARGET_SOURCE_VALUES = ("estimated", "user", "prescribed")
 STANDARD_MEAL_TYPES = ("breakfast", "morning_snack", "lunch", "evening_snack", "dinner")
@@ -49,6 +50,7 @@ class DietProfileDBM(Base):
         CheckConstraint(_one_of("cooking_availability", COOKING_VALUES), name="ck_diet_profiles_cooking"),
         CheckConstraint("age BETWEEN 14 AND 100", name="ck_diet_profiles_age"),
         CheckConstraint("height_cm BETWEEN 100 AND 250", name="ck_diet_profiles_height"),
+        CheckConstraint(_one_of("height_unit", HEIGHT_UNIT_VALUES), name="ck_diet_profiles_height_unit"),
         CheckConstraint("weight_kg BETWEEN 30 AND 300", name="ck_diet_profiles_weight"),
         CheckConstraint("meals_per_day BETWEEN 1 AND 8", name="ck_diet_profiles_meals"),
         CheckConstraint("calorie_target BETWEEN 500 AND 8000", name="ck_diet_profiles_calories"),
@@ -58,12 +60,13 @@ class DietProfileDBM(Base):
     age: Mapped[int] = mapped_column(Integer, nullable=False)
     sex: Mapped[str | None] = mapped_column(String(10), nullable=True)
     height_cm: Mapped[float] = mapped_column(Float, nullable=False)
+    height_unit: Mapped[str] = mapped_column(String(8), nullable=False, default="cm")
     weight_kg: Mapped[float] = mapped_column(Float, nullable=False)
     target_weight_kg: Mapped[float | None] = mapped_column(Float, nullable=True)
     activity_level: Mapped[str] = mapped_column(String(16), nullable=False, default="light")
     objective: Mapped[str] = mapped_column(String(16), nullable=False, default="maintenance")
     objective_note: Mapped[str] = mapped_column(String(200), nullable=False, default="")
-    dietary_preference: Mapped[str] = mapped_column(String(20), nullable=False, default="no_preference")
+    dietary_preference: Mapped[str] = mapped_column(String(20), nullable=False, default="vegetarian")
     allergies: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     intolerances: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     liked_foods: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
@@ -246,8 +249,8 @@ class SavedMealDBM(Base):
 class WaterLogDBM(Base):
     __tablename__ = "water_logs"
     __table_args__ = (
-        CheckConstraint("amount_ml BETWEEN 1 AND 5000", name="ck_water_logs_amount"),
-        Index("ix_water_logs_user_date", "user_id", "log_date"),
+        CheckConstraint("amount_ml >= 0", name="ck_water_logs_amount"),
+        UniqueConstraint("user_id", "log_date", name="uq_water_logs_user_date"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)

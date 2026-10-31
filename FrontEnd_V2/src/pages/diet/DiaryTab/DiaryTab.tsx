@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Copy, Stars } from "react-bootstrap-icons";
+import { Modal } from "react-bootstrap";
+import { Calendar3, ChevronLeft, ChevronRight, Copy, Sliders } from "react-bootstrap-icons";
 
 import { api } from "@/api";
 import type { DiaryDay, DiaryItem, DiaryMeal, DietProfile, FoodLogProposal } from "@/api";
@@ -14,13 +15,16 @@ import { MealCard } from "@/pages/diet/MealCard/MealCard";
 import { ProposalReview } from "@/pages/diet/ProposalReview/ProposalReview";
 import { MEAL_OPTIONS, MEAL_ORDER, addDaysIso, errorMessage, fmt, mealLabel, sortMeals, suggestMealType } from "@/pages/diet/dietMath";
 import { currentIstHour, formatDisplayDate, todayIso } from "@/services/date.service";
+import "@/styles/date-toolbar.scss";
 import "./DiaryTab.scss";
 
 interface DiaryTabProps {
   profile: DietProfile;
+  onEditProfile?: () => void;
 }
 
-export function DiaryTab({ profile }: DiaryTabProps) {
+
+export function DiaryTab({ profile, onEditProfile }: DiaryTabProps) {
   const toast = useToast();
   const today = todayIso();
   const [date, setDate] = useState(today);
@@ -39,6 +43,10 @@ export function DiaryTab({ profile }: DiaryTabProps) {
   const [clearing, setClearing] = useState<DiaryMeal | null>(null);
   const [savingMeal, setSavingMeal] = useState<DiaryMeal | null>(null);
   const [busy, setBusy] = useState(false);
+
+  const [copyDialogOpen, setCopyDialogOpen] = useState(false);
+  const [copyFromDate, setCopyFromDate] = useState("");
+  const [copyMealTypes, setCopyMealTypes] = useState<string[]>([]);
 
   // Only the newest request may update the screen, so quickly changing day can't leave one day's meals under another's header.
   const loadSeq = useRef(0);
@@ -83,6 +91,31 @@ export function DiaryTab({ profile }: DiaryTabProps) {
     [load, toast],
   );
 
+  async function handleCopyFromDay() {
+    setCopyDialogOpen(false);
+    setBusy(true);
+    const id = ++loadSeq.current;
+    try {
+      const result = await api.diet.copyMeals({
+        from_date: copyFromDate,
+        to_date: date,
+        ...(copyMealTypes.length > 0 && { meal_types: copyMealTypes }),
+      });
+      if (id === loadSeq.current) setDay(result.day);
+      const copied = result.copied_meals.map(mealLabel).join(", ");
+      const skipped = result.skipped_meals.map(mealLabel).join(", ");
+      toast.success(
+        copied
+          ? `Copied ${copied}.${skipped ? ` Skipped ${skipped}: already logged.` : ""}`
+          : `Nothing to copy: ${skipped ? `${skipped} already logged.` : "source day is empty."}`,
+      );
+    } catch (err) {
+      toast.error(errorMessage(err, "Couldn't copy meals."));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function describeMeal(event: React.FormEvent) {
     event.preventDefault();
     const value = text.trim();
@@ -116,24 +149,68 @@ export function DiaryTab({ profile }: DiaryTabProps) {
 
   return (
     <div className="dt-diary">
-      <div className="dt-diary-nav" role="group" aria-label="Choose a day">
-        <button type="button" className="btn btn-soft btn-sm" aria-label="Previous day" onClick={() => setDate(addDaysIso(date, -1))}>
-          <ChevronLeft size={14} />
-        </button>
-        <div className="dt-diary-date">
-          <strong>{isToday ? "Today" : formatDisplayDate(date)}</strong>
-          {isToday && <span>{formatDisplayDate(date)}</span>}
+      <div className="plan-actions mb-0">
+        <div className="date-controls" aria-label="Choose a day">
+          <button type="button" className="plan-icon-button" aria-label="Previous day" onClick={() => setDate(addDaysIso(date, -1))}>
+            <ChevronLeft size={18} />
+          </button>
+          <label className="date-field">
+            <span className="visually-hidden">Diary date</span>
+            <span className="date-display" aria-hidden="true">{formatDisplayDate(date)}</span>
+            <Calendar3 className="date-calendar-icon" size={16} aria-hidden="true" />
+            <input
+              type="date"
+              value={date}
+              max={today}
+              onChange={(e) => e.target.value && setDate(e.target.value > today ? today : e.target.value)}
+              onClick={(e) => (e.currentTarget as HTMLInputElement).showPicker?.()}
+              aria-label="Diary date"
+            />
+          </label>
+          <button type="button" className="plan-icon-button" aria-label="Next day" disabled={isToday} onClick={() => setDate(addDaysIso(date, 1))}>
+            <ChevronRight size={18} />
+          </button>
         </div>
-        <button type="button" className="btn btn-soft btn-sm" aria-label="Next day" disabled={isToday} onClick={() => setDate(addDaysIso(date, 1))}>
-          <ChevronRight size={14} />
-        </button>
-        <label className="visually-hidden" htmlFor="dt-diary-picker">Jump to a date</label>
-        <input id="dt-diary-picker" type="date" className="form-control form-control-sm dt-diary-picker" value={date} max={today} onChange={(e) => e.target.value && setDate(e.target.value > today ? today : e.target.value)} />
-        {!isToday && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setDate(today)}>Back to today</button>}
+        <div className="plan-action-buttons">
+          {!isToday && (
+            <button type="button" className="plan-secondary-button" onClick={() => setDate(today)}>
+              Back to today
+            </button>
+          )}
+          <button type="button" className="plan-primary-button" onClick={onEditProfile}>
+            <Sliders size={14} /> Profile &amp; targets
+          </button>
+        </div>
       </div>
 
+      {day && (
+        <div className="surface dt-diary-summary" aria-label="Day totals">
+          <div>
+            <strong>{fmt(day.totals.calories)}</strong>
+            <span> of {fmt(profile.calorie_target)} kcal</span>
+          </div>
+          <div className="dt-diary-macros">
+            <span>Protein <strong>{fmt(day.totals.protein_g)}</strong>/{profile.protein_target_g} g</span>
+            <span>Carbs <strong>{fmt(day.totals.carbs_g)}</strong>/{profile.carbs_target_g} g</span>
+            <span>Fat <strong>{fmt(day.totals.fat_g)}</strong>/{profile.fat_target_g} g</span>
+            <span>Fibre <strong>{fmt(day.totals.fibre_g)}</strong>/{profile.fibre_target_g} g</span>
+          </div>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            disabled={busy}
+            onClick={() => {
+              setCopyFromDate(addDaysIso(date, -1));
+              setCopyMealTypes([]);
+              setCopyDialogOpen(true);
+            }}
+          >
+            <Copy size={13} /> Copy from other day
+          </button>
+        </div>
+      )}
+
       <form className="surface dt-nl" onSubmit={describeMeal}>
-        <label htmlFor="dt-nl-text" className="dt-nl-label"><Stars size={14} aria-hidden="true" /> Tell Shadow what you ate</label>
         <textarea
           id="dt-nl-text"
           className="form-control dt-nl-input"
@@ -180,43 +257,6 @@ export function DiaryTab({ profile }: DiaryTabProps) {
         <IllustratedErrorState onRetry={() => { setLoading(true); void load(); }} />
       ) : day ? (
         <>
-          <div className="surface dt-diary-summary" aria-label="Day totals">
-            <div>
-              <strong>{fmt(day.totals.calories)}</strong>
-              <span> of {fmt(profile.calorie_target)} kcal</span>
-            </div>
-            <div className="dt-diary-macros">
-              <span>Protein <strong>{fmt(day.totals.protein_g)}</strong>/{profile.protein_target_g} g</span>
-              <span>Carbs <strong>{fmt(day.totals.carbs_g)}</strong>/{profile.carbs_target_g} g</span>
-              <span>Fat <strong>{fmt(day.totals.fat_g)}</strong>/{profile.fat_target_g} g</span>
-              <span>Fibre <strong>{fmt(day.totals.fibre_g)}</strong>/{profile.fibre_target_g} g</span>
-            </div>
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              disabled={busy}
-              onClick={() =>
-                void (async () => {
-                  setBusy(true);
-                  const id = ++loadSeq.current;
-                  try {
-                    const result = await api.diet.copyMeals({ from_date: addDaysIso(date, -1), to_date: date });
-                    if (id === loadSeq.current) setDay(result.day);
-                    const copied = result.copied_meals.map(mealLabel).join(", ");
-                    const skipped = result.skipped_meals.map(mealLabel).join(", ");
-                    toast.success(copied ? `Copied ${copied}.${skipped ? ` Skipped ${skipped}: already logged.` : ""}` : `Nothing copied: ${skipped} already logged.`);
-                  } catch (err) {
-                    toast.error(errorMessage(err, "Couldn't copy the previous day."));
-                  } finally {
-                    setBusy(false);
-                  }
-                })()
-              }
-            >
-              <Copy size={13} /> Copy previous day
-            </button>
-          </div>
-
           {!hasFood && (
             <p className="dt-diary-empty">
               Nothing logged {isToday ? "yet today" : "on this day"}. Describe a meal above, or add food to a meal below. Days without entries are simply unlogged, not counted as skipped.
@@ -299,6 +339,64 @@ export function DiaryTab({ profile }: DiaryTabProps) {
         }
         onCancel={() => setSavingMeal(null)}
       />
+
+      <Modal show={copyDialogOpen} onHide={() => setCopyDialogOpen(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title as="h5">Copy from another day</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <div className="mb-3">
+            <label htmlFor="dt-copy-date" className="form-label fw-semibold">From date</label>
+            <input
+              type="date"
+              id="dt-copy-date"
+              className="form-control"
+              value={copyFromDate}
+              max={addDaysIso(today, -1)}
+              onChange={(e) => setCopyFromDate(e.target.value)}
+            />
+          </div>
+          <div>
+            <p className="form-label fw-semibold mb-2">Meals to copy</p>
+            <div className="d-flex flex-wrap gap-2">
+              <button
+                type="button"
+                className={`btn btn-sm ${copyMealTypes.length === 0 ? "btn-brand" : "btn-soft"}`}
+                onClick={() => setCopyMealTypes([])}
+              >
+                All meals
+              </button>
+              {MEAL_OPTIONS.map((m) => (
+                <button
+                  key={m.value}
+                  type="button"
+                  className={`btn btn-sm ${copyMealTypes.includes(m.value) ? "btn-brand" : "btn-soft"}`}
+                  onClick={() =>
+                    setCopyMealTypes((prev) =>
+                      prev.includes(m.value) ? prev.filter((x) => x !== m.value) : [...prev, m.value],
+                    )
+                  }
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </Modal.Body>
+        <Modal.Footer>
+          <button type="button" className="btn btn-outline-secondary" onClick={() => setCopyDialogOpen(false)}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="btn btn-brand"
+            disabled={!copyFromDate || busy}
+            onClick={() => void handleCopyFromDay()}
+          >
+            {busy ? "Copying…" : "Copy"}
+          </button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 }

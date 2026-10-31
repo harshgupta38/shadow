@@ -162,7 +162,6 @@ export const ENDPOINTS = {
         SAVED_MEAL_LOG: (id: number) => `/saved-meals/${id}/log`,
         WATER: "/water",
         WATER_HISTORY: "/water/history",
-        WATER_ENTRY: (id: number) => `/water/${id}`,
         LOG_PARSE: "/log/parse",
         PROPOSAL: (id: string) => `/proposals/${id}`,
         PROPOSAL_REVISE: (id: string) => `/proposals/${id}/revise`,

@@ -175,7 +175,6 @@ class Endpoints:
         SAVED_MEAL_LOG = "/saved-meals/{saved_id}/log"
         WATER = "/water"
         WATER_HISTORY = "/water/history"
-        WATER_ENTRY = "/water/{entry_id}"
         LOG_PARSE = "/log/parse"
         PROPOSAL = "/proposals/{proposal_id}"
         PROPOSAL_REVISE = "/proposals/{proposal_id}/revise"

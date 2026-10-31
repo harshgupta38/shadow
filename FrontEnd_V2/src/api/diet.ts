@@ -121,11 +121,9 @@ export const dietApi = {
   getWater(date?: string): Promise<WaterDay> {
     return http.get<WaterDay>(url(D.WATER), { params: date ? { date } : undefined });
   },
-  addWater(amount_ml: number, log_date?: string): Promise<WaterDay> {
-    return http.post<WaterDay>(url(D.WATER), { amount_ml, log_date });
-  },
-  deleteWater(id: number): Promise<WaterDay> {
-    return http.delete<WaterDay>(url(D.WATER_ENTRY(id)));
+  /** delta_ml may be negative to decrease the day's total. The server clamps the stored total to 0. */
+  addWater(delta_ml: number, log_date?: string): Promise<WaterDay> {
+    return http.post<WaterDay>(url(D.WATER), { delta_ml, log_date });
   },
   getWaterHistory(days = 7): Promise<WaterHistoryPoint[]> {
     return http.get<WaterHistoryPoint[]>(url(D.WATER_HISTORY), { params: { days } });

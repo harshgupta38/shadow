@@ -71,10 +71,39 @@
 }
 
 .dt-ov-water-custom {
-  display: flex;
-  gap: 0.3rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  margin-left: auto;
+}
 
-  .form-control { width: 4.6rem; }
+.dt-ov-water-input {
+  width: 88px;
+  height: 28px;
+  font-size: 0.78rem;
+  text-align: center;
+  padding: 0 0.3rem;
+  border: 1px solid var(--jv-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--jv-text);
+
+  &::-webkit-inner-spin-button,
+  &::-webkit-outer-spin-button { -webkit-appearance: none; }
+  -moz-appearance: textfield;
+
+  &::placeholder { color: var(--jv-muted); font-size: 0.74rem; }
+
+  &:focus { outline: none; border-color: var(--jv-brand-1); }
+
+  &:disabled { opacity: 0.5; }
+}
+
+.dt-ov-water-save {
+  color: var(--jv-brand-1);
+  height: 28px;
+  width: 28px;
+  padding: 0;
 }
 
 .dt-ov-history {

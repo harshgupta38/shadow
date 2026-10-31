@@ -31,7 +31,11 @@ class DeploymentLogDBM(Base):
 
     kind: Mapped[str] = mapped_column(String(16), nullable=False)  # "deploy" | "rollback"
     git_ref: Mapped[str] = mapped_column(String(255), nullable=False)  # branch ref or commit sha requested
-    commit_sha: Mapped[str | None] = mapped_column(String(64), nullable=True)  # resolved HEAD once known
+    # The commit the job must end up on, recorded before its request is sent. It is never overwritten, so an
+    # unconfirmed outcome still shows what it was waiting for. Null on rows written before this existed.
+    expected_commit: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # The commit confirmed to be checked out. Set only when the outcome is "success".
+    commit_sha: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
     status: Mapped[str] = mapped_column(String(16), default="running", nullable=False)
     # running | success | failed | unknown

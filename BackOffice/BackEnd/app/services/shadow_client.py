@@ -9,10 +9,12 @@ for exactly that one thing plus restart-completion polling built on it.
 """
 
 import time
+from datetime import datetime
 
 import httpx
 
 from app.core.config import settings
+from app.core.timezone import parse_utc
 
 # A shared, persistent client rather than one-off httpx.get() calls —
 # reused across every health check/poll this process makes.
@@ -20,9 +22,9 @@ _client = httpx.Client(timeout=15.0)
 
 
 def check_health() -> dict | None:
-    """Returns BackEnd_V2's /health payload, or None if unreachable — used
-    both to show live status and to detect a restart completing (the process
-    goes unreachable, then answers again once the new workers are up).
+    """Returns BackEnd_V2's /health payload when it reports status "ok", or None if it is unreachable or not ok —
+    used both to show live status and to detect a restart completing (the process goes unreachable, then answers
+    again once the new workers are up). A 200 that says otherwise is not a healthy server.
     """
     try:
         resp = _client.get(f"{settings.shadow_backend_url}/health", timeout=5.0)
@@ -31,9 +33,10 @@ def check_health() -> dict | None:
     if resp.status_code != 200:
         return None
     try:
-        return resp.json()
+        data = resp.json()
     except ValueError:
         return None
+    return data if isinstance(data, dict) and data.get("status") == "ok" else None
 
 
 def check_backoffice_health() -> dict | None:
@@ -42,6 +45,9 @@ def check_backoffice_health() -> dict | None:
     "am I up" is tautological when this very code has to run to answer it.
     The Control Server is the one genuinely external vantage point available
     for that question.
+
+    The probe answers HTTP 200 even when BackOffice is down, with {"status": "down"}
+    in the body, so only an "ok" status counts as healthy.
     """
     try:
         resp = _client.get(f"{settings.control_server_url}/health/backoffice", timeout=5.0)
@@ -50,30 +56,27 @@ def check_backoffice_health() -> dict | None:
     if resp.status_code != 200:
         return None
     try:
-        return resp.json()
+        data = resp.json()
     except ValueError:
         return None
+    return data if isinstance(data, dict) and data.get("status") == "ok" else None
 
 
 def check_target_health(app: str) -> dict | None:
     return check_backoffice_health() if app == "backoffice" else check_health()
 
 
-def wait_for_restart(app: str = "shadow", timeout: float = 60.0, interval: float = 2.0) -> bool:
-    """Best-effort confirmation that a restart actually happened: polls
-    the target's health until it's seen going down and then coming back up.
-    The Control Server's response confirms the restart script itself
-    exited cleanly, but not that uvicorn actually came back up — this is
-    the real confirmation of that, without modifying either app itself.
+def wait_for_restarted(requested_at: datetime, timeout: float = 60.0, interval: float = 2.0) -> dict | None:
+    """Polls BackEnd_V2's health until a process that started after `requested_at` answers with status ok, and returns
+    that payload, or None if none does in time. A process that started earlier is ignored whatever it reports: the
+    request is what starts the new process, and anything older still runs the code from before the request.
     """
     deadline = time.monotonic() + timeout
-    seen_down = False
-    while time.monotonic() < deadline:
-        if check_target_health(app) is None:
-            seen_down = True
-        elif seen_down:
-            return True
+    while True:
+        payload = check_health()
+        started = parse_utc(payload.get("started_at")) if payload else None
+        if started is not None and started >= requested_at:
+            return payload
+        if time.monotonic() >= deadline:
+            return None
         time.sleep(interval)
-    # Never observed a drop — the restart may have been faster than our poll
-    # interval, or never actually happened. Fall back to a final health check.
-    return check_target_health(app) is not None

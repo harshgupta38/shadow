@@ -48,7 +48,7 @@ import {
   formatSessionDuration,
   pluralize,
 } from "@/pages/workout/WorkoutPage.constants";
-import { estimateMinutes, musclesOf, setsByMuscle } from "@/pages/workout/workoutMath";
+import { estimateMinutes, musclesOf, setsByMuscle, workingSetCount } from "@/pages/workout/workoutMath";
 import "./PlanBuilderPage.scss";
 
 const ALL_MUSCLES = Object.keys(MUSCLE_LABEL) as MuscleId[];
@@ -164,7 +164,7 @@ export function PlanBuilderPage() {
   // ── Derived ────────────────────────────────────────────────────────────────
   const dayMuscles = useMemo(() => musclesOf(day?.exercises ?? []), [day]);
   const dayMinutes = useMemo(() => estimateMinutes(day?.exercises ?? []), [day]);
-  const daySets = day?.exercises.reduce((t, e) => t + (e.exercise.measure !== "minutes" && Number.isFinite(e.sets) ? e.sets : 0), 0) ?? 0;
+  const daySets = workingSetCount(day?.exercises ?? []);
   const weekVolume = useMemo(() => setsByMuscle(draft.days.flatMap((d) => d.exercises)), [draft.days]);
   const untrained = useMemo(() => {
     const trained = new Set(weekVolume.map((v) => v.muscle));

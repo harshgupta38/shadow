@@ -3,7 +3,7 @@
 from collections.abc import Iterable
 from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, contains_eager, defer
 
 from app.core.exceptions import NotFoundError
@@ -58,41 +58,56 @@ def list_exercises(db: Session) -> list[ExerciseSummaryResponse]:
 def recent_done_entries(
     db: Session,
     user_id: int,
-    exercise_id: int,
+    exercise_ids: Iterable[int],
     *,
     before: datetime | None = None,
-    limit: int = 1,
-) -> list[WorkoutSessionExerciseDBM]:
-    """The most recent completed entries of an exercise that have at least one done set, newest first."""
-    query = (
-        select(WorkoutSessionExerciseDBM)
+) -> dict[int, WorkoutSessionExerciseDBM]:
+    """For each exercise, its most recent completed entry with at least one done set. Only the last
+    _HISTORY_SCAN_LIMIT entries of each exercise are inspected. One query serves every exercise."""
+    wanted = set(exercise_ids)
+    if not wanted:
+        return {}
+    # Number each exercise's completed entries newest first, before the cut-off, so the scan limit applies per exercise.
+    numbered = (
+        select(
+            WorkoutSessionExerciseDBM.id.label("entry_id"),
+            func.row_number()
+            .over(
+                partition_by=WorkoutSessionExerciseDBM.exercise_id,
+                order_by=(WorkoutSessionDBM.started_at.desc(), WorkoutSessionDBM.id.desc()),
+            )
+            .label("recency"),
+        )
         .join(WorkoutSessionExerciseDBM.session)
         .where(
             WorkoutSessionDBM.user_id == user_id,
             WorkoutSessionDBM.status == "completed",
-            WorkoutSessionExerciseDBM.exercise_id == exercise_id,
+            WorkoutSessionExerciseDBM.exercise_id.in_(wanted),
         )
-        .options(contains_eager(WorkoutSessionExerciseDBM.session))
-        .order_by(WorkoutSessionDBM.started_at.desc(), WorkoutSessionDBM.id.desc())
-        .limit(_HISTORY_SCAN_LIMIT)
     )
     if before is not None:
-        query = query.where(WorkoutSessionDBM.started_at < before)
+        numbered = numbered.where(WorkoutSessionDBM.started_at < before)
+    numbered = numbered.subquery()
 
-    found: list[WorkoutSessionExerciseDBM] = []
-    for entry in db.scalars(query).all():
-        if any(s["done"] for s in entry.sets):
-            found.append(entry)
-            if len(found) == limit:
-                break
+    rows = db.scalars(
+        select(WorkoutSessionExerciseDBM)
+        .join(numbered, numbered.c.entry_id == WorkoutSessionExerciseDBM.id)
+        .join(WorkoutSessionExerciseDBM.session)
+        .where(numbered.c.recency <= _HISTORY_SCAN_LIMIT)
+        .options(contains_eager(WorkoutSessionExerciseDBM.session))
+        .order_by(WorkoutSessionExerciseDBM.exercise_id, numbered.c.recency)
+    ).all()
+    found: dict[int, WorkoutSessionExerciseDBM] = {}
+    for entry in rows:
+        if entry.exercise_id not in found and any(s["done"] for s in entry.sets):
+            found[entry.exercise_id] = entry
     return found
 
 
 def last_performance(db: Session, user_id: int, exercise_id: int) -> ExercisePerformanceResponse | None:
-    entries = recent_done_entries(db, user_id, exercise_id)
-    if not entries:
+    entry = recent_done_entries(db, user_id, [exercise_id]).get(exercise_id)
+    if entry is None:
         return None
-    entry = entries[0]
     done = [s for s in entry.sets if s["done"]]
     best = max(done, key=lambda s: (s["weight_kg"] or 0, s["reps"] or 0, s.get("seconds") or 0))
     return ExercisePerformanceResponse(

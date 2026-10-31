@@ -1,10 +1,10 @@
 import json
 import time
 
-from fastapi import APIRouter, Response
+from fastapi import APIRouter, Depends, Response
 from fastapi.responses import FileResponse
 
-from app.api.deps import CurrentAdmin, DbSession
+from app.api.deps import CurrentAdmin, DbSession, check_app
 from app.core.endpoints import ENDPOINTS
 from app.core.exceptions import NotFoundError, ValidationError
 from app.schemas.database import (
@@ -25,7 +25,7 @@ from app.schemas.database import (
 )
 from app.services import backoffice_db_service, database_service, shadow_db_service, sql_history_service, sql_script_service
 
-router = APIRouter(prefix=ENDPOINTS.DATABASE.PREFIX, tags=["Database"])
+router = APIRouter(prefix=ENDPOINTS.DATABASE.PREFIX, tags=["Database"], dependencies=[Depends(check_app)])
 
 _DB_SERVICES = {"shadow": shadow_db_service, "backoffice": backoffice_db_service}
 

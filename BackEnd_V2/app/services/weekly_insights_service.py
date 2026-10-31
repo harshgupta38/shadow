@@ -219,10 +219,24 @@ def _habit_streaks(db: Session, user_id: int, habit_ids: set[int], week_end: dat
             PlanDBM.source_id.in_(habit_ids),
         )
     ).all()
+    if not plans:
+        return {}
+    # One query for all plans' history, with the filters compute_streaks_for_plan applies, instead of one query
+    # per plan. compute_streaks reads only scheduled_date and status, so column rows are enough here: loading
+    # whole ORM objects for every record was slower than the per-plan queries it replaces.
+    history: dict[int, list] = defaultdict(list)
+    for row in db.execute(
+        select(DailyPlanRecordDBM.plan_id, DailyPlanRecordDBM.scheduled_date, DailyPlanRecordDBM.status).where(
+            DailyPlanRecordDBM.plan_id.in_([p.id for p in plans]),
+            DailyPlanRecordDBM.user_id == user_id,
+            DailyPlanRecordDBM.scheduled_date <= week_end,
+        )
+    ):
+        history[row.plan_id].append(row)
     streaks: dict[int, int] = {}
     for plan in plans:
         try:
-            streaks[plan.source_id] = planner_service.compute_streaks_for_plan(db, plan, week_end)[0]
+            streaks[plan.source_id] = planner_service.compute_streaks(plan, history[plan.id], week_end)[0]
         except Exception:
             log.warning("Streak computation failed for habit plan %s", plan.id, exc_info=True)
     return streaks
@@ -407,27 +421,36 @@ def _build_goals(
         .order_by(GoalDBM.position, GoalDBM.id)
     ).all()
 
+    if not goals:
+        return []
+    # Two queries for all goals (each goal's first active milestone, then that milestone's completed tasks)
+    # instead of two per goal. Ordering matches the per-goal query, so the first milestone per goal still wins.
+    milestone_by_goal: dict[int, MilestoneDBM] = {}
+    for m in db.scalars(
+        select(MilestoneDBM)
+        .where(MilestoneDBM.goal_id.in_([g.id for g in goals]), MilestoneDBM.status == "In Progress")
+        .order_by(MilestoneDBM.goal_id, MilestoneDBM.position, MilestoneDBM.id)
+    ).all():
+        milestone_by_goal.setdefault(m.goal_id, m)
+    completed_by_milestone: dict[int, list[date]] = defaultdict(list)
+    if milestone_by_goal:
+        for milestone_id, completed_at in db.execute(
+            select(TaskDBM.milestone_id, TaskDBM.completed_at).where(
+                TaskDBM.milestone_id.in_([m.id for m in milestone_by_goal.values()]),
+                TaskDBM.status == "Completed",
+                TaskDBM.completed_at.isnot(None),
+            )
+        ):
+            completed_by_milestone[milestone_id].append(to_ist(completed_at).date())
+
     result = []
     for goal in goals:
         recs = by_goal[goal.id]
         by_date = _group_by_date(recs)
-        milestone = db.scalar(
-            select(MilestoneDBM)
-            .where(MilestoneDBM.goal_id == goal.id, MilestoneDBM.status == "In Progress")
-            .order_by(MilestoneDBM.position, MilestoneDBM.id)
-        )
+        milestone = milestone_by_goal.get(goal.id)
         done_now = done_before = total = 0
         if milestone is not None:
-            completed_dates = [
-                to_ist(c).date()
-                for c in db.scalars(
-                    select(TaskDBM.completed_at).where(
-                        TaskDBM.milestone_id == milestone.id,
-                        TaskDBM.status == "Completed",
-                        TaskDBM.completed_at.isnot(None),
-                    )
-                ).all()
-            ]
+            completed_dates = completed_by_milestone[milestone.id]
             done_now = sum(1 for d in completed_dates if d <= week_end)
             done_before = sum(1 for d in completed_dates if d < week_start)
             total = max(milestone.total_tasks, done_now)

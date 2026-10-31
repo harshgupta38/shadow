@@ -1,9 +1,11 @@
 """Deploys and restarts of BackOffice *itself* kill the process that is running the job.
 
 The job can therefore never write its own final status. Instead it records, before sending the
-request, that the Control Server was asked to restart BackOffice. When the new process starts
-(app/main.py), a job still "running" with that record is known to have reached the restart, and
-the new process being alive is the proof it worked.
+request, that the Control Server was asked to restart BackOffice, and for a deploy the commit it must
+end up on. When the new process starts (app/main.py), a job still "running" with that record is known
+to have reached the restart, and it is settled from evidence: this process's own commit and start time for
+a deploy (deploy_service.settle_interrupted_deployments), and its start time for a plain restart
+(restart_service.settle_interrupted_restarts).
 """
 from sqlalchemy.orm import Session
 

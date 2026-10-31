@@ -9,10 +9,10 @@ import {
 } from "react-bootstrap-icons";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { StatCard } from "@/components/ui/StatCard/StatCard";
-import { api, ApiError } from "@/api";
+import { api, apiErrorMessage } from "@/api";
 import type { AppTarget, InstanceHealth, RestartLog, ServerHealth } from "@/api";
-import { formatDateTime, statusLabel, statusVariant, formatUptime } from "@/lib/format";
-import { createRestartWatch, describeRestart, expiredMessage, isUnreachable, usableInstance, waitingMessage } from "@/lib/restartWatch";
+import { formatDateTime, outcomeBadgeVariant, restartLabel, statusVariant, formatUptime } from "@/lib/format";
+import { createRestartWatch, describeRestart, isUnreachable, unconfirmedMessage, usableInstance, waitingMessage } from "@/lib/restartWatch";
 
 const RESTART_POLL_MS = 1500;
 const HEALTH_WS_BASE_RECONNECT_MS = 3000;
@@ -35,6 +35,8 @@ export function ServerPage({ app }: { app: AppTarget }) {
   const [health, setHealth] = useState<ServerHealth | null>(null);
   const [healthError, setHealthError] = useState<string | null>(null);
   const [history, setHistory] = useState<RestartLog[]>([]);
+  // A failed restart history load or a restart that could not start: the real error, shown until the next success.
+  const [pageError, setPageError] = useState<string | null>(null);
   const [showRestartModal, setShowRestartModal] = useState(false);
 
   const [activeJob, setActiveJob] = useState<RestartLog | null>(null);
@@ -101,10 +103,10 @@ export function ServerPage({ app }: { app: AppTarget }) {
 
   async function loadHistory() {
     try {
-      const list = await api.server.restartHistory(app, 1, 10);
-      setHistory(list);
-    } catch {
-      // the stat cards / health panel already surface a connectivity error
+      setHistory(await api.server.restartHistory(app, 1, 10));
+      setPageError(null);
+    } catch (err) {
+      setPageError(apiErrorMessage(err, "Could not load the restart history."));
     }
   }
 
@@ -130,7 +132,7 @@ export function ServerPage({ app }: { app: AppTarget }) {
 
     // Restarting BackOffice kills the process that tracks the job, so the page watches from
     // outside: remember which process it started on, treat failed requests as "restarting", and
-    // give the new process a fixed window to answer before assuming the restart failed.
+    // give the new process a fixed window to answer, after which the result is shown as not confirmed yet.
     const watchesSelf = app === "backoffice";
     const watch = createRestartWatch();
     let before: InstanceHealth | null = null;
@@ -153,16 +155,14 @@ export function ServerPage({ app }: { app: AppTarget }) {
           loadHistory();
         }
       } catch (err) {
-        // Transient hiccup — the interval will retry. For BackOffice itself, unreachable is the restart.
-        if (!watchesSelf || !isUnreachable(err)) return;
-        if (watch.failed() === "expired") {
-          clearInterval(restartPollRef.current!);
-          restartPollRef.current = null;
-          setActiveJob((prev) => (prev ? { ...prev, status: "failed" } : prev));
-          setRestartNote(expiredMessage());
+        // Keep polling either way, but say what went wrong. For BackOffice itself, unreachable is the restart.
+        if (!watchesSelf || !isUnreachable(err)) {
+          setRestartNote(apiErrorMessage(err, "Could not read the restart."));
           return;
         }
-        setRestartNote(waitingMessage(watch.secondsDown()));
+        // Past the window the outcome is simply not known yet. Keep polling (the restart settles itself once
+        // BackOffice is back) and say so, rather than marking the restart failed.
+        setRestartNote(watch.failed() === "expired" ? unconfirmedMessage() : waitingMessage(watch.secondsDown()));
       }
     }, RESTART_POLL_MS);
   }
@@ -174,7 +174,7 @@ export function ServerPage({ app }: { app: AppTarget }) {
       setActiveJob(record);
       pollRestart(record.id);
     } catch (err) {
-      setHealthError(err instanceof ApiError ? err.message : "Could not start the restart.");
+      setPageError(apiErrorMessage(err, "Could not start the restart."));
     }
   }
 
@@ -200,6 +200,9 @@ export function ServerPage({ app }: { app: AppTarget }) {
 
       {healthError && (
         <div className="alert alert-danger py-2 px-3 small mb-3" role="alert">{healthError}</div>
+      )}
+      {pageError && (
+        <div className="alert alert-danger py-2 px-3 small mb-3" role="alert">{pageError}</div>
       )}
 
       <div className="dp-stats">
@@ -247,7 +250,7 @@ export function ServerPage({ app }: { app: AppTarget }) {
               <span>Restarting server</span>
               {jobRunning
                 ? <span className="deploy-log-badge deploy-log-badge--running">Running</span>
-                : <span className="deploy-log-badge deploy-log-badge--ok">{statusLabel(activeJob.status)}</span>}
+                : <span className={`deploy-log-badge deploy-log-badge--${outcomeBadgeVariant(activeJob.status)}`}>{restartLabel(activeJob.status)}</span>}
             </div>
             {!jobRunning && (
               <button type="button" className="btn btn-ghost btn-icon" onClick={() => setActiveJob(null)}>
@@ -368,7 +371,7 @@ export function ServerPage({ app }: { app: AppTarget }) {
                     <td style={{ color: "var(--jv-muted)" }}>{h.duration_seconds != null ? `${h.duration_seconds.toFixed(1)}s` : "—"}</td>
                     <td>
                       <span className={`dp-status-dot dp-status-dot--${statusVariant(h.status)}`}>
-                        {statusLabel(h.status)}
+                        {restartLabel(h.status)}
                       </span>
                     </td>
                   </tr>

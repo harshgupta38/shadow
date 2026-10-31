@@ -788,7 +788,10 @@ def build_report_email(db: Session, user: UserDBM, report: ReportResponse, *, fo
     }
 
 
-def send_report_email(db: Session, user: UserDBM, report: ReportResponse, *, force: bool = False) -> bool:
-    """Sends the report snapshot email (see build_report_email). Returns whether it was sent."""
+def send_report_email(
+    db: Session, user: UserDBM, report: ReportResponse, *, force: bool = False, interactive: bool = False,
+) -> bool:
+    """Sends the report snapshot email (see build_report_email). Returns whether it was sent.
+    interactive=True is for a send a user is waiting on (shorter SMTP retries, see email_service.send_email)."""
     content = build_report_email(db, user, report, force=force)
-    return content is not None and email_service.send_email(**content)
+    return content is not None and email_service.send_email(**content, interactive=interactive)

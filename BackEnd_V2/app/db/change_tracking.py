@@ -21,10 +21,12 @@ from app.models.data_version import DATA_VERSION_ROW_ID, DataVersionDBM
 # and per-request session/rate-limit bookkeeping that would otherwise invalidate every few minutes.
 # Everything else bumps the version, so a new table is covered by default.
 # Workout tables: no cached endpoint reads workout data, so remove these once one does.
+# Report email cooldowns: written on every manual send, and no cached endpoint reads them.
 IGNORED_TABLES = frozenset({
     DataVersionDBM.__tablename__,
     "active_sessions",
     "ip_rate_limits",
+    "report_email_sends",
     "workout_exercises",
     "workout_plans",
     "workout_plan_days",

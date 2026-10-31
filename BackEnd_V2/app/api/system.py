@@ -1,5 +1,7 @@
 import json
 import subprocess
+from datetime import datetime, timezone
+from pathlib import Path
 
 from fastapi import APIRouter
 
@@ -7,6 +9,28 @@ from app.core.config import settings
 from app.core.endpoints import ENDPOINTS
 
 router = APIRouter()
+
+# Captured when this process imports the module, which is when it starts. A deploy checks these against what it expects:
+# a restart replaces every worker, while a pull changes the checked-out commit without touching this value.
+_STARTED_AT = datetime.now(timezone.utc)
+
+
+def _read_commit() -> str | None:
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=Path(__file__).resolve().parents[3],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=True,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return result.stdout.strip() or None
+
+
+_COMMIT = _read_commit()
 
 
 @router.get(ENDPOINTS.SYSTEM.ROOT, tags=["health"])
@@ -74,5 +98,12 @@ async def health() -> dict:
     # expected_workers exists purely for BackOffice's Server page (compared
     # against its own psutil-counted worker processes) — harmless for this
     # endpoint's other callers (the Control Server's generic reachability
-    # check) to receive and ignore.
-    return {"status": "ok", "message": message, "expected_workers": settings.workers}
+    # check) to receive and ignore. commit and started_at let BackOffice confirm
+    # which code this process loaded and that it started after a deploy.
+    return {
+        "status": "ok",
+        "message": message,
+        "expected_workers": settings.workers,
+        "commit": _COMMIT,
+        "started_at": _STARTED_AT.isoformat(),
+    }

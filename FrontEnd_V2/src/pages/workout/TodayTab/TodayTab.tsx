@@ -28,7 +28,7 @@ import {
   formatVolume,
   pluralize,
 } from "@/pages/workout/WorkoutPage.constants";
-import { musclesOf } from "@/pages/workout/workoutMath";
+import { musclesOf, workingSetCount } from "@/pages/workout/workoutMath";
 import "./TodayTab.scss";
 
 interface TodayTabProps {
@@ -173,7 +173,7 @@ export function TodayTab({ onOpenExercise }: TodayTabProps) {
   }
 
   const activePlan = data.active_plan;
-  const totalSets = day?.exercises.reduce((t, e) => t + e.sets, 0) ?? 0;
+  const totalSets = workingSetCount(day?.exercises ?? []);
   const done = data.completed_today;
 
   return (

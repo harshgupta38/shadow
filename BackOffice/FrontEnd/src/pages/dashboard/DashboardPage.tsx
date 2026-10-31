@@ -3,7 +3,7 @@ import { useAuth } from "@/context/AuthContext";
 import { StatCard } from "@/components/ui/StatCard/StatCard";
 import { api } from "@/api";
 import type { Deployment, RestartLog, ServerHealth } from "@/api";
-import { currentIstHour, formatDate, formatRelative, formatUptime, statusLabel, statusVariant } from "@/lib/format";
+import { currentIstHour, formatDate, formatRelative, formatUptime, restartLabel, statusLabel, statusVariant } from "@/lib/format";
 
 export function DashboardPage() {
   const { user } = useAuth();
@@ -80,7 +80,7 @@ export function DashboardPage() {
         />
         <StatCard
           variant={lastRestart ? statusVariant(lastRestart.status) : "info"}
-          value={lastRestart ? statusLabel(lastRestart.status) : loading ? "…" : "None yet"}
+          value={lastRestart ? restartLabel(lastRestart.status) : loading ? "…" : "None yet"}
           name="Last Restart"
           hint={lastRestart ? formatRelative(lastRestart.started_at) : "No restarts logged"}
         />

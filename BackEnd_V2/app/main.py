@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 import asyncio
 import json
 import logging
+import time
 
 from pathlib import Path
 from typing import Callable
@@ -40,6 +41,7 @@ from app.models.schedule_task import ScheduledTaskDBM
 from app.models.scheduled_task_proposal import ScheduledTaskProposalDBM
 from app.models.memory import UserMemoryDBM
 from app.models.report import ReportDBM
+from app.models.report_email_send import ReportEmailSendDBM
 from app.models.notification import NotificationDBM
 from app.models.daily_brief import DailyBriefDBM
 from app.models.daily_brief_audio import DailyBriefAudioDBM
@@ -51,6 +53,8 @@ from app.models.daily_usage import DailyUsageDBM
 from app.models.scheduled_task_subtask import ScheduledTaskSubtaskDBM
 from app.models.journal import JournalEntryDBM
 from app.models.workout import (
+    OPEN_SESSION_INDEX,
+    OPEN_SESSION_WHERE,
     WorkoutExerciseDBM,
     WorkoutPlanDayDBM,
     WorkoutPlanDBM,
@@ -60,7 +64,7 @@ from app.models.workout import (
     WorkoutSettingDBM,
 )
 from app.models.data_version import DataVersionDBM
-from app.services import planner_service, backup_service, notification_scheduler_service, report_scheduler_service, session_event_service, workout_seed_service
+from app.services import planner_service, backup_service, notification_scheduler_service, report_scheduler_service, session_event_service, workout_seed_service, workout_sessions_service
 from app.api.notifications import reset_shutdown as _reset_sse_shutdown
 from app.api.notifications import signal_shutdown as _signal_sse_shutdown
 
@@ -113,20 +117,62 @@ def _add_column_if_missing(conn, table: str, column: str, ddl: str) -> None:
             raise
 
 
-@asynccontextmanager
-async def lifespan(_app: FastAPI):
-    if not settings.smtp_host or not settings.smtp_from_email:
-        _startup_logger.warning(
-            "SMTP is not configured (SMTP_HOST / SMTP_FROM_EMAIL missing). "
-            "Email notifications are disabled until these are set in the environment."
+def _backfill_plan_weekday(conn) -> None:
+    """Open workouts started before plan_weekday existed take the weekday of their plan day while that day is still
+    linked. Once a plan edit has unlinked the day, the weekday of the start date stands in: the app only starts the plan
+    day of today's weekday, so the two agree. A workout of a deleted plan keeps NULL. Idempotent."""
+    from sqlalchemy import text as _sql_text  # pyright: ignore[reportMissingImports]
+
+    conn.execute(
+        _sql_text(
+            "UPDATE workout_sessions SET plan_weekday = COALESCE("
+            "(SELECT workout_plan_days.weekday FROM workout_plan_days WHERE workout_plan_days.id = workout_sessions.plan_day_id), "
+            "CAST(strftime('%w', workout_sessions.session_date) AS INTEGER)) "
+            f"WHERE {OPEN_SESSION_WHERE} AND plan_weekday IS NULL AND plan_id IS NOT NULL"
         )
-    Base.metadata.create_all(bind=engine)
-    # Add columns that didn't exist when the DB was first created.
+    )
+    conn.commit()
+
+
+def _open_workout_guard_in_place(db) -> bool:
+    """True when the one-open-workout index exists and no user has two open workouts."""
+    from sqlalchemy import text as _sql_text  # pyright: ignore[reportMissingImports]
+
+    indexed = db.execute(
+        _sql_text("SELECT 1 FROM sqlite_master WHERE type = 'index' AND name = :name"), {"name": OPEN_SESSION_INDEX}
+    ).first()
+    doubled = db.execute(
+        _sql_text(f"SELECT 1 FROM workout_sessions WHERE {OPEN_SESSION_WHERE} GROUP BY user_id HAVING COUNT(*) > 1")
+    ).first()
+    return indexed is not None and doubled is None
+
+
+def _keep_one_open_workout_per_user() -> None:
+    """Allows one open workout per user, which the partial unique index then enforces. Databases created before the index
+    can hold several open workouts per user: the newest is kept and the others are settled as stale workouts are
+    (workout_sessions_service.settle_duplicate_open_sessions). BEGIN IMMEDIATE makes workers that start together take
+    turns, so the second finds nothing left to settle. A constraint or duplicate-index error counts as success only
+    when the index is in place and no user has two open workouts; anything else stops the startup."""
+    from sqlalchemy import text as _sql_text  # pyright: ignore[reportMissingImports]
+
+    with SessionLocal() as db:
+        try:
+            db.execute(_sql_text("BEGIN IMMEDIATE"))
+            workout_sessions_service.settle_duplicate_open_sessions(db, workout_sessions_service.now_utc())
+            db.execute(
+                _sql_text(f"CREATE UNIQUE INDEX IF NOT EXISTS {OPEN_SESSION_INDEX} ON workout_sessions (user_id) WHERE {OPEN_SESSION_WHERE}")
+            )
+            db.commit()
+        except (IntegrityError, OperationalError):
+            db.rollback()
+            if not _open_workout_guard_in_place(db):
+                raise
+
+
+def _migrate_workout(engine) -> None:
+    """Brings a database created before the current workout schema up to date. Every step is idempotent, so workers
+    that start together can all run it."""
     with engine.connect() as _conn:
-        _add_column_if_missing(
-            _conn, "habits", "streak_tolerance_pct",
-            "ALTER TABLE habits ADD COLUMN streak_tolerance_pct INTEGER NOT NULL DEFAULT 100",
-        )
         _add_column_if_missing(
             _conn, "workout_exercises", "kind",
             "ALTER TABLE workout_exercises ADD COLUMN kind VARCHAR(16) NOT NULL DEFAULT 'strength'",
@@ -140,6 +186,44 @@ async def lifespan(_app: FastAPI):
             "ALTER TABLE workout_settings ADD COLUMN active_plan_started_on DATE",
         )
         _fold_session_sets_into_exercises(_conn)
+        _add_column_if_missing(
+            _conn, "workout_sessions", "plan_weekday",
+            "ALTER TABLE workout_sessions ADD COLUMN plan_weekday INTEGER CHECK (plan_weekday IS NULL OR plan_weekday BETWEEN 0 AND 6)",
+        )
+        _backfill_plan_weekday(_conn)
+    _keep_one_open_workout_per_user()
+
+
+def _create_schema(engine) -> None:
+    """Creates missing tables, then runs the workout migration. Workers start together, and the first one to take the
+    write lock creates the new tables, so a sibling can find a table already there ("already exists") or wait past
+    SQLite's busy timeout. Both steps are idempotent, so the sibling retries and finds what is already in place."""
+    for attempt in range(1, 6):
+        try:
+            Base.metadata.create_all(bind=engine)
+            _migrate_workout(engine)
+            return
+        except OperationalError as exc:
+            transient = "already exists" in str(exc) or "database is locked" in str(exc)
+            if not transient or attempt == 5:
+                raise
+            time.sleep(2)
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    if not settings.smtp_host or not settings.smtp_from_email:
+        _startup_logger.warning(
+            "SMTP is not configured (SMTP_HOST / SMTP_FROM_EMAIL missing). "
+            "Email notifications are disabled until these are set in the environment."
+        )
+    _create_schema(engine)
+    # Add columns that didn't exist when the DB was first created.
+    with engine.connect() as _conn:
+        _add_column_if_missing(
+            _conn, "habits", "streak_tolerance_pct",
+            "ALTER TABLE habits ADD COLUMN streak_tolerance_pct INTEGER NOT NULL DEFAULT 100",
+        )
         _add_column_if_missing(_conn, "reports", "weekly_insights", "ALTER TABLE reports ADD COLUMN weekly_insights JSON")
     with SessionLocal() as db:
         try:

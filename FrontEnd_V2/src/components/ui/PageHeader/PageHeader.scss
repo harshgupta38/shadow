@@ -81,6 +81,12 @@
   color: var(--jv-text);
 }
 
+.page-header-mobile-action-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: transparent;
+}
+
 .page-header-mobile-action-icon {
   line-height: 0;
   display: inline-flex;

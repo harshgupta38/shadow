@@ -26,7 +26,7 @@ import {
   formatSessionDuration,
   pluralize,
 } from "@/pages/workout/WorkoutPage.constants";
-import { musclesOf, setsByMuscle } from "@/pages/workout/workoutMath";
+import { musclesOf, setsByMuscle, workingSetCount } from "@/pages/workout/workoutMath";
 import "./PlanDetailPage.scss";
 
 function todayWeekday(): number {
@@ -174,7 +174,7 @@ export function PlanDetailPage() {
     actions.push({ key: "custom", label: busy === "copy" ? "Copying…" : "Customize", icon: <Pencil size={14} />, tone: "soft", disabled: busy !== null, onClick: () => void copyToMine(true) });
   }
 
-  const totalSets = day?.exercises.reduce((t, e) => t + e.sets, 0) ?? 0;
+  const totalSets = workingSetCount(day?.exercises ?? []);
 
   return (
     <div className="wk-page">

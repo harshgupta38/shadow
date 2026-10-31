@@ -72,7 +72,7 @@ Screenshots below are pulled directly from `FrontEnd_V2/src/assets/landing/` (ea
 
 <sub>Dark-mode equivalents ship alongside each of the above (`*-dark.png` in the same folder).</sub>
 
-> TODO: Schedule, Journal, Daily Brief, Profile, and Settings screenshots are not yet captured in the repository (Workout and Diet are still placeholder pages).
+> TODO: Schedule, Journal, Daily Brief, Profile, and Settings screenshots are not yet captured in the repository (Diet is still a placeholder page).
 
 ---
 
@@ -194,7 +194,7 @@ How it works end to end:
 - `ReportDBM` stores one row per `(user, date, report_type)` — `daily` or `weekly` — with an `alignment_score`, a `headline`/`summary`, and structured JSON (`stats`, `goals`, `highlights`, `closing`) rather than free text, so the frontend can render structured cards instead of parsing prose.
 - Reports are generated either on demand (`POST /v2/reports/{date}/request`) or by `report_scheduler_service`, an asyncio loop that polls every 30 seconds and fires generation at each user's configured time (`UserSettingDBM.reports`, default 23:55 IST). A process-file-based singleton lock (`app/common/proc_lock.py`) ensures only one of the (potentially 4) uvicorn workers actually runs a given user's report, since they all share the same poll loop.
 - Report content mixes raw statistics (tasks/habits/schedule completion counts) computed from `DailyPlanRecordDBM` history with an LLM-authored interpretation layer (highlights, attention areas, per-goal alignment commentary, a closing message in one of several tones).
-- Reports are shown month-by-month in the Reports UI and can be emailed on demand (`POST /v2/reports/{date}/email`, from an "Email report" button on the detail page). The "report ready" email is a full snapshot of the report — hero, stats, goals, highlights, closing — styled to match the detail page rather than a link-only notice. A report can also be deleted (`DELETE /v2/reports/entry/{id}/delete`).
+- Reports are shown month-by-month in the Reports UI and can be emailed on demand (`POST /v2/reports/{date}/email`, from an "Email report" button on the detail page; at most once a minute per user, and a failed send also uses up that minute). The "report ready" email is a full snapshot of the report — hero, stats, goals, highlights, closing — styled to match the detail page rather than a link-only notice. A report can also be deleted (`DELETE /v2/reports/entry/{id}/delete`).
 
 ### Daily Brief
 
@@ -229,9 +229,11 @@ One entry per user per day (`journal_entries`, unique on `user_id + entry_date`)
 
 Event-driven alerts (goal or milestone due within 3 days, scheduled-task reminders, tasks due or overdue, the daily plan reminder, a habit-at-risk nudge) are produced by a notification scheduler loop and written to `notifications` with a `(user_id, event_key)` unique key, so the same event never fires twice. Delivery is in-app and live over SSE (the bell and the notifications page), Web Push, and optional email, controlled in Settings by a master toggle, separate email and reminder toggles, and quiet hours. Email unsubscribe links are supported.
 
-### Workout & Diet (not built yet)
+### Workout & Diet
 
-Routes for `/workout` and `/diet` exist in the frontend router and sidebar, but render **"coming soon" placeholder pages** — there is no corresponding backend model or service for them in `BackEnd_V2`. This section is intentionally left honest rather than describing planned functionality as shipped.
+**Workout** is built end to end: `/v2/workout` covers the exercise library, plans, sessions and progress, stored in the `workout_*` tables of `BackEnd_V2`. A user has at most one open workout at a time, enforced by a partial unique index on `workout_sessions`. An open workout keeps the plan weekday it started from, so rebuilding its plan does not orphan it. Cardio and warm-up sets count toward a session, but not toward working-set totals.
+
+**Diet** is not built yet: `/diet` renders a "coming soon" placeholder page, and there is no backend model or service for it in `BackEnd_V2`. This section is intentionally left honest rather than describing planned functionality as shipped.
 
 ### Settings
 
@@ -509,13 +511,13 @@ npm run dev
 - **Background processing & scheduling** — three asyncio scheduler loops coordinated across multiple worker processes via a custom file lock.
 - **Audio/TTS pipeline** — TTS generation paired with real transcription-based caption timing, with binary caching to avoid repeat API cost.
 - **Performance engineering** — layered read caching (a browser-side cache cleared on writes, and a server-side response cache kept coherent across workers by a transactional version counter), memoized streak math, and measuring service time before deciding what was worth caching.
-- **Pragmatic engineering trade-offs, stated explicitly** — e.g., choosing SQL+prompt-injection memory over vector search for a small private user base, and being explicit in this document about what is *not* yet implemented (V2 tests, Workout/Diet) rather than overstating scope.
+- **Pragmatic engineering trade-offs, stated explicitly** — e.g., choosing SQL+prompt-injection memory over vector search for a small private user base, and being explicit in this document about what is *not* yet implemented (V2 tests, Diet) rather than overstating scope.
 
 ---
 
 ## Future Work
 
 - Link Journal entries and moods into the daily and weekly AI reports.
-- Implement backend support and real pages for Workout and Diet, which currently exist only as frontend placeholders.
+- Implement backend support and a real page for Diet, which currently exists only as a frontend placeholder.
 - Add automated tests for `BackEnd_V2` and the frontend, if the project decides to keep tests (see [Testing](#testing)).
 - Roll out the `save_user_memory` feature flag more broadly (currently defaults to off) once extraction quality is validated further.

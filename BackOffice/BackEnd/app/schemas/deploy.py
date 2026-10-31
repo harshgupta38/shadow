@@ -6,7 +6,7 @@ from app.core.timezone import UtcDateTime
 class NewDeploymentRequest(BaseModel):
     # Branch name, tag, or commit SHA to deploy — required, resolved
     # against origin by deploy_service to decide whether it's a moving
-    # ref (pull) or a fixed one (checkout only). See _is_branch_ref.
+    # ref (pull) or a fixed one (checkout only). See _resolve_target in services/deploy_service.py.
     git_ref: str
     # Blank defaults to git_ref itself — see new_deployment() in api/deploy.py.
     label: str = ""
@@ -26,6 +26,9 @@ class DeploymentResponse(BaseModel):
     description: str
     kind: str
     git_ref: str
+    # The commit the job was waiting for; kept when the outcome is not confirmed, so the page can show it.
+    expected_commit: str | None
+    # The commit confirmed checked out; only set on success.
     commit_sha: str | None
     status: str
     log_output: str

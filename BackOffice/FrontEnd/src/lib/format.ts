@@ -93,11 +93,31 @@ export function statusVariant(status: string): "success" | "warn" | "danger" {
   return "warn"; // running | unknown
 }
 
+/** The log badge style for a finished job: green for success, red for failure, amber while still unconfirmed. */
+export function outcomeBadgeVariant(status: string): "ok" | "failed" | "unknown" {
+  if (status === "success") return "ok";
+  if (status === "failed") return "failed";
+  return "unknown";
+}
+
 export function statusLabel(status: string): string {
   switch (status) {
     case "success": return "Success";
     case "failed": return "Failed";
     case "running": return "Running";
+    // Not a failure and not a success: the backend has no evidence either way yet, and checks again later.
+    case "unknown": return "Outcome not confirmed yet";
+    default: return "Unknown";
+  }
+}
+
+/** A restart's outcome in restart wording, so a restart is never shown with deployment vocabulary. */
+export function restartLabel(status: string): string {
+  switch (status) {
+    case "success": return "Restarted";
+    case "failed": return "Restart failed";
+    case "running": return "Restarting";
+    case "unknown": return "Outcome not confirmed yet";
     default: return "Unknown";
   }
 }

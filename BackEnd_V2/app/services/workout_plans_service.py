@@ -3,6 +3,7 @@
 from datetime import date
 
 from sqlalchemy import or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.common import today_ist
@@ -285,27 +286,34 @@ def duplicate_plan(db: Session, user: UserDBM, plan_id: int) -> WorkoutPlanDetai
     return get_plan(db, user, copy.id)
 
 
-def _settings_for_update(db: Session, user_id: int) -> WorkoutSettingDBM:
-    setting = db.get(WorkoutSettingDBM, user_id)
-    if setting is None:
-        setting = WorkoutSettingDBM(user_id=user_id)
-        db.add(setting)
-    return setting
-
-
-def activate_plan(db: Session, user: UserDBM, plan_id: int) -> WorkoutPlanSummaryResponse:
+def _follow_plan(db: Session, user: UserDBM, plan_id: int) -> WorkoutPlanDBM:
     plan = _visible(db, user, plan_id)
-    setting = _settings_for_update(db, user.id)
+    setting = db.get(WorkoutSettingDBM, user.id)
+    if setting is None:
+        setting = WorkoutSettingDBM(user_id=user.id)
+        db.add(setting)
     # Following a plan starts it today. Selecting the plan already followed keeps its start day.
     if setting.active_plan_id != plan.id:
         setting.active_plan_id = plan.id
         setting.active_plan_started_on = today_ist()
     db.commit()
+    return plan
+
+
+def activate_plan(db: Session, user: UserDBM, plan_id: int) -> WorkoutPlanSummaryResponse:
+    try:
+        plan = _follow_plan(db, user, plan_id)
+    except IntegrityError:
+        # A concurrent request created this user's settings row first. Rolled back, the row exists and is updated.
+        db.rollback()
+        plan = _follow_plan(db, user, plan_id)
     return plan_summary(plan, plan.id)
 
 
 def deactivate_plan(db: Session, user: UserDBM) -> None:
-    setting = _settings_for_update(db, user.id)
+    setting = db.get(WorkoutSettingDBM, user.id)
+    if setting is None:
+        return  # no settings row means no plan is followed, so there is nothing to clear
     setting.active_plan_id = None
     setting.active_plan_started_on = None
     db.commit()

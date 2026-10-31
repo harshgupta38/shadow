@@ -125,6 +125,7 @@ export function PageHeader({ title, subtitle, icon, actions, rightSlot, onBack }
                                         key={action.key}
                                         type="button"
                                         role="menuitem"
+                                        disabled={action.disabled}
                                         className={`page-header-mobile-action-item p-0 ${MOBILE_TONE_CLASS[mobileTone]}`.trim()}
                                         onClick={() => {
                                             action.onClick?.();

@@ -61,10 +61,15 @@ export function waitingMessage(secondsDown: number): string {
   return `BackOffice is restarting — waiting for it to come back (${secondsDown}s of ${limit}s)…`;
 }
 
-export function expiredMessage(): string {
+/**
+ * Shown once BackOffice has been unreachable past the window. Nothing is inferred from the silence: the
+ * backend settles the job when it starts again (it compares the checked-out commit with the expected one),
+ * so the page keeps checking and shows that verdict rather than a guess of its own.
+ */
+export function unconfirmedMessage(): string {
   const limit = Math.round(RESTART_RECOVERY_TIMEOUT_MS / 1000);
-  return `BackOffice did not answer for ${limit} seconds — assuming the restart failed. `
-    + "Check backoffice.log and control.log on the host.";
+  return `BackOffice has not answered for ${limit} seconds. The restart may still be running — `
+    + "this page keeps checking, and the verified result will appear here once BackOffice is back.";
 }
 
 /** What the new process's /health proves, given what the old process reported before the restart. */

@@ -38,6 +38,9 @@ export interface Deployment {
   description: string;
   kind: DeploymentKind;
   git_ref: string;
+  // The commit the job was waiting for. Kept when the outcome is not confirmed, so the page can show it.
+  expected_commit: string | null;
+  // The commit confirmed checked out. Only set on success.
   commit_sha: string | null;
   status: DeploymentStatus;
   log_output: string;

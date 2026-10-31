@@ -22,6 +22,11 @@ export class ApiError extends Error {
   }
 }
 
+/** What a failed call shows: the server's own explanation when there is one, never a stand-in for it. */
+export function apiErrorMessage(err: unknown, fallback: string): string {
+  return err instanceof ApiError ? err.message : fallback;
+}
+
 function normaliseError(err: unknown): ApiError {
   if (axios.isAxiosError(err)) {
     const status = err.response?.status;

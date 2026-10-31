@@ -12,10 +12,10 @@ import {
   PlusLg,
 } from "react-bootstrap-icons";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
-import { api, ApiError } from "@/api";
+import { api, apiErrorMessage } from "@/api";
 import type { AppTarget, CommitInfo, Deployment, InstanceHealth } from "@/api";
-import { formatDateTime, formatRelative, statusLabel, statusVariant } from "@/lib/format";
-import { createRestartWatch, describeRestart, expiredMessage, isUnreachable, usableInstance, waitingMessage } from "@/lib/restartWatch";
+import { formatDateTime, formatRelative, outcomeBadgeVariant, statusLabel, statusVariant } from "@/lib/format";
+import { createRestartWatch, describeRestart, isUnreachable, unconfirmedMessage, usableInstance, waitingMessage } from "@/lib/restartWatch";
 
 const PAGE_SIZE = 5;
 const COMMIT_LIMIT = 10;
@@ -49,6 +49,7 @@ export function DeployPage({ app }: { app: AppTarget }) {
   // Once branches load it defaults to DEFAULT_BRANCH.
   const [selectedBranch, setSelectedBranch] = useState("");
   const [commits, setCommits] = useState<CommitInfo[]>([]);
+  const [commitsError, setCommitsError] = useState<string | null>(null);
   const [commitsRefreshing, setCommitsRefreshing] = useState(false);
   const [deployments, setDeployments] = useState<Deployment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -138,11 +139,8 @@ export function DeployPage({ app }: { app: AppTarget }) {
       setSelectedBranch((prev) => prev || defaultBranch || "");
     }
     if (deploysResult.status === "fulfilled") setDeployments(deploysResult.value);
-    setLoadError(
-      branchesResult.status === "rejected" && deploysResult.status === "rejected"
-        ? "Could not reach the BackOffice API."
-        : null,
-    );
+    const failure = [branchesResult, deploysResult].find((r) => r.status === "rejected");
+    setLoadError(failure?.status === "rejected" ? apiErrorMessage(failure.reason, "Could not load deployments.") : null);
     setLoading(false);
   }
 
@@ -151,13 +149,15 @@ export function DeployPage({ app }: { app: AppTarget }) {
     // and the table's own empty state already reads fine as "blank".
     if (!selectedBranch) {
       setCommits([]);
+      setCommitsError(null);
       return;
     }
     try {
       setCommits(await api.deploy.commits(app, COMMIT_LIMIT, selectedBranch));
-    } catch {
-      // The section just shows "no commit history available" — the
-      // top-level loadError already covers a fully unreachable API.
+      setCommitsError(null);
+    } catch (err) {
+      setCommits([]);
+      setCommitsError(apiErrorMessage(err, "Could not load commits."));
     }
   }
 
@@ -166,9 +166,12 @@ export function DeployPage({ app }: { app: AppTarget }) {
   async function refreshCommits() {
     setCommitsRefreshing(true);
     try {
-      const result = await api.deploy.branches(app).catch(() => null);
-      if (result) setBranches(result.branches); // the selection is left exactly as it is
+      const result = await api.deploy.branches(app);
+      setBranches(result.branches); // the selection is left exactly as it is
+      setLoadError(null);
       await loadCommits();
+    } catch (err) {
+      setLoadError(apiErrorMessage(err, "Could not refresh the branches."));
     } finally {
       setCommitsRefreshing(false);
     }
@@ -214,8 +217,8 @@ export function DeployPage({ app }: { app: AppTarget }) {
 
     // Deploying BackOffice restarts the very process that tracks the job, so it can't report its
     // own result. For it the page watches from outside instead: it remembers which process it
-    // started on, treats failed requests as "restarting", and gives the new process a fixed
-    // window to answer before assuming the restart failed. (A Shadow deploy leaves BackOffice up.)
+    // started on, treats failed requests as "restarting", and after a fixed window to answer says the
+    // result is not confirmed yet instead of guessing one. (A Shadow deploy leaves BackOffice up.)
     const watchesSelf = app === "backoffice";
     const watch = createRestartWatch();
     let before: InstanceHealth | null = null;
@@ -246,17 +249,15 @@ export function DeployPage({ app }: { app: AppTarget }) {
           loadCommits(); // a deploy/rollback may have moved HEAD
         }
       } catch (err) {
-        // Transient hiccup — keep polling. For BackOffice itself, an unreachable API is the restart.
-        if (shownJobIdRef.current !== id || !watchesSelf || !isUnreachable(err)) return;
-        if (watch.failed() === "expired") {
-          clearInterval(pollRef.current!);
-          pollRef.current = null;
-          setWaitNote(null);
-          setActiveJob((prev) => (prev ? { ...prev, status: "failed" } : prev));
-          setRevealedLines((prev) => [...prev, "", expiredMessage()]);
+        if (shownJobIdRef.current !== id) return;
+        // Keep polling either way, but say what went wrong. For BackOffice itself, an unreachable API is the restart.
+        if (!watchesSelf || !isUnreachable(err)) {
+          setWaitNote(apiErrorMessage(err, "Could not read the deployment."));
           return;
         }
-        setWaitNote(waitingMessage(watch.secondsDown()));
+        // Past the window the outcome is simply not known yet. Keep polling (the job settles itself once
+        // BackOffice is back) and say so, rather than marking the job failed.
+        setWaitNote(watch.failed() === "expired" ? unconfirmedMessage() : waitingMessage(watch.secondsDown()));
       }
     }, POLL_INTERVAL_MS);
   }
@@ -298,7 +299,7 @@ export function DeployPage({ app }: { app: AppTarget }) {
       setRevealedLines([]);
       pollJob(record.id);
     } catch (err) {
-      setLoadError(err instanceof ApiError ? err.message : "Could not start the rollback.");
+      setLoadError(apiErrorMessage(err, "Could not start the rollback."));
     }
   }
 
@@ -317,7 +318,7 @@ export function DeployPage({ app }: { app: AppTarget }) {
       setRevealedLines([]);
       pollJob(record.id);
     } catch (err) {
-      setFormError(err instanceof ApiError ? err.message : "Could not start the deployment.");
+      setFormError(apiErrorMessage(err, "Could not start the deployment."));
     } finally {
       setFormSubmitting(false);
     }
@@ -356,9 +357,19 @@ export function DeployPage({ app }: { app: AppTarget }) {
               </span>
               {jobRunning
                 ? <span className="deploy-log-badge deploy-log-badge--running">Running</span>
-                : <span className={`deploy-log-badge deploy-log-badge--${activeJob.status === "success" ? "ok" : "running"}`}>
+                : <span className={`deploy-log-badge deploy-log-badge--${outcomeBadgeVariant(activeJob.status)}`}>
                     {statusLabel(activeJob.status)}
                   </span>}
+              {activeJob.status === "success" && activeJob.commit_sha && (
+                <span style={{ fontFamily: "Menlo, Consolas, monospace", fontWeight: 400 }}>
+                  confirmed {activeJob.commit_sha.slice(0, 7)}
+                </span>
+              )}
+              {activeJob.status === "unknown" && activeJob.expected_commit && (
+                <span style={{ fontFamily: "Menlo, Consolas, monospace", fontWeight: 400 }}>
+                  expected {activeJob.expected_commit.slice(0, 7)}
+                </span>
+              )}
             </div>
             {!jobRunning && (
               <button type="button" className="btn btn-ghost btn-icon" onClick={() => { shownJobIdRef.current = null; setActiveJob(null); }}>
@@ -425,9 +436,10 @@ export function DeployPage({ app }: { app: AppTarget }) {
                           <ThreeDotsVertical size={14} />
                         </Dropdown.Toggle>
                         <Dropdown.Menu popperConfig={{ strategy: "fixed" }}>
+                          {/* Only a confirmed deployment's commit is known to have run, so only it can be rolled back to. */}
                           <Dropdown.Item
                             className="d-flex align-items-center gap-2"
-                            disabled={!d.commit_sha}
+                            disabled={d.status !== "success" || !d.commit_sha}
                             onClick={() => setConfirmRollback(d)}
                           >
                             <ArrowCounterclockwise size={14} /> Rollback
@@ -538,7 +550,7 @@ export function DeployPage({ app }: { app: AppTarget }) {
               {commits.length === 0 ? (
                 <tr>
                   <td colSpan={5} style={{ textAlign: "center", color: "var(--jv-faint)", padding: "1.5rem" }}>
-                    {loading ? "Loading…" : "No commit history available."}
+                    {loading ? "Loading…" : commitsError ?? "No commit history available."}
                   </td>
                 </tr>
               ) : (

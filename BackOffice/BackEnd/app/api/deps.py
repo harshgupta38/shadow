@@ -4,6 +4,7 @@ from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.core import security
+from app.core.exceptions import NotFoundError
 from app.db.session import get_db
 from app.models.admin_user import AdminUserDBM
 from app.services import auth_service
@@ -12,6 +13,16 @@ _CREDENTIALS_EXC = HTTPException(
     status_code=status.HTTP_401_UNAUTHORIZED,
     detail="Could not validate credentials",
 )
+
+SUPPORTED_APPS = ("shadow", "backoffice")
+
+
+def check_app(app: str) -> str:
+    """Refuses an {app} path segment that is not an app BackOffice manages. Deploy and restart code treats any other
+    name as Shadow, so without this a typo would deploy or restart Shadow."""
+    if app not in SUPPORTED_APPS:
+        raise NotFoundError(f"Unknown app '{app}' — expected 'shadow' or 'backoffice'.")
+    return app
 
 
 def get_current_admin(

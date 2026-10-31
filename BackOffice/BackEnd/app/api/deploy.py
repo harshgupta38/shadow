@@ -1,17 +1,18 @@
-from fastapi import APIRouter, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks, Depends
 
-from app.api.deps import CurrentAdmin, DbSession
+from app.api.deps import CurrentAdmin, DbSession, check_app
 from app.core.endpoints import ENDPOINTS
 from app.core.exceptions import NotFoundError
 from app.models.deployment_log import DeploymentLogDBM
 from app.schemas.deploy import BranchesResponse, CommitInfo, DeploymentResponse, NewDeploymentRequest, RollbackRequest
 from app.services import deploy_service
 
-router = APIRouter(prefix=ENDPOINTS.DEPLOY.PREFIX, tags=["Deploy"])
+router = APIRouter(prefix=ENDPOINTS.DEPLOY.PREFIX, tags=["Deploy"], dependencies=[Depends(check_app)])
 
 
 @router.get(ENDPOINTS.DEPLOY.HISTORY, response_model=list[DeploymentResponse])
 def get_history(app: str, db: DbSession, _admin: CurrentAdmin, page: int = 1, page_size: int = 10):
+    deploy_service.reconcile_unsettled(app)
     offset = max(page - 1, 0) * page_size
     return (
         db.query(DeploymentLogDBM)
@@ -35,6 +36,7 @@ def get_branches(app: str, _admin: CurrentAdmin):
 
 @router.get(ENDPOINTS.DEPLOY.DETAIL, response_model=DeploymentResponse)
 def get_deployment(app: str, deployment_id: int, db: DbSession, _admin: CurrentAdmin):
+    deploy_service.reconcile_unsettled(app)
     log = db.get(DeploymentLogDBM, deployment_id)
     # Ids are shared by both apps, so another app's row must not be served under this app's URL.
     if log is None or log.app != app:

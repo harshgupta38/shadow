@@ -2,9 +2,9 @@ import asyncio
 import contextlib
 import logging
 
-from fastapi import APIRouter, BackgroundTasks, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, BackgroundTasks, Depends, WebSocket, WebSocketDisconnect
 
-from app.api.deps import CurrentAdmin, DbSession
+from app.api.deps import SUPPORTED_APPS, CurrentAdmin, DbSession, check_app
 from app.core import security
 from app.core.endpoints import ENDPOINTS
 from app.core.exceptions import NotFoundError
@@ -53,7 +53,7 @@ def _build_health_response(app: str) -> ServerHealthResponse:
     )
 
 
-@router.get(ENDPOINTS.SERVER.HEALTH, response_model=ServerHealthResponse)
+@router.get(ENDPOINTS.SERVER.HEALTH, response_model=ServerHealthResponse, dependencies=[Depends(check_app)])
 def get_health(app: str, _admin: CurrentAdmin):
     return _build_health_response(app)
 
@@ -105,6 +105,9 @@ async def health_ws(websocket: WebSocket, app: str):
     if not _authenticate_ws(token):
         await websocket.close(code=4401, reason="Not authenticated")
         return
+    if app not in SUPPORTED_APPS:
+        await websocket.close(code=4404, reason="Unknown app")
+        return
 
     elapsed = 0.0
     # A single long-lived receive_text() task, reused across ticks instead of
@@ -141,7 +144,7 @@ async def health_ws(websocket: WebSocket, app: str):
             await recv_task
 
 
-@router.get(ENDPOINTS.SERVER.WORKERS)
+@router.get(ENDPOINTS.SERVER.WORKERS, dependencies=[Depends(check_app)])
 def get_workers(app: str, _admin: CurrentAdmin):
     return worker_service.get_workers(app)
 
@@ -171,10 +174,13 @@ async def log_ws(websocket: WebSocket, app: str):
     if not _authenticate_ws(token):
         await websocket.close(code=4401, reason="Not authenticated")
         return
+    if app not in SUPPORTED_APPS:
+        await websocket.close(code=4404, reason="Unknown app")
+        return
 
     recv_task = asyncio.ensure_future(websocket.receive_text())
     try:
-        log_service = _LOG_SERVICES.get(app, shadow_db_service)
+        log_service = _LOG_SERVICES[app]
         log_filename = "backoffice.log" if app == "backoffice" else "server.log"
         if not await asyncio.to_thread(log_service.log_exists):
             await websocket.send_text(f"{log_filename} not found.")
@@ -207,8 +213,9 @@ async def log_ws(websocket: WebSocket, app: str):
             await recv_task
 
 
-@router.get(ENDPOINTS.SERVER.RESTART_HISTORY, response_model=list[RestartResponse])
+@router.get(ENDPOINTS.SERVER.RESTART_HISTORY, response_model=list[RestartResponse], dependencies=[Depends(check_app)])
 def get_restart_history(app: str, db: DbSession, _admin: CurrentAdmin, page: int = 1, page_size: int = 10):
+    restart_service.reconcile_unsettled_restarts(app)
     offset = max(page - 1, 0) * page_size
     return (
         db.query(RestartLogDBM)
@@ -220,16 +227,18 @@ def get_restart_history(app: str, db: DbSession, _admin: CurrentAdmin, page: int
     )
 
 
-@router.post(ENDPOINTS.SERVER.RESTART, response_model=RestartResponse)
+@router.post(ENDPOINTS.SERVER.RESTART, response_model=RestartResponse, dependencies=[Depends(check_app)])
 def restart(app: str, background_tasks: BackgroundTasks, db: DbSession, admin: CurrentAdmin):
     log = restart_service.create_restart_record(db, admin.email, app)
     background_tasks.add_task(restart_service.run_restart_job, log.id, app)
     return log
 
 
-@router.get(ENDPOINTS.SERVER.RESTART_DETAIL, response_model=RestartResponse)
+@router.get(ENDPOINTS.SERVER.RESTART_DETAIL, response_model=RestartResponse, dependencies=[Depends(check_app)])
 def get_restart(app: str, restart_id: int, db: DbSession, _admin: CurrentAdmin):
+    restart_service.reconcile_unsettled_restarts(app)
     log = db.get(RestartLogDBM, restart_id)
-    if log is None:
+    # Ids are shared by both apps, so another app's row must not be served under this app's URL (as deploy detail does).
+    if log is None or log.app != app:
         raise NotFoundError("Restart record not found.")
     return log

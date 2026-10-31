@@ -13,6 +13,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
+    text,
 )  # pyright: ignore[reportMissingImports]
 from sqlalchemy.orm import Mapped, mapped_column, relationship  # pyright: ignore[reportMissingImports]
 
@@ -25,6 +26,8 @@ KIND_VALUES = ("strength", "cardio", "warmup")
 MEASURE_VALUES = ("minutes", "seconds", "reps")  # how an exercise is counted: one block of time, sets of time, or sets of reps
 GOAL_VALUES = ("build_muscle", "lose_fat", "strength", "endurance", "general_fitness")
 SESSION_STATUS_VALUES = ("in_progress", "completed")
+OPEN_SESSION_INDEX = "uq_workout_sessions_one_open"  # one open workout per user; _migrate_workout in main.py creates it on existing databases
+OPEN_SESSION_WHERE = "status = 'in_progress'"
 
 
 def _one_of(column: str, values: tuple[str, ...]) -> str:
@@ -191,8 +194,10 @@ class WorkoutSessionDBM(Base):
     __tablename__ = "workout_sessions"
     __table_args__ = (
         CheckConstraint(_one_of("status", SESSION_STATUS_VALUES), name="ck_workout_sessions_status"),
+        CheckConstraint("plan_weekday IS NULL OR plan_weekday BETWEEN 0 AND 6", name="ck_workout_sessions_plan_weekday"),
         Index("ix_workout_sessions_user_date", "user_id", "session_date"),
         Index("ix_workout_sessions_user_status", "user_id", "status"),
+        Index(OPEN_SESSION_INDEX, "user_id", unique=True, sqlite_where=text(OPEN_SESSION_WHERE)),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -202,6 +207,8 @@ class WorkoutSessionDBM(Base):
         ForeignKey("workout_plan_days.id", ondelete="SET NULL"),
         nullable=True,
     )
+    # 0 = Sunday … 6 = Saturday. Kept when the plan's days are rebuilt, so a workout still matches the day it started from.
+    plan_weekday: Mapped[int | None] = mapped_column(Integer, nullable=True)
     plan_name: Mapped[str | None] = mapped_column(String(80), nullable=True)  # snapshot, kept if the plan changes
     name: Mapped[str] = mapped_column(String(80), nullable=False)
     session_date: Mapped[date] = mapped_column(Date, nullable=False)  # IST calendar day the workout started

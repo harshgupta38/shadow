@@ -9,7 +9,7 @@ interface HasVolume extends HasExercise {
 }
 
 // Cardio and warm-ups are not muscle work. The backend leaves them out of plan and session muscle totals too,
-// so every page that adds up muscles goes through this rule.
+// so every page that adds up muscles or sets goes through this rule.
 const isMuscleWork = (exercise: ExerciseSummary) => exercise.kind === "strength";
 
 /**
@@ -41,6 +41,11 @@ export function setsByMuscle(items: HasVolume[]): MuscleSets[] {
   return [...totals.entries()]
     .map(([muscle, sets]) => ({ muscle, sets: Math.round(sets * 2) / 2 }))
     .sort((a, b) => b.sets - a.sets);
+}
+
+/** Sets a training day is built around: strength sets only, under the same rule as muscle work. */
+export function workingSetCount(items: HasVolume[]): number {
+  return items.reduce((total, { exercise, sets }) => total + (isMuscleWork(exercise) && Number.isFinite(sets) ? sets : 0), 0);
 }
 
 const SECONDS_PER_SET = 45;

@@ -16,5 +16,5 @@ export const api = {
   users: usersApi,
 };
 
-export { ApiError } from "./client";
+export { ApiError, apiErrorMessage } from "./client";
 export type * from "./types";

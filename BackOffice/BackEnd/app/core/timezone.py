@@ -19,4 +19,15 @@ def ensure_utc(value: datetime) -> datetime:
     return value.replace(tzinfo=UTC) if value.tzinfo is None else value
 
 
+def parse_utc(value: object) -> datetime | None:
+    """A timestamp another process reported (an ISO string) as an aware datetime, or None when it is missing or is not
+    one. A value without a zone is UTC, the zone everything here is stored in."""
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        return ensure_utc(datetime.fromisoformat(value.replace("Z", "+00:00")))
+    except ValueError:
+        return None
+
+
 UtcDateTime = Annotated[datetime, AfterValidator(ensure_utc)]

@@ -23,6 +23,11 @@ class NotFoundError(AppError):
     detail = "Resource not found."
 
 
+class ConflictError(AppError):
+    status_code = 409
+    detail = "This conflicts with a change already in progress."
+
+
 class ValidationError(AppError):
     status_code = 400
     detail = "Please correct the highlighted fields."

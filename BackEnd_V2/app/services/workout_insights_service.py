@@ -1,9 +1,10 @@
 """Numbers for the Today and History tabs: this week, the last few weeks, muscle balance and personal records."""
 
 from collections import defaultdict
+from collections.abc import Iterable
 from datetime import date, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import Date, Integer, cast, func, select
 from sqlalchemy.orm import Session
 
 from app.common import today_ist
@@ -37,12 +38,13 @@ def _completed(db: Session, user_id: int, *clauses) -> list[WorkoutSessionDBM]:
     )
 
 
-def _minutes(sessions: list[WorkoutSessionDBM], now) -> int:
+def _minutes(sessions: Iterable, now) -> int:
+    """Minutes across sessions. Each needs started_at and finished_at, so full rows and column rows both work."""
     seconds = sum(workout_sessions_service.duration_seconds(s, now) for s in sessions)
     return int(seconds / 60 + 0.5)
 
 
-def _muscle_rows(sessions: list[WorkoutSessionDBM]) -> list[MuscleSetsResponse]:
+def _muscle_rows(sessions: Iterable) -> list[MuscleSetsResponse]:
     totals: defaultdict[str, float] = defaultdict(float)
     for session in sessions:
         for muscle, sets in session.muscle_sets.items():
@@ -149,43 +151,73 @@ def _personal_records(db: Session, user_id: int) -> list[PersonalRecordResponse]
     ]
 
 
+def _week_start_sql():
+    """The Sunday that opens each session's week, computed the way week_start() does it (strftime %w: 0 = Sunday)."""
+    session_date = WorkoutSessionDBM.session_date
+    return func.date(session_date, func.printf("-%d days", cast(func.strftime("%w", session_date), Integer)), type_=Date)
+
+
 def progress(db: Session, user: UserDBM, weeks: int) -> WorkoutProgressResponse:
     today = today_ist()
     now = workout_sessions_service.now_utc()
     current = week_start(today)
     first = current - timedelta(days=7 * (weeks - 1))
+    month_ago = today - timedelta(days=MUSCLE_WINDOW_DAYS)
 
-    completed = _completed(db, user.id)
-    in_window = [s for s in completed if s.session_date >= first]
+    # Only sessions inside the weeks shown or the muscle window are read, and only the columns those need.
+    recent = db.execute(
+        select(
+            WorkoutSessionDBM.session_date,
+            WorkoutSessionDBM.volume_kg,
+            WorkoutSessionDBM.started_at,
+            WorkoutSessionDBM.finished_at,
+            WorkoutSessionDBM.muscle_sets,
+        ).where(
+            WorkoutSessionDBM.user_id == user.id,
+            WorkoutSessionDBM.status == "completed",
+            WorkoutSessionDBM.session_date >= min(first, month_ago),
+        )
+    ).all()
+    in_window = [row for row in recent if row.session_date >= first]
 
     week_rows = []
     for index in range(weeks):
         start = first + timedelta(days=7 * index)
         end = start + timedelta(days=6)
-        inside = [s for s in in_window if start <= s.session_date <= end]
+        inside = [row for row in in_window if start <= row.session_date <= end]
         week_rows.append(
             WorkoutProgressWeekResponse(
                 week_start=start,
                 sessions=len(inside),
-                volume_kg=round(sum(s.volume_kg for s in inside), 1),
+                volume_kg=round(sum(row.volume_kg for row in inside), 1),
                 minutes=_minutes(inside, now),
             )
         )
 
     # Consecutive weeks with at least one workout, counted back from this week. An empty current week
-    # does not break the streak, since it may simply be early in the week.
-    weeks_with_sessions = {week_start(s.session_date) for s in completed}
+    # does not break the streak, since it may simply be early in the week. SQL returns each week once.
+    weeks_with_sessions = set(
+        db.scalars(
+            select(_week_start_sql())
+            .where(WorkoutSessionDBM.user_id == user.id, WorkoutSessionDBM.status == "completed")
+            .distinct()
+        ).all()
+    )
     cursor = current if current in weeks_with_sessions else current - timedelta(days=7)
     streak = 0
     while cursor in weeks_with_sessions:
         streak += 1
         cursor -= timedelta(days=7)
 
-    month_ago = today - timedelta(days=MUSCLE_WINDOW_DAYS)
+    total_sessions = db.scalar(
+        select(func.count())
+        .select_from(WorkoutSessionDBM)
+        .where(WorkoutSessionDBM.user_id == user.id, WorkoutSessionDBM.status == "completed")
+    )
     return WorkoutProgressResponse(
         weeks=week_rows,
-        muscles=_muscle_rows([s for s in completed if s.session_date >= month_ago]),
-        personal_records=_personal_records(db, user.id),
-        total_sessions=len(completed),
+        muscles=_muscle_rows([row for row in recent if row.session_date >= month_ago]),
+        personal_records=_personal_records(db, user.id),  # needs every completed set, so it keeps the full history
+        total_sessions=total_sessions,
         current_streak_weeks=streak,
     )

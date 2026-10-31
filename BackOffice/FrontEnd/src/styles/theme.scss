@@ -1307,6 +1307,16 @@ h1, h2, h3, h4, h5, h6, .display-font {
     color: var(--jv-success);
   }
 
+  &--failed {
+    background: var(--jv-danger-soft);
+    color: var(--jv-danger);
+  }
+
+  &--unknown {
+    background: color-mix(in srgb, var(--jv-warn) 18%, transparent);
+    color: var(--jv-warn);
+  }
+
   &--paused {
     background: color-mix(in srgb, var(--jv-muted) 18%, transparent);
     color: var(--jv-muted);

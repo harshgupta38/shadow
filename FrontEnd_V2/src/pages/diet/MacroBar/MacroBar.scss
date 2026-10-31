@@ -1,0 +1,41 @@
+.dt-macro-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-bottom: 0.3rem;
+  font-size: 0.85rem;
+}
+
+.dt-macro-label { font-weight: 700; }
+
+.dt-macro-values {
+  color: var(--jv-muted);
+  font-variant-numeric: tabular-nums;
+
+  strong { color: var(--jv-text); }
+}
+
+.dt-macro-track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--jv-surface-3);
+  overflow: hidden;
+}
+
+.dt-macro-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--dt-tone, var(--jv-brand-1));
+  transition: width 400ms ease;
+}
+
+.dt-tone-protein { --dt-tone: var(--jv-brand-1); }
+.dt-tone-carbs { --dt-tone: var(--jv-warn); }
+.dt-tone-fat { --dt-tone: var(--jv-violet); }
+.dt-tone-fibre { --dt-tone: var(--jv-success); }
+.dt-tone-water { --dt-tone: var(--jv-info); }
+
+@media (prefers-reduced-motion: reduce) {
+  .dt-macro-fill { transition: none; }
+}

@@ -1,0 +1,35 @@
+.dt-chips-list {
+  list-style: none;
+  margin: 0 0 0.45rem;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.dt-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.15rem 0.35rem 0.15rem 0.7rem;
+  font-size: 0.84rem;
+  font-weight: 600;
+  background: var(--jv-brand-soft);
+  color: var(--jv-brand-1);
+  border-radius: var(--jv-radius-pill);
+
+  button {
+    display: grid;
+    place-items: center;
+    width: 1.3rem;
+    height: 1.3rem;
+    color: inherit;
+    background: none;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+
+    &:hover { background: color-mix(in srgb, var(--jv-brand-1) 18%, transparent); }
+    &:focus-visible { outline: none; box-shadow: var(--jv-ring); }
+  }
+}

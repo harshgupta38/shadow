@@ -1,0 +1,42 @@
+.dt-ring {
+  position: relative;
+  flex: none;
+
+  svg { transform: rotate(-90deg); display: block; }
+}
+
+.dt-ring-track { stroke: var(--jv-surface-3); }
+
+.dt-ring-value {
+  transition: stroke-dashoffset 500ms ease;
+
+  &.is-over { stroke: var(--jv-warn); }
+}
+
+.dt-ring-inner {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.1;
+}
+
+.dt-ring-number {
+  font-family: var(--jv-font-display);
+  font-weight: 800;
+  font-size: 2rem;
+  letter-spacing: -0.03em;
+}
+
+.dt-ring-caption {
+  margin-top: 0.15rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--jv-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dt-ring-value { transition: none; }
+}

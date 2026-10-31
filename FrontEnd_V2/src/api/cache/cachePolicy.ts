@@ -98,6 +98,8 @@ export function groupsToClearAfterWrite(url: string): GroupsToClear {
     if (under(E.NOTIFICATIONS.PREFIX)(path)) return [];
     // Workout data is read only by uncached endpoints, so saving a session or set empties nothing.
     if (under(E.WORKOUT.PREFIX)(path)) return [];
+    // Diet data is read only by uncached endpoints, so logging food or water empties nothing.
+    if (under(E.DIET.PREFIX)(path)) return [];
 
     if (under(E.SETTINGS.PREFIX)(path)) {
         // Saving settings changes week start, theme and planner behaviour everywhere.

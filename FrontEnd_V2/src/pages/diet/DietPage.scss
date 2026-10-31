@@ -1,0 +1,14 @@
+.dt-shell { display: flex; flex-direction: column; }
+
+.dt-shell-tabs {
+  margin-bottom: 1rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar { display: none; }
+
+  .nav-tabs-jv { min-width: min-content; }
+  .nav-tab-jv { white-space: nowrap; }
+}
+
+.dt-loading { display: flex; flex-direction: column; gap: 1rem; }

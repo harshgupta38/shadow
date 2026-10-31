@@ -1460,3 +1460,347 @@ export interface WorkoutProgress {
   total_sessions: number;
   current_streak_weeks: number;
 }
+
+
+// ── Diet ─────────────────────────────────────────────────────────────────────
+
+export type DietSex = "male" | "female";
+export type DietActivityLevel = "sedentary" | "light" | "moderate" | "active" | "very_active";
+export type DietObjective = "fat_loss" | "muscle_gain" | "maintenance" | "wellness" | "custom";
+export type DietaryPreference = "no_preference" | "vegetarian" | "eggetarian" | "vegan" | "pescatarian" | "jain";
+export type CookingAvailability = "none" | "minimal" | "moderate" | "plenty";
+export type NutritionVerification = "verified" | "estimated" | "user";
+export type QuantityCertainty = "exact" | "estimated";
+export type TargetSource = "estimated" | "user" | "prescribed";
+
+export interface DietTargetValues {
+  calorie_target: number;
+  protein_target_g: number;
+  carbs_target_g: number;
+  fat_target_g: number;
+  fibre_target_g: number;
+  water_target_ml: number;
+}
+
+export interface DietTargetOverrides extends Partial<DietTargetValues> {
+  prescribed?: boolean;
+}
+
+export interface DietProfileSaveRequest {
+  age: number;
+  sex: DietSex | null;
+  height_cm: number;
+  weight_kg: number;
+  target_weight_kg: number | null;
+  activity_level: DietActivityLevel;
+  objective: DietObjective;
+  objective_note: string;
+  dietary_preference: DietaryPreference;
+  allergies: string[];
+  intolerances: string[];
+  liked_foods: string[];
+  disliked_foods: string[];
+  cuisines: string[];
+  meals_per_day: number;
+  meal_times: Record<string, string>;
+  cooking_availability: CookingAvailability;
+  daily_budget: number | null;
+  targets: DietTargetOverrides | null;
+  recalculate_targets: boolean;
+}
+
+export interface DietEstimateRequest {
+  age: number;
+  sex: DietSex;
+  height_cm: number;
+  weight_kg: number;
+  activity_level: DietActivityLevel;
+  objective: DietObjective;
+}
+
+export interface DietEstimate {
+  bmr: number;
+  tdee: number;
+  targets: DietTargetValues;
+  notes: string[];
+  disclaimer: string;
+}
+
+export interface DietProfile extends DietTargetValues {
+  age: number;
+  sex: DietSex | null;
+  height_cm: number;
+  weight_kg: number;
+  target_weight_kg: number | null;
+  activity_level: DietActivityLevel;
+  objective: DietObjective;
+  objective_note: string;
+  dietary_preference: DietaryPreference;
+  allergies: string[];
+  intolerances: string[];
+  liked_foods: string[];
+  disliked_foods: string[];
+  cuisines: string[];
+  meals_per_day: number;
+  meal_times: Record<string, string>;
+  cooking_availability: CookingAvailability;
+  daily_budget: number | null;
+  target_sources: Record<string, TargetSource>;
+  bmr: number | null;
+  tdee: number | null;
+  notes: string[];
+  warnings: string[];
+  disclaimer: string;
+}
+
+export interface DietProfileState {
+  onboarded: boolean;
+  profile: DietProfile | null;
+}
+
+/** The library's own values for a food the user has edited. */
+export interface FoodDefaults {
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  fibre_g: number;
+  serving_grams: Record<string, number>;
+}
+
+/** The user's own values for a library food: nutrients per 100 g, and serving sizes (unit name to grams). */
+export interface FoodValuesRequest {
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  fibre_g: number;
+  serving_grams: Record<string, number>;
+}
+
+/** Nutrients per 100 g. */
+export interface Food {
+  id: number;
+  name: string;
+  alt_names: string[];
+  category: string;
+  cuisine: string;
+  prep_method: string;
+  diet_tags: string[];
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  fibre_g: number;
+  serving_grams: Record<string, number>;
+  default_unit: string;
+  default_quantity: number;
+  source: string;
+  verification: NutritionVerification;
+  confidence: number;
+  is_custom: boolean;
+  is_favourite: boolean;
+  /** A library food whose values this user changed. */
+  is_edited: boolean;
+  /** The library's values, present when edited. */
+  defaults: FoodDefaults | null;
+}
+
+/** Narrowing for the food list. `scope` limits to the user's own foods or favourites; `offset` pages through long lists. */
+export interface FoodListFilters {
+  category?: string;
+  cuisine?: string;
+  scope?: "all" | "mine" | "favourites" | "edited";
+  offset?: number;
+}
+
+export interface FoodSearchHit {
+  food: Food;
+  match: "exact" | "prefix" | "contains" | "similar";
+}
+
+export interface FoodCustomRequest {
+  name: string;
+  serving_label: string;
+  serving_grams: number;
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  fibre_g: number;
+  category?: string;
+}
+
+export interface QuickFoods {
+  favourites: Food[];
+  recent: Food[];
+  frequent: Food[];
+}
+
+export interface NutrientTotals {
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  fibre_g: number;
+}
+
+export interface DiaryItem extends NutrientTotals {
+  id: number;
+  food_id: number | null;
+  name: string;
+  quantity: number;
+  unit: string;
+  grams: number;
+  nutrition_source: string;
+  verification: NutritionVerification;
+  quantity_certainty: QuantityCertainty;
+}
+
+export interface DiaryMeal {
+  id: number;
+  meal_type: string;
+  eaten_at: string | null; // "HH:MM:SS"
+  note: string;
+  items: DiaryItem[];
+  totals: NutrientTotals;
+  /** Allergy or diet conflicts for what was just added, and anything left out of a saved meal. */
+  notices: string[];
+}
+
+export interface DiaryDay {
+  date: string;
+  meals: DiaryMeal[];
+  totals: NutrientTotals;
+  water_ml: number;
+  has_estimated_items: boolean;
+}
+
+export interface DiaryLogItemRequest {
+  food_id: number;
+  quantity: number;
+  unit: string;
+  certainty?: QuantityCertainty;
+  client_token?: string;
+}
+
+export interface DiaryAddRequest {
+  log_date?: string;
+  meal_type: string;
+  eaten_at?: string | null;
+  items: DiaryLogItemRequest[];
+}
+
+export interface CopyMealsResponse {
+  copied_meals: string[];
+  skipped_meals: string[];
+  day: DiaryDay;
+}
+
+export interface SavedMeal {
+  id: number;
+  name: string;
+  meal_type: string | null;
+  items: { food_id: number; name: string; quantity: number; unit: string }[];
+}
+
+export interface WaterEntry {
+  id: number;
+  amount_ml: number;
+}
+
+export interface WaterDay {
+  date: string;
+  total_ml: number;
+  target_ml: number | null;
+  entries: WaterEntry[];
+}
+
+export interface WaterHistoryPoint {
+  date: string;
+  total_ml: number;
+}
+
+export interface DietProgress {
+  consumed: number;
+  target: number;
+  percent: number; // of target, not capped, so overshoot shows
+}
+
+export interface DietScoreComponent {
+  key: string;
+  points: number;
+  max_points: number;
+  explanation: string;
+}
+
+export interface DietOverview {
+  date: string;
+  calories: DietProgress;
+  remaining_calories: number;
+  protein: DietProgress;
+  carbs: DietProgress;
+  fat: DietProgress;
+  fibre: DietProgress;
+  meals: { meal_type: string; eaten_at: string | null; item_count: number; totals: NutrientTotals }[];
+  water: DietProgress;
+  score: { score: number | null; components: DietScoreComponent[]; explanation: string };
+  has_estimated_items: boolean;
+  disclaimer: string;
+}
+
+export type ProposalItemStatus = "resolved" | "needs_quantity" | "unmatched";
+
+export interface ProposalItem {
+  index: number;
+  text: string;
+  status: ProposalItemStatus;
+  food_id: number | null;
+  name: string;
+  quantity: number | null;
+  unit: string | null;
+  grams: number | null;
+  nutrients: NutrientTotals | null;
+  verification: NutritionVerification | null;
+  nutrition_source: string;
+  quantity_certainty: QuantityCertainty;
+  note: string;
+  units: string[]; // serving units this food can be measured in, grams included
+  candidates: Food[];
+}
+
+export interface FoodLogProposal {
+  proposal_id: string;
+  status: "pending" | "saved" | "dismissed";
+  source: "text" | "image";
+  log_date: string;
+  meal_type: string;
+  eaten_at: string | null;
+  items: ProposalItem[];
+  totals: NutrientTotals;
+  clarifications: string[];
+  warnings: string[];
+  can_confirm: boolean;
+  estimated: boolean;
+  saved_log_id: number | null;
+}
+
+export interface ProposalItemEdit {
+  index: number;
+  food_id?: number;
+  quantity?: number;
+  unit?: string;
+  remove?: boolean;
+}
+
+export interface ProposalEditRequest {
+  meal_type?: string;
+  log_date?: string;
+  eaten_at?: string | null;
+  items?: ProposalItemEdit[];
+}
+
+export interface ProposalConfirmResult {
+  proposal: FoodLogProposal;
+  meal: DiaryMeal;
+}

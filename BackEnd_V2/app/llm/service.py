@@ -2,6 +2,8 @@ from datetime import date
 from functools import lru_cache
 from typing import Callable
 
+from pydantic import BaseModel
+
 from app.llm.models import (
     RefineGoalToLLM,
     RefineGoalFromLLM,
@@ -21,6 +23,8 @@ from app.llm.models import (
     GenerateReportFromLLM,
     GenerateBriefToLLM,
     GenerateBriefFromLLM,
+    StructuredToLLM,
+    StructuredFromLLM,
 )
 from app.llm.base import BaseLLMProvider
 from app.llm.config import LLMSettings, llm_settings
@@ -274,6 +278,31 @@ class LLMService:
             )
         if response is None or response.brief_data is None:
             raise LLMConfigurationError("LLM provider returned no daily brief data.")
+        return response
+
+    async def generate_structured(
+        self,
+        *,
+        system_instruction: str,
+        user_content: str,
+        schema_cls: type[BaseModel],
+        user_id: int,
+        operation: str = "structured",
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+    ) -> StructuredFromLLM:
+        request = StructuredToLLM(
+            system_instruction=system_instruction,
+            user_content=user_content,
+            schema_cls=schema_cls,
+            user_id=user_id,
+            operation=operation,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
+        response = await self._provider.generate_structured(request)
+        if response is None or response.data is None:
+            raise LLMConfigurationError(f"LLM provider returned no data for {operation}.")
         return response
 
     async def health_check(self, model: str | None = None) -> bool:

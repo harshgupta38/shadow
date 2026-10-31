@@ -32,6 +32,8 @@ from app.llm.knowledge_base import (
     build_report_prompt,
 )
 from app.llm.models import (
+    StructuredToLLM,
+    StructuredFromLLM,
     ConversationContextToLLM,
     ConversationContextFromLLM,
     MessageToLLM,
@@ -959,6 +961,66 @@ class GeminiProvider(BaseLLMProvider):
 
     async def generate_daily_brief(self, request: GenerateBriefToLLM) -> GenerateBriefFromLLM:
         raise NotImplementedError("Daily brief generation is only supported by the OpenAI provider currently.")
+
+    async def generate_structured(self, request: StructuredToLLM) -> StructuredFromLLM:
+        model = self._resolve_model(request)
+
+        started_at = perf_counter()
+        try:
+            response = await self._client.aio.models.generate_content(
+                model=model,
+                contents=request.user_content,
+                config=types.GenerateContentConfig(
+                    system_instruction=request.system_instruction,
+                    response_mime_type="application/json",
+                    response_schema=request.schema_cls,
+                    temperature=request.temperature,
+                    max_output_tokens=request.max_tokens,
+                    http_options=types.HttpOptions(timeout=self._settings.llm_request_timeout_seconds * 1000),
+                ),
+            )
+        except errors.APIError as exc:
+            raise LLMProviderError(f"Gemini {request.operation} failed: {exc}") from exc
+        response_time_ms = int((perf_counter() - started_at) * 1000)
+
+        await log_gemini_completion_usage_async(
+            settings=self._settings,
+            model=model,
+            response=response,
+            latency_ms=response_time_ms,
+            user_id=request.user_id,
+            operation=request.operation,
+        )
+
+        if not response.candidates:
+            raise LLMRequestError(f"Gemini returned no choices for {request.operation}.")
+        parsed = response.parsed
+        if parsed is None:
+            raise LLMRequestError(f"Gemini returned an unparsable {request.operation} response.")
+
+        usage = None
+        if response.usage_metadata is not None:
+            usage = TokenUsage(
+                input_tokens=response.usage_metadata.prompt_token_count or 0,
+                output_tokens=(response.usage_metadata.candidates_token_count or 0)
+                + (response.usage_metadata.thoughts_token_count or 0),
+                total_tokens=response.usage_metadata.total_token_count or 0,
+            )
+        return StructuredFromLLM(
+            provider=LLMProvider.GEMINI,
+            model=model,
+            model_str=response.model_version or model,
+            data=parsed,
+            finish_reason=response.candidates[0].finish_reason,
+            usage=usage,
+            response_id=response.response_id,
+            response_time_ms=response_time_ms,
+            cost=calculate_token_cost(
+                model_key=model,
+                input_tokens=usage.input_tokens if usage and usage.input_tokens else 0,
+                output_tokens=usage.output_tokens if usage and usage.output_tokens else 0,
+            ),
+        )
 
     async def health_check(self, model: str | None = None) -> bool:
         try:

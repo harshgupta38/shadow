@@ -32,6 +32,8 @@ from app.llm.knowledge_base import (
     build_report_prompt,
 )
 from app.llm.models import (
+    StructuredToLLM,
+    StructuredFromLLM,
     ConversationContextToLLM,
     ConversationContextFromLLM,
     ExtractUserMemoryToLLM,
@@ -920,6 +922,66 @@ class ClaudeProvider(BaseLLMProvider):
 
     async def generate_daily_brief(self, request: GenerateBriefToLLM) -> GenerateBriefFromLLM:
         raise NotImplementedError("Daily brief generation is only supported by the OpenAI provider currently.")
+
+    async def generate_structured(self, request: StructuredToLLM) -> StructuredFromLLM:
+        model = self._resolve_model(request)
+        schema_text = json.dumps(request.schema_cls.model_json_schema())
+        system = (
+            f"{request.system_instruction}\n\nRespond with only a JSON object that matches this JSON schema, "
+            f"with no text before or after it:\n{schema_text}"
+        )
+
+        started_at = perf_counter()
+        try:
+            kwargs = {
+                "model": model,
+                "system": system,
+                "messages": [{"role": Role.USER, "content": request.user_content}],
+                "max_tokens": request.max_tokens or 2048,
+            }
+            if request.temperature is not None:
+                kwargs["temperature"] = request.temperature
+            completion = await self._client.messages.create(**kwargs)
+        except (APIConnectionError, APIStatusError, APIError) as exc:
+            raise LLMProviderError(f"Claude {request.operation} failed: {exc}") from exc
+        response_time_ms = int((perf_counter() - started_at) * 1000)
+
+        await log_claude_completion_usage_async(
+            settings=self._settings,
+            model=model,
+            completion=completion,
+            latency_ms=response_time_ms,
+            user_id=request.user_id,
+            operation=request.operation,
+        )
+
+        try:
+            parsed = request.schema_cls.model_validate_json(self._strip_code_fence(self._extract_text_content(completion)))
+        except ValidationError as exc:
+            raise LLMRequestError(f"Claude returned a {request.operation} response that does not match the expected schema.") from exc
+
+        usage = None
+        if completion.usage is not None:
+            usage = TokenUsage(
+                input_tokens=completion.usage.input_tokens,
+                output_tokens=completion.usage.output_tokens,
+                total_tokens=completion.usage.input_tokens + completion.usage.output_tokens,
+            )
+        return StructuredFromLLM(
+            provider=LLMProvider.CLAUDE,
+            model=model,
+            model_str=completion.model or model,
+            data=parsed,
+            finish_reason=completion.stop_reason or "unknown",
+            usage=usage,
+            response_id=completion.id,
+            response_time_ms=response_time_ms,
+            cost=calculate_token_cost(
+                model_key=model,
+                input_tokens=usage.input_tokens if usage and usage.input_tokens else 0,
+                output_tokens=usage.output_tokens if usage and usage.output_tokens else 0,
+            ),
+        )
 
     async def health_check(self, model: str | None = None) -> bool:
         resolved = model or self._settings.claude_model

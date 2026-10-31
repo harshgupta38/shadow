@@ -33,6 +33,8 @@ from app.llm.knowledge_base import (
     build_report_prompt,
 )
 from app.llm.models import (
+    StructuredToLLM,
+    StructuredFromLLM,
     ConversationContextToLLM,
     ConversationContextFromLLM,
     MessageToLLM,
@@ -1113,6 +1115,66 @@ class OpenAIProvider(BaseLLMProvider):
                 output_tokens=(
                     completion.usage.completion_tokens if completion.usage else 0
                 ),
+            ),
+        )
+
+    async def generate_structured(self, request: StructuredToLLM) -> StructuredFromLLM:
+        model = self._resolve_model(request)
+        messages = [
+            {"role": Role.SYSTEM, "content": request.system_instruction},
+            {"role": Role.USER, "content": request.user_content},
+        ]
+
+        started_at = perf_counter()
+        try:
+            kwargs = {"model": model, "messages": messages, "response_format": request.schema_cls}
+            if request.temperature is not None:
+                kwargs["temperature"] = request.temperature
+            if request.max_tokens is not None:
+                kwargs["max_completion_tokens"] = request.max_tokens
+            completion = await self._client.beta.chat.completions.parse(**kwargs)
+        except (APIConnectionError, APIStatusError, OpenAIError) as exc:
+            raise LLMProviderError(f"OpenAI {request.operation} failed: {exc}") from exc
+        response_time_ms = int((perf_counter() - started_at) * 1000)
+
+        await log_openai_completion_usage_async(
+            settings=self._settings,
+            model=model,
+            completion=completion,
+            latency_ms=response_time_ms,
+            user_id=request.user_id,
+            operation=request.operation,
+        )
+
+        if not completion.choices:
+            raise LLMRequestError(f"OpenAI returned no choices for {request.operation}.")
+        first_choice = completion.choices[0]
+        parsed = first_choice.message.parsed
+        if parsed is None:
+            if first_choice.message.refusal:
+                raise LLMRequestError(f"OpenAI refused {request.operation}: {first_choice.message.refusal}")
+            raise LLMRequestError(f"OpenAI returned an unparsable {request.operation} response.")
+
+        usage = None
+        if completion.usage is not None:
+            usage = TokenUsage(
+                input_tokens=completion.usage.prompt_tokens,
+                output_tokens=completion.usage.completion_tokens,
+                total_tokens=completion.usage.total_tokens,
+            )
+        return StructuredFromLLM(
+            provider=LLMProvider.OPENAI,
+            model=model,
+            model_str=completion.model or model,
+            data=parsed,
+            finish_reason=first_choice.finish_reason,
+            usage=usage,
+            response_id=completion.id,
+            response_time_ms=response_time_ms,
+            cost=calculate_token_cost(
+                model_key=model,
+                input_tokens=usage.input_tokens if usage and usage.input_tokens else 0,
+                output_tokens=usage.output_tokens if usage and usage.output_tokens else 0,
             ),
         )
 

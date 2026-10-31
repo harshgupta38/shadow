@@ -175,3 +175,18 @@ class GenerateBriefToLLM(MetadataToLLM):
 
 class GenerateBriefFromLLM(MetadataFromLLM):
     brief_data: DailyBriefSchema | DailyBriefSchemaNoAudio
+
+
+# --- GENERIC STRUCTURED OUTPUT ---
+class StructuredToLLM(MetadataToLLM):
+    """One prompt in, one validated Pydantic object out. Lets features (Diet) add structured calls without a new
+    provider method each time. `operation` names the call in usage logs."""
+
+    system_instruction: str
+    user_content: str
+    schema_cls: type[BaseModel]
+    operation: str = "structured"
+
+
+class StructuredFromLLM(MetadataFromLLM):
+    data: BaseModel

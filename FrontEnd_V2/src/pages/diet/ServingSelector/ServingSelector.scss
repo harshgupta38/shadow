@@ -1,0 +1,25 @@
+.dt-serving {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.9rem;
+}
+
+.dt-serving-inputs {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.dt-serving-qty { width: 5.2rem; }
+.dt-serving-unit { width: 9.5rem; max-width: 100%; }
+
+.dt-serving-preview {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+  font-size: 0.8rem;
+  color: var(--jv-muted);
+  font-variant-numeric: tabular-nums;
+
+  strong { color: var(--jv-text); font-size: 0.88rem; }
+}

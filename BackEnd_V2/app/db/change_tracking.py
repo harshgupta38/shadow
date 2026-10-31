@@ -21,6 +21,7 @@ from app.models.data_version import DATA_VERSION_ROW_ID, DataVersionDBM
 # and per-request session/rate-limit bookkeeping that would otherwise invalidate every few minutes.
 # Everything else bumps the version, so a new table is covered by default.
 # Workout tables: no cached endpoint reads workout data, so remove these once one does.
+# Diet tables: same rule. Remove them when Reports or the dashboard start reading diet data through a cached endpoint.
 # Report email cooldowns: written on every manual send, and no cached endpoint reads them.
 IGNORED_TABLES = frozenset({
     DataVersionDBM.__tablename__,
@@ -34,6 +35,16 @@ IGNORED_TABLES = frozenset({
     "workout_settings",
     "workout_sessions",
     "workout_session_exercises",
+    "diet_profiles",
+    "foods",
+    "food_favourites",
+    "food_overrides",
+    "food_logs",
+    "food_log_items",
+    "saved_meals",
+    "water_logs",
+    "diet_proposals",
+    "diet_agent_runs",
 })
 
 _BUMPED_FLAG = "data_version_bumped"

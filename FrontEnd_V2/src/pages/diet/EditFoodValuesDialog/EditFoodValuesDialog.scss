@@ -1,0 +1,53 @@
+.dt-ev-dialog { max-width: 600px; }
+
+.dt-ev-title { font-size: 1.1rem; font-weight: 800; overflow-wrap: anywhere; }
+
+.dt-ev-intro { margin: 0; font-size: 0.86rem; color: var(--jv-muted); }
+
+.dt-ev-heading {
+  margin: 1.2rem 0 0.5rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--jv-muted);
+}
+
+.dt-ev-hint { margin: 0 0 0.6rem; font-size: 0.82rem; color: var(--jv-muted); }
+
+.dt-ev-lib { margin-top: 0.2rem; font-size: 0.74rem; color: var(--jv-muted); }
+
+.dt-ev-servings {
+  list-style: none;
+  margin: 0 0 0.6rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.dt-ev-serving-row { display: flex; align-items: center; gap: 0.45rem; }
+.dt-ev-serving-row > .form-control:first-child { flex: 1 1 8rem; min-width: 0; }
+.dt-ev-grams { width: 6rem; flex: none; }
+.dt-ev-eq, .dt-ev-unit { color: var(--jv-muted); font-size: 0.85rem; }
+
+.dt-ev-remove {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  color: var(--jv-muted);
+  background: none;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+
+  &:hover { color: var(--jv-danger); background: var(--jv-danger-soft); }
+  &:focus-visible { outline: none; box-shadow: var(--jv-ring); }
+}
+
+.dt-ev-err { margin-top: 0.2rem; font-size: 0.78rem; color: var(--jv-danger); }
+
+.dt-ev-footer { justify-content: space-between; }
+.dt-ev-actions { display: flex; gap: 0.5rem; }

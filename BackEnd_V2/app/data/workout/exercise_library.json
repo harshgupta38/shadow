@@ -2886,7 +2886,9 @@
       "hamstrings"
     ],
     "images": [
-      "/workout/media/treadmill-walk/demo.gif"
+      "/workout/media/treadmill-walk/demo.gif",
+      "/workout/media/treadmill-walk/0.jpg",
+      "/workout/media/treadmill-walk/1.jpg"
     ],
     "description": "Walking on a treadmill at a speed and incline you control. The handrails are there for balance, not for leaning on.",
     "instructions": [
@@ -2963,7 +2965,10 @@
       "hamstrings",
       "calves"
     ],
-    "images": [],
+    "images": [
+      "/workout/media/stationary-bike/0.jpg",
+      "/workout/media/stationary-bike/1.jpg"
+    ],
     "description": "Pedalling a stationary bike. Low impact and easy on the knees, and the seat takes your body weight, which makes it a good choice for older adults and people returning to exercise.",
     "instructions": [
       "Set the seat so your knee has a slight bend at the bottom of each pedal stroke.",
@@ -3039,7 +3044,9 @@
       "hamstrings"
     ],
     "images": [
-      "/workout/media/elliptical-trainer/demo.gif"
+      "/workout/media/elliptical-trainer/demo.gif",
+      "/workout/media/elliptical-trainer/0.jpg",
+      "/workout/media/elliptical-trainer/1.jpg"
     ],
     "description": "A smooth, gliding motion that works the legs and arms together with no impact. A good option for joints that do not like running.",
     "instructions": [
@@ -3115,7 +3122,10 @@
     "secondary_muscles": [
       "hamstrings"
     ],
-    "images": [],
+    "images": [
+      "/workout/media/stair-climber/0.jpg",
+      "/workout/media/stair-climber/1.jpg"
+    ],
     "description": "Climbing steps on a machine that moves under your feet. It builds leg and glute strength while raising your heart rate.",
     "instructions": [
       "Stand with your feet hip-width apart on the steps.",
@@ -3542,7 +3552,10 @@
     "secondary_muscles": [
       "biceps"
     ],
-    "images": [],
+    "images": [
+      "/workout/media/wrist-and-elbow-circles/0.jpg",
+      "/workout/media/wrist-and-elbow-circles/1.jpg"
+    ],
     "description": "Loosens the wrists and elbows before curls, pulling and any lift that works the grip hard.",
     "instructions": [
       "Stand tall and hold the arms out in front at shoulder height, palms down.",
@@ -3754,7 +3767,8 @@
       "obliques"
     ],
     "images": [
-      "/workout/media/worlds-greatest-stretch/demo.gif"
+      "/workout/media/worlds-greatest-stretch/demo.gif",
+      "/workout/media/worlds-greatest-stretch/0.jpg"
     ],
     "description": "A deep lunge with one hand to the floor and the other arm reaching to the sky. It opens the hips, hamstrings, and upper back in one movement.",
     "instructions": [
@@ -3863,7 +3877,9 @@
       "abs"
     ],
     "images": [
-      "/workout/media/glute-bridge/demo.gif"
+      "/workout/media/glute-bridge/demo.gif",
+      "/workout/media/glute-bridge/0.jpg",
+      "/workout/media/glute-bridge/1.jpg"
     ],
     "description": "Lying on your back with your feet flat, driving the hips up. A simple way to wake up the glutes before squats and deadlifts.",
     "instructions": [
@@ -3901,7 +3917,9 @@
       "chest"
     ],
     "images": [
-      "/workout/media/inchworm/demo.gif"
+      "/workout/media/inchworm/demo.gif",
+      "/workout/media/inchworm/0.jpg",
+      "/workout/media/inchworm/1.jpg"
     ],
     "description": "Walking the hands out to a plank and back to the feet. It warms up the hamstrings, shoulders, and core together.",
     "instructions": [
@@ -3934,7 +3952,9 @@
     ],
     "secondary_muscles": [],
     "images": [
-      "/workout/media/ankle-circles/demo.gif"
+      "/workout/media/ankle-circles/demo.gif",
+      "/workout/media/ankle-circles/0.jpg",
+      "/workout/media/ankle-circles/1.jpg"
     ],
     "description": "Rotating each ankle to loosen the joint before squats, lunges, or any movement on the feet.",
     "instructions": [
@@ -4033,7 +4053,10 @@
     "secondary_muscles": [
       "abs"
     ],
-    "images": [],
+    "images": [
+      "/workout/media/standing-torso-twist/0.jpg",
+      "/workout/media/standing-torso-twist/1.jpg"
+    ],
     "description": "Rotating the upper body while the hips stay facing forward. It warms up the trunk before rotational or lifting work.",
     "instructions": [
       "Stand with your feet hip-width apart and your arms relaxed or bent at chest height.",

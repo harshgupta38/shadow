@@ -458,7 +458,7 @@ export function PlanBuilderPage() {
         </div>
 
         <aside className="wk-builder-aside">
-          <section className="surface wk-builder-card wk-builder-sticky">
+          <section className="surface wk-builder-card">
             <header className="wk-builder-aside-head">
               <h2 className="wk-builder-h">{day ? `${day.name || WEEKDAY_LONG[day.weekday]}: muscles` : "Muscles"}</h2>
               <MuscleLegend />

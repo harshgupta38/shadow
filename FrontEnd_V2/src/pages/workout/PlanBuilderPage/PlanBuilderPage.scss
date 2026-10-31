@@ -13,10 +13,16 @@
   @media (max-width: 1000px) { grid-template-columns: minmax(0, 1fr); }
 }
 
-.wk-builder-main,
-.wk-builder-aside { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
+.wk-builder-main { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
 
-.wk-builder-sticky {
+// The whole column sticks together as one unit, not just the Muscles card — see
+// PlanDetailPage.scss for why position: sticky on only one flex item still overlaps a following
+// sibling once scrolled far enough.
+.wk-builder-aside {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
   position: sticky;
   top: 1rem;
 
@@ -24,6 +30,17 @@
 }
 
 .wk-builder-card { padding: 1rem 1.1rem; display: flex; flex-direction: column; gap: 0.8rem; }
+
+// Chromium can leave a stale paint of a card behind while this column is pinned mid-scroll (a
+// position: sticky compositor ghosting bug — see PlanDetailPage.scss for the full writeup).
+// Never apply this to .wk-builder-aside itself — a transform on the sticky element risks
+// interfering with its own sticky offset.
+.wk-builder-aside > .wk-builder-card {
+  transform: translateZ(0);
+  will-change: transform;
+
+  @media (max-width: 1000px) { transform: none; will-change: auto; }
+}
 
 .wk-builder-h {
   margin: 0;

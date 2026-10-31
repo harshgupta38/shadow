@@ -31,5 +31,6 @@ def media_url(route_path: str) -> str:
 
 
 def thumbnail_url(slug: str) -> str:
-    """Small WebP for lists. An animated GIF is shown as its first frame in lists and plays on its own page."""
+    """Small still WebP for lists: the exercise's first photo, or the first frame of its GIF when it has no photo. The GIF
+    plays on the exercise's own page, which opens with it."""
     return media_url(f"{MEDIA_ROUTE}/{slug}/thumb.webp")

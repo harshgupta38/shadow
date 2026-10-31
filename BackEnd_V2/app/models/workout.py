@@ -20,6 +20,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship  # pyright: ignor
 from app.models.base import Base
 
 EQUIPMENT_VALUES = ("bodyweight", "dumbbell", "barbell", "machine", "cable", "kettlebell", "band", "other")
+EQUIPMENT_TYPE_VALUES = ("no_equipment", "light_equipment", "heavy_equipment")  # what it takes to do the exercise: nothing, a few portable items, or gym gear
 LEVEL_VALUES = ("beginner", "intermediate", "advanced")
 MECHANIC_VALUES = ("compound", "isolation")
 KIND_VALUES = ("strength", "cardio", "warmup")
@@ -40,6 +41,7 @@ class WorkoutExerciseDBM(Base):
     __tablename__ = "workout_exercises"
     __table_args__ = (
         CheckConstraint(_one_of("equipment", EQUIPMENT_VALUES), name="ck_workout_exercises_equipment"),
+        CheckConstraint(_one_of("equipment_type", EQUIPMENT_TYPE_VALUES), name="ck_workout_exercises_equipment_type"),
         CheckConstraint(_one_of("level", LEVEL_VALUES), name="ck_workout_exercises_level"),
         CheckConstraint(_one_of("mechanic", MECHANIC_VALUES), name="ck_workout_exercises_mechanic"),
         CheckConstraint(_one_of("kind", KIND_VALUES), name="ck_workout_exercises_kind"),
@@ -54,6 +56,7 @@ class WorkoutExerciseDBM(Base):
     kind: Mapped[str] = mapped_column(String(16), nullable=False, default="strength")
     measure: Mapped[str] = mapped_column(String(12), nullable=False, default="reps")
     equipment: Mapped[str] = mapped_column(String(16), nullable=False)
+    equipment_type: Mapped[str] = mapped_column(String(16), nullable=False, default="heavy_equipment")
     level: Mapped[str] = mapped_column(String(16), nullable=False)
     mechanic: Mapped[str] = mapped_column(String(16), nullable=False)
     primary_muscles: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)

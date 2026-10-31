@@ -21,6 +21,7 @@ _EXERCISE_FIELDS = (
     "kind",
     "measure",
     "equipment",
+    "equipment_type",
     "level",
     "mechanic",
     "primary_muscles",

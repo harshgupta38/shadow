@@ -12,6 +12,7 @@ import { useNavigate } from "react-router-dom";
 
 import { api, ApiError } from "@/api";
 import type { WorkoutOverview, WorkoutWeekDay } from "@/api";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { IllustratedErrorState } from "@/components/ui/IllustratedErrorState/IllustratedErrorState";
 import { useToast } from "@/context/ToastContext";
 import { ROUTES } from "@/routes/RoutePaths";
@@ -60,6 +61,7 @@ export function TodayTab({ onOpenExercise }: TodayTabProps) {
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   const [stopping, setStopping] = useState(false);
+  const [confirmStop, setConfirmStop] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -97,9 +99,12 @@ export function TodayTab({ onOpenExercise }: TodayTabProps) {
     setStopping(true);
     try {
       await api.workout.deactivatePlan();
+      // Close before reloading: load() swaps the page for a skeleton, and the dialog must not reopen after it.
+      setConfirmStop(false);
       toast.success(`You've stopped following "${planName}". Your history is kept.`);
       await load();
     } catch (err) {
+      setConfirmStop(false);
       toast.error(err instanceof ApiError ? err.message : "Couldn't stop following this plan. Please try again.");
     } finally {
       setStopping(false);
@@ -264,7 +269,7 @@ export function TodayTab({ onOpenExercise }: TodayTabProps) {
         <section className="surface wk-today-card">
           <header className="wk-today-week-head">
             <h2 className="wk-h">This week</h2>
-            <button type="button" className="btn btn-outline-secondary btn-sm" disabled={stopping} onClick={() => void stopFollowing(activePlan.name)}>
+            <button type="button" className="btn btn-outline-danger btn-sm" disabled={stopping} onClick={() => setConfirmStop(true)}>
               {stopping ? "Stopping…" : "Stop following"}
             </button>
           </header>
@@ -279,6 +284,16 @@ export function TodayTab({ onOpenExercise }: TodayTabProps) {
             ))}
           </div>
         </section>
+        <ConfirmDialog
+          show={confirmStop}
+          title={`Stop following "${activePlan.name}"?`}
+          message="Your logged workouts stay in your history."
+          confirmLabel="Stop following"
+          destructive
+          busy={stopping}
+          onConfirm={() => void stopFollowing(activePlan.name)}
+          onCancel={() => setConfirmStop(false)}
+        />
       </div>
 
       <aside className="wk-today-aside">

@@ -46,6 +46,10 @@ export const workoutApi = {
     return http.get<WorkoutPlanDetail>(url(W.PLAN(id)));
   },
 
+  getPlanDayWarmUps(planId: number, weekday: number): Promise<ExerciseSummary[]> {
+    return http.get<ExerciseSummary[]>(url(W.PLAN_DAY_WARM_UPS(planId, weekday)));
+  },
+
   createPlan(data: WorkoutPlanSaveRequest): Promise<WorkoutPlanDetail> {
     return http.post<WorkoutPlanDetail>(url(W.PLANS), data);
   },

@@ -8,6 +8,7 @@ MuscleId = Literal[
     "lats", "lower_back", "glutes", "quads", "hamstrings", "calves",
 ]
 Equipment = Literal["bodyweight", "dumbbell", "barbell", "machine", "cable", "kettlebell", "band", "other"]
+EquipmentType = Literal["no_equipment", "light_equipment", "heavy_equipment"]
 Level = Literal["beginner", "intermediate", "advanced"]
 Goal = Literal["build_muscle", "lose_fat", "strength", "endurance", "general_fitness"]
 Mechanic = Literal["compound", "isolation"]
@@ -120,6 +121,7 @@ class ExerciseSummaryResponse(BaseModel):
     primary_muscles: list[MuscleId]
     secondary_muscles: list[MuscleId]
     equipment: Equipment
+    equipment_type: EquipmentType
     level: Level
     mechanic: Mechanic
     kind: ExerciseKind

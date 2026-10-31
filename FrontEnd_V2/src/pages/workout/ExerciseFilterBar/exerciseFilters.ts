@@ -1,4 +1,4 @@
-import type { ExerciseKind, ExerciseSummary, MuscleId, WorkoutEquipment, WorkoutLevel } from "@/api";
+import type { ExerciseEquipmentType, ExerciseKind, ExerciseSummary, MuscleId, WorkoutEquipment, WorkoutLevel } from "@/api";
 import { MUSCLE_GROUPS, MUSCLE_LABEL } from "@/pages/workout/WorkoutPage.constants";
 
 export interface ExerciseFilters {
@@ -8,6 +8,8 @@ export interface ExerciseFilters {
   /** Muscles picked in the muscle picker (toggled on/off). Matches primary and secondary muscles. */
   muscles: MuscleId[];
   equipment: WorkoutEquipment[];
+  /** How much gear to allow: none, light or heavy. Empty means any. */
+  equipmentType: ExerciseEquipmentType[];
   level: WorkoutLevel[];
   /** Kinds to show. All three are on by default; with none on, nothing is shown. */
   kinds: ExerciseKind[];
@@ -16,7 +18,7 @@ export interface ExerciseFilters {
 const ALL_EXERCISE_KINDS: ExerciseKind[] = ["strength", "cardio", "warmup"];
 
 export const DEFAULT_EXERCISE_FILTERS: ExerciseFilters = {
-  query: "", group: "all", muscles: [], equipment: [], level: [], kinds: [...ALL_EXERCISE_KINDS],
+  query: "", group: "all", muscles: [], equipment: [], equipmentType: [], level: [], kinds: [...ALL_EXERCISE_KINDS],
 };
 
 export function hasActiveFilters(f: ExerciseFilters): boolean {
@@ -25,6 +27,7 @@ export function hasActiveFilters(f: ExerciseFilters): boolean {
     f.group !== "all" ||
     f.muscles.length > 0 ||
     f.equipment.length > 0 ||
+    f.equipmentType.length > 0 ||
     f.level.length > 0 ||
     ALL_EXERCISE_KINDS.some((kind) => !f.kinds.includes(kind))
   );
@@ -51,6 +54,7 @@ export function applyExerciseFilters(list: ExerciseSummary[], f: ExerciseFilters
       if (groupMuscles && !ex.primary_muscles.some((m) => groupMuscles.includes(m))) return false;
       if (muscles.length > 0 && !ex.primary_muscles.some((m) => muscles.includes(m)) && !ex.secondary_muscles.some((m) => muscles.includes(m))) return false;
       if (f.equipment.length > 0 && !f.equipment.includes(ex.equipment)) return false;
+      if (f.equipmentType.length > 0 && !f.equipmentType.includes(ex.equipment_type)) return false;
       if (f.level.length > 0 && !f.level.includes(ex.level)) return false;
       if (!f.kinds.includes(ex.kind)) return false;
       if (words.length > 0) {

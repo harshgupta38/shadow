@@ -22,6 +22,7 @@ def exercise_summary(exercise: WorkoutExerciseDBM) -> ExerciseSummaryResponse:
         primary_muscles=exercise.primary_muscles,
         secondary_muscles=exercise.secondary_muscles,
         equipment=exercise.equipment,
+        equipment_type=exercise.equipment_type,
         level=exercise.level,
         mechanic=exercise.mechanic,
         kind=exercise.kind,
@@ -168,6 +169,18 @@ def _good_warm_up_for(db: Session, exercise: WorkoutExerciseDBM) -> list[Exercis
         return []
     lifts = [pair for pair in _scored_matches(db, exercise, ("strength",)) if pair[0] >= 2][:6]
     return [exercise_summary(item) for _, item in lifts]
+
+
+def warm_ups_for(db: Session, lifts: Iterable[WorkoutExerciseDBM]) -> list[ExerciseSummaryResponse]:
+    """The warm-ups for a day's exercises: each lift's own warm-up (see _warm_up_with), without repeats, in lift order."""
+    seen: set[int] = set()
+    warm_ups: list[ExerciseSummaryResponse] = []
+    for lift in lifts:
+        for item in _warm_up_with(db, lift):
+            if item.id not in seen:
+                seen.add(item.id)
+                warm_ups.append(item)
+    return warm_ups
 
 
 def get_exercise(db: Session, user_id: int, exercise_id: int) -> ExerciseDetailResponse:

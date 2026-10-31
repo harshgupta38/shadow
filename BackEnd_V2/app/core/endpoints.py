@@ -148,6 +148,7 @@ class Endpoints:
         PLAN_DETAIL = "/plans/{plan_id}"
         PLAN_ACTIVATE = "/plans/{plan_id}/activate"
         PLAN_DUPLICATE = "/plans/{plan_id}/duplicate"
+        PLAN_DAY_WARM_UPS = "/plans/{plan_id}/days/{weekday}/warm-ups"
         SESSIONS = "/sessions"
         SESSION_DETAIL = "/sessions/{session_id}"
         SESSION_FINISH = "/sessions/{session_id}/finish"

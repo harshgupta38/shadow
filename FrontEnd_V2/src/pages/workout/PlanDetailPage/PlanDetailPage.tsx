@@ -3,7 +3,7 @@ import { CheckCircleFill, Clock, Copy, HeartPulseFill, Pencil, PlayFill, Trash3F
 import { useNavigate, useParams } from "react-router-dom";
 
 import { api, ApiError } from "@/api";
-import type { PlanDay, WorkoutPlanDetail } from "@/api";
+import type { ExerciseSummary, PlanDay, WorkoutPlanDetail } from "@/api";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { IllustratedErrorState } from "@/components/ui/IllustratedErrorState/IllustratedErrorState";
 import { PageHeader, type PageHeaderAction } from "@/components/ui/PageHeader/PageHeader";
@@ -17,6 +17,7 @@ import { Skeleton } from "@/pages/workout/Skeleton/Skeleton";
 import {
   EQUIPMENT_LABEL,
   GOAL_LABEL,
+  KIND_LABEL,
   LEVEL_LABEL,
   LEVEL_PILL,
   WEEKDAY_LONG,
@@ -43,6 +44,9 @@ export function PlanDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [weekday, setWeekday] = useState<number | null>(null);
+  // Kept with the weekday they belong to, so a late answer never shows under another day.
+  const [warmUps, setWarmUps] = useState<{ weekday: number; items: ExerciseSummary[] } | null>(null);
+  const [warmUpsError, setWarmUpsError] = useState<string | null>(null);
   const [busy, setBusy] = useState<"activate" | "deactivate" | "copy" | "delete" | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -72,6 +76,26 @@ export function PlanDetailPage() {
 
   const dayByWeekday = useMemo(() => new Map((plan?.days ?? []).map((d) => [d.weekday, d])), [plan]);
   const day: PlanDay | null = weekday !== null ? (dayByWeekday.get(weekday) ?? null) : null;
+
+  // Warm-ups for the selected day's lifts, fetched when the day changes.
+  const loadedId = plan?.id;
+  const hasDay = day !== null;
+  useEffect(() => {
+    if (loadedId === undefined || weekday === null || !hasDay) return;
+    let current = true;
+    setWarmUpsError(null);
+    api.workout
+      .getPlanDayWarmUps(loadedId, weekday)
+      .then((items) => {
+        if (current) setWarmUps({ weekday, items });
+      })
+      .catch((err) => {
+        if (current) setWarmUpsError(err instanceof ApiError ? err.message : "Could not load the warm-ups right now.");
+      });
+    return () => {
+      current = false;
+    };
+  }, [loadedId, weekday, hasDay]);
 
   const dayMuscles = useMemo(() => musclesOf(day?.exercises ?? []), [day]);
   const weekVolume = useMemo(() => setsByMuscle((plan?.days ?? []).flatMap((d) => d.exercises)), [plan]);
@@ -256,6 +280,51 @@ export function PlanDetailPage() {
                           rest {formatRest(pe.rest_seconds)}
                           {pe.weight_kg !== null ? ` · ${pe.weight_kg} kg` : ""}
                         </small>
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {/* Warm-ups for the selected day's lifts */}
+          {day && warmUpsError && (
+            <section className="surface wk-pd-card">
+              <p className="wk-pd-sub">{warmUpsError}</p>
+            </section>
+          )}
+          {day && !warmUpsError && warmUps?.weekday !== weekday && (
+            <section className="surface wk-pd-card">
+              <Skeleton height={180} />
+            </section>
+          )}
+          {day && warmUps && warmUps.weekday === weekday && warmUps.items.length > 0 && (
+            <section className="surface wk-pd-card">
+              <header className="wk-pd-day-head">
+                <div>
+                  <h2 className="wk-pd-h wk-pd-h--lg">Warm-up</h2>
+                  <p className="wk-pd-sub">
+                    Before {day.name} · {pluralize(warmUps.items.length, "exercise")}
+                  </p>
+                </div>
+              </header>
+
+              <ul className="wk-pd-list">
+                {warmUps.items.map((ex, i) => (
+                  <li key={ex.id}>
+                    <button type="button" className="wk-pd-ex" onClick={() => navigate(ROUTES.WORKOUT_EXERCISE.replace(":exerciseId", String(ex.id)))}>
+                      <span className="wk-pd-ex-num">{i + 1}</span>
+                      <span className="wk-pd-ex-thumb">
+                        <ExerciseThumb exercise={ex} imageUrl={ex.image_url} mapSize="xs" />
+                      </span>
+                      <span className="wk-pd-ex-info">
+                        <span className="wk-pd-ex-name">{ex.name}</span>
+                        <MuscleChips primary={ex.primary_muscles} secondary={ex.secondary_muscles} max={3} />
+                      </span>
+                      <span className="wk-pd-ex-dose">
+                        <strong>{formatDose(ex.measure, ex.default_sets, ex.default_reps)}</strong>
+                        <small>{KIND_LABEL[ex.kind]}</small>
                       </span>
                     </button>
                   </li>

@@ -1,4 +1,5 @@
 import type {
+  ExerciseEquipmentType,
   ExerciseKind,
   ExerciseMeasure,
   ExerciseMechanic,
@@ -95,6 +96,16 @@ export const SOURCE_LABEL: Record<WorkoutPlanSource, string> = {
 export const EQUIPMENT_OPTIONS = (Object.keys(EQUIPMENT_LABEL) as WorkoutEquipment[]).map((value) => ({
   value,
   label: EQUIPMENT_LABEL[value],
+}));
+
+export const EQUIPMENT_TYPE_LABEL: Record<ExerciseEquipmentType, string> = {
+  no_equipment: "No equipment",
+  light_equipment: "Light equipment",
+  heavy_equipment: "Heavy equipment",
+};
+export const EQUIPMENT_TYPE_OPTIONS = (Object.keys(EQUIPMENT_TYPE_LABEL) as ExerciseEquipmentType[]).map((value) => ({
+  value,
+  label: EQUIPMENT_TYPE_LABEL[value],
 }));
 export const LEVEL_OPTIONS = (Object.keys(LEVEL_LABEL) as WorkoutLevel[]).map((value) => ({ value, label: LEVEL_LABEL[value] }));
 export const KIND_LABEL: Record<ExerciseKind, string> = { strength: "Strength", cardio: "Cardio", warmup: "Warm-up" };

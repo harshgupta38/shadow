@@ -1243,6 +1243,8 @@ export type MuscleId =
 
 export type WorkoutEquipment =
   | "bodyweight" | "dumbbell" | "barbell" | "machine" | "cable" | "kettlebell" | "band" | "other";
+// How much gear an exercise needs: none, a few portable items, or gym gear such as a bench, rack or machine.
+export type ExerciseEquipmentType = "no_equipment" | "light_equipment" | "heavy_equipment";
 export type WorkoutLevel = "beginner" | "intermediate" | "advanced";
 export type WorkoutGoal = "build_muscle" | "lose_fat" | "strength" | "endurance" | "general_fitness";
 export type ExerciseMechanic = "compound" | "isolation";
@@ -1260,6 +1262,7 @@ export interface ExerciseSummary {
   primary_muscles: MuscleId[];
   secondary_muscles: MuscleId[];
   equipment: WorkoutEquipment;
+  equipment_type: ExerciseEquipmentType;
   level: WorkoutLevel;
   mechanic: ExerciseMechanic;
   kind: ExerciseKind;

@@ -18,6 +18,7 @@ from app.models.workout import (
     WorkoutSettingDBM,
 )
 from app.schemas.workout import (
+    ExerciseSummaryResponse,
     PlanDayInput,
     PlanDayResponse,
     PlanExerciseInput,
@@ -27,7 +28,7 @@ from app.schemas.workout import (
     WorkoutPlanSaveRequest,
     WorkoutPlanSummaryResponse,
 )
-from app.services.workout_library_service import exercise_summary
+from app.services.workout_library_service import exercise_summary, warm_ups_for
 
 _PLAN_NAME_MAX = 80
 _COPY_SUFFIX = " (copy)"
@@ -212,6 +213,14 @@ def list_plans(db: Session, user: UserDBM, source: PlanSource | None) -> list[Wo
 
 def get_plan(db: Session, user: UserDBM, plan_id: int) -> WorkoutPlanDetailResponse:
     return plan_detail(_visible(db, user, plan_id), active_plan_id(db, user.id))
+
+
+def day_warm_ups(db: Session, user: UserDBM, plan_id: int, weekday: int) -> list[ExerciseSummaryResponse]:
+    plan = _visible(db, user, plan_id)
+    day = next((d for d in plan.days if d.weekday == weekday), None)
+    if day is None:
+        raise NotFoundError("This plan has no workout on that day.")
+    return warm_ups_for(db, [entry.exercise for entry in day.exercises])
 
 
 def create_plan(db: Session, user: UserDBM, data: WorkoutPlanSaveRequest) -> WorkoutPlanDetailResponse:

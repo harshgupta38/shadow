@@ -182,6 +182,10 @@ def _migrate_workout(engine) -> None:
             "ALTER TABLE workout_exercises ADD COLUMN measure VARCHAR(12) NOT NULL DEFAULT 'reps'",
         )
         _add_column_if_missing(
+            _conn, "workout_exercises", "equipment_type",
+            "ALTER TABLE workout_exercises ADD COLUMN equipment_type VARCHAR(16) NOT NULL DEFAULT 'heavy_equipment'",
+        )
+        _add_column_if_missing(
             _conn, "workout_settings", "active_plan_started_on",
             "ALTER TABLE workout_settings ADD COLUMN active_plan_started_on DATE",
         )

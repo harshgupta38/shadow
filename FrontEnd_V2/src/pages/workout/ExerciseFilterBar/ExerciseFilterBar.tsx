@@ -1,4 +1,4 @@
-import type { ExerciseKind, WorkoutEquipment, WorkoutLevel } from "@/api";
+import type { ExerciseEquipmentType, ExerciseKind, WorkoutEquipment, WorkoutLevel } from "@/api";
 import { FilterDropdown } from "@/components/ui/FilterDropdown/FilterDropdown";
 import {
   DEFAULT_EXERCISE_FILTERS,
@@ -6,7 +6,13 @@ import {
   type ExerciseFilters,
 } from "@/pages/workout/ExerciseFilterBar/exerciseFilters";
 import { SearchBox } from "@/pages/workout/SearchBox/SearchBox";
-import { EQUIPMENT_OPTIONS, KIND_OPTIONS, LEVEL_OPTIONS, MUSCLE_GROUPS } from "@/pages/workout/WorkoutPage.constants";
+import {
+  EQUIPMENT_OPTIONS,
+  EQUIPMENT_TYPE_OPTIONS,
+  KIND_OPTIONS,
+  LEVEL_OPTIONS,
+  MUSCLE_GROUPS,
+} from "@/pages/workout/WorkoutPage.constants";
 import "./ExerciseFilterBar.scss";
 
 interface ExerciseFilterBarProps {
@@ -55,6 +61,13 @@ export function ExerciseFilterBar({ filters, onChange, resultLabel }: ExerciseFi
               options: KIND_OPTIONS,
               selected: filters.kinds,
               onToggle: (v) => onChange({ ...filters, kinds: toggle(filters.kinds, v as ExerciseKind) }),
+            },
+            {
+              key: "equipmentType",
+              label: "Equipment needed",
+              options: EQUIPMENT_TYPE_OPTIONS,
+              selected: filters.equipmentType,
+              onToggle: (v) => onChange({ ...filters, equipmentType: toggle(filters.equipmentType, v as ExerciseEquipmentType) }),
             },
             {
               key: "equipment",

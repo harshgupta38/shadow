@@ -39,7 +39,7 @@ export function ExerciseFilterBar({ filters, onChange, resultLabel }: ExerciseFi
         <FilterDropdown
           label="Filters"
           width={280}
-          onReset={() => onChange({ ...DEFAULT_EXERCISE_FILTERS, query: filters.query, muscle: filters.muscle })}
+          onReset={() => onChange({ ...DEFAULT_EXERCISE_FILTERS, query: filters.query, muscles: filters.muscles })}
           sections={[
             {
               key: "group",
@@ -47,7 +47,7 @@ export function ExerciseFilterBar({ filters, onChange, resultLabel }: ExerciseFi
               options: GROUP_OPTIONS,
               selected: [filters.group],
               single: true,
-              onToggle: (v) => onChange({ ...filters, group: v, muscle: null }),
+              onToggle: (v) => onChange({ ...filters, group: v, muscles: [] }),
             },
             {
               key: "kind",

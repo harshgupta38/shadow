@@ -3,7 +3,7 @@ import { MuscleMap } from "@/pages/workout/MuscleMap/MuscleMap";
 import "./MusclePicker.scss";
 
 interface MusclePickerProps {
-  selected: MuscleId | null;
+  selected: MuscleId[];
   onSelect: (muscle: MuscleId) => void;
   onClear: () => void;
 }
@@ -14,7 +14,7 @@ export function MusclePicker({ selected, onSelect, onClear }: MusclePickerProps)
     <section className="surface wk-mp" aria-label="Choose muscles">
       <header className="wk-mp-head">
         <h3>Choose muscles</h3>
-        {selected ? (
+        {selected.length > 0 ? (
           <button type="button" className="wk-mp-clear" onClick={onClear}>
             Show all
           </button>

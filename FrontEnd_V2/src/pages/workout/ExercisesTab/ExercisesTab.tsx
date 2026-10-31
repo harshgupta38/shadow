@@ -85,9 +85,13 @@ export function ExercisesTab({ onOpenExercise }: ExercisesTabProps) {
     setRows(ROWS_PER_PAGE);
   }
 
-  // Picking the muscle that is already picked clears it. A muscle is narrower than a group tab, so it resets the group.
+  // Each muscle toggles independently, so more than one can be picked at once. Muscles are narrower than a
+  // group tab, so picking any muscle resets the group.
   function pickMuscle(muscle: MuscleId) {
-    changeFilters({ ...filters, muscle: filters.muscle === muscle ? null : muscle, group: "all" });
+    const muscles = filters.muscles.includes(muscle)
+      ? filters.muscles.filter((m) => m !== muscle)
+      : [...filters.muscles, muscle];
+    changeFilters({ ...filters, muscles, group: "all" });
   }
 
   if (error) return <IllustratedErrorState onRetry={() => void reload()} />;
@@ -107,8 +111,8 @@ export function ExercisesTab({ onOpenExercise }: ExercisesTabProps) {
           <button
             key={m}
             type="button"
-            className={`wk-group${filters.muscle === m ? " is-active" : ""}`}
-            aria-pressed={filters.muscle === m}
+            className={`wk-group${filters.muscles.includes(m) ? " is-active" : ""}`}
+            aria-pressed={filters.muscles.includes(m)}
             onClick={() => pickMuscle(m)}
           >
             {MUSCLE_LABEL[m]}
@@ -119,9 +123,9 @@ export function ExercisesTab({ onOpenExercise }: ExercisesTabProps) {
       {/* The picker takes the top-right corner, so the cards wrap around it the way text wraps around a picture. */}
       <div ref={setGrid} className={`wk-ex-grid${wide ? "" : " is-narrow"}`}>
         <MusclePicker
-          selected={filters.muscle}
+          selected={filters.muscles}
           onSelect={pickMuscle}
-          onClear={() => changeFilters({ ...filters, muscle: null })}
+          onClear={() => changeFilters({ ...filters, muscles: [] })}
         />
 
         {loading ? (

@@ -17,8 +17,8 @@ interface MuscleMapProps {
   captions?: boolean;
   /** Makes the muscles tappable. Called with the id of the muscle that was tapped. */
   onSelect?: (muscle: MuscleId) => void;
-  /** The muscle to draw as picked. Only shown when onSelect is set. */
-  selected?: MuscleId | null;
+  /** The muscles to draw as picked. Only shown when onSelect is set. */
+  selected?: MuscleId[];
   className?: string;
 }
 
@@ -43,7 +43,7 @@ interface FigureProps {
   side: Side;
   stateOf: (m: MuscleId) => MuscleState;
   label: string;
-  selected: MuscleId | null;
+  selected: MuscleId[];
   onSelect?: (muscle: MuscleId) => void;
 }
 
@@ -53,7 +53,7 @@ function Figure({ side, stateOf, label, selected, onSelect }: FigureProps) {
 
   const classOf = (m: MuscleId) => {
     const tappable = onSelect ? " mm-muscle--interactive" : "";
-    const picked = m === selected ? " mm-muscle--selected" : "";
+    const picked = selected.includes(m) ? " mm-muscle--selected" : "";
     return `mm-muscle mm-muscle--${stateOf(m)}${tappable}${picked}`;
   };
 
@@ -92,7 +92,7 @@ export function MuscleMap({
   size = "md",
   captions,
   onSelect,
-  selected = null,
+  selected = NO_MUSCLES,
   className,
 }: MuscleMapProps) {
   const stateOf = (m: MuscleId): MuscleState => (primary.includes(m) ? "primary" : secondary.includes(m) ? "secondary" : "idle");

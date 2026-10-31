@@ -43,18 +43,6 @@ export function Sidebar({ onNavigate, collapsed, onToggleCollapse }: SidebarProp
         ))}
       </nav>
 
-      <a
-        href={BUY_ME_A_COFFEE_URL}
-        target="_blank"
-        rel="noopener noreferrer"
-        className={`sidebar-donate-link${collapsed ? " sidebar-donate-link--icon" : ""}`}
-        title={collapsed ? "Buy me a coffee" : undefined}
-        aria-label={collapsed ? "Buy me a coffee" : undefined}
-      >
-        <CupHotFill size={18} />
-        {!collapsed && <span>Buy me a coffee</span>}
-      </a>
-
       {onToggleCollapse && (
         <button
           type="button"
@@ -71,6 +59,18 @@ export function Sidebar({ onNavigate, collapsed, onToggleCollapse }: SidebarProp
           )}
         </button>
       )}
+
+      <a
+        href={BUY_ME_A_COFFEE_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={`sidebar-donate-link${collapsed ? " sidebar-donate-link--icon" : ""}`}
+        title={collapsed ? "Buy me a coffee" : undefined}
+        aria-label={collapsed ? "Buy me a coffee" : undefined}
+      >
+        <CupHotFill size={18} />
+        {!collapsed && <span>Buy me a coffee</span>}
+      </a>
     </div>
   );
 }

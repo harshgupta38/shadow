@@ -884,6 +884,7 @@ a {
   overflow: hidden;
   transition: background var(--jv-transition), color var(--jv-transition);
   flex-shrink: 0;
+  margin-bottom: 0.4rem;
 }
 .sidebar-collapse-btn:hover {
   background: var(--jv-surface-2);
@@ -909,7 +910,6 @@ a {
   white-space: nowrap;
   overflow: hidden;
   flex-shrink: 0;
-  margin-bottom: 0.4rem;
   transition: background var(--jv-transition), color var(--jv-transition);
 }
 .sidebar-donate-link:hover {

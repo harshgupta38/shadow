@@ -52,7 +52,7 @@ class UserDBM(Base):
     # timestamp from the ORM's INSERT even on a DB where this column was
     # added via ALTER TABLE — SQLite refuses a non-constant column default
     # on ADD COLUMN, so the live schema has no DB-level default to fall back
-    # on there (see db/session.ensure_user_columns).
+    # on there (see _add_column_if_missing in main.py).
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

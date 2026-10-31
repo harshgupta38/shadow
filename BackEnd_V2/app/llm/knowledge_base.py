@@ -156,51 +156,6 @@ TASK_PROPOSAL_SYSTEM_INSTRUCTION_CLAUDE = (
 )
 
 
-# def build_task_proposal_user_prompt(goal_data: dict, milestone_data: dict) -> str:
-#     challenges = goal_data.get("challenges") or []
-#     strengths = goal_data.get("strengths") or []
-#     success_metrics = goal_data.get("success_metrics") or []
-
-#     return (
-#         f"Current Date: {date.today().isoformat()}\n\n"
-
-#         "Parent Goal:\n"
-#         f"Title: {goal_data.get('title', '')}\n"
-#         f"Summary: {goal_data.get('summary', '')}\n"
-#         f"Category: {goal_data.get('category', '')}\n"
-#         f"Target Date: {goal_data.get('target_date') or 'Not specified'}\n"
-#         f"Motivation: {goal_data.get('motivation', '')}\n"
-#         f"Success Definition: {goal_data.get('success_definition', '')}\n"
-#         f"Success Metrics: "
-#         f"{', '.join(str(m) for m in success_metrics) if success_metrics else 'None listed'}\n"
-#         f"Current State: {goal_data.get('current_state', '')}\n"
-#         f"Challenges: "
-#         f"{', '.join(str(c) for c in challenges) if challenges else 'None listed'}\n"
-#         f"Strengths: "
-#         f"{', '.join(str(s) for s in strengths) if strengths else 'None listed'}\n\n"
-
-#         "Milestone:\n"
-#         f"Title: {milestone_data.get('title', '')}\n"
-#         f"Description: {milestone_data.get('description') or ''}\n"
-#         f"Reason: {milestone_data.get('reason') or ''}\n"
-#         f"Estimated Duration: "
-#         f"{milestone_data.get('estimated_duration_days') or 'Not specified'} days\n"
-#         f"Target Date: "
-#         f"{milestone_data.get('target_date') or 'Not specified'}\n"
-#         f"Position: {milestone_data.get('position', 0)}\n\n"
-
-#         "Additional Instructions:\n"
-#         "- Generate concrete tasks that directly contribute to this milestone.\n"
-#         "- Tasks should be actionable outcomes or pieces of work, not milestones.\n"
-#         "- Do not create tasks unrelated to the milestone or parent goal.\n"
-#         "- Avoid overlapping or duplicate tasks.\n"
-#         "- Keep the number of tasks small and meaningful.\n"
-#         "- Respect the milestone's target date and estimated duration.\n"
-#         "- Make tasks specific enough that the user can understand what needs to be done.\n"
-#         "- Use the goal's success definition and success metrics when deciding what tasks are necessary.\n"
-#         "- Do not invent requirements that are unrelated to the user's goal.\n"
-#     )
-
 def build_task_proposal_user_prompt(
     goal_data: dict,
     milestone_data: dict,

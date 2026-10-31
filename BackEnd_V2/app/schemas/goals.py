@@ -7,7 +7,6 @@ from app.schemas.common import ORMModel
 
 GoalStatus = Literal["Active", "Paused", "Completed"]
 GoalListStatusFilter = Literal["All", "Active", "Paused", "Completed"]
-GoalProposalStatus = Literal["pending", "saved"]
 CategoryType = Literal[
     "Career",
     "Business",

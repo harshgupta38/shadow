@@ -58,31 +58,9 @@
     gap: 0.32rem;
 }
 
-.milestone-task-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.24rem;
-    border-radius: 999px;
-    padding: 0.12rem 0.44rem;
-    font-size: 0.72rem;
-    color: var(--jv-muted);
-    background: color-mix(in srgb, var(--jv-border) 54%, var(--jv-surface) 46%);
-
-    &.info {
-        background: var(--jv-info-soft); 
-        color: var(--jv-info);
-    }
-}
-
 .milestone-task-chip-font {
     font-size: 0.72rem !important;
     font-weight: 500 !important;
-}
-
-.milestone-task-chip-type {
-    color: var(--jv-brand-1);
-    font-weight: 600;
-    background: color-mix(in srgb, var(--jv-brand-soft) 70%, transparent);
 }
 
 .milestone-task-progress {

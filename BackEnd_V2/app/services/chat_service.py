@@ -15,7 +15,7 @@ from app.llm.models import MessageResponse
 from app.llm.config import llm_settings
 from app.llm.tools import ToolContext, execute_tool
 from app.core.exceptions import NotFoundError, ValidationError
-from app.llm import get_llm_service, get_llm_service_for_user, LLMService, NewConvoResponse, LLMError, LLMRequestError
+from app.llm import get_llm_service, LLMService, NewConvoResponse, LLMError, LLMRequestError
 from app.llm.service import get_llm_service_for_ai_behavior
 from app.services import memory_service, settings_service
 from app.models.user import UserDBM
@@ -439,7 +439,6 @@ async def create_conversation(
     ai_behavior = settings_service.get_ai_behavior(db, current_user.id)
     response_length = ai_behavior["ai_response_length"]
     personality = ai_behavior["ai_personality"]
-    ai_provider = ai_behavior["ai_provider"]
     ai_model = ai_behavior["ai_default_model"]
 
     tool_context = ToolContext(db=db, current_user=current_user)

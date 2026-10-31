@@ -114,16 +114,6 @@ def _to_response(setting: UserSettingDBM) -> SettingsResponse:
 # ─── Service functions ────────────────────────────────────────────────────────
 
 
-def get_theme_preference(db: Session, user_id: int) -> str:
-    """Lightweight read used by /auth/my-data — does NOT create a default row."""
-    setting = db.scalar(
-        select(UserSettingDBM).where(UserSettingDBM.user_id == user_id)
-    )
-    if setting is None:
-        return _DEFAULT_APPEARANCE["theme_preference"]
-    return str(setting.appearance.get("theme_preference", _DEFAULT_APPEARANCE["theme_preference"]))
-
-
 def get_week_starts_on(db: Session, user_id: int) -> str:
     """Lightweight read — returns 'monday' or 'sunday' without creating a default row."""
     setting = db.scalar(

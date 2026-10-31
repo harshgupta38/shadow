@@ -25,7 +25,6 @@ OBJECTIVE_VALUES = ("fat_loss", "muscle_gain", "maintenance", "wellness", "custo
 DIET_PREFERENCE_VALUES = ("no_preference", "vegetarian", "eggetarian", "vegan", "pescatarian", "jain", "non_vegetarian")
 HEIGHT_UNIT_VALUES = ("cm", "ft_in")  # the unit the height was typed in; the stored height is always centimetres
 COOKING_VALUES = ("none", "minimal", "moderate", "plenty")
-TARGET_SOURCE_VALUES = ("estimated", "user", "prescribed")
 STANDARD_MEAL_TYPES = ("breakfast", "morning_snack", "lunch", "evening_snack", "dinner")
 VERIFICATION_VALUES = ("verified", "estimated", "user")  # how far a food's nutrition can be trusted
 CERTAINTY_VALUES = ("exact", "estimated")  # how sure the logged quantity is

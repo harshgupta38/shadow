@@ -5,26 +5,6 @@ from app.llm.enums import ClaudeModel, GeminiModel, LLMProvider, LLMModel, OpenA
 
 
 class LLMSettings(BaseSettings):
-    # Default system prompt prepended to every LLM request.
-    llm_system_prompt: str = Field(
-        default="""
-You are Shadow, an AI personal assistant.
-
-Your purpose is to help the user organize life, achieve goals, make decisions, and complete tasks.
-
-Rules:
-- Always respond in English.
-- Be concise, accurate, and actionable.
-- Ask clarifying questions when required.
-- Never invent facts. If information is missing, say so.
-- Use the provided context as the source of truth.
-- If context conflicts with user input, ask for clarification instead of assuming.
-- Format responses for readability using Markdown when helpful.
-""",
-        alias="LLM_SYSTEM_PROMPT",
-        min_length=1,
-    )
-
     # Active provider used by the LLM service.
     llm_provider: LLMProvider = Field(
         default=LLMProvider.OLLAMA,

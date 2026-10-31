@@ -41,5 +41,3 @@ export const GOAL_LOADER_STEPS = [
     "Preparing your goal overview",
     "Almost there",
 ];
-
-export const MAX_ANSWER_LINES = 8;

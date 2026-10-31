@@ -17,7 +17,6 @@ NumericTaskStatus = Literal[
 ]
 # Binary tasks only allow: "Not Started", "Completed", "Cancelled".
 # Enforced in the service layer (update request doesn't carry task_type).
-BinaryTaskStatus = Literal["Not Started", "Completed", "Cancelled"]
 TaskCreatedBy = Literal["User", "Assistant"]
 TaskPriority = Literal["highest", "high", "medium", "low", "lowest"]
 TaskPreferredTime = Literal["flexible", "morning", "afternoon", "evening", "night", "custom"]

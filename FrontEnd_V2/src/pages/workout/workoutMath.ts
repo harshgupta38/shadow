@@ -63,3 +63,8 @@ export function estimateMinutes(rows: { sets: number; rest_seconds: number; reps
 export function formatSetCount(n: number): string {
   return Number.isInteger(n) ? String(n) : n.toFixed(1);
 }
+
+/** Sets that count toward a session's "N sets" total — a timed cardio block is one block, not a set. */
+export function countSets(items: HasVolume[]): number {
+  return items.reduce((total, { exercise, sets }) => total + (exercise.measure !== "minutes" && Number.isFinite(sets) ? sets : 0), 0);
+}

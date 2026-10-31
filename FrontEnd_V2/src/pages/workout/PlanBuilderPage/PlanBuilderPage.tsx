@@ -2,14 +2,16 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   closestCenter,
   DndContext,
+  DragOverlay,
   KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragStartEvent,
 } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { CheckLg, ExclamationTriangleFill, HeartPulseFill, PlusLg, Trash3 } from "react-bootstrap-icons";
+import { CheckLg, ExclamationTriangleFill, Files, HeartPulseFill, PlusLg, Trash3 } from "react-bootstrap-icons";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { api, ApiError } from "@/api";
@@ -24,10 +26,13 @@ import { ExercisePickerModal } from "@/pages/workout/ExercisePickerModal/Exercis
 import { MuscleBars } from "@/pages/workout/MuscleBars/MuscleBars";
 import { MuscleLegend, MuscleMap } from "@/pages/workout/MuscleMap/MuscleMap";
 import { BuilderExerciseRow } from "@/pages/workout/PlanBuilderPage/BuilderExerciseRow/BuilderExerciseRow";
+import { CopyDayModal } from "@/pages/workout/PlanBuilderPage/CopyDayModal/CopyDayModal";
+import { WeekdayTab } from "@/pages/workout/PlanBuilderPage/WeekdayTab/WeekdayTab";
 import {
   EMPTY_DRAFT,
   MAX_DESCRIPTION,
   MAX_NAME,
+  cloneDayExercises,
   draftFromPlan,
   newDraftDay,
   newDraftExercise,
@@ -48,7 +53,7 @@ import {
   formatSessionDuration,
   pluralize,
 } from "@/pages/workout/WorkoutPage.constants";
-import { estimateMinutes, musclesOf, setsByMuscle } from "@/pages/workout/workoutMath";
+import { countSets, estimateMinutes, musclesOf, setsByMuscle } from "@/pages/workout/workoutMath";
 import "./PlanBuilderPage.scss";
 
 const ALL_MUSCLES = Object.keys(MUSCLE_LABEL) as MuscleId[];
@@ -70,6 +75,8 @@ export function PlanBuilderPage() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [detailId, setDetailId] = useState<number | null>(null);
   const [confirm, setConfirm] = useState<"leave" | "remove-day" | null>(null);
+  const [copyPickerOpen, setCopyPickerOpen] = useState(false);
+  const [draggingWeekday, setDraggingWeekday] = useState<number | null>(null);
   const errorsRef = useRef<HTMLDivElement>(null);
 
   // ── Load (edit mode) ───────────────────────────────────────────────────────
@@ -129,10 +136,40 @@ export function PlanBuilderPage() {
     setConfirm(null);
   }
 
+  /** Drag-reschedule: moves day `a`'s content onto weekday `b`. If `b` already has a day, the two swap — nothing is ever lost. */
+  function swapDays(a: number, b: number) {
+    if (a === b) return;
+    setDraft((d) => {
+      const dayA = d.days.find((x) => x.weekday === a);
+      const dayB = d.days.find((x) => x.weekday === b);
+      if (!dayA) return d; // nothing was actually picked up
+      const rest = d.days.filter((x) => x.weekday !== a && x.weekday !== b);
+      const moved = { ...dayA, weekday: b };
+      const days = dayB ? [...rest, moved, { ...dayB, weekday: a }] : [...rest, moved];
+      return { ...d, days: days.sort((x, y) => x.weekday - y.weekday) };
+    });
+    setWeekday(b);
+  }
+
   function requestRemoveDay() {
     if (!day) return;
     if (day.exercises.length > 0) setConfirm("remove-day");
     else removeDay(day.weekday);
+  }
+
+  /** Copies another day's name + exercises onto the currently open day, creating it first if it's still a rest day. */
+  function copyDayFrom(sourceWeekday: number) {
+    if (weekday === null) return;
+    const source = draft.days.find((d) => d.weekday === sourceWeekday);
+    if (!source) return;
+    const target = weekday;
+    const exercises = cloneDayExercises(source.exercises);
+    setDraft((d) =>
+      d.days.some((x) => x.weekday === target)
+        ? { ...d, days: d.days.map((x) => (x.weekday === target ? { ...x, name: source.name, exercises } : x)) }
+        : { ...d, days: [...d.days, { weekday: target, name: source.name, exercises }].sort((a, b) => a.weekday - b.weekday) },
+    );
+    setCopyPickerOpen(false);
   }
 
   function addExercises(picked: ExerciseSummary[]) {
@@ -161,10 +198,31 @@ export function PlanBuilderPage() {
     });
   }
 
+  // A plain (non-sortable) draggable/droppable grid — the keyboard sensor's default coordinate
+  // getter (step in the arrow direction, nearest-rect collision) fits that; sortableKeyboardCoordinates
+  // expects SortableContext's index data, which these fixed weekday slots don't have.
+  const daySensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor),
+  );
+
+  const onDayDragStart = ({ active }: DragStartEvent) => setDraggingWeekday(Number(active.id));
+
+  function onDayDragEnd({ active, over }: DragEndEvent) {
+    setDraggingWeekday(null);
+    if (!over) return;
+    swapDays(Number(active.id), Number(over.id));
+  }
+
   // ── Derived ────────────────────────────────────────────────────────────────
   const dayMuscles = useMemo(() => musclesOf(day?.exercises ?? []), [day]);
   const dayMinutes = useMemo(() => estimateMinutes(day?.exercises ?? []), [day]);
-  const daySets = day?.exercises.reduce((t, e) => t + (e.exercise.measure !== "minutes" && Number.isFinite(e.sets) ? e.sets : 0), 0) ?? 0;
+  const daySets = countSets(day?.exercises ?? []);
+  const copyCandidates = useMemo(
+    () => (weekday === null ? [] : draft.days.filter((d) => d.weekday !== weekday && d.exercises.length > 0)),
+    [draft.days, weekday],
+  );
+  const draggingDay = draggingWeekday !== null ? (draft.days.find((d) => d.weekday === draggingWeekday) ?? null) : null;
   const weekVolume = useMemo(() => setsByMuscle(draft.days.flatMap((d) => d.exercises)), [draft.days]);
   const untrained = useMemo(() => {
     const trained = new Set(weekVolume.map((v) => v.muscle));
@@ -296,35 +354,46 @@ export function PlanBuilderPage() {
           {/* Schedule + day editor */}
           <section className="surface wk-builder-card">
             <h2 className="wk-builder-h">Weekly schedule</h2>
-            <div className="wk-builder-week" role="tablist" aria-label="Weekdays">
-              {WEEKDAY_SHORT.map((label, i) => {
-                const d = draft.days.find((x) => x.weekday === i);
-                return (
-                  <button
+            <DndContext sensors={daySensors} collisionDetection={closestCenter} onDragStart={onDayDragStart} onDragEnd={onDayDragEnd}>
+              <div className="wk-builder-week" role="tablist" aria-label="Weekdays">
+                {WEEKDAY_SHORT.map((label, i) => (
+                  <WeekdayTab
                     key={label}
-                    type="button"
-                    role="tab"
-                    aria-selected={weekday === i}
-                    className={`wk-bw-day${weekday === i ? " is-selected" : ""}${d ? " is-on" : ""}`}
-                    onClick={() => setWeekday(i)}
-                    title={WEEKDAY_LONG[i]}
-                  >
-                    <span className="wk-bw-label">{label}</span>
-                    <span className="wk-bw-name">{d ? d.name : "Rest"}</span>
-                    {d && <span className="wk-bw-count">{pluralize(d.exercises.length, "exercise")}</span>}
-                  </button>
-                );
-              })}
-            </div>
+                    weekday={i}
+                    label={label}
+                    longLabel={WEEKDAY_LONG[i]}
+                    day={draft.days.find((x) => x.weekday === i) ?? null}
+                    selected={weekday === i}
+                    onSelect={() => setWeekday(i)}
+                  />
+                ))}
+              </div>
+              <DragOverlay>
+                {draggingDay && (
+                  <div className="wk-bw-day wk-bw-overlay is-on">
+                    <span className="wk-bw-label">{WEEKDAY_SHORT[draggingDay.weekday]}</span>
+                    <span className="wk-bw-name">{draggingDay.name}</span>
+                    <span className="wk-bw-count">{pluralize(draggingDay.exercises.length, "exercise")}</span>
+                  </div>
+                )}
+              </DragOverlay>
+            </DndContext>
 
             {weekday === null ? (
               <p className="wk-builder-hint">Pick a weekday above to start building your first training day.</p>
             ) : !day ? (
               <div className="wk-builder-rest">
                 <p>{WEEKDAY_LONG[weekday]} is a rest day in this plan.</p>
-                <button type="button" className="btn btn-soft" onClick={() => addDay(weekday)}>
-                  <PlusLg size={13} /> Train on {WEEKDAY_LONG[weekday]}
-                </button>
+                <div className="wk-builder-rest-actions">
+                  <button type="button" className="btn btn-soft" onClick={() => addDay(weekday)}>
+                    <PlusLg size={13} /> Train on {WEEKDAY_LONG[weekday]}
+                  </button>
+                  {copyCandidates.length > 0 && (
+                    <button type="button" className="btn btn-outline-secondary" onClick={() => setCopyPickerOpen(true)}>
+                      <Files size={13} /> Copy from another day
+                    </button>
+                  )}
+                </div>
               </div>
             ) : (
               <div className="wk-builder-day">
@@ -342,6 +411,11 @@ export function PlanBuilderPage() {
                     <strong>{pluralize(day.exercises.length, "exercise")}</strong>
                     <span>{pluralize(daySets, "set")} · ~{formatSessionDuration(dayMinutes * 60)}</span>
                   </div>
+                  {day.exercises.length > 0 && copyCandidates.length > 0 && (
+                    <button type="button" className="wk-builder-copy-day" onClick={() => setCopyPickerOpen(true)}>
+                      <Files size={14} /> Copy from…
+                    </button>
+                  )}
                   <button type="button" className="wk-builder-remove-day" onClick={requestRemoveDay}>
                     <Trash3 size={14} /> Make rest day
                   </button>
@@ -350,6 +424,11 @@ export function PlanBuilderPage() {
                 {day.exercises.length === 0 ? (
                   <div className={`wk-builder-empty${showErrors ? " is-error" : ""}`}>
                     <p>No exercises yet. Add a few to build this session.</p>
+                    {copyCandidates.length > 0 && (
+                      <button type="button" className="wk-builder-copy-cta" onClick={() => setCopyPickerOpen(true)}>
+                        <Files size={13} /> Copy from another day
+                      </button>
+                    )}
                   </div>
                 ) : (
                   <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
@@ -413,6 +492,15 @@ export function PlanBuilderPage() {
         title={day ? `Add to ${day.name || WEEKDAY_LONG[day.weekday]}` : "Add exercises"}
       />
       <ExerciseDetailModal exerciseId={detailId} onClose={() => setDetailId(null)} />
+
+      <CopyDayModal
+        show={copyPickerOpen}
+        onClose={() => setCopyPickerOpen(false)}
+        onConfirm={copyDayFrom}
+        days={copyCandidates}
+        targetLabel={weekday !== null ? (day?.name || WEEKDAY_LONG[weekday]) : ""}
+        targetExerciseCount={day?.exercises.length ?? 0}
+      />
 
       <ConfirmDialog
         show={confirm === "leave"}

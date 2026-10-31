@@ -266,7 +266,7 @@ export function PlanDetailPage() {
         </div>
 
         <aside className="wk-pd-aside">
-          <section className="surface wk-pd-card wk-pd-sticky">
+          <section className="surface wk-pd-card">
             <header className="wk-pd-aside-head">
               <h2 className="wk-pd-h">{day ? `${day.name}: muscles` : "Muscles"}</h2>
               <MuscleLegend />

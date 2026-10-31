@@ -111,6 +111,11 @@ export function newDraftDay(weekday: number): DraftDay {
   return { weekday, name: `${WEEKDAY_LONG[weekday]} workout`, exercises: [] };
 }
 
+/** Fresh copies of another day's exercises — same sets/reps/rest/weight, new keys so drag-and-drop and React stay happy. */
+export function cloneDayExercises(exercises: DraftExercise[]): DraftExercise[] {
+  return exercises.map((e) => ({ ...e, key: nextKey() }));
+}
+
 export function toSaveRequest(draft: PlanDraft): WorkoutPlanSaveRequest {
   return {
     name: draft.name.trim(),

@@ -28,6 +28,11 @@
   height: var(--mm-h);
   width: auto;
   aspect-ratio: 200 / 420;
+  // theme.scss sets a global `svg { overflow: visible }` for icons; without reasserting the
+  // normal clip here, a transient size miscalculation (e.g. this figure's aspect-ratio sizing
+  // recomputing under a position: sticky ancestor mid-scroll) paints outside the figure's box
+  // instead of being clipped, which is exactly the "stray bar" glitch this fixes.
+  overflow: hidden;
 }
 
 .mm-caption {

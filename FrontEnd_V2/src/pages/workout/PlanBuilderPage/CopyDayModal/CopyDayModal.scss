@@ -1,0 +1,78 @@
+.wk-copy-dialog { max-width: 480px; }
+
+.wk-copy-title { font-size: 1.05rem; font-weight: 800; }
+
+.wk-copy-hint { margin: 0 0 0.8rem; font-size: 0.84rem; color: var(--jv-muted); }
+
+.wk-copy-empty { margin: 1.5rem 0; text-align: center; color: var(--jv-muted); font-size: 0.88rem; }
+
+.wk-copy-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.wk-copy-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 0.8rem;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: var(--jv-surface);
+  border: 1px solid var(--jv-border);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: border-color 140ms, background 140ms;
+
+  &:hover { border-color: var(--jv-brand-1); background: var(--jv-brand-soft); }
+  &:focus-visible { outline: none; box-shadow: var(--jv-ring); }
+  &:hover .wk-copy-icon { color: var(--jv-brand-1); }
+}
+
+.wk-copy-day-badge {
+  display: grid;
+  place-items: center;
+  min-width: 42px;
+  padding: 0.3rem 0.4rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--jv-brand-1);
+  background: var(--jv-brand-soft);
+  border-radius: 9px;
+}
+
+.wk-copy-info { display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; }
+.wk-copy-name { font-size: 0.88rem; font-weight: 700; color: var(--jv-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wk-copy-meta { font-size: 0.74rem; color: var(--jv-muted); }
+
+.wk-copy-icon { flex-shrink: 0; color: var(--jv-faint); transition: color 140ms; }
+
+.wk-copy-confirm {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0 0.3rem;
+
+  p { margin: 0; font-size: 0.9rem; color: var(--jv-muted); line-height: 1.5; }
+  strong { color: var(--jv-text); }
+}
+
+.wk-copy-confirm-icon { color: var(--jv-danger); }
+
+.wk-copy-confirm-actions {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: 0.4rem;
+
+  .btn { padding-left: 1.3rem; padding-right: 1.3rem; }
+}

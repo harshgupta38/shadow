@@ -14,15 +14,23 @@
   @media (max-width: 1000px) { grid-template-columns: minmax(0, 1fr); }
 }
 
-.wk-pd-main,
-.wk-pd-aside {
+.wk-pd-main {
   display: flex;
   flex-direction: column;
   gap: 1rem;
   min-width: 0;
 }
 
-.wk-pd-sticky {
+// The whole column sticks together as one unit, not just the Muscles card — position: sticky on
+// just one flex item still overlaps a following sibling once scrolled far enough (the sibling's
+// box is laid out at its normal flow position, which the sticky item's growing offset encroaches
+// on; the browser only stops a sticky item at its *own* containing block's edge, not at a
+// sibling's box). Sticking the pair together removes the second box it could ever overlap.
+.wk-pd-aside {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
   position: sticky;
   top: 1rem;
 
@@ -30,6 +38,17 @@
 }
 
 .wk-pd-card { padding: 1rem 1.1rem; }
+
+// Chromium can leave a stale paint of a card behind while this column is pinned mid-scroll (a
+// position: sticky compositor ghosting bug — old content bleeds through instead of repainting).
+// Forcing each card onto its own GPU layer fixes that. Never apply this to .wk-pd-aside itself —
+// a transform on the sticky element risks interfering with its own sticky offset.
+.wk-pd-aside > .wk-pd-card {
+  transform: translateZ(0);
+  will-change: transform;
+
+  @media (max-width: 1000px) { transform: none; will-change: auto; }
+}
 
 .wk-pd-h {
   margin: 0 0 0.7rem;

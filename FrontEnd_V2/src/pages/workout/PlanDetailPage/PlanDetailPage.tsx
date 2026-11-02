@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CheckCircleFill, Clock, Copy, HeartPulseFill, Pencil, PlayFill, Trash3Fill, XCircle } from "react-bootstrap-icons";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { api, ApiError } from "@/api";
 import type { ExerciseSummary, PlanDay, WorkoutPlanDetail } from "@/api";
@@ -41,6 +41,8 @@ export function PlanDetailPage() {
   const { planId } = useParams();
   const id = Number(planId);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const requestedDay = searchParams.get("day"); // a link can ask for a weekday (?day=3, Sunday is 0)
   const toast = useToast();
 
   const [plan, setPlan] = useState<WorkoutPlanDetail | null>(null);
@@ -65,14 +67,15 @@ export function PlanDetailPage() {
     try {
       const data = await api.workout.getPlan(id);
       setPlan(data);
-      const today = todayWeekday();
-      setWeekday(data.days.some((d) => d.weekday === today) ? today : (data.days[0]?.weekday ?? null));
+      // It opens on the weekday asked for, otherwise on today, and failing that on the plan's first day.
+      const wanted = requestedDay === null ? todayWeekday() : Number(requestedDay);
+      setWeekday(data.days.some((d) => d.weekday === wanted) ? wanted : (data.days[0]?.weekday ?? null));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Could not load this plan right now.");
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, requestedDay]);
 
   useEffect(() => {
     void load();

@@ -154,6 +154,18 @@
     margin: 0;
   }
 
+  // ── The training summary when its request fails ──────────────────────────────
+
+  .dp-wk-error {
+    margin: 0;
+    padding: 0.9rem 1.1rem;
+    font-size: 0.85rem;
+    color: var(--jv-danger);
+    background: var(--jv-surface);
+    border: 1px solid var(--jv-border);
+    border-radius: var(--jv-radius);
+  }
+
   // ── Loading ghost shell (mirrors TrackProgressPage's tp-empty pattern) ───────
 
   .dp-empty {

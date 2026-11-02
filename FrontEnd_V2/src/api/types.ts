@@ -1396,6 +1396,8 @@ export interface WorkoutWeekDay {
   weekday: number;
   label: string | null; // the plan day's name, null on rest days
   status: WorkoutWeekStatus;
+  minutes: number | null; // how long the day's workouts took, on a day with one
+  session_id: number | null; // the day's latest completed workout, to open it
 }
 
 export interface MuscleSets {
@@ -1416,6 +1418,8 @@ export interface WorkoutOverview {
   volume_kg_week: number;
   minutes_week: number;
   muscles_this_week: MuscleSets[];
+  streak_weeks: number; // consecutive weeks with a workout, counted back from this one
+  total_sessions: number; // every workout ever completed
 }
 
 export interface WorkoutProgressWeek {

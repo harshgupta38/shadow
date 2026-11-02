@@ -241,6 +241,8 @@ class WorkoutWeekDayResponse(BaseModel):
     weekday: int
     label: str | None
     status: WeekStatus
+    minutes: int | None = None  # how long the day's workouts took, on a day with one
+    session_id: int | None = None  # the day's latest completed workout, to open it
 
 
 class MuscleSetsResponse(BaseModel):
@@ -261,6 +263,8 @@ class WorkoutOverviewResponse(BaseModel):
     volume_kg_week: float
     minutes_week: int
     muscles_this_week: list[MuscleSetsResponse]
+    streak_weeks: int  # consecutive weeks with a workout, counted back from this one
+    total_sessions: int  # every workout ever completed
 
 
 class WorkoutProgressWeekResponse(BaseModel):

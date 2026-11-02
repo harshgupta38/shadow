@@ -104,8 +104,18 @@ def overview(db: Session, user: UserDBM) -> WorkoutOverviewResponse:
         else:
             status = "upcoming"
         label = planned.name if planned is not None else (logged[0].name if logged else None)
-        week.append(WorkoutWeekDayResponse(date=day, weekday=offset, label=label, status=status))
+        week.append(
+            WorkoutWeekDayResponse(
+                date=day,
+                weekday=offset,
+                label=label,
+                status=status,
+                minutes=_minutes(logged, now) if logged else None,
+                session_id=max(logged, key=lambda s: s.started_at).id if logged else None,
+            )
+        )
 
+    streak, total_sessions = _streak_and_total(db, user.id, start)
     return WorkoutOverviewResponse(
         active_plan=workout_plans_service.plan_summary(plan, plan.id) if plan is not None else None,
         today_date=today,
@@ -119,6 +129,8 @@ def overview(db: Session, user: UserDBM) -> WorkoutOverviewResponse:
         volume_kg_week=round(sum(s.volume_kg for s in this_week), 1),
         minutes_week=_minutes(this_week, now),
         muscles_this_week=_muscle_rows(this_week),
+        streak_weeks=streak,
+        total_sessions=total_sessions,
     )
 
 
@@ -158,6 +170,30 @@ def _week_start_sql():
     return func.date(session_date, func.printf("-%d days", cast(func.strftime("%w", session_date), Integer)), type_=Date)
 
 
+def _streak_and_total(db: Session, user_id: int, current: date) -> tuple[int, int]:
+    """Consecutive weeks with at least one workout, counted back from the week starting `current`, and the number of workouts ever
+    completed. An empty current week does not break the streak, since it may simply be early in the week. SQL returns each week once."""
+    weeks_with_sessions = set(
+        db.scalars(
+            select(_week_start_sql())
+            .where(WorkoutSessionDBM.user_id == user_id, WorkoutSessionDBM.status == "completed")
+            .distinct()
+        ).all()
+    )
+    cursor = current if current in weeks_with_sessions else current - timedelta(days=7)
+    streak = 0
+    while cursor in weeks_with_sessions:
+        streak += 1
+        cursor -= timedelta(days=7)
+
+    total_sessions = db.scalar(
+        select(func.count())
+        .select_from(WorkoutSessionDBM)
+        .where(WorkoutSessionDBM.user_id == user_id, WorkoutSessionDBM.status == "completed")
+    )
+    return streak, total_sessions or 0
+
+
 def progress(db: Session, user: UserDBM, weeks: int) -> WorkoutProgressResponse:
     today = today_ist()
     now = workout_sessions_service.now_utc()
@@ -195,26 +231,7 @@ def progress(db: Session, user: UserDBM, weeks: int) -> WorkoutProgressResponse:
             )
         )
 
-    # Consecutive weeks with at least one workout, counted back from this week. An empty current week
-    # does not break the streak, since it may simply be early in the week. SQL returns each week once.
-    weeks_with_sessions = set(
-        db.scalars(
-            select(_week_start_sql())
-            .where(WorkoutSessionDBM.user_id == user.id, WorkoutSessionDBM.status == "completed")
-            .distinct()
-        ).all()
-    )
-    cursor = current if current in weeks_with_sessions else current - timedelta(days=7)
-    streak = 0
-    while cursor in weeks_with_sessions:
-        streak += 1
-        cursor -= timedelta(days=7)
-
-    total_sessions = db.scalar(
-        select(func.count())
-        .select_from(WorkoutSessionDBM)
-        .where(WorkoutSessionDBM.user_id == user.id, WorkoutSessionDBM.status == "completed")
-    )
+    streak, total_sessions = _streak_and_total(db, user.id, current)
     return WorkoutProgressResponse(
         weeks=week_rows,
         muscles=_muscle_rows([row for row in recent if row.session_date >= month_ago]),

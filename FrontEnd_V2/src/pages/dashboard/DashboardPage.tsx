@@ -2,15 +2,17 @@ import { useEffect, useState } from "react";
 import { BarChartFill, CalendarCheckFill } from "react-bootstrap-icons";
 import { Link } from "react-router-dom";
 
-import { api, ApiError, type DashboardResponse } from "@/api";
+import { api, ApiError, type DashboardResponse, type WorkoutOverview } from "@/api";
 import { ROUTES } from "@/routes/RoutePaths";
 import { useAuth } from "@/context/AuthContext";
 import { IllustratedErrorState } from "@/components/ui/IllustratedErrorState/IllustratedErrorState";
+import { WorkoutSkeleton } from "@/pages/workout/WorkoutSkeleton/WorkoutSkeleton";
 import { TodaySnapshot } from "./TodaySnapshot/TodaySnapshot";
 import { ReportsOverview } from "./ReportsOverview/ReportsOverview";
 import { GoalsOverview } from "./GoalsOverview/GoalsOverview";
 import { UpcomingPanel } from "./UpcomingPanel/UpcomingPanel";
 import { ThisWeekPanel } from "./ThisWeekPanel/ThisWeekPanel";
+import { WorkoutSummary } from "./WorkoutSummary/WorkoutSummary";
 import { greeting } from "./DashboardPage.constants";
 import { SKELETON } from "@/constant/tuning";
 import { useWakeRefresh } from "@/hooks/useWakeRefresh";
@@ -87,8 +89,23 @@ export function DashboardPage() {
       .finally(() => setLoading(false));
   }
 
-  useEffect(() => { load(); }, []);
-  useWakeRefresh(load);
+  // The training summary has its own request, so a slow or failed one never holds back the rest of the dashboard.
+  const [workout, setWorkout] = useState<WorkoutOverview | null>(null);
+  const [workoutStatus, setWorkoutStatus] = useState<"loading" | "ready" | "error">("loading");
+
+  function loadWorkout() {
+    api.workout.getOverview()
+      .then((overview) => { setWorkout(overview); setWorkoutStatus("ready"); })
+      .catch(() => setWorkoutStatus("error"));
+  }
+
+  function loadAll() {
+    load();
+    loadWorkout();
+  }
+
+  useEffect(() => { loadAll(); }, []);
+  useWakeRefresh(loadAll);
 
   return (
     <section className="dashboard-page">
@@ -130,6 +147,21 @@ export function DashboardPage() {
               <GoalsOverview goals={data.goals} />
             </div>
           )}
+
+          <div className="mt-4">
+            {workoutStatus === "ready" && workout && <WorkoutSummary overview={workout} />}
+            {workoutStatus === "loading" && !workout && <WorkoutSkeleton height={300} />}
+            {workoutStatus === "error" && !workout && (
+              <div className="dp-section">
+                <div className="dp-section-head">
+                  <h2 className="dp-section-title">Training</h2>
+                </div>
+                <p className="dp-wk-error">
+                  Couldn't load your training. <button type="button" className="btn btn-link btn-sm p-0 align-baseline" onClick={() => { setWorkoutStatus("loading"); loadWorkout(); }}>Retry</button>
+                </p>
+              </div>
+            )}
+          </div>
 
           <div className="dp-coming-up-grid mt-4">
             <UpcomingPanel items={data.upcoming} />

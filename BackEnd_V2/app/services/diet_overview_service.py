@@ -110,3 +110,11 @@ def get_month_scores(db: Session, user: UserDBM, month: str) -> list[ScoreDayRes
         score, _ = _score_of(profile, items, total, water_ml)
         days.append(ScoreDayResponse(date=day, totals=diet_diary_service.totals_model(total), water_ml=water_ml, score=score or 0))
     return days
+
+
+def get_dashboard_overview(db: Session, user: UserDBM) -> OverviewResponse | None:
+    """Today's overview for the dashboard, or None until the user has set up their nutrition profile, so a dashboard of someone
+    who has not is an answer ("nothing to show") and not an error."""
+    if db.get(DietProfileDBM, user.id) is None:
+        return None
+    return get_overview(db, user)

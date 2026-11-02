@@ -11,7 +11,8 @@ import { useToast } from "@/context/ToastContext";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { formatDisplayDate, todayDate } from "@/services/date.service";
 import { CLOSING_EMOJI } from "@/pages/reports/ReportDetailPage/ReportDetailPage.constants";
-import { buildCalCells, ringColor, type CalCell } from "./ReportsOverview.constants";
+import { DashboardRing } from "@/pages/dashboard/DashboardRing/DashboardRing";
+import { buildCalCells, type CalCell } from "./ReportsOverview.constants";
 import { GEOMETRY } from "@/constant/tuning";
 import "./ReportsOverview.scss";
 
@@ -22,33 +23,6 @@ interface Props {
 
 const CAL_RING_R = GEOMETRY.CALENDAR_RING_RADIUS;
 const CAL_RING_CIRC = 2 * Math.PI * CAL_RING_R;
-
-// Score-tinted ring — mirrors AlignmentRing in ReportDetailPage, kept local since
-// it's a tiny page-specific piece (the app has no shared ring with dynamic color).
-function ReportRing({ pct, size = 96, stroke = 9 }: { pct: number; size?: number; stroke?: number }) {
-  const r = (size - stroke) / 2;
-  const circ = 2 * Math.PI * r;
-  const offset = circ * (1 - pct / 100);
-  const color = ringColor(pct);
-
-  return (
-    <div className="dp-report-ring-wrap" style={{ width: size, height: size }}>
-      <svg width={size} height={size}>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="color-mix(in srgb, var(--jv-border) 88%, transparent)" strokeWidth={stroke} />
-        <circle
-          cx={size / 2} cy={size / 2} r={r}
-          fill="none" stroke={color} strokeWidth={stroke} strokeLinecap="round"
-          strokeDasharray={circ} strokeDashoffset={offset}
-          transform={`rotate(-90 ${size / 2} ${size / 2})`}
-        />
-      </svg>
-      <div className="dp-report-ring-label">
-        <span className="dp-report-ring-pct" style={{ color }}>{pct}%</span>
-        <span className="dp-report-ring-sub">Aligned</span>
-      </div>
-    </div>
-  );
-}
 
 export function ReportsOverview({ monthDays, latestReport }: Props) {
   const navigate = useNavigate();
@@ -145,7 +119,7 @@ export function ReportsOverview({ monthDays, latestReport }: Props) {
 
         <div className="dp-report-col">
           <Link to={reportHref} className="dp-report-hero">
-            <ReportRing pct={latestReport.alignment_score} />
+            <DashboardRing percent={latestReport.alignment_score} value={`${latestReport.alignment_score}%`} caption="Aligned" ariaLabel={`${latestReport.alignment_score}% aligned`} />
             <div className="dp-report-body">
               <span className="dp-report-date">
                 {formatDisplayDate(latestReport.date, dateFormat)} · {latestReport.report_type === "weekly" ? "Weekly" : "Daily"} Report

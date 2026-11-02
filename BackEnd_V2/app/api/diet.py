@@ -79,6 +79,11 @@ def estimate_targets(request: EstimateRequest, current_user: UserDBM = Depends(g
 # ── Overview ──────────────────────────────────────────────────────────────────
 
 
+@router.get(ENDPOINTS.DIET.DASHBOARD, response_model=OverviewResponse | None)
+def get_dashboard_overview(db=Depends(get_db), current_user: UserDBM = Depends(get_current_user)) -> OverviewResponse | None:
+    return diet_overview_service.get_dashboard_overview(db, current_user)
+
+
 @router.get(ENDPOINTS.DIET.OVERVIEW, response_model=OverviewResponse)
 def get_overview(
     day: date | None = Query(default=None, alias="date"),

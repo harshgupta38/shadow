@@ -50,6 +50,11 @@ export const dietApi = {
     return http.get<DietOverview>(url(D.OVERVIEW), { params: date ? { date } : undefined });
   },
 
+  /** Today's overview for the dashboard; null until the user has set up nutrition. */
+  getDashboardOverview(): Promise<DietOverview | null> {
+    return http.get<DietOverview | null>(url(D.DASHBOARD));
+  },
+
   // ── Food library ────────────────────────────────────────────────────────────
   searchFoods(q: string, limit = 20, filters: FoodListFilters = {}): Promise<FoodSearchHit[]> {
     return http.get<FoodSearchHit[]>(url(D.FOODS), { params: { q, limit, ...filters } });

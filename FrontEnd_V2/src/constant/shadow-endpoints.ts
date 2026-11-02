@@ -144,6 +144,7 @@ export const ENDPOINTS = {
         PROFILE: "/profile",
         PROFILE_ESTIMATE: "/profile/estimate",
         OVERVIEW: "/overview",
+        DASHBOARD: "/dashboard",
         FOODS: "/foods",
         FOODS_QUICK: "/foods/quick",
         FOOD: (id: number) => `/foods/${id}`,

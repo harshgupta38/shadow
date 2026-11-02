@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { BarChartFill, CalendarCheckFill } from "react-bootstrap-icons";
 import { Link } from "react-router-dom";
 
-import { api, ApiError, type DashboardResponse, type WorkoutOverview } from "@/api";
+import { api, ApiError, type DashboardResponse } from "@/api";
 import { ROUTES } from "@/routes/RoutePaths";
 import { useAuth } from "@/context/AuthContext";
 import { IllustratedErrorState } from "@/components/ui/IllustratedErrorState/IllustratedErrorState";
@@ -12,9 +12,11 @@ import { ReportsOverview } from "./ReportsOverview/ReportsOverview";
 import { GoalsOverview } from "./GoalsOverview/GoalsOverview";
 import { UpcomingPanel } from "./UpcomingPanel/UpcomingPanel";
 import { ThisWeekPanel } from "./ThisWeekPanel/ThisWeekPanel";
+import { DietSummary } from "./DietSummary/DietSummary";
 import { WorkoutSummary } from "./WorkoutSummary/WorkoutSummary";
 import { hasTrainingToShow } from "./WorkoutSummary/WorkoutSummary.constants";
 import { greeting } from "./DashboardPage.constants";
+import { useDashboardPanel } from "./useDashboardPanel";
 import { SKELETON } from "@/constant/tuning";
 import { useWakeRefresh } from "@/hooks/useWakeRefresh";
 import "./DashboardPage.scss";
@@ -73,6 +75,25 @@ function DashboardGhostShell() {
   );
 }
 
+// What each optional panel loads. They are module-level so the loaders keep one identity between renders.
+const loadWorkoutPanel = () => api.workout.getOverview();
+const loadNutritionPanel = () => api.diet.getDashboardOverview();
+
+/** A panel's place on the page while it loads, and what stands in for it when it could not load. */
+function PanelPlaceholder({ title, status, onRetry }: { title: string; status: "loading" | "error"; onRetry: () => void }) {
+  if (status === "loading") return <WorkoutSkeleton height={300} />;
+  return (
+    <div className="dp-section">
+      <div className="dp-section-head">
+        <h2 className="dp-section-title">{title}</h2>
+      </div>
+      <p className="dp-section-error">
+        Couldn't load your {title.toLowerCase()}. <button type="button" className="btn btn-link btn-sm p-0 align-baseline" onClick={onRetry}>Retry</button>
+      </p>
+    </div>
+  );
+}
+
 export function DashboardPage() {
   const { user } = useAuth();
   const firstName = user?.name?.split(" ")[0] ?? "there";
@@ -90,38 +111,31 @@ export function DashboardPage() {
       .finally(() => setLoading(false));
   }
 
-  // The training summary has its own request, so a slow or failed one never holds back the rest of the dashboard.
-  const [workout, setWorkout] = useState<WorkoutOverview | null>(null);
-  const [workoutStatus, setWorkoutStatus] = useState<"loading" | "ready" | "error">("loading");
-
-  function loadWorkout() {
-    api.workout.getOverview()
-      .then((overview) => { setWorkout(overview); setWorkoutStatus("ready"); })
-      .catch(() => setWorkoutStatus("error"));
-  }
+  // Training and nutrition each have their own request, so a slow or failed one never holds back the rest of the dashboard.
+  const workout = useDashboardPanel(loadWorkoutPanel);
+  const nutrition = useDashboardPanel(loadNutritionPanel);
 
   function loadAll() {
     load();
-    loadWorkout();
+    workout.reload();
+    nutrition.reload();
   }
 
   useEffect(() => { loadAll(); }, []);
   useWakeRefresh(loadAll);
 
   // Someone who follows no plan and has not trained this week gets no training section at all.
-  const trainingPanel = workout ? (
-    hasTrainingToShow(workout) ? <WorkoutSummary overview={workout} /> : null
-  ) : workoutStatus === "loading" ? (
-    <WorkoutSkeleton height={300} />
-  ) : (
-    <div className="dp-section">
-      <div className="dp-section-head">
-        <h2 className="dp-section-title">Training</h2>
-      </div>
-      <p className="dp-wk-error">
-        Couldn't load your training. <button type="button" className="btn btn-link btn-sm p-0 align-baseline" onClick={() => { setWorkoutStatus("loading"); loadWorkout(); }}>Retry</button>
-      </p>
-    </div>
+  const trainingPanel = workout.data ? (
+    hasTrainingToShow(workout.data) ? <WorkoutSummary overview={workout.data} /> : null
+  ) : workout.status === "ready" ? null : (
+    <PanelPlaceholder title="Training" status={workout.status} onRetry={workout.retry} />
+  );
+
+  // Someone who has not set up nutrition gets no nutrition section at all.
+  const nutritionPanel = nutrition.data ? (
+    <DietSummary overview={nutrition.data} />
+  ) : nutrition.status === "ready" ? null : (
+    <PanelPlaceholder title="Nutrition" status={nutrition.status} onRetry={nutrition.retry} />
   );
 
   return (
@@ -166,6 +180,8 @@ export function DashboardPage() {
           )}
 
           {trainingPanel && <div className="mt-4">{trainingPanel}</div>}
+
+          {nutritionPanel && <div className="mt-4">{nutritionPanel}</div>}
 
           <div className="dp-coming-up-grid mt-4">
             <UpcomingPanel items={data.upcoming} />

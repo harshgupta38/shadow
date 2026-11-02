@@ -1,0 +1,20 @@
+// dp-dt = Dashboard · nutrition summary.
+//
+// One report card, built from the dashboard's own pieces (the Reports Overview card, the ring and the ranked list). The macros take
+// a row of their own along its bottom edge.
+
+.dp-dt-card { flex-wrap: wrap; }
+
+.dp-dt-macros {
+  flex: 1 0 100%;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.6rem 1.4rem;
+  margin-top: 0.2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--jv-border);
+}
+
+@media (max-width: 760px) {
+  .dp-dt-macros { flex: 0 0 auto; width: 100%; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

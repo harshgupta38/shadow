@@ -11,8 +11,6 @@ export function sessionPath(sessionId: number): string {
   return ROUTES.WORKOUT_SESSION.replace(":sessionId", String(sessionId));
 }
 
-export const WEEKDAY_LONG = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-
 /** Kilograms lifted as the number a person would say: 8,400 kg is "8.4 t". */
 export function volumeLabel(kg: number): string {
   if (kg >= 1000) return `${(kg / 1000).toLocaleString("en-IN", { maximumFractionDigits: 1 })} t`;

@@ -170,7 +170,7 @@ The **Today's Plan** frontend page reads this materialized view (`GET /v2/planne
 
 ### AI Assistant
 
-- Conversations (`ConversationDBM`) are scoped to one of four agent types — `shadow`, `goal_coach`, `career_advisor`, `insights` — each wired to a different subset of tools in `app/llm/tools/` (goal/milestone/task/schedule read-and-propose functions).
+- Conversations (`ConversationDBM`) are scoped to one of five agent types — `shadow`, `goal_coach`, `career_advisor`, `insights`, `diet_coach` — each wired to a different subset of tools in `app/llm/tools/` (goal/milestone/task/schedule read-and-propose functions, and for the Diet Coach read-only tools over the nutrition profile, food diary, history, eating patterns and food library).
 - Every provider implements the same 10-method `BaseLLMProvider` interface (`respond_to_message`, `create_conversation`, `update_conversation_context`, `extract_user_memory`, `generate_report`, `generate_daily_brief`, `refine_goal`, milestone/task proposal generation, `health_check`, `close`), so `chat_service` and every other caller never talks to a specific vendor SDK directly.
 - Two independent, message-count-gated background passes run after a reply is sent: a **context summary update** (`stable_context` / `context_summary`, keeps conversations coherent without resending full history) and a **memory extraction** pass (see below) — each with its own threshold (`chat_summary_update_user_messages`, `chat_memory_extraction_user_messages`), so a conversation can stay "in flow" long before anything is promoted to durable memory.
 - Assistant replies that imply an action (create a goal, add a milestone, schedule a task) are surfaced as **proposal cards**, not auto-applied — the user explicitly saves them.

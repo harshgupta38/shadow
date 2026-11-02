@@ -1,11 +1,11 @@
 from datetime import datetime
 from enum import StrEnum
 from pydantic import BaseModel, Field, field_validator
-from typing import Literal
+from typing import Literal, get_args
 
 from app.schemas.common import ORMModel
 
-AssistantAgentType = Literal["shadow", "goal_coach", "career_advisor", "insights"]
+AssistantAgentType = Literal["shadow", "goal_coach", "career_advisor", "insights", "diet_coach"]
 
 
 class MessageRoleEnum(StrEnum):
@@ -66,8 +66,7 @@ class NewConvoRequest(ExtraDataInRequest):
 
     @field_validator("agent_type", mode="before")
     def validate_agent_type(cls, v):
-        valid_agent_types = ["shadow", "goal_coach", "career_advisor", "insights"]
-        if v not in valid_agent_types:
+        if v not in get_args(AssistantAgentType):
             raise ValueError(f"Invalid agent type.")
         return v
 

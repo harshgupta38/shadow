@@ -4,6 +4,7 @@ import {
   BarChartLineFill,
   BriefcaseFill,
   Bullseye,
+  EggFried,
   type IconProps,
   Robot,
 } from "react-bootstrap-icons";
@@ -69,6 +70,19 @@ export const ASSISTANT_AGENTS: Record<AssistantAgentType, AssistantAgent> = {
       "How am I trending this week?",
       "What's holding me back right now?",
       "Where should I focus next?",
+    ],
+  },
+  diet_coach: {
+    type: "diet_coach",
+    label: "Diet Coach",
+    tagline: "Knows what you eat",
+    description: "Reads your food diary and targets to answer questions and suggest what to eat next.",
+    icon: EggFried,
+    gradient: ["#2fb36d", "#e0b93a"],
+    suggestions: [
+      "What should I eat for my next meal?",
+      "How has my eating been this week?",
+      "Am I getting enough protein?",
     ],
   },
 };

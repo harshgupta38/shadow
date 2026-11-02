@@ -2,8 +2,9 @@ import json
 
 from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.schema import CreateTable
+from sqlalchemy.schema import CreateIndex, CreateTable
 
+from app.models.chat import ConversationDBM
 from app.models.diet_profile import DietProfileDBM
 from app.models.workout_session import OPEN_SESSION_WHERE
 
@@ -173,6 +174,39 @@ def migrate_water_logs(engine) -> None:
             """)
             conn.exec_driver_sql("DROP TABLE water_logs")
             conn.exec_driver_sql("ALTER TABLE water_logs_rebuild RENAME TO water_logs")
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.exec_driver_sql("PRAGMA foreign_keys=ON")
+
+
+def migrate_conversations(engine) -> None:
+    """SQLite cannot change a CHECK constraint in place. A conversations table made before the Diet Coach existed only allows the
+    older agent types, so its rows are copied into a table built from the current model and its indexes are made again. The
+    messages that point at the conversations keep their links: the copy keeps every id. Idempotent, and safe when workers start
+    together: BEGIN IMMEDIATE makes them take turns, and the one that comes second finds the table already rebuilt."""
+    table = ConversationDBM.__table__
+    with engine.connect() as conn:
+        conn.exec_driver_sql("PRAGMA foreign_keys=OFF")  # does nothing inside a transaction, so it comes first
+        try:
+            conn.exec_driver_sql("BEGIN IMMEDIATE")
+            current = conn.execute(text("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'conversations'")).scalar()
+            if current is None or "'diet_coach'" in current:
+                conn.rollback()
+                return
+            ddl = str(CreateTable(table).compile(dialect=conn.dialect)).replace(
+                "CREATE TABLE conversations (", "CREATE TABLE conversations_rebuild (", 1
+            )
+            conn.exec_driver_sql(ddl)
+            existing = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(conversations)")}
+            shared = ", ".join(column.name for column in table.columns if column.name in existing)
+            conn.exec_driver_sql(f"INSERT INTO conversations_rebuild ({shared}) SELECT {shared} FROM conversations")
+            conn.exec_driver_sql("DROP TABLE conversations")  # takes its indexes with it
+            conn.exec_driver_sql("ALTER TABLE conversations_rebuild RENAME TO conversations")
+            for index in table.indexes:
+                conn.exec_driver_sql(str(CreateIndex(index).compile(dialect=conn.dialect)))
             conn.commit()
         except Exception:
             conn.rollback()

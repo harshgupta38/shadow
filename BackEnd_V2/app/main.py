@@ -77,7 +77,7 @@ _startup_logger = logging.getLogger(__name__)
 
 
 def _create_schema(engine) -> None:
-    """Creates missing tables, then runs the workout and diet migrations. Workers start together, and the first one to take
+    """Creates missing tables, then runs the workout, diet and conversation migrations. Workers start together, and the first one to take
     the write lock creates the new tables, so a sibling can find a table already there ("already exists") or wait past
     SQLite's busy timeout. Every step is idempotent, so the sibling retries and finds what is already in place."""
     for attempt in range(1, 6):
@@ -87,6 +87,7 @@ def _create_schema(engine) -> None:
             workout_sessions_service.enforce_single_open_session()
             migrations.migrate_diet(engine)
             migrations.migrate_water_logs(engine)
+            migrations.migrate_conversations(engine)
             return
         except OperationalError as exc:
             transient = "already exists" in str(exc) or "database is locked" in str(exc)

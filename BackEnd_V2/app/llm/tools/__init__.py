@@ -1,5 +1,6 @@
 from app.llm.exceptions import LLMUnknownToolError
 from app.llm.tools.context import ToolContext
+from app.llm.tools.diet import DIET_TOOL_DEFINITIONS, DIET_TOOLS
 from app.llm.tools.goals import GOAL_TOOL_DEFINITIONS, GOAL_TOOLS, GoalToolDefinitions
 from app.llm.tools.milestones import (
     MILESTONE_TOOL_DEFINITIONS,
@@ -57,6 +58,7 @@ AVAILABLE_TOOLS = {
     **MILESTONE_TOOLS,
     **TASK_TOOLS,
     **SCHEDULE_TOOLS,
+    **DIET_TOOLS,
 }
 
 AGENT_TOOL_DEFINITIONS: dict[str, list[dict]] = {
@@ -64,6 +66,7 @@ AGENT_TOOL_DEFINITIONS: dict[str, list[dict]] = {
     "goal_coach": GOAL_COACH_TOOL_DEFINITIONS,
     "career_advisor": [],
     "insights": [],
+    "diet_coach": DIET_TOOL_DEFINITIONS,
 }
 
 

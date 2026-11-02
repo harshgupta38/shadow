@@ -19,7 +19,7 @@ class ConversationDBM(Base):
     __tablename__ = "conversations"
     __table_args__ = (
         CheckConstraint(
-            "agent_type IN ('shadow', 'goal_coach', 'career_advisor', 'insights')",
+            "agent_type IN ('shadow', 'goal_coach', 'career_advisor', 'insights', 'diet_coach')",
             name="ck_conversations_agent_type",
         ),
     )

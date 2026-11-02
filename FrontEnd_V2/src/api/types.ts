@@ -344,7 +344,7 @@ export interface TaskDataResponse extends TaskSchedulingFields {
   cancelled_at: string | null;
 }
 
-export type AssistantAgentType = "shadow" | "goal_coach" | "career_advisor" | "insights";
+export type AssistantAgentType = "shadow" | "goal_coach" | "career_advisor" | "insights" | "diet_coach";
 export type ChatRole = "user" | "assistant" | "system" | "tool";
 
 export interface ConvoDataShortResponse {

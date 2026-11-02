@@ -7,7 +7,9 @@ import { todayIso } from "@/services/date.service";
 import { api } from "@/api";
 import { useWeekStart } from "@/context/PlannerContext";
 import type { JournalEntryResponse, JournalMood, WeekStartsOn } from "@/api/types";
-import { MOODS, fmtDisplayDate } from "@/pages/journal/JournalPage.constants";
+import { MOODS, fmtDisplayDate, weekOffsetOf } from "@/pages/journal/JournalPage.constants";
+import { JournalTimeline } from "@/pages/journal/JournalTimeline/JournalTimeline";
+import { monthOf } from "@/pages/journal/JournalTimeline/JournalTimeline.constants";
 import { TIMING } from "@/constant/tuning";
 import "@/pages/journal/JournalPage.scss";
 
@@ -62,6 +64,10 @@ export function JournalPage() {
 
     const [weekOffset, setWeekOffset]     = useState(0);
     const [selectedDate, setSelectedDate] = useState(TODAY);
+    // The timeline's month. It follows the selected date, and the timeline's own arrows can move it away.
+    const [viewMonth, setViewMonth]       = useState(monthOf(TODAY));
+    // The entry the server confirmed last, handed to the timeline so it updates as the user writes.
+    const [savedEntry, setSavedEntry]     = useState<JournalEntryResponse | null>(null);
 
     const [mood, setMood]           = useState<JournalMood | null>(null);
     const [text, setText]           = useState("");
@@ -75,6 +81,7 @@ export function JournalPage() {
     // Cache of every loaded entry. Nothing renders from it directly, so it needn't be state.
     const entryMapRef    = useRef(new Map<string, JournalEntryResponse>());
     const weekStatusRef  = useRef(weekStatus);
+    const weekCardRef    = useRef<HTMLDivElement>(null);
     weekStatusRef.current = weekStatus;
 
     const weekDates = useMemo(() => computeWeekDates(TODAY, weekOffset, weekStartsOn), [TODAY, weekOffset, weekStartsOn]);
@@ -103,6 +110,7 @@ export function JournalPage() {
         void api.journal.upsertEntry(edit.date, { mood: edit.mood, text: edit.text })
             .then(entry => {
                 entryMapRef.current.set(entry.entry_date, entry);
+                setSavedEntry(entry);
                 if (!isCurrent()) return;
                 setSaveState("saved");
                 savedTimerRef.current = setTimeout(() => setSaveState("idle"), TIMING.JOURNAL_SAVED_BANNER_MS);
@@ -159,6 +167,7 @@ export function JournalPage() {
         setMood(entry?.mood ?? null);
         setText(entry?.text ?? "");
         setSaveState("idle");
+        setViewMonth(monthOf(selectedDate));
     }, [selectedDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // ── User actions (the only paths that may save) ───────────────────────────
@@ -175,6 +184,13 @@ export function JournalPage() {
         if (source !== "user") return;
         setText(val);
         scheduleSave(selectedDate, mood, normalizeQuillHtml(val));
+    }
+
+    // Opens a day picked from the timeline: the week strip moves to its week and the editor loads it.
+    function openEntry(date: string) {
+        setWeekOffset(weekOffsetOf(TODAY, date, weekStartsOn));
+        setSelectedDate(date);
+        weekCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }
 
     // ── Week navigation ───────────────────────────────────────────────────────
@@ -216,7 +232,7 @@ export function JournalPage() {
             />
 
             {/* ── Week strip ─────────────────────────────────────────── */}
-            <div className="surface jnl-week-card">
+            <div className="surface jnl-week-card" ref={weekCardRef}>
                 <div className="jnl-week-strip">
                     <button
                         type="button"
@@ -317,6 +333,15 @@ export function JournalPage() {
                     </div>
                 </div>
             </div>
+
+            {/* ── Month timeline ─────────────────────────────────────── */}
+            <JournalTimeline
+                month={viewMonth}
+                selectedDate={selectedDate}
+                savedEntry={savedEntry}
+                onChangeMonth={setViewMonth}
+                onOpenEntry={openEntry}
+            />
         </section>
     );
 }

@@ -4,11 +4,12 @@ Totals are always computed from the items on read, so editing or deleting an old
 Each item keeps a snapshot of its nutrients from the moment it was logged.
 """
 
+import calendar
 from datetime import date, time
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.common import today_ist
 from app.core.exceptions import NotFoundError, ValidationError
@@ -29,6 +30,9 @@ from app.schemas.diet import (
     DiaryItemUpdateRequest,
     DiaryMealResponse,
     DiaryMealUpdateRequest,
+    HistoryDayResponse,
+    HistoryItemResponse,
+    HistoryMealResponse,
     LogItemRequest,
     NutrientTotals,
     SavedMealCreateRequest,
@@ -82,7 +86,11 @@ def meal_response(log: FoodLogDBM) -> DiaryMealResponse:
 
 
 def logs_for(db: Session, user: UserDBM, start: date, end: date | None = None) -> list[FoodLogDBM]:
-    stmt = select(FoodLogDBM).where(FoodLogDBM.user_id == user.id, FoodLogDBM.log_date >= start, FoodLogDBM.log_date <= (end or start))
+    stmt = (
+        select(FoodLogDBM)
+        .where(FoodLogDBM.user_id == user.id, FoodLogDBM.log_date >= start, FoodLogDBM.log_date <= (end or start))
+        .options(selectinload(FoodLogDBM.items))
+    )
     return sorted(db.scalars(stmt).all(), key=lambda log: (log.log_date, *_meal_sort_key(log)))
 
 
@@ -101,6 +109,25 @@ def get_day(db: Session, user: UserDBM, day: date | None = None) -> DiaryDayResp
         water_ml=water_total(db, user, target),
         has_estimated_items=any(i.verification == "estimated" or i.quantity_certainty == "estimated" for i in items),  # values the user entered are theirs, not estimates
     )
+
+
+def get_history(db: Session, user: UserDBM, month: str) -> list[HistoryDayResponse]:
+    """The foods eaten on each logged day of a month ("YYYY-MM"), oldest day first. Days with nothing logged are left out."""
+    year, month_number = (int(part) for part in month.split("-"))
+    first = date(year, month_number, 1)
+    last = date(year, month_number, calendar.monthrange(year, month_number)[1])
+    days: dict[date, list[HistoryMealResponse]] = {}
+    for log in logs_for(db, user, first, last):
+        if not log.items:
+            continue
+        days.setdefault(log.log_date, []).append(
+            HistoryMealResponse(
+                meal_type=log.meal_type,
+                eaten_at=log.eaten_at,
+                items=[HistoryItemResponse(name=i.name, quantity=i.quantity, unit=i.unit) for i in log.items],
+            )
+        )
+    return [HistoryDayResponse(date=day, meals=meals) for day, meals in days.items()]
 
 
 def _own_log(db: Session, user: UserDBM, log_id: int) -> FoodLogDBM:

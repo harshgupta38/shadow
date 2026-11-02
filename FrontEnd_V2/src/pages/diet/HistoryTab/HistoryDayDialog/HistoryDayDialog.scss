@@ -1,0 +1,119 @@
+.dt-hd-dialog { max-width: 620px; }
+
+.dt-hd-title { font-size: 1.1rem; font-weight: 800; }
+
+.dt-hd-loading { display: flex; flex-direction: column; gap: 0.8rem; }
+
+.dt-hd-error { display: flex; align-items: center; gap: 0.35rem; margin: 0; color: var(--jv-danger); font-size: 0.88rem; }
+
+.dt-hd-top {
+  display: flex;
+  align-items: center;
+  gap: 1.4rem;
+}
+
+.dt-hd-ring {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.dt-hd-eaten {
+  font-size: 0.78rem;
+  color: var(--jv-muted);
+  font-variant-numeric: tabular-nums;
+
+  strong { color: var(--jv-text); }
+}
+
+.dt-hd-macros {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.dt-hd-estimate {
+  margin: 0.9rem 0 0;
+  padding: 0.45rem 0.7rem;
+  border-radius: 10px;
+  background: var(--jv-surface-3);
+  font-size: 0.78rem;
+  color: var(--jv-muted);
+}
+
+.dt-hd-meals {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.dt-hd-meal {
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--jv-border);
+  border-radius: 10px;
+}
+
+.dt-hd-meal-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.dt-hd-meal-time {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--jv-brand-1);
+  font-variant-numeric: tabular-nums;
+}
+
+.dt-hd-meal-kcal {
+  margin-left: auto;
+  font-size: 0.82rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.dt-hd-items {
+  list-style: none;
+  margin: 0.35rem 0 0;
+  padding: 0;
+  font-size: 0.84rem;
+
+  li {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    padding: 0.18rem 0;
+  }
+}
+
+.dt-hd-item-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+
+.dt-hd-item-qty,
+.dt-hd-item-kcal {
+  color: var(--jv-muted);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.dt-hd-meal-macros {
+  margin-top: 0.35rem;
+  padding-top: 0.35rem;
+  border-top: 1px dashed var(--jv-border);
+  font-size: 0.74rem;
+  color: var(--jv-muted);
+}
+
+@media (max-width: 575.98px) {
+  .dt-hd-top { flex-direction: column; align-items: stretch; }
+  .dt-hd-ring { align-self: center; }
+}

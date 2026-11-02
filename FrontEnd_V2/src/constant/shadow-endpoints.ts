@@ -156,6 +156,7 @@ export const ENDPOINTS = {
         DIARY_ITEM_DUPLICATE: (id: number) => `/diary/items/${id}/duplicate`,
         DIARY_MEAL: (id: number) => `/diary/meals/${id}`,
         DIARY_COPY: "/diary/copy",
+        HISTORY: "/history",
         SAVED_MEALS: "/saved-meals",
         SAVED_MEAL: (id: number) => `/saved-meals/${id}`,
         SAVED_MEAL_LOG: (id: number) => `/saved-meals/${id}/log`,

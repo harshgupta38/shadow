@@ -2,19 +2,14 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, ExclamationCircleFill, PencilSquare } from "react-bootstrap-icons";
 import { api } from "@/api";
 import type { JournalEntryResponse } from "@/api/types";
-import { todayIso } from "@/services/date.service";
+import { dayParts, fmtMonthTitle, monthOf, monthRange, shiftMonth, todayIso } from "@/services/date.service";
 import {
     COLLAPSED_MAX_PX,
     MOOD_BY_KEY,
-    dayParts,
-    fmtMonthTitle,
     hasContent,
     mergeEntry,
-    monthOf,
-    monthRange,
     newestFirst,
     sanitizeEntryHtml,
-    shiftMonth,
 } from "@/pages/journal/JournalTimeline/JournalTimeline.constants";
 import "./JournalTimeline.scss";
 

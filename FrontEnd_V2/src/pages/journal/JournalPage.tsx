@@ -3,13 +3,12 @@ import "react-quill/dist/quill.snow.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BookHalf, CalendarCheck, CheckLg, ChevronLeft, ChevronRight, ExclamationCircleFill } from "react-bootstrap-icons";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
-import { todayIso } from "@/services/date.service";
+import { monthOf, todayIso } from "@/services/date.service";
 import { api } from "@/api";
 import { useWeekStart } from "@/context/PlannerContext";
 import type { JournalEntryResponse, JournalMood, WeekStartsOn } from "@/api/types";
 import { MOODS, fmtDisplayDate, weekOffsetOf } from "@/pages/journal/JournalPage.constants";
 import { JournalTimeline } from "@/pages/journal/JournalTimeline/JournalTimeline";
-import { monthOf } from "@/pages/journal/JournalTimeline/JournalTimeline.constants";
 import { TIMING } from "@/constant/tuning";
 import "@/pages/journal/JournalPage.scss";
 

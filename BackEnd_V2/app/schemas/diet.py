@@ -378,6 +378,25 @@ class DiaryDayResponse(BaseModel):
     has_estimated_items: bool  # some logged nutrition is an estimate, not a verified value
 
 
+class HistoryItemResponse(BaseModel):
+    name: str
+    quantity: float
+    unit: str
+
+
+class HistoryMealResponse(BaseModel):
+    meal_type: str
+    eaten_at: time | None
+    items: list[HistoryItemResponse]
+
+
+class HistoryDayResponse(BaseModel):
+    """What was eaten on one day and when, with no nutrients: the month history is about the food, not the numbers."""
+
+    date: date
+    meals: list[HistoryMealResponse]
+
+
 class CopyMealsRequest(BaseModel):
     from_date: date
     to_date: date | None = None

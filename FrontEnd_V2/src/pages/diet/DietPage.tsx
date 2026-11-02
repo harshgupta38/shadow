@@ -8,17 +8,19 @@ import { IllustratedErrorState } from "@/components/ui/IllustratedErrorState/Ill
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { DiaryTab } from "@/pages/diet/DiaryTab/DiaryTab";
 import { DietSkeleton } from "@/pages/diet/DietSkeleton/DietSkeleton";
+import { HistoryTab } from "@/pages/diet/HistoryTab/HistoryTab";
 import { LibraryTab } from "@/pages/diet/LibraryTab/LibraryTab";
 import { OnboardingWizard } from "@/pages/diet/OnboardingWizard/OnboardingWizard";
 import { OverviewTab } from "@/pages/diet/OverviewTab/OverviewTab";
 import { tabKeyHandler } from "@/pages/diet/DietPage.constants";
 import "./DietPage.scss";
 
-type TabId = "overview" | "diary" | "library";
+type TabId = "overview" | "diary" | "history" | "library";
 
 const TABS: { id: TabId; label: string }[] = [
   { id: "overview", label: "Overview" },
   { id: "diary", label: "Food diary" },
+  { id: "history", label: "History" },
   { id: "library", label: "Food library" },
 ];
 
@@ -148,6 +150,7 @@ export function DietPage() {
       <div id="dt-tabpanel" role="tabpanel" aria-labelledby={`dt-tab-${tab}`}>
         {tab === "overview" && <OverviewTab onLogFood={() => selectTab("diary")} />}
         {tab === "diary" && profile && <DiaryTab profile={profile} onEditProfile={() => setEditingProfile(true)} />}
+        {tab === "history" && profile && <HistoryTab profile={profile} />}
         {tab === "library" && <LibraryTab />}
       </div>
     </div>

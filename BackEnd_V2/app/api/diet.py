@@ -22,6 +22,7 @@ from app.schemas.diet import (
     FoodScope,
     FoodSearchHit,
     FoodValuesRequest,
+    HistoryDayResponse,
     OverviewResponse,
     ParseMealRequest,
     ProfileResponse,
@@ -152,6 +153,15 @@ def remove_favourite(food_id: int, db=Depends(get_db), current_user: UserDBM = D
 
 
 # ── Food diary ────────────────────────────────────────────────────────────────
+
+
+@router.get(ENDPOINTS.DIET.HISTORY, response_model=list[HistoryDayResponse])
+def get_history(
+    month: str = Query(pattern=r"^\d{4}-(0[1-9]|1[0-2])$"),
+    db=Depends(get_db),
+    current_user: UserDBM = Depends(get_current_user),
+) -> list[HistoryDayResponse]:
+    return diet_diary_service.get_history(db, current_user, month)
 
 
 @router.get(ENDPOINTS.DIET.DIARY, response_model=DiaryDayResponse)

@@ -1664,6 +1664,24 @@ export interface DiaryDay {
   has_estimated_items: boolean;
 }
 
+/** One food in the month history: what it was and how much, with no nutrients. */
+export interface DiaryHistoryItem {
+  name: string;
+  quantity: number;
+  unit: string;
+}
+
+export interface DiaryHistoryMeal {
+  meal_type: string;
+  eaten_at: string | null; // "HH:MM:SS"
+  items: DiaryHistoryItem[];
+}
+
+export interface DiaryHistoryDay {
+  date: string;
+  meals: DiaryHistoryMeal[];
+}
+
 export interface DiaryLogItemRequest {
   food_id: number;
   quantity: number;

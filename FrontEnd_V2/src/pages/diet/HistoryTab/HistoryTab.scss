@@ -1,0 +1,201 @@
+// ─── Diet · month history ─────────────────────────────────────────────────────
+
+// clip, not hidden: it rounds the corners without becoming a scroll container, so the column header can stay stuck.
+.dt-hist { padding: 0; overflow: clip; }
+
+.dt-hist-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 0.75rem 0.5rem 1.25rem;
+  border-bottom: 1px solid var(--jv-border);
+}
+
+.dt-hist-title { margin: 0; font-size: 0.95rem; font-weight: 800; }
+
+.dt-hist-nav {
+  display: flex;
+  gap: 0.1rem;
+
+  .btn { color: var(--jv-muted); padding: 0.2rem !important; }
+}
+
+.dt-hist-loading { display: flex; flex-direction: column; gap: 0.6rem; padding: 1rem 1.25rem; }
+
+.dt-hist-note {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 1rem 1.25rem;
+  font-size: 0.85rem;
+  color: var(--jv-muted);
+
+  &--error { color: var(--jv-danger); }
+}
+
+// ─── The month grid ───────────────────────────────────────────────────────────
+// One row per day, one column per meal. The same template drives the header and every row.
+
+.dt-hist-table {
+  --dt-hist-date-col: 3.1rem;
+  padding: 0 0.75rem 0.5rem;
+}
+
+.dt-hist-head,
+.dt-hist-row {
+  display: grid;
+  grid-template-columns: var(--dt-hist-date-col) var(--dt-hist-template);
+  column-gap: 0.6rem;
+}
+
+.dt-hist-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 0.55rem 0.5rem 0.4rem;
+  background: var(--jv-surface);
+  border-bottom: 1px solid var(--jv-border);
+}
+
+.dt-hist-col {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--jv-muted);
+  white-space: nowrap;
+}
+
+.dt-hist-list { list-style: none; margin: 0; padding: 0; }
+
+.dt-hist-row {
+  width: 100%;
+  align-items: start;
+  padding: 0.55rem 0.5rem;
+  border: 0;
+  border-bottom: 1px solid var(--jv-border);
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  transition: background 150ms var(--jv-ease);
+
+  li:last-child > & { border-bottom: 0; }
+
+  &:is(button) { cursor: pointer; }
+
+  &:is(button):hover,
+  &:is(button):focus-visible {
+    background: color-mix(in srgb, var(--jv-brand-1) 6%, transparent);
+    outline: none;
+  }
+
+  &.is-today .dt-hist-day { color: var(--jv-brand-1); }
+
+  // A day with nothing logged is a thin line: it shows the gap without taking space.
+  &.is-empty {
+    align-items: center;
+    padding-top: 0.3rem;
+    padding-bottom: 0.3rem;
+    color: var(--jv-faint);
+    font-size: 0.78rem;
+
+    .dt-hist-date { flex-direction: row; align-items: baseline; gap: 0.3rem; }
+    .dt-hist-day { font-size: 0.82rem; font-weight: 600; color: var(--jv-muted); }
+  }
+}
+
+.dt-hist-date {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.1;
+}
+
+.dt-hist-day { font-size: 1.05rem; font-weight: 800; color: var(--jv-text); }
+
+.dt-hist-dow {
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--jv-muted);
+}
+
+.dt-hist-none { grid-column: 2 / -1; }
+
+.dt-hist-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+
+  &.is-empty { color: var(--jv-faint); }
+}
+
+.dt-hist-meal { display: flex; flex-direction: column; min-width: 0; }
+
+.dt-hist-time {
+  font-size: 0.66rem;
+  font-weight: 700;
+  color: var(--jv-brand-1);
+  font-variant-numeric: tabular-nums;
+}
+
+.dt-hist-foods {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--jv-text);
+  overflow-wrap: anywhere;
+}
+
+// ─── Narrow screens: a day becomes a card listing only the meals that were eaten ──
+
+@media (max-width: 767.98px) {
+  .dt-hist-head { display: none; }
+
+  .dt-hist-table { padding: 0 0.5rem 0.4rem; }
+
+  .dt-hist-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+
+    &.is-empty { flex-direction: row; gap: 0.6rem; }
+  }
+
+  .dt-hist-date {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 0.35rem;
+  }
+
+  .dt-hist-cell {
+    display: grid;
+    grid-template-columns: 6.2rem minmax(0, 1fr);
+    column-gap: 0.5rem;
+    align-items: baseline;
+
+    &::before {
+      content: attr(data-label);
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      color: var(--jv-muted);
+    }
+
+    &.is-empty { display: none; }
+  }
+
+  .dt-hist-meal { grid-column: 2; }
+}

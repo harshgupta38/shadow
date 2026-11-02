@@ -170,6 +170,7 @@ class Endpoints:
         DIARY_ITEM_DUPLICATE = "/diary/items/{item_id}/duplicate"
         DIARY_MEAL = "/diary/meals/{log_id}"
         DIARY_COPY = "/diary/copy"
+        HISTORY = "/history"
         SAVED_MEALS = "/saved-meals"
         SAVED_MEAL = "/saved-meals/{saved_id}"
         SAVED_MEAL_LOG = "/saved-meals/{saved_id}/log"

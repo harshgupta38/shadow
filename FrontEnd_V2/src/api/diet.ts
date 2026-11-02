@@ -4,6 +4,7 @@ import type {
   CopyMealsResponse,
   DiaryAddRequest,
   DiaryDay,
+  DiaryHistoryDay,
   DiaryMeal,
   DietEstimate,
   DietEstimateRequest,
@@ -77,6 +78,10 @@ export const dietApi = {
   // ── Food diary ──────────────────────────────────────────────────────────────
   getDiary(date?: string): Promise<DiaryDay> {
     return http.get<DiaryDay>(url(D.DIARY), { params: date ? { date } : undefined });
+  },
+  /** Every logged day of a month ("YYYY-MM"): which foods, in which meal, at what time. Days with nothing logged are absent. */
+  getHistory(month: string): Promise<DiaryHistoryDay[]> {
+    return http.get<DiaryHistoryDay[]>(url(D.HISTORY), { params: { month } });
   },
   addItems(data: DiaryAddRequest): Promise<DiaryMeal> {
     return http.post<DiaryMeal>(url(D.DIARY_ITEMS), data);

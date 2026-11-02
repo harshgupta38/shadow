@@ -137,3 +137,31 @@ export function notifTime(iso: string, format: TimeFormat = "12h"): string {
     const day = date.toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric", timeZone: IST_TIMEZONE });
     return `${time}, ${day}`;
 }
+
+// ── Months ("YYYY-MM") ───────────────────────────────────────────────────────
+
+export function monthOf(iso: string): string {
+    return iso.slice(0, 7);
+}
+
+export function shiftMonth(month: string, delta: number): string {
+    const [y, m] = month.split("-").map(Number);
+    const d = new Date(y, m - 1 + delta, 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+export function monthRange(month: string): { start: string; end: string } {
+    const [y, m] = month.split("-").map(Number);
+    const lastDay = new Date(y, m, 0).getDate();
+    return { start: `${month}-01`, end: `${month}-${String(lastDay).padStart(2, "0")}` };
+}
+
+export function fmtMonthTitle(month: string): string {
+    const [y, m] = month.split("-").map(Number);
+    return new Date(y, m - 1, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
+}
+
+export function dayParts(iso: string): { day: number; weekday: string } {
+    const [y, m, d] = iso.split("-").map(Number);
+    return { day: d, weekday: new Date(y, m - 1, d).toLocaleDateString("en-US", { weekday: "short" }) };
+}

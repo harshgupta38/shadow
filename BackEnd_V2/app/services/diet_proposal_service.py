@@ -18,27 +18,27 @@ from pydantic import BaseModel
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
-from app.common.timezone import now_ist
+from app.common import now_ist
 from app.core.exceptions import NotFoundError, ValidationError
+from app.llm.knowledge_base import DIET_PARSE_SYSTEM_INSTRUCTION, DIET_REVISE_SYSTEM_INSTRUCTION
 from app.llm.service import get_llm_service_for_ai_behavior
-from app.models.diet import DietAgentRunDBM, DietProfileDBM, DietProposalDBM, FoodDBM
+from app.models.diet_agent_run import DietAgentRunDBM
+from app.models.diet_profile import DietProfileDBM
+from app.models.diet_proposal import DietProposalDBM
+from app.models.food import FoodDBM
 from app.models.user import UserDBM
 from app.schemas.diet import (
     FoodResponse,
     NutrientTotals,
     ParseMealRequest,
+    ParsedFoodItemFromLLMSchema,
+    ParsedMealFromLLMSchema,
     ProposalConfirmResponse,
     ProposalEditRequest,
     ProposalItemResponse,
     ProposalResponse,
     ProposalReviseRequest,
-)
-from app.schemas.diet_ai import (
-    PARSE_SYSTEM_INSTRUCTION,
-    REVISE_SYSTEM_INSTRUCTION,
-    ParsedFoodItemLLM,
-    ParsedMealLLM,
-    RevisedMealLLM,
+    RevisedMealFromLLMSchema,
 )
 from app.services import diet_calc_service, diet_diary_service, diet_food_service, settings_service
 
@@ -224,13 +224,13 @@ _MEAL_WORDS = {"breakfast": "breakfast", "lunch": "lunch", "dinner": "dinner", "
 _VAGUE = re.compile(r"\b(some|little|bit|lots?|few|bunch)\b")
 
 
-def rule_parse(text: str) -> ParsedMealLLM:
+def rule_parse(text: str) -> ParsedMealFromLLMSchema:
     """Deterministic fallback for when the AI provider is down. Handles simple sentences; anything else becomes an unmatched item."""
     lowered = text.lower().strip()
     meal = next((value for word, value in _MEAL_WORDS.items() if re.search(rf"\b{word}\b", lowered)), None)
     lowered = re.sub(r"\b(?:for|at|in|during)\s+(?:my\s+|the\s+)?(?:breakfast|lunch|dinner|supper|snack)\b", " ", lowered)
     lowered = _LEAD.sub("", lowered.strip())
-    items: list[ParsedFoodItemLLM] = []
+    items: list[ParsedFoodItemFromLLMSchema] = []
     for fragment in re.split(r",|;|\band\b|\bwith\b|\bplus\b|\+", lowered):
         piece = _LEAD.sub("", fragment.strip().strip(".!"))
         if not piece:
@@ -239,17 +239,17 @@ def rule_parse(text: str) -> ParsedMealLLM:
         piece = _VAGUE.sub("", piece).strip()
         match = _FRAGMENT.match(piece)
         if not match:
-            items.append(ParsedFoodItemLLM(text=fragment.strip(), food_query=piece, quantity=None, unit=None, quantity_is_vague=vague))
+            items.append(ParsedFoodItemFromLLMSchema(text=fragment.strip(), food_query=piece, quantity=None, unit=None, quantity_is_vague=vague))
             continue
         raw_qty = match.group("qty")
         quantity = float(raw_qty) if raw_qty and raw_qty[0].isdigit() else _NUMBER_WORDS.get(raw_qty or "")
         items.append(
-            ParsedFoodItemLLM(
+            ParsedFoodItemFromLLMSchema(
                 text=fragment.strip(), food_query=match.group("food").strip(), quantity=quantity,
                 unit=match.group("unit"), quantity_is_vague=vague,
             )
         )
-    return ParsedMealLLM(meal_type=meal, items=items[:_MAX_ITEMS])  # type: ignore[arg-type]
+    return ParsedMealFromLLMSchema(meal_type=meal, items=items[:_MAX_ITEMS])  # type: ignore[arg-type]
 
 
 # ---------- proposals ----------
@@ -321,11 +321,11 @@ def to_response(db: Session, user: UserDBM, proposal: DietProposalDBM) -> Propos
 async def parse_meal(db: Session, user: UserDBM, request: ParseMealRequest) -> ProposalResponse:
     day = diet_diary_service.resolve_date(request.log_date)
     parsed, run = await _ask_llm(
-        db, user, system=PARSE_SYSTEM_INSTRUCTION, content=request.text, schema=ParsedMealLLM, operation="diet_parse_meal"
+        db, user, system=DIET_PARSE_SYSTEM_INSTRUCTION, content=request.text, schema=ParsedMealFromLLMSchema, operation="diet_parse_meal"
     )
     if parsed is None:
         parsed = rule_parse(request.text)
-    assert isinstance(parsed, ParsedMealLLM)
+    assert isinstance(parsed, ParsedMealFromLLMSchema)
     if not parsed.items:
         db.commit()  # keep the run record
         raise ValidationError("I couldn't find any food in that message.", errors={"text": "Try something like “two chapatis and a bowl of dal for lunch”."})
@@ -392,7 +392,7 @@ def edit_proposal(db: Session, user: UserDBM, proposal_id: str, request: Proposa
     return to_response(db, user, proposal)
 
 
-def _apply_operations(db: Session, user: UserDBM, payload: dict, revision: RevisedMealLLM) -> list[str]:
+def _apply_operations(db: Session, user: UserDBM, payload: dict, revision: RevisedMealFromLLMSchema) -> list[str]:
     """Applies the model's edit operations with code. Returns anything it could not apply."""
     problems: list[str] = []
     items: list[dict] = payload["items"]
@@ -440,8 +440,8 @@ async def revise_proposal(db: Session, user: UserDBM, proposal_id: str, request:
         for item in proposal.payload["items"]
     )
     content = f"Current meal ({proposal.payload['meal_type']}):\n{listing}\n\nPerson's message: {request.message}"
-    revision, _run = await _ask_llm(db, user, system=REVISE_SYSTEM_INSTRUCTION, content=content, schema=RevisedMealLLM, operation="diet_revise_meal")
-    if not isinstance(revision, RevisedMealLLM):
+    revision, _run = await _ask_llm(db, user, system=DIET_REVISE_SYSTEM_INSTRUCTION, content=content, schema=RevisedMealFromLLMSchema, operation="diet_revise_meal")
+    if not isinstance(revision, RevisedMealFromLLMSchema):
         db.commit()
         raise ValidationError("I couldn't process that correction right now. You can edit the items directly instead.")
     if not revision.understood or not revision.operations:

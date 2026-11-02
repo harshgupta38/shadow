@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import type { WeeklyDay } from "@/api/types";
 import { TipLine, TipTitle, useChartTooltip } from "../ChartTooltip/ChartTooltip";
 import { THRESHOLDS, WEEKDAYS_LONG, WEEKDAYS_SHORT } from "../WeeklyInsights.constants";
-import type { WeekLabels } from "../useWeekLabels";
+import type { WeekLabels } from "@/hooks/useWeekLabels";
 import "./WeekRhythm.scss";
 
 interface WeekRhythmProps {

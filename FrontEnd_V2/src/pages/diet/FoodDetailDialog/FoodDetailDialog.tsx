@@ -16,7 +16,7 @@ import {
   newToken,
   previewNutrients,
   suggestMealType,
-} from "@/pages/diet/dietMath";
+} from "@/pages/diet/DietPage.constants";
 import { currentIstHour, todayIso } from "@/services/date.service";
 import "./FoodDetailDialog.scss";
 

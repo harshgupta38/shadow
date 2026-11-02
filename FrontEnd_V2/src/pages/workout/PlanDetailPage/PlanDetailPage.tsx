@@ -13,7 +13,7 @@ import { todayIso } from "@/services/date.service";
 import { ExerciseThumb } from "@/pages/workout/ExerciseThumb/ExerciseThumb";
 import { MuscleBars } from "@/pages/workout/MuscleBars/MuscleBars";
 import { MuscleChips, MuscleLegend, MuscleMap } from "@/pages/workout/MuscleMap/MuscleMap";
-import { Skeleton } from "@/pages/workout/Skeleton/Skeleton";
+import { WorkoutSkeleton } from "@/pages/workout/WorkoutSkeleton/WorkoutSkeleton";
 import {
   EQUIPMENT_LABEL,
   GOAL_LABEL,
@@ -26,8 +26,10 @@ import {
   formatRest,
   formatSessionDuration,
   pluralize,
+  musclesOf,
+  setsByMuscle,
+  workingSetCount,
 } from "@/pages/workout/WorkoutPage.constants";
-import { musclesOf, setsByMuscle, workingSetCount } from "@/pages/workout/workoutMath";
 import "./PlanDetailPage.scss";
 
 function todayWeekday(): number {
@@ -174,8 +176,8 @@ export function PlanDetailPage() {
       <div className="wk-page">
         <PageHeader title="Workout plan" icon={<HeartPulseFill />} onBack={goBack} />
         <div className="wk-pd-grid" aria-hidden="true">
-          <div className="wk-pd-main"><Skeleton height={130} /><Skeleton height={420} /></div>
-          <div className="wk-pd-aside"><Skeleton height={330} /></div>
+          <div className="wk-pd-main"><WorkoutSkeleton height={130} /><WorkoutSkeleton height={420} /></div>
+          <div className="wk-pd-aside"><WorkoutSkeleton height={330} /></div>
         </div>
       </div>
     );
@@ -296,7 +298,7 @@ export function PlanDetailPage() {
           )}
           {day && !warmUpsError && warmUps?.weekday !== weekday && (
             <section className="surface wk-pd-card">
-              <Skeleton height={180} />
+              <WorkoutSkeleton height={180} />
             </section>
           )}
           {day && warmUps && warmUps.weekday === weekday && warmUps.items.length > 0 && (

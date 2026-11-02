@@ -1,7 +1,7 @@
 import { useId } from "react";
 
 import type { Food } from "@/api";
-import { fmt, previewNutrients, unitsFor } from "@/pages/diet/dietMath";
+import { fmt, previewNutrients, unitsFor } from "@/pages/diet/DietPage.constants";
 import "./ServingSelector.scss";
 
 interface ServingSelectorProps {

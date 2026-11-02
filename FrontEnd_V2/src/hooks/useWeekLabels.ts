@@ -2,7 +2,7 @@ import { useMemo } from "react";
 
 import { useDateFormat } from "@/context/PlannerContext";
 import { formatDisplayDateShort } from "@/services/date.service";
-import { shiftIso } from "./WeeklyInsights.constants";
+import { shiftIso } from "@/pages/reports/ReportDetailPage/WeeklyInsights/WeeklyInsights.constants";
 
 export interface WeekLabels {
   /** Day-of-month under each Sun–Sat column, e.g. "21". */

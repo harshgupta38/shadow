@@ -3,7 +3,7 @@ import { useState } from "react";
 import { api, ApiError } from "@/api";
 import type { Food } from "@/api";
 import { useToast } from "@/context/ToastContext";
-import { CATEGORY_LABEL } from "@/pages/diet/dietMath";
+import { CATEGORY_LABEL } from "@/pages/diet/DietPage.constants";
 import "./CustomFoodForm.scss";
 
 interface CustomFoodFormProps {

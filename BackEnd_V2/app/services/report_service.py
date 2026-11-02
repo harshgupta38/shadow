@@ -8,7 +8,7 @@ from sqlalchemy import select, desc
 from sqlalchemy.orm import Session
 
 from app.db.session import SessionLocal
-from app.core.exceptions import NotFoundError
+from app.core.exceptions import AppError, NotFoundError, ServiceUnavailableError
 from app.llm.models import GenerateReportFromLLM
 from app.llm.service import get_llm_service_for_ai_behavior
 from app.models.goal import GoalDBM
@@ -20,7 +20,7 @@ from app.models.task import TaskDBM
 from app.models.user import UserDBM
 from app.schemas.daily_report import ReportResponse
 from app.schemas.weekly_insights import WeeklyInsightsResponse
-from app.services import notifications_service
+from app.services import email_notification_service, email_service, notifications_service, report_email_limit_service
 from app.services import settings_service
 from app.services import weekly_insights_service
 
@@ -425,6 +425,38 @@ def save_report(
     db.commit()
 
 
+def send_report_email_now(db: Session, user: UserDBM, report_date: date, report_type: str) -> bool:
+    """Emails one of the user's reports and waits for the send. False means the per-process send gate is full, and the
+    caller should answer 503; every other refusal raises.
+
+    The gate comes before the cooldown claim, so a full gate never uses up the user's send. The gate is per process; the
+    cooldown lives in the database and is shared by all workers. The caller is a sync endpoint, which FastAPI runs in a
+    worker thread: the send holds that thread for at most about 20 s (the interactive send budget), and the gate keeps at
+    most a few threads busy with sends at once."""
+    if not email_service.smtp_configured():
+        raise AppError("Email is not set up on this server, so the report was not sent.")
+    reports = [r for r in get_reports(db, user.id, report_date) if r.report_type == report_type]
+    if not reports:
+        raise NotFoundError("No report found for this date.")
+    report = to_report_response(reports[0])
+    if not report_email_limit_service.try_acquire_send_slot():
+        return False
+    try:
+        # The cooldown starts here, before the send, so a failed send uses it up too: retries must not keep hitting
+        # an SMTP server that is down. Requests refused above (404, SMTP off, full gate) never reach this line.
+        report_email_limit_service.claim_send(db, user.id)  # commits, so no DB lock is held during SMTP
+        try:
+            sent = email_notification_service.send_report_email(db, user, report, force=True, interactive=True)
+        except Exception:
+            logger.exception("Manual report email failed for user=%s date=%s", user.id, report_date)
+            sent = False
+        if not sent:
+            raise ServiceUnavailableError("The report email could not be sent. Please try again in a minute.")
+    finally:
+        report_email_limit_service.release_send_slot()
+    return True
+
+
 async def generate_report_background(
     user_id: int,
     report_date: date,
@@ -506,7 +538,6 @@ async def generate_report_background(
             )
             if report:
                 try:
-                    from app.services import email_notification_service, email_service
                     content = email_notification_service.build_report_email(db, user, to_report_response(report))
                     if content is not None:
                         # SMTP retries can sleep for tens of seconds, so the send runs off the event loop.

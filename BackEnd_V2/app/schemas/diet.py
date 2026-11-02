@@ -13,6 +13,7 @@ DietaryPreference = Literal["no_preference", "vegetarian", "eggetarian", "vegan"
 CookingAvailability = Literal["none", "minimal", "moderate", "plenty"]
 Verification = Literal["verified", "estimated", "user"]
 Certainty = Literal["exact", "estimated"]
+FoodScope = Literal["all", "mine", "favourites", "edited"]
 
 DISCLAIMER = (
     "Estimates for general wellbeing, not medical advice. If you have a medical condition, are pregnant, "
@@ -547,3 +548,37 @@ class ProposalReviseRequest(BaseModel):
 class ProposalConfirmResponse(BaseModel):
     proposal: ProposalResponse
     meal: DiaryMealResponse
+
+
+# ── Raw LLM output ───────────────────────────────────────────────────────────
+# Every field is required (nullable where it can be absent) so strict structured-output providers accept them.
+# The model only reads language; foods and nutrients are resolved by code.
+
+MealType = Literal["breakfast", "morning_snack", "lunch", "evening_snack", "dinner"]
+
+
+class ParsedFoodItemFromLLMSchema(BaseModel):
+    text: str = Field(description="The words the user used for this food, copied from their message.")
+    food_query: str = Field(description="The plain food name to look up: singular, no quantity, e.g. 'chapati', 'chicken curry', 'rice'.")
+    quantity: float | None = Field(description="The number the user stated. null if they gave no amount. Never guess one.")
+    unit: str | None = Field(description="The unit word the user used (g, kg, ml, piece, slice, bowl, katori, cup, glass, plate, tbsp, tsp, scoop, handful). null if none was stated.")
+    quantity_is_vague: bool = Field(description="True for amounts like 'some', 'a little', 'a lot' that have no usable number.")
+
+
+class ParsedMealFromLLMSchema(BaseModel):
+    meal_type: MealType | None = Field(description="The meal the user named, or null if they did not name one.")
+    items: list[ParsedFoodItemFromLLMSchema]
+
+
+class MealOperationFromLLMSchema(BaseModel):
+    action: Literal["set_quantity", "remove", "add", "set_meal_type", "replace_food"]
+    item_index: int | None = Field(description="0-based index of the existing item this applies to. null for 'add' and 'set_meal_type'.")
+    food_query: str | None = Field(description="Food name for 'add' or 'replace_food'. Otherwise null.")
+    quantity: float | None = Field(description="New amount for 'set_quantity' or 'add'. Otherwise null.")
+    unit: str | None = Field(description="Unit for the new amount, or null to keep the current unit.")
+    meal_type: MealType | None = Field(description="New meal for 'set_meal_type'. Otherwise null.")
+
+
+class RevisedMealFromLLMSchema(BaseModel):
+    understood: bool = Field(description="False if the message does not describe a change to this meal.")
+    operations: list[MealOperationFromLLMSchema]

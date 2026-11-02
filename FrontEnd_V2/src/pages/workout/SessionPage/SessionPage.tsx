@@ -11,7 +11,7 @@ import { ROUTES } from "@/routes/RoutePaths";
 import { parseServerDate } from "@/services/date.service";
 import { ExerciseDetailModal } from "@/pages/workout/ExerciseDetailModal/ExerciseDetailModal";
 import { ExercisePickerModal } from "@/pages/workout/ExercisePickerModal/ExercisePickerModal";
-import { Skeleton } from "@/pages/workout/Skeleton/Skeleton";
+import { WorkoutSkeleton } from "@/pages/workout/WorkoutSkeleton/WorkoutSkeleton";
 import { formatClock, pluralize } from "@/pages/workout/WorkoutPage.constants";
 import { RestTimerBar } from "@/pages/workout/SessionPage/RestTimerBar/RestTimerBar";
 import { SessionExerciseCard } from "@/pages/workout/SessionPage/SessionExerciseCard/SessionExerciseCard";
@@ -23,7 +23,7 @@ import {
   prefillSet,
   toSaveRequest,
   totals,
-} from "@/pages/workout/SessionPage/sessionState";
+} from "@/pages/workout/SessionPage/SessionPage.constants";
 import "./SessionPage.scss";
 
 const AUTOSAVE_DELAY_MS = 700;
@@ -303,9 +303,9 @@ export function SessionPage() {
   if (loading || !session) {
     return (
       <div className="wk-session" aria-hidden="true">
-        <Skeleton height={64} />
-        <Skeleton height={230} />
-        <Skeleton height={230} />
+        <WorkoutSkeleton height={64} />
+        <WorkoutSkeleton height={230} />
+        <WorkoutSkeleton height={230} />
       </div>
     );
   }

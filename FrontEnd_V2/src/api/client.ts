@@ -15,7 +15,7 @@ import { ApiErrorShape, FieldError } from "@/api/types";
 import { ENDPOINTS } from "@/constant/shadow-endpoints";
 import { TIMING } from "@/constant/tuning";
 import { clearCacheAfterWrite, readThroughCache } from "@/api/cache/apiCache";
-import { resolveMediaPaths } from "@/api/media";
+import { resolveMediaPaths } from "@/services/media.service";
 
 const REFRESH_URL  = `${ENDPOINTS.AUTH.PREFIX}${ENDPOINTS.AUTH.REFRESH}`;
 const LOGIN_URL    = `${ENDPOINTS.AUTH.PREFIX}${ENDPOINTS.AUTH.LOGIN}`;

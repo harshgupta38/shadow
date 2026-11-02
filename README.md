@@ -72,7 +72,7 @@ Screenshots below are pulled directly from `FrontEnd_V2/src/assets/landing/` (ea
 
 <sub>Dark-mode equivalents ship alongside each of the above (`*-dark.png` in the same folder).</sub>
 
-> TODO: Schedule, Journal, Daily Brief, Profile, and Settings screenshots are not yet captured in the repository (Diet is still a placeholder page).
+> TODO: Schedule, Journal, Daily Brief, Profile, and Settings screenshots are not yet captured in the repository (Workout and Diet shots are also still to come).
 
 ---
 
@@ -115,14 +115,14 @@ BackEnd_V2/
 ├── app/
 │   ├── api/            # FastAPI routers (thin) - one file per feature domain
 │   ├── services/       # Business logic - conversations, goals, planning, reports, brief, memory, schedulers
-│   ├── models/          # SQLAlchemy 2.0 declarative models
+│   ├── models/          # SQLAlchemy 2.0 declarative models - one model per file, named after its table
 │   ├── schemas/         # Pydantic request/response/DB-mirror schemas (see docs/naming-conventions.md)
 │   ├── llm/             # Provider-agnostic LLM layer: base interface, providers/, tools/, cost.py, knowledge_base.py
 │   ├── core/            # Settings, JWT/security, exception hierarchy, endpoint path constants, response_cache.py
-│   ├── db/              # Engine/session setup, change_tracking.py (bumps the shared data version on writes)
+│   ├── db/              # Engine/session setup, migrations.py (startup schema migrations), change_tracking.py (bumps the shared data version on writes)
 │   ├── analysis/        # Optional LLM usage/cost logging + Google Sheets export
-│   ├── common/          # IST timezone helpers (today_ist, to_ist) and the multi-worker proc_lock
-│   ├── validators/       # Field-level validation (email, password, date, bio, ...)
+│   ├── common/          # IST/UTC timezone helpers (today_ist, to_ist, as_utc), format_duration and the multi-worker proc_lock
+│   ├── validators/       # Field-level validation (email, password, name, bio)
 │   └── main.py          # App wiring, middleware, lifespan (startup tasks + background loops)
 ├── docs/                # ASSISTANT_MEMORY_SYSTEM.md, naming-conventions.md
 ├── backups/             # Rotated SQLite backups written by backup_service
@@ -137,7 +137,7 @@ FrontEnd_V2/
 │   │   └── cache/       # GET read cache: cachePolicy.ts (what/how long/what clears it) + apiCache.ts (engine)
 │   ├── context/         # Auth, Theme, Accessibility, Planner, Toast providers (no Redux)
 │   ├── components/      # layout/ (Sidebar, Topbar, AppLayout) and ui/ (buttons, cards, dialogs, forms)
-│   ├── hooks/            # useLazyAudio, useUrlAnchor (month/date kept in the URL), useWakeRefresh (refetch after sleep)
+│   ├── hooks/            # Hooks shared by more than one component: useLazyAudio, useUrlAnchor (month/date kept in the URL), useWakeRefresh (refetch after sleep), useExerciseLibrary, useWeekLabels
 │   ├── routes/           # Route table + auth guards (RequireAuth, RequireDeviceCheck, PublicOnly)
 │   └── constant/         # tuning.ts (animation/UX timing constants), endpoint paths, nav config
 └── firebase.json         # Static hosting config (SPA rewrites, asset caching)
@@ -231,9 +231,9 @@ Event-driven alerts (goal or milestone due within 3 days, scheduled-task reminde
 
 ### Workout & Diet
 
-**Workout** is built end to end: `/v2/workout` covers the exercise library, plans, sessions and progress, stored in the `workout_*` tables of `BackEnd_V2`. A user has at most one open workout at a time, enforced by a partial unique index on `workout_sessions`. An open workout keeps the plan weekday it started from, so rebuilding its plan does not orphan it. Cardio and warm-up sets count toward a session, but not toward working-set totals.
+**Workout** is built end to end: `/v2/workout` covers the exercise library, plans, sessions and progress, stored in the `workout_*` tables of `BackEnd_V2`. A user has at most one open workout at a time, enforced by a partial unique index on `workout_sessions`. An open workout keeps the plan weekday it started from, so rebuilding its plan does not orphan it. Cardio and warm-up sets count toward a session, but not toward working-set totals. The exercise library and ready-made plans are seeded from `app/data/workout/`, and the photos are served by the backend from `app/data/workout/media/` under versioned URLs.
 
-**Diet** is not built yet: `/diet` renders a "coming soon" placeholder page, and there is no backend model or service for it in `BackEnd_V2`. This section is intentionally left honest rather than describing planned functionality as shipped.
+**Diet** is built end to end too: `/v2/diet` covers a profile with daily targets (estimated from body details, or set by the user), a food library seeded from `app/data/diet/foods.json` plus the user's own foods and per-user overrides, a day-by-day food diary, saved meals, a water log, and an overview with a nutrition score. A meal can also be logged by describing it in words: the LLM only splits the text into foods and amounts, the foods and nutrients are resolved by code, and nothing counts as eaten until the user confirms the proposal.
 
 ### Settings
 
@@ -511,13 +511,12 @@ npm run dev
 - **Background processing & scheduling** — three asyncio scheduler loops coordinated across multiple worker processes via a custom file lock.
 - **Audio/TTS pipeline** — TTS generation paired with real transcription-based caption timing, with binary caching to avoid repeat API cost.
 - **Performance engineering** — layered read caching (a browser-side cache cleared on writes, and a server-side response cache kept coherent across workers by a transactional version counter), memoized streak math, and measuring service time before deciding what was worth caching.
-- **Pragmatic engineering trade-offs, stated explicitly** — e.g., choosing SQL+prompt-injection memory over vector search for a small private user base, and being explicit in this document about what is *not* yet implemented (V2 tests, Diet) rather than overstating scope.
+- **Pragmatic engineering trade-offs, stated explicitly** — e.g., choosing SQL+prompt-injection memory over vector search for a small private user base, and being explicit in this document about what is *not* yet implemented (V2 tests) rather than overstating scope.
 
 ---
 
 ## Future Work
 
 - Link Journal entries and moods into the daily and weekly AI reports.
-- Implement backend support and a real page for Diet, which currently exists only as a frontend placeholder.
 - Add automated tests for `BackEnd_V2` and the frontend, if the project decides to keep tests (see [Testing](#testing)).
 - Roll out the `save_user_memory` feature flag more broadly (currently defaults to off) once extraction quality is validated further.

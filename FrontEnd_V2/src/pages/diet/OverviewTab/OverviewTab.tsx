@@ -9,7 +9,7 @@ import { useWakeRefresh } from "@/hooks/useWakeRefresh";
 import { CalorieRing } from "@/pages/diet/CalorieRing/CalorieRing";
 import { DietSkeleton } from "@/pages/diet/DietSkeleton/DietSkeleton";
 import { MacroBar } from "@/pages/diet/MacroBar/MacroBar";
-import { WATER_QUICK_ML, barPercent, errorMessage, fmt, mealLabel, sortMeals } from "@/pages/diet/dietMath";
+import { WATER_QUICK_ML, barPercent, errorMessage, fmt, mealLabel, sortMeals } from "@/pages/diet/DietPage.constants";
 import { formatTime } from "@/services/date.service";
 import "./OverviewTab.scss";
 

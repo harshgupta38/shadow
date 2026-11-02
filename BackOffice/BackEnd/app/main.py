@@ -11,7 +11,8 @@ from app.api.router import api_router
 from app.api.system import router as system_router
 from app.core.config import settings
 from app.core.exceptions import AppError
-from app.db.session import drop_column_if_present, engine, ensure_model_columns
+from app.db.migrations import drop_column_if_present, ensure_model_columns
+from app.db.session import engine
 from app.models.base import Base
 from app.services import model_constraints
 

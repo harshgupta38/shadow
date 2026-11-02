@@ -8,8 +8,7 @@ import { formatDisplayDate } from "@/services/date.service";
 import { ROUTES } from "@/routes/RoutePaths";
 import { MuscleChips, MuscleLegend, MuscleMap } from "@/pages/workout/MuscleMap/MuscleMap";
 import { SessionExerciseCard } from "@/pages/workout/SessionPage/SessionExerciseCard/SessionExerciseCard";
-import { formatSessionDuration, formatVolume, pluralize } from "@/pages/workout/WorkoutPage.constants";
-import { musclesOf } from "@/pages/workout/workoutMath";
+import { formatSessionDuration, formatVolume, pluralize, musclesOf } from "@/pages/workout/WorkoutPage.constants";
 import "./SessionSummary.scss";
 
 interface SessionSummaryProps {

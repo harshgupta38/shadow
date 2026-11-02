@@ -9,7 +9,7 @@ import { useToast } from "@/context/ToastContext";
 import { CustomFoodForm } from "@/pages/diet/CustomFoodForm/CustomFoodForm";
 import { DietSkeleton } from "@/pages/diet/DietSkeleton/DietSkeleton";
 import { ServingSelector } from "@/pages/diet/ServingSelector/ServingSelector";
-import { certaintyFor, errorMessage, fmt, mealLabel, newToken, previewNutrients } from "@/pages/diet/dietMath";
+import { certaintyFor, errorMessage, fmt, mealLabel, newToken, previewNutrients } from "@/pages/diet/DietPage.constants";
 import "./FoodSearchModal.scss";
 
 interface FoodSearchModalProps {

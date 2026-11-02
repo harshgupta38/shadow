@@ -7,9 +7,11 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, contains_eager, defer
 
 from app.core.exceptions import NotFoundError
-from app.core.workout_media import media_url, thumbnail_url
-from app.models.workout import WorkoutExerciseDBM, WorkoutSessionDBM, WorkoutSessionExerciseDBM
+from app.models.workout_exercise import WorkoutExerciseDBM
+from app.models.workout_session import WorkoutSessionDBM
+from app.models.workout_session_exercise import WorkoutSessionExerciseDBM
 from app.schemas.workout import ExerciseDetailResponse, ExercisePerformanceResponse, ExerciseSummaryResponse
+from app.services.workout_media_service import media_url, thumbnail_url
 
 _HISTORY_SCAN_LIMIT = 20  # recent entries inspected when looking for one with done sets
 

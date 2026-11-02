@@ -10,7 +10,7 @@ import { useToast } from "@/context/ToastContext";
 import { ROUTES } from "@/routes/RoutePaths";
 import { PlanCard } from "@/pages/workout/PlansTab/PlanCard/PlanCard";
 import { SearchBox } from "@/pages/workout/SearchBox/SearchBox";
-import { Skeleton } from "@/pages/workout/Skeleton/Skeleton";
+import { WorkoutSkeleton } from "@/pages/workout/WorkoutSkeleton/WorkoutSkeleton";
 import { GOAL_OPTIONS, LEVEL_OPTIONS } from "@/pages/workout/WorkoutPage.constants";
 import "./PlansTab.scss";
 
@@ -190,7 +190,7 @@ export function PlansTab() {
 
       {loading ? (
         <div className="wk-plan-grid" aria-hidden="true">
-          {Array.from({ length: 3 }, (_, i) => <Skeleton key={i} height={380} />)}
+          {Array.from({ length: 3 }, (_, i) => <WorkoutSkeleton key={i} height={380} />)}
         </div>
       ) : results.length === 0 && !showCreateCard ? (
         <div className="empty-state surface">

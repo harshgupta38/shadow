@@ -1,8 +1,8 @@
-"""Pure helpers shared by the workout services: time estimates, muscle credit and week maths."""
+"""Deterministic workout maths: time estimates, muscle credit and week maths. No database and no LLM."""
 
 import re
 from collections.abc import Iterable
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, timedelta
 
 SECONDS_PER_SET = 45  # rough time under the bar for one set; the builder's live estimate uses the same number
 SETUP_MINUTES = 5  # warm-up and changeover allowance per session
@@ -49,10 +49,3 @@ def sunday_based_weekday(day: date) -> int:
 def week_start(day: date) -> date:
     """The Sunday that opens the week containing `day`."""
     return day - timedelta(days=sunday_based_weekday(day))
-
-
-def as_utc(moment: datetime) -> datetime:
-    """Timestamps come back naive from SQLite; the app stores them in UTC, so naive means UTC."""
-    if moment.tzinfo is None:
-        return moment.replace(tzinfo=timezone.utc)
-    return moment.astimezone(timezone.utc)

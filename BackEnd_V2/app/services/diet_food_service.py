@@ -8,11 +8,16 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.common.timezone import today_ist
+from app.common import today_ist
 from app.core.exceptions import ConflictError, NotFoundError, ValidationError
-from app.models.diet import DietProfileDBM, FoodDBM, FoodFavouriteDBM, FoodLogDBM, FoodLogItemDBM, FoodOverrideDBM
+from app.models.diet_profile import DietProfileDBM
+from app.models.food import FoodDBM
+from app.models.food_favourite import FoodFavouriteDBM
+from app.models.food_log import FoodLogDBM
+from app.models.food_log_item import FoodLogItemDBM
+from app.models.food_override import FoodOverrideDBM
 from app.models.user import UserDBM
-from app.schemas.diet import FoodCustomRequest, FoodDefaults, FoodResponse, FoodSearchHit, FoodValuesRequest, QuickFoodsResponse
+from app.schemas.diet import FoodCustomRequest, FoodDefaults, FoodResponse, FoodScope, FoodSearchHit, FoodValuesRequest, QuickFoodsResponse
 from app.services import diet_calc_service, diet_seed_service
 from app.services.diet_calc_service import Nutrients
 
@@ -86,6 +91,10 @@ def get_food(db: Session, user: UserDBM, food_id: int) -> FoodDBM:
     return food
 
 
+def get_food_response(db: Session, user: UserDBM, food_id: int) -> FoodResponse:
+    return to_response(get_food(db, user, food_id), user, favourite_ids(db, user))
+
+
 def favourite_ids(db: Session, user: UserDBM) -> set[int]:
     return set(db.scalars(select(FoodFavouriteDBM.food_id).where(FoodFavouriteDBM.user_id == user.id)).all())
 
@@ -141,7 +150,7 @@ def search(
     *,
     category: str | None = None,
     cuisine: str | None = None,
-    scope: str = "all",
+    scope: FoodScope = "all",
     limit: int = 20,
     offset: int = 0,
 ) -> list[FoodSearchHit]:

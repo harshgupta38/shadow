@@ -8,9 +8,9 @@ from sqlalchemy import Date, Integer, cast, func, select
 from sqlalchemy.orm import Session
 
 from app.common import today_ist
-from app.common.workout import sunday_based_weekday, week_start
 from app.models.user import UserDBM
-from app.models.workout import WorkoutSessionDBM, WorkoutSessionExerciseDBM
+from app.models.workout_session import WorkoutSessionDBM
+from app.models.workout_session_exercise import WorkoutSessionExerciseDBM
 from app.schemas.workout import (
     MuscleSetsResponse,
     PersonalRecordResponse,
@@ -20,6 +20,7 @@ from app.schemas.workout import (
     WorkoutWeekDayResponse,
 )
 from app.services import workout_plans_service, workout_sessions_service
+from app.services.workout_calc_service import sunday_based_weekday, week_start
 from app.services.workout_library_service import exercise_summary, library_by_id
 
 MUSCLE_WINDOW_DAYS = 30

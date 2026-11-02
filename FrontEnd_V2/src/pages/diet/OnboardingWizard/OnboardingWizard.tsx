@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ArrowRight, InfoCircleFill, Stars, X } from "react-bootstrap-icons";
 
 import { api, ApiError } from "@/api";
@@ -12,6 +12,7 @@ import type {
   TargetSource,
 } from "@/api";
 import { ThemeToggle } from "@/components/ui/ThemeToggle/ThemeToggle";
+import { ANIMATION } from "@/constant/tuning";
 import { useToast } from "@/context/ToastContext";
 import { ChipInput } from "@/pages/diet/ChipInput/ChipInput";
 import {
@@ -22,8 +23,7 @@ import {
   TARGET_FIELDS,
   feetAndInchesFromCm,
   fmt,
-} from "@/pages/diet/dietMath";
-import { useWizardBoy } from "@/pages/diet/OnboardingWizard/useWizardBoy";
+} from "@/pages/diet/DietPage.constants";
 import { GoalWizardVisual } from "@/pages/my_goals/GoalCreationWizard/GoalWizardVisual";
 // The frame, stepper and journey picture are the goal setup wizard's, so this flow looks and moves the same way.
 import "@/pages/my_goals/GoalCreationWizard/GoalCreationWizard.scss";
@@ -196,6 +196,81 @@ function collectErrors(form: FormState, forStep: number): FieldErrors {
     if (form.daily_budget.trim() !== "" && !(Number(form.daily_budget) >= 0)) next.daily_budget = "Use zero or more, or leave it blank.";
   }
   return next;
+}
+
+/**
+ * Moves the boy along the journey picture to the open step, the way GoalCreationWizard does. A backward jump of more
+ * than one step fades him out and back in; any other move walks him across the steps in between.
+ */
+function useWizardBoy(currentStepIndex: number) {
+  const [boyStepIndex, setBoyStepIndex] = useState(0);
+  const [isBoyVisible, setIsBoyVisible] = useState(true);
+  const stepTimerRef = useRef<number | null>(null);
+  const fadeTimerRef = useRef<number | null>(null);
+
+  function clearStepTimer() {
+    if (stepTimerRef.current !== null) {
+      window.clearInterval(stepTimerRef.current);
+      stepTimerRef.current = null;
+    }
+  }
+
+  function clearFadeTimer() {
+    if (fadeTimerRef.current !== null) {
+      window.clearTimeout(fadeTimerRef.current);
+      fadeTimerRef.current = null;
+    }
+  }
+
+  useEffect(() => {
+    clearStepTimer();
+    clearFadeTimer();
+
+    if (boyStepIndex === currentStepIndex) {
+      setIsBoyVisible(true);
+      return;
+    }
+
+    const distance = Math.abs(currentStepIndex - boyStepIndex);
+    const isBackwardMultiStepJump = currentStepIndex < boyStepIndex && distance > 1;
+
+    if (isBackwardMultiStepJump) {
+      setIsBoyVisible(false);
+      fadeTimerRef.current = window.setTimeout(() => {
+        setBoyStepIndex(currentStepIndex);
+        setIsBoyVisible(true);
+        clearFadeTimer();
+      }, ANIMATION.BOY_BACKWARD_FADE_MS);
+
+      return () => clearFadeTimer();
+    }
+
+    if (distance === 1) {
+      setIsBoyVisible(true);
+      setBoyStepIndex(currentStepIndex);
+      return;
+    }
+
+    const direction = currentStepIndex > boyStepIndex ? 1 : -1;
+    setIsBoyVisible(true);
+
+    stepTimerRef.current = window.setInterval(() => {
+      setBoyStepIndex((current) => {
+        const next = current + direction;
+        if (next === currentStepIndex) clearStepTimer();
+        return next;
+      });
+    }, ANIMATION.BOY_MULTI_STEP_INTERVAL_MS);
+
+    return () => {
+      clearStepTimer();
+      clearFadeTimer();
+    };
+    // The effect reads the boy's position as it was when the step changed, which is what the walk starts from.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStepIndex]);
+
+  return { boyStepIndex, isBoyVisible };
 }
 
 export function OnboardingWizard({ initial, onDone, onCancel }: OnboardingWizardProps) {

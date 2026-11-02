@@ -12,7 +12,7 @@ import { formatDisplayDate, formatDuration } from "@/services/date.service";
 import { ExerciseThumb } from "@/pages/workout/ExerciseThumb/ExerciseThumb";
 import { MuscleBars } from "@/pages/workout/MuscleBars/MuscleBars";
 import { MuscleChips } from "@/pages/workout/MuscleMap/MuscleMap";
-import { Skeleton } from "@/pages/workout/Skeleton/Skeleton";
+import { WorkoutSkeleton } from "@/pages/workout/WorkoutSkeleton/WorkoutSkeleton";
 import { formatSessionDuration, formatVolume, pluralize } from "@/pages/workout/WorkoutPage.constants";
 import "./HistoryTab.scss";
 
@@ -109,8 +109,8 @@ export function HistoryTab() {
   if (loading || !progress) {
     return (
       <div className="wk-hist-grid" aria-hidden="true">
-        <div className="wk-hist-main"><Skeleton height={280} /><Skeleton height={320} /></div>
-        <div className="wk-hist-aside"><Skeleton height={110} /><Skeleton height={260} /></div>
+        <div className="wk-hist-main"><WorkoutSkeleton height={280} /><WorkoutSkeleton height={320} /></div>
+        <div className="wk-hist-aside"><WorkoutSkeleton height={110} /><WorkoutSkeleton height={260} /></div>
       </div>
     );
   }

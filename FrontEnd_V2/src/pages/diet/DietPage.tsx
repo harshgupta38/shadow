@@ -11,7 +11,7 @@ import { DietSkeleton } from "@/pages/diet/DietSkeleton/DietSkeleton";
 import { LibraryTab } from "@/pages/diet/LibraryTab/LibraryTab";
 import { OnboardingWizard } from "@/pages/diet/OnboardingWizard/OnboardingWizard";
 import { OverviewTab } from "@/pages/diet/OverviewTab/OverviewTab";
-import { tabKeyHandler } from "@/pages/diet/tabKeys";
+import { tabKeyHandler } from "@/pages/diet/DietPage.constants";
 import "./DietPage.scss";
 
 type TabId = "overview" | "diary" | "library";

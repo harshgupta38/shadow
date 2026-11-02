@@ -42,8 +42,8 @@ import {
   type DraftDay,
   type DraftExercise,
   type PlanDraft,
-} from "@/pages/workout/PlanBuilderPage/builderState";
-import { Skeleton } from "@/pages/workout/Skeleton/Skeleton";
+} from "@/pages/workout/PlanBuilderPage/PlanBuilderPage.constants";
+import { WorkoutSkeleton } from "@/pages/workout/WorkoutSkeleton/WorkoutSkeleton";
 import {
   GOAL_OPTIONS,
   LEVEL_OPTIONS,
@@ -52,8 +52,11 @@ import {
   WEEKDAY_SHORT,
   formatSessionDuration,
   pluralize,
+  countSets,
+  estimateMinutes,
+  musclesOf,
+  setsByMuscle,
 } from "@/pages/workout/WorkoutPage.constants";
-import { countSets, estimateMinutes, musclesOf, setsByMuscle } from "@/pages/workout/workoutMath";
 import "./PlanBuilderPage.scss";
 
 const ALL_MUSCLES = Object.keys(MUSCLE_LABEL) as MuscleId[];
@@ -271,8 +274,8 @@ export function PlanBuilderPage() {
     return (
       <div className="wk-builder" aria-hidden="true">
         <PageHeader title={title} icon={<HeartPulseFill />} onBack={() => navigate(`${ROUTES.WORKOUT}?tab=plans`)} />
-        <Skeleton height={170} />
-        <Skeleton height={380} />
+        <WorkoutSkeleton height={170} />
+        <WorkoutSkeleton height={380} />
       </div>
     );
   }

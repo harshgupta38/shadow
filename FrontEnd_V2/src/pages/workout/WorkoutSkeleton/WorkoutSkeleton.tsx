@@ -1,8 +1,8 @@
 import type { CSSProperties } from "react";
 
-import "./Skeleton.scss";
+import "./WorkoutSkeleton.scss";
 
-interface SkeletonProps {
+interface WorkoutSkeletonProps {
   height?: number | string;
   width?: number | string;
   className?: string;
@@ -10,6 +10,6 @@ interface SkeletonProps {
 }
 
 // Shimmering placeholder block used while workout data loads.
-export function Skeleton({ height, width, className, style }: SkeletonProps) {
+export function WorkoutSkeleton({ height, width, className, style }: WorkoutSkeletonProps) {
   return <div className={`wk-skel${className ? ` ${className}` : ""}`} style={{ height, width, ...style }} aria-hidden="true" />;
 }

@@ -11,7 +11,7 @@ from pathlib import Path
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models.diet import FoodDBM
+from app.models.food import FoodDBM
 
 _DATA_FILE = Path(__file__).resolve().parents[1] / "data" / "diet" / "foods.json"
 

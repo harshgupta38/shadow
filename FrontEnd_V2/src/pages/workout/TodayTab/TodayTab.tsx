@@ -20,7 +20,7 @@ import { formatDuration } from "@/services/date.service";
 import { ExerciseThumb } from "@/pages/workout/ExerciseThumb/ExerciseThumb";
 import { MuscleBars } from "@/pages/workout/MuscleBars/MuscleBars";
 import { MuscleChips, MuscleLegend, MuscleMap } from "@/pages/workout/MuscleMap/MuscleMap";
-import { Skeleton } from "@/pages/workout/Skeleton/Skeleton";
+import { WorkoutSkeleton } from "@/pages/workout/WorkoutSkeleton/WorkoutSkeleton";
 import {
   WEEKDAY_LONG,
   WEEKDAY_SHORT,
@@ -28,8 +28,9 @@ import {
   formatSessionDuration,
   formatVolume,
   pluralize,
+  musclesOf,
+  workingSetCount,
 } from "@/pages/workout/WorkoutPage.constants";
-import { musclesOf, workingSetCount } from "@/pages/workout/workoutMath";
 import "./TodayTab.scss";
 
 interface TodayTabProps {
@@ -116,8 +117,8 @@ export function TodayTab({ onOpenExercise }: TodayTabProps) {
   if (loading || !data) {
     return (
       <div className="wk-today-grid" aria-hidden="true">
-        <div className="wk-today-main"><Skeleton height={380} /><Skeleton height={110} /></div>
-        <div className="wk-today-aside"><Skeleton height={120} /><Skeleton height={300} /></div>
+        <div className="wk-today-main"><WorkoutSkeleton height={380} /><WorkoutSkeleton height={110} /></div>
+        <div className="wk-today-aside"><WorkoutSkeleton height={120} /><WorkoutSkeleton height={300} /></div>
       </div>
     );
   }

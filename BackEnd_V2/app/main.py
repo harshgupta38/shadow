@@ -1,11 +1,9 @@
 from contextlib import asynccontextmanager
 
 import asyncio
-import json
 import logging
 import time
 
-from pathlib import Path
 from typing import Callable
 
 from fastapi import FastAPI, Request
@@ -20,8 +18,8 @@ from app.api.router import api_router
 from app.api.system import router as system_router
 from app.api.shortcuts import router as shortcuts_router
 from app.core.config import settings
-from app.core.endpoints import ENDPOINTS
 
+from app.db import migrations
 from app.db.session import SessionLocal, engine
 from app.models.base import Base
 from app.core.exceptions import AppError, TooManyRequestsError
@@ -52,31 +50,25 @@ from app.models.ip_rate_limit import IpRateLimitDBM
 from app.models.daily_usage import DailyUsageDBM
 from app.models.scheduled_task_subtask import ScheduledTaskSubtaskDBM
 from app.models.journal import JournalEntryDBM
-from app.models.workout import (
-    OPEN_SESSION_INDEX,
-    OPEN_SESSION_WHERE,
-    WorkoutExerciseDBM,
-    WorkoutPlanDayDBM,
-    WorkoutPlanDBM,
-    WorkoutPlanExerciseDBM,
-    WorkoutSessionDBM,
-    WorkoutSessionExerciseDBM,
-    WorkoutSettingDBM,
-)
-from app.models.diet import (
-    DietAgentRunDBM,
-    DietProfileDBM,
-    DietProposalDBM,
-    FoodDBM,
-    FoodFavouriteDBM,
-    FoodOverrideDBM,
-    FoodLogDBM,
-    FoodLogItemDBM,
-    SavedMealDBM,
-    WaterLogDBM,
-)
+from app.models.workout_exercise import WorkoutExerciseDBM
+from app.models.workout_plan import WorkoutPlanDBM
+from app.models.workout_plan_day import WorkoutPlanDayDBM
+from app.models.workout_plan_exercise import WorkoutPlanExerciseDBM
+from app.models.workout_setting import WorkoutSettingDBM
+from app.models.workout_session import WorkoutSessionDBM
+from app.models.workout_session_exercise import WorkoutSessionExerciseDBM
+from app.models.diet_profile import DietProfileDBM
+from app.models.food import FoodDBM
+from app.models.food_override import FoodOverrideDBM
+from app.models.food_favourite import FoodFavouriteDBM
+from app.models.food_log import FoodLogDBM
+from app.models.food_log_item import FoodLogItemDBM
+from app.models.saved_meal import SavedMealDBM
+from app.models.water_log import WaterLogDBM
+from app.models.diet_proposal import DietProposalDBM
+from app.models.diet_agent_run import DietAgentRunDBM
 from app.models.data_version import DataVersionDBM
-from app.services import planner_service, backup_service, diet_seed_service, notification_scheduler_service, report_scheduler_service, session_event_service, workout_seed_service, workout_sessions_service
+from app.services import planner_service, backup_service, diet_seed_service, notification_scheduler_service, report_scheduler_service, session_event_service, workout_media_service, workout_seed_service, workout_sessions_service
 from app.api.notifications import reset_shutdown as _reset_sse_shutdown
 from app.api.notifications import signal_shutdown as _signal_sse_shutdown
 
@@ -84,238 +76,17 @@ from app.api.notifications import signal_shutdown as _signal_sse_shutdown
 _startup_logger = logging.getLogger(__name__)
 
 
-def _fold_session_sets_into_exercises(conn) -> None:
-    """Moves each session's sets from workout_session_sets into a JSON column on its exercise row, then drops the old table.
-
-    One transaction. BEGIN IMMEDIATE makes workers that start together take turns, so the second one finds nothing left to do.
-    """
-    from sqlalchemy import text as _sql_text  # pyright: ignore[reportMissingImports]
-
-    conn.exec_driver_sql("BEGIN IMMEDIATE")
-    try:
-        tables = {row[0] for row in conn.execute(_sql_text("SELECT name FROM sqlite_master WHERE type = 'table'"))}
-        if "workout_session_sets" in tables:
-            conn.execute(_sql_text("ALTER TABLE workout_session_exercises ADD COLUMN sets JSON NOT NULL DEFAULT '[]'"))
-            sets_by_entry: dict[int, list[dict]] = {}
-            rows = conn.execute(
-                _sql_text("SELECT session_exercise_id, reps, weight_kg, done FROM workout_session_sets ORDER BY session_exercise_id, position")
-            ).fetchall()
-            for entry_id, reps, weight_kg, done in rows:
-                sets_by_entry.setdefault(entry_id, []).append({"reps": reps, "weight_kg": weight_kg, "done": bool(done)})
-            for entry_id, sets in sets_by_entry.items():
-                conn.execute(
-                    _sql_text("UPDATE workout_session_exercises SET sets = :sets WHERE id = :id"),
-                    {"sets": json.dumps(sets), "id": entry_id},
-                )
-            conn.execute(_sql_text("DROP TABLE workout_session_sets"))
-        conn.commit()
-    except Exception:
-        conn.rollback()
-        raise
-
-
-def _add_column_if_missing(conn, table: str, column: str, ddl: str) -> None:
-    """Runs an ADD COLUMN unless the column is already there. Workers start together, so another one may add it first."""
-    from sqlalchemy import text as _sql_text  # pyright: ignore[reportMissingImports]
-
-    existing = {row[1] for row in conn.execute(_sql_text(f"PRAGMA table_info({table})")).fetchall()}
-    if column in existing:
-        return
-    try:
-        conn.execute(_sql_text(ddl))
-        conn.commit()
-    except OperationalError as exc:  # another worker added the column first
-        if "duplicate column name" not in str(exc):
-            raise
-
-
-def _backfill_plan_weekday(conn) -> None:
-    """Open workouts started before plan_weekday existed take the weekday of their plan day while that day is still
-    linked. Once a plan edit has unlinked the day, the weekday of the start date stands in: the app only starts the plan
-    day of today's weekday, so the two agree. A workout of a deleted plan keeps NULL. Idempotent."""
-    from sqlalchemy import text as _sql_text  # pyright: ignore[reportMissingImports]
-
-    conn.execute(
-        _sql_text(
-            "UPDATE workout_sessions SET plan_weekday = COALESCE("
-            "(SELECT workout_plan_days.weekday FROM workout_plan_days WHERE workout_plan_days.id = workout_sessions.plan_day_id), "
-            "CAST(strftime('%w', workout_sessions.session_date) AS INTEGER)) "
-            f"WHERE {OPEN_SESSION_WHERE} AND plan_weekday IS NULL AND plan_id IS NOT NULL"
-        )
-    )
-    conn.commit()
-
-
-def _open_workout_guard_in_place(db) -> bool:
-    """True when the one-open-workout index exists and no user has two open workouts."""
-    from sqlalchemy import text as _sql_text  # pyright: ignore[reportMissingImports]
-
-    indexed = db.execute(
-        _sql_text("SELECT 1 FROM sqlite_master WHERE type = 'index' AND name = :name"), {"name": OPEN_SESSION_INDEX}
-    ).first()
-    doubled = db.execute(
-        _sql_text(f"SELECT 1 FROM workout_sessions WHERE {OPEN_SESSION_WHERE} GROUP BY user_id HAVING COUNT(*) > 1")
-    ).first()
-    return indexed is not None and doubled is None
-
-
-def _keep_one_open_workout_per_user() -> None:
-    """Allows one open workout per user, which the partial unique index then enforces. Databases created before the index
-    can hold several open workouts per user: the newest is kept and the others are settled as stale workouts are
-    (workout_sessions_service.settle_duplicate_open_sessions). BEGIN IMMEDIATE makes workers that start together take
-    turns, so the second finds nothing left to settle. A constraint or duplicate-index error counts as success only
-    when the index is in place and no user has two open workouts; anything else stops the startup."""
-    from sqlalchemy import text as _sql_text  # pyright: ignore[reportMissingImports]
-
-    with SessionLocal() as db:
-        try:
-            db.execute(_sql_text("BEGIN IMMEDIATE"))
-            workout_sessions_service.settle_duplicate_open_sessions(db, workout_sessions_service.now_utc())
-            db.execute(
-                _sql_text(f"CREATE UNIQUE INDEX IF NOT EXISTS {OPEN_SESSION_INDEX} ON workout_sessions (user_id) WHERE {OPEN_SESSION_WHERE}")
-            )
-            db.commit()
-        except (IntegrityError, OperationalError):
-            db.rollback()
-            if not _open_workout_guard_in_place(db):
-                raise
-
-
-def _migrate_workout(engine) -> None:
-    """Brings a database created before the current workout schema up to date. Every step is idempotent, so workers
-    that start together can all run it."""
-    with engine.connect() as _conn:
-        _add_column_if_missing(
-            _conn, "workout_exercises", "kind",
-            "ALTER TABLE workout_exercises ADD COLUMN kind VARCHAR(16) NOT NULL DEFAULT 'strength'",
-        )
-        _add_column_if_missing(
-            _conn, "workout_exercises", "measure",
-            "ALTER TABLE workout_exercises ADD COLUMN measure VARCHAR(12) NOT NULL DEFAULT 'reps'",
-        )
-        _add_column_if_missing(
-            _conn, "workout_exercises", "equipment_type",
-            "ALTER TABLE workout_exercises ADD COLUMN equipment_type VARCHAR(16) NOT NULL DEFAULT 'heavy_equipment'",
-        )
-        _add_column_if_missing(
-            _conn, "workout_settings", "active_plan_started_on",
-            "ALTER TABLE workout_settings ADD COLUMN active_plan_started_on DATE",
-        )
-        _fold_session_sets_into_exercises(_conn)
-        _add_column_if_missing(
-            _conn, "workout_sessions", "plan_weekday",
-            "ALTER TABLE workout_sessions ADD COLUMN plan_weekday INTEGER CHECK (plan_weekday IS NULL OR plan_weekday BETWEEN 0 AND 6)",
-        )
-        _backfill_plan_weekday(_conn)
-    _keep_one_open_workout_per_user()
-
-
-def _rebuild_diet_profiles_if_outdated(engine) -> None:
-    """SQLite cannot change a CHECK constraint in place. A diet_profiles table made before non-vegetarian and the height
-    unit existed keeps the old constraints, so its rows are copied into a table built from the current model. Runs inside
-    BEGIN IMMEDIATE: workers that start together take turns, and the one that comes second finds the table already rebuilt."""
-    from sqlalchemy import text as _sql_text  # pyright: ignore[reportMissingImports]
-    from sqlalchemy.schema import CreateTable  # pyright: ignore[reportMissingImports]
-
-    from app.models.diet import DietProfileDBM  # pyright: ignore[reportMissingImports]
-
-    table = DietProfileDBM.__table__
-    with engine.connect() as conn:
-        # Foreign keys are off for the copy, as SQLite's guide to rebuilding a table asks. The switch does nothing inside a
-        # transaction, so it comes first, and it is turned back on however the rebuild ends.
-        conn.exec_driver_sql("PRAGMA foreign_keys=OFF")
-        try:
-            conn.exec_driver_sql("BEGIN IMMEDIATE")
-            current = conn.execute(
-                _sql_text("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'diet_profiles'")
-            ).scalar()
-            if current is None or ("'non_vegetarian'" in current and "height_unit" in current):
-                conn.rollback()
-                return
-            # The model's own CREATE TABLE, with only the name changed: a copy of the table in another MetaData
-            # cannot resolve its foreign key to users.
-            ddl = str(CreateTable(table).compile(dialect=conn.dialect)).replace(
-                "CREATE TABLE diet_profiles (", "CREATE TABLE diet_profiles_rebuild (", 1
-            )
-            conn.exec_driver_sql(ddl)
-            existing = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(diet_profiles)")}
-            shared = ", ".join(column.name for column in table.columns if column.name in existing)
-            conn.exec_driver_sql(f"INSERT INTO diet_profiles_rebuild ({shared}) SELECT {shared} FROM diet_profiles")
-            conn.exec_driver_sql("DROP TABLE diet_profiles")
-            conn.exec_driver_sql("ALTER TABLE diet_profiles_rebuild RENAME TO diet_profiles")
-            conn.commit()
-        except Exception:
-            conn.rollback()
-            raise
-        finally:
-            conn.exec_driver_sql("PRAGMA foreign_keys=ON")
-
-
-def _migrate_water_logs(engine) -> None:
-    """Collapse any multi-row (user, day) pairs into one row storing the daily total, and add a UNIQUE constraint.
-    Old schema: CHECK(amount_ml BETWEEN 1 AND 5000), multiple rows per day.
-    New schema: CHECK(amount_ml >= 0), UNIQUE(user_id, log_date).
-    Idempotent: skips when the unique constraint is already present."""
-    from sqlalchemy import text as _sql_text  # pyright: ignore[reportMissingImports]
-
-    with engine.connect() as conn:
-        current = conn.execute(
-            _sql_text("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'water_logs'")
-        ).scalar()
-        if current is None or "uq_water_logs_user_date" in current:
-            return  # table missing (will be created fresh) or already migrated
-
-        conn.exec_driver_sql("PRAGMA foreign_keys=OFF")
-        try:
-            conn.exec_driver_sql("BEGIN IMMEDIATE")
-            conn.exec_driver_sql("""
-                CREATE TABLE water_logs_rebuild (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-                    log_date DATE NOT NULL,
-                    amount_ml INTEGER NOT NULL CHECK (amount_ml >= 0),
-                    created_at DATETIME NOT NULL DEFAULT (CURRENT_TIMESTAMP),
-                    CONSTRAINT uq_water_logs_user_date UNIQUE (user_id, log_date)
-                )
-            """)
-            conn.exec_driver_sql("""
-                INSERT INTO water_logs_rebuild (user_id, log_date, amount_ml)
-                SELECT user_id, log_date,
-                       CASE WHEN SUM(amount_ml) > 0 THEN SUM(amount_ml) ELSE 0 END
-                FROM water_logs
-                GROUP BY user_id, log_date
-            """)
-            conn.exec_driver_sql("DROP TABLE water_logs")
-            conn.exec_driver_sql("ALTER TABLE water_logs_rebuild RENAME TO water_logs")
-            conn.commit()
-        except Exception:
-            conn.rollback()
-            raise
-        finally:
-            conn.exec_driver_sql("PRAGMA foreign_keys=ON")
-
-
-def _migrate_diet(engine) -> None:
-    """Brings diet_profiles up to date: the unit the height was typed in, and the rebuilt table for the eating styles.
-    Idempotent, like the workout migration."""
-    with engine.connect() as _conn:
-        _add_column_if_missing(
-            _conn, "diet_profiles", "height_unit",
-            "ALTER TABLE diet_profiles ADD COLUMN height_unit VARCHAR(8) NOT NULL DEFAULT 'cm'",
-        )
-    _rebuild_diet_profiles_if_outdated(engine)
-
-
 def _create_schema(engine) -> None:
-    """Creates missing tables, then runs the workout migration. Workers start together, and the first one to take the
-    write lock creates the new tables, so a sibling can find a table already there ("already exists") or wait past
-    SQLite's busy timeout. Both steps are idempotent, so the sibling retries and finds what is already in place."""
+    """Creates missing tables, then runs the workout and diet migrations. Workers start together, and the first one to take
+    the write lock creates the new tables, so a sibling can find a table already there ("already exists") or wait past
+    SQLite's busy timeout. Every step is idempotent, so the sibling retries and finds what is already in place."""
     for attempt in range(1, 6):
         try:
             Base.metadata.create_all(bind=engine)
-            _migrate_workout(engine)
-            _migrate_diet(engine)
-            _migrate_water_logs(engine)
+            migrations.migrate_workout(engine)
+            workout_sessions_service.enforce_single_open_session()
+            migrations.migrate_diet(engine)
+            migrations.migrate_water_logs(engine)
             return
         except OperationalError as exc:
             transient = "already exists" in str(exc) or "database is locked" in str(exc)
@@ -334,11 +105,11 @@ async def lifespan(_app: FastAPI):
     _create_schema(engine)
     # Add columns that didn't exist when the DB was first created.
     with engine.connect() as _conn:
-        _add_column_if_missing(
+        migrations.add_column_if_missing(
             _conn, "habits", "streak_tolerance_pct",
             "ALTER TABLE habits ADD COLUMN streak_tolerance_pct INTEGER NOT NULL DEFAULT 100",
         )
-        _add_column_if_missing(_conn, "reports", "weekly_insights", "ALTER TABLE reports ADD COLUMN weekly_insights JSON")
+        migrations.add_column_if_missing(_conn, "reports", "weekly_insights", "ALTER TABLE reports ADD COLUMN weekly_insights JSON")
     with SessionLocal() as db:
         try:
             workout_seed_service.sync_seed(db)
@@ -450,7 +221,7 @@ async def handle_validation_error(
 
 
 class CachedStaticFiles(StaticFiles):
-    """Photos are served under versioned URLs (see workout_media), so the browser can keep each one for good."""
+    """Photos are served under versioned URLs (see workout_media_service), so the browser can keep each one for good."""
 
     async def get_response(self, path: str, scope: Scope) -> Response:
         response = await super().get_response(path, scope)
@@ -460,8 +231,8 @@ class CachedStaticFiles(StaticFiles):
 
 # Exercise photos and GIFs. They are served beside the API, so the frontend bundle no longer carries them.
 app.mount(
-    f"{settings.api_prefix}{ENDPOINTS.WORKOUT.PREFIX}/media",
-    CachedStaticFiles(directory=Path(__file__).resolve().parent / "data" / "workout" / "media"),
+    f"{settings.api_prefix}{workout_media_service.MEDIA_ROUTE}",
+    CachedStaticFiles(directory=workout_media_service.MEDIA_DIR),
     name="workout-media",
 )
 

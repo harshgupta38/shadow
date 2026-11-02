@@ -3,20 +3,18 @@
 from datetime import datetime, timezone
 
 from sqlalchemy import func, or_, select, text
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import Session, selectinload
 
-from app.common import today_ist
-from app.common.workout import SECONDARY_CREDIT, as_utc
+from app.common import as_utc, today_ist
 from app.core.exceptions import ConflictError, NotFoundError, ValidationError
+from app.db.session import SessionLocal
 from app.models.user import UserDBM
-from app.models.workout import (
-    WorkoutExerciseDBM,
-    WorkoutPlanDayDBM,
-    WorkoutPlanDBM,
-    WorkoutSessionDBM,
-    WorkoutSessionExerciseDBM,
-)
+from app.models.workout_exercise import WorkoutExerciseDBM
+from app.models.workout_plan import WorkoutPlanDBM
+from app.models.workout_plan_day import WorkoutPlanDayDBM
+from app.models.workout_session import OPEN_SESSION_INDEX, OPEN_SESSION_WHERE, WorkoutSessionDBM
+from app.models.workout_session_exercise import WorkoutSessionExerciseDBM
 from app.schemas.workout import (
     SessionSaveRequest,
     SessionSetResponse,
@@ -25,6 +23,7 @@ from app.schemas.workout import (
     WorkoutSessionDetailResponse,
     WorkoutSessionSummaryResponse,
 )
+from app.services.workout_calc_service import SECONDARY_CREDIT
 from app.services.workout_library_service import exercise_summary, library_by_id, recent_done_entries
 
 _DEFAULT_NAME = "Quick workout"
@@ -242,6 +241,37 @@ def settle_duplicate_open_sessions(db: Session, now: datetime) -> None:
     for user_id in user_ids:
         newest_first = db.scalars(_open_query(user_id)).all()
         settle_open_sessions(db, newest_first[1:], now)
+
+
+def _open_workout_guard_in_place(db: Session) -> bool:
+    """True when the one-open-workout index exists and no user has two open workouts."""
+    indexed = db.execute(
+        text("SELECT 1 FROM sqlite_master WHERE type = 'index' AND name = :name"), {"name": OPEN_SESSION_INDEX}
+    ).first()
+    doubled = db.execute(
+        text(f"SELECT 1 FROM workout_sessions WHERE {OPEN_SESSION_WHERE} GROUP BY user_id HAVING COUNT(*) > 1")
+    ).first()
+    return indexed is not None and doubled is None
+
+
+def enforce_single_open_session() -> None:
+    """Allows one open workout per user, which the partial unique index then enforces. Databases created before the index
+    can hold several open workouts per user: the newest is kept and the others are settled as stale workouts are
+    (settle_duplicate_open_sessions). BEGIN IMMEDIATE makes workers that start together take turns, so the second finds
+    nothing left to settle. A constraint or duplicate-index error counts as success only when the index is in place and no
+    user has two open workouts; anything else stops the startup."""
+    with SessionLocal() as db:
+        try:
+            db.execute(text("BEGIN IMMEDIATE"))
+            settle_duplicate_open_sessions(db, now_utc())
+            db.execute(
+                text(f"CREATE UNIQUE INDEX IF NOT EXISTS {OPEN_SESSION_INDEX} ON workout_sessions (user_id) WHERE {OPEN_SESSION_WHERE}")
+            )
+            db.commit()
+        except (IntegrityError, OperationalError):
+            db.rollback()
+            if not _open_workout_guard_in_place(db):
+                raise
 
 
 def _is_same_workout(open_session: WorkoutSessionDBM, day: WorkoutPlanDayDBM | None) -> bool:

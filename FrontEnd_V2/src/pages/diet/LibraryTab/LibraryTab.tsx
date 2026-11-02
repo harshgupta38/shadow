@@ -11,7 +11,7 @@ import { CustomFoodForm } from "@/pages/diet/CustomFoodForm/CustomFoodForm";
 import { DietSkeleton } from "@/pages/diet/DietSkeleton/DietSkeleton";
 import { EditFoodValuesDialog } from "@/pages/diet/EditFoodValuesDialog/EditFoodValuesDialog";
 import { FoodDetailDialog } from "@/pages/diet/FoodDetailDialog/FoodDetailDialog";
-import { CATEGORY_LABEL, categoryLabel, fmt, foodBadges, quantityLabel } from "@/pages/diet/dietMath";
+import { CATEGORY_LABEL, categoryLabel, fmt, foodBadges, quantityLabel } from "@/pages/diet/DietPage.constants";
 import "./LibraryTab.scss";
 
 type Group = "all" | "indian" | "international" | "mine" | "edited" | "favourites";

@@ -1,4 +1,3 @@
-import logging
 from datetime import date
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
@@ -7,23 +6,23 @@ from fastapi.responses import JSONResponse, Response
 from app.api.deps import get_current_user
 from app.common import today_ist
 from app.core.endpoints import ENDPOINTS
-from app.core.exceptions import AppError, NotFoundError, ServiceUnavailableError, ValidationError
+from app.core.exceptions import ValidationError
 from app.core.response_cache import TTL_STANDARD_SECONDS, cached_json_response
 from app.db.session import get_db
 from app.models.user import UserDBM
 from app.schemas.daily_report import ReportResponse
 from app.schemas.reports import MonthlyReportResponse
-from app.services import email_notification_service, email_service, report_email_limit_service, reports_service, weekly_insights_service
+from app.services import reports_service, weekly_insights_service
 from app.services.report_service import (
     delete_report,
     generate_report_background,
     get_reports,
     has_planned_items,
+    send_report_email_now,
     to_report_response,
 )
 
 router = APIRouter(prefix=ENDPOINTS.REPORTS.PREFIX, tags=["Reports"])
-logger = logging.getLogger(__name__)
 
 
 @router.get(ENDPOINTS.REPORTS.MONTHLY, response_model=MonthlyReportResponse)
@@ -78,35 +77,12 @@ def email_report(
     db=Depends(get_db),
     current_user: UserDBM = Depends(get_current_user),
 ) -> Response:
-    if not email_service.smtp_configured():
-        raise AppError("Email is not set up on this server, so the report was not sent.")
-    reports = [r for r in get_reports(db, current_user.id, report_date) if r.report_type == report_type]
-    if not reports:
-        raise NotFoundError("No report found for this date.")
-    report = to_report_response(reports[0])
-    # The gate comes before the cooldown claim, so a full gate never uses up the user's send. The gate is per
-    # process; the cooldown lives in the database and is shared by all workers.
-    if not report_email_limit_service.try_acquire_send_slot():
+    if not send_report_email_now(db, current_user, report_date, report_type):
         return JSONResponse(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             content={"message": "Too many report emails are being sent right now. Please try again in a few seconds."},
             headers={"Retry-After": "10"},
         )
-    # Sync endpoint: FastAPI runs it in a worker thread. The send holds that thread for at most about 20 s
-    # (the interactive send budget), and the gate keeps at most a few threads busy with sends at once.
-    try:
-        # The cooldown starts here, before the send, so a failed send uses it up too: retries must not keep hitting
-        # an SMTP server that is down. Requests refused above (404, SMTP off, full gate) never reach this line.
-        report_email_limit_service.claim_send(db, current_user.id)  # commits, so no DB lock is held during SMTP
-        try:
-            sent = email_notification_service.send_report_email(db, current_user, report, force=True, interactive=True)
-        except Exception:
-            logger.exception("Manual report email failed for user=%s date=%s", current_user.id, report_date)
-            sent = False
-        if not sent:
-            raise ServiceUnavailableError("The report email could not be sent. Please try again in a minute.")
-    finally:
-        report_email_limit_service.release_send_slot()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

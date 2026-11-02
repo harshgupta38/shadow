@@ -7,16 +7,13 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.common import today_ist
-from app.common.workout import SECONDARY_CREDIT, TIMED_REPS, estimate_minutes, timed_amount
 from app.core.exceptions import ForbiddenError, NotFoundError, ValidationError
 from app.models.user import UserDBM
-from app.models.workout import (
-    WorkoutExerciseDBM,
-    WorkoutPlanDayDBM,
-    WorkoutPlanDBM,
-    WorkoutPlanExerciseDBM,
-    WorkoutSettingDBM,
-)
+from app.models.workout_exercise import WorkoutExerciseDBM
+from app.models.workout_plan import WorkoutPlanDBM
+from app.models.workout_plan_day import WorkoutPlanDayDBM
+from app.models.workout_plan_exercise import WorkoutPlanExerciseDBM
+from app.models.workout_setting import WorkoutSettingDBM
 from app.schemas.workout import (
     ExerciseSummaryResponse,
     PlanDayInput,
@@ -28,6 +25,7 @@ from app.schemas.workout import (
     WorkoutPlanSaveRequest,
     WorkoutPlanSummaryResponse,
 )
+from app.services.workout_calc_service import SECONDARY_CREDIT, TIMED_REPS, estimate_minutes, timed_amount
 from app.services.workout_library_service import exercise_summary, warm_ups_for
 
 _PLAN_NAME_MAX = 80

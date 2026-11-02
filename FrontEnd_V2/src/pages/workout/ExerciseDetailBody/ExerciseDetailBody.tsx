@@ -6,7 +6,7 @@ import { useDateFormat } from "@/context/PlannerContext";
 import { formatDisplayDateShort } from "@/services/date.service";
 import { ExerciseThumb } from "@/pages/workout/ExerciseThumb/ExerciseThumb";
 import { MuscleChips, MuscleLegend, MuscleMap } from "@/pages/workout/MuscleMap/MuscleMap";
-import { Skeleton } from "@/pages/workout/Skeleton/Skeleton";
+import { WorkoutSkeleton } from "@/pages/workout/WorkoutSkeleton/WorkoutSkeleton";
 import {
   EQUIPMENT_LABEL,
   KIND_LABEL,
@@ -21,12 +21,12 @@ export function ExerciseDetailSkeleton() {
   return (
     <div className="wk-detail-grid" aria-hidden="true">
       <div className="wk-detail-col">
-        <Skeleton height={300} />
+        <WorkoutSkeleton height={300} />
       </div>
       <div className="wk-detail-col">
-        <Skeleton height={22} width="55%" />
-        <Skeleton height={64} />
-        <Skeleton height={150} />
+        <WorkoutSkeleton height={22} width="55%" />
+        <WorkoutSkeleton height={64} />
+        <WorkoutSkeleton height={150} />
       </div>
     </div>
   );

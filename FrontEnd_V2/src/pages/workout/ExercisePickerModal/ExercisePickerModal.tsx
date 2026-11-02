@@ -10,12 +10,12 @@ import {
   DEFAULT_EXERCISE_FILTERS,
   applyExerciseFilters,
   type ExerciseFilters,
-} from "@/pages/workout/ExerciseFilterBar/exerciseFilters";
+} from "@/pages/workout/ExerciseFilterBar/ExerciseFilterBar.constants";
 import { ExerciseThumb } from "@/pages/workout/ExerciseThumb/ExerciseThumb";
 import { MuscleChips } from "@/pages/workout/MuscleMap/MuscleMap";
-import { Skeleton } from "@/pages/workout/Skeleton/Skeleton";
+import { WorkoutSkeleton } from "@/pages/workout/WorkoutSkeleton/WorkoutSkeleton";
 import { EQUIPMENT_LABEL, pluralize } from "@/pages/workout/WorkoutPage.constants";
-import { useExerciseLibrary } from "@/pages/workout/useExerciseLibrary";
+import { useExerciseLibrary } from "@/hooks/useExerciseLibrary";
 import "./ExercisePickerModal.scss";
 
 const PAGE = 30;
@@ -75,7 +75,7 @@ export function ExercisePickerModal({ show, onClose, onPick, excludeIds = [], ti
 
               {loading ? (
                 <div className="wk-pick-list" aria-hidden="true">
-                  {Array.from({ length: 6 }, (_, i) => <Skeleton key={i} height={64} />)}
+                  {Array.from({ length: 6 }, (_, i) => <WorkoutSkeleton key={i} height={64} />)}
                 </div>
               ) : results.length === 0 ? (
                 <p className="wk-pick-empty">No exercises match. Try another muscle group or clear the filters.</p>

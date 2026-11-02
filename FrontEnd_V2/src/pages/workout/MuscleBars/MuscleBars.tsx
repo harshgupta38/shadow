@@ -1,6 +1,5 @@
 import type { MuscleSets } from "@/api/types";
-import { MUSCLE_LABEL } from "@/pages/workout/WorkoutPage.constants";
-import { formatSetCount } from "@/pages/workout/workoutMath";
+import { MUSCLE_LABEL, formatSetCount } from "@/pages/workout/WorkoutPage.constants";
 import "./MuscleBars.scss";
 
 interface MuscleBarsProps {

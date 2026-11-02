@@ -4,9 +4,9 @@ from datetime import date
 
 from sqlalchemy.orm import Session
 
-from app.common.timezone import today_ist
+from app.common import today_ist
 from app.core.exceptions import NotFoundError
-from app.models.diet import DietProfileDBM
+from app.models.diet_profile import DietProfileDBM
 from app.models.user import UserDBM
 from app.schemas.diet import (
     MacroProgress,

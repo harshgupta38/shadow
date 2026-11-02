@@ -11,8 +11,11 @@ from pathlib import Path
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.common.workout import dose_fits
-from app.models.workout import WorkoutExerciseDBM, WorkoutPlanDayDBM, WorkoutPlanDBM, WorkoutPlanExerciseDBM
+from app.models.workout_exercise import WorkoutExerciseDBM
+from app.models.workout_plan import WorkoutPlanDBM
+from app.models.workout_plan_day import WorkoutPlanDayDBM
+from app.models.workout_plan_exercise import WorkoutPlanExerciseDBM
+from app.services.workout_calc_service import dose_fits
 
 _DATA_DIR = Path(__file__).resolve().parents[1] / "data" / "workout"
 

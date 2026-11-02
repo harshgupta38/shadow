@@ -1,5 +1,4 @@
 from datetime import date
-from typing import Literal
 
 from fastapi import APIRouter, Depends, Query, status
 
@@ -20,6 +19,7 @@ from app.schemas.diet import (
     EstimateResponse,
     FoodCustomRequest,
     FoodResponse,
+    FoodScope,
     FoodSearchHit,
     FoodValuesRequest,
     OverviewResponse,
@@ -91,7 +91,7 @@ def search_foods(
     q: str = Query(default="", max_length=100),
     category: str | None = Query(default=None, max_length=40),
     cuisine: str | None = Query(default=None, max_length=40),
-    scope: Literal["all", "mine", "favourites", "edited"] = "all",
+    scope: FoodScope = "all",
     limit: int = Query(default=20, ge=1, le=50),
     offset: int = Query(default=0, ge=0, le=5000),
     db=Depends(get_db),
@@ -114,8 +114,7 @@ def quick_foods(db=Depends(get_db), current_user: UserDBM = Depends(get_current_
 
 @router.get(ENDPOINTS.DIET.FOOD_DETAIL, response_model=FoodResponse)
 def get_food(food_id: int, db=Depends(get_db), current_user: UserDBM = Depends(get_current_user)) -> FoodResponse:
-    food = diet_food_service.get_food(db, current_user, food_id)
-    return diet_food_service.to_response(food, current_user, diet_food_service.favourite_ids(db, current_user))
+    return diet_food_service.get_food_response(db, current_user, food_id)
 
 
 @router.put(ENDPOINTS.DIET.FOOD_DETAIL, response_model=FoodResponse)

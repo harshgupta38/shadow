@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { Search } from "react-bootstrap-icons";
 
-import { prefetchImages } from "@/api/media";
+import { prefetchImages } from "@/services/media.service";
 import type { MuscleId } from "@/api/types";
 import { IllustratedErrorState } from "@/components/ui/IllustratedErrorState/IllustratedErrorState";
 import { ExerciseCard } from "@/pages/workout/ExercisesTab/ExerciseCard/ExerciseCard";
@@ -11,10 +11,10 @@ import {
   DEFAULT_EXERCISE_FILTERS,
   applyExerciseFilters,
   type ExerciseFilters,
-} from "@/pages/workout/ExerciseFilterBar/exerciseFilters";
-import { Skeleton } from "@/pages/workout/Skeleton/Skeleton";
+} from "@/pages/workout/ExerciseFilterBar/ExerciseFilterBar.constants";
+import { WorkoutSkeleton } from "@/pages/workout/WorkoutSkeleton/WorkoutSkeleton";
 import { MUSCLE_LABEL, pluralize } from "@/pages/workout/WorkoutPage.constants";
-import { useExerciseLibrary } from "@/pages/workout/useExerciseLibrary";
+import { useExerciseLibrary } from "@/hooks/useExerciseLibrary";
 import "./ExercisesTab.scss";
 
 // The picker covers the last PICKER_COLUMNS columns of the first PICKER_ROWS rows.
@@ -145,7 +145,7 @@ export function ExercisesTab({ onOpenExercise }: ExercisesTabProps) {
         />
 
         {loading ? (
-          Array.from({ length: visible }, (_, i) => <Skeleton key={i} className="wk-ex-skel" />)
+          Array.from({ length: visible }, (_, i) => <WorkoutSkeleton key={i} className="wk-ex-skel" />)
         ) : noResults ? (
           <div className="empty-state surface wk-ex-empty">
             <div className="empty-icon mx-auto mb-3"><Search size={24} /></div>

@@ -9,7 +9,7 @@ import { PriorityFollowThrough } from "./PriorityFollowThrough/PriorityFollowThr
 import { TimeHeatmap } from "./TimeHeatmap/TimeHeatmap";
 import { VsLastWeek } from "./VsLastWeek/VsLastWeek";
 import { WeekRhythm } from "./WeekRhythm/WeekRhythm";
-import { useWeekLabels } from "./useWeekLabels";
+import { useWeekLabels } from "@/hooks/useWeekLabels";
 import "./WeeklyInsights.scss";
 
 interface WeeklyInsightsProps {

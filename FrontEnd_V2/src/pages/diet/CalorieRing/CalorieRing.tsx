@@ -1,4 +1,4 @@
-import { barPercent, fmt } from "@/pages/diet/dietMath";
+import { barPercent, fmt } from "@/pages/diet/DietPage.constants";
 import "./CalorieRing.scss";
 
 interface CalorieRingProps {

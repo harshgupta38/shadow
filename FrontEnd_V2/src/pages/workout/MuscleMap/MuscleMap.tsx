@@ -1,6 +1,6 @@
 import type { MuscleId } from "@/api/types";
 import { BACK_VISIBLE, FRONT_VISIBLE, MUSCLE_LABEL } from "@/pages/workout/WorkoutPage.constants";
-import { BACK_SHAPES, FRONT_SHAPES, HEAD, SILHOUETTE, SILHOUETTE_OUTLINE, VIEW_H, VIEW_W, type MuscleShape } from "./musclePaths";
+import { BACK_SHAPES, FRONT_SHAPES, HEAD, SILHOUETTE, SILHOUETTE_OUTLINE, VIEW_H, VIEW_W, type MuscleShape } from "./MuscleMap.constants";
 import "./MuscleMap.scss";
 
 export type MuscleView = "both" | "front" | "back" | "auto";

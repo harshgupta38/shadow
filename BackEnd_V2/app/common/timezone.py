@@ -19,3 +19,11 @@ def now_ist() -> datetime:
 def today_ist() -> date:
     """The current calendar date in IST, regardless of the server's own local timezone."""
     return now_ist().date()
+
+
+def as_utc(dt: datetime) -> datetime:
+    """Convert a datetime to UTC. A naive datetime is assumed to already be UTC
+    (the app's storage convention): SQLite hands timestamps back without a timezone."""
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)

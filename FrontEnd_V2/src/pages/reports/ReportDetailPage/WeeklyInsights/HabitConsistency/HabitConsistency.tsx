@@ -5,7 +5,7 @@ import type { WeeklyHabit } from "@/api/types";
 import { TipLine, TipTitle, useChartTooltip } from "../ChartTooltip/ChartTooltip";
 import { Delta } from "../Delta/Delta";
 import { HABIT_STATE_LABEL, THRESHOLDS, WEEKDAYS_LONG, WEEKDAY_INITIALS, pct } from "../WeeklyInsights.constants";
-import type { WeekLabels } from "../useWeekLabels";
+import type { WeekLabels } from "@/hooks/useWeekLabels";
 import "./HabitConsistency.scss";
 
 interface HabitConsistencyProps {

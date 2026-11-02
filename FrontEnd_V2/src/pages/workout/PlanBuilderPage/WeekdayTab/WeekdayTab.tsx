@@ -2,7 +2,7 @@ import { useCallback } from "react";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { GripVertical } from "react-bootstrap-icons";
 
-import type { DraftDay } from "@/pages/workout/PlanBuilderPage/builderState";
+import type { DraftDay } from "@/pages/workout/PlanBuilderPage/PlanBuilderPage.constants";
 import { pluralize } from "@/pages/workout/WorkoutPage.constants";
 
 interface WeekdayTabProps {

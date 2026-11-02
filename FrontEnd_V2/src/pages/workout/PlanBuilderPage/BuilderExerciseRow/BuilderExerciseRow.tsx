@@ -13,7 +13,7 @@ import {
   minutesOf,
   secondsOf,
   type DraftExercise,
-} from "@/pages/workout/PlanBuilderPage/builderState";
+} from "@/pages/workout/PlanBuilderPage/PlanBuilderPage.constants";
 import { formatRest } from "@/pages/workout/WorkoutPage.constants";
 import "./BuilderExerciseRow.scss";
 

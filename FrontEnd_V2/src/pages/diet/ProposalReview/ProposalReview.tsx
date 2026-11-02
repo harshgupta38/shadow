@@ -4,7 +4,7 @@ import { ExclamationTriangleFill, InfoCircle, Search, Trash } from "react-bootst
 import { api } from "@/api";
 import type { DiaryMeal, Food, FoodLogProposal, ProposalItem } from "@/api";
 import { useToast } from "@/context/ToastContext";
-import { MEAL_OPTIONS, errorMessage, fmt, mealLabel } from "@/pages/diet/dietMath";
+import { MEAL_OPTIONS, errorMessage, fmt, mealLabel } from "@/pages/diet/DietPage.constants";
 import "./ProposalReview.scss";
 
 interface ProposalReviewProps {

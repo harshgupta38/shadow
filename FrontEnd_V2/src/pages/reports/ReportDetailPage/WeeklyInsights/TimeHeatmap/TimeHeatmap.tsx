@@ -3,7 +3,7 @@ import { useMemo, type CSSProperties } from "react";
 import type { WeeklyTimeSlot } from "@/api/types";
 import { TipLine, TipTitle, useChartTooltip } from "../ChartTooltip/ChartTooltip";
 import { SLOT_LABEL, THRESHOLDS, WEEKDAYS_LONG, WEEKDAY_INITIALS, pct, sum } from "../WeeklyInsights.constants";
-import type { WeekLabels } from "../useWeekLabels";
+import type { WeekLabels } from "@/hooks/useWeekLabels";
 import "./TimeHeatmap.scss";
 
 interface TimeHeatmapProps {

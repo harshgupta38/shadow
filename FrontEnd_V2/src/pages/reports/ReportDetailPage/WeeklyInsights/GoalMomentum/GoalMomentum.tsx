@@ -3,7 +3,7 @@ import { TipLine, TipTitle } from "../ChartTooltip/ChartTooltip";
 import { Delta } from "../Delta/Delta";
 import { Sparkline } from "../Sparkline/Sparkline";
 import { SPARK_SIZE, WEEKDAYS_LONG } from "../WeeklyInsights.constants";
-import type { WeekLabels } from "../useWeekLabels";
+import type { WeekLabels } from "@/hooks/useWeekLabels";
 import "./GoalMomentum.scss";
 
 interface GoalMomentumProps {

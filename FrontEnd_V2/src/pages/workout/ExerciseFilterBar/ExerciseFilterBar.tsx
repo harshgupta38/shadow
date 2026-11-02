@@ -4,7 +4,7 @@ import {
   DEFAULT_EXERCISE_FILTERS,
   hasActiveFilters,
   type ExerciseFilters,
-} from "@/pages/workout/ExerciseFilterBar/exerciseFilters";
+} from "@/pages/workout/ExerciseFilterBar/ExerciseFilterBar.constants";
 import { SearchBox } from "@/pages/workout/SearchBox/SearchBox";
 import {
   EQUIPMENT_OPTIONS,

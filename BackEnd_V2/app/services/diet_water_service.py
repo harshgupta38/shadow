@@ -5,9 +5,10 @@ from datetime import date, timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.common.timezone import today_ist
-from app.models.diet import DietProfileDBM, WaterLogDBM
+from app.common import today_ist
+from app.models.diet_profile import DietProfileDBM
 from app.models.user import UserDBM
+from app.models.water_log import WaterLogDBM
 from app.schemas.diet import WaterAddRequest, WaterDayResponse, WaterHistoryPoint
 from app.services import diet_diary_service
 

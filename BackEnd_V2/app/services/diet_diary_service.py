@@ -10,10 +10,15 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.common.timezone import today_ist
+from app.common import today_ist
 from app.core.exceptions import NotFoundError, ValidationError
-from app.models.diet import STANDARD_MEAL_TYPES, DietProfileDBM, FoodDBM, FoodLogDBM, FoodLogItemDBM, SavedMealDBM, WaterLogDBM
+from app.models.diet_profile import DietProfileDBM
+from app.models.food import FoodDBM
+from app.models.food_log import FoodLogDBM
+from app.models.food_log_item import FoodLogItemDBM
+from app.models.saved_meal import SavedMealDBM
 from app.models.user import UserDBM
+from app.models.water_log import WaterLogDBM
 from app.schemas.diet import (
     CopyMealsRequest,
     CopyMealsResponse,
@@ -33,6 +38,7 @@ from app.schemas.diet import (
 from app.services import diet_calc_service, diet_food_service
 from app.services.diet_calc_service import Nutrients
 
+STANDARD_MEAL_TYPES = ("breakfast", "morning_snack", "lunch", "evening_snack", "dinner")
 _MAX_MEAL_TYPE_LEN = 40
 
 

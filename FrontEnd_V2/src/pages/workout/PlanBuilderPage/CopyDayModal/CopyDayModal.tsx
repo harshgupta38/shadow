@@ -2,9 +2,8 @@ import { useEffect, useState } from "react";
 import { Modal } from "react-bootstrap";
 import { ExclamationTriangleFill, Files } from "react-bootstrap-icons";
 
-import type { DraftDay } from "@/pages/workout/PlanBuilderPage/builderState";
-import { WEEKDAY_LONG, WEEKDAY_SHORT, formatSessionDuration, pluralize } from "@/pages/workout/WorkoutPage.constants";
-import { countSets, estimateMinutes } from "@/pages/workout/workoutMath";
+import type { DraftDay } from "@/pages/workout/PlanBuilderPage/PlanBuilderPage.constants";
+import { WEEKDAY_LONG, WEEKDAY_SHORT, formatSessionDuration, pluralize, countSets, estimateMinutes } from "@/pages/workout/WorkoutPage.constants";
 import "./CopyDayModal.scss";
 
 interface CopyDayModalProps {

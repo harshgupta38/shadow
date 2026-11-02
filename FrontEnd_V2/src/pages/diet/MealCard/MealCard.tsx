@@ -3,7 +3,7 @@ import { Dropdown } from "react-bootstrap";
 import { BookmarkPlus, PlusLg, ThreeDotsVertical, Trash, XLg } from "react-bootstrap-icons";
 
 import type { DiaryItem, DiaryMeal } from "@/api";
-import { MEAL_OPTIONS, fmt, mealLabel, quantityLabel, toTimeInput } from "@/pages/diet/dietMath";
+import { MEAL_OPTIONS, fmt, mealLabel, quantityLabel, toTimeInput } from "@/pages/diet/DietPage.constants";
 import "./MealCard.scss";
 
 interface MealCardProps {

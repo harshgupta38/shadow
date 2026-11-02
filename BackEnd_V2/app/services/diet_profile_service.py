@@ -2,7 +2,7 @@
 
 from sqlalchemy.orm import Session
 
-from app.models.diet import DietProfileDBM
+from app.models.diet_profile import DietProfileDBM
 from app.models.user import UserDBM
 from app.schemas.diet import (
     EstimateRequest,

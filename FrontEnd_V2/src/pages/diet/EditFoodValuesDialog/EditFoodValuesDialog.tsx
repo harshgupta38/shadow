@@ -6,7 +6,7 @@ import { api } from "@/api";
 import type { Food } from "@/api";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { useToast } from "@/context/ToastContext";
-import { errorMessage, fmt } from "@/pages/diet/dietMath";
+import { errorMessage, fmt } from "@/pages/diet/DietPage.constants";
 import "./EditFoodValuesDialog.scss";
 
 interface EditFoodValuesDialogProps {

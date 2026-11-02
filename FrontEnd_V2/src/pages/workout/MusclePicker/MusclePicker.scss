@@ -12,11 +12,13 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.5rem;
+  flex-wrap: wrap; // the hint drops under the title when the two don't fit on one line
+  gap: 0.1rem 0.5rem;
   margin-bottom: 0.5rem;
 
   h3 {
     margin: 0;
+    white-space: nowrap;
     font-size: 0.72rem;
     font-weight: 800;
     letter-spacing: 0.05em;
@@ -26,11 +28,13 @@
 }
 
 .wk-mp-hint {
+  white-space: nowrap;
   font-size: 0.72rem;
   color: var(--jv-faint);
 }
 
 .wk-mp-clear {
+  white-space: nowrap;
   padding: 0;
   border: none;
   background: none;

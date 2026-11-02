@@ -40,7 +40,7 @@
   border: 1px solid var(--jv-border);
   border-radius: 10px;
   box-shadow: var(--jv-shadow-lg);
-  z-index: 1050;
+  z-index: 1220; // above the app's modals (1215), since this is also used inside dialogs
   overflow-x: hidden;
   overflow-y: auto;
 }

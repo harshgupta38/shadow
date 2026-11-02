@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Modal } from "react-bootstrap";
-import { CheckLg, InfoCircle } from "react-bootstrap-icons";
+import { CheckLg, InfoCircle, PersonStanding } from "react-bootstrap-icons";
 
-import type { ExerciseSummary } from "@/api";
+import type { ExerciseSummary, MuscleId } from "@/api";
 import { IllustratedErrorState } from "@/components/ui/IllustratedErrorState/IllustratedErrorState";
 import { ExerciseDetailModal } from "@/pages/workout/ExerciseDetailModal/ExerciseDetailModal";
 import { ExerciseFilterBar } from "@/pages/workout/ExerciseFilterBar/ExerciseFilterBar";
@@ -11,6 +11,7 @@ import {
   applyExerciseFilters,
   type ExerciseFilters,
 } from "@/pages/workout/ExerciseFilterBar/ExerciseFilterBar.constants";
+import { MusclePicker } from "@/pages/workout/MusclePicker/MusclePicker";
 import { ExerciseThumb } from "@/pages/workout/ExerciseThumb/ExerciseThumb";
 import { MuscleChips } from "@/pages/workout/MuscleMap/MuscleMap";
 import { WorkoutSkeleton } from "@/pages/workout/WorkoutSkeleton/WorkoutSkeleton";
@@ -35,6 +36,7 @@ export function ExercisePickerModal({ show, onClose, onPick, excludeIds = [], ti
   const [selected, setSelected] = useState<number[]>([]);
   const [visible, setVisible] = useState(PAGE);
   const [previewId, setPreviewId] = useState<number | null>(null);
+  const [mapOpen, setMapOpen] = useState(false); // on narrow screens the body map folds away until asked for
 
   // A fresh pick every time the dialog opens.
   useEffect(() => {
@@ -42,6 +44,7 @@ export function ExercisePickerModal({ show, onClose, onPick, excludeIds = [], ti
       setSelected([]);
       setFilters(DEFAULT_EXERCISE_FILTERS);
       setVisible(PAGE);
+      setMapOpen(false);
     }
   }, [show]);
 
@@ -49,6 +52,13 @@ export function ExercisePickerModal({ show, onClose, onPick, excludeIds = [], ti
   const taken = useMemo(() => new Set(excludeIds), [excludeIds]);
 
   const toggle = (id: number) => setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+
+  // Each muscle toggles on its own, so several can be picked. A muscle is narrower than a group, so picking one resets the group.
+  function pickMuscle(muscle: MuscleId) {
+    const muscles = filters.muscles.includes(muscle) ? filters.muscles.filter((m) => m !== muscle) : [...filters.muscles, muscle];
+    setFilters({ ...filters, muscles, group: "all" });
+    setVisible(PAGE);
+  }
 
   function confirm() {
     const picked = selected.map((id) => exercises.find((e) => e.id === id)).filter((e): e is ExerciseSummary => Boolean(e));
@@ -73,6 +83,17 @@ export function ExercisePickerModal({ show, onClose, onPick, excludeIds = [], ti
                 resultLabel={loading ? undefined : pluralize(results.length, "exercise")}
               />
 
+              <button
+                type="button"
+                className={`btn btn-soft btn-sm wk-pick-map-toggle${mapOpen ? " is-open" : ""}`}
+                aria-expanded={mapOpen}
+                onClick={() => setMapOpen((o) => !o)}
+              >
+                <PersonStanding size={14} /> {mapOpen ? "Hide muscle map" : filters.muscles.length > 0 ? `Muscle map (${filters.muscles.length} picked)` : "Muscle map"}
+              </button>
+
+              <div className="wk-pick-layout">
+              <div className="wk-pick-results">
               {loading ? (
                 <div className="wk-pick-list" aria-hidden="true">
                   {Array.from({ length: 6 }, (_, i) => <WorkoutSkeleton key={i} height={64} />)}
@@ -121,6 +142,12 @@ export function ExercisePickerModal({ show, onClose, onPick, excludeIds = [], ti
                   </button>
                 </div>
               )}
+              </div>
+
+              <aside className={`wk-pick-side${mapOpen ? " is-open" : ""}`}>
+                <MusclePicker selected={filters.muscles} onSelect={pickMuscle} onClear={() => { setFilters({ ...filters, muscles: [] }); setVisible(PAGE); }} />
+              </aside>
+              </div>
             </>
           )}
         </Modal.Body>

@@ -5,7 +5,7 @@ import { prefetchImages } from "@/services/media.service";
 import type { MuscleId } from "@/api/types";
 import { IllustratedErrorState } from "@/components/ui/IllustratedErrorState/IllustratedErrorState";
 import { ExerciseCard } from "@/pages/workout/ExercisesTab/ExerciseCard/ExerciseCard";
-import { MusclePicker } from "@/pages/workout/ExercisesTab/MusclePicker/MusclePicker";
+import { MusclePicker } from "@/pages/workout/MusclePicker/MusclePicker";
 import { ExerciseFilterBar } from "@/pages/workout/ExerciseFilterBar/ExerciseFilterBar";
 import {
   DEFAULT_EXERCISE_FILTERS,

@@ -1,4 +1,59 @@
-.wk-pick-dialog { max-width: 760px; }
+.wk-pick-dialog { max-width: 960px; }
+
+// The list on the left, the body to tap on the right. The map stays in view while the list scrolls. Below 768px it
+// folds away behind a button, so the list keeps the whole width.
+.wk-pick-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  gap: 1rem;
+  align-items: start;
+}
+
+.wk-pick-results { min-width: 0; }
+
+.wk-pick-side {
+  position: sticky;
+  top: 0;
+  margin-top: 0.9rem;
+
+  .wk-mp-map { flex: none; min-height: 0; aspect-ratio: 1 / 1.2; } // as tall as the two figures and their labels need
+}
+
+// Beside the list the figures stack, front above back, so the panel is as tall as the list area and leaves no gap
+// beneath it. Each figure shrinks on a short window so both still fit while the panel stays in view.
+@media (min-width: 768px) {
+  .wk-pick-side .wk-mp-map {
+    aspect-ratio: auto;
+
+    .mm {
+      position: static;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      --mm-h: clamp(100px, calc((100vh - 430px) / 2), 250px);
+    }
+
+    .mm-figure { flex: none; }
+
+    .mm-svg { width: auto; height: var(--mm-h); }
+  }
+}
+
+.wk-pick-map-toggle { display: none; margin-top: 0.7rem; }
+
+@media (max-width: 767.98px) {
+  .wk-pick-layout { grid-template-columns: minmax(0, 1fr); }
+
+  .wk-pick-map-toggle { display: inline-flex; align-items: center; gap: 0.35rem; }
+
+  .wk-pick-side {
+    display: none;
+    position: static;
+    order: -1; // the map opens above the list, next to the button that opened it
+
+    &.is-open { display: block; }
+  }
+}
 
 .wk-pick-title { font-size: 1.1rem; font-weight: 800; }
 

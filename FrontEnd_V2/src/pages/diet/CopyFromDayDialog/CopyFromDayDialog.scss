@@ -1,0 +1,92 @@
+// ─── Diet · copy foods from another day ───────────────────────────────────────
+
+.dt-copy-body { margin-top: 1rem; }
+
+.dt-copy-loading { display: flex; flex-direction: column; gap: 0.5rem; }
+
+.dt-copy-note {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--jv-muted);
+
+  &--error { color: var(--jv-danger); }
+}
+
+.dt-copy-meals {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.dt-copy-meal {
+  border: 1px solid var(--jv-border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.dt-copy-meal-head,
+.dt-copy-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0;
+  cursor: pointer;
+}
+
+.dt-copy-meal-head {
+  padding: 0.5rem 0.75rem;
+  background: var(--jv-surface-2);
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.dt-copy-meal-name { min-width: 0; }
+.dt-copy-meal-time { font-size: 0.74rem; font-weight: 600; color: var(--jv-brand-1); }
+
+.dt-copy-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+
+  li + li { border-top: 1px solid var(--jv-border); }
+}
+
+.dt-copy-item {
+  padding: 0.45rem 0.75rem;
+  font-size: 0.85rem;
+
+  &:hover { background: var(--jv-surface-2); }
+}
+
+.dt-copy-item-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.dt-copy-item-qty { flex-shrink: 0; font-size: 0.76rem; color: var(--jv-muted); font-variant-numeric: tabular-nums; }
+
+.dt-copy-kcal {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--jv-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.dt-copy-item .dt-copy-kcal { margin-left: 0; min-width: 4.2rem; text-align: right; }
+
+.dt-copy-check {
+  flex-shrink: 0;
+  margin: 0;
+  cursor: pointer;
+
+  &:checked,
+  &:indeterminate { background-color: var(--jv-brand-1); border-color: var(--jv-brand-1); }
+
+  &:focus { border-color: var(--jv-brand-1); box-shadow: var(--jv-ring); }
+}
+
+.dt-copy-summary { margin-right: auto; font-size: 0.8rem; color: var(--jv-muted); }

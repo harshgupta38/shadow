@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
-import { EggFried } from "react-bootstrap-icons";
-import { useSearchParams } from "react-router-dom";
+import { EggFried, Stars } from "react-bootstrap-icons";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { api } from "@/api";
 import type { DietProfile } from "@/api";
 import { IllustratedErrorState } from "@/components/ui/IllustratedErrorState/IllustratedErrorState";
-import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
+import { PageHeader, type PageHeaderAction } from "@/components/ui/PageHeader/PageHeader";
 import { DiaryTab } from "@/pages/diet/DiaryTab/DiaryTab";
 import { DietSkeleton } from "@/pages/diet/DietSkeleton/DietSkeleton";
 import { HistoryTab } from "@/pages/diet/HistoryTab/HistoryTab";
@@ -13,6 +13,7 @@ import { LibraryTab } from "@/pages/diet/LibraryTab/LibraryTab";
 import { OnboardingWizard } from "@/pages/diet/OnboardingWizard/OnboardingWizard";
 import { OverviewTab } from "@/pages/diet/OverviewTab/OverviewTab";
 import { tabKeyHandler } from "@/pages/diet/DietPage.constants";
+import { ROUTES } from "@/routes/RoutePaths";
 import "./DietPage.scss";
 
 type TabId = "overview" | "diary" | "history" | "library";
@@ -26,6 +27,7 @@ const TABS: { id: TabId; label: string }[] = [
 
 export function DietPage() {
   const [params, setParams] = useSearchParams();
+  const navigate = useNavigate();
   const [profile, setProfile] = useState<DietProfile | null>(null);
   const [onboarded, setOnboarded] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -55,12 +57,26 @@ export function DietPage() {
   const tab: TabId = TABS.some((t) => t.id === requested) ? (requested as TabId) : "overview";
   const selectTab = (id: TabId) => setParams(id === "overview" ? {} : { tab: id }, { replace: true });
 
+  // The coach reads the nutrition profile, so the shortcut waits until it is set up.
+  const headerActions: PageHeaderAction[] =
+    onboarded && !loading
+      ? [
+          {
+            key: "diet-coach",
+            label: "Ask Diet Coach",
+            icon: <Stars size={16} />,
+            tone: "soft",
+            onClick: () => navigate(ROUTES.ASSISTANT, { state: { agentType: "diet_coach" } }),
+          },
+        ]
+      : [];
+
   const header = (
     <PageHeader
       title="Diet"
       subtitle="Know what you eat, without overthinking it."
       icon={<EggFried />}
-      actions={[]}
+      actions={headerActions}
     />
   );
 

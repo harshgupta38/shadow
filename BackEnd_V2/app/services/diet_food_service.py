@@ -156,7 +156,7 @@ def search(
 ) -> list[FoodSearchHit]:
     """Ranked matches on names, alternate names and common spellings. A blank query lists the library in its seed order.
 
-    `scope` narrows to the user's own foods ("mine") or their favourites; `offset` pages through long results."""
+    `scope` narrows to the user's own foods ("mine": added by them or edited by them) or their favourites; `offset` pages through long results."""
     favourites = favourite_ids(db, user)
     overlays = overlays_for(db, user)
     stmt = select(FoodDBM).where(visible_to(user))
@@ -164,12 +164,10 @@ def search(
         stmt = stmt.where(FoodDBM.category == category)
     if cuisine:
         stmt = stmt.where(FoodDBM.cuisine == cuisine)
-    if scope == "mine":
-        stmt = stmt.where(FoodDBM.user_id == user.id)
+    if scope == "mine":  # the foods the user added, and the library foods they gave their own values
+        stmt = stmt.where(or_(FoodDBM.user_id == user.id, FoodDBM.id.in_(set(overlays) or {-1})))
     elif scope == "favourites":
         stmt = stmt.where(FoodDBM.id.in_(favourites or {-1}))
-    elif scope == "edited":
-        stmt = stmt.where(FoodDBM.id.in_(set(overlays) or {-1}))
     foods = db.scalars(stmt.order_by(FoodDBM.position, FoodDBM.id)).all()
 
     text = " ".join(query.lower().split())

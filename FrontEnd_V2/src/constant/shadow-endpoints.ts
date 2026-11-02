@@ -157,6 +157,7 @@ export const ENDPOINTS = {
         DIARY_MEAL: (id: number) => `/diary/meals/${id}`,
         DIARY_COPY: "/diary/copy",
         HISTORY: "/history",
+        HISTORY_SCORES: "/history/scores",
         SAVED_MEALS: "/saved-meals",
         SAVED_MEAL: (id: number) => `/saved-meals/${id}`,
         SAVED_MEAL_LOG: (id: number) => `/saved-meals/${id}/log`,

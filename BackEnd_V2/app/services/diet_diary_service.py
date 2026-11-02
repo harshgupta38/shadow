@@ -21,8 +21,8 @@ from app.models.saved_meal import SavedMealDBM
 from app.models.user import UserDBM
 from app.models.water_log import WaterLogDBM
 from app.schemas.diet import (
-    CopyMealsRequest,
-    CopyMealsResponse,
+    CopyItemsRequest,
+    CopyItemsResponse,
     DiaryAddRequest,
     DiaryDayResponse,
     DiaryItemMoveRequest,
@@ -80,7 +80,7 @@ def totals_of(items: list[FoodLogItemDBM]) -> Nutrients:
     )
 
 
-def _totals_model(total: Nutrients) -> NutrientTotals:
+def totals_model(total: Nutrients) -> NutrientTotals:
     return NutrientTotals(
         calories=total.calories, protein_g=total.protein_g, carbs_g=total.carbs_g, fat_g=total.fat_g, fibre_g=total.fibre_g
     )
@@ -93,7 +93,7 @@ def meal_response(log: FoodLogDBM) -> DiaryMealResponse:
         eaten_at=log.eaten_at,
         note=log.note,
         items=[DiaryItemResponse.model_validate(i) for i in log.items],
-        totals=_totals_model(totals_of(log.items)),
+        totals=totals_model(totals_of(log.items)),
     )
 
 
@@ -120,17 +120,21 @@ def get_day(db: Session, user: UserDBM, day: date | None = None) -> DiaryDayResp
     return DiaryDayResponse(
         date=target,
         meals=[meal_response(log) for log in logs],
-        totals=_totals_model(totals_of(items)),
+        totals=totals_model(totals_of(items)),
         water_ml=water_total(db, user, target),
         has_estimated_items=any(i.verification == "estimated" or i.quantity_certainty == "estimated" for i in items),  # values the user entered are theirs, not estimates
     )
 
 
+def month_bounds(month: str) -> tuple[date, date]:
+    """The first and last day of a month given as "YYYY-MM"."""
+    year, month_number = (int(part) for part in month.split("-"))
+    return date(year, month_number, 1), date(year, month_number, calendar.monthrange(year, month_number)[1])
+
+
 def get_history(db: Session, user: UserDBM, month: str) -> list[HistoryDayResponse]:
     """The foods eaten on each logged day of a month ("YYYY-MM"), oldest day first. Days with nothing logged are left out."""
-    year, month_number = (int(part) for part in month.split("-"))
-    first = date(year, month_number, 1)
-    last = date(year, month_number, calendar.monthrange(year, month_number)[1])
+    first, last = month_bounds(month)
     days: dict[date, list[HistoryMealResponse]] = {}
     for log in logs_for(db, user, first, last):
         if not log.items:
@@ -382,31 +386,23 @@ def delete_meal(db: Session, user: UserDBM, log_id: int) -> None:
     db.commit()
 
 
-def copy_meals(db: Session, user: UserDBM, request: CopyMealsRequest) -> CopyMealsResponse:
-    """Copies meals from an earlier day. A meal the target day already has is skipped, never doubled."""
+def copy_items(db: Session, user: UserDBM, request: CopyItemsRequest) -> CopyItemsResponse:
+    """Copies the chosen foods from an earlier day into the same meals on the target day, after whatever those meals already hold."""
     target_day = resolve_date(request.to_date)
-    wanted = {_validate_meal_type(m) for m in request.meal_types} if request.meal_types is not None else None
-    sources = [log for log in logs_for(db, user, request.from_date) if wanted is None or log.meal_type in wanted]
-    if not sources:
-        raise NotFoundError("There is nothing logged on that day to copy.")
     if request.from_date == target_day:
         raise ValidationError("Choose a different day to copy from.", errors={"from_date": "This is the same day."})
+    wanted = set(request.item_ids)
+    sources = [(log, item) for log in logs_for(db, user, request.from_date) for item in log.items if item.id in wanted]
+    if len(sources) != len(wanted):
+        raise NotFoundError("Some of those foods are no longer on that day. Open the day again and choose again.")
 
-    copied: list[str] = []
-    skipped: list[str] = []
-    for source in sources:
-        existing = db.scalar(
-            select(FoodLogDBM).where(FoodLogDBM.user_id == user.id, FoodLogDBM.log_date == target_day, FoodLogDBM.meal_type == source.meal_type)
-        )
-        if existing is not None and existing.items:
-            skipped.append(source.meal_type)
-            continue
-        target = get_or_create_log(db, user, target_day, source.meal_type, source.eaten_at)
-        for item in source.items:
-            _append(target, _clone(item))
-        copied.append(source.meal_type)
+    for log, item in sources:
+        target = get_or_create_log(db, user, target_day, log.meal_type)
+        if target.eaten_at is None and not target.items:
+            target.eaten_at = log.eaten_at  # a meal made by copying keeps the time it was eaten at; one that already exists keeps its own
+        _append(target, _clone(item))
     db.commit()
-    return CopyMealsResponse(copied_meals=copied, skipped_meals=skipped, day=get_day(db, user, target_day))
+    return CopyItemsResponse(copied_items=len(sources), day=get_day(db, user, target_day))
 
 
 # ---------- saved meals ----------

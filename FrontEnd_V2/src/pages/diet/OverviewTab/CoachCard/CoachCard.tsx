@@ -112,7 +112,7 @@ export function CoachCard({ overview, onLogged }: CoachCardProps) {
   return (
     <section className="surface dt-ov-card dt-ov-wide dt-coach" aria-label="Diet coach">
       <div className="dt-ov-title-row">
-        <h2 className="dt-ov-title"><Stars size={15} aria-hidden="true" /> Diet coach</h2>
+        <h2 className="dt-ov-title"><Stars size={15} aria-hidden="true" /> Hungry but undecided?</h2>
         <span className="dt-ov-sub">
           {fmt(left.calories)} kcal left · P {fmt(left.protein)} g · C {fmt(left.carbs)} g · F {fmt(left.fat)} g
         </span>

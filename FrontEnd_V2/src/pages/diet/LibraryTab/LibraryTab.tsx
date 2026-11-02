@@ -14,14 +14,13 @@ import { FoodDetailDialog } from "@/pages/diet/FoodDetailDialog/FoodDetailDialog
 import { CATEGORY_LABEL, categoryLabel, fmt, foodBadges, quantityLabel } from "@/pages/diet/DietPage.constants";
 import "./LibraryTab.scss";
 
-type Group = "all" | "indian" | "international" | "mine" | "edited" | "favourites";
+type Group = "all" | "indian" | "international" | "mine" | "favourites";
 
 const GROUPS: { id: Group; label: string }[] = [
   { id: "all", label: "All foods" },
   { id: "indian", label: "Indian" },
   { id: "international", label: "International" },
   { id: "mine", label: "My foods" },
-  { id: "edited", label: "Edited by me" },
   { id: "favourites", label: "Favourites" },
 ];
 
@@ -31,7 +30,7 @@ const SEARCH_DELAY_MS = 250;
 function filtersFor(group: Group, category: string): FoodListFilters {
   const filters: FoodListFilters = {};
   if (group === "indian" || group === "international") filters.cuisine = group;
-  if (group === "mine" || group === "favourites" || group === "edited") filters.scope = group;
+  if (group === "mine" || group === "favourites") filters.scope = group;
   if (category) filters.category = category;
   return filters;
 }
@@ -124,12 +123,10 @@ export function LibraryTab() {
     debounced !== ""
       ? `No food matches “${debounced}” here. Try another spelling, or add it yourself.`
       : group === "mine"
-        ? "You haven't added any foods yet. Add the ones you eat that aren't in the library."
+        ? "You haven't added or edited any foods yet. Add the ones you eat that aren't in the library, or open a library food and choose “Edit my values” to use your own numbers."
         : group === "favourites"
           ? "No favourites yet. Open a food and choose “Add to favourites”, or tap a star."
-          : group === "edited"
-            ? "You haven't edited any foods yet. Open a library food and choose “Edit my values” to use your own numbers."
-            : "No foods in this group.";
+          : "No foods in this group.";
 
   return (
     <div className="dt-lib">
@@ -237,7 +234,7 @@ export function LibraryTab() {
           onClose={() => setEditingValues(null)}
           onSaved={(saved) => {
             setEditingValues(null);
-            if (group === "edited" && !saved.is_edited) setFoods((prev) => prev.filter((f) => f.id !== saved.id));
+            if (group === "mine" && !saved.is_custom && !saved.is_edited) setFoods((prev) => prev.filter((f) => f.id !== saved.id));
             else patchFood(saved);
           }}
         />

@@ -7,8 +7,8 @@ from app.core.endpoints import ENDPOINTS
 from app.db.session import get_db
 from app.models.user import UserDBM
 from app.schemas.diet import (
-    CopyMealsRequest,
-    CopyMealsResponse,
+    CopyItemsRequest,
+    CopyItemsResponse,
     DiaryAddRequest,
     DiaryDayResponse,
     DiaryItemMoveRequest,
@@ -38,6 +38,7 @@ from app.schemas.diet import (
     SavedMealCreateRequest,
     SavedMealLogRequest,
     SavedMealResponse,
+    ScoreDayResponse,
     WaterAddRequest,
     WaterDayResponse,
     WaterHistoryPoint,
@@ -167,6 +168,15 @@ def get_history(
     return diet_diary_service.get_history(db, current_user, month)
 
 
+@router.get(ENDPOINTS.DIET.HISTORY_SCORES, response_model=list[ScoreDayResponse])
+def get_history_scores(
+    month: str = Query(pattern=r"^\d{4}-(0[1-9]|1[0-2])$"),
+    db=Depends(get_db),
+    current_user: UserDBM = Depends(get_current_user),
+) -> list[ScoreDayResponse]:
+    return diet_overview_service.get_month_scores(db, current_user, month)
+
+
 @router.get(ENDPOINTS.DIET.DIARY, response_model=DiaryDayResponse)
 def get_diary(
     day: date | None = Query(default=None, alias="date"),
@@ -224,11 +234,11 @@ def delete_diary_meal(log_id: int, db=Depends(get_db), current_user: UserDBM = D
     diet_diary_service.delete_meal(db, current_user, log_id)
 
 
-@router.post(ENDPOINTS.DIET.DIARY_COPY, response_model=CopyMealsResponse)
-def copy_meals(
-    request: CopyMealsRequest, db=Depends(get_db), current_user: UserDBM = Depends(get_current_user)
-) -> CopyMealsResponse:
-    return diet_diary_service.copy_meals(db, current_user, request)
+@router.post(ENDPOINTS.DIET.DIARY_COPY, response_model=CopyItemsResponse)
+def copy_items(
+    request: CopyItemsRequest, db=Depends(get_db), current_user: UserDBM = Depends(get_current_user)
+) -> CopyItemsResponse:
+    return diet_diary_service.copy_items(db, current_user, request)
 
 
 # ── Saved meals ───────────────────────────────────────────────────────────────

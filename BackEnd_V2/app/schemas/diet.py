@@ -13,7 +13,7 @@ DietaryPreference = Literal["no_preference", "vegetarian", "eggetarian", "vegan"
 CookingAvailability = Literal["none", "minimal", "moderate", "plenty"]
 Verification = Literal["verified", "estimated", "user"]
 Certainty = Literal["exact", "estimated"]
-FoodScope = Literal["all", "mine", "favourites", "edited"]
+FoodScope = Literal["all", "mine", "favourites"]
 
 DISCLAIMER = (
     "Estimates for general wellbeing, not medical advice. If you have a medical condition, are pregnant, "
@@ -410,15 +410,23 @@ class HistoryDayResponse(BaseModel):
     meals: list[HistoryMealResponse]
 
 
-class CopyMealsRequest(BaseModel):
+class ScoreDayResponse(BaseModel):
+    """One logged day for the month calendar: what was eaten in total, the water drunk and the habit score it earned."""
+
+    date: date
+    totals: NutrientTotals
+    water_ml: int
+    score: int  # the same 0-100 habit score as the Overview, worked out against the current targets
+
+
+class CopyItemsRequest(BaseModel):
     from_date: date
     to_date: date | None = None
-    meal_types: list[str] | None = None  # None copies the whole day
+    item_ids: list[int] = Field(min_length=1, max_length=200)  # the foods to copy, each into the same meal on the target day
 
 
-class CopyMealsResponse(BaseModel):
-    copied_meals: list[str]
-    skipped_meals: list[str]  # already had food on the target day, so nothing was added
+class CopyItemsResponse(BaseModel):
+    copied_items: int
     day: DiaryDayResponse
 
 

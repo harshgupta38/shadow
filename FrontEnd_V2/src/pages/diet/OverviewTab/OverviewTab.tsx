@@ -90,12 +90,6 @@ export function OverviewTab({ onLogFood }: OverviewTabProps) {
 
   return (
     <div className="dt-ov">
-      {overview.has_estimated_items && (
-        <p className="dt-ov-note">
-          Some of today's nutrition comes from estimates: library values are approximate, and household measures like a bowl are rough. Treat the totals as a guide.
-        </p>
-      )}
-
       <div className="dt-ov-grid">
         <section className="surface dt-ov-card dt-ov-calories" aria-label="Calories">
           <CalorieRing consumed={calories.consumed} target={calories.target} />
@@ -223,6 +217,12 @@ export function OverviewTab({ onLogFood }: OverviewTabProps) {
           )}
         </section>
       </div>
+
+      {overview.has_estimated_items && (
+        <p className="dt-ov-note">
+          Some of today's nutrition comes from estimates: library values are approximate, and household measures like a bowl are rough. Treat the totals as a guide.
+        </p>
+      )}
 
       <p className="dt-ov-disclaimer">{overview.disclaimer}</p>
     </div>

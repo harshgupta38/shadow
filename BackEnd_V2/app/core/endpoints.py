@@ -171,6 +171,7 @@ class Endpoints:
         DIARY_MEAL = "/diary/meals/{log_id}"
         DIARY_COPY = "/diary/copy"
         HISTORY = "/history"
+        HISTORY_SCORES = "/history/scores"
         SAVED_MEALS = "/saved-meals"
         SAVED_MEAL = "/saved-meals/{saved_id}"
         SAVED_MEAL_LOG = "/saved-meals/{saved_id}/log"

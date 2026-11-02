@@ -1,7 +1,7 @@
 import { ENDPOINTS } from "@/constant/shadow-endpoints";
 import { http } from "@/api/client";
 import type {
-  CopyMealsResponse,
+  CopyItemsResponse,
   DiaryAddRequest,
   DiaryDay,
   DiaryHistoryDay,
@@ -11,6 +11,7 @@ import type {
   DietEstimate,
   DietEstimateRequest,
   DietOverview,
+  DietScoreDay,
   DietProfile,
   DietProfileSaveRequest,
   DietProfileState,
@@ -86,6 +87,10 @@ export const dietApi = {
   getHistory(month: string): Promise<DiaryHistoryDay[]> {
     return http.get<DiaryHistoryDay[]>(url(D.HISTORY), { params: { month } });
   },
+  /** The habit score and totals of every day with food logged in a month ("YYYY-MM"), for the history calendar. */
+  getHistoryScores(month: string): Promise<DietScoreDay[]> {
+    return http.get<DietScoreDay[]>(url(D.HISTORY_SCORES), { params: { month } });
+  },
   addItems(data: DiaryAddRequest): Promise<DiaryMeal> {
     return http.post<DiaryMeal>(url(D.DIARY_ITEMS), data);
   },
@@ -107,8 +112,9 @@ export const dietApi = {
   deleteMeal(id: number): Promise<void> {
     return http.delete<void>(url(D.DIARY_MEAL(id)));
   },
-  copyMeals(data: { from_date: string; to_date?: string; meal_types?: string[] }): Promise<CopyMealsResponse> {
-    return http.post<CopyMealsResponse>(url(D.DIARY_COPY), data);
+  /** Copies the chosen logged foods from another day into the same meals on `to_date`. */
+  copyItems(data: { from_date: string; to_date?: string; item_ids: number[] }): Promise<CopyItemsResponse> {
+    return http.post<CopyItemsResponse>(url(D.DIARY_COPY), data);
   },
 
   // ── Saved meals ─────────────────────────────────────────────────────────────

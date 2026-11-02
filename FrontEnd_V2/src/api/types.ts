@@ -1594,11 +1594,11 @@ export interface Food {
   defaults: FoodDefaults | null;
 }
 
-/** Narrowing for the food list. `scope` limits to the user's own foods or favourites; `offset` pages through long lists. */
+/** Narrowing for the food list. `scope` limits to the user's own foods (added or edited by them) or favourites; `offset` pages through long lists. */
 export interface FoodListFilters {
   category?: string;
   cuisine?: string;
-  scope?: "all" | "mine" | "favourites" | "edited";
+  scope?: "all" | "mine" | "favourites";
   offset?: number;
 }
 
@@ -1677,6 +1677,14 @@ export interface DiaryHistoryMeal {
   items: DiaryHistoryItem[];
 }
 
+/** One logged day of the month calendar: its totals, water and habit score (0-100, against the current targets). */
+export interface DietScoreDay {
+  date: string;
+  totals: NutrientTotals;
+  water_ml: number;
+  score: number;
+}
+
 export interface DiaryHistoryDay {
   date: string;
   meals: DiaryHistoryMeal[];
@@ -1699,9 +1707,8 @@ export interface DiaryAddRequest {
   items: DiaryLogItemRequest[];
 }
 
-export interface CopyMealsResponse {
-  copied_meals: string[];
-  skipped_meals: string[];
+export interface CopyItemsResponse {
+  copied_items: number;
   day: DiaryDay;
 }
 

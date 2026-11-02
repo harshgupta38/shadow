@@ -1804,3 +1804,43 @@ export interface ProposalConfirmResult {
   proposal: FoodLogProposal;
   meal: DiaryMeal;
 }
+
+// ── Diet meal coach ──────────────────────────────────────────────────────────
+
+export type DietCoachMeal = "breakfast" | "morning_snack" | "lunch" | "evening_snack" | "dinner";
+
+export interface DietCoachRequest {
+  meal_type?: DietCoachMeal;
+  note?: string;
+  exclude?: string[];
+}
+
+export interface DietCoachItem {
+  food_id: number;
+  name: string;
+  quantity: number;
+  unit: string;
+  grams: number;
+  nutrients: NutrientTotals;
+}
+
+export interface DietCoachIdea {
+  title: string;
+  why: string;
+  /** "basic" ideas were put together by code from the food library, without the AI. */
+  source: "ai" | "basic";
+  items: DietCoachItem[];
+  totals: NutrientTotals;
+}
+
+export interface DietCoachResult {
+  meal_type: string;
+  /** Today's targets minus what is logged so far; negative once a target is passed. */
+  remaining: NutrientTotals;
+  /** What this one meal is aimed at. */
+  budget: NutrientTotals;
+  over_target: boolean;
+  ideas: DietCoachIdea[];
+  notice: string | null;
+  disclaimer: string;
+}

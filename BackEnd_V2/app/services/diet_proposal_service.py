@@ -6,23 +6,18 @@ Division of labour:
   - nothing counts as eaten until the user confirms, and a proposal can be confirmed only once.
 """
 
-import asyncio
 import copy
 import logging
 import re
 import uuid
 from datetime import datetime, time, timezone
-from time import perf_counter
 
-from pydantic import BaseModel
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.common import now_ist
 from app.core.exceptions import NotFoundError, ValidationError
 from app.llm.knowledge_base import DIET_PARSE_SYSTEM_INSTRUCTION, DIET_REVISE_SYSTEM_INSTRUCTION
-from app.llm.service import get_llm_service_for_ai_behavior
-from app.models.diet_agent_run import DietAgentRunDBM
 from app.models.diet_profile import DietProfileDBM
 from app.models.diet_proposal import DietProposalDBM
 from app.models.food import FoodDBM
@@ -40,13 +35,11 @@ from app.schemas.diet import (
     ProposalReviseRequest,
     RevisedMealFromLLMSchema,
 )
-from app.services import diet_calc_service, diet_diary_service, diet_food_service, settings_service
+from app.services import diet_agent_service, diet_calc_service, diet_diary_service, diet_food_service
 
 _logger = logging.getLogger(__name__)
 
 AGENT_FOOD_LOGGER = "food_logger"
-_LLM_TIMEOUT_SECONDS = 30
-_LLM_ATTEMPTS = 2
 _MAX_ITEMS = 30
 
 _UNIT_ALIASES = {
@@ -68,7 +61,7 @@ def _unit_key(unit: str | None) -> str | None:
     return _UNIT_ALIASES.get(key, key)
 
 
-def _infer_meal_type(moment: datetime) -> str:
+def infer_meal_type(moment: datetime) -> str:
     """Used only when neither the user nor the request names a meal; the review screen lets them change it."""
     hour = moment.hour + moment.minute / 60
     if hour < 10.5:
@@ -167,47 +160,6 @@ def _reindex(items: list[dict]) -> list[dict]:
     for position, item in enumerate(items):
         item["index"] = position
     return items
-
-
-# ---------- AI call with fallback ----------
-
-
-def _record_run(db: Session, user: UserDBM, *, status: str, summary: str, started: float, provider: str = "", model: str = "",
-                error: str = "", input_tokens: int = 0, output_tokens: int = 0) -> DietAgentRunDBM:
-    run = DietAgentRunDBM(
-        user_id=user.id, agent=AGENT_FOOD_LOGGER, status=status, provider=provider, model=model[:60], input_summary=summary[:300],
-        error=error[:300], latency_ms=int((perf_counter() - started) * 1000), input_tokens=input_tokens, output_tokens=output_tokens,
-    )
-    db.add(run)
-    db.flush()
-    return run
-
-
-async def _ask_llm(db: Session, user: UserDBM, *, system: str, content: str, schema: type[BaseModel], operation: str) -> tuple[BaseModel | None, DietAgentRunDBM]:
-    """One structured call with a timeout and one retry. Returns (None, run) when the provider is unavailable so callers can fall back."""
-    started = perf_counter()
-    error = ""
-    for attempt in range(1, _LLM_ATTEMPTS + 1):
-        try:
-            service = get_llm_service_for_ai_behavior(settings_service.get_ai_behavior(db, user.id))
-            response = await asyncio.wait_for(
-                # No temperature is sent: some models reject anything but their default, and code validates the output anyway.
-                service.generate_structured(system_instruction=system, user_content=content, schema_cls=schema, user_id=user.id, operation=operation),
-                timeout=_LLM_TIMEOUT_SECONDS,
-            )
-            usage = response.usage
-            run = _record_run(
-                db, user, status="ok", summary=content, started=started, provider=str(response.provider.value if hasattr(response.provider, "value") else response.provider),
-                model=response.model_str or "", input_tokens=(usage.input_tokens or 0) if usage else 0, output_tokens=(usage.output_tokens or 0) if usage else 0,
-            )
-            return response.data, run
-        except Exception as exc:  # a provider problem (incl. timeout) must never block logging food
-            error = f"{type(exc).__name__}: {exc}"
-            _logger.warning("Diet %s attempt %d failed: %s", operation, attempt, error)
-            status = getattr(exc.__cause__, "status_code", None) or getattr(exc.__cause__, "code", None)  # OpenAI/Claude vs Gemini
-            if isinstance(status, int) and 400 <= status < 500 and status != 429:
-                break  # the provider rejected the request itself; trying again cannot help
-    return None, _record_run(db, user, status="fallback", summary=content, started=started, error=error)
 
 
 # ---------- rule-based fallback parser ----------
@@ -320,8 +272,8 @@ def to_response(db: Session, user: UserDBM, proposal: DietProposalDBM) -> Propos
 
 async def parse_meal(db: Session, user: UserDBM, request: ParseMealRequest) -> ProposalResponse:
     day = diet_diary_service.resolve_date(request.log_date)
-    parsed, run = await _ask_llm(
-        db, user, system=DIET_PARSE_SYSTEM_INSTRUCTION, content=request.text, schema=ParsedMealFromLLMSchema, operation="diet_parse_meal"
+    parsed, run = await diet_agent_service.ask_llm(
+        db, user, agent=AGENT_FOOD_LOGGER, system=DIET_PARSE_SYSTEM_INSTRUCTION, content=request.text, schema=ParsedMealFromLLMSchema, operation="diet_parse_meal"
     )
     if parsed is None:
         parsed = rule_parse(request.text)
@@ -330,7 +282,7 @@ async def parse_meal(db: Session, user: UserDBM, request: ParseMealRequest) -> P
         db.commit()  # keep the run record
         raise ValidationError("I couldn't find any food in that message.", errors={"text": "Try something like “two chapatis and a bowl of dal for lunch”."})
 
-    meal_type = diet_diary_service._validate_meal_type(request.meal_type) if request.meal_type else (parsed.meal_type or _infer_meal_type(now_ist()))
+    meal_type = diet_diary_service._validate_meal_type(request.meal_type) if request.meal_type else (parsed.meal_type or infer_meal_type(now_ist()))
     items = _reindex(
         [
             _new_item(db, user, index=i, text=p.text, query=p.food_query, quantity=p.quantity, unit=p.unit, vague=p.quantity_is_vague)
@@ -440,7 +392,7 @@ async def revise_proposal(db: Session, user: UserDBM, proposal_id: str, request:
         for item in proposal.payload["items"]
     )
     content = f"Current meal ({proposal.payload['meal_type']}):\n{listing}\n\nPerson's message: {request.message}"
-    revision, _run = await _ask_llm(db, user, system=DIET_REVISE_SYSTEM_INSTRUCTION, content=content, schema=RevisedMealFromLLMSchema, operation="diet_revise_meal")
+    revision, _run = await diet_agent_service.ask_llm(db, user, agent=AGENT_FOOD_LOGGER, system=DIET_REVISE_SYSTEM_INSTRUCTION, content=content, schema=RevisedMealFromLLMSchema, operation="diet_revise_meal")
     if not isinstance(revision, RevisedMealFromLLMSchema):
         db.commit()
         raise ValidationError("I couldn't process that correction right now. You can edit the items directly instead.")

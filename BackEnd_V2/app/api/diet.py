@@ -23,6 +23,8 @@ from app.schemas.diet import (
     FoodSearchHit,
     FoodValuesRequest,
     HistoryDayResponse,
+    MealCoachRequest,
+    MealCoachResponse,
     OverviewResponse,
     ParseMealRequest,
     ProfileResponse,
@@ -41,6 +43,7 @@ from app.schemas.diet import (
     WaterHistoryPoint,
 )
 from app.services import (
+    diet_coach_service,
     diet_diary_service,
     diet_food_service,
     diet_overview_service,
@@ -282,6 +285,13 @@ def water_history(
 
 
 # ── AI food logging (propose, review, confirm) ────────────────────────────────
+
+
+@router.post(ENDPOINTS.DIET.COACH, response_model=MealCoachResponse)
+async def suggest_meals(
+    request: MealCoachRequest, db=Depends(get_db), current_user: UserDBM = Depends(get_current_user)
+) -> MealCoachResponse:
+    return await diet_coach_service.suggest(db, current_user, request)
 
 
 @router.post(ENDPOINTS.DIET.LOG_PARSE, response_model=ProposalResponse, status_code=status.HTTP_201_CREATED)

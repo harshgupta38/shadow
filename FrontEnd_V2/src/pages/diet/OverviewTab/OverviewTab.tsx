@@ -9,6 +9,7 @@ import { useWakeRefresh } from "@/hooks/useWakeRefresh";
 import { CalorieRing } from "@/pages/diet/CalorieRing/CalorieRing";
 import { DietSkeleton } from "@/pages/diet/DietSkeleton/DietSkeleton";
 import { MacroBar } from "@/pages/diet/MacroBar/MacroBar";
+import { CoachCard } from "@/pages/diet/OverviewTab/CoachCard/CoachCard";
 import { WATER_QUICK_ML, barPercent, errorMessage, fmt, mealLabel, sortMeals } from "@/pages/diet/DietPage.constants";
 import { formatTime } from "@/services/date.service";
 import "./OverviewTab.scss";
@@ -118,6 +119,8 @@ export function OverviewTab({ onLogFood }: OverviewTabProps) {
             <MacroBar label="Fibre" tone="fibre" consumed={overview.fibre.consumed} target={overview.fibre.target} />
           </div>
         </section>
+
+        <CoachCard overview={overview} onLogged={() => void load()} />
 
         <section className="surface dt-ov-card" aria-label="Water">
           <div className="dt-ov-title-row">

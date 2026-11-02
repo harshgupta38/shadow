@@ -122,6 +122,8 @@ export const TIMING = {
     JOURNAL_SAVED_BANNER_MS: 2200,
     /** JournalPage — how long the "Couldn't save" indicator stays visible after a failed save. */
     JOURNAL_ERROR_BANNER_MS: 3000,
+    /** Diet coach — how long the last meal ideas stay saved in the browser unless new ones are asked for first. */
+    DIET_COACH_KEEP_MS: 3 * 60 * 60 * 1000,
 } as const;
 
 // ── API read cache ───────────────────────────────────────────────────────────

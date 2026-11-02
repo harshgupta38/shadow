@@ -6,6 +6,8 @@ import type {
   DiaryDay,
   DiaryHistoryDay,
   DiaryMeal,
+  DietCoachRequest,
+  DietCoachResult,
   DietEstimate,
   DietEstimateRequest,
   DietOverview,
@@ -132,6 +134,12 @@ export const dietApi = {
   },
   getWaterHistory(days = 7): Promise<WaterHistoryPoint[]> {
     return http.get<WaterHistoryPoint[]>(url(D.WATER_HISTORY), { params: { days } });
+  },
+
+  // ── Meal coach ──────────────────────────────────────────────────────────────
+  /** Ideas for the next meal from what is left of today's targets. Nothing is saved until an idea is added to the diary. */
+  suggestMeals(data: DietCoachRequest): Promise<DietCoachResult> {
+    return http.post<DietCoachResult>(url(D.COACH), data);
   },
 
   // ── AI food logging: describe, review, confirm ──────────────────────────────

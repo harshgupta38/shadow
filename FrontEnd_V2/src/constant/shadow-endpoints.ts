@@ -163,6 +163,7 @@ export const ENDPOINTS = {
         WATER: "/water",
         WATER_HISTORY: "/water/history",
         LOG_PARSE: "/log/parse",
+        COACH: "/coach",
         PROPOSAL: (id: string) => `/proposals/${id}`,
         PROPOSAL_REVISE: (id: string) => `/proposals/${id}/revise`,
         PROPOSAL_CONFIRM: (id: string) => `/proposals/${id}/confirm`,

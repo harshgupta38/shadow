@@ -569,6 +569,52 @@ class ProposalConfirmResponse(BaseModel):
     meal: DiaryMealResponse
 
 
+# ---------- meal coach ----------
+
+
+class MealCoachRequest(BaseModel):
+    meal_type: Literal["breakfast", "morning_snack", "lunch", "evening_snack", "dinner"] | None = None  # left out: the next meal not yet logged
+    note: str | None = Field(default=None, max_length=200)  # "something light", "I have paneer at home"
+    exclude: list[str] = Field(default_factory=list, max_length=12)  # titles already shown, so "different ideas" are different
+
+    @field_validator("note")
+    @classmethod
+    def _blank_note(cls, value: str | None) -> str | None:
+        return value.strip() or None if value else None
+
+    @field_validator("exclude")
+    @classmethod
+    def _trim_exclude(cls, value: list[str]) -> list[str]:
+        return [title.strip()[:120] for title in value if title.strip()]
+
+
+class MealIdeaItemResponse(BaseModel):
+    food_id: int
+    name: str
+    quantity: float
+    unit: str
+    grams: float
+    nutrients: NutrientTotals
+
+
+class MealIdeaResponse(BaseModel):
+    title: str
+    why: str
+    source: Literal["ai", "basic"]  # basic: put together by code from the food library, without the AI
+    items: list[MealIdeaItemResponse]
+    totals: NutrientTotals
+
+
+class MealCoachResponse(BaseModel):
+    meal_type: str
+    remaining: NutrientTotals  # today's targets minus what is logged so far; negative once a target is passed
+    budget: NutrientTotals  # what this one meal is aimed at
+    over_target: bool  # today's calorie target is already reached
+    ideas: list[MealIdeaResponse]
+    notice: str | None = None
+    disclaimer: str
+
+
 # ── Raw LLM output ───────────────────────────────────────────────────────────
 # Every field is required (nullable where it can be absent) so strict structured-output providers accept them.
 # The model only reads language; foods and nutrients are resolved by code.
@@ -601,3 +647,19 @@ class MealOperationFromLLMSchema(BaseModel):
 class RevisedMealFromLLMSchema(BaseModel):
     understood: bool = Field(description="False if the message does not describe a change to this meal.")
     operations: list[MealOperationFromLLMSchema]
+
+
+class MealIdeaItemFromLLMSchema(BaseModel):
+    food_id: int = Field(description="The id of a food from the list you were given. Never an id that is not in the list.")
+    quantity: float = Field(description="How much of the food, counted in the unit below: a normal serving for one person.")
+    unit: str = Field(description="One of that food's own units from the list, such as 'piece', 'bowl' or 'g'.")
+
+
+class MealIdeaFromLLMSchema(BaseModel):
+    title: str = Field(description="A short name for the meal, such as 'Paneer bhurji with chapati'.")
+    why: str = Field(description="One short sentence, under 20 words, on why this suits the person right now. No numbers.")
+    items: list[MealIdeaItemFromLLMSchema]
+
+
+class MealCoachFromLLMSchema(BaseModel):
+    ideas: list[MealIdeaFromLLMSchema]

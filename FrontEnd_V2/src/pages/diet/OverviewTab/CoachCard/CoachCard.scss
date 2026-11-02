@@ -1,0 +1,130 @@
+// ─── Diet coach ───────────────────────────────────────────────────────────────
+
+.dt-coach { display: flex; flex-direction: column; gap: 0.7rem; }
+
+.dt-coach .dt-ov-title-row { margin-bottom: 0; flex-wrap: wrap; }
+
+// Stretch, so the button is exactly as tall as the meal picker and the note field next to it.
+.dt-coach-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 0.5rem;
+}
+
+.dt-coach-meal { width: auto; flex: 0 0 auto; min-width: 9.5rem; }
+.dt-coach-note { flex: 1 1 14rem; min-width: 0; }
+.dt-coach-ask { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 0.3rem; }
+
+.dt-coach-lead,
+.dt-coach-meta,
+.dt-coach-notice { margin: 0; font-size: 0.84rem; color: var(--jv-muted); }
+
+.dt-coach-meta strong { color: var(--jv-text); font-variant-numeric: tabular-nums; }
+
+.dt-coach-notice {
+  padding: 0.45rem 0.7rem;
+  border-radius: 10px;
+  background: var(--jv-surface-3);
+}
+
+// ─── The ideas ────────────────────────────────────────────────────────────────
+
+.dt-coach-ideas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.dt-coach-idea {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-width: 0;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--jv-border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--jv-brand-1) 3%, var(--jv-surface));
+}
+
+.dt-coach-idea-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.dt-coach-idea-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 800;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.dt-coach-idea-head .pill { flex-shrink: 0; white-space: nowrap; }
+
+.dt-coach-why { margin: 0; font-size: 0.8rem; color: var(--jv-muted); }
+
+.dt-coach-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 0.84rem;
+
+  li {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.6rem;
+    padding: 0.2rem 0;
+    border-top: 1px solid var(--jv-border);
+
+    &:first-child { border-top: 0; }
+  }
+}
+
+.dt-coach-item-name { min-width: 0; overflow-wrap: anywhere; }
+
+.dt-coach-item-qty {
+  flex-shrink: 0;
+  font-size: 0.78rem;
+  color: var(--jv-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.dt-coach-totals {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+
+  strong { font-size: 1.05rem; }
+}
+
+.dt-coach-macros { font-size: 0.74rem; color: var(--jv-muted); }
+
+.dt-coach-add { align-self: flex-start; }
+
+.dt-coach-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+}
+
+.dt-coach-small { margin: 0; flex: 1 1 18rem; font-size: 0.74rem; color: var(--jv-muted); }
+
+@media (max-width: 991.98px) {
+  .dt-coach-ideas { grid-template-columns: minmax(0, 1fr); }
+}
+
+// On a phone the meal picker takes a row of its own, so the note field and the button share the next one and stay level.
+@media (max-width: 575.98px) {
+  .dt-coach-meal { flex: 1 1 100%; }
+  .dt-coach-note { flex: 1 1 0; }
+}

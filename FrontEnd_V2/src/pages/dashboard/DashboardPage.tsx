@@ -13,6 +13,7 @@ import { GoalsOverview } from "./GoalsOverview/GoalsOverview";
 import { UpcomingPanel } from "./UpcomingPanel/UpcomingPanel";
 import { ThisWeekPanel } from "./ThisWeekPanel/ThisWeekPanel";
 import { WorkoutSummary } from "./WorkoutSummary/WorkoutSummary";
+import { hasTrainingToShow } from "./WorkoutSummary/WorkoutSummary.constants";
 import { greeting } from "./DashboardPage.constants";
 import { SKELETON } from "@/constant/tuning";
 import { useWakeRefresh } from "@/hooks/useWakeRefresh";
@@ -107,6 +108,22 @@ export function DashboardPage() {
   useEffect(() => { loadAll(); }, []);
   useWakeRefresh(loadAll);
 
+  // Someone who follows no plan and has not trained this week gets no training section at all.
+  const trainingPanel = workout ? (
+    hasTrainingToShow(workout) ? <WorkoutSummary overview={workout} /> : null
+  ) : workoutStatus === "loading" ? (
+    <WorkoutSkeleton height={300} />
+  ) : (
+    <div className="dp-section">
+      <div className="dp-section-head">
+        <h2 className="dp-section-title">Training</h2>
+      </div>
+      <p className="dp-wk-error">
+        Couldn't load your training. <button type="button" className="btn btn-link btn-sm p-0 align-baseline" onClick={() => { setWorkoutStatus("loading"); loadWorkout(); }}>Retry</button>
+      </p>
+    </div>
+  );
+
   return (
     <section className="dashboard-page">
       <div className="dp-welcome">
@@ -148,20 +165,7 @@ export function DashboardPage() {
             </div>
           )}
 
-          <div className="mt-4">
-            {workoutStatus === "ready" && workout && <WorkoutSummary overview={workout} />}
-            {workoutStatus === "loading" && !workout && <WorkoutSkeleton height={300} />}
-            {workoutStatus === "error" && !workout && (
-              <div className="dp-section">
-                <div className="dp-section-head">
-                  <h2 className="dp-section-title">Training</h2>
-                </div>
-                <p className="dp-wk-error">
-                  Couldn't load your training. <button type="button" className="btn btn-link btn-sm p-0 align-baseline" onClick={() => { setWorkoutStatus("loading"); loadWorkout(); }}>Retry</button>
-                </p>
-              </div>
-            )}
-          </div>
+          {trainingPanel && <div className="mt-4">{trainingPanel}</div>}
 
           <div className="dp-coming-up-grid mt-4">
             <UpcomingPanel items={data.upcoming} />

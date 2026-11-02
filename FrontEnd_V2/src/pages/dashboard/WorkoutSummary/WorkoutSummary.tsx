@@ -62,27 +62,6 @@ export function WorkoutSummary({ overview }: WorkoutSummaryProps) {
   const todayDate = new Date(`${overview.today_date}T00:00:00`); // the server's day, the same one the week is built from
   const dayLabels = weekDayLabels("sunday"); // the overview's week always runs Sunday to Saturday
 
-  // Nobody has trained or picked a plan yet: one invitation, not a week of empty cards.
-  if (!plan && overview.total_sessions === 0) {
-    return (
-      <div className="dp-section dp-wk">
-        <div className="dp-section-head">
-          <h2 className="dp-section-title">Training</h2>
-          <Link to={ROUTES.WORKOUT} className="dp-section-link">Open workout →</Link>
-        </div>
-        <div className="dp-report-hero">
-          <span className="dp-wk-newcomer-icon" aria-hidden="true">🏋️</span>
-          <div className="dp-report-body">
-            <span className="dp-report-date">Training</span>
-            <h3 className="dp-report-headline">Start training with a plan</h3>
-            <p className="dp-report-summary">Pick a ready-made plan or build your own, and your week fills itself in here.</p>
-            <Link to={`${ROUTES.WORKOUT}?tab=plans`} className="dp-report-cta">Choose a plan →</Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="dp-section dp-wk">
       <div className="dp-section-head">

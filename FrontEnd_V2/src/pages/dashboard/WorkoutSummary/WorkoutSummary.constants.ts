@@ -1,6 +1,11 @@
 import type { MuscleId, MuscleSets, WorkoutOverview, WorkoutWeekDay } from "@/api";
 import { ROUTES } from "@/routes/RoutePaths";
 
+/** Whether the dashboard has anything to say about training: a plan being followed, or a workout this week (one under way counts). */
+export function hasTrainingToShow(overview: WorkoutOverview): boolean {
+  return overview.active_plan !== null || overview.sessions_this_week > 0 || overview.in_progress_session_id !== null;
+}
+
 /** The page of one workout, finished or under way. */
 export function sessionPath(sessionId: number): string {
   return ROUTES.WORKOUT_SESSION.replace(":sessionId", String(sessionId));

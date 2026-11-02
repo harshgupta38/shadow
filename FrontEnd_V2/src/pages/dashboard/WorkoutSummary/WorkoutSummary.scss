@@ -43,19 +43,6 @@
 
 .dp-wk-quiet { margin: 0; text-align: center; font-size: 0.78rem; color: var(--jv-muted); }
 
-// ─── The invitation shown before anyone has trained ──────────────────────────
-
-.dp-wk-newcomer-icon {
-  flex-shrink: 0;
-  width: 72px;
-  height: 72px;
-  display: grid;
-  place-items: center;
-  border-radius: 20px;
-  font-size: 2rem;
-  background: var(--jv-brand-soft);
-}
-
 // ─── Today's headline icons ───────────────────────────────────────────────────
 
 .dp-wk-done-icon { color: var(--jv-success); vertical-align: -2px; }

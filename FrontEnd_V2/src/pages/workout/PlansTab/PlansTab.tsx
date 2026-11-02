@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 
 import { api, ApiError } from "@/api";
 import type { WorkoutGoal, WorkoutLevel, WorkoutPlanSource, WorkoutPlanSummary } from "@/api";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { FilterDropdown } from "@/components/ui/FilterDropdown/FilterDropdown";
 import { IllustratedErrorState } from "@/components/ui/IllustratedErrorState/IllustratedErrorState";
 import { useToast } from "@/context/ToastContext";
@@ -43,6 +44,7 @@ export function PlansTab() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
+  const [confirmStop, setConfirmStop] = useState<WorkoutPlanSummary | null>(null); // the plan asked about, until answered
 
   const [source, setSource] = useState<SourceTab>("all");
   const [query, setQuery] = useState("");
@@ -111,6 +113,7 @@ export function PlansTab() {
 
   async function deactivate(plan: WorkoutPlanSummary) {
     setBusyId(plan.id);
+    setConfirmStop(null);
     try {
       await api.workout.deactivatePlan();
       setPlans((prev) => prev.map((p) => ({ ...p, is_active: false })));
@@ -212,7 +215,7 @@ export function PlansTab() {
               locked={busyId !== null}
               onOpen={openPlan}
               onActivate={(p) => void activate(p)}
-              onDeactivate={(p) => void deactivate(p)}
+              onDeactivate={setConfirmStop}
             />
           ))}
           {showCreateCard && (
@@ -224,6 +227,16 @@ export function PlansTab() {
           )}
         </div>
       )}
+
+      <ConfirmDialog
+        show={confirmStop !== null}
+        title={`Stop following "${confirmStop?.name ?? ""}"?`}
+        message="Your logged workouts stay in your history."
+        confirmLabel="Stop following"
+        destructive
+        onConfirm={() => confirmStop && void deactivate(confirmStop)}
+        onCancel={() => setConfirmStop(null)}
+      />
     </div>
   );
 }

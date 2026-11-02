@@ -54,6 +54,7 @@ export function PlanDetailPage() {
   const [warmUpsError, setWarmUpsError] = useState<string | null>(null);
   const [busy, setBusy] = useState<"activate" | "deactivate" | "copy" | "delete" | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmStop, setConfirmStop] = useState(false);
   const [detailId, setDetailId] = useState<number | null>(null); // the exercise shown in the details popup
 
   const load = useCallback(async () => {
@@ -127,6 +128,7 @@ export function PlanDetailPage() {
   async function deactivate() {
     if (!plan || busy !== null) return;
     setBusy("deactivate");
+    setConfirmStop(false);
     try {
       await api.workout.deactivatePlan();
       setPlan({ ...plan, is_active: false });
@@ -191,7 +193,7 @@ export function PlanDetailPage() {
   const isCustom = plan.source === "custom";
   const actions: PageHeaderAction[] = [];
   if (plan.is_active) {
-    actions.push({ key: "stop", label: busy === "deactivate" ? "Stopping…" : "Stop following", icon: <XCircle size={14} />, tone: "soft", disabled: busy !== null, onClick: () => void deactivate() });
+    actions.push({ key: "stop", label: busy === "deactivate" ? "Stopping…" : "Stop following", icon: <XCircle size={14} />, tone: "soft", disabled: busy !== null, onClick: () => setConfirmStop(true) });
   } else {
     actions.push({ key: "use", label: busy === "activate" ? "Switching…" : "Use this plan", icon: <PlayFill size={14} />, tone: "brand", disabled: busy !== null, onClick: () => void activate() });
   }
@@ -367,6 +369,16 @@ export function PlanDetailPage() {
         busy={busy === "delete"}
         onConfirm={() => void remove()}
         onCancel={() => setConfirmDelete(false)}
+      />
+
+      <ConfirmDialog
+        show={confirmStop}
+        title={`Stop following "${plan?.name ?? ""}"?`}
+        message="Your logged workouts stay in your history."
+        confirmLabel="Stop following"
+        destructive
+        onConfirm={() => void deactivate()}
+        onCancel={() => setConfirmStop(false)}
       />
 
       <ExerciseDetailModal exerciseId={detailId} onClose={() => setDetailId(null)} />

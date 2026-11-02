@@ -29,6 +29,17 @@ function startOfWeek(iso: string, weekStartsOn: WeekStartsOn): Date {
     return day;
 }
 
+/** The seven dates ("YYYY-MM-DD") of the week `offset` weeks away from the one containing `today`. */
+export function computeWeekDates(today: string, offset: number, weekStartsOn: WeekStartsOn): string[] {
+    const first = startOfWeek(today, weekStartsOn);
+    first.setDate(first.getDate() + offset * 7);
+    return Array.from({ length: 7 }, (_, i) => {
+        const d = new Date(first);
+        d.setDate(first.getDate() + i);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    });
+}
+
 /** How many weeks before the current one `iso` falls (0 = this week), the unit the week strip navigates in. */
 export function weekOffsetOf(today: string, iso: string, weekStartsOn: WeekStartsOn): number {
     const diff = startOfWeek(iso, weekStartsOn).getTime() - startOfWeek(today, weekStartsOn).getTime();

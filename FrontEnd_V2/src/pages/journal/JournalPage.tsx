@@ -6,8 +6,8 @@ import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { monthOf, todayIso } from "@/services/date.service";
 import { api } from "@/api";
 import { useWeekStart } from "@/context/PlannerContext";
-import type { JournalEntryResponse, JournalMood, WeekStartsOn } from "@/api/types";
-import { MOODS, fmtDisplayDate, weekOffsetOf } from "@/pages/journal/JournalPage.constants";
+import type { JournalEntryResponse, JournalMood } from "@/api/types";
+import { MOODS, computeWeekDates, fmtDisplayDate, weekOffsetOf } from "@/pages/journal/JournalPage.constants";
 import { JournalTimeline } from "@/pages/journal/JournalTimeline/JournalTimeline";
 import { TIMING } from "@/constant/tuning";
 import "@/pages/journal/JournalPage.scss";
@@ -41,18 +41,6 @@ const QUILL_FORMATS = ["header", "bold", "italic", "underline", "color", "backgr
 
 function dayAbbr(iso: string): string {
     return DAY_ABBR[new Date(iso + "T00:00:00").getDay()];
-}
-
-function computeWeekDates(today: string, offset: number, weekStartsOn: WeekStartsOn): string[] {
-    const todayDate = new Date(today + "T00:00:00");
-    const daysSinceWeekStart = (todayDate.getDay() - (weekStartsOn === "monday" ? 1 : 0) + 7) % 7;
-    const first = new Date(todayDate);
-    first.setDate(todayDate.getDate() - daysSinceWeekStart + offset * 7);
-    return Array.from({ length: 7 }, (_, i) => {
-        const d = new Date(first);
-        d.setDate(first.getDate() + i);
-        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    });
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────

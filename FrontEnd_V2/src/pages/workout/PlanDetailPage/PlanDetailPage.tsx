@@ -10,6 +10,7 @@ import { PageHeader, type PageHeaderAction } from "@/components/ui/PageHeader/Pa
 import { useToast } from "@/context/ToastContext";
 import { ROUTES } from "@/routes/RoutePaths";
 import { todayIso } from "@/services/date.service";
+import { ExerciseDetailModal } from "@/pages/workout/ExerciseDetailModal/ExerciseDetailModal";
 import { ExerciseThumb } from "@/pages/workout/ExerciseThumb/ExerciseThumb";
 import { MuscleBars } from "@/pages/workout/MuscleBars/MuscleBars";
 import { MuscleChips, MuscleLegend, MuscleMap } from "@/pages/workout/MuscleMap/MuscleMap";
@@ -51,6 +52,7 @@ export function PlanDetailPage() {
   const [warmUpsError, setWarmUpsError] = useState<string | null>(null);
   const [busy, setBusy] = useState<"activate" | "deactivate" | "copy" | "delete" | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [detailId, setDetailId] = useState<number | null>(null); // the exercise shown in the details popup
 
   const load = useCallback(async () => {
     if (!Number.isInteger(id) || id <= 0) {
@@ -267,7 +269,7 @@ export function PlanDetailPage() {
               <ul className="wk-pd-list">
                 {day.exercises.map((pe, i) => (
                   <li key={pe.id ?? `${pe.exercise.id}-${i}`}>
-                    <button type="button" className="wk-pd-ex" onClick={() => navigate(ROUTES.WORKOUT_EXERCISE.replace(":exerciseId", String(pe.exercise.id)))}>
+                    <button type="button" className="wk-pd-ex" onClick={() => setDetailId(pe.exercise.id)}>
                       <span className="wk-pd-ex-num">{i + 1}</span>
                       <span className="wk-pd-ex-thumb">
                         <ExerciseThumb exercise={pe.exercise} imageUrl={pe.exercise.image_url} mapSize="xs" />
@@ -315,7 +317,7 @@ export function PlanDetailPage() {
               <ul className="wk-pd-list">
                 {warmUps.items.map((ex, i) => (
                   <li key={ex.id}>
-                    <button type="button" className="wk-pd-ex" onClick={() => navigate(ROUTES.WORKOUT_EXERCISE.replace(":exerciseId", String(ex.id)))}>
+                    <button type="button" className="wk-pd-ex" onClick={() => setDetailId(ex.id)}>
                       <span className="wk-pd-ex-num">{i + 1}</span>
                       <span className="wk-pd-ex-thumb">
                         <ExerciseThumb exercise={ex} imageUrl={ex.image_url} mapSize="xs" />
@@ -363,6 +365,8 @@ export function PlanDetailPage() {
         onConfirm={() => void remove()}
         onCancel={() => setConfirmDelete(false)}
       />
+
+      <ExerciseDetailModal exerciseId={detailId} onClose={() => setDetailId(null)} />
     </div>
   );
 }

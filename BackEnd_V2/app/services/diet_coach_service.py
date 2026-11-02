@@ -35,7 +35,6 @@ from app.schemas.diet import (
 from app.services import diet_agent_service, diet_calc_service, diet_diary_service, diet_food_service
 from app.services.diet_calc_service import Nutrients
 from app.services.diet_diary_service import STANDARD_MEAL_TYPES
-from app.services.diet_proposal_service import infer_meal_type
 
 _logger = logging.getLogger(__name__)
 
@@ -89,7 +88,7 @@ def _slots_for(profile: DietProfileDBM) -> tuple[str, ...]:
 
 def next_meal_type(logged: set[str], moment: datetime, slots: tuple[str, ...]) -> str:
     """The meal to suggest: the one that fits the hour, or the next one the person eats that is not logged yet."""
-    suggested = infer_meal_type(moment)
+    suggested = diet_diary_service.infer_meal_type(moment)
     start = STANDARD_MEAL_TYPES.index(suggested)
     for meal in STANDARD_MEAL_TYPES[start:]:
         if meal in slots and meal not in logged:

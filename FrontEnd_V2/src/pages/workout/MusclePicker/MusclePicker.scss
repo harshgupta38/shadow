@@ -70,3 +70,17 @@
     height: auto;
   }
 }
+
+// The names of the picked muscles, under the figures.
+.wk-mp-picked {
+  flex: none;
+  list-style: none;
+  margin: 0.6rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.3rem;
+
+  .pill { padding: 0.2rem 0.55rem; font-size: 0.7rem; }
+}

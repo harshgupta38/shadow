@@ -202,7 +202,7 @@ class Nutrients:
         )
 
 
-def check_user_nutrients(nutrients: "Nutrients", grams: float) -> None:
+def check_user_nutrients(nutrients: Nutrients, grams: float) -> None:
     """Catches typos in nutrition the user entered for one amount: no food has over 900 kcal per 100 g, and the macros cannot outweigh the food."""
     if nutrients.calories * 100.0 / grams > 900:
         raise ValidationError(

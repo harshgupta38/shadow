@@ -5,7 +5,7 @@ Each item keeps a snapshot of its nutrients from the moment it was logged.
 """
 
 import calendar
-from datetime import date, time
+from datetime import date, datetime, time
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -53,6 +53,20 @@ def resolve_date(value: date | None) -> date:
     if day > today_ist():
         raise ValidationError("You can't log food for a future day.", errors={"log_date": "Use the meal planner for future meals."})
     return day
+
+
+def infer_meal_type(moment: datetime) -> str:
+    """Used only when neither the user nor the request names a meal; the review screen lets them change it."""
+    hour = moment.hour + moment.minute / 60
+    if hour < 10.5:
+        return "breakfast"
+    if hour < 12:
+        return "morning_snack"
+    if hour < 15.5:
+        return "lunch"
+    if hour < 18.5:
+        return "evening_snack"
+    return "dinner"
 
 
 def _meal_sort_key(log: FoodLogDBM) -> tuple[int, str, int]:
@@ -196,10 +210,7 @@ def get_or_create_log(db: Session, user: UserDBM, day: date, meal_type: str, eat
 
 def user_nutrients(values: NutrientValuesRequest, grams: float) -> Nutrients:
     """What the user typed for an amount, checked for typos. Their numbers are used as typed, to one decimal."""
-    nutrients = Nutrients(
-        diet_calc_service.round1(values.calories), diet_calc_service.round1(values.protein_g), diet_calc_service.round1(values.carbs_g),
-        diet_calc_service.round1(values.fat_g), diet_calc_service.round1(values.fibre_g),
-    )
+    nutrients = Nutrients(*(diet_calc_service.round1(value) for value in (values.calories, values.protein_g, values.carbs_g, values.fat_g, values.fibre_g)))
     diet_calc_service.check_user_nutrients(nutrients, grams)
     return nutrients
 
@@ -266,6 +277,10 @@ def add_items(db: Session, user: UserDBM, request: DiaryAddRequest) -> DiaryMeal
     return response
 
 
+def _set_nutrients(item: FoodLogItemDBM, nutrients: Nutrients) -> None:
+    item.calories, item.protein_g, item.carbs_g, item.fat_g, item.fibre_g = nutrients.calories, nutrients.protein_g, nutrients.carbs_g, nutrients.fat_g, nutrients.fibre_g
+
+
 def update_item(db: Session, user: UserDBM, item_id: int, request: DiaryItemUpdateRequest) -> DiaryMealResponse:
     """Changes a quantity or unit, and optionally the nutrition. The nutrients are rescaled from what was logged, not re-read from the
     food, so history stays put, and nutrition the user set keeps scaling with the amount."""
@@ -293,14 +308,14 @@ def update_item(db: Session, user: UserDBM, item_id: int, request: DiaryItemUpda
         item.quantity_certainty = diet_calc_service.certainty_for_unit(unit)  # a bowl is a rough amount, grams are exact
     if request.nutrients is not None:
         typed = user_nutrients(request.nutrients, grams)
-        item.calories, item.protein_g, item.carbs_g, item.fat_g, item.fibre_g = typed.calories, typed.protein_g, typed.carbs_g, typed.fat_g, typed.fibre_g
+        _set_nutrients(item, typed)
         item.nutrition_source, item.verification, item.quantity_certainty = diet_calc_service.CUSTOM_NUTRITION_SOURCE, "user", "exact"
     elif request.reset_nutrients:
         food = diet_food_service.resolve_food(db, user, item.food_id) if item.food_id else None
         if food is None:
             raise ValidationError("This food is no longer in your library, so its own values can't be brought back.")
         _, original = diet_food_service.nutrients_for(food, quantity, unit)
-        item.calories, item.protein_g, item.carbs_g, item.fat_g, item.fibre_g = original.calories, original.protein_g, original.carbs_g, original.fat_g, original.fibre_g
+        _set_nutrients(item, original)
         item.nutrition_source, item.verification = food.source, food.verification
         item.quantity_certainty = request.certainty or diet_calc_service.certainty_for_unit(unit)
     db.commit()

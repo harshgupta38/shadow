@@ -67,7 +67,7 @@ class NewConvoRequest(ExtraDataInRequest):
     @field_validator("agent_type", mode="before")
     def validate_agent_type(cls, v):
         if v not in get_args(AssistantAgentType):
-            raise ValueError(f"Invalid agent type.")
+            raise ValueError("Invalid agent type.")
         return v
 
 

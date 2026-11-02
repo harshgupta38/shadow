@@ -1,5 +1,6 @@
 import type { MuscleId } from "@/api/types";
 import { MuscleMap } from "@/pages/workout/MuscleMap/MuscleMap";
+import { MUSCLE_LABEL } from "@/pages/workout/WorkoutPage.constants";
 import "./MusclePicker.scss";
 
 interface MusclePickerProps {
@@ -26,6 +27,14 @@ export function MusclePicker({ selected, onSelect, onClear }: MusclePickerProps)
       <div className="wk-mp-map">
         <MuscleMap primary={[]} selected={selected} onSelect={onSelect} view="both" size="md" />
       </div>
+
+      {selected.length > 0 && (
+        <ul className="wk-mp-picked" aria-label="Selected muscles">
+          {selected.map((muscle) => (
+            <li key={muscle} className="pill">{MUSCLE_LABEL[muscle]}</li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }

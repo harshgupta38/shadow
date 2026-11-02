@@ -7,7 +7,7 @@ Division of labour:
 """
 
 import copy
-import logging
+import dataclasses
 import re
 import uuid
 from datetime import datetime, time, timezone
@@ -38,8 +38,6 @@ from app.schemas.diet import (
 )
 from app.services import diet_agent_service, diet_calc_service, diet_diary_service, diet_food_service
 
-_logger = logging.getLogger(__name__)
-
 AGENT_FOOD_LOGGER = "food_logger"
 _MAX_ITEMS = 30
 
@@ -60,20 +58,6 @@ def _unit_key(unit: str | None) -> str | None:
         return None
     key = unit.strip().lower().rstrip(".")
     return _UNIT_ALIASES.get(key, key)
-
-
-def infer_meal_type(moment: datetime) -> str:
-    """Used only when neither the user nor the request names a meal; the review screen lets them change it."""
-    hour = moment.hour + moment.minute / 60
-    if hour < 10.5:
-        return "breakfast"
-    if hour < 12:
-        return "morning_snack"
-    if hour < 15.5:
-        return "lunch"
-    if hour < 18.5:
-        return "evening_snack"
-    return "dinner"
 
 
 def _totals_model(item_nutrients: list[dict]) -> NutrientTotals:
@@ -296,7 +280,7 @@ async def parse_meal(db: Session, user: UserDBM, request: ParseMealRequest) -> P
         db.commit()  # keep the run record
         raise ValidationError("I couldn't find any food in that message.", errors={"text": "Try something like “two chapatis and a bowl of dal for lunch”."})
 
-    meal_type = diet_diary_service._validate_meal_type(request.meal_type) if request.meal_type else (parsed.meal_type or infer_meal_type(now_ist()))
+    meal_type = diet_diary_service._validate_meal_type(request.meal_type) if request.meal_type else (parsed.meal_type or diet_diary_service.infer_meal_type(now_ist()))
     items = _reindex(
         [
             _new_item(db, user, index=i, text=p.text, query=p.food_query, quantity=p.quantity, unit=p.unit, vague=p.quantity_is_vague)
@@ -351,7 +335,7 @@ def edit_proposal(db: Session, user: UserDBM, proposal_id: str, request: Proposa
             if item["status"] != "resolved":
                 raise ValidationError("Set the amount first, then its nutrition.")
             typed = diet_diary_service.user_nutrients(edit.nutrients, item["grams"])
-            item["user_per_gram"] = {key: value / item["grams"] for key, value in vars(typed).items()}
+            item["user_per_gram"] = {key: value / item["grams"] for key, value in dataclasses.asdict(typed).items()}
             _apply_user_nutrition(item)
         item["candidate_ids"] = [c for c in item.get("candidate_ids", []) if c != food.id]
         if edit.quantity is not None and item["status"] == "resolved" and item["quantity_certainty"] == "exact":

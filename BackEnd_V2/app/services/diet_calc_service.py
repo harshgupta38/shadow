@@ -32,6 +32,7 @@ KCAL_PER_G = {"protein": 4.0, "carbs": 4.0, "fat": 9.0}
 APPROXIMATE_UNITS = frozenset({"bowl", "katori", "plate", "handful"})
 MAX_GRAMS = 10000.0  # one entry above this is a typo, not a meal
 MAX_ESTIMATED_CALORIES = 6000
+CUSTOM_NUTRITION_SOURCE = "Set by you"  # what an item's nutrition_source says once the user typed its nutrition
 UNDER_18_OR_LOW_BMI_NOTE = (
     "Weight-loss targets aren't suggested under 18 or at a low body weight, so this is a maintenance estimate. "
     "Please talk to a doctor or dietitian about your goals."
@@ -198,6 +199,20 @@ class Nutrients:
             round1(self.carbs_g + other.carbs_g),
             round1(self.fat_g + other.fat_g),
             round1(self.fibre_g + other.fibre_g),
+        )
+
+
+def check_user_nutrients(nutrients: "Nutrients", grams: float) -> None:
+    """Catches typos in nutrition the user entered for one amount: no food has over 900 kcal per 100 g, and the macros cannot outweigh the food."""
+    if nutrients.calories * 100.0 / grams > 900:
+        raise ValidationError(
+            "That is more than 900 calories per 100 g, which no food has. Check the calories and the amount.",
+            errors={"calories": "Check this against the amount."},
+        )
+    if nutrients.protein_g + nutrients.carbs_g + nutrients.fat_g + nutrients.fibre_g > grams * 1.02:
+        raise ValidationError(
+            "The protein, carbs, fat and fibre add up to more than the food weighs. Check the numbers or the amount.",
+            errors={"protein_g": "Heavier than the food itself."},
         )
 
 

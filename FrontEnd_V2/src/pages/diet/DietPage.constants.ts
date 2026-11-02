@@ -69,6 +69,44 @@ export function round1(value: number): number {
   return Math.round((value + Number.EPSILON) * 10) / 10;
 }
 
+// ── Nutrition the user types ──────────────────────────────────────────────────
+
+/** The five nutrition numbers as the text the user is typing. */
+export type NutrientStrings = Record<keyof NutrientTotals, string>;
+
+/** What a logged item's nutrition_source says once the user typed its nutrition (the same text the server writes). */
+export const CUSTOM_NUTRITION_SOURCE = "Set by you";
+
+/** What a form holds for one item's nutrition: nothing typed, numbers to use as typed, or numbers that can't be used yet. */
+export type CustomNutrition = NutrientTotals | "invalid" | null;
+
+export const NUTRIENT_KEYS: (keyof NutrientTotals)[] = ["calories", "protein_g", "carbs_g", "fat_g", "fibre_g"];
+
+export function nutrientStrings(values: NutrientTotals): NutrientStrings {
+  return Object.fromEntries(NUTRIENT_KEYS.map((key) => [key, String(round1(values[key]))])) as NutrientStrings;
+}
+
+/** The typed numbers, or null while any is empty, negative or not a number. */
+export function parseNutrientStrings(text: NutrientStrings): NutrientTotals | null {
+  const parsed = {} as NutrientTotals;
+  for (const key of NUTRIENT_KEYS) {
+    const raw = text[key].trim();
+    const value = Number(raw);
+    if (raw === "" || !Number.isFinite(value) || value < 0) return null;
+    parsed[key] = round1(value);
+  }
+  return parsed;
+}
+
+/** Nutrition per gram, kept unrounded so an amount can be changed and changed back without drifting. */
+export function nutrientsPerGram(values: NutrientTotals, grams: number): NutrientTotals {
+  return Object.fromEntries(NUTRIENT_KEYS.map((key) => [key, values[key] / grams])) as unknown as NutrientTotals;
+}
+
+export function nutrientsForGrams(perGram: NutrientTotals, grams: number): NutrientTotals {
+  return Object.fromEntries(NUTRIENT_KEYS.map((key) => [key, round1(perGram[key] * grams)])) as unknown as NutrientTotals;
+}
+
 /** Nutrients for `quantity` of `unit` of a food, for instant previews. The saved values are always computed by the server. */
 export function previewNutrients(food: Food, quantity: number, unit: string): NutrientTotals | null {
   if (!(quantity > 0)) return null;

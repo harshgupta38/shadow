@@ -25,6 +25,7 @@ from app.models.user import UserDBM
 from app.schemas.diet import (
     FoodResponse,
     NutrientTotals,
+    NutrientValuesRequest,
     ParseMealRequest,
     ParsedFoodItemFromLLMSchema,
     ParsedMealFromLLMSchema,
@@ -99,8 +100,20 @@ def _find_food(db: Session, user: UserDBM, query: str):
     return fuzzy or []
 
 
+def _apply_user_nutrition(item: dict) -> None:
+    """Nutrition the user typed for an item is kept per gram, so it follows the amount when they change it."""
+    per_gram = item.get("user_per_gram")
+    if not per_gram or item["status"] != "resolved":
+        return
+    item["nutrients"] = {key: diet_calc_service.round1(value * item["grams"]) for key, value in per_gram.items()}
+    item.update(verification="user", nutrition_source=diet_calc_service.CUSTOM_NUTRITION_SOURCE, quantity_certainty="exact", note="")
+
+
 def _price(item: dict, food: FoodDBM, quantity: float | None, unit: str | None, vague: bool = False) -> None:
-    """Fills an item's amount and nutrients from a food, or marks it as still needing a quantity. Never guesses an amount."""
+    """Fills an item's amount and nutrients from a food, or marks it as still needing a quantity. Never guesses an amount.
+    Nutrition the user typed stays with the item while the food stays the same, and goes away if the food is swapped."""
+    if item.get("food_id") != food.id:
+        item.pop("user_per_gram", None)
     item.update(food_id=food.id, name=food.name, nutrition_source=food.source, verification=food.verification)
     unit_key = _unit_key(unit)
     if unit_key is None and food.default_unit != "g":
@@ -134,6 +147,7 @@ def _price(item: dict, food: FoodDBM, quantity: float | None, unit: str | None, 
         quantity_certainty="estimated" if approximate else "exact",
         note=f"Assumed 1 {unit_key} is about {food.serving_grams[unit_key]:g} g." if approximate and unit_key in food.serving_grams else "",
     )
+    _apply_user_nutrition(item)
 
 
 def _new_item(db: Session, user: UserDBM, *, index: int, text: str, query: str, quantity: float | None, unit: str | None, vague: bool) -> dict:
@@ -248,7 +262,7 @@ def to_response(db: Session, user: UserDBM, proposal: DietProposalDBM) -> Propos
             ProposalItemResponse(
                 index=raw["index"], text=raw["text"], status=raw["status"], food_id=raw["food_id"], name=raw["name"],
                 quantity=raw["quantity"], unit=raw["unit"], grams=raw["grams"],
-                nutrients=NutrientTotals(**raw["nutrients"]) if raw["nutrients"] else None,
+                nutrients=NutrientTotals(**raw["nutrients"]) if raw["nutrients"] else None, custom_nutrition=bool(raw.get("user_per_gram")),
                 verification=raw["verification"], nutrition_source=raw["nutrition_source"],
                 quantity_certainty=raw["quantity_certainty"], note=raw["note"], candidates=candidates, units=units,
             )
@@ -328,7 +342,17 @@ def edit_proposal(db: Session, user: UserDBM, proposal_id: str, request: Proposa
             food = diet_food_service.get_food(db, user, edit.food_id)
         if food is None:
             raise ValidationError("Pick a food for this item first.")
+        if edit.nutrients is not None and edit.reset_nutrients:
+            raise ValidationError("Choose either your own nutrition values or the food's own, not both.")
+        if edit.reset_nutrients:
+            item.pop("user_per_gram", None)
         _price(item, food, edit.quantity if edit.quantity is not None else item["quantity"], edit.unit or item["unit"])
+        if edit.nutrients is not None:
+            if item["status"] != "resolved":
+                raise ValidationError("Set the amount first, then its nutrition.")
+            typed = diet_diary_service.user_nutrients(edit.nutrients, item["grams"])
+            item["user_per_gram"] = {key: value / item["grams"] for key, value in vars(typed).items()}
+            _apply_user_nutrition(item)
         item["candidate_ids"] = [c for c in item.get("candidate_ids", []) if c != food.id]
         if edit.quantity is not None and item["status"] == "resolved" and item["quantity_certainty"] == "exact":
             item["note"] = ""
@@ -437,7 +461,8 @@ def confirm_proposal(db: Session, user: UserDBM, proposal_id: str) -> ProposalCo
     for raw in payload["items"]:
         food = diet_food_service.get_food(db, user, raw["food_id"])
         item = diet_diary_service.build_item(
-            food, quantity=raw["quantity"], unit=raw["unit"], certainty=raw["quantity_certainty"], token=f"{proposal.proposal_id}:{raw['index']}"[:64]
+            food, quantity=raw["quantity"], unit=raw["unit"], certainty=raw["quantity_certainty"], token=f"{proposal.proposal_id}:{raw['index']}"[:64],
+            nutrients=NutrientValuesRequest(**raw["nutrients"]) if raw.get("user_per_gram") else None,  # what the user typed is what is saved
         )
         diet_diary_service._append(log, item)
     db.flush()

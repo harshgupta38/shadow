@@ -23,3 +23,44 @@
 
   strong { color: var(--jv-text); font-size: 0.88rem; }
 }
+
+.dt-serving-edited {
+  margin-left: 0.4rem;
+  padding: 0 0.35rem;
+  font-size: 0.66rem;
+  font-weight: 700;
+  color: var(--jv-brand-1);
+  background: color-mix(in srgb, var(--jv-brand-1) 12%, transparent);
+  border-radius: 6px;
+  cursor: help;
+}
+
+.dt-serving-edit-link {
+  align-self: center;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.dt-serving-editor {
+  flex: 1 1 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--jv-border);
+  border-radius: 10px;
+  background: var(--jv-surface-2);
+}
+
+.dt-serving-editor-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem 0.8rem;
+  font-size: 0.72rem;
+  color: var(--jv-muted);
+
+  .btn { font-size: 0.74rem; font-weight: 600; text-decoration: none; }
+}

@@ -35,6 +35,7 @@ from app.schemas.diet import (
     HistoryMealResponse,
     LogItemRequest,
     NutrientTotals,
+    NutrientValuesRequest,
     SavedMealCreateRequest,
     SavedMealLogRequest,
     SavedMealResponse,
@@ -193,27 +194,41 @@ def get_or_create_log(db: Session, user: UserDBM, day: date, meal_type: str, eat
     return log
 
 
+def user_nutrients(values: NutrientValuesRequest, grams: float) -> Nutrients:
+    """What the user typed for an amount, checked for typos. Their numbers are used as typed, to one decimal."""
+    nutrients = Nutrients(
+        diet_calc_service.round1(values.calories), diet_calc_service.round1(values.protein_g), diet_calc_service.round1(values.carbs_g),
+        diet_calc_service.round1(values.fat_g), diet_calc_service.round1(values.fibre_g),
+    )
+    diet_calc_service.check_user_nutrients(nutrients, grams)
+    return nutrients
+
+
 def build_item(food: FoodDBM, request: LogItemRequest | None = None, *, quantity: float | None = None, unit: str | None = None,
-               certainty: str | None = None, token: str | None = None) -> FoodLogItemDBM:
-    """A log item holding a copy of the food's nutrients for this quantity."""
+               certainty: str | None = None, token: str | None = None, nutrients: NutrientValuesRequest | None = None) -> FoodLogItemDBM:
+    """A log item holding a copy of the food's nutrients for this quantity, or the user's own numbers when they typed them."""
     qty = request.quantity if request else quantity
     unit_name = request.unit if request else unit
     assert qty is not None and unit_name is not None
-    grams, nutrients = diet_food_service.nutrients_for(food, qty, unit_name)
+    grams, computed = diet_food_service.nutrients_for(food, qty, unit_name)
+    typed = request.nutrients if request else nutrients
+    if typed is not None:
+        computed = user_nutrients(typed, grams)
     return FoodLogItemDBM(
         food_id=food.id,
         name=food.name,
         quantity=qty,
         unit=unit_name.strip().lower(),
         grams=grams,
-        calories=nutrients.calories,
-        protein_g=nutrients.protein_g,
-        carbs_g=nutrients.carbs_g,
-        fat_g=nutrients.fat_g,
-        fibre_g=nutrients.fibre_g,
-        nutrition_source=food.source,
-        verification=food.verification,
-        quantity_certainty=(request.certainty if request else certainty) or diet_calc_service.certainty_for_unit(unit_name),
+        calories=computed.calories,
+        protein_g=computed.protein_g,
+        carbs_g=computed.carbs_g,
+        fat_g=computed.fat_g,
+        fibre_g=computed.fibre_g,
+        nutrition_source=diet_calc_service.CUSTOM_NUTRITION_SOURCE if typed is not None else food.source,
+        verification="user" if typed is not None else food.verification,
+        # Numbers the user typed are theirs, so they are not an estimate whatever the unit.
+        quantity_certainty="exact" if typed is not None else (request.certainty if request else certainty) or diet_calc_service.certainty_for_unit(unit_name),
         client_token=(request.client_token if request else token),
     )
 
@@ -252,7 +267,10 @@ def add_items(db: Session, user: UserDBM, request: DiaryAddRequest) -> DiaryMeal
 
 
 def update_item(db: Session, user: UserDBM, item_id: int, request: DiaryItemUpdateRequest) -> DiaryMealResponse:
-    """Changes a quantity or unit. The nutrients are rescaled from what was logged, not re-read from the food, so history stays put."""
+    """Changes a quantity or unit, and optionally the nutrition. The nutrients are rescaled from what was logged, not re-read from the
+    food, so history stays put, and nutrition the user set keeps scaling with the amount."""
+    if request.nutrients is not None and request.reset_nutrients:
+        raise ValidationError("Choose either your own nutrition values or the food's own, not both.")
     item = _own_item(db, user, item_id)
     quantity = request.quantity if request.quantity is not None else item.quantity
     unit = (request.unit or item.unit).strip().lower()
@@ -273,6 +291,18 @@ def update_item(db: Session, user: UserDBM, item_id: int, request: DiaryItemUpda
         item.quantity_certainty = request.certainty
     elif request.unit:
         item.quantity_certainty = diet_calc_service.certainty_for_unit(unit)  # a bowl is a rough amount, grams are exact
+    if request.nutrients is not None:
+        typed = user_nutrients(request.nutrients, grams)
+        item.calories, item.protein_g, item.carbs_g, item.fat_g, item.fibre_g = typed.calories, typed.protein_g, typed.carbs_g, typed.fat_g, typed.fibre_g
+        item.nutrition_source, item.verification, item.quantity_certainty = diet_calc_service.CUSTOM_NUTRITION_SOURCE, "user", "exact"
+    elif request.reset_nutrients:
+        food = diet_food_service.resolve_food(db, user, item.food_id) if item.food_id else None
+        if food is None:
+            raise ValidationError("This food is no longer in your library, so its own values can't be brought back.")
+        _, original = diet_food_service.nutrients_for(food, quantity, unit)
+        item.calories, item.protein_g, item.carbs_g, item.fat_g, item.fibre_g = original.calories, original.protein_g, original.carbs_g, original.fat_g, original.fibre_g
+        item.nutrition_source, item.verification = food.source, food.verification
+        item.quantity_certainty = request.certainty or diet_calc_service.certainty_for_unit(unit)
     db.commit()
     db.refresh(item.log)
     return meal_response(item.log)

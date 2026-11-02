@@ -16,6 +16,7 @@ import {
   newToken,
   previewNutrients,
   suggestMealType,
+  type CustomNutrition,
 } from "@/pages/diet/DietPage.constants";
 import { currentIstHour, todayIso } from "@/services/date.service";
 import "./FoodDetailDialog.scss";
@@ -36,6 +37,7 @@ export function FoodDetailDialog({ food, onClose, onToggleFavourite, onEdit, onD
   const [unit, setUnit] = useState("g");
   const [meal, setMeal] = useState<string>("lunch");
   const [token, setToken] = useState(newToken);
+  const [nutrition, setNutrition] = useState<CustomNutrition>(null);
   const [busy, setBusy] = useState(false);
 
   // A fresh amount and meal for each food that is opened.
@@ -45,6 +47,7 @@ export function FoodDetailDialog({ food, onClose, onToggleFavourite, onEdit, onD
     setUnit(food.default_unit);
     setMeal(suggestMealType(currentIstHour()));
     setToken(newToken());
+    setNutrition(null);
   }, [food?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!food) return null;
@@ -54,7 +57,7 @@ export function FoodDetailDialog({ food, onClose, onToggleFavourite, onEdit, onD
   const sameAs100g = food.default_unit === "g" && food.default_quantity === 100;
   const perServing = sameAs100g ? null : previewNutrients(food, food.default_quantity, food.default_unit);
   const servings = Object.entries(food.serving_grams);
-  const validAmount = Number(quantity) > 0;
+  const validAmount = Number(quantity) > 0 && nutrition !== "invalid";
 
   async function addToDiary() {
     if (!food || !validAmount || busy) return;
@@ -63,7 +66,7 @@ export function FoodDetailDialog({ food, onClose, onToggleFavourite, onEdit, onD
       await api.diet.addItems({
         log_date: todayIso(),
         meal_type: meal,
-        items: [{ food_id: food.id, quantity: Number(quantity), unit, certainty: certaintyFor(unit), client_token: token }],
+        items: [{ food_id: food.id, quantity: Number(quantity), unit, certainty: certaintyFor(unit), client_token: token, ...(nutrition && { nutrients: nutrition }) }],
       });
       setToken(newToken()); // adding it again later is a new entry, not a repeat of this one
       toast.success(`${food.name} added to ${MEAL_OPTIONS.find((m) => m.value === meal)?.label.toLowerCase() ?? meal}.`);
@@ -155,7 +158,7 @@ export function FoodDetailDialog({ food, onClose, onToggleFavourite, onEdit, onD
 
         <h3 className="dt-fd-heading">Add to today's diary</h3>
         <div className="dt-fd-add">
-          <ServingSelector food={food} quantity={quantity} unit={unit} onChange={(next) => { setQuantity(next.quantity); setUnit(next.unit); }} />
+          <ServingSelector key={food.id} food={food} quantity={quantity} unit={unit} onChange={(next) => { setQuantity(next.quantity); setUnit(next.unit); }} nutrition={nutrition} onNutritionChange={setNutrition} />
           <label className="visually-hidden" htmlFor="dt-fd-meal">Meal</label>
           <select id="dt-fd-meal" className="form-select form-select-sm dt-fd-meal" value={meal} onChange={(e) => setMeal(e.target.value)}>
             {MEAL_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}

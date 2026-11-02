@@ -2,9 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { ExclamationTriangleFill, InfoCircle, Search, Trash } from "react-bootstrap-icons";
 
 import { api } from "@/api";
-import type { DiaryMeal, Food, FoodLogProposal, ProposalItem } from "@/api";
+import type { DiaryMeal, Food, FoodLogProposal, ProposalItem, ProposalItemEdit } from "@/api";
 import { useToast } from "@/context/ToastContext";
-import { MEAL_OPTIONS, errorMessage, fmt, mealLabel } from "@/pages/diet/DietPage.constants";
+import { NutritionFields } from "@/pages/diet/NutritionFields/NutritionFields";
+import { MEAL_OPTIONS, errorMessage, fmt, mealLabel, nutrientStrings, parseNutrientStrings, type NutrientStrings } from "@/pages/diet/DietPage.constants";
 import "./ProposalReview.scss";
 
 interface ProposalReviewProps {
@@ -55,15 +56,19 @@ function FoodFinder({ onPick }: { onPick: (food: Food) => void }) {
   );
 }
 
+type ItemEdit = Omit<ProposalItemEdit, "index">;
+
 interface ItemRowProps {
   item: ProposalItem;
   busy: boolean;
-  onEdit: (edit: { food_id?: number; quantity?: number; unit?: string; remove?: boolean }) => void;
+  onEdit: (edit: ItemEdit) => void;
 }
 
 function ItemRow({ item, busy, onEdit }: ItemRowProps) {
   const [quantity, setQuantity] = useState(item.quantity === null ? "" : String(item.quantity));
   const [finding, setFinding] = useState(false);
+  const [editingNutrition, setEditingNutrition] = useState(false);
+  const [draft, setDraft] = useState<NutrientStrings | null>(null);
 
   // The server owns the amount; when it sends a new one (after a correction, say), show that.
   useEffect(() => {
@@ -75,6 +80,13 @@ function ItemRow({ item, busy, onEdit }: ItemRowProps) {
     const amount = Number(quantity);
     if (busy || quantity.trim() === "" || !(amount > 0) || amount === item.quantity) return; // one edit at a time: Enter then blur must not send twice
     onEdit({ quantity: amount, unit });
+  };
+
+  const typed = draft ? parseNutrientStrings(draft) : null;
+  const openNutrition = () => {
+    if (!item.nutrients) return;
+    setDraft(nutrientStrings(item.nutrients));
+    setEditingNutrition(true);
   };
 
   return (
@@ -121,10 +133,55 @@ function ItemRow({ item, busy, onEdit }: ItemRowProps) {
           </select>
           {item.nutrients && (
             <span className="dt-pr-nutrition">
-              <strong>{fmt(item.nutrients.calories)} kcal</strong>
+              <strong>
+                {fmt(item.nutrients.calories)} kcal
+                {item.custom_nutrition && <span className="dt-pr-edited" title="You set this nutrition yourself.">edited</span>}
+              </strong>
               <span>P {fmt(item.nutrients.protein_g, 1)} · C {fmt(item.nutrients.carbs_g, 1)} · F {fmt(item.nutrients.fat_g, 1)}</span>
             </span>
           )}
+          {item.nutrients && !editingNutrition && (
+            <button type="button" className="btn btn-link btn-sm p-0 dt-pr-link" disabled={busy} onClick={openNutrition}>
+              Edit nutrition
+            </button>
+          )}
+        </div>
+      )}
+
+      {editingNutrition && draft && (
+        <div className="dt-pr-nutrition-edit">
+          <NutritionFields idPrefix={`dt-pr-nf-${item.index}`} value={draft} onChange={setDraft} disabled={busy} />
+          <div className="dt-pr-nutrition-edit-foot">
+            <span>Nutrition for this amount, used exactly as typed. It changes in proportion if you change the amount.</span>
+            <div className="dt-pr-nutrition-edit-actions">
+              {item.custom_nutrition && (
+                <button
+                  type="button"
+                  className="btn btn-link btn-sm p-0"
+                  disabled={busy}
+                  onClick={() => {
+                    setEditingNutrition(false);
+                    onEdit({ reset_nutrients: true });
+                  }}
+                >
+                  Use the food's own values
+                </button>
+              )}
+              <button type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={() => setEditingNutrition(false)}>Cancel</button>
+              <button
+                type="button"
+                className="btn btn-soft btn-sm"
+                disabled={busy || typed === null}
+                onClick={() => {
+                  if (!typed) return;
+                  setEditingNutrition(false);
+                  onEdit({ nutrients: typed });
+                }}
+              >
+                Apply
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -194,7 +251,7 @@ export function ProposalReview({ proposal, onChange, onConfirmed, onDiscarded }:
     return task;
   }
 
-  const editItem = async (index: number, edit: { food_id?: number; quantity?: number; unit?: string; remove?: boolean }) => {
+  const editItem = async (index: number, edit: ItemEdit) => {
     const next = await run(() => api.diet.editProposal(proposal.proposal_id, { items: [{ index, ...edit }] }), "Couldn't update that item.");
     if (next) onChange(next);
   };

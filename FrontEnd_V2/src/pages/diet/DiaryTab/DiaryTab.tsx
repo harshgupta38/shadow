@@ -298,8 +298,8 @@ export function DiaryTab({ profile, onEditProfile }: DiaryTabProps) {
         item={editing}
         busy={busy}
         onClose={() => setEditing(null)}
-        onSave={(item, quantity, unit) =>
-          void mutate(() => api.diet.updateItem(item.id, { quantity, unit }), "Couldn't change this amount.", "Amount updated.").then((ok) => ok && setEditing(null))
+        onSave={(item, quantity, unit, nutrition) =>
+          void mutate(() => api.diet.updateItem(item.id, { quantity, unit, ...nutrition }), "Couldn't update this food.", "Updated.").then((ok) => ok && setEditing(null))
         }
       />
 

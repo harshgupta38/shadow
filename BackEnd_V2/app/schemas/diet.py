@@ -302,12 +302,23 @@ class NutrientTotals(ORMModel):
     fibre_g: float = 0.0
 
 
+class NutrientValuesRequest(BaseModel):
+    """Nutrition the user typed for one amount of a food: totals for that amount, not per 100 g."""
+
+    calories: float = Field(ge=0, le=10000)
+    protein_g: float = Field(ge=0, le=2000)
+    carbs_g: float = Field(ge=0, le=2000)
+    fat_g: float = Field(ge=0, le=2000)
+    fibre_g: float = Field(ge=0, le=2000)
+
+
 class LogItemRequest(BaseModel):
     food_id: int
     quantity: float = Field(gt=0, le=10000)
     unit: str = Field(min_length=1, max_length=20)
     certainty: Certainty | None = None  # left out: household measures (bowl, katori...) count as estimates, weights as exact
     client_token: str | None = Field(default=None, max_length=64)  # the same token twice adds the item once
+    nutrients: NutrientValuesRequest | None = None  # left out: the food's own values for this amount; given: the user's, used as typed
 
 
 class DiaryAddRequest(BaseModel):
@@ -326,6 +337,8 @@ class DiaryItemUpdateRequest(BaseModel):
     quantity: float | None = Field(default=None, gt=0, le=10000)
     unit: str | None = Field(default=None, min_length=1, max_length=20)
     certainty: Certainty | None = None
+    nutrients: NutrientValuesRequest | None = None  # the user's own values for the amount this item has after the change
+    reset_nutrients: bool = False  # go back to the food's own values for the amount
 
 
 class DiaryItemMoveRequest(BaseModel):
@@ -515,6 +528,7 @@ class ProposalItemResponse(BaseModel):
     unit: str | None = None
     grams: float | None = None
     nutrients: NutrientTotals | None = None
+    custom_nutrition: bool = False  # the user typed these nutrients instead of taking the food's own
     verification: Verification | None = None
     nutrition_source: str = ""
     quantity_certainty: Certainty = "exact"
@@ -551,6 +565,8 @@ class ProposalItemEdit(BaseModel):
     quantity: float | None = Field(default=None, gt=0, le=10000)
     unit: str | None = Field(default=None, min_length=1, max_length=20)
     remove: bool = False
+    nutrients: NutrientValuesRequest | None = None  # the user's own values for this item's amount
+    reset_nutrients: bool = False  # go back to the food's own values
 
 
 class ProposalEditRequest(BaseModel):

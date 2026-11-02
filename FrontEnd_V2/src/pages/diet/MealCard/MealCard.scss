@@ -92,6 +92,17 @@
   cursor: help;
 }
 
+.dt-item-edited {
+  margin-left: 0.4rem;
+  padding: 0 0.35rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--jv-brand-1);
+  background: color-mix(in srgb, var(--jv-brand-1) 12%, transparent);
+  border-radius: 6px;
+  cursor: help;
+}
+
 .dt-item-nutrition {
   display: flex;
   flex-direction: column;

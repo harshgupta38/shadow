@@ -1688,6 +1688,8 @@ export interface DiaryLogItemRequest {
   unit: string;
   certainty?: QuantityCertainty;
   client_token?: string;
+  /** Nutrition the user typed for this amount. Left out: the food's own values. */
+  nutrients?: NutrientTotals;
 }
 
 export interface DiaryAddRequest {
@@ -1761,6 +1763,8 @@ export interface ProposalItem {
   unit: string | null;
   grams: number | null;
   nutrients: NutrientTotals | null;
+  /** The user typed these nutrients instead of taking the food's own. */
+  custom_nutrition: boolean;
   verification: NutritionVerification | null;
   nutrition_source: string;
   quantity_certainty: QuantityCertainty;
@@ -1791,6 +1795,10 @@ export interface ProposalItemEdit {
   quantity?: number;
   unit?: string;
   remove?: boolean;
+  /** The user's own nutrition for this item's amount. */
+  nutrients?: NutrientTotals;
+  /** Go back to the food's own nutrition. */
+  reset_nutrients?: boolean;
 }
 
 export interface ProposalEditRequest {

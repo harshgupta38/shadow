@@ -9,7 +9,7 @@ import { useToast } from "@/context/ToastContext";
 import { CustomFoodForm } from "@/pages/diet/CustomFoodForm/CustomFoodForm";
 import { DietSkeleton } from "@/pages/diet/DietSkeleton/DietSkeleton";
 import { ServingSelector } from "@/pages/diet/ServingSelector/ServingSelector";
-import { certaintyFor, errorMessage, fmt, mealLabel, newToken, previewNutrients } from "@/pages/diet/DietPage.constants";
+import { certaintyFor, errorMessage, fmt, mealLabel, newToken, previewNutrients, type CustomNutrition } from "@/pages/diet/DietPage.constants";
 import "./FoodSearchModal.scss";
 
 interface FoodSearchModalProps {
@@ -25,6 +25,7 @@ interface CartEntry {
   food: Food;
   quantity: string;
   unit: string;
+  nutrition: CustomNutrition; // what the user typed for this amount, if anything
 }
 
 type View = "search" | "saved" | "custom";
@@ -98,7 +99,7 @@ export function FoodSearchModal({ show, mealType, date, onClose, onLogged }: Foo
         toast.info(`${food.name} is already in your list.`);
         return;
       }
-      setCart((prev) => [...prev, { token: newToken(), food, quantity: String(food.default_quantity), unit: food.default_unit }]);
+      setCart((prev) => [...prev, { token: newToken(), food, quantity: String(food.default_quantity), unit: food.default_unit, nutrition: null }]);
     },
     [toast],
   );
@@ -123,8 +124,11 @@ export function FoodSearchModal({ show, mealType, date, onClose, onLogged }: Foo
     [toast],
   );
 
-  const cartValid = cart.length > 0 && cart.every((entry) => Number(entry.quantity) > 0);
-  const cartCalories = cart.reduce((sum, entry) => sum + (previewNutrients(entry.food, Number(entry.quantity), entry.unit)?.calories ?? 0), 0);
+  const cartValid = cart.length > 0 && cart.every((entry) => Number(entry.quantity) > 0 && entry.nutrition !== "invalid");
+  const cartCalories = cart.reduce(
+    (sum, entry) => sum + ((entry.nutrition && entry.nutrition !== "invalid" ? entry.nutrition : previewNutrients(entry.food, Number(entry.quantity), entry.unit))?.calories ?? 0),
+    0,
+  );
 
   async function saveCart() {
     if (!cartValid || saving) return;
@@ -140,6 +144,7 @@ export function FoodSearchModal({ show, mealType, date, onClose, onLogged }: Foo
           unit: entry.unit,
           certainty: certaintyFor(entry.unit),
           client_token: entry.token,
+          ...(entry.nutrition && entry.nutrition !== "invalid" && { nutrients: entry.nutrition }),
         })),
       });
       toast.success(`Added to ${mealLabel(mealType).toLowerCase()}.`);
@@ -353,6 +358,8 @@ export function FoodSearchModal({ show, mealType, date, onClose, onLogged }: Foo
                       quantity={entry.quantity}
                       unit={entry.unit}
                       onChange={(next) => setCart((prev) => prev.map((e) => (e.token === entry.token ? { ...e, ...next } : e)))}
+                      nutrition={entry.nutrition}
+                      onNutritionChange={(nutrition) => setCart((prev) => prev.map((e) => (e.token === entry.token ? { ...e, nutrition } : e)))}
                     />
                   </li>
                 ))}
@@ -367,7 +374,7 @@ export function FoodSearchModal({ show, mealType, date, onClose, onLogged }: Foo
 
         <Modal.Footer>
           <span className="dt-fsm-count">
-            {cart.length > 0 ? `${fmt(cartCalories)} kcal in total (estimate)` : "Pick one or more foods"}
+            {cart.length > 0 ? `${fmt(cartCalories)} kcal in total${cart.every((entry) => entry.nutrition && entry.nutrition !== "invalid") ? "" : " (estimate)"}` : "Pick one or more foods"}
           </span>
           <button type="button" className="btn btn-outline-secondary" onClick={onClose} disabled={saving}>Cancel</button>
           <button type="button" className="btn btn-brand" disabled={!cartValid || saving} onClick={() => void saveCart()}>

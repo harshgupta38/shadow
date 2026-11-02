@@ -1,0 +1,21 @@
+.dt-nf {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.dt-nf-field { min-width: 0; }
+
+.dt-nf-label {
+  display: block;
+  margin-bottom: 0.15rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--jv-muted);
+  white-space: nowrap;
+}
+
+@media (max-width: 575.98px) {
+  .dt-nf { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}

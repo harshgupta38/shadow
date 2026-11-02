@@ -20,6 +20,7 @@ import type {
   FoodLogProposal,
   FoodSearchHit,
   FoodValuesRequest,
+  NutrientTotals,
   ProposalConfirmResult,
   ProposalEditRequest,
   QuickFoods,
@@ -88,7 +89,7 @@ export const dietApi = {
   addItems(data: DiaryAddRequest): Promise<DiaryMeal> {
     return http.post<DiaryMeal>(url(D.DIARY_ITEMS), data);
   },
-  updateItem(id: number, data: { quantity?: number; unit?: string }): Promise<DiaryMeal> {
+  updateItem(id: number, data: { quantity?: number; unit?: string; nutrients?: NutrientTotals; reset_nutrients?: boolean }): Promise<DiaryMeal> {
     return http.patch<DiaryMeal>(url(D.DIARY_ITEM(id)), data);
   },
   deleteItem(id: number): Promise<void> {

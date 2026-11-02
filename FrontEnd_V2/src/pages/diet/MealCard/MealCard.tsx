@@ -3,7 +3,7 @@ import { Dropdown } from "react-bootstrap";
 import { BookmarkPlus, PlusLg, ThreeDotsVertical, Trash, XLg } from "react-bootstrap-icons";
 
 import type { DiaryItem, DiaryMeal } from "@/api";
-import { MEAL_OPTIONS, fmt, mealLabel, quantityLabel, toTimeInput } from "@/pages/diet/DietPage.constants";
+import { CUSTOM_NUTRITION_SOURCE, MEAL_OPTIONS, fmt, mealLabel, quantityLabel, toTimeInput } from "@/pages/diet/DietPage.constants";
 import "./MealCard.scss";
 
 interface MealCardProps {
@@ -97,6 +97,9 @@ export function MealCard({
                 <span className="dt-item-qty">
                   {quantityLabel(item.quantity, item.unit)}
                   {item.unit !== "g" && ` · ${fmt(item.grams)} g`}
+                  {item.nutrition_source === CUSTOM_NUTRITION_SOURCE && (
+                    <span className="dt-item-edited" title="You set this nutrition yourself.">edited</span>
+                  )}
                   {isEstimate(item) && (
                     <span
                       className="dt-item-est"
@@ -121,7 +124,7 @@ export function MealCard({
                     <ThreeDotsVertical size={16} />
                   </Dropdown.Toggle>
                   <Dropdown.Menu>
-                    <Dropdown.Item onClick={() => onEditItem(item)}>Edit amount</Dropdown.Item>
+                    <Dropdown.Item onClick={() => onEditItem(item)}>Edit amount or nutrition</Dropdown.Item>
                     <Dropdown.Item onClick={() => onDuplicateItem(item)}>Duplicate</Dropdown.Item>
                     <Dropdown.Divider />
                     <Dropdown.Header>Move to</Dropdown.Header>

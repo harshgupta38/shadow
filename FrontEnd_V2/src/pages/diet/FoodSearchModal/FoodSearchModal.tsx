@@ -16,6 +16,8 @@ interface FoodSearchModalProps {
   show: boolean;
   mealType: string;
   date: string;
+  /** What "Eaten at" starts as each time the dialog opens ("HH:MM", or empty for none). The user can change or clear it. */
+  defaultTime: string;
   onClose: () => void;
   onLogged: (meal: DiaryMeal) => void;
 }
@@ -32,7 +34,7 @@ type View = "search" | "saved" | "custom";
 
 const SEARCH_DELAY_MS = 250;
 
-export function FoodSearchModal({ show, mealType, date, onClose, onLogged }: FoodSearchModalProps) {
+export function FoodSearchModal({ show, mealType, date, defaultTime, onClose, onLogged }: FoodSearchModalProps) {
   const toast = useToast();
   const [view, setView] = useState<View>("search");
   const [query, setQuery] = useState("");
@@ -56,7 +58,7 @@ export function FoodSearchModal({ show, mealType, date, onClose, onLogged }: Foo
     setQuery("");
     setHits([]);
     setCart([]);
-    setEatenAt("");
+    setEatenAt(defaultTime); // read once, as the dialog opens: the minute hand moving later must not change what the user sees
     setSearchError(false);
     api.diet.getQuickFoods().then(setQuick).catch(() => setQuick({ favourites: [], recent: [], frequent: [] }));
     api.diet.getSavedMeals().then(setSaved).catch(() => setSaved([]));
@@ -366,7 +368,14 @@ export function FoodSearchModal({ show, mealType, date, onClose, onLogged }: Foo
               </ul>
               <div className="dt-fsm-time">
                 <label htmlFor="dt-fsm-eaten" className="form-label mb-0">Eaten at <span className="text-muted">(optional)</span></label>
-                <input id="dt-fsm-eaten" type="time" className="form-control form-control-sm" value={eatenAt} onChange={(e) => setEatenAt(e.target.value)} />
+                <span className="dt-fsm-time-field">
+                  <input id="dt-fsm-eaten" type="time" className="form-control form-control-sm" value={eatenAt} onChange={(e) => setEatenAt(e.target.value)} />
+                  {eatenAt && (
+                    <button type="button" className="dt-fsm-time-clear" aria-label="Clear the eaten-at time" title="Clear the time" onClick={() => setEatenAt("")}>
+                      <XLg size={10} />
+                    </button>
+                  )}
+                </span>
               </div>
             </section>
           )}

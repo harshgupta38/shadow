@@ -10,6 +10,7 @@ import type {
   NutrientTotals,
   NutritionVerification,
 } from "@/api";
+import { nowIstTime } from "@/services/date.service";
 
 export const MEAL_ORDER = ["breakfast", "morning_snack", "lunch", "evening_snack", "dinner"] as const;
 
@@ -160,6 +161,14 @@ export function addDaysIso(iso: string, days: number): string {
 /** "13:05:00" from the server -> "13:05" for a time input. */
 export function toTimeInput(value: string | null): string {
   return value ? value.slice(0, 5) : "";
+}
+
+/** The time to start "Eaten at" with when foods are added to a meal: now for a new meal today, never a guess for another day,
+ *  and an existing meal keeps its own time (or none), so adding a late snack to breakfast does not move breakfast. */
+export function defaultMealTime(date: string, today: string, existingMeal: { eaten_at: string | null } | null): string {
+  if (date !== today) return "";
+  if (existingMeal) return toTimeInput(existingMeal.eaten_at);
+  return nowIstTime();
 }
 
 export function newToken(): string {

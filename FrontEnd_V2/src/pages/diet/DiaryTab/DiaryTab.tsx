@@ -13,7 +13,7 @@ import { EditItemDialog } from "@/pages/diet/EditItemDialog/EditItemDialog";
 import { FoodSearchModal } from "@/pages/diet/FoodSearchModal/FoodSearchModal";
 import { MealCard } from "@/pages/diet/MealCard/MealCard";
 import { ProposalReview } from "@/pages/diet/ProposalReview/ProposalReview";
-import { MEAL_OPTIONS, MEAL_ORDER, addDaysIso, errorMessage, fmt, mealLabel, sortMeals, suggestMealType } from "@/pages/diet/DietPage.constants";
+import { MEAL_OPTIONS, MEAL_ORDER, addDaysIso, defaultMealTime, errorMessage, fmt, mealLabel, sortMeals, suggestMealType } from "@/pages/diet/DietPage.constants";
 import { currentIstHour, formatDisplayDate, todayIso } from "@/services/date.service";
 import "@/styles/date-toolbar.scss";
 import "./DiaryTab.scss";
@@ -286,6 +286,7 @@ export function DiaryTab({ profile, onEditProfile }: DiaryTabProps) {
       <FoodSearchModal
         show={addFor !== null}
         mealType={addFor ?? suggestMealType(currentIstHour())}
+        defaultTime={defaultMealTime(date, today, day?.meals.find((m) => m.meal_type === addFor) ?? null)}
         date={date}
         onClose={() => setAddFor(null)}
         onLogged={() => {

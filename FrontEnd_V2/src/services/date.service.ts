@@ -30,6 +30,11 @@ export function currentIstHour(): number {
     );
 }
 
+/** The time now in IST as "HH:MM", the format a time input uses. */
+export function nowIstTime(): string {
+    return new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: IST_TIMEZONE }).format(new Date());
+}
+
 const MONTH_NAMES = [
     "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December",

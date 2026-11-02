@@ -187,6 +187,23 @@
   .form-control { width: 8rem; }
 }
 
+.dt-fsm-time-field { display: inline-flex; align-items: center; gap: 0.25rem; }
+
+.dt-fsm-time-clear {
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  color: var(--jv-muted);
+  background: none;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+
+  &:hover { color: var(--jv-danger); background: var(--jv-danger-soft); }
+  &:focus-visible { outline: none; box-shadow: var(--jv-ring); }
+}
+
 .dt-fsm-count {
   margin-right: auto;
   font-size: 0.82rem;

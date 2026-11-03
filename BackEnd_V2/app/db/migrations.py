@@ -50,6 +50,33 @@ def _fold_session_sets_into_exercises(conn) -> None:
         raise
 
 
+def migrate_subscriptions(engine) -> None:
+    """Gives every user the plan columns, then moves the plans out of the old subscriptions table onto the users and drops it.
+    Accounts without a row there keep the column default, the free plan. The columns are added first and outside the copy, so
+    a crash between the steps leaves the old table in place for the next start. One transaction for the copy, and BEGIN IMMEDIATE
+    makes workers that start together take turns, so the second one finds the table already gone. Idempotent."""
+    with engine.connect() as conn:
+        add_column_if_missing(conn, "users", "plan_code", "ALTER TABLE users ADD COLUMN plan_code VARCHAR(20) NOT NULL DEFAULT 'free'")
+        add_column_if_missing(conn, "users", "plan_expires_at", "ALTER TABLE users ADD COLUMN plan_expires_at DATETIME")
+        conn.exec_driver_sql("BEGIN IMMEDIATE")
+        try:
+            tables = {row[0] for row in conn.execute(text("SELECT name FROM sqlite_master WHERE type = 'table'"))}
+            if "subscriptions" in tables:
+                conn.execute(
+                    text(
+                        "UPDATE users SET "
+                        "plan_code = (SELECT plan_code FROM subscriptions WHERE subscriptions.user_id = users.id), "
+                        "plan_expires_at = (SELECT expires_at FROM subscriptions WHERE subscriptions.user_id = users.id) "
+                        "WHERE id IN (SELECT user_id FROM subscriptions)"
+                    )
+                )
+                conn.execute(text("DROP TABLE subscriptions"))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+
+
 def _backfill_plan_weekday(conn) -> None:
     """Open workouts started before plan_weekday existed take the weekday of their plan day while that day is still
     linked. Once a plan edit has unlinked the day, the weekday of the start date stands in: the app only starts the plan

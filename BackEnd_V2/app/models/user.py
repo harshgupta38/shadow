@@ -48,6 +48,11 @@ class UserDBM(Base):
         Boolean, nullable=False, default=True, server_default=text("1")
     )
 
+    # The plan the person is on. "free" (a code from subscription_plans) with no expiry for everyone who has not bought one. A paid plan
+    # with no expiry never runs out, which is how a developer grants one from BackOffice with a single UPDATE.
+    plan_code: Mapped[str] = mapped_column(String(20), nullable=False, default="free", server_default="free")
+    plan_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, default=None)
+
     # default=func.now() (not just server_default) so a row still gets a
     # timestamp from the ORM's INSERT even on a DB where this column was
     # added via ALTER TABLE — SQLite refuses a non-constant column default

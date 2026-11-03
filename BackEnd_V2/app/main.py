@@ -68,7 +68,6 @@ from app.models.water_log import WaterLogDBM
 from app.models.diet_proposal import DietProposalDBM
 from app.models.diet_agent_run import DietAgentRunDBM
 from app.models.diet_coach_suggestion import DietCoachSuggestionDBM
-from app.models.subscription import SubscriptionDBM
 from app.models.subscription_payment import SubscriptionPaymentDBM
 from app.models.data_version import DataVersionDBM
 from app.services import planner_service, backup_service, diet_seed_service, notification_scheduler_service, report_scheduler_service, session_event_service, workout_media_service, workout_seed_service, workout_sessions_service
@@ -80,7 +79,7 @@ _startup_logger = logging.getLogger(__name__)
 
 
 def _create_schema(engine) -> None:
-    """Creates missing tables, then runs the workout, diet and conversation migrations. Workers start together, and the first one to take
+    """Creates missing tables, then runs the workout, diet, conversation and subscription migrations. Workers start together, and the first one to take
     the write lock creates the new tables, so a sibling can find a table already there ("already exists") or wait past
     SQLite's busy timeout. Every step is idempotent, so the sibling retries and finds what is already in place."""
     for attempt in range(1, 6):
@@ -91,6 +90,7 @@ def _create_schema(engine) -> None:
             migrations.migrate_diet(engine)
             migrations.migrate_water_logs(engine)
             migrations.migrate_conversations(engine)
+            migrations.migrate_subscriptions(engine)
             return
         except OperationalError as exc:
             transient = "already exists" in str(exc) or "database is locked" in str(exc)

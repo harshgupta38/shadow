@@ -25,10 +25,3 @@ PAID_PLANS = (
     Plan("pro", "Pro", 3_000_000, 99_900, "Heavy daily use of every AI feature"),
 )
 PLANS = (FREE_PLAN, *PAID_PLANS)
-
-
-def plan_by_code(code: str) -> Plan:
-    for plan in PLANS:
-        if plan.code == code:
-            return plan
-    raise ValueError(f"Unknown plan: {code}")

@@ -3,6 +3,8 @@
 Every AI call made with the app's own keys counts its input and output tokens against the person's allowance for the
 current calendar month (IST). Calls made with the person's own API key are not counted: that key is paid for directly.
 Everything that does not call an AI model is free on every plan.
+
+The plan lives on the user row (plan_code, plan_expires_at), so every account has one and BackOffice can change it with an UPDATE.
 """
 
 import uuid
@@ -16,12 +18,11 @@ from app.core.config import settings
 from app.core.exceptions import ServiceUnavailableError, TokenLimitReachedError, ValidationError
 from app.db.session import SessionLocal
 from app.models.daily_usage import DailyUsageDBM
-from app.models.subscription import SubscriptionDBM
 from app.models.subscription_payment import SubscriptionPaymentDBM
 from app.models.user import UserDBM
 from app.schemas.subscription import AllowanceResponse, PlanResponse, SubscriptionOverviewResponse
 from app.services import notifications_service, settings_service
-from app.services.subscription_plans import FREE_PLAN, PAID_PLANS, PLAN_DURATION_DAYS, PLANS, Plan, plan_by_code
+from app.services.subscription_plans import FREE_PLAN, PAID_PLANS, PLAN_DURATION_DAYS, PLANS, Plan
 
 PLAN_DURATION = timedelta(days=PLAN_DURATION_DAYS)
 TEST_PROVIDER = "test"
@@ -35,12 +36,16 @@ def _next_month_start(day: date) -> date:
     return date(day.year + 1, 1, 1) if day.month == 12 else date(day.year, day.month + 1, 1)
 
 
-def current_plan(db: Session, user_id: int) -> tuple[Plan, datetime | None]:
-    """The plan the person is on now, and when a paid plan runs out. Without an active paid plan, the free plan."""
-    row = db.get(SubscriptionDBM, user_id)
-    if row is None or as_utc(row.expires_at) <= _now_utc():
+def current_plan(user: UserDBM) -> tuple[Plan, datetime | None]:
+    """The plan the person is on now, and when a paid plan runs out (None when it never does). A plan that has run out, or a code
+    that is not a paid plan (a typo from BackOffice), reads as the free plan, so a bad edit never breaks the account."""
+    plan = next((option for option in PAID_PLANS if option.code == user.plan_code), FREE_PLAN)
+    if plan is FREE_PLAN:
         return FREE_PLAN, None
-    return plan_by_code(row.plan_code), as_utc(row.expires_at)
+    if user.plan_expires_at is None:
+        return plan, None
+    expires_at = as_utc(user.plan_expires_at)
+    return (plan, expires_at) if expires_at > _now_utc() else (FREE_PLAN, None)
 
 
 def tokens_used_this_month(db: Session, user_id: int, today: date) -> int:
@@ -71,7 +76,7 @@ def _uses_own_key(db: Session, user_id: int) -> bool:
 
 def overview(db: Session, user: UserDBM) -> SubscriptionOverviewResponse:
     today = today_ist()
-    plan, expires_at = current_plan(db, user.id)
+    plan, expires_at = current_plan(user)
     return SubscriptionOverviewResponse(
         plan=_plan_response(plan),
         expires_at=expires_at,
@@ -95,7 +100,7 @@ def check_ai_allowance(user_id: int) -> None:
         if user is None:
             return
         today = today_ist()
-        plan, _ = current_plan(db, user_id)
+        plan, _ = current_plan(user)
         if tokens_used_this_month(db, user_id, today) < plan.monthly_tokens:
             return
 
@@ -135,21 +140,15 @@ def purchase_plan(db: Session, user: UserDBM, plan_code: str) -> SubscriptionOve
         paid_at=now,
     )
     db.add(payment)
-    row = db.get(SubscriptionDBM, user.id)
-    if row is None:
-        row = SubscriptionDBM(user_id=user.id, plan_code=plan.code, started_at=now, expires_at=now + PLAN_DURATION)
-        db.add(row)
-    else:
-        if as_utc(row.expires_at) <= now:
-            row.started_at = now
-        row.plan_code = plan.code
-        row.expires_at = max(now, as_utc(row.expires_at)) + PLAN_DURATION
+    runs_until = max(now, as_utc(user.plan_expires_at)) if user.plan_expires_at else now
+    user.plan_code = plan.code
+    user.plan_expires_at = runs_until + PLAN_DURATION
     db.commit()
 
     notifications_service.create_notification(
         db, user,
         title=f"{plan.name} plan is active",
-        body=f"Your {plan.name} plan runs until {as_utc(row.expires_at):%d %b %Y}.",
+        body=f"Your {plan.name} plan runs until {as_utc(user.plan_expires_at):%d %b %Y}.",
         type="system",
         level=notifications_service.LEVEL_INFORMATIONAL,
         url="/subscription",

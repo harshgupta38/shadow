@@ -1,0 +1,64 @@
+// pc = Plan card on the plans page. Each plan sets its own accent; everything else reads from it.
+
+.pc {
+  --pc-accent: var(--jv-brand-1);
+  --pc-soft: var(--jv-brand-soft);
+  position: relative;
+  overflow: hidden;
+  background-image: linear-gradient(180deg, var(--pc-soft), transparent 160px);
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 3px;
+    background: var(--pc-accent);
+  }
+
+  &--starter { --pc-accent: var(--jv-info); --pc-soft: var(--jv-info-soft); }
+  &--plus { --pc-accent: var(--jv-brand-1); --pc-soft: var(--jv-brand-soft); }
+  &--pro { --pc-accent: var(--jv-violet); --pc-soft: var(--jv-violet-soft); }
+}
+
+.pc-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.65rem;
+  font-size: 1.1rem;
+  color: var(--pc-accent);
+  background: var(--pc-soft);
+}
+
+// Side by side, a tagline that wraps would push one card's price below the others.
+@media (min-width: 1200px) {
+  .pc-tagline { min-height: 3em; }
+}
+
+.pc-price { font-size: 2rem; font-weight: 700; line-height: 1; }
+
+.pc-allowance {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.65rem;
+  border-radius: var(--jv-radius-sm);
+  font-size: 0.85rem;
+  background: var(--pc-soft);
+
+  svg { flex-shrink: 0; color: var(--pc-accent); }
+}
+
+.pc-includes {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--jv-muted);
+}
+
+.pc-feature { display: flex; align-items: flex-start; gap: 0.55rem; font-size: 0.875rem; line-height: 1.35; }
+.pc-feature-check { flex-shrink: 0; margin-top: 0.15rem; color: var(--pc-accent); }
+.pc-feature-hint { display: block; font-size: 0.78rem; color: var(--jv-muted); }

@@ -7,7 +7,7 @@ import { useDateFormat } from "@/context/PlannerContext";
 import { useToast } from "@/context/ToastContext";
 import { useWakeRefresh } from "@/hooks/useWakeRefresh";
 import { PlanCard } from "@/pages/subscription/PlanCard/PlanCard";
-import { formatRupees } from "@/pages/subscription/SubscriptionPage.constants";
+import { formatRupees, PLAN_FEATURES } from "@/pages/subscription/SubscriptionPage.constants";
 import { UsageMeter } from "@/pages/subscription/UsageMeter/UsageMeter";
 import { formatDisplayDate, istIsoDay } from "@/services/date.service";
 
@@ -55,12 +55,13 @@ export function SubscriptionPage() {
   }
 
   const { plan, allowance } = overview;
+  const paidPlans = overview.plans.filter((option) => option.price_paise > 0);
 
   return (
     <section className="subscription-page d-flex flex-column gap-3">
       <header>
         <h1 className="h4 mb-1">Plans</h1>
-        <p className="text-body-secondary mb-0">AI features run on a monthly allowance. Everything else in Shadow is free on every plan.</p>
+        <p className="text-body-secondary mb-0">Every plan includes everything in the plans below it, with a bigger monthly AI allowance.</p>
       </header>
 
       <div className="surface p-3 d-flex flex-column gap-2">
@@ -81,11 +82,13 @@ export function SubscriptionPage() {
         <p className="small surface p-3 mb-0">Online payments aren't set up yet, so plans can't be bought right now. The free plan keeps working.</p>
       )}
 
-      <div className="row row-cols-1 row-cols-md-2 row-cols-xl-4 g-3">
-        {overview.plans.map((option) => (
+      <div className="row row-cols-1 row-cols-xl-3 g-3">
+        {paidPlans.map((option, index) => (
           <div className="col" key={option.code}>
             <PlanCard
               plan={option}
+              features={PLAN_FEATURES[option.code] ?? []}
+              includes={paidPlans.slice(0, index).map((cheaper) => cheaper.name)}
               current={option.code === plan.code}
               canBuy={overview.payments_enabled}
               onChoose={() => setChoosing(option)}

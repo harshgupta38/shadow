@@ -8,6 +8,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { IllustratedErrorState } from "@/components/ui/IllustratedErrorState/IllustratedErrorState";
 import { useToast } from "@/context/ToastContext";
 import { ROUTES } from "@/routes/RoutePaths";
+import { ALARM_SECONDS, startAlarm, stopAlarm, unlockAlarm } from "@/services/alarm.service";
 import { parseServerDate } from "@/services/date.service";
 import { ExerciseDetailModal } from "@/pages/workout/ExerciseDetailModal/ExerciseDetailModal";
 import { ExercisePickerModal } from "@/pages/workout/ExercisePickerModal/ExercisePickerModal";
@@ -27,7 +28,6 @@ import {
 import "./SessionPage.scss";
 
 const AUTOSAVE_DELAY_MS = 700;
-const REST_OVER_VISIBLE_MS = 4000;
 const RETRY_BASE_MS = 2000;
 const RETRY_MAX_MS = 30000;
 const MAX_SETS_PER_EXERCISE = 30; // the server's limit for one exercise
@@ -75,6 +75,8 @@ export function SessionPage() {
 
   const [now, setNow] = useState(() => Date.now());
   const [rest, setRest] = useState<RestState | null>(null);
+  const [alarmOn, setAlarmOn] = useState(true); // on for every workout, until the person turns it off
+  const [alarmEndsAt, setAlarmEndsAt] = useState<number | null>(null); // when the alarm that is ringing will stop
 
   const live = session?.status === "in_progress";
 
@@ -126,14 +128,35 @@ export function SessionPage() {
     return () => window.clearInterval(timer);
   }, [live]);
 
-  const remaining = rest ? Math.ceil((rest.endsAt - now) / 1000) : 0;
+  function toggleAlarm() {
+    if (alarmOn) {
+      stopAlarm();
+      setAlarmEndsAt(null);
+    }
+    else unlockAlarm();
+    setAlarmOn(!alarmOn);
+  }
 
-  // Buzz once when rest ends, and clear the "rest over" bar after a few seconds.
+  const remaining = rest ? Math.ceil((rest.endsAt - now) / 1000) : 0;
+  const alarmLeftPercent = alarmEndsAt !== null ? Math.max(0, Math.min(100, ((alarmEndsAt - now) / (ALARM_SECONDS * 1000)) * 100)) : null;
+
+  // The alarm rings once the rest is over and keeps ringing until it is dismissed. A new or cleared rest silences it.
+  const ringing = useRef(false);
   useEffect(() => {
-    if (!rest) return;
-    if (remaining === 0 && "vibrate" in navigator) navigator.vibrate?.([180, 80, 180]);
-    if (remaining <= -Math.floor(REST_OVER_VISIBLE_MS / 1000)) setRest(null);
+    ringing.current = false;
+    setAlarmEndsAt(null);
+    stopAlarm();
+  }, [rest]);
+  useEffect(() => {
+    if (rest && remaining <= 0 && !ringing.current) {
+      ringing.current = true;
+      if (alarmOn) {
+        startAlarm();
+        setAlarmEndsAt(Date.now() + ALARM_SECONDS * 1000);
+      }
+    }
   }, [remaining, rest]);
+  useEffect(() => () => stopAlarm(), []);
 
   // ── Autosave ───────────────────────────────────────────────────────────────
   // One save is in flight at a time, so a slow reply can't land after a newer one. A failed save is retried
@@ -224,6 +247,7 @@ export function SessionPage() {
       sets.map((s, j) => (j === setIndex ? (turningOn ? { ...prefillSet(item, setIndex), done: true } : { ...s, done: false }) : s)),
     );
     if (turningOn && item.rest_seconds > 0) {
+      unlockAlarm();
       const everythingDone = exercises.every((e, i) => e.sets.every((s, j) => s.done || (i === exerciseIndex && j === setIndex)));
       setRest(everythingDone ? null : { endsAt: Date.now() + item.rest_seconds * 1000, total: item.rest_seconds, name: item.exercise.name });
       setNow(Date.now());
@@ -419,6 +443,9 @@ export function SessionPage() {
         <RestTimerBar
           exerciseName={rest.name}
           remainingSeconds={remaining}
+          alarmOn={alarmOn}
+          alarmLeftPercent={alarmLeftPercent}
+          onToggleAlarm={toggleAlarm}
           totalSeconds={rest.total}
           onSkip={() => setRest(null)}
           onAddSeconds={(s) => setRest((r) => (r ? { ...r, endsAt: r.endsAt + s * 1000, total: r.total + s } : r))}

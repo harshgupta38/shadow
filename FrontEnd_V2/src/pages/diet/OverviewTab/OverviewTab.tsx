@@ -119,7 +119,6 @@ export function OverviewTab({ onLogFood }: OverviewTabProps) {
         <section className="surface dt-ov-card" aria-label="Water">
           <div className="dt-ov-title-row">
             <h2 className="dt-ov-title"><Droplet size={15} aria-hidden="true" /> Water</h2>
-            <span className="dt-ov-sub">{fmt(water.total_ml)} / {fmt(waterTarget)} ml</span>
           </div>
           <MacroBar label="Today" tone="water" unit="ml" consumed={water.total_ml} target={waterTarget} />
           <div className="dt-ov-water-actions" role="group" aria-label="Add water">

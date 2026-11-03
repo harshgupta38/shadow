@@ -1,14 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { PlusLg, Stars } from "react-bootstrap-icons";
 
 import { api } from "@/api";
-import type { DietCoachIdea, DietCoachMeal, DietCoachResult, DietOverview } from "@/api";
-import { useAuth } from "@/context/AuthContext";
+import type { DietCoachCurrent, DietCoachMeal, DietOverview } from "@/api";
 import { useToast } from "@/context/ToastContext";
+import { useWakeRefresh } from "@/hooks/useWakeRefresh";
 import { DietSkeleton } from "@/pages/diet/DietSkeleton/DietSkeleton";
-import { MEAL_OPTIONS, errorMessage, fmt, mealLabel, newToken, quantityLabel } from "@/pages/diet/DietPage.constants";
-import { clearSavedCoach, coachExpiresIn, readSavedCoach, writeSavedCoach } from "@/pages/diet/OverviewTab/CoachCard/CoachCard.constants";
-import { todayIso } from "@/services/date.service";
+import { MEAL_OPTIONS, errorMessage, fmt, mealLabel, quantityLabel } from "@/pages/diet/DietPage.constants";
 import "./CoachCard.scss";
 
 interface CoachCardProps {
@@ -17,44 +15,59 @@ interface CoachCardProps {
   onLogged: () => void;
 }
 
-type Phase = "idle" | "loading" | "ready";
-
-/** Asks the diet coach what to eat at the next meal, from what is left of today's targets. */
+/** Asks the diet coach what to eat at the next meal, from what is left of today's targets. The ideas are kept on the server, so every
+ *  device signed in to the account shows the same ones until they expire. */
 export function CoachCard({ overview, onLogged }: CoachCardProps) {
   const toast = useToast();
-  const { user } = useAuth();
-  const userId = user?.id ?? null;
-  // The last ideas are kept for a few hours, so leaving the page and coming back shows them again.
-  const [restored] = useState(() => (userId === null ? null : readSavedCoach(userId)));
-  const [meal, setMeal] = useState<"auto" | DietCoachMeal>(restored?.meal ?? "auto");
-  const [note, setNote] = useState(restored?.note ?? "");
-  const [phase, setPhase] = useState<Phase>(restored ? "ready" : "idle");
-  const [result, setResult] = useState<DietCoachResult | null>(restored?.result ?? null);
-  const [shown, setShown] = useState<string[]>(restored?.shown ?? []); // every title offered so far, so "different ideas" are different
-  const [added, setAdded] = useState<Set<string>>(new Set(restored?.added ?? []));
-  const [adding, setAdding] = useState<string | null>(null);
-  const requestId = useRef(0);
-  const savedAt = useRef(restored?.savedAt ?? 0);
-  const savedDay = useRef(restored?.day ?? todayIso());
+  const [saved, setSaved] = useState<DietCoachCurrent | null>(null); // the ideas the server is keeping, if any
+  const [loaded, setLoaded] = useState(false); // whether the saved ideas have been read yet
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [meal, setMeal] = useState<"auto" | DietCoachMeal>("auto");
+  const [note, setNote] = useState("");
+  const [asking, setAsking] = useState(false);
+  const [adding, setAdding] = useState<string | null>(null); // the title of the idea being added
+  // Goes up whenever the ideas change, so a read that started before a change cannot put older ideas back on screen.
+  const version = useRef(0);
+  // The meal and note are taken from the saved ideas once, so a refresh never overwrites what the person is typing.
+  const restored = useRef(false);
 
-  // Keep what is on screen saved, with the time the ideas arrived (not the time of the last tap).
-  useEffect(() => {
-    if (userId === null || !result) return;
-    writeSavedCoach(userId, { savedAt: savedAt.current, day: savedDay.current, meal, note, result, shown, added: [...added] });
-  }, [userId, result, meal, note, shown, added]);
+  const loadSaved = useCallback(async () => {
+    const at = version.current;
+    try {
+      const current = await api.diet.getCoachCurrent();
+      if (at !== version.current) return;
+      setSaved(current);
+      setLoadFailed(false);
+      if (!restored.current) {
+        restored.current = true;
+        if (current) {
+          setMeal(current.meal);
+          setNote(current.note);
+        }
+      }
+    } catch {
+      if (at === version.current) setLoadFailed(true);
+    } finally {
+      setLoaded(true);
+    }
+  }, []);
 
-  // If the page stays open past the keep time, the ideas go away on their own.
   useEffect(() => {
-    if (userId === null || !result) return;
+    void loadSaved();
+  }, [loadSaved]);
+
+  // Coming back to the page or the app shows whatever another device has done since.
+  useWakeRefresh(() => void loadSaved());
+
+  // The ideas go away on their own when they expire. The server decides when that is; the page only counts it down.
+  useEffect(() => {
+    if (!saved) return;
     const timer = window.setTimeout(() => {
-      clearSavedCoach(userId);
-      setResult(null);
-      setShown([]);
-      setAdded(new Set());
-      setPhase("idle");
-    }, Math.max(0, coachExpiresIn(savedAt.current)));
+      version.current += 1;
+      setSaved(null);
+    }, saved.expires_in_seconds * 1000);
     return () => window.clearTimeout(timer);
-  }, [userId, result]);
+  }, [saved]);
 
   const left = {
     calories: Math.max(0, overview.remaining_calories),
@@ -64,49 +77,45 @@ export function CoachCard({ overview, onLogged }: CoachCardProps) {
   };
 
   async function ask(more: boolean) {
-    if (phase === "loading") return;
-    const id = ++requestId.current;
-    setPhase("loading");
+    if (asking || adding !== null) return;
+    setAsking(true);
     try {
       const next = await api.diet.suggestMeals({
         meal_type: meal === "auto" ? undefined : meal,
         note: note.trim() || undefined,
-        exclude: more ? shown : [],
+        exclude: more && saved ? saved.shown : [],
       });
-      if (id !== requestId.current) return;
-      const titles = next.ideas.map((idea) => idea.title);
-      savedAt.current = Date.now();
-      savedDay.current = todayIso();
-      setResult(next);
-      setShown(more ? [...shown, ...titles] : titles);
-      setAdded(new Set());
-      setPhase("ready");
+      version.current += 1;
+      setSaved(next);
+      setLoadFailed(false);
     } catch (err) {
-      if (id !== requestId.current) return;
       toast.error(errorMessage(err, "Couldn't get meal ideas right now. Please try again."));
-      setPhase(result ? "ready" : "idle");
+    } finally {
+      setAsking(false);
     }
   }
 
-  async function addIdea(idea: DietCoachIdea) {
-    if (!result || adding) return;
-    setAdding(idea.title);
+  async function addIdea(index: number) {
+    if (!saved || asking || adding !== null) return;
+    const { title } = saved.result.ideas[index];
+    setAdding(title);
     try {
-      const token = newToken();
-      await api.diet.addItems({
-        meal_type: result.meal_type,
-        items: idea.items.map((item, index) => ({ food_id: item.food_id, quantity: item.quantity, unit: item.unit, client_token: `${token}-${index}` })),
-      });
-      setAdded((previous) => new Set(previous).add(idea.title));
-      toast.success(`Added to ${mealLabel(result.meal_type)}.`);
+      const next = await api.diet.addCoachIdea(index, title);
+      version.current += 1;
+      setSaved(next);
+      toast.success(`Added to ${mealLabel(saved.result.meal_type)}.`);
       onLogged();
     } catch (err) {
       toast.error(errorMessage(err, "Couldn't add this meal. Please try again."));
+      // The ideas may have expired, or changed on another device, so the card shows what is true now.
+      void loadSaved();
     } finally {
       setAdding(null);
     }
   }
 
+  const result = saved?.result ?? null;
+  const added = new Set(saved?.added ?? []);
   const allBasic = result !== null && result.ideas.length > 0 && result.ideas.every((idea) => idea.source === "basic");
 
   return (
@@ -141,16 +150,23 @@ export function CoachCard({ overview, onLogged }: CoachCardProps) {
           value={note}
           onChange={(e) => setNote(e.target.value)}
         />
-        <button type="submit" className="btn btn-brand btn-sm dt-coach-ask" disabled={phase === "loading"}>
-          <Stars size={13} /> {phase === "loading" ? "Thinking…" : result ? "Ask again" : "Suggest meals"}
+        <button type="submit" className="btn btn-brand btn-sm dt-coach-ask" disabled={asking}>
+          <Stars size={13} /> {asking ? "Thinking…" : result ? "Ask again" : "Suggest meals"}
         </button>
       </form>
 
-      {phase === "idle" && !result && (
+      {loaded && !result && !asking && !loadFailed && (
         <p className="dt-coach-lead">Not sure what to eat next? Get meal ideas that fit what you have left today, what you like and what you usually eat.</p>
       )}
 
-      {phase === "loading" && (
+      {loadFailed && !result && !asking && (
+        <p className="dt-coach-notice">
+          Couldn't load your last meal ideas.{" "}
+          <button type="button" className="btn btn-link btn-sm p-0 align-baseline" onClick={() => void loadSaved()}>Retry</button>
+        </p>
+      )}
+
+      {asking && (
         <div className="dt-coach-ideas" role="status" aria-live="polite" aria-label="Finding meal ideas">
           <DietSkeleton height={190} />
           <DietSkeleton height={190} className="d-none d-lg-block" />
@@ -158,7 +174,7 @@ export function CoachCard({ overview, onLogged }: CoachCardProps) {
         </div>
       )}
 
-      {phase !== "loading" && result && (
+      {!asking && result && (
         <>
           <p className="dt-coach-meta">
             Ideas for <strong>{mealLabel(result.meal_type)}</strong>, aiming for about <strong>{fmt(result.budget.calories)}</strong> kcal
@@ -168,7 +184,7 @@ export function CoachCard({ overview, onLogged }: CoachCardProps) {
 
           {result.ideas.length > 0 && (
             <ol className="dt-coach-ideas" aria-label="Meal ideas">
-              {result.ideas.map((idea) => {
+              {result.ideas.map((idea, index) => {
                 const isAdded = added.has(idea.title);
                 return (
                   <li key={idea.title} className="dt-coach-idea">
@@ -186,14 +202,14 @@ export function CoachCard({ overview, onLogged }: CoachCardProps) {
                       ))}
                     </ul>
                     <div className="dt-coach-totals">
-                      <span className="dt-coach-kcal"><strong>{fmt(idea.totals.calories)}</strong> kcal</span>
+                      <span><strong>{fmt(idea.totals.calories)}</strong> kcal</span>
                       <span className="dt-coach-macros">P {fmt(idea.totals.protein_g)} · C {fmt(idea.totals.carbs_g)} · F {fmt(idea.totals.fat_g)} · Fibre {fmt(idea.totals.fibre_g)}</span>
                     </div>
                     <button
                       type="button"
                       className="btn btn-soft btn-sm dt-coach-add"
-                      disabled={isAdded || adding !== null}
-                      onClick={() => void addIdea(idea)}
+                      disabled={isAdded || adding !== null || asking}
+                      onClick={() => void addIdea(index)}
                     >
                       {isAdded ? "Added" : adding === idea.title ? "Adding…" : <><PlusLg size={12} /> Add to {mealLabel(result.meal_type)}</>}
                     </button>
@@ -205,7 +221,7 @@ export function CoachCard({ overview, onLogged }: CoachCardProps) {
 
           <div className="dt-coach-foot">
             {result.ideas.length > 0 && (
-              <button type="button" className="btn btn-ghost btn-sm" onClick={() => void ask(true)}>
+              <button type="button" className="btn btn-ghost btn-sm" disabled={asking} onClick={() => void ask(true)}>
                 Show different ideas
               </button>
             )}

@@ -45,6 +45,7 @@ IGNORED_TABLES = frozenset({
     "water_logs",
     "diet_proposals",
     "diet_agent_runs",
+    "diet_coach_suggestions",
 })
 
 _BUMPED_FLAG = "data_version_bumped"

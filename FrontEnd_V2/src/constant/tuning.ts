@@ -106,6 +106,10 @@ export const TIMING = {
     /** api/client — default/fallback request timeout. */
     API_DEFAULT_TIMEOUT_MS: 30_000,
 
+    /** Diet coach — how long the browser waits for meal ideas. Longer than the server's own wait for the AI (45 s), so a slow answer
+     *  still arrives as ideas rather than as a timeout error. */
+    DIET_COACH_TIMEOUT_MS: 60_000,
+
     /** AccountSecurityPanel — resend-verification-email button cooldown. */
     RESEND_VERIFICATION_COOLDOWN_SECONDS: 30,
     /** AccountSecurityPanel — forgot-password-email button cooldown. */
@@ -122,8 +126,6 @@ export const TIMING = {
     JOURNAL_SAVED_BANNER_MS: 2200,
     /** JournalPage — how long the "Couldn't save" indicator stays visible after a failed save. */
     JOURNAL_ERROR_BANNER_MS: 3000,
-    /** Diet coach — how long the last meal ideas stay saved in the browser unless new ones are asked for first. */
-    DIET_COACH_KEEP_MS: 3 * 60 * 60 * 1000,
 } as const;
 
 // ── API read cache ───────────────────────────────────────────────────────────

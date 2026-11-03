@@ -596,10 +596,13 @@ class ProposalConfirmResponse(BaseModel):
 # ---------- meal coach ----------
 
 
+SHOWN_TITLES_KEPT = 24  # titles remembered for "different ideas", eight rounds of three; a request may name no more
+
+
 class MealCoachRequest(BaseModel):
     meal_type: Literal["breakfast", "morning_snack", "lunch", "evening_snack", "dinner"] | None = None  # left out: the next meal not yet logged
     note: str | None = Field(default=None, max_length=200)  # "something light", "I have paneer at home"
-    exclude: list[str] = Field(default_factory=list, max_length=12)  # titles already shown, so "different ideas" are different
+    exclude: list[str] = Field(default_factory=list, max_length=SHOWN_TITLES_KEPT)  # titles already shown, so "different ideas" are different
 
     @field_validator("note")
     @classmethod
@@ -637,6 +640,23 @@ class MealCoachResponse(BaseModel):
     ideas: list[MealIdeaResponse]
     notice: str | None = None
     disclaimer: str
+
+
+class MealCoachCurrentResponse(BaseModel):
+    """The ideas the person last asked for, as every device sees them until they expire."""
+
+    meal: str  # what was asked for: "auto" (the next meal not yet logged), or the meal type
+    note: str  # what was typed with the request, "" when nothing was
+    result: MealCoachResponse
+    shown: list[str]  # every title offered recently, so "different ideas" really are different
+    added: list[str]  # titles already put in the diary
+    expires_in_seconds: int  # counted by the server, so a device's own clock does not matter
+
+
+class MealCoachIdeaAddRequest(BaseModel):
+    """The idea to add, by the title the person saw at its place in the list. A list replaced on another device is never added from by mistake."""
+
+    title: str = Field(max_length=500)
 
 
 # ── Raw LLM output ───────────────────────────────────────────────────────────

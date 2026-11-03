@@ -1,13 +1,14 @@
 import { ENDPOINTS } from "@/constant/shadow-endpoints";
 import { http } from "@/api/client";
+import { TIMING } from "@/constant/tuning";
 import type {
   CopyItemsResponse,
   DiaryAddRequest,
   DiaryDay,
   DiaryHistoryDay,
   DiaryMeal,
+  DietCoachCurrent,
   DietCoachRequest,
-  DietCoachResult,
   DietEstimate,
   DietEstimateRequest,
   DietOverview,
@@ -149,9 +150,18 @@ export const dietApi = {
   },
 
   // ── Meal coach ──────────────────────────────────────────────────────────────
-  /** Ideas for the next meal from what is left of today's targets. Nothing is saved until an idea is added to the diary. */
-  suggestMeals(data: DietCoachRequest): Promise<DietCoachResult> {
-    return http.post<DietCoachResult>(url(D.COACH), data);
+  /** Ideas for the next meal from what is left of today's targets. They are kept on the server for every device until they expire. */
+  suggestMeals(data: DietCoachRequest): Promise<DietCoachCurrent> {
+    return http.post<DietCoachCurrent>(url(D.COACH), data, { timeout: TIMING.DIET_COACH_TIMEOUT_MS });
+  },
+  /** The ideas kept for this person, or null when there are none, or they have expired. */
+  getCoachCurrent(): Promise<DietCoachCurrent | null> {
+    return http.get<DietCoachCurrent | null>(url(D.COACH_CURRENT));
+  },
+  /** Puts one of the kept ideas into the diary. `title` must be the idea shown at that index, so a list replaced on another device
+   *  is never added from by mistake. An idea already in, from any device, is not added twice. */
+  addCoachIdea(index: number, title: string): Promise<DietCoachCurrent> {
+    return http.post<DietCoachCurrent>(url(D.COACH_CURRENT_IDEA_ADD(index)), { title });
   },
 
   // ── AI food logging: describe, review, confirm ──────────────────────────────

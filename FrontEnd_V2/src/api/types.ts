@@ -1863,3 +1863,17 @@ export interface DietCoachResult {
   notice: string | null;
   disclaimer: string;
 }
+
+/** The ideas the person last asked for, kept on the server so every device shows the same ones until they expire. */
+export interface DietCoachCurrent {
+  /** What was asked for: "auto" (the next meal not yet logged), or the meal. */
+  meal: "auto" | DietCoachMeal;
+  note: string;
+  result: DietCoachResult;
+  /** Every title offered recently, so "different ideas" really are different. */
+  shown: string[];
+  /** Titles already put in the diary. */
+  added: string[];
+  /** Seconds until the ideas expire, counted by the server. */
+  expires_in_seconds: number;
+}

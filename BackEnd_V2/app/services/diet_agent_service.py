@@ -45,6 +45,8 @@ async def ask_llm(
     operation: str,
     timeout: float = DEFAULT_TIMEOUT_SECONDS,
     attempts: int = DEFAULT_ATTEMPTS,
+    max_tokens: int | None = None,
+    reasoning_effort: str | None = None,
 ) -> tuple[BaseModel | None, DietAgentRunDBM]:
     """One structured call with a timeout and retries. Returns (None, run) when the provider is unavailable so callers can fall back."""
     started = perf_counter()
@@ -54,7 +56,10 @@ async def ask_llm(
             service = get_llm_service_for_ai_behavior(settings_service.get_ai_behavior(db, user.id))
             response = await asyncio.wait_for(
                 # No temperature is sent: some models reject anything but their default, and code validates the output anyway.
-                service.generate_structured(system_instruction=system, user_content=content, schema_cls=schema, user_id=user.id, operation=operation),
+                service.generate_structured(
+                    system_instruction=system, user_content=content, schema_cls=schema, user_id=user.id, operation=operation,
+                    max_tokens=max_tokens, reasoning_effort=reasoning_effort,
+                ),
                 timeout=timeout,
             )
             usage = response.usage

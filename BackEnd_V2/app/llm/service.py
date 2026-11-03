@@ -290,6 +290,7 @@ class LLMService:
         operation: str = "structured",
         temperature: float | None = None,
         max_tokens: int | None = None,
+        reasoning_effort: str | None = None,
     ) -> StructuredFromLLM:
         request = StructuredToLLM(
             system_instruction=system_instruction,
@@ -299,6 +300,7 @@ class LLMService:
             operation=operation,
             temperature=temperature,
             max_tokens=max_tokens,
+            reasoning_effort=reasoning_effort,
         )
         response = await self._provider.generate_structured(request)
         if response is None or response.data is None:

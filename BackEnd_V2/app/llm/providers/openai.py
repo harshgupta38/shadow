@@ -69,6 +69,11 @@ from app.schemas.chat import (
 from app.llm.tools import MAX_TOOL_ITERATIONS, AGENT_TOOL_DEFINITIONS, TERMINAL_TOOL_NAMES
 
 
+def _is_reasoning_model(model: str) -> bool:
+    """Reasoning-family models (gpt-5*, o-series) think before they answer. Other models reject the settings that control that."""
+    return model.startswith("gpt-5") or model.startswith("o")
+
+
 class OpenAIProvider(BaseLLMProvider):
 
     def __init__(self, settings: LLMSettings | None = None):
@@ -978,7 +983,7 @@ class OpenAIProvider(BaseLLMProvider):
             # data — no multi-step reasoning needed. Reasoning-family models (gpt-5*, o-series)
             # default to "medium" effort when unset, burning hidden reasoning tokens for no
             # quality benefit here, so pin it low. Non-reasoning models (gpt-4.1*) reject this param.
-            if model.startswith("gpt-5") or model.startswith("o"):
+            if _is_reasoning_model(model):
                 kwargs["reasoning_effort"] = "minimal"
 
             completion = await self._client.beta.chat.completions.parse(**kwargs)
@@ -1061,7 +1066,7 @@ class OpenAIProvider(BaseLLMProvider):
                 kwargs["temperature"] = request.temperature
             # Reasoning-family models (gpt-5*, o-series) default to "medium" effort,
             # burning hidden reasoning tokens for no benefit on this short summarization task.
-            if model.startswith("gpt-5") or model.startswith("o"):
+            if _is_reasoning_model(model):
                 kwargs["reasoning_effort"] = "minimal"
 
             completion = await self._client.beta.chat.completions.parse(**kwargs)
@@ -1132,6 +1137,10 @@ class OpenAIProvider(BaseLLMProvider):
                 kwargs["temperature"] = request.temperature
             if request.max_tokens is not None:
                 kwargs["max_completion_tokens"] = request.max_tokens
+            # Reasoning-family models (gpt-5*, o-series) think before they answer, and that thinking is billed as output and
+            # delays the reply. A caller that knows the task is a simple pick can ask for less. Non-reasoning models reject it.
+            if request.reasoning_effort is not None and _is_reasoning_model(model):
+                kwargs["reasoning_effort"] = request.reasoning_effort
             completion = await self._client.beta.chat.completions.parse(**kwargs)
         except (APIConnectionError, APIStatusError, OpenAIError) as exc:
             raise LLMProviderError(f"OpenAI {request.operation} failed: {exc}") from exc

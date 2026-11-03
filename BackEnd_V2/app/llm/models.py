@@ -186,6 +186,8 @@ class StructuredToLLM(MetadataToLLM):
     user_content: str
     schema_cls: type[BaseModel]
     operation: str = "structured"
+    # Reasoning models only: how much hidden thinking to do before answering. None leaves the model's own default.
+    reasoning_effort: str | None = None
 
 
 class StructuredFromLLM(MetadataFromLLM):

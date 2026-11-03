@@ -5,32 +5,39 @@ Division of labour:
     person can eat (their allergies, diet and dislikes), ranked by what they eat often and like;
   - the LLM (or, when it is unavailable, a rule-based builder) only chooses foods and amounts and says why they suit the person;
   - code checks every food and unit, rounds the amounts, scales them to the budget and computes all the nutrition.
-Nothing is saved here: an idea becomes food in the diary only when the user adds it.
+The newest set of ideas is kept per person for three hours, so every device shows the same ones. An idea becomes food in the
+diary only when the person adds it.
 """
 
 import logging
 import random
 from collections import Counter
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.common import now_ist, today_ist
+from app.common import as_utc, now_ist, today_ist
 from app.core.exceptions import NotFoundError, ValidationError
 from app.llm.knowledge_base import DIET_COACH_SYSTEM_INSTRUCTION, build_diet_coach_user_prompt
+from app.models.diet_coach_suggestion import DietCoachSuggestionDBM
 from app.models.diet_profile import DietProfileDBM
 from app.models.food import FoodDBM
 from app.models.user import UserDBM
 from app.schemas.diet import (
     DISCLAIMER,
+    DiaryAddRequest,
+    LogItemRequest,
+    MealCoachCurrentResponse,
     MealCoachFromLLMSchema,
     MealCoachRequest,
     MealCoachResponse,
     MealIdeaItemResponse,
     MealIdeaResponse,
     NutrientTotals,
+    SHOWN_TITLES_KEPT,
 )
 from app.services import diet_agent_service, diet_calc_service, diet_diary_service, diet_food_service
 from app.services.diet_calc_service import Nutrients
@@ -40,8 +47,17 @@ _logger = logging.getLogger(__name__)
 
 AGENT_MEAL_COACH = "meal_coach"
 IDEAS_WANTED = 3
+_KEEP_FOR = timedelta(hours=3)  # the ideas stay on every device this long, unless new ones are asked for first
+_SHOWN_IN_PROMPT = 12  # the most recent of them the model is shown, so a long run of "different ideas" stays small
+# Stays under the browser's wait for this request (TIMING.DIET_COACH_TIMEOUT_MS), so the fallback ideas can still arrive.
 _LLM_TIMEOUT_SECONDS = 45
 _LLM_ATTEMPTS = 1  # a second wait on a slow provider is worse than the fallback ideas
+# Picking foods from a list needs no long thinking, but reasoning models think for a long time by default: that made a suggestion
+# take 40 to 90 seconds and cost thousands of output tokens. Three short ideas fit well inside the ceiling below.
+_LLM_REASONING_EFFORT = "minimal"
+# A ceiling on the whole answer, thinking included. Set generously: some providers count their own thinking against it, and an
+# answer cut off there would fall back to quick ideas. Three short ideas are a few hundred tokens, so this only stops a runaway reply.
+_LLM_MAX_OUTPUT_TOKENS = 4000
 _HISTORY_DAYS = 30
 _RECENT_SLOT_DAYS = 3
 _CANDIDATES_FOR_LLM = 70
@@ -423,12 +439,17 @@ def _llm_foods(ranked: list[tuple[FoodDBM, float]], meal_type: str) -> list[Food
 
 
 def _food_row(food: FoodDBM) -> dict:
+    """What the model needs to choose a food and an amount: the usual serving, its calories, protein and fibre, and the units it can use.
+    The nutrition itself is worked out again in code afterwards, so the model is not asked to do any arithmetic."""
+    grams = _usual_grams(food)
+    serving = diet_calc_service.scale_per_100g(Nutrients(food.calories, food.protein_g, food.carbs_g, food.fat_g, food.fibre_g), grams)
+    usual = f"{grams:g} g" if food.default_unit == "g" else f"{diet_calc_service.round1(food.default_quantity):g} {food.default_unit} ({grams:g} g)"
     return {
         "id": food.id,
         "name": food.name,
         "category": food.category,
-        "per_100g": {"calories": food.calories, "protein_g": food.protein_g, "carbs_g": food.carbs_g, "fat_g": food.fat_g, "fibre_g": food.fibre_g},
-        "usual": f"{diet_calc_service.round1(food.default_quantity):g} {food.default_unit} ({_usual_grams(food):g} g)",
+        "usual": usual,
+        "per_usual": {"calories": serving.calories, "protein_g": serving.protein_g, "fibre_g": serving.fibre_g},
         "units": ["g", *[unit for unit in food.serving_grams if unit != "g"]],
     }
 
@@ -465,10 +486,12 @@ async def suggest(db: Session, user: UserDBM, request: MealCoachRequest) -> Meal
             parsed, _run = await diet_agent_service.ask_llm(
                 db, user, agent=AGENT_MEAL_COACH, system=DIET_COACH_SYSTEM_INSTRUCTION, schema=MealCoachFromLLMSchema, operation="diet_meal_coach",
                 timeout=_LLM_TIMEOUT_SECONDS, attempts=_LLM_ATTEMPTS,
+                max_tokens=_LLM_MAX_OUTPUT_TOKENS, reasoning_effort=_LLM_REASONING_EFFORT,
                 content=build_diet_coach_user_prompt(
                     meal_label=_label(meal_type), budget=vars(budget), remaining={k: max(v, 0) for k, v in vars(remaining).items()},
                     person=_person_summary(profile), eaten_today=history.eaten_today, eaten_often=history.eaten_often,
-                    recent_same_meal=list(history.recent_at(meal_type).values())[:10], note=request.note, already_suggested=request.exclude,
+                    recent_same_meal=list(history.recent_at(meal_type).values())[:10], note=request.note,
+                    already_suggested=request.exclude[-_SHOWN_IN_PROMPT:],
                     foods=[_food_row(food) for food in offered],
                 ),
             )
@@ -500,3 +523,114 @@ async def suggest(db: Session, user: UserDBM, request: MealCoachRequest) -> Meal
         notice=notice,
         disclaimer=DISCLAIMER,
     )
+
+
+# ---------- the ideas kept for every device ----------
+
+
+def _saved(db: Session, user: UserDBM) -> DietCoachSuggestionDBM | None:
+    """The person's current ideas, or None when there are none, or they have expired or belong to an earlier day. Such rows are removed."""
+    row = db.get(DietCoachSuggestionDBM, user.id)
+    if row is None:
+        return None
+    if as_utc(row.expires_at) <= datetime.now(timezone.utc) or row.day != today_ist():
+        db.delete(row)
+        db.commit()
+        return None
+    return row
+
+
+def _described(row: DietCoachSuggestionDBM) -> MealCoachCurrentResponse:
+    left = as_utc(row.expires_at) - datetime.now(timezone.utc)
+    return MealCoachCurrentResponse(
+        meal=row.meal,
+        note=row.note,
+        result=MealCoachResponse.model_validate(row.result),
+        shown=row.shown,
+        added=row.added,
+        expires_in_seconds=max(int(left.total_seconds()), 0),
+    )
+
+
+def _save(db: Session, user_id: int, values: dict) -> DietCoachSuggestionDBM:
+    """Stores the person's ideas in place of any earlier ones. Two devices asking at the same moment cannot both insert a row: the
+    one that loses the race merges into the row the other one wrote."""
+    try:
+        row = db.merge(DietCoachSuggestionDBM(user_id=user_id, **values))
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        row = db.merge(DietCoachSuggestionDBM(user_id=user_id, **values))
+        db.commit()
+    return row
+
+
+def current(db: Session, user: UserDBM) -> MealCoachCurrentResponse | None:
+    row = _saved(db, user)
+    return _described(row) if row is not None else None
+
+
+def _recent(titles: list[str]) -> list[str]:
+    """The newest titles, each once, as many as are remembered for "different ideas"."""
+    return list(dict.fromkeys(titles))[-SHOWN_TITLES_KEPT:]
+
+
+def _carried(previous: DietCoachSuggestionDBM | None, request: MealCoachRequest) -> list[str]:
+    """What the new ideas must not repeat. "Different ideas" carries on from everything offered recently, on any device; a fresh
+    request starts again from nothing."""
+    if not request.exclude:
+        return []
+    earlier = previous.shown if previous is not None else []
+    return _recent([*earlier, *request.exclude])
+
+
+def _next_midnight() -> datetime:
+    """The coming midnight in IST, as UTC. The ideas are for today, so they stop counting then, even when they are not yet three hours old."""
+    now = now_ist()
+    tomorrow = datetime.combine(now.date() + timedelta(days=1), datetime.min.time(), tzinfo=now.tzinfo)
+    return tomorrow.astimezone(timezone.utc)
+
+
+async def suggest_for_card(db: Session, user: UserDBM, request: MealCoachRequest) -> MealCoachCurrentResponse:
+    """New ideas for the diary page: made now, kept for every device until they expire, and returned as they were saved."""
+    previous = _saved(db, user)
+    carried = _carried(previous, request)
+    result = await suggest(db, user, request.model_copy(update={"exclude": carried}))
+    created = datetime.now(timezone.utc)
+    row = _save(db, user.id, {
+        "day": today_ist(),
+        "meal": request.meal_type or "auto",
+        "note": request.note or "",
+        "result": result.model_dump(mode="json"),
+        "shown": _recent([*carried, *(idea.title for idea in result.ideas)]),
+        "added": [],
+        "created_at": created,
+        "expires_at": min(created + _KEEP_FOR, _next_midnight()),
+    })
+    return _described(row)
+
+
+def add_idea(db: Session, user: UserDBM, index: int, title: str) -> MealCoachCurrentResponse:
+    """Puts one of the saved ideas into the diary. The title is the one the person saw at that index, so an idea is never added in
+    place of a different one after another device replaced the list. An idea already in, from this device or another, is not added twice."""
+    row = _saved(db, user)
+    if row is None:
+        raise NotFoundError("These ideas have expired. Ask the coach for new ones.")
+    ideas = row.result["ideas"]
+    if not 0 <= index < len(ideas) or ideas[index]["title"] != title:
+        raise NotFoundError("That idea is no longer in the list. Ask the coach for new ones.")
+    idea = ideas[index]
+    if title in row.added:
+        return _described(row)
+    # The tokens belong to these ideas, so the diary's own duplicate check stops the same item going in twice, even from two devices.
+    stamp = int(as_utc(row.created_at).timestamp() * 1000)
+    diet_diary_service.add_items(db, user, DiaryAddRequest(
+        meal_type=row.result["meal_type"],
+        items=[
+            LogItemRequest(food_id=item["food_id"], quantity=item["quantity"], unit=item["unit"], client_token=f"coach-{stamp}-{index}-{position}")
+            for position, item in enumerate(idea["items"])
+        ],
+    ))
+    row.added = [*row.added, title]
+    db.commit()
+    return _described(row)

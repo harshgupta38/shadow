@@ -166,6 +166,8 @@ export const ENDPOINTS = {
         WATER_HISTORY: "/water/history",
         LOG_PARSE: "/log/parse",
         COACH: "/coach",
+        COACH_CURRENT: "/coach/current",
+        COACH_CURRENT_IDEA_ADD: (index: number) => `/coach/current/ideas/${index}/add`,
         PROPOSAL: (id: string) => `/proposals/${id}`,
         PROPOSAL_REVISE: (id: string) => `/proposals/${id}/revise`,
         PROPOSAL_CONFIRM: (id: string) => `/proposals/${id}/confirm`,

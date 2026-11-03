@@ -23,8 +23,9 @@ from app.schemas.diet import (
     FoodSearchHit,
     FoodValuesRequest,
     HistoryDayResponse,
+    MealCoachCurrentResponse,
+    MealCoachIdeaAddRequest,
     MealCoachRequest,
-    MealCoachResponse,
     OverviewResponse,
     ParseMealRequest,
     ProfileResponse,
@@ -299,14 +300,29 @@ def water_history(
     return diet_water_service.history(db, current_user, days)
 
 
-# ── AI food logging (propose, review, confirm) ────────────────────────────────
+# ── Meal coach ────────────────────────────────────────────────────────────────
 
 
-@router.post(ENDPOINTS.DIET.COACH, response_model=MealCoachResponse)
+@router.post(ENDPOINTS.DIET.COACH, response_model=MealCoachCurrentResponse)
 async def suggest_meals(
     request: MealCoachRequest, db=Depends(get_db), current_user: UserDBM = Depends(get_current_user)
-) -> MealCoachResponse:
-    return await diet_coach_service.suggest(db, current_user, request)
+) -> MealCoachCurrentResponse:
+    return await diet_coach_service.suggest_for_card(db, current_user, request)
+
+
+@router.get(ENDPOINTS.DIET.COACH_CURRENT, response_model=MealCoachCurrentResponse | None)
+def get_current_suggestions(db=Depends(get_db), current_user: UserDBM = Depends(get_current_user)) -> MealCoachCurrentResponse | None:
+    return diet_coach_service.current(db, current_user)
+
+
+@router.post(ENDPOINTS.DIET.COACH_CURRENT_IDEA_ADD, response_model=MealCoachCurrentResponse)
+def add_suggested_idea(
+    index: int, request: MealCoachIdeaAddRequest, db=Depends(get_db), current_user: UserDBM = Depends(get_current_user)
+) -> MealCoachCurrentResponse:
+    return diet_coach_service.add_idea(db, current_user, index, request.title)
+
+
+# ── AI food logging (propose, review, confirm) ────────────────────────────────
 
 
 @router.post(ENDPOINTS.DIET.LOG_PARSE, response_model=ProposalResponse, status_code=status.HTTP_201_CREATED)

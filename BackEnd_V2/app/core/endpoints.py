@@ -180,6 +180,8 @@ class Endpoints:
         WATER_HISTORY = "/water/history"
         LOG_PARSE = "/log/parse"
         COACH = "/coach"
+        COACH_CURRENT = "/coach/current"
+        COACH_CURRENT_IDEA_ADD = "/coach/current/ideas/{index}/add"
         PROPOSAL = "/proposals/{proposal_id}"
         PROPOSAL_REVISE = "/proposals/{proposal_id}/revise"
         PROPOSAL_CONFIRM = "/proposals/{proposal_id}/confirm"

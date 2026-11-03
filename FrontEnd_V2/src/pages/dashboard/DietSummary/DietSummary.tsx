@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 
 import type { DietOverview } from "@/api";
 import { DashboardRing } from "@/pages/dashboard/DashboardRing/DashboardRing";
+import { WaterBottle } from "@/pages/dashboard/DietSummary/WaterBottle/WaterBottle";
 import { MacroBar } from "@/pages/diet/MacroBar/MacroBar";
 import { fmt, mealLabel, sortMeals } from "@/pages/diet/DietPage.constants";
 import { WEEKDAY_LONG } from "@/pages/workout/WorkoutPage.constants";
@@ -30,12 +31,15 @@ export function DietSummary({ overview }: DietSummaryProps) {
       </div>
 
       <div className="dp-report-hero dp-report-hero--aside dp-dt-card">
-        <DashboardRing
-          percent={score ?? 0}
-          value={score === null ? "–" : String(score)}
-          caption="Score"
-          ariaLabel={score === null ? "No score yet today" : `Nutrition score ${score} out of 100`}
-        />
+        <div className="dp-dt-gauges">
+          <WaterBottle consumed={overview.water.consumed} target={overview.water.target} />
+          <DashboardRing
+            percent={score ?? 0}
+            value={score === null ? "–" : String(score)}
+            caption="Score"
+            ariaLabel={score === null ? "No score yet today" : `Nutrition score ${score} out of 100`}
+          />
+        </div>
         <div className="dp-report-body">
           <span className="dp-report-date">Today · {WEEKDAY_LONG[new Date(`${overview.date}T00:00:00`).getDay()]}</span>
           {meals.length === 0 ? (
@@ -70,6 +74,7 @@ export function DietSummary({ overview }: DietSummaryProps) {
         )}
 
         <div className="dp-dt-macros">
+          <MacroBar label="Water" tone="water" unit="ml" consumed={overview.water.consumed} target={overview.water.target} />
           <MacroBar label="Protein" tone="protein" consumed={overview.protein.consumed} target={overview.protein.target} />
           <MacroBar label="Carbs" tone="carbs" consumed={overview.carbs.consumed} target={overview.carbs.target} />
           <MacroBar label="Fat" tone="fat" consumed={overview.fat.consumed} target={overview.fat.target} />

@@ -3,18 +3,23 @@
 // One report card, built from the dashboard's own pieces (the Reports Overview card, the ring and the ranked list). The macros take
 // a row of their own along its bottom edge.
 
-.dp-dt-card { flex-wrap: wrap; }
+// Tight vertical gaps: the card is a row of gauges and text over a row of macros, and the report card's roomy spacing would double its height.
+.dp-dt-card { flex-wrap: wrap; gap: 0.7rem 1.75rem; padding-block: 1rem; }
+
+// The water bottle at the left edge, then the score ring.
+.dp-dt-gauges { flex-shrink: 0; display: flex; align-items: center; gap: 1.4rem; }
 
 .dp-dt-macros {
   flex: 1 0 100%;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 0.6rem 1.4rem;
-  margin-top: 0.2rem;
-  padding-top: 1rem;
+  padding-top: 0.75rem;
   border-top: 1px solid var(--jv-border);
 }
 
 @media (max-width: 760px) {
   .dp-dt-macros { flex: 0 0 auto; width: 100%; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  // Water, the first, takes a whole row: its figures are the longest.
+  .dp-dt-macros > :first-child { grid-column: 1 / -1; }
 }

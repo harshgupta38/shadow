@@ -1,0 +1,18 @@
+// The bottle: the day's water as a level, with a line at every 500 ml.
+
+.dp-dt-water {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+}
+
+.dp-dt-bottle { width: 48px; height: auto; }
+
+.dp-dt-bottle-cap { fill: var(--jv-border-strong); }
+.dp-dt-bottle-body { fill: var(--jv-surface-3); }
+.dp-dt-bottle-water { fill: color-mix(in srgb, var(--jv-info) 72%, var(--jv-surface)); }
+.dp-dt-bottle-surface { fill: var(--jv-info); }
+.dp-dt-bottle-outline { fill: none; stroke: var(--jv-border-strong); stroke-width: 1.6; stroke-linejoin: round; }
+.dp-dt-bottle-mark { stroke: color-mix(in srgb, var(--jv-text) 38%, transparent); stroke-width: 1.2; stroke-linecap: round; }

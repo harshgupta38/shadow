@@ -1893,7 +1893,7 @@ export interface SubscriptionPlan {
 export interface SubscriptionAllowance {
   used_tokens: number;
   daily_tokens: number;
-  /** The first day of next month, YYYY-MM-DD. */
+  /** The day the allowance resets, YYYY-MM-DD. */
   resets_on: string;
 }
 

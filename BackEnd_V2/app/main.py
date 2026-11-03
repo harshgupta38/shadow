@@ -68,6 +68,8 @@ from app.models.water_log import WaterLogDBM
 from app.models.diet_proposal import DietProposalDBM
 from app.models.diet_agent_run import DietAgentRunDBM
 from app.models.diet_coach_suggestion import DietCoachSuggestionDBM
+from app.models.subscription import SubscriptionDBM
+from app.models.subscription_payment import SubscriptionPaymentDBM
 from app.models.data_version import DataVersionDBM
 from app.services import planner_service, backup_service, diet_seed_service, notification_scheduler_service, report_scheduler_service, session_event_service, workout_media_service, workout_seed_service, workout_sessions_service
 from app.api.notifications import reset_shutdown as _reset_sse_shutdown

@@ -22,6 +22,11 @@ export const ENDPOINTS = {
         DEACTIVATE: "/deactivate",
         ACCOUNT: "/account",
     },
+    SUBSCRIPTION: {
+        PREFIX: "/subscription",
+        ROOT: "",
+        PURCHASE: "/purchase",
+    },
     PROFILE: {
         PREFIX: "/profile",
         ROOT: "",

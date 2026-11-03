@@ -40,6 +40,11 @@ class ServiceUnavailableError(AppError):
     detail = "An external service is temporarily unavailable. Please try again later."
 
 
+class TokenLimitReachedError(AppError):
+    status_code = 402
+    detail = "You've used this month's AI allowance. AI features resume next month, or on a plan with more."
+
+
 class TooManyRequestsError(AppError):
     status_code = 429
     detail = "Too many requests. Please try again later."

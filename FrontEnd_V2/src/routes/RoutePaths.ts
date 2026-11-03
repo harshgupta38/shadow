@@ -41,6 +41,7 @@ export const ROUTES = {
     WORKOUT_EXERCISE: "/workout/exercises/:exerciseId",
     DIET: "/diet",
     PROFILE: "/profile",
+    SUBSCRIPTION: "/subscription",
     SETTINGS: "/settings",
     DEVICE_LIMIT: "/device-limit",
 }

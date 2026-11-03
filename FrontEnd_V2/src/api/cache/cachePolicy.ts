@@ -8,6 +8,9 @@
 import { CACHE_TTL } from "@/constant/tuning";
 import { ENDPOINTS } from "@/constant/shadow-endpoints";
 
+// The diet steps that call the AI (the meal coach, food-log parsing and revisions) spend the monthly allowance.
+const DIET_AI_PATH = /^\/diet\/(coach|log\/parse|proposals\/[^/]+\/revise)$/;
+
 export type CacheGroup =
     | "dashboard"
     | "profile"
@@ -99,7 +102,11 @@ export function groupsToClearAfterWrite(url: string): GroupsToClear {
     // Workout data is read only by uncached endpoints, so saving a session or set empties nothing.
     if (under(E.WORKOUT.PREFIX)(path)) return [];
     // Diet data is read only by uncached endpoints, so logging food or water empties nothing.
-    if (under(E.DIET.PREFIX)(path)) return [];
+    // Diet data is read only by uncached endpoints, so logging food or water empties nothing. The AI steps (the meal coach,
+    // food-log parsing and revisions) spend the monthly allowance that the profile shows.
+    if (under(E.DIET.PREFIX)(path)) return DIET_AI_PATH.test(path) ? ["profile"] : [];
+    // Subscribing changes the plan and allowance the profile shows.
+    if (under(E.SUBSCRIPTION.PREFIX)(path)) return ["profile"];
 
     if (under(E.SETTINGS.PREFIX)(path)) {
         // Saving settings changes week start, theme and planner behaviour everywhere.

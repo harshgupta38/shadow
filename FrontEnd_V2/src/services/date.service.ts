@@ -18,6 +18,11 @@ export function parseServerDate(iso: string): Date {
     return new Date(normalized);
 }
 
+/** The IST calendar day (YYYY-MM-DD) of a server timestamp. */
+export function istIsoDay(iso: string): string {
+    return parseServerDate(iso).toLocaleDateString("en-CA", { timeZone: IST_TIMEZONE });
+}
+
 export function todayDate(): Date {
     const [y, m, d] = todayIso().split("-").map(Number);
     return new Date(y, m - 1, d);
@@ -106,7 +111,7 @@ export function relativeTime(iso: string): string {
 }
 
 export function notifDateLabel(iso: string): string {
-    const dateStr = parseServerDate(iso).toLocaleDateString("en-CA", { timeZone: IST_TIMEZONE });
+    const dateStr = istIsoDay(iso);
     const today = todayIso();
     if (dateStr === today) return "Today";
     // Anchor at noon UTC (safely mid-day in IST either side of the date change) rather

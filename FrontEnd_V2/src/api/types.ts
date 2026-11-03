@@ -1861,6 +1861,8 @@ export interface DietCoachResult {
   over_target: boolean;
   ideas: DietCoachIdea[];
   notice: string | null;
+  /** The monthly AI allowance is used up: these ideas came from the food library, not the model. */
+  ai_limit_reached: boolean;
   disclaimer: string;
 }
 
@@ -1876,4 +1878,34 @@ export interface DietCoachCurrent {
   added: string[];
   /** Seconds until the ideas expire, counted by the server. */
   expires_in_seconds: number;
+}
+
+// ── Subscriptions ───────────────────────────────────────────────────────────
+
+export interface SubscriptionPlan {
+  code: string;
+  name: string;
+  monthly_tokens: number;
+  price_paise: number;
+  tagline: string;
+}
+
+export interface SubscriptionAllowance {
+  used_tokens: number;
+  monthly_tokens: number;
+  /** The first day of next month, YYYY-MM-DD. */
+  resets_on: string;
+}
+
+export interface SubscriptionOverview {
+  plan: SubscriptionPlan;
+  /** When a paid plan runs out. null on the free plan. */
+  expires_at: string | null;
+  allowance: SubscriptionAllowance;
+  /** AI calls made with the person's own key are not counted. */
+  own_api_key: boolean;
+  plans: SubscriptionPlan[];
+  plan_duration_days: number;
+  /** False until a payment gateway is connected. */
+  payments_enabled: boolean;
 }

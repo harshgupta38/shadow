@@ -25,6 +25,7 @@ import { journalApi } from "@/api/journal";
 import { settingsApi } from "@/api/settings";
 import { workoutApi } from "@/api/workout";
 import { dietApi } from "@/api/diet";
+import { subscriptionApi } from "@/api/subscription";
 
 export const api = {
   auth: authApi,
@@ -45,6 +46,7 @@ export const api = {
   settings: settingsApi,
   workout: workoutApi,
   diet: dietApi,
+  subscription: subscriptionApi,
 };
 
 export type Api = typeof api;

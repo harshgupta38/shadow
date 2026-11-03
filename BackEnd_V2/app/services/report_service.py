@@ -8,7 +8,7 @@ from sqlalchemy import select, desc
 from sqlalchemy.orm import Session
 
 from app.db.session import SessionLocal
-from app.core.exceptions import AppError, NotFoundError, ServiceUnavailableError
+from app.core.exceptions import AppError, NotFoundError, ServiceUnavailableError, TokenLimitReachedError
 from app.llm.models import GenerateReportFromLLM
 from app.llm.service import get_llm_service_for_ai_behavior
 from app.models.goal import GoalDBM
@@ -547,6 +547,10 @@ async def generate_report_background(
                         "Failed to send report-ready email for user=%d date=%s type=%s",
                         user_id, report_date, report_type, exc_info=True,
                     )
+    except TokenLimitReachedError:
+        # The monthly notice about the used-up allowance is already with the person. The report can be requested again later.
+        db.rollback()
+        logger.info("Report for user=%d skipped: AI allowance used up", user_id)
     except Exception:
         db.rollback()
         logger.exception(

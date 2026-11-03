@@ -25,7 +25,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.common import today_ist
-from app.core.exceptions import AppError, NotFoundError
+from app.core.exceptions import AppError, NotFoundError, TokenLimitReachedError
 from app.db.session import SessionLocal
 from app.llm.models import GenerateBriefFromLLM
 from app.llm.service import get_llm_service_for_ai_behavior
@@ -171,6 +171,8 @@ def send_daily_brief(user_id: int, today: date) -> None:
                 except Exception:
                     logger.warning("Daily brief email failed for user %d", user.id, exc_info=True)
 
+    except TokenLimitReachedError:
+        logger.info("Daily brief skipped for user %d: AI allowance used up", user_id)
     except Exception:
         logger.exception("Daily brief failed for user %d", user_id)
 

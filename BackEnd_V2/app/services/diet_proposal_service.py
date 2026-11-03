@@ -16,7 +16,7 @@ from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.common import now_ist
-from app.core.exceptions import NotFoundError, ValidationError
+from app.core.exceptions import NotFoundError, TokenLimitReachedError, ValidationError
 from app.llm.knowledge_base import DIET_PARSE_SYSTEM_INSTRUCTION, DIET_REVISE_SYSTEM_INSTRUCTION
 from app.models.diet_profile import DietProfileDBM
 from app.models.diet_proposal import DietProposalDBM
@@ -228,6 +228,8 @@ def to_response(db: Session, user: UserDBM, proposal: DietProposalDBM) -> Propos
     profile = db.get(DietProfileDBM, user.id)
     favourites = diet_food_service.favourite_ids(db, user)
     warnings: list[str] = []
+    if payload.get("ai_limit_reached"):
+        warnings.append("Your AI allowance for this month is used up, so this was read with simple rules. Check the amounts before you save.")
     items: list[ProposalItemResponse] = []
     for raw in payload["items"]:
         candidates: list[FoodResponse] = []
@@ -270,9 +272,15 @@ def to_response(db: Session, user: UserDBM, proposal: DietProposalDBM) -> Propos
 
 async def parse_meal(db: Session, user: UserDBM, request: ParseMealRequest) -> ProposalResponse:
     day = diet_diary_service.resolve_date(request.log_date)
-    parsed, run = await diet_agent_service.ask_llm(
-        db, user, agent=AGENT_FOOD_LOGGER, system=DIET_PARSE_SYSTEM_INSTRUCTION, content=request.text, schema=ParsedMealFromLLMSchema, operation="diet_parse_meal"
-    )
+    ai_limit_reached = False
+    try:
+        parsed, run = await diet_agent_service.ask_llm(
+            db, user, agent=AGENT_FOOD_LOGGER, system=DIET_PARSE_SYSTEM_INSTRUCTION, content=request.text, schema=ParsedMealFromLLMSchema, operation="diet_parse_meal"
+        )
+    except TokenLimitReachedError:
+        # The allowance is used up: the rules below read the meal instead, and the proposal says so.
+        ai_limit_reached = True
+        parsed, run = None, None
     if parsed is None:
         parsed = rule_parse(request.text)
     assert isinstance(parsed, ParsedMealFromLLMSchema)
@@ -288,8 +296,8 @@ async def parse_meal(db: Session, user: UserDBM, request: ParseMealRequest) -> P
         ]
     )
     proposal = DietProposalDBM(
-        proposal_id=str(uuid.uuid4()), user_id=user.id, kind="food_log", status="pending", source="text", run_id=run.id,
-        payload={"log_date": day.isoformat(), "meal_type": meal_type, "eaten_at": None, "original_text": request.text, "items": items},
+        proposal_id=str(uuid.uuid4()), user_id=user.id, kind="food_log", status="pending", source="text", run_id=run.id if run else None,
+        payload={"log_date": day.isoformat(), "meal_type": meal_type, "eaten_at": None, "original_text": request.text, "items": items, "ai_limit_reached": ai_limit_reached},
     )
     db.add(proposal)
     db.commit()

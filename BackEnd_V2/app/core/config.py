@@ -36,6 +36,10 @@ class Settings(BaseSettings):
     db_backup_limit: int = Field(default=30, ge=10)
     db_backup_dir: str = "backups"
 
+    # Lets "Subscribe" complete at once without a real payment, so the purchase flow can be tried locally.
+    # Must stay false in production until a payment gateway is connected.
+    subscription_test_payments: bool = False
+
     @property
     def db_backup_runtime_list(self) -> list[str]:
         return [t.strip() for t in self.db_backup_runtimes.split(",") if t.strip()]

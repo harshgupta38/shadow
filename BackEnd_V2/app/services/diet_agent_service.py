@@ -12,6 +12,7 @@ from time import perf_counter
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.core.exceptions import TokenLimitReachedError
 from app.llm.service import get_llm_service_for_ai_behavior
 from app.models.diet_agent_run import DietAgentRunDBM
 from app.models.user import UserDBM
@@ -69,6 +70,10 @@ async def ask_llm(
                 model=response.model_str or "", input_tokens=(usage.input_tokens or 0) if usage else 0, output_tokens=(usage.output_tokens or 0) if usage else 0,
             )
             return response.data, run
+        except TokenLimitReachedError as exc:
+            # The person's monthly AI allowance is used up. That is not a provider problem: the caller decides what to show.
+            record_run(db, user, agent=agent, status="fallback", summary=content, started=started, error=f"{type(exc).__name__}: {exc}")
+            raise
         except Exception as exc:  # a provider problem (incl. timeout) must never block the user
             error = f"{type(exc).__name__}: {exc}"
             _logger.warning("Diet %s attempt %d failed: %s", operation, attempt, error)

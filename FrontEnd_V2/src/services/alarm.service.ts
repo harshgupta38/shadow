@@ -24,12 +24,16 @@ export function unlockAlarm(): void {
   }
 }
 
-/** Rings now and again every RING_EVERY_MS. Stops by itself after ALARM_SECONDS, or sooner when stopAlarm() is called. */
-export function startAlarm(): void {
+/**
+ * Rings now and again every RING_EVERY_MS. Stops by itself after ALARM_SECONDS, or sooner when stopAlarm() is called.
+ * Returns the time, in milliseconds since the epoch, when it stops by itself.
+ */
+export function startAlarm(): number {
   stopAlarm();
   ring();
   repeat = window.setInterval(ring, RING_EVERY_MS);
   timeout = window.setTimeout(stopAlarm, ALARM_SECONDS * 1000);
+  return Date.now() + ALARM_SECONDS * 1000;
 }
 
 export function stopAlarm(): void {

@@ -241,6 +241,9 @@ Event-driven alerts (goal or milestone due within 3 days, scheduled-task reminde
 
 ---
 
+### Plans & AI allowance
+Free accounts get 30,000 AI tokens a month. Starter, Plus and Pro raise that allowance for a monthly price (proposed: ₹149, ₹399 and ₹999). Every AI call made with the app's own keys counts its input and output tokens; calls made with a person's own API key do not. Everything that does not call an AI model is free on every plan. When the allowance is used up, AI features pause until the 1st of next month: the assistant and goal refinement show a message, the meal coach falls back to quick ideas from the food library, the food logger reads meals with simple rules, and reports and the daily brief are skipped. The person gets one notification a month. Purchases are not connected to a payment gateway yet: with `SUBSCRIPTION_TEST_PAYMENTS=true` a purchase completes at once for local testing, and without it plans cannot be bought.
+
 ## Technology Stack
 
 | Layer | Technology | How it's actually used |

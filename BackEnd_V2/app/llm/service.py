@@ -1,3 +1,4 @@
+import asyncio
 from datetime import date
 from functools import lru_cache
 from typing import Callable
@@ -45,9 +46,19 @@ class LLMService:
         self,
         settings: LLMSettings | None = None,
         provider: BaseLLMProvider | None = None,
+        *,
+        metered: bool = True,
     ) -> None:
         self._settings = settings or llm_settings
         self._provider = provider or self._build_provider(self._settings)
+        # False for calls made with a person's own API key: those are paid to the provider directly, not counted.
+        self._metered = metered
+
+    async def _check_allowance(self, user_id: int | None) -> None:
+        if self._metered and user_id is not None:
+            # Imported here: the subscription service sits above the LLM layer.
+            from app.services.subscription_service import check_ai_allowance
+            await asyncio.to_thread(check_ai_allowance, user_id)
 
     # Builds the concrete LLM provider from configuration.
     # Flow:
@@ -76,7 +87,7 @@ class LLMService:
         request_data: RefineGoalRequest,
         user_id: int,
     ) -> RefineGoalFromLLM:
-
+        await self._check_allowance(user_id)
         request = RefineGoalToLLM(request_data=request_data, user_id=user_id)
         response = await self._provider.refine_goal(request)
 
@@ -92,6 +103,7 @@ class LLMService:
         goal_data: dict,
         user_id: int,
     ) -> MilestoneProposalsFromLLM:
+        await self._check_allowance(user_id)
         request = MilestoneProposalsToLLM(goal_data=goal_data, user_id=user_id)
         response = await self._provider.generate_milestone_proposals(request)
 
@@ -106,6 +118,7 @@ class LLMService:
         milestone_data: dict,
         user_id: int,
     ) -> TaskProposalsFromLLM:
+        await self._check_allowance(user_id)
         request = TaskProposalsToLLM(goal_data=goal_data, milestone_data=milestone_data, user_id=user_id)
         response = await self._provider.generate_task_proposals(request)
 
@@ -126,6 +139,7 @@ class LLMService:
         personality: str = "coach",
         model: str | None = None,
     ) -> NewConvoFromLLM:
+        await self._check_allowance(user_id)
         request = NewConvoToLLM(
             request_data=data,
             user_id=user_id,
@@ -160,6 +174,7 @@ class LLMService:
         personality: str = "coach",
         model: str | None = None,
     ) -> MessageFromLLM:
+        await self._check_allowance(user_id)
         request = MessageToLLM(
             request_data=data.content,
             user_id=user_id,
@@ -191,6 +206,7 @@ class LLMService:
         messages: list[dict[str, str]],
         existing_memories: list[dict],
     ) -> ExtractUserMemoryFromLLM:
+        await self._check_allowance(user_id)
         request = ExtractUserMemoryToLLM(
             user_id=user_id,
             agent_type=agent_type,
@@ -214,6 +230,7 @@ class LLMService:
         messages: list[dict[str, str]],
         user_id: int,
     ) -> ConversationContextFromLLM:
+        await self._check_allowance(user_id)
         request = ConversationContextToLLM(
             user_id=user_id,
             agent_type=agent_type,
@@ -238,6 +255,7 @@ class LLMService:
         day_data: dict,
         model: str | None = None,
     ) -> GenerateReportFromLLM:
+        await self._check_allowance(user_id)
         request = GenerateReportToLLM(
             user_id=user_id,
             report_date=report_date,
@@ -262,6 +280,7 @@ class LLMService:
         model: str | None = None,
         include_spoken_brief: bool = True,
     ) -> GenerateBriefFromLLM:
+        await self._check_allowance(user_id)
         request = GenerateBriefToLLM(
             user_id=user_id,
             first_name=first_name,
@@ -292,6 +311,7 @@ class LLMService:
         max_tokens: int | None = None,
         reasoning_effort: str | None = None,
     ) -> StructuredFromLLM:
+        await self._check_allowance(user_id)
         request = StructuredToLLM(
             system_instruction=system_instruction,
             user_content=user_content,
@@ -357,5 +377,5 @@ def get_llm_service_for_ai_behavior(ai_behavior: dict) -> LLMService:
         key_field = _CUSTOM_KEY_FIELD.get(provider)
         if provider_cls and key_field:
             overridden = llm_settings.model_copy(update={key_field: ai_behavior["custom_api_key"]})
-            return LLMService(provider=provider_cls(settings=overridden))
+            return LLMService(provider=provider_cls(settings=overridden), metered=False)
     return get_llm_service_for_user(provider)

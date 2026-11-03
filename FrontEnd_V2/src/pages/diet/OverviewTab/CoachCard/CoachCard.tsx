@@ -226,7 +226,7 @@ export function CoachCard({ overview, onLogged }: CoachCardProps) {
               </button>
             )}
             <p className="dt-coach-small">
-              {allBasic && "The coach couldn't be reached, so these are quick ideas built from your food library. "}
+              {allBasic && !result.ai_limit_reached && "The coach couldn't be reached, so these are quick ideas built from your food library. "}
               {result.disclaimer}
             </p>
           </div>

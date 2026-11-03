@@ -37,6 +37,7 @@ const JournalPage = lazy(() => import("@/pages/journal/JournalPage").then(m => (
 const ReportsPage = lazy(() => import("@/pages/reports/ReportsPage").then(m => ({ default: m.ReportsPage })));
 const ReportDetailPage = lazy(() => import("@/pages/reports/ReportDetailPage/ReportDetailPage").then(m => ({ default: m.ReportDetailPage })));
 const AssistantPage = lazy(() => import("@/pages/assistant/AssistantPage").then(m => ({ default: m.AssistantPage })));
+const SubscriptionPage = lazy(() => import("@/pages/subscription/SubscriptionPage").then(m => ({ default: m.SubscriptionPage })));
 const ProfilePage = lazy(() => import("@/pages/profile/ProfilePage").then(m => ({ default: m.ProfilePage })));
 const SettingsPage = lazy(() => import("@/pages/settings/SettingsPage").then(m => ({ default: m.SettingsPage })));
 const NotificationsPage = lazy(() => import("@/pages/notifications/NotificationsPage").then(m => ({ default: m.NotificationsPage })));
@@ -108,6 +109,7 @@ export function AppRoutes() {
 						<Route path={ROUTES.WORKOUT_EXERCISE} element={<ExerciseDetailPage />} />
 						<Route path={ROUTES.DIET} element={<DietPage />} />
 						<Route path={ROUTES.PROFILE} element={<ProfilePage />} />
+						<Route path={ROUTES.SUBSCRIPTION} element={<SubscriptionPage />} />
 						<Route path={ROUTES.SETTINGS} element={<SettingsPage />} />
 					</Route>
 					</Route> {/* RequireDeviceCheck */}

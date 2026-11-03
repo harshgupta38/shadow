@@ -20,7 +20,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.common import as_utc, now_ist, today_ist
-from app.core.exceptions import NotFoundError, ValidationError
+from app.core.exceptions import NotFoundError, TokenLimitReachedError, ValidationError
 from app.llm.knowledge_base import DIET_COACH_SYSTEM_INSTRUCTION, build_diet_coach_user_prompt
 from app.models.diet_coach_suggestion import DietCoachSuggestionDBM
 from app.models.diet_profile import DietProfileDBM
@@ -479,6 +479,7 @@ async def suggest(db: Session, user: UserDBM, request: MealCoachRequest) -> Meal
     ranked = _rank(_candidates(db, user, profile), profile, history, meal_type, diet_food_service.favourite_ids(db, user))
     skip_titles = {title.lower() for title in request.exclude}
     ideas: list[MealIdeaResponse] = []
+    limit_reached = False
 
     if ranked:
         offered = _llm_foods(ranked, meal_type)
@@ -497,6 +498,8 @@ async def suggest(db: Session, user: UserDBM, request: MealCoachRequest) -> Meal
             )
             if isinstance(parsed, MealCoachFromLLMSchema):
                 ideas = _ideas_from_llm(parsed, {food.id: food for food in offered}, budget, skip_titles)
+        except TokenLimitReachedError:
+            limit_reached = True
         except Exception:  # whatever the model sent, the person still gets ideas
             _logger.exception("Meal coach could not use the model's answer")
         if len(ideas) < IDEAS_WANTED:
@@ -510,6 +513,11 @@ async def suggest(db: Session, user: UserDBM, request: MealCoachRequest) -> Meal
     notice = None
     if not ranked:
         notice = "None of the foods in your library fit your preferences and restrictions yet. Add foods you eat in the Food library."
+    elif limit_reached:
+        notice = (
+            "Your AI allowance for this month is used up, so these are quick ideas from your food library. Subscribe under Profile for AI ideas."
+            if ideas else "Your AI allowance for this month is used up. Subscribe under Profile for AI ideas."
+        )
     elif over_target:
         notice = "You've reached today's calorie target, so these are light options."
     elif not ideas:
@@ -522,6 +530,7 @@ async def suggest(db: Session, user: UserDBM, request: MealCoachRequest) -> Meal
         ideas=ideas,
         notice=notice,
         disclaimer=DISCLAIMER,
+        ai_limit_reached=limit_reached,
     )
 
 

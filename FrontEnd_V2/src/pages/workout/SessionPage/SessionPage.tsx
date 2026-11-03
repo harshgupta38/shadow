@@ -132,8 +132,9 @@ export function SessionPage() {
     if (alarmOn) {
       stopAlarm();
       setAlarmEndsAt(null);
+    } else {
+      unlockAlarm();
     }
-    else unlockAlarm();
     setAlarmOn(!alarmOn);
   }
 
@@ -150,10 +151,7 @@ export function SessionPage() {
   useEffect(() => {
     if (rest && remaining <= 0 && !ringing.current) {
       ringing.current = true;
-      if (alarmOn) {
-        startAlarm();
-        setAlarmEndsAt(Date.now() + ALARM_SECONDS * 1000);
-      }
+      if (alarmOn) setAlarmEndsAt(startAlarm());
     }
   }, [remaining, rest]);
   useEffect(() => () => stopAlarm(), []);

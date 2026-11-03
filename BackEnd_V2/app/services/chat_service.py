@@ -14,7 +14,7 @@ from functools import partial
 from app.llm.models import MessageResponse
 from app.llm.config import llm_settings
 from app.llm.tools import ToolContext, execute_tool
-from app.core.exceptions import NotFoundError, ValidationError
+from app.core.exceptions import NotFoundError, TokenLimitReachedError, ValidationError
 from app.llm import get_llm_service, LLMService, NewConvoResponse, LLMError, LLMRequestError
 from app.llm.service import get_llm_service_for_ai_behavior
 from app.services import memory_service, settings_service
@@ -669,6 +669,10 @@ async def _call_llm_and_save(
             personality=personality,
             model=ai_model,
         )
+    except TokenLimitReachedError:
+        user_message.request_status = "failed"
+        db.commit()
+        raise
     except LLMError as exc:
         user_message.request_status = "failed"
         db.commit()

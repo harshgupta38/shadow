@@ -640,6 +640,7 @@ class MealCoachResponse(BaseModel):
     ideas: list[MealIdeaResponse]
     notice: str | None = None
     disclaimer: str
+    ai_limit_reached: bool = False  # the monthly AI allowance is used up: these ideas came from the library, not the model
 
 
 class MealCoachCurrentResponse(BaseModel):

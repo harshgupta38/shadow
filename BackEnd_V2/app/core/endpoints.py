@@ -30,6 +30,11 @@ class Endpoints:
         DEACTIVATE = "/deactivate"
         ACCOUNT = "/account"
 
+    class SUBSCRIPTION:
+        PREFIX = "/subscription"
+        ROOT = ""
+        PURCHASE = "/purchase"
+
     class PROFILE:
         PREFIX = "/profile"
         ROOT = ""

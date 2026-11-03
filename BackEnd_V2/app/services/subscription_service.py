@@ -1,7 +1,7 @@
 """Plans, the daily AI allowance and plan purchases.
 
 Every AI call made with the app's own keys counts its input and output tokens against the person's allowance for the
-current day (IST). Calls made with the person's own API key are not counted: that key is paid for directly.
+current day (IST). Calls made with the person's own API key are not counted (daily_usage.own_key_tokens): that key is paid for directly.
 Everything that does not call an AI model is free on every plan.
 
 The plan lives on the user row (plan_code, plan_expires_at), so every account has one and BackOffice can change it with an UPDATE.
@@ -46,7 +46,7 @@ def current_plan(user: UserDBM) -> tuple[Plan, datetime | None]:
 
 def tokens_used_today(db: Session, user_id: int, today: date) -> int:
     used = db.scalar(
-        select(func.coalesce(func.sum(DailyUsageDBM.input_tokens + DailyUsageDBM.output_tokens), 0)).where(
+        select(func.coalesce(func.sum(DailyUsageDBM.input_tokens + DailyUsageDBM.output_tokens - DailyUsageDBM.own_key_tokens), 0)).where(
             DailyUsageDBM.user_id == user_id,
             DailyUsageDBM.usage_date == today,
         )

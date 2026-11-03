@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from contextvars import ContextVar
 from datetime import datetime, timezone
 from typing import Any
 
@@ -14,6 +15,10 @@ from app.llm.enums import LLMProvider
 from app.llm.cost import calculate_token_cost, calculate_tts_cost, calculate_transcription_cost
 
 logger = logging.getLogger(__name__)
+
+# True while a call made with the person's own API key is running: the LLM service sets it around each provider call, so the logger
+# below can keep those tokens out of the plan allowance without every provider having to know about plans.
+own_key_call: ContextVar[bool] = ContextVar("own_key_call", default=False)
 
 
 async def log_openai_completion_usage_async(
@@ -257,24 +262,26 @@ async def log_openai_transcription_usage_async(
         logger.exception("Failed to persist immediate OpenAI transcription usage logging.")
 
 
-def _sync_upsert_daily_usage(user_id: int, input_tokens: int, output_tokens: int) -> None:
+def _sync_upsert_daily_usage(user_id: int, input_tokens: int, output_tokens: int, own_key: bool) -> None:
     from app.common import today_ist
     from app.db.session import SessionLocal
     from sqlalchemy import text as _text
     with SessionLocal() as db:
         db.execute(
             _text(
-                "INSERT INTO daily_usage (user_id, date, input_tokens, output_tokens) "
-                "VALUES (:user_id, :date, :input_tokens, :output_tokens) "
+                "INSERT INTO daily_usage (user_id, date, input_tokens, output_tokens, own_key_tokens) "
+                "VALUES (:user_id, :date, :input_tokens, :output_tokens, :own_key_tokens) "
                 "ON CONFLICT (user_id, date) DO UPDATE SET "
                 "  input_tokens = daily_usage.input_tokens + excluded.input_tokens, "
-                "  output_tokens = daily_usage.output_tokens + excluded.output_tokens"
+                "  output_tokens = daily_usage.output_tokens + excluded.output_tokens, "
+                "  own_key_tokens = daily_usage.own_key_tokens + excluded.own_key_tokens"
             ),
             {
                 "user_id": user_id,
                 "date": today_ist(),
                 "input_tokens": input_tokens,
                 "output_tokens": output_tokens,
+                "own_key_tokens": input_tokens + output_tokens if own_key else 0,
             },
         )
         db.commit()
@@ -321,6 +328,7 @@ async def _write_provider_usage_log(
                 user_id,
                 input_tokens or 0,
                 output_tokens or 0,
+                own_key_call.get(),
             )
         except Exception:
             logger.exception("Failed to upsert daily usage for user %s.", user_id)

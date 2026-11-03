@@ -51,13 +51,14 @@ def _fold_session_sets_into_exercises(conn) -> None:
 
 
 def migrate_subscriptions(engine) -> None:
-    """Gives every user the plan columns, then moves the plans out of the old subscriptions table onto the users and drops it.
+    """Gives every user the plan columns, and daily_usage the column for tokens spent with a person's own key, then moves the plans out of the old subscriptions table onto the users and drops it.
     Accounts without a row there keep the column default, the free plan. The columns are added first and outside the copy, so
     a crash between the steps leaves the old table in place for the next start. One transaction for the copy, and BEGIN IMMEDIATE
     makes workers that start together take turns, so the second one finds the table already gone. Idempotent."""
     with engine.connect() as conn:
         add_column_if_missing(conn, "users", "plan_code", "ALTER TABLE users ADD COLUMN plan_code VARCHAR(20) NOT NULL DEFAULT 'free'")
         add_column_if_missing(conn, "users", "plan_expires_at", "ALTER TABLE users ADD COLUMN plan_expires_at DATETIME")
+        add_column_if_missing(conn, "daily_usage", "own_key_tokens", "ALTER TABLE daily_usage ADD COLUMN own_key_tokens INTEGER NOT NULL DEFAULT 0")
         conn.exec_driver_sql("BEGIN IMMEDIATE")
         try:
             tables = {row[0] for row in conn.execute(text("SELECT name FROM sqlite_master WHERE type = 'table'"))}

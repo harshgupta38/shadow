@@ -39,6 +39,7 @@ from app.llm.providers import (
     OllamaProvider,
     OpenAIProvider,
 )
+from app.analysis.llm_usage_logger import own_key_call
 
 
 class LLMService:
@@ -53,6 +54,14 @@ class LLMService:
         self._provider = provider or self._build_provider(self._settings)
         # False for calls made with a person's own API key: those are paid to the provider directly, not counted.
         self._metered = metered
+
+    async def _call(self, method: Callable, request):
+        """Runs a provider method, with the usage logger told whether it is a call made with the person's own key."""
+        marker = own_key_call.set(not self._metered)
+        try:
+            return await method(request)
+        finally:
+            own_key_call.reset(marker)
 
     async def _check_allowance(self, user_id: int | None) -> None:
         if self._metered and user_id is not None:
@@ -89,7 +98,7 @@ class LLMService:
     ) -> RefineGoalFromLLM:
         await self._check_allowance(user_id)
         request = RefineGoalToLLM(request_data=request_data, user_id=user_id)
-        response = await self._provider.refine_goal(request)
+        response = await self._call(self._provider.refine_goal, request)
 
         if response is None or response.refined_data is None:
             raise LLMConfigurationError(
@@ -105,7 +114,7 @@ class LLMService:
     ) -> MilestoneProposalsFromLLM:
         await self._check_allowance(user_id)
         request = MilestoneProposalsToLLM(goal_data=goal_data, user_id=user_id)
-        response = await self._provider.generate_milestone_proposals(request)
+        response = await self._call(self._provider.generate_milestone_proposals, request)
 
         if response is None or response.proposals is None:
             raise LLMConfigurationError("LLM provider returned no milestone proposals.")
@@ -120,7 +129,7 @@ class LLMService:
     ) -> TaskProposalsFromLLM:
         await self._check_allowance(user_id)
         request = TaskProposalsToLLM(goal_data=goal_data, milestone_data=milestone_data, user_id=user_id)
-        response = await self._provider.generate_task_proposals(request)
+        response = await self._call(self._provider.generate_task_proposals, request)
 
         if response is None or response.proposals is None:
             raise LLMConfigurationError("LLM provider returned no task proposals.")
@@ -151,7 +160,7 @@ class LLMService:
             personality=personality,
             model=model,
         )
-        response = await self._provider.create_conversation(request)
+        response = await self._call(self._provider.create_conversation, request)
 
         if response is None or response.llm_data is None:
             raise LLMConfigurationError("LLM provider returned no conversation data.")
@@ -190,7 +199,7 @@ class LLMService:
             personality=personality,
             model=model,
         )
-        response = await self._provider.respond_to_message(request)
+        response = await self._call(self._provider.respond_to_message, request)
 
         if response is None or response.llm_data is None:
             raise LLMConfigurationError("LLM provider returned no message data.")
@@ -215,7 +224,7 @@ class LLMService:
             messages=messages,
             existing_memories=existing_memories,
         )
-        response = await self._provider.extract_user_memory(request)
+        response = await self._call(self._provider.extract_user_memory, request)
 
         if response is None or response.llm_data is None:
             raise LLMConfigurationError("LLM provider returned no memory extraction data.")
@@ -238,7 +247,7 @@ class LLMService:
             context_summary=context_summary,
             messages=messages,
         )
-        response = await self._provider.update_conversation_context(request)
+        response = await self._call(self._provider.update_conversation_context, request)
 
         if response is None or response.llm_data is None:
             raise LLMConfigurationError(
@@ -264,7 +273,7 @@ class LLMService:
             model=model,
         )
         try:
-            response = await self._provider.generate_report(request)
+            response = await self._call(self._provider.generate_report, request)
         except NotImplementedError:
             raise LLMConfigurationError("AI report generation is not supported by the configured LLM provider.")
         if response is None or response.report_data is None:
@@ -290,7 +299,7 @@ class LLMService:
             include_spoken_brief=include_spoken_brief,
         )
         try:
-            response = await self._provider.generate_daily_brief(request)
+            response = await self._call(self._provider.generate_daily_brief, request)
         except NotImplementedError:
             raise LLMConfigurationError(
                 "Daily brief generation is not supported by the configured LLM provider."
@@ -322,7 +331,7 @@ class LLMService:
             max_tokens=max_tokens,
             reasoning_effort=reasoning_effort,
         )
-        response = await self._provider.generate_structured(request)
+        response = await self._call(self._provider.generate_structured, request)
         if response is None or response.data is None:
             raise LLMConfigurationError(f"LLM provider returned no data for {operation}.")
         return response

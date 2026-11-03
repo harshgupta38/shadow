@@ -25,3 +25,8 @@ class DailyUsageDBM(Base):
     output_tokens: Mapped[int] = mapped_column(
         Integer, nullable=False, default=0, server_default=text("0")
     )
+    # The part of input + output that was spent with the person's own API key. It is in the totals above, so the usage chart shows it,
+    # but it does not count against the plan's allowance.
+    own_key_tokens: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default=text("0")
+    )

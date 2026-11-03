@@ -6,15 +6,15 @@ from pydantic import BaseModel
 class PlanResponse(BaseModel):
     code: str
     name: str
-    monthly_tokens: int
+    daily_tokens: int
     price_paise: int
     tagline: str
 
 
 class AllowanceResponse(BaseModel):
     used_tokens: int
-    monthly_tokens: int
-    resets_on: date  # the first day of next month (IST)
+    daily_tokens: int
+    resets_on: date  # tomorrow (IST)
 
 
 class SubscriptionOverviewResponse(BaseModel):

@@ -515,8 +515,8 @@ async def suggest(db: Session, user: UserDBM, request: MealCoachRequest) -> Meal
         notice = "None of the foods in your library fit your preferences and restrictions yet. Add foods you eat in the Food library."
     elif limit_reached:
         notice = (
-            "Your AI allowance for this month is used up, so these are quick ideas from your food library. Subscribe under Profile for AI ideas."
-            if ideas else "Your AI allowance for this month is used up. Subscribe under Profile for AI ideas."
+            "Your AI allowance for today is used up, so these are quick ideas from your food library. Subscribe under Profile for AI ideas."
+            if ideas else "Your AI allowance for today is used up. Subscribe under Profile for AI ideas."
         )
     elif over_target:
         notice = "You've reached today's calorie target, so these are light options."

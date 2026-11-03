@@ -45,7 +45,7 @@ export function PlanCard({ plan, features, includes, current, canBuy, onChoose }
       <p className="pc-allowance mb-0">
         <Stars aria-hidden="true" />
         <span>
-          <strong>{plan.monthly_tokens.toLocaleString("en-IN")}</strong> AI tokens a month
+          <strong>{plan.daily_tokens.toLocaleString("en-IN")}</strong> AI tokens a day
         </span>
       </p>
 

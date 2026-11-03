@@ -548,7 +548,7 @@ async def generate_report_background(
                         user_id, report_date, report_type, exc_info=True,
                     )
     except TokenLimitReachedError:
-        # The monthly notice about the used-up allowance is already with the person. The report can be requested again later.
+        # The notice about the used-up allowance is already with the person. The report can be requested again later.
         db.rollback()
         logger.info("Report for user=%d skipped: AI allowance used up", user_id)
     except Exception:

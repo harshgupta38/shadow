@@ -10,7 +10,7 @@ import { UsageRing } from "@/pages/profile/PlanPanel/UsageRing/UsageRing";
 import { ROUTES } from "@/routes/RoutePaths";
 import { formatDisplayDate, istIsoDay } from "@/services/date.service";
 
-// The person's plan and this month's AI allowance, with a way to see every plan.
+// The person's plan and today's AI allowance, with a way to see every plan.
 export function PlanPanel() {
   const dateFormat = useDateFormat();
   const [overview, setOverview] = useState<SubscriptionOverview | null>(null);
@@ -32,10 +32,10 @@ export function PlanPanel() {
   useWakeRefresh(load);
 
   const usedPercent =
-    overview && overview.allowance.monthly_tokens > 0 ? (overview.allowance.used_tokens / overview.allowance.monthly_tokens) * 100 : 0;
+    overview && overview.allowance.daily_tokens > 0 ? (overview.allowance.used_tokens / overview.allowance.daily_tokens) * 100 : 0;
 
   return (
-    <Panel icon={<Stars size={18} />} tone="violet" title="Plan & AI allowance" desc="The AI features you can use each month. Everything else is free.">
+    <Panel icon={<Stars size={18} />} tone="violet" title="Plan & AI allowance" desc="The AI features you can use each day. Everything else is free.">
       {loadFailed && !overview && (
         <p className="small text-body-secondary mb-0">
           Couldn't load your plan.{" "}
@@ -55,7 +55,7 @@ export function PlanPanel() {
                 )}
               </div>
               <span className="small text-body-secondary">
-                {overview.allowance.used_tokens.toLocaleString("en-IN")} of {overview.allowance.monthly_tokens.toLocaleString("en-IN")} AI tokens
+                {overview.allowance.used_tokens.toLocaleString("en-IN")} of {overview.allowance.daily_tokens.toLocaleString("en-IN")} AI tokens
               </span>
             </div>
             <UsageRing percent={usedPercent} />

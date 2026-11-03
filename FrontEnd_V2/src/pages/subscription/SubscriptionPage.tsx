@@ -61,7 +61,7 @@ export function SubscriptionPage() {
     <section className="subscription-page d-flex flex-column gap-3">
       <header>
         <h1 className="h4 mb-1">Plans</h1>
-        <p className="text-body-secondary mb-0">Every plan includes everything in the plans below it, with a bigger monthly AI allowance.</p>
+        <p className="text-body-secondary mb-0">Every plan includes everything in the plans below it, with a bigger daily AI allowance.</p>
       </header>
 
       <div className="surface p-3 d-flex flex-column gap-2">
@@ -71,7 +71,7 @@ export function SubscriptionPage() {
             <span className="small text-body-secondary">Runs until {formatDisplayDate(istIsoDay(overview.expires_at), dateFormat)}</span>
           )}
         </div>
-        <UsageMeter used={allowance.used_tokens} limit={allowance.monthly_tokens} />
+        <UsageMeter used={allowance.used_tokens} limit={allowance.daily_tokens} />
         <p className="small text-body-secondary mb-0">
           Resets on {formatDisplayDate(allowance.resets_on, dateFormat)}.
           {overview.own_api_key && " You're using your own AI key, so its usage isn't counted here."}
@@ -102,7 +102,7 @@ export function SubscriptionPage() {
         title={choosing ? `Subscribe to ${choosing.name}?` : ""}
         message={
           choosing
-            ? `${formatRupees(choosing.price_paise)} for ${overview.plan_duration_days} days. It gives you ${choosing.monthly_tokens.toLocaleString("en-IN")} AI tokens a month.`
+            ? `${formatRupees(choosing.price_paise)} for ${overview.plan_duration_days} days. It gives you ${choosing.daily_tokens.toLocaleString("en-IN")} AI tokens a day.`
             : undefined
         }
         confirmLabel="Subscribe"

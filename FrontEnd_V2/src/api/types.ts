@@ -1861,7 +1861,7 @@ export interface DietCoachResult {
   over_target: boolean;
   ideas: DietCoachIdea[];
   notice: string | null;
-  /** The monthly AI allowance is used up: these ideas came from the food library, not the model. */
+  /** Today's AI allowance is used up: these ideas came from the food library, not the model. */
   ai_limit_reached: boolean;
   disclaimer: string;
 }
@@ -1885,14 +1885,14 @@ export interface DietCoachCurrent {
 export interface SubscriptionPlan {
   code: string;
   name: string;
-  monthly_tokens: number;
+  daily_tokens: number;
   price_paise: number;
   tagline: string;
 }
 
 export interface SubscriptionAllowance {
   used_tokens: number;
-  monthly_tokens: number;
+  daily_tokens: number;
   /** The first day of next month, YYYY-MM-DD. */
   resets_on: string;
 }

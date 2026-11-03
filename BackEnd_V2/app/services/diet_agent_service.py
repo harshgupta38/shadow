@@ -71,7 +71,7 @@ async def ask_llm(
             )
             return response.data, run
         except TokenLimitReachedError as exc:
-            # The person's monthly AI allowance is used up. That is not a provider problem: the caller decides what to show.
+            # The person's AI allowance for today is used up. That is not a provider problem: the caller decides what to show.
             record_run(db, user, agent=agent, status="fallback", summary=content, started=started, error=f"{type(exc).__name__}: {exc}")
             raise
         except Exception as exc:  # a provider problem (incl. timeout) must never block the user

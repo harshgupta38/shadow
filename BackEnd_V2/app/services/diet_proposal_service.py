@@ -229,7 +229,7 @@ def to_response(db: Session, user: UserDBM, proposal: DietProposalDBM) -> Propos
     favourites = diet_food_service.favourite_ids(db, user)
     warnings: list[str] = []
     if payload.get("ai_limit_reached"):
-        warnings.append("Your AI allowance for this month is used up, so this was read with simple rules. Check the amounts before you save.")
+        warnings.append("Your AI allowance for today is used up, so this was read with simple rules. Check the amounts before you save.")
     items: list[ProposalItemResponse] = []
     for raw in payload["items"]:
         candidates: list[FoodResponse] = []

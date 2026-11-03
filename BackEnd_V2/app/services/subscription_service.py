@@ -1,7 +1,7 @@
-"""Plans, the monthly AI allowance and plan purchases.
+"""Plans, the daily AI allowance and plan purchases.
 
 Every AI call made with the app's own keys counts its input and output tokens against the person's allowance for the
-current calendar month (IST). Calls made with the person's own API key are not counted: that key is paid for directly.
+current day (IST). Calls made with the person's own API key are not counted: that key is paid for directly.
 Everything that does not call an AI model is free on every plan.
 
 The plan lives on the user row (plan_code, plan_expires_at), so every account has one and BackOffice can change it with an UPDATE.
@@ -32,10 +32,6 @@ def _now_utc() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def _next_month_start(day: date) -> date:
-    return date(day.year + 1, 1, 1) if day.month == 12 else date(day.year, day.month + 1, 1)
-
-
 def current_plan(user: UserDBM) -> tuple[Plan, datetime | None]:
     """The plan the person is on now, and when a paid plan runs out (None when it never does). A plan that has run out, or a code
     that is not a paid plan (a typo from BackOffice), reads as the free plan, so a bad edit never breaks the account."""
@@ -48,12 +44,11 @@ def current_plan(user: UserDBM) -> tuple[Plan, datetime | None]:
     return (plan, expires_at) if expires_at > _now_utc() else (FREE_PLAN, None)
 
 
-def tokens_used_this_month(db: Session, user_id: int, today: date) -> int:
+def tokens_used_today(db: Session, user_id: int, today: date) -> int:
     used = db.scalar(
         select(func.coalesce(func.sum(DailyUsageDBM.input_tokens + DailyUsageDBM.output_tokens), 0)).where(
             DailyUsageDBM.user_id == user_id,
-            DailyUsageDBM.usage_date >= today.replace(day=1),
-            DailyUsageDBM.usage_date <= today,
+            DailyUsageDBM.usage_date == today,
         )
     )
     return int(used or 0)
@@ -63,7 +58,7 @@ def _plan_response(plan: Plan) -> PlanResponse:
     return PlanResponse(
         code=plan.code,
         name=plan.name,
-        monthly_tokens=plan.monthly_tokens,
+        daily_tokens=plan.daily_tokens,
         price_paise=plan.price_paise,
         tagline=plan.tagline,
     )
@@ -81,9 +76,9 @@ def overview(db: Session, user: UserDBM) -> SubscriptionOverviewResponse:
         plan=_plan_response(plan),
         expires_at=expires_at,
         allowance=AllowanceResponse(
-            used_tokens=tokens_used_this_month(db, user.id, today),
-            monthly_tokens=plan.monthly_tokens,
-            resets_on=_next_month_start(today),
+            used_tokens=tokens_used_today(db, user.id, today),
+            daily_tokens=plan.daily_tokens,
+            resets_on=today + timedelta(days=1),
         ),
         own_api_key=_uses_own_key(db, user.id),
         plans=[_plan_response(option) for option in PLANS],
@@ -93,30 +88,29 @@ def overview(db: Session, user: UserDBM) -> SubscriptionOverviewResponse:
 
 
 def check_ai_allowance(user_id: int) -> None:
-    """Raises TokenLimitReachedError when the person has used up this month's AI allowance. The LLM layer calls this before
-    each AI call made with the app's own keys. The first refusal each month also leaves one notification."""
+    """Raises TokenLimitReachedError when the person has used up today's AI allowance. The LLM layer calls this before
+    each AI call made with the app's own keys. The first refusal each day also leaves one notification."""
     with SessionLocal() as db:
         user = db.get(UserDBM, user_id)
         if user is None:
             return
         today = today_ist()
         plan, _ = current_plan(user)
-        if tokens_used_this_month(db, user_id, today) < plan.monthly_tokens:
+        if tokens_used_today(db, user_id, today) < plan.daily_tokens:
             return
 
-        resets_on = _next_month_start(today)
         hint = " Subscribe under Profile for more." if plan == FREE_PLAN else ""
         notifications_service.create_notification(
             db, user,
-            title=f"Your AI allowance for {today:%B} is used up",
-            body=f"AI features pause until {resets_on:%d %b}. Everything else keeps working.{hint}",
+            title="Your AI allowance for today is used up",
+            body=f"AI features pause until tomorrow. Everything else keeps working.{hint}",
             type="system",
             level=notifications_service.LEVEL_CRITICAL,
             url="/subscription",
-            event_key=f"ai_allowance:{user_id}:{today:%Y-%m}",
+            event_key=f"ai_allowance:{user_id}:{today:%Y-%m-%d}",
             send_email=False,
         )
-        raise TokenLimitReachedError(f"You've used this month's AI allowance. AI features resume on {resets_on:%d %b}.{hint}")
+        raise TokenLimitReachedError(f"You've used today's AI allowance. AI features resume tomorrow.{hint}")
 
 
 def purchase_plan(db: Session, user: UserDBM, plan_code: str) -> SubscriptionOverviewResponse:

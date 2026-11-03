@@ -42,7 +42,7 @@ class ServiceUnavailableError(AppError):
 
 class TokenLimitReachedError(AppError):
     status_code = 402
-    detail = "You've used this month's AI allowance. AI features resume next month, or on a plan with more."
+    detail = "You've used today's AI allowance. AI features resume tomorrow, or on a plan with more."
 
 
 class TooManyRequestsError(AppError):

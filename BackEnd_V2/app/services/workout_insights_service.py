@@ -120,6 +120,7 @@ def overview(db: Session, user: UserDBM, as_of: date | None = None) -> WorkoutOv
             )
         )
 
+    weights = workout_sessions_service.weight_totals(db, [s.id for s in this_week])
     streak, total_sessions = _streak_and_total(db, user.id, start, today)
     return WorkoutOverviewResponse(
         active_plan=workout_plans_service.plan_summary(plan, plan.id) if plan is not None else None,
@@ -127,11 +128,12 @@ def overview(db: Session, user: UserDBM, as_of: date | None = None) -> WorkoutOv
         today_plan_day=workout_plans_service.day_response(plan_day) if plan_day is not None else None,
         is_rest_day=plan is not None and plan_day is None,
         in_progress_session_id=open_today.id if open_today is not None else None,
-        completed_today=workout_sessions_service.session_summary(done_today[0], now) if done_today else None,
+        completed_today=workout_sessions_service.session_summary(done_today[0], now, weights.get(done_today[0].id, (0.0, 0))) if done_today else None,
         week=week,
         sessions_this_week=len(this_week),
         sessions_target=len(plan.days) if plan is not None else 0,
         volume_kg_week=round(sum(s.volume_kg for s in this_week), 1),
+        avg_set_kg_week=workout_sessions_service.average_set_kg(list(weights.values())),
         minutes_week=_minutes(this_week, now),
         muscles_this_week=_muscle_rows(this_week),
         streak_weeks=streak,
@@ -211,6 +213,7 @@ def progress(db: Session, user: UserDBM, weeks: int) -> WorkoutProgressResponse:
     recent = db.execute(
         select(
             WorkoutSessionDBM.session_date,
+            WorkoutSessionDBM.id,
             WorkoutSessionDBM.volume_kg,
             WorkoutSessionDBM.started_at,
             WorkoutSessionDBM.finished_at,
@@ -222,6 +225,7 @@ def progress(db: Session, user: UserDBM, weeks: int) -> WorkoutProgressResponse:
         )
     ).all()
     in_window = [row for row in recent if row.session_date >= first]
+    weights = workout_sessions_service.weight_totals(db, [row.id for row in in_window])
 
     week_rows = []
     for index in range(weeks):
@@ -233,6 +237,7 @@ def progress(db: Session, user: UserDBM, weeks: int) -> WorkoutProgressResponse:
                 week_start=start,
                 sessions=len(inside),
                 volume_kg=round(sum(row.volume_kg for row in inside), 1),
+                avg_set_kg=workout_sessions_service.average_set_kg([weights[row.id] for row in inside if row.id in weights]),
                 minutes=_minutes(inside, now),
             )
         )

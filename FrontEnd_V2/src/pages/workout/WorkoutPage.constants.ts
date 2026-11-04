@@ -126,8 +126,9 @@ export function formatSessionDuration(seconds: number): string {
   return formatDuration(Math.max(1, Math.round(seconds / 60)));
 }
 
-export function formatVolume(kg: number): string {
-  return `${Math.round(kg).toLocaleString("en-IN")} kg`;
+/** The average weight of a set, to one decimal: 15 kg, 12.5 kg. */
+export function formatAvgLoad(kg: number): string {
+  return `${kg.toLocaleString("en-IN", { maximumFractionDigits: 1 })} kg`;
 }
 
 /** "00:07" / "12:34" / "1:02:09" for a running clock. */

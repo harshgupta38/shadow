@@ -8,7 +8,7 @@ import { formatDisplayDate } from "@/services/date.service";
 import { ROUTES } from "@/routes/RoutePaths";
 import { MuscleChips, MuscleLegend, MuscleMap } from "@/pages/workout/MuscleMap/MuscleMap";
 import { SessionExerciseCard } from "@/pages/workout/SessionPage/SessionExerciseCard/SessionExerciseCard";
-import { formatSessionDuration, formatVolume, pluralize, musclesOf } from "@/pages/workout/WorkoutPage.constants";
+import { formatAvgLoad, formatSessionDuration, pluralize, musclesOf } from "@/pages/workout/WorkoutPage.constants";
 import "./SessionSummary.scss";
 
 interface SessionSummaryProps {
@@ -48,7 +48,7 @@ export function SessionSummary({ session, justFinished, deleting = false, onBack
 
       <div className="wk-sum-stats">
         <div><strong>{formatSessionDuration(session.duration_seconds)}</strong><span>time</span></div>
-        <div><strong>{formatVolume(session.volume_kg)}</strong><span>volume</span></div>
+        <div><strong>{session.avg_set_kg !== null ? formatAvgLoad(session.avg_set_kg) : "–"}</strong><span>avg</span></div>
         <div><strong>{session.sets_done}</strong><span>sets done</span></div>
         <div><strong>{trained.length}</strong><span>{trained.length === 1 ? "exercise" : "exercises"}</span></div>
       </div>

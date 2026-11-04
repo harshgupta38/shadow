@@ -40,7 +40,33 @@ def duration_seconds(session: WorkoutSessionDBM, now: datetime) -> int:
     return max(0, int((end - as_utc(session.started_at)).total_seconds()))
 
 
-def session_summary(session: WorkoutSessionDBM, now: datetime) -> WorkoutSessionSummaryResponse:
+WeightTotals = tuple[float, int]  # the summed weight of some sets, and how many sets that is
+
+
+def weight_totals(db: Session, session_ids: list[int]) -> dict[int, WeightTotals]:
+    """Per workout, the weight and the count of its done strength sets that carry a weight (a bodyweight set has no load to average)."""
+    if not session_ids:
+        return {}
+    rows = db.execute(
+        select(WorkoutSessionExerciseDBM.session_id, WorkoutSessionExerciseDBM.sets)
+        .join(WorkoutExerciseDBM, WorkoutExerciseDBM.id == WorkoutSessionExerciseDBM.exercise_id)
+        .where(WorkoutSessionExerciseDBM.session_id.in_(session_ids), WorkoutExerciseDBM.kind == "strength")
+    ).all()
+    totals: dict[int, WeightTotals] = {}
+    for session_id, sets in rows:
+        weights = [s["weight_kg"] for s in sets if s["done"] and (s["weight_kg"] or 0) > 0]
+        total, count = totals.get(session_id, (0.0, 0))
+        totals[session_id] = (total + sum(weights), count + len(weights))
+    return totals
+
+
+def average_set_kg(totals: list[WeightTotals]) -> float | None:
+    """The average weight over all the sets in these totals, or None when none of them carried a weight."""
+    count = sum(c for _, c in totals)
+    return round(sum(w for w, _ in totals) / count, 1) if count > 0 else None
+
+
+def session_summary(session: WorkoutSessionDBM, now: datetime, weights: WeightTotals = (0.0, 0)) -> WorkoutSessionSummaryResponse:
     return WorkoutSessionSummaryResponse(
         id=session.id,
         name=session.name,
@@ -51,6 +77,7 @@ def session_summary(session: WorkoutSessionDBM, now: datetime) -> WorkoutSession
         exercise_count=session.exercise_count,
         sets_done=session.sets_done,
         volume_kg=session.volume_kg,
+        avg_set_kg=average_set_kg([weights]),
         muscles=session.muscles,
     )
 
@@ -90,7 +117,7 @@ def _session_detail(db: Session, session: WorkoutSessionDBM, now: datetime) -> W
         )
 
     return WorkoutSessionDetailResponse(
-        **session_summary(session, now).model_dump(),
+        **session_summary(session, now, weight_totals(db, [session.id]).get(session.id, (0.0, 0))).model_dump(),
         plan_id=session.plan_id,
         plan_day_id=session.plan_day_id,
         started_at=as_utc(session.started_at),
@@ -296,7 +323,8 @@ def list_sessions(db: Session, user: UserDBM, limit: int, offset: int) -> list[W
         .limit(limit)
     ).all()
     now = now_utc()
-    return [session_summary(row, now) for row in rows]
+    totals = weight_totals(db, [row.id for row in rows])
+    return [session_summary(row, now, totals.get(row.id, (0.0, 0))) for row in rows]
 
 
 def get_session(db: Session, user: UserDBM, session_id: int) -> WorkoutSessionDetailResponse:

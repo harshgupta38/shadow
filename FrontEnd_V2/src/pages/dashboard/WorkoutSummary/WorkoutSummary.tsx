@@ -7,10 +7,9 @@ import {
   dayLink,
   muscleFocus,
   sessionPath,
-  volumeLabel,
 } from "@/pages/dashboard/WorkoutSummary/WorkoutSummary.constants";
 import { MuscleChips, MuscleMap } from "@/pages/workout/MuscleMap/MuscleMap";
-import { MUSCLE_LABEL, WEEKDAY_LONG, pluralize } from "@/pages/workout/WorkoutPage.constants";
+import { MUSCLE_LABEL, WEEKDAY_LONG, formatAvgLoad, pluralize } from "@/pages/workout/WorkoutPage.constants";
 import { ROUTES } from "@/routes/RoutePaths";
 import { useDateFormat } from "@/context/PlannerContext";
 import { dayHeading } from "@/pages/dashboard/DashboardPage.constants";
@@ -92,8 +91,8 @@ export function WorkoutSummary({ overview, snapshot = false }: WorkoutSummaryPro
                 <>
                   <h3 className="dp-report-headline"><CheckCircleFill size={18} className="dp-wk-done-icon" /> {overview.completed_today.name} done</h3>
                   <p className="dp-report-summary">
-                    {formatDuration(Math.max(1, Math.round(overview.completed_today.duration_seconds / 60)))} · {pluralize(overview.completed_today.sets_done, "set")} ·{" "}
-                    {volumeLabel(overview.completed_today.volume_kg)} lifted
+                    {formatDuration(Math.max(1, Math.round(overview.completed_today.duration_seconds / 60)))} · {pluralize(overview.completed_today.sets_done, "set")}
+                    {overview.completed_today.avg_set_kg !== null && ` · ${formatAvgLoad(overview.completed_today.avg_set_kg)} avg`}
                   </p>
                   <MuscleChips primary={overview.completed_today.muscles} max={4} />
                 </>

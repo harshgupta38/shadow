@@ -11,12 +11,6 @@ export function sessionPath(sessionId: number): string {
   return ROUTES.WORKOUT_SESSION.replace(":sessionId", String(sessionId));
 }
 
-/** Kilograms lifted as the number a person would say: 8,400 kg is "8.4 t". */
-export function volumeLabel(kg: number): string {
-  if (kg >= 1000) return `${(kg / 1000).toLocaleString("en-IN", { maximumFractionDigits: 1 })} t`;
-  return `${Math.round(kg).toLocaleString("en-IN")} kg`;
-}
-
 export interface MuscleFocus {
   /** The most worked muscles, lit as "primary" on the body diagram. */
   primary: MuscleId[];

@@ -1415,6 +1415,7 @@ export interface WorkoutSessionSummary {
   exercise_count: number;
   sets_done: number;
   volume_kg: number;
+  avg_set_kg: number | null; // the average weight of the sets; null when none carried a weight
   muscles: MuscleId[];
 }
 
@@ -1470,6 +1471,7 @@ export interface WorkoutOverview {
   sessions_this_week: number;
   sessions_target: number;
   volume_kg_week: number;
+  avg_set_kg_week: number | null; // the average weight over every set of the week
   minutes_week: number;
   muscles_this_week: MuscleSets[];
   streak_weeks: number; // consecutive weeks with a workout, counted back from this one
@@ -1480,6 +1482,7 @@ export interface WorkoutProgressWeek {
   week_start: string; // Sunday, "YYYY-MM-DD"
   sessions: number;
   volume_kg: number;
+  avg_set_kg: number | null; // the average weight over every set of the week
   minutes: number;
 }
 

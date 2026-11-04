@@ -29,7 +29,7 @@ import {
   WEEKDAY_SHORT,
   formatDose,
   formatSessionDuration,
-  formatVolume,
+  formatAvgLoad,
   pluralize,
   musclesOf,
   workingSetCount,
@@ -234,7 +234,8 @@ export function TodayTab() {
               <div>
                 <strong>Nicely done. Today's workout is complete.</strong>
                 <span>
-                  {formatSessionDuration(done.duration_seconds)} · {formatVolume(done.volume_kg)} · {pluralize(done.sets_done, "set")}
+                  {formatSessionDuration(done.duration_seconds)} · {pluralize(done.sets_done, "set")}
+                  {done.avg_set_kg !== null && ` · ${formatAvgLoad(done.avg_set_kg)} avg`}
                 </span>
               </div>
               <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => openSession(done.id)}>
@@ -343,7 +344,7 @@ export function TodayTab() {
                 <span style={{ width: `${progressPct}%` }} />
               </div>
             </div>
-            <div className="wk-stat"><strong>{formatVolume(data.volume_kg_week)}</strong><span>lifted</span></div>
+            <div className="wk-stat"><strong>{data.avg_set_kg_week !== null ? formatAvgLoad(data.avg_set_kg_week) : "–"}</strong><span>avg</span></div>
             <div className="wk-stat"><strong>{formatDuration(data.minutes_week)}</strong><span>training</span></div>
           </div>
         </section>

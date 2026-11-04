@@ -13,7 +13,7 @@ import { ExerciseThumb } from "@/pages/workout/ExerciseThumb/ExerciseThumb";
 import { MuscleBars } from "@/pages/workout/MuscleBars/MuscleBars";
 import { MuscleChips } from "@/pages/workout/MuscleMap/MuscleMap";
 import { WorkoutSkeleton } from "@/pages/workout/WorkoutSkeleton/WorkoutSkeleton";
-import { formatSessionDuration, formatVolume, pluralize } from "@/pages/workout/WorkoutPage.constants";
+import { formatAvgLoad, formatSessionDuration, pluralize } from "@/pages/workout/WorkoutPage.constants";
 import "./HistoryTab.scss";
 
 const PAGE = 15;
@@ -21,26 +21,27 @@ const PAGE = 15;
 type Metric = "volume" | "sessions" | "minutes";
 
 const METRICS: { id: Metric; label: string }[] = [
-  { id: "volume", label: "Volume" },
+  { id: "volume", label: "Avg load" },
   { id: "sessions", label: "Sessions" },
   { id: "minutes", label: "Time" },
 ];
 
+// The load is shown as the average weight of a set, never as the week's total.
 const valueOf = (w: WorkoutProgressWeek, metric: Metric) =>
-  metric === "volume" ? w.volume_kg : metric === "sessions" ? w.sessions : w.minutes;
+  metric === "volume" ? (w.avg_set_kg ?? 0) : metric === "sessions" ? w.sessions : w.minutes;
 
 // Short labels that still fit eight columns on a phone.
 function compact(value: number, metric: Metric): string {
   if (value === 0) return "–";
   if (metric === "sessions") return String(value);
   if (metric === "minutes") return value < 60 ? `${value}m` : `${(value / 60).toFixed(1)}h`;
-  return value >= 1000 ? `${(value / 1000).toFixed(1)}k` : String(Math.round(value));
+  return value >= 1000 ? `${(value / 1000).toFixed(1)}k` : String(Math.round(value * 10) / 10);
 }
 
 function full(value: number, metric: Metric): string {
   if (metric === "sessions") return pluralize(value, "session");
   if (metric === "minutes") return formatDuration(value);
-  return formatVolume(value);
+  return `${formatAvgLoad(value)} avg`;
 }
 
 const weekLabel = (iso: string) =>
@@ -184,7 +185,7 @@ export function HistoryTab() {
                         </span>
                         <span className="wk-log-stats">
                           <strong>{formatSessionDuration(s.duration_seconds)}</strong>
-                          <small>{formatVolume(s.volume_kg)} · {pluralize(s.sets_done, "set")}</small>
+                          <small>{s.avg_set_kg !== null && `${formatAvgLoad(s.avg_set_kg)} avg · `}{pluralize(s.sets_done, "set")}</small>
                         </span>
                       </button>
                     </li>

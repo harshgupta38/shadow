@@ -241,6 +241,7 @@ class WorkoutSessionSummaryResponse(BaseModel):
     exercise_count: int
     sets_done: int
     volume_kg: float
+    avg_set_kg: float | None  # the average weight of the sets; None when none carried a weight
     muscles: list[MuscleId]
 
 
@@ -280,6 +281,7 @@ class WorkoutOverviewResponse(BaseModel):
     sessions_this_week: int
     sessions_target: int
     volume_kg_week: float
+    avg_set_kg_week: float | None  # the average weight over every set of the week
     minutes_week: int
     muscles_this_week: list[MuscleSetsResponse]
     streak_weeks: int  # consecutive weeks with a workout, counted back from this one
@@ -290,6 +292,7 @@ class WorkoutProgressWeekResponse(BaseModel):
     week_start: date
     sessions: int
     volume_kg: float
+    avg_set_kg: float | None  # the average weight over every set of the week
     minutes: int
 
 

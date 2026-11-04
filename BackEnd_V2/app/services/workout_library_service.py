@@ -10,7 +10,14 @@ from app.core.exceptions import NotFoundError
 from app.models.workout_exercise import WorkoutExerciseDBM
 from app.models.workout_session import WorkoutSessionDBM
 from app.models.workout_session_exercise import WorkoutSessionExerciseDBM
-from app.schemas.workout import ExerciseDetailResponse, ExercisePerformanceResponse, ExerciseSummaryResponse
+from app.schemas.workout import (
+    ExerciseDetailResponse,
+    ExercisePerformanceResponse,
+    ExerciseSummaryResponse,
+    WarmUpItemResponse,
+    WarmUpRoutineResponse,
+)
+from app.services.workout_calc_service import timed_amount, warm_up_seconds
 from app.services.workout_media_service import media_url, thumbnail_url
 
 _HISTORY_SCAN_LIMIT = 20  # recent entries inspected when looking for one with done sets
@@ -183,6 +190,45 @@ def warm_ups_for(db: Session, lifts: Iterable[WorkoutExerciseDBM]) -> list[Exerc
                 seen.add(item.id)
                 warm_ups.append(item)
     return warm_ups
+
+
+_ROUTINE_CARDIO_MINUTES = 5  # a pulse-raiser, not a cardio session
+_ROUTINE_DRILLS = 5
+
+
+def _routine_dose(item: ExerciseSummaryResponse) -> tuple[int, str]:
+    """The library's own dose, except that a timed cardio block is cut to the length of a warm-up."""
+    minutes = timed_amount(item.default_reps, "min")
+    if item.kind == "cardio" and minutes is not None:
+        return 1, f"{min(minutes, _ROUTINE_CARDIO_MINUTES)} min"
+    return item.default_sets, item.default_reps
+
+
+def warm_up_routine_for(db: Session, lifts: Iterable[WorkoutExerciseDBM], skip_ids: Iterable[int] = ()) -> WarmUpRoutineResponse:
+    """A short warm-up to do before a day's lifts: one cardio pulse-raiser, then a few drills. Each lift contributes its own
+    picks (see _warm_up_with) and an item that prepares more of the day's lifts ranks higher. Dynamic drills come before
+    static holds, which are a poor fit before lifting. Ties keep the lifts' order."""
+    skip = set(skip_ids)
+    cardio_votes: dict[int, int] = {}
+    drill_votes: dict[int, int] = {}
+    items: dict[int, ExerciseSummaryResponse] = {}
+    for lift in lifts:
+        for item in _warm_up_with(db, lift):
+            if item.id in skip:
+                continue
+            votes = cardio_votes if item.kind == "cardio" else drill_votes
+            votes[item.id] = votes.get(item.id, 0) + 1
+            items.setdefault(item.id, item)
+
+    cardio = sorted(cardio_votes, key=lambda item_id: -cardio_votes[item_id])[:1]
+    drills = sorted(drill_votes, key=lambda item_id: (items[item_id].measure == "seconds", -drill_votes[item_id]))[:_ROUTINE_DRILLS]
+
+    routine: list[WarmUpItemResponse] = []
+    for item_id in cardio + drills:
+        sets, reps = _routine_dose(items[item_id])
+        routine.append(WarmUpItemResponse(exercise=items[item_id], sets=sets, reps=reps))
+    seconds = sum(warm_up_seconds(entry.sets, entry.reps) for entry in routine)
+    return WarmUpRoutineResponse(estimated_minutes=int(seconds / 60 + 0.5) if routine else 0, items=routine)
 
 
 def get_exercise(db: Session, user_id: int, exercise_id: int) -> ExerciseDetailResponse:

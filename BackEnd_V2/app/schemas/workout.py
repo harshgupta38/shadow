@@ -150,6 +150,17 @@ class ExerciseDetailResponse(ExerciseSummaryResponse):
     good_warm_up_for: list[ExerciseSummaryResponse]
 
 
+class WarmUpItemResponse(BaseModel):
+    exercise: ExerciseSummaryResponse
+    sets: int
+    reps: str
+
+
+class WarmUpRoutineResponse(BaseModel):
+    estimated_minutes: int
+    items: list[WarmUpItemResponse]
+
+
 # ── Plans ─────────────────────────────────────────────────────────────────────
 
 

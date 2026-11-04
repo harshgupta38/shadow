@@ -139,6 +139,7 @@ export const ENDPOINTS = {
         PLAN_ACTIVATE: (id: number) => `/plans/${id}/activate`,
         PLAN_DUPLICATE: (id: number) => `/plans/${id}/duplicate`,
         PLAN_DAY_WARM_UPS: (planId: number, weekday: number) => `/plans/${planId}/days/${weekday}/warm-ups`,
+        PLAN_DAY_WARM_UP_ROUTINE: (planId: number, weekday: number) => `/plans/${planId}/days/${weekday}/warm-up-routine`,
         PLAN_DEACTIVATE: "/plans/deactivate",
         SESSIONS: "/sessions",
         SESSION: (id: number) => `/sessions/${id}`,

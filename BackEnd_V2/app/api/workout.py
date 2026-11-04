@@ -10,6 +10,7 @@ from app.schemas.workout import (
     PlanSource,
     SessionSaveRequest,
     SessionStartRequest,
+    WarmUpRoutineResponse,
     WorkoutOverviewResponse,
     WorkoutPlanDetailResponse,
     WorkoutPlanSaveRequest,
@@ -118,6 +119,16 @@ def plan_day_warm_ups(
     current_user: UserDBM = Depends(get_current_user),
 ) -> list[ExerciseSummaryResponse]:
     return workout_plans_service.day_warm_ups(db, current_user, plan_id, weekday)
+
+
+@router.get(ENDPOINTS.WORKOUT.PLAN_DAY_WARM_UP_ROUTINE, response_model=WarmUpRoutineResponse)
+def plan_day_warm_up_routine(
+    plan_id: int,
+    weekday: int,
+    db=Depends(get_db),
+    current_user: UserDBM = Depends(get_current_user),
+) -> WarmUpRoutineResponse:
+    return workout_plans_service.day_warm_up_routine(db, current_user, plan_id, weekday)
 
 
 @router.put(ENDPOINTS.WORKOUT.PLAN_DETAIL, response_model=WorkoutPlanDetailResponse)

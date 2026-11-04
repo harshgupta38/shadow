@@ -1,0 +1,213 @@
+.wk-wu {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  padding: 1rem 1.1rem;
+  transition: border-color 160ms;
+
+  &.is-active { border-color: var(--jv-brand-1); }
+
+  &.is-done {
+    border-color: var(--jv-success);
+
+    .wk-wu-eyebrow,
+    .wk-wu-sub svg { color: var(--jv-success); }
+    .wk-wu-bar span { background: var(--jv-success); }
+  }
+}
+
+// ── Header ───────────────────────────────────────────────────────────────────
+
+.wk-wu-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+}
+
+.wk-wu-heading { flex: 1 1 220px; min-width: 0; }
+
+.wk-wu-eyebrow {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--jv-warn);
+}
+
+.wk-wu-title {
+  margin: 0.1rem 0 0;
+  font-family: var(--jv-font-display);
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--jv-text);
+}
+
+.wk-wu-sub {
+  margin: 0.2rem 0 0;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+  font-size: 0.82rem;
+  color: var(--jv-muted);
+}
+
+.wk-wu-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.6rem 1.3rem;
+  font-weight: 700;
+
+  @media (max-width: 560px) { width: 100%; justify-content: center; }
+}
+
+.wk-wu-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  white-space: nowrap;
+}
+
+// Grey like any outline button, red only on hover: it throws the progress away.
+.wk-wu-discard:hover:not(:disabled) {
+  --bs-btn-hover-bg: var(--jv-danger-soft);
+  --bs-btn-hover-border-color: var(--jv-danger);
+  --bs-btn-hover-color: var(--jv-danger);
+}
+
+.wk-wu-bar {
+  flex: 1 1 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--jv-surface-3);
+  overflow: hidden;
+
+  span { display: block; height: 100%; border-radius: 3px; background: var(--jv-brand-gradient); transition: width 400ms var(--jv-ease); }
+}
+
+// ── Exercises ────────────────────────────────────────────────────────────────
+
+.wk-wu-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.wk-wu-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: center;
+  gap: 0.5rem;
+
+  &.has-tick { grid-template-columns: 38px minmax(0, 1fr); }
+
+  &.is-ticked .wk-wu-open {
+    opacity: 0.6;
+    border-color: var(--jv-success);
+
+    .wk-wu-name { text-decoration: line-through; text-decoration-color: var(--jv-faint); }
+  }
+}
+
+.wk-wu-open {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.45rem 0.7rem 0.45rem 0.45rem;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  border: 1px solid var(--jv-border);
+  border-radius: 12px;
+  background: var(--jv-surface);
+  cursor: pointer;
+  transition: border-color 140ms, background 140ms, opacity 140ms;
+
+  &:hover { border-color: var(--jv-border-strong); background: var(--jv-surface-2); }
+  &:focus-visible { outline: none; box-shadow: var(--jv-ring); }
+}
+
+.wk-wu-thumb {
+  width: 56px;
+  height: 46px;
+  border-radius: 9px;
+  overflow: hidden;
+  border: 1px solid var(--jv-border);
+}
+
+.wk-wu-info { display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; }
+.wk-wu-name { font-size: 0.88rem; font-weight: 700; color: var(--jv-text); }
+
+.wk-wu-dose {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+
+  strong { font-size: 0.92rem; font-weight: 800; color: var(--jv-text); white-space: nowrap; }
+  small { font-size: 0.7rem; color: var(--jv-muted); }
+}
+
+.wk-wu-tick {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--jv-border-strong);
+  border-radius: 50%;
+  background: var(--jv-surface);
+  color: var(--jv-faint);
+  cursor: pointer;
+  transition: background 140ms, color 140ms, border-color 140ms, transform 100ms;
+
+  &:hover { color: var(--jv-success); border-color: var(--jv-success); }
+  &:active { transform: scale(0.92); }
+  &:focus-visible { outline: none; box-shadow: var(--jv-ring); }
+
+  &.is-on {
+    color: #fff;
+    background: var(--jv-success);
+    border-color: var(--jv-success);
+  }
+
+  // The warm-up is finished: the ticks are a record now, not controls.
+  &.is-static {
+    cursor: default;
+    &:hover { color: var(--jv-faint); border-color: var(--jv-border-strong); }
+    &:active { transform: none; }
+    &.is-on:hover { color: #fff; border-color: var(--jv-success); }
+  }
+}
+
+// On a phone the kind label goes, so the exercise name has room to breathe.
+@media (max-width: 560px) {
+  .wk-wu-row.has-tick { grid-template-columns: 34px minmax(0, 1fr); gap: 0.4rem; }
+  .wk-wu-tick { width: 34px; height: 34px; }
+  .wk-wu-open { grid-template-columns: 48px minmax(0, 1fr) auto; gap: 0.55rem; }
+  .wk-wu-thumb { width: 48px; height: 40px; }
+  .wk-wu-dose small { display: none; }
+}
+
+.wk-wu-tip { margin: 0; font-size: 0.8rem; line-height: 1.5; color: var(--jv-muted); }
+
+// ── Done and skipped ─────────────────────────────────────────────────────────
+
+.wk-wu--note {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 0.8rem 1.1rem;
+
+  p { flex: 1 1 240px; margin: 0; font-size: 0.84rem; line-height: 1.5; color: var(--jv-muted); }
+}

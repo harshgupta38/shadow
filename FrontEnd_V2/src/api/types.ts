@@ -1270,6 +1270,18 @@ export interface ExerciseDetail extends ExerciseSummary {
   good_warm_up_for: ExerciseSummary[]; // cardio and drills: the lifts they prepare
 }
 
+export interface WarmUpItem {
+  exercise: ExerciseSummary;
+  sets: number;
+  reps: string; // the dose for a warm-up: a cardio block is cut to 5 min
+}
+
+/** The short warm-up before a plan day: one cardio pulse-raiser, then a few drills. */
+export interface WarmUpRoutine {
+  estimated_minutes: number;
+  items: WarmUpItem[];
+}
+
 interface PlanExercise {
   id: number | null; // null for rows not saved yet (builder)
   exercise: ExerciseSummary;

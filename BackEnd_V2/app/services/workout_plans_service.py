@@ -21,12 +21,13 @@ from app.schemas.workout import (
     PlanExerciseInput,
     PlanExerciseResponse,
     PlanSource,
+    WarmUpRoutineResponse,
     WorkoutPlanDetailResponse,
     WorkoutPlanSaveRequest,
     WorkoutPlanSummaryResponse,
 )
 from app.services.workout_calc_service import SECONDARY_CREDIT, TIMED_REPS, estimate_minutes, timed_amount
-from app.services.workout_library_service import exercise_summary, warm_ups_for
+from app.services.workout_library_service import exercise_summary, warm_up_routine_for, warm_ups_for
 
 _PLAN_NAME_MAX = 80
 _COPY_SUFFIX = " (copy)"
@@ -219,6 +220,15 @@ def day_warm_ups(db: Session, user: UserDBM, plan_id: int, weekday: int) -> list
     if day is None:
         raise NotFoundError("This plan has no workout on that day.")
     return warm_ups_for(db, [entry.exercise for entry in day.exercises])
+
+
+def day_warm_up_routine(db: Session, user: UserDBM, plan_id: int, weekday: int) -> WarmUpRoutineResponse:
+    """The short warm-up to do before a plan day starts. Anything already planned for that day is left out of it."""
+    plan = _visible(db, user, plan_id)
+    day = next((d for d in plan.days if d.weekday == weekday), None)
+    if day is None:
+        raise NotFoundError("This plan has no workout on that day.")
+    return warm_up_routine_for(db, [entry.exercise for entry in day.exercises], skip_ids=[entry.exercise_id for entry in day.exercises])
 
 
 def create_plan(db: Session, user: UserDBM, data: WorkoutPlanSaveRequest) -> WorkoutPlanDetailResponse:

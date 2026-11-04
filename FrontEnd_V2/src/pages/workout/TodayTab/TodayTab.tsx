@@ -17,9 +17,12 @@ import { IllustratedErrorState } from "@/components/ui/IllustratedErrorState/Ill
 import { useToast } from "@/context/ToastContext";
 import { ROUTES } from "@/routes/RoutePaths";
 import { formatDuration } from "@/services/date.service";
+import { ExerciseDetailModal } from "@/pages/workout/ExerciseDetailModal/ExerciseDetailModal";
 import { ExerciseThumb } from "@/pages/workout/ExerciseThumb/ExerciseThumb";
 import { MuscleBars } from "@/pages/workout/MuscleBars/MuscleBars";
 import { MuscleChips, MuscleLegend, MuscleMap } from "@/pages/workout/MuscleMap/MuscleMap";
+import { WarmUpCard } from "@/pages/workout/TodayTab/WarmUpCard/WarmUpCard";
+import { useWarmUp } from "@/pages/workout/TodayTab/WarmUpCard/useWarmUp";
 import { WorkoutSkeleton } from "@/pages/workout/WorkoutSkeleton/WorkoutSkeleton";
 import {
   WEEKDAY_LONG,
@@ -32,10 +35,6 @@ import {
   workingSetCount,
 } from "@/pages/workout/WorkoutPage.constants";
 import "./TodayTab.scss";
-
-interface TodayTabProps {
-  onOpenExercise: (id: number) => void;
-}
 
 const STATUS_LABEL: Record<WorkoutWeekDay["status"], string> = {
   done: "Done",
@@ -53,7 +52,7 @@ function StatusIcon({ status }: { status: WorkoutWeekDay["status"] }) {
   return <MoonStarsFill size={13} aria-hidden="true" />;
 }
 
-export function TodayTab({ onOpenExercise }: TodayTabProps) {
+export function TodayTab() {
   const navigate = useNavigate();
   const toast = useToast();
 
@@ -63,6 +62,8 @@ export function TodayTab({ onOpenExercise }: TodayTabProps) {
   const [starting, setStarting] = useState(false);
   const [stopping, setStopping] = useState(false);
   const [confirmStop, setConfirmStop] = useState(false);
+  const [confirmSkipWarmUp, setConfirmSkipWarmUp] = useState(false);
+  const [detailId, setDetailId] = useState<number | null>(null); // the exercise shown in the details popup
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -83,6 +84,14 @@ export function TodayTab({ onOpenExercise }: TodayTabProps) {
   const day = data?.today_plan_day ?? null;
   const dayMuscles = useMemo(() => musclesOf(day?.exercises ?? []), [day]);
 
+  // A warm-up is offered only while today's workout is still ahead of the user.
+  const warmUp = useWarmUp({
+    enabled: data !== null && day !== null && data.completed_today === null && data.in_progress_session_id === null,
+    planId: data?.active_plan?.id ?? null,
+    weekday: day?.weekday ?? null,
+    date: data?.today_date ?? "",
+  });
+
   const openSession = (id: number) => navigate(ROUTES.WORKOUT_SESSION.replace(":sessionId", String(id)));
 
   async function start(planDayId: number | null, name: string | null) {
@@ -94,6 +103,12 @@ export function TodayTab({ onOpenExercise }: TodayTabProps) {
       toast.error(err instanceof ApiError ? err.message : "Couldn't start the workout. Please try again.");
       setStarting(false);
     }
+  }
+
+  // Starting before the warm-up is done asks first. It is a nudge, never a block: some people have already warmed up.
+  function startToday(planDay: { id: number | null; name: string }) {
+    if (warmUp.pending) setConfirmSkipWarmUp(true);
+    else void start(planDay.id, planDay.name);
   }
 
   async function stopFollowing(planName: string) {
@@ -186,6 +201,7 @@ export function TodayTab({ onOpenExercise }: TodayTabProps) {
     <div className="wk-today-grid">
       <div className="wk-today-main">
         {resumeBanner}
+        {day && <WarmUpCard warmUp={warmUp} dayName={day.name} onOpenExercise={setDetailId} />}
         {/* Today's session */}
         <section className="surface wk-today-card">
           <header className="wk-today-head">
@@ -202,9 +218,9 @@ export function TodayTab({ onOpenExercise }: TodayTabProps) {
             {day && !done && (
               <button
                 type="button"
-                className="btn btn-brand wk-today-cta"
+                className={`btn ${warmUp.pending ? "btn-soft" : "btn-brand"} wk-today-cta`}
                 disabled={starting}
-                onClick={() => (data.in_progress_session_id ? openSession(data.in_progress_session_id) : void start(day.id, day.name))}
+                onClick={() => (data.in_progress_session_id ? openSession(data.in_progress_session_id) : startToday(day))}
               >
                 <PlayFill size={18} />
                 {starting ? "Starting…" : data.in_progress_session_id ? "Resume workout" : "Start workout"}
@@ -231,7 +247,7 @@ export function TodayTab({ onOpenExercise }: TodayTabProps) {
             <ul className="wk-today-list">
               {day.exercises.map((pe, i) => (
                 <li key={pe.id ?? `${pe.exercise.id}-${i}`}>
-                  <button type="button" className="wk-today-ex" onClick={() => onOpenExercise(pe.exercise.id)}>
+                  <button type="button" className="wk-today-ex" onClick={() => setDetailId(pe.exercise.id)}>
                     <span className="wk-today-ex-thumb">
                       <ExerciseThumb exercise={pe.exercise} imageUrl={pe.exercise.image_url} mapSize="xs" />
                     </span>
@@ -285,6 +301,23 @@ export function TodayTab({ onOpenExercise }: TodayTabProps) {
             ))}
           </div>
         </section>
+        <ExerciseDetailModal exerciseId={detailId} onClose={() => setDetailId(null)} />
+        <ConfirmDialog
+          show={confirmSkipWarmUp}
+          title="Skip your warm-up?"
+          message={`A warm-up gets your blood flowing and loosens your joints, which helps prevent cramps and injury. It takes about ${warmUp.routine?.estimated_minutes ?? 5} minutes.`}
+          confirmLabel="Start workout anyway"
+          cancelLabel={warmUp.phase === "active" ? "Keep warming up" : "Warm up first"}
+          onConfirm={() => {
+            setConfirmSkipWarmUp(false);
+            warmUp.skip();
+            if (day) void start(day.id, day.name);
+          }}
+          onCancel={() => {
+            setConfirmSkipWarmUp(false);
+            if (warmUp.phase === "idle") warmUp.start();
+          }}
+        />
         <ConfirmDialog
           show={confirmStop}
           title={`Stop following "${activePlan.name}"?`}

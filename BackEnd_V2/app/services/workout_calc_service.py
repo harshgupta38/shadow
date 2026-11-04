@@ -7,6 +7,8 @@ from datetime import date, timedelta
 SECONDS_PER_SET = 45  # rough time under the bar for one set; the builder's live estimate uses the same number
 SETUP_MINUTES = 5  # warm-up and changeover allowance per session
 SECONDARY_CREDIT = 0.5  # a secondary muscle earns half a set for each set of the exercise
+WARM_UP_REP_SET_SECONDS = 40  # one set of warm-up reps, including moving into position
+WARM_UP_POSITIONING_SECONDS = 10  # moving into position for a timed warm-up item
 TIMED_REPS = re.compile(r"(\d+)\s*(min|sec)\b")  # a timed dose such as "20 min" or "30 sec" names the time for one set
 
 
@@ -24,6 +26,13 @@ def _seconds_per_set(reps: str) -> int:
     if not match:
         return SECONDS_PER_SET
     return int(match.group(1)) * (60 if match.group(2) == "min" else 1)
+
+
+def warm_up_seconds(sets: int, reps: str) -> int:
+    """Rough time for one warm-up item. A timed dose takes its time plus a moment to get into position; a set of reps takes about 40 seconds."""
+    if TIMED_REPS.search(reps) is None:
+        return sets * WARM_UP_REP_SET_SECONDS
+    return sets * (_seconds_per_set(reps) + WARM_UP_POSITIONING_SECONDS)
 
 
 def timed_amount(dose: str, unit: str) -> int | None:

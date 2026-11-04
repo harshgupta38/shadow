@@ -5,6 +5,7 @@ import type {
   ExerciseSummary,
   SessionSaveRequest,
   SessionStartRequest,
+  WarmUpRoutine,
   WorkoutOverview,
   WorkoutPlanDetail,
   WorkoutPlanSaveRequest,
@@ -48,6 +49,10 @@ export const workoutApi = {
 
   getPlanDayWarmUps(planId: number, weekday: number): Promise<ExerciseSummary[]> {
     return http.get<ExerciseSummary[]>(url(W.PLAN_DAY_WARM_UPS(planId, weekday)));
+  },
+
+  getPlanDayWarmUpRoutine(planId: number, weekday: number): Promise<WarmUpRoutine> {
+    return http.get<WarmUpRoutine>(url(W.PLAN_DAY_WARM_UP_ROUTINE(planId, weekday)));
   },
 
   createPlan(data: WorkoutPlanSaveRequest): Promise<WorkoutPlanDetail> {

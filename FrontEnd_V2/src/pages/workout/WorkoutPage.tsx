@@ -59,7 +59,7 @@ export function WorkoutPage() {
       </div>
 
       <div id="wk-tabpanel" role="tabpanel" aria-labelledby={`wk-tab-${tab}`}>
-        {tab === "today" && <TodayTab onOpenExercise={openExercise} />}
+        {tab === "today" && <TodayTab />}
         {tab === "plans" && <PlansTab />}
         {tab === "exercises" && <ExercisesTab onOpenExercise={openExercise} />}
         {tab === "history" && <HistoryTab />}

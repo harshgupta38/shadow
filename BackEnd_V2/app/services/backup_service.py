@@ -16,10 +16,12 @@ log = logging.getLogger("uvicorn.error")
 
 _BACKUP_GLOB = "shadow-*.db"
 
-# Excluded from every backup: large, cheaply-regenerable-on-request data (TTS audio
-# blobs) isn't worth carrying in every snapshot — losing it just means a user's
-# next "Listen" click re-generates it for a few cents.
-_EXCLUDED_TABLES = ("daily_brief_audio",)
+# Excluded from every backup: large data that is cheap to regenerate isn't worth
+# carrying in every snapshot.
+# - daily_brief_audio: TTS blobs; a user's next "Listen" click re-generates them for a few cents.
+# - workout_exercises: the predefined exercise library; workout_seed_service.sync_seed
+#   rebuilds it from exercise_library.json on the next BackEnd_V2 start.
+_EXCLUDED_TABLES = ("daily_brief_audio", "workout_exercises")
 
 
 def _strip_excluded_tables(conn: sqlite3.Connection) -> None:

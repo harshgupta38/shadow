@@ -48,9 +48,9 @@ _DELETED_USER_BACKUP_RE = re.compile(r"^deleted-user-.+-(\d{8})-(\d{6})\d{3}\.db
 _LABEL_UNSAFE_RE = re.compile(r"[^A-Za-z0-9._-]")
 
 # Same exclusion as BackEnd_V2's backup_service.py — large, cheaply
-# regenerable-on-request TTS audio blobs aren't worth carrying in every
-# snapshot this app creates either.
-_EXCLUDED_TABLES = ("daily_brief_audio",)
+# regenerable data (TTS audio blobs, the seeded exercise library) isn't worth
+# carrying in every snapshot this app creates either. Keep the two lists in sync.
+_EXCLUDED_TABLES = ("daily_brief_audio", "workout_exercises")
 
 _IST = timezone(timedelta(hours=5, minutes=30))
 

@@ -22,8 +22,9 @@ const url = (path: string) => `${W.PREFIX}${path}`;
 
 export const workoutApi = {
   // ── Overview ────────────────────────────────────────────────────────────────
-  getOverview(): Promise<WorkoutOverview> {
-    return http.get<WorkoutOverview>(url(W.OVERVIEW));
+  /** The training overview for today, or for the given day (YYYY-MM-DD). */
+  getOverview(date?: string): Promise<WorkoutOverview> {
+    return http.get<WorkoutOverview>(url(W.OVERVIEW), { params: date ? { date } : undefined });
   },
 
   getProgress(weeks = 8): Promise<WorkoutProgress> {

@@ -12,7 +12,9 @@ import {
 import { MuscleChips, MuscleMap } from "@/pages/workout/MuscleMap/MuscleMap";
 import { MUSCLE_LABEL, WEEKDAY_LONG, pluralize } from "@/pages/workout/WorkoutPage.constants";
 import { ROUTES } from "@/routes/RoutePaths";
-import { formatDuration } from "@/services/date.service";
+import { useDateFormat } from "@/context/PlannerContext";
+import { dayHeading } from "@/pages/dashboard/DashboardPage.constants";
+import { formatDuration, todayIso } from "@/services/date.service";
 import { weekDayLabels, weekRangeStr } from "@/utils/weekUtils";
 // The stat cards, the card-and-report layout and the highlight boxes are the ones the Today's Snapshot and Reports Overview panels use.
 import "@/pages/dashboard/TodaySnapshot/TodaySnapshot.scss";
@@ -21,10 +23,13 @@ import "./WorkoutSummary.scss";
 
 interface WorkoutSummaryProps {
   overview: WorkoutOverview;
+  /** The panel as a record of a past day, as in a daily report: no calls to act on today. */
+  snapshot?: boolean;
 }
 
 /** The week of training at a glance: today's session, the week so far, and which muscles it has reached. */
-export function WorkoutSummary({ overview }: WorkoutSummaryProps) {
+export function WorkoutSummary({ overview, snapshot = false }: WorkoutSummaryProps) {
+  const dateFormat = useDateFormat();
   const plan = overview.active_plan;
   const focus = muscleFocus(overview.muscles_this_week);
   const nextSession = overview.week.find((day) => day.status === "upcoming" && day.label);
@@ -34,14 +39,14 @@ export function WorkoutSummary({ overview }: WorkoutSummaryProps) {
   const dayLabels = weekDayLabels("sunday"); // the overview's week always runs Sunday to Saturday
 
   return (
-    <div className="dp-section">
+    <div className="dp-section dp-wk-section">
       <div className="dp-section-head">
         <h2 className="dp-section-title">Training</h2>
         {plan && <span className="dp-section-chip">{plan.name}</span>}
         <Link to={ROUTES.WORKOUT} className="dp-section-link">Open workout →</Link>
       </div>
 
-      <div className="dp-reports-grid dp-reports-grid--stretch">
+      <div className="dp-reports-grid dp-reports-grid--stretch dp-wk-grid">
         {/* ── Muscles reached: the narrow card, like the calendar beside the report ── */}
         <div className="dp-cal-card dp-wk-muscles">
           <div className="dp-cal-head">Muscles this week</div>
@@ -61,13 +66,13 @@ export function WorkoutSummary({ overview }: WorkoutSummaryProps) {
               ariaLabel={`${overview.sessions_this_week} of ${overview.sessions_target} sessions done this week`}
             />
             <div className="dp-report-body">
-              <span className="dp-report-date">Today · {WEEKDAY_LONG[todayDate.getDay()]}</span>
+              <span className="dp-report-date">{dayHeading(overview.today_date, dateFormat)}</span>
 
               {!plan && (
                 <>
                   <h3 className="dp-report-headline">No plan yet</h3>
                   <p className="dp-report-summary">Pick a plan and your week fills itself in.</p>
-                  <Link to={`${ROUTES.WORKOUT}?tab=plans`} className="dp-report-cta">Choose a plan →</Link>
+                  {!snapshot && <Link to={`${ROUTES.WORKOUT}?tab=plans`} className="dp-report-cta">Choose a plan →</Link>}
                 </>
               )}
 
@@ -75,9 +80,11 @@ export function WorkoutSummary({ overview }: WorkoutSummaryProps) {
                 <>
                   <h3 className="dp-report-headline">{overview.today_plan_day?.name ?? "Workout"} is under way</h3>
                   <p className="dp-report-summary">Pick up where you left off.</p>
-                  <Link to={sessionPath(overview.in_progress_session_id)} className="dp-report-cta">
-                    <PlayFill size={13} /> Resume workout →
-                  </Link>
+                  {!snapshot && (
+                    <Link to={sessionPath(overview.in_progress_session_id)} className="dp-report-cta">
+                      <PlayFill size={13} /> Resume workout →
+                    </Link>
+                  )}
                 </>
               )}
 
@@ -106,11 +113,14 @@ export function WorkoutSummary({ overview }: WorkoutSummaryProps) {
                   <h3 className="dp-report-headline">{overview.today_plan_day.name}</h3>
                   <p className="dp-report-summary">
                     {pluralize(dayExercises.length, "exercise")} · about {overview.today_plan_day.estimated_minutes} min
+                    {snapshot && overview.today_date !== todayIso() && " · not logged"}
                   </p>
                   <MuscleChips primary={dayMuscles} max={4} />
-                  <Link to={ROUTES.WORKOUT} className="dp-report-cta">
-                    <PlayFill size={13} /> Start workout →
-                  </Link>
+                  {!snapshot && (
+                    <Link to={ROUTES.WORKOUT} className="dp-report-cta">
+                      <PlayFill size={13} /> Start workout →
+                    </Link>
+                  )}
                 </>
               )}
             </div>

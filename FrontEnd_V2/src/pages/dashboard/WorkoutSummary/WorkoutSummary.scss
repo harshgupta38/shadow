@@ -3,6 +3,21 @@
 // Built from the dashboard's own pieces: the stat cards of Today's Snapshot, and the narrow-card-beside-a-stack layout of the Reports
 // Overview with its report card, highlight boxes and closing strip. Only what those do not cover is styled here.
 
+// ─── Layout: the muscle card gives way first, then the two stack ──────────────
+
+// The report column never gets narrower than 635px. The muscle card shrinks (360px down to 280px) to make room for it, and once
+// 280px + gap + 635px no longer fit the section, the card moves above the column. Sized by the section, not the viewport, as the
+// sidebar changes how much room the section has.
+.dp-wk-section { container-type: inline-size; }
+
+.dp-wk-grid.dp-reports-grid {
+  grid-template-columns: minmax(280px, 360px) minmax(635px, 1fr);
+
+  @container (max-width: 930px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 // ─── Muscles reached (inside the narrow card) ─────────────────────────────────
 
 .dp-wk-muscles { align-items: stretch; }

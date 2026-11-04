@@ -23,6 +23,7 @@ import { useToast } from "@/context/ToastContext";
 import { CLOSING_EMOJI, fmtTime, ringColor } from "./ReportDetailPage.constants";
 import { useDateFormat, useTimeFormat } from "@/context/PlannerContext";
 import { GEOMETRY, PAGE_SIZE } from "@/constant/tuning";
+import { DayOverview } from "./DayOverview";
 import { WeeklyInsights } from "./WeeklyInsights/WeeklyInsights";
 import "./ReportDetailPage.scss";
 
@@ -520,6 +521,9 @@ export function ReportDetailPage() {
           )}
         </div>
       </section>
+
+      {/* ── Training and nutrition on the day: the dashboard's own panels, fetched for the report's date ── */}
+      {report.report_type === "daily" && <DayOverview key={report.date} date={report.date} />}
 
       {/* ── Closing ──────────────────────────────────────────────────────── */}
       <div className="rdp-closing mt-3">

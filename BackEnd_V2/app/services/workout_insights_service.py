@@ -54,14 +54,19 @@ def _muscle_rows(sessions: Iterable) -> list[MuscleSetsResponse]:
     return [MuscleSetsResponse(muscle=muscle, sets=round(sets, 2)) for muscle, sets in ranked]
 
 
-def overview(db: Session, user: UserDBM) -> WorkoutOverviewResponse:
-    today = today_ist()
+def overview(db: Session, user: UserDBM, as_of: date | None = None) -> WorkoutOverviewResponse:
+    """The training picture on `as_of` (today when not given): the week that day falls in, counted up to that day. The plan is the one
+    followed now, and it counts as not followed yet before the day it was started."""
+    today = as_of or today_ist()
+    is_live = today == today_ist()  # only today can have a workout still under way
     now = workout_sessions_service.now_utc()
     start = week_start(today)
     end = start + timedelta(days=6)
 
     plan = workout_plans_service.active_plan(db, user)
     started_on = workout_plans_service.active_plan_started_on(db, user.id)
+    if started_on is not None and today < started_on:
+        plan = None
     scheduled = {day.weekday: day for day in plan.days} if plan is not None else {}
     plan_day = scheduled.get(sunday_based_weekday(today))
 
@@ -69,7 +74,7 @@ def overview(db: Session, user: UserDBM) -> WorkoutOverviewResponse:
         db,
         user.id,
         WorkoutSessionDBM.session_date >= start,
-        WorkoutSessionDBM.session_date <= end,
+        WorkoutSessionDBM.session_date <= min(end, today),
     )
     done_today = sorted(
         (s for s in this_week if s.session_date == today),
@@ -85,7 +90,7 @@ def overview(db: Session, user: UserDBM) -> WorkoutOverviewResponse:
         )
         .order_by(WorkoutSessionDBM.started_at.desc())
         .limit(1)
-    )
+    ) if is_live else None
 
     week = []
     for offset in range(7):
@@ -115,7 +120,7 @@ def overview(db: Session, user: UserDBM) -> WorkoutOverviewResponse:
             )
         )
 
-    streak, total_sessions = _streak_and_total(db, user.id, start)
+    streak, total_sessions = _streak_and_total(db, user.id, start, today)
     return WorkoutOverviewResponse(
         active_plan=workout_plans_service.plan_summary(plan, plan.id) if plan is not None else None,
         today_date=today,
@@ -170,13 +175,14 @@ def _week_start_sql():
     return func.date(session_date, func.printf("-%d days", cast(func.strftime("%w", session_date), Integer)), type_=Date)
 
 
-def _streak_and_total(db: Session, user_id: int, current: date) -> tuple[int, int]:
-    """Consecutive weeks with at least one workout, counted back from the week starting `current`, and the number of workouts ever
-    completed. An empty current week does not break the streak, since it may simply be early in the week. SQL returns each week once."""
+def _streak_and_total(db: Session, user_id: int, current: date, until: date) -> tuple[int, int]:
+    """Consecutive weeks with at least one workout, counted back from the week starting `current`, and the number of workouts
+    completed up to `until`. An empty current week does not break the streak, since it may simply be early in the week. SQL returns
+    each week once."""
     weeks_with_sessions = set(
         db.scalars(
             select(_week_start_sql())
-            .where(WorkoutSessionDBM.user_id == user_id, WorkoutSessionDBM.status == "completed")
+            .where(WorkoutSessionDBM.user_id == user_id, WorkoutSessionDBM.status == "completed", WorkoutSessionDBM.session_date <= until)
             .distinct()
         ).all()
     )
@@ -189,7 +195,7 @@ def _streak_and_total(db: Session, user_id: int, current: date) -> tuple[int, in
     total_sessions = db.scalar(
         select(func.count())
         .select_from(WorkoutSessionDBM)
-        .where(WorkoutSessionDBM.user_id == user_id, WorkoutSessionDBM.status == "completed")
+        .where(WorkoutSessionDBM.user_id == user_id, WorkoutSessionDBM.status == "completed", WorkoutSessionDBM.session_date <= until)
     )
     return streak, total_sessions or 0
 

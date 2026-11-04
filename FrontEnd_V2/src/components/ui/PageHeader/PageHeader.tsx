@@ -29,7 +29,7 @@ interface PageHeaderProps {
     onBack?: () => void;
 }
 
-const DESKTOP_TONE_CLASS: Record<PageHeaderActionTone, string> = {
+export const DESKTOP_TONE_CLASS: Record<PageHeaderActionTone, string> = {
     none: "",
     brand: "btn-brand",
     soft: "btn-soft",

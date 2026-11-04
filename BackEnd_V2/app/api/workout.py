@@ -1,3 +1,5 @@
+from datetime import date
+
 from fastapi import APIRouter, Depends, Query, status
 
 from app.api.deps import get_current_user
@@ -35,10 +37,11 @@ router = APIRouter(prefix=ENDPOINTS.WORKOUT.PREFIX, tags=["Workout"])
 
 @router.get(ENDPOINTS.WORKOUT.OVERVIEW, response_model=WorkoutOverviewResponse)
 def get_overview(
+    day: date | None = Query(default=None, alias="date"),
     db=Depends(get_db),
     current_user: UserDBM = Depends(get_current_user),
 ) -> WorkoutOverviewResponse:
-    return workout_insights_service.overview(db, current_user)
+    return workout_insights_service.overview(db, current_user, day)
 
 
 @router.get(ENDPOINTS.WORKOUT.PROGRESS, response_model=WorkoutProgressResponse)

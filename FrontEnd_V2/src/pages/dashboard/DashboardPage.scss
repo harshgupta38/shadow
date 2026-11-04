@@ -307,6 +307,11 @@
     margin: 0 0 0 auto;
     padding: 0 0 0 1.4rem;
     border-left: 1px solid var(--jv-border);
+    
+    @media (max-width: 895px) {
+      padding: 0;
+      border-left: none;
+    }
   }
 
   .dp-hero-aside-title {
@@ -355,15 +360,16 @@
   .dp-panel-note { margin-left: auto; font-size: 0.76rem; color: var(--jv-muted); white-space: nowrap; strong { color: var(--jv-text); } }
 
   // The week as one capsule per day: the day over a short label. Capsules that lead somewhere are links.
+  // Each capsule is a fixed 106px wide; the ones that don't fit on the line wrap onto the next.
   .dp-days {
-    display: grid;
-    grid-template-columns: repeat(7, minmax(0, 1fr));
+    display: flex;
+    flex-wrap: wrap;
     gap: 0.4rem;
     list-style: none;
     margin: 0;
     padding: 0;
 
-    > li { display: flex; min-width: 0; }
+    > li { display: flex; flex: 0 0 105px; width: 105px; min-width: 0; }
   }
 
   .dp-day {
@@ -445,10 +451,5 @@
     // The report card turns into a column here, so the aside is as tall as its content and as wide as the card.
     .dp-hero-aside { flex: 0 0 auto; width: 100%; margin: 0.6rem 0 0; padding: 0.6rem 0 0; border-left: 0; border-top: 1px solid var(--jv-border); }
     .dp-panel-note { flex-basis: 100%; margin-left: 0; white-space: normal; }
-  }
-
-  @media (max-width: 575.98px) {
-    // Seven capsules no longer fit in a row: they wrap to a second line of three or four.
-    .dp-days { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   }
 }

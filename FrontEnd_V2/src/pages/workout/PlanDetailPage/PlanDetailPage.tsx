@@ -14,6 +14,7 @@ import { ExerciseDetailModal } from "@/pages/workout/ExerciseDetailModal/Exercis
 import { ExerciseThumb } from "@/pages/workout/ExerciseThumb/ExerciseThumb";
 import { MuscleBars } from "@/pages/workout/MuscleBars/MuscleBars";
 import { MuscleChips, MuscleLegend, MuscleMap } from "@/pages/workout/MuscleMap/MuscleMap";
+import { PlanActions } from "@/pages/workout/PlanDetailPage/PlanActions";
 import { WorkoutSkeleton } from "@/pages/workout/WorkoutSkeleton/WorkoutSkeleton";
 import {
   EQUIPMENT_LABEL,
@@ -32,6 +33,10 @@ import {
   workingSetCount,
 } from "@/pages/workout/WorkoutPage.constants";
 import "./PlanDetailPage.scss";
+
+// Where the page splits into main and side columns (the same width as the grid in PlanDetailPage.scss). Wide, the actions other than
+// Ask coach sit in the side column; narrow, that column drops below the exercises, so every action stays in the header menu.
+const SIDE_COLUMN = "(min-width: 1001px)";
 
 function todayWeekday(): number {
   return new Date(`${todayIso()}T00:00:00`).getDay();
@@ -56,6 +61,14 @@ export function PlanDetailPage() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmStop, setConfirmStop] = useState(false);
   const [detailId, setDetailId] = useState<number | null>(null); // the exercise shown in the details popup
+  const [actionsBesideCharts, setActionsBesideCharts] = useState(() => window.matchMedia(SIDE_COLUMN).matches);
+
+  useEffect(() => {
+    const mql = window.matchMedia(SIDE_COLUMN);
+    const handleChange = (e: MediaQueryListEvent) => setActionsBesideCharts(e.matches);
+    mql.addEventListener("change", handleChange);
+    return () => mql.removeEventListener("change", handleChange);
+  }, []);
 
   const load = useCallback(async () => {
     if (!Number.isInteger(id) || id <= 0) {
@@ -193,7 +206,7 @@ export function PlanDetailPage() {
   const isCustom = plan.source === "custom";
   const actions: PageHeaderAction[] = [];
   if (plan.is_active) {
-    actions.push({ key: "stop", label: busy === "deactivate" ? "Stopping…" : "Stop following", icon: <XCircle size={14} />, tone: "soft", disabled: busy !== null, onClick: () => setConfirmStop(true) });
+    actions.push({ key: "stop", label: busy === "deactivate" ? "Unfollowing…" : "Unfollow", icon: <XCircle size={14} />, tone: "soft", disabled: busy !== null, onClick: () => setConfirmStop(true) });
   } else {
     actions.push({ key: "use", label: busy === "activate" ? "Switching…" : "Use this plan", icon: <PlayFill size={14} />, tone: "brand", disabled: busy !== null, onClick: () => void activate() });
   }
@@ -218,6 +231,8 @@ export function PlanDetailPage() {
     actions.push({ key: "custom", label: busy === "copy" ? "Copying…" : "Customize", icon: <Pencil size={14} />, tone: "soft", disabled: busy !== null, onClick: () => void copyToMine(true) });
   }
 
+  const isCoachAction = (action: PageHeaderAction) => action.key === "coach";
+  const headerActions = actionsBesideCharts ? actions.filter(isCoachAction) : actions;
   const totalSets = workingSetCount(day?.exercises ?? []);
 
   return (
@@ -226,7 +241,7 @@ export function PlanDetailPage() {
         title={plan.name}
         subtitle={`${GOAL_LABEL[plan.goal]} · ${LEVEL_LABEL[plan.level]} · ${plan.source === "custom" ? "Your plan" : "Ready-made plan"}`}
         icon={<HeartPulseFill />}
-        actions={actions}
+        actions={headerActions}
         onBack={goBack}
       />
 
@@ -368,6 +383,8 @@ export function PlanDetailPage() {
             <p className="wk-pd-sub wk-pd-sub--tight">Sets per muscle across the whole week. Secondary muscles count half.</p>
             <MuscleBars items={weekVolume} limit={8} />
           </section>
+
+          {actionsBesideCharts && <PlanActions actions={actions.filter((action) => !isCoachAction(action))} />}
         </aside>
       </div>
 
@@ -384,9 +401,9 @@ export function PlanDetailPage() {
 
       <ConfirmDialog
         show={confirmStop}
-        title={`Stop following "${plan?.name ?? ""}"?`}
+        title={`Unfollow "${plan?.name ?? ""}"?`}
         message="Your logged workouts stay in your history."
-        confirmLabel="Stop following"
+        confirmLabel="Unfollow"
         destructive
         onConfirm={() => void deactivate()}
         onCancel={() => setConfirmStop(false)}

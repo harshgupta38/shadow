@@ -1,22 +1,28 @@
 import { Link } from "react-router-dom";
 
 import type { DietOverview } from "@/api";
+import { useDateFormat } from "@/context/PlannerContext";
 import { DashboardRing } from "@/pages/dashboard/DashboardRing/DashboardRing";
+import { dayHeading } from "@/pages/dashboard/DashboardPage.constants";
 import { WaterBottle } from "@/pages/dashboard/DietSummary/WaterBottle/WaterBottle";
 import { MacroBar } from "@/pages/diet/MacroBar/MacroBar";
 import { fmt, mealLabel, sortMeals } from "@/pages/diet/DietPage.constants";
-import { WEEKDAY_LONG } from "@/pages/workout/WorkoutPage.constants";
 import { ROUTES } from "@/routes/RoutePaths";
+import { todayIso } from "@/services/date.service";
 // The report card and its ring are the ones the Reports Overview panel uses.
 import "@/pages/dashboard/ReportsOverview/ReportsOverview.scss";
 import "./DietSummary.scss";
 
 interface DietSummaryProps {
   overview: DietOverview;
+  /** The panel as a record of a past day, as in a daily report: no calls to act on today. */
+  snapshot?: boolean;
 }
 
 /** Today's nutrition at a glance: the score and what is left, the meals so far, and the macros against their targets. */
-export function DietSummary({ overview }: DietSummaryProps) {
+export function DietSummary({ overview, snapshot = false }: DietSummaryProps) {
+  const dateFormat = useDateFormat();
+  const isToday = overview.date === todayIso();
   const meals = sortMeals(overview.meals);
   const mostCalories = Math.max(1, ...meals.map((meal) => meal.totals.calories));
   const score = overview.score.score;
@@ -41,7 +47,7 @@ export function DietSummary({ overview }: DietSummaryProps) {
           />
         </div>
         <div className="dp-report-body">
-          <span className="dp-report-date">Today · {WEEKDAY_LONG[new Date(`${overview.date}T00:00:00`).getDay()]}</span>
+          <span className="dp-report-date">{dayHeading(overview.date, dateFormat)}</span>
           {meals.length === 0 ? (
             <>
               <h3 className="dp-report-headline">Nothing logged yet</h3>
@@ -51,16 +57,16 @@ export function DietSummary({ overview }: DietSummaryProps) {
             <>
               <h3 className="dp-report-headline">{fmt(Math.abs(overview.remaining_calories))} kcal {over ? "over" : "left"}</h3>
               <p className="dp-report-summary">
-                {fmt(overview.calories.consumed)} of {fmt(overview.calories.target)} kcal · {meals.length} {meals.length === 1 ? "meal" : "meals"} so far
+                {fmt(overview.calories.consumed)} of {fmt(overview.calories.target)} kcal · {meals.length} {meals.length === 1 ? "meal" : "meals"}{isToday ? " so far" : ""}
               </p>
             </>
           )}
-          <Link to={`${ROUTES.DIET}?tab=diary`} className="dp-report-cta">Log food →</Link>
+          {!snapshot && <Link to={`${ROUTES.DIET}?tab=diary`} className="dp-report-cta">Log food →</Link>}
         </div>
 
         {meals.length > 0 && (
           <div className="dp-hero-aside">
-            <span className="dp-hero-aside-title">Meals today</span>
+            <span className="dp-hero-aside-title">{isToday ? "Meals today" : "Meals"}</span>
             <ul className="dp-rank">
               {meals.map((meal) => (
                 <li key={meal.meal_type}>

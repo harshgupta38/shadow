@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useWeekStart } from "@/context/PlannerContext";
 import { weekDayLabels } from "@/utils/weekUtils";
-import { CalendarWeek, ChevronDoubleLeft, ChevronDoubleRight, ChevronLeft, ChevronRight, PlusLg } from "react-bootstrap-icons";
+import { ArrowRepeat, CalendarWeek, ChevronDoubleLeft, ChevronDoubleRight, ChevronLeft, ChevronRight, PlusLg } from "react-bootstrap-icons";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { api } from "@/api";
@@ -13,9 +13,11 @@ import {
     PRIORITY_FILTER_OPTIONS,
     STATUS_FILTER_OPTIONS,
     TIME_FILTER_OPTIONS,
+    VIEW_FILTER_OPTIONS,
 } from "@/pages/schedule/SchedulePage.constants";
 import type { ScheduleFilterState } from "@/pages/schedule/SchedulePage.constants";
 import { FilterDropdown } from "@/components/ui/FilterDropdown/FilterDropdown";
+import type { FilterSectionConfig } from "@/components/ui/FilterDropdown/FilterDropdown";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
 import { useToast } from "@/context/ToastContext";
@@ -81,6 +83,12 @@ export function SchedulePage() {
     const [deleteTarget, setDeleteTarget] = useState<ScheduledTaskDataResponse | null>(null);
     const [deleting, setDeleting] = useState(false);
     const [filters, setFilters] = useState<ScheduleFilterState>(DEFAULT_FILTERS);
+    // The "Yearly tasks" option of the filter: the list shows every yearly task, dated at its next occurrence, not the month's tasks.
+    const [yearlyView, setYearlyView] = useState(false);
+    const [yearlyTasks, setYearlyTasks] = useState<ScheduledTaskDataResponse[]>([]);
+    const [yearlyLoading, setYearlyLoading] = useState(false);
+    // The date a yearly task was picked for: its calendar cell is marked while the yearly list is showing.
+    const [pickedDate, setPickedDate] = useState<string | null>(null);
     const { year: calYear, month: calMonth, setMonth: setCalMonth } = useMonthParam();
     // `location.pathname + location.search` captures the month the user is currently
     // viewing; handed to the wizard so save/cancel can return to this exact view
@@ -105,6 +113,27 @@ export function SchedulePage() {
     useEffect(() => { loadTasks(); }, [loadTasks]);
     useWakeRefresh(loadTasks);
 
+    const loadYearly = useCallback(() => {
+        setYearlyLoading(true);
+        void api.schedule.getYearlyTasks()
+            .then(setYearlyTasks)
+            .catch(() => toast.error("Failed to load yearly tasks."))
+            .finally(() => setYearlyLoading(false));
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+    useEffect(() => { if (yearlyView) loadYearly(); }, [yearlyView, loadYearly]);
+    useWakeRefresh(() => { if (yearlyView) loadYearly(); });
+
+    function setYearly(on: boolean) {
+        setYearlyView(on);
+        setPickedDate(null);
+    }
+
+    // Edit and delete work on one task, whether it came from the month, the yearly list or the detail panel.
+    function openEditor(task: ScheduledTaskDataResponse) {
+        navigate(ROUTES.SCHEDULE_EDIT.replace(":taskId", String(task.id)) + (task.repeat_yearly ? "?yearly=1" : ""), { state: { task, returnPath } });
+    }
+
     function handleDuplicate(task: ScheduledTaskDataResponse) {
         navigate(ROUTES.SCHEDULE_CREATE, { state: { draft: task, returnPath } });
     }
@@ -114,7 +143,9 @@ export function SchedulePage() {
         setDeleting(true);
         try {
             await api.schedule.removeScheduleTask(deleteTarget.id, deleteTarget.repeat_yearly);
-            setTasks(prev => prev.filter(t => !(t.id === deleteTarget.id && t.repeat_yearly === deleteTarget.repeat_yearly)));
+            const isDeleted = (t: ScheduledTaskDataResponse) => t.id === deleteTarget.id && t.repeat_yearly === deleteTarget.repeat_yearly;
+            setTasks(prev => prev.filter(t => !isDeleted(t)));
+            setYearlyTasks(prev => prev.filter(t => !isDeleted(t)));
             setDeleteTarget(null);
             setSelectedTask(null);
             toast.success("Task deleted.");
@@ -136,6 +167,12 @@ export function SchedulePage() {
         if (filters.status.length        && !filters.status.includes(t.status))                return false;
         return true;
     }), [tasks, filters]);
+
+    // Takes the calendar to the month of the task's next occurrence and marks that date. The yearly list stays as it is.
+    function showYearlyTaskOnCalendar(task: ScheduledTaskDataResponse) {
+        setCalMonth(Number(task.scheduled_date.slice(0, 4)), Number(task.scheduled_date.slice(5, 7)) - 1);
+        setPickedDate(task.scheduled_date);
+    }
 
     const tasksByDate = useMemo(() => tasks.reduce<Record<string, ScheduledTaskDataResponse[]>>((acc, t) => {
         if (!acc[t.scheduled_date]) acc[t.scheduled_date] = [];
@@ -211,6 +248,46 @@ export function SchedulePage() {
     function prevYear() { setCalMonth(calYear - 1, calMonth); }
     function nextYear() { setCalMonth(calYear + 1, calMonth); }
 
+    // Filters on the month's tasks. They are left out of the popup while the yearly list shows, which they do not apply to.
+    const monthFilterSections: FilterSectionConfig[] = [
+        {
+            key: "status",
+            label: "Status",
+            options: STATUS_FILTER_OPTIONS,
+            selected: filters.status,
+            onToggle: v => setFilters(prev => ({
+                ...prev,
+                status: prev.status.includes(v as ScheduledTaskStatus)
+                    ? prev.status.filter(s => s !== v)
+                    : [...prev.status, v as ScheduledTaskStatus],
+            })),
+        },
+        {
+            key: "priority",
+            label: "Priority",
+            options: PRIORITY_FILTER_OPTIONS,
+            selected: filters.priority,
+            onToggle: v => setFilters(prev => ({
+                ...prev,
+                priority: prev.priority.includes(v as ScheduledTaskPriority)
+                    ? prev.priority.filter(p => p !== v)
+                    : [...prev.priority, v as ScheduledTaskPriority],
+            })),
+        },
+        {
+            key: "time",
+            label: "Time",
+            options: TIME_FILTER_OPTIONS,
+            selected: filters.preferredTime,
+            onToggle: v => setFilters(prev => ({
+                ...prev,
+                preferredTime: prev.preferredTime.includes(v as ScheduledTaskPreferredTime)
+                    ? prev.preferredTime.filter(t => t !== v)
+                    : [...prev.preferredTime, v as ScheduledTaskPreferredTime],
+            })),
+        },
+    ];
+
     return (
         <section className="schedule-page-container">
             <PageHeader
@@ -238,53 +315,44 @@ export function SchedulePage() {
                 {/* ── Left: task list ──────────────────────────────────── */}
                 <div className="surface schedule-tasks-panel">
                     <div className="schedule-panel-head">
-                        <span className="schedule-panel-title">Your Commitments</span>
+                        <span className="schedule-panel-title">{yearlyView ? "Yearly Tasks" : "Your Commitments"}</span>
                         <FilterDropdown
                             sections={[
-                                
                                 {
-                                    key: "status",
-                                    label: "Status",
-                                    options: STATUS_FILTER_OPTIONS,
-                                    selected: filters.status,
-                                    onToggle: v => setFilters(prev => ({
-                                        ...prev,
-                                        status: prev.status.includes(v as ScheduledTaskStatus)
-                                            ? prev.status.filter(s => s !== v)
-                                            : [...prev.status, v as ScheduledTaskStatus],
-                                    })),
+                                    key: "view",
+                                    label: "Show",
+                                    options: VIEW_FILTER_OPTIONS,
+                                    selected: yearlyView ? ["yearly"] : [],
+                                    onToggle: () => setYearly(!yearlyView),
+                                    closeOnToggle: true,
                                 },
-                                {
-                                    key: "priority",
-                                    label: "Priority",
-                                    options: PRIORITY_FILTER_OPTIONS,
-                                    selected: filters.priority,
-                                    onToggle: v => setFilters(prev => ({
-                                        ...prev,
-                                        priority: prev.priority.includes(v as ScheduledTaskPriority)
-                                            ? prev.priority.filter(p => p !== v)
-                                            : [...prev.priority, v as ScheduledTaskPriority],
-                                    })),
-                                },
-                                {
-                                    key: "time",
-                                    label: "Time",
-                                    options: TIME_FILTER_OPTIONS,
-                                    selected: filters.preferredTime,
-                                    onToggle: v => setFilters(prev => ({
-                                        ...prev,
-                                        preferredTime: prev.preferredTime.includes(v as ScheduledTaskPreferredTime)
-                                            ? prev.preferredTime.filter(t => t !== v)
-                                            : [...prev.preferredTime, v as ScheduledTaskPreferredTime],
-                                    })),
-                                },
+                                ...(yearlyView ? [] : monthFilterSections),
                             ]}
-                            onReset={() => setFilters(DEFAULT_FILTERS)}
+                            onReset={() => { setFilters(DEFAULT_FILTERS); setYearly(false); }}
                         />
                     </div>
 
                     <div className="schedule-tasks-list">
-                        {loading ? (
+                        {yearlyView ? (
+                            yearlyLoading && yearlyTasks.length === 0 ? (
+                                Array.from({ length: 4 }, (_, i) => <ScheduleCardSkeleton key={i} />)
+                            ) : yearlyTasks.length === 0 ? (
+                                <div className="schedule-empty-state">
+                                    <ArrowRepeat size={28} className="mb-2 schedule-empty-icon" />
+                                    <p className="schedule-empty-title">No yearly tasks yet.</p>
+                                    <p className="schedule-empty-sub">Choose "Every Year" under Repeat when you add a task.</p>
+                                </div>
+                            ) : yearlyTasks.map(task => (
+                                <ScheduleCard
+                                    key={`y-${task.id}`}
+                                    task={task}
+                                    onSelect={() => showYearlyTaskOnCalendar(task)}
+                                    onEdit={() => openEditor(task)}
+                                    onDuplicate={() => handleDuplicate(task)}
+                                    onDelete={() => setDeleteTarget(task)}
+                                />
+                            ))
+                        ) : loading ? (
                             Array.from({ length: 5 }, (_, i) => <ScheduleCardSkeleton key={i} />)
                         ) : tasks.length === 0 ? (
                             <div className="schedule-empty-state">
@@ -302,7 +370,7 @@ export function SchedulePage() {
                                 key={`${task.repeat_yearly ? "y" : "n"}-${task.id}`}
                                 task={task}
                                 onSelect={() => setSelectedTask(task)}
-                                onEdit={() => navigate(ROUTES.SCHEDULE_EDIT.replace(":taskId", String(task.id)) + (task.repeat_yearly ? "?yearly=1" : ""), { state: { task, returnPath } })}
+                                onEdit={() => openEditor(task)}
                                 onDuplicate={() => handleDuplicate(task)}
                                 onDelete={() => setDeleteTarget(task)}
                             />
@@ -355,6 +423,7 @@ export function SchedulePage() {
                                             "schedule-cal-cell",
                                             !cell.isCurrentMonth && "is-outside",
                                             isToday && "is-today",
+                                            yearlyView && cell.iso === pickedDate && "is-picked",
                                             cell.iso < currentTodayIso && "is-past",
                                         ].filter(Boolean).join(" ")}
                                         role={cell.iso >= currentTodayIso ? "button" : undefined}
@@ -452,10 +521,7 @@ export function SchedulePage() {
                     onClose={() => setSelectedTask(null)}
                     onEdit={() => {
                         setSelectedTask(null);
-                        navigate(
-                            ROUTES.SCHEDULE_EDIT.replace(":taskId", String(selectedTask.id)) + (selectedTask.repeat_yearly ? "?yearly=1" : ""),
-                            { state: { task: selectedTask, returnPath } },
-                        );
+                        openEditor(selectedTask);
                     }}
                     onDuplicate={() => {
                         setSelectedTask(null);

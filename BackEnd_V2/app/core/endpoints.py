@@ -81,6 +81,7 @@ class Endpoints:
         SAVE = "/save-schedule-task"
         FROM_PROPOSAL = "/save-schedule-task-from-proposal"
         GET_LIST = "/get-schedule-task-list"
+        GET_YEARLY_LIST = "/get-yearly-task-list"
         DETAIL = "/{schedule_task_id}"
         SUBTASKS = "/{schedule_task_id}/sub-tasks"
         SUBTASK_DETAIL = "/{schedule_task_id}/sub-tasks/{subtask_id}"

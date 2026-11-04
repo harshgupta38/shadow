@@ -14,6 +14,8 @@ export interface FilterSectionConfig {
     onToggle: (value: string) => void;
     /** When true, clicking an already-active chip is a no-op (radio/single-select behavior). */
     single?: boolean;
+    /** When true, picking an option closes the dropdown. For an option that changes the view, not one that narrows it. */
+    closeOnToggle?: boolean;
 }
 
 export interface FilterDropdownProps {
@@ -140,6 +142,7 @@ export function FilterDropdown({
                                         onClick={() => {
                                             if (section.single && section.selected.includes(opt.value)) return;
                                             section.onToggle(opt.value);
+                                            if (section.closeOnToggle) setOpen(false);
                                         }}
                                     >
                                         {opt.label}

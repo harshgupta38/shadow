@@ -36,6 +36,11 @@ export const scheduleApi = {
         );
     },
 
+    /** Every yearly task, each dated at its next occurrence, nearest first. */
+    async getYearlyTasks(): Promise<ScheduledTaskDataResponse[]> {
+        return http.get<ScheduledTaskDataResponse[]>(`${ENDPOINTS.SCHEDULE.PREFIX}${ENDPOINTS.SCHEDULE.GET_YEARLY_LIST}`);
+    },
+
     async getScheduleTask(id: number, isYearly = false): Promise<ScheduledTaskDataResponse> {
         const qs = isYearly ? "?is_yearly=true" : "";
         return http.get<ScheduledTaskDataResponse>(

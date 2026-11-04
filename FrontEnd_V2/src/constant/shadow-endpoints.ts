@@ -74,6 +74,7 @@ export const ENDPOINTS = {
         SAVE: "/save-schedule-task",
         FROM_PROPOSAL: "/save-schedule-task-from-proposal",
         GET_LIST: "/get-schedule-task-list",
+        GET_YEARLY_LIST: "/get-yearly-task-list",
         DETAIL: (id: number) => `/${id}`,
         SUBTASKS: (taskId: number) => `/${taskId}/sub-tasks`,
         SUBTASK_DETAIL: (taskId: number, subtaskId: number) => `/${taskId}/sub-tasks/${subtaskId}`,

@@ -48,6 +48,15 @@ def get_schedule_task_list(
     )
 
 
+# Declared before DETAIL, whose path parameter would otherwise take this path.
+@router.get(ENDPOINTS.SCHEDULE.GET_YEARLY_LIST, response_model=list[ScheduledTaskDataResponse])
+def get_yearly_task_list(
+    db=Depends(get_db),
+    current_user: UserDBM = Depends(get_current_user),
+) -> list[ScheduledTaskDataResponse]:
+    return schedule_service.get_yearly_list(db, current_user)
+
+
 @router.get(ENDPOINTS.SCHEDULE.DETAIL, response_model=ScheduledTaskDataResponse)
 def get_schedule_task(
     schedule_task_id: int,

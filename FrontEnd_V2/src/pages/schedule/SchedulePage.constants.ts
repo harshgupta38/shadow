@@ -32,6 +32,9 @@ export const STATUS_FILTER_OPTIONS: Array<{ value: ScheduledTaskStatus; label: s
     { value: "missed",    label: "Missed"    },
 ];
 
+// Not a filter on the month's tasks: it swaps the list for every yearly task at once.
+export const VIEW_FILTER_OPTIONS = [{ value: "yearly", label: "Yearly tasks" }] as const;
+
 export const TIME_FILTER_OPTIONS: Array<{ value: ScheduledTaskPreferredTime; label: string }> = [
     { value: "flexible",  label: "Flexible"  },
     { value: "morning",   label: "Morning"   },

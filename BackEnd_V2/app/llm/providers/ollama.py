@@ -62,7 +62,7 @@ from app.llm.exceptions import (
     LLMProviderError,
     LLMRequestError,
 )
-from app.llm.tools import MAX_TOOL_ITERATIONS, AGENT_TOOL_DEFINITIONS, TERMINAL_TOOL_NAMES
+from app.llm.tools import max_tool_iterations, AGENT_TOOL_DEFINITIONS, TERMINAL_TOOL_NAMES
 
 
 def _ollama_cost(model: str, input_tokens: int, output_tokens: int):
@@ -441,7 +441,7 @@ class OllamaProvider(BaseLLMProvider):
 
         terminal_break = False
         tools_were_called = False
-        for _ in range(MAX_TOOL_ITERATIONS):
+        for _ in range(max_tool_iterations(request_data.agent_type)):
             first_choice = completion.choices[0]
             tool_calls = first_choice.message.tool_calls
 
@@ -649,7 +649,7 @@ class OllamaProvider(BaseLLMProvider):
             total_output_tokens += usage_delta.output_tokens
             total_tokens += usage_delta.total_tokens
 
-        for _ in range(MAX_TOOL_ITERATIONS):
+        for _ in range(max_tool_iterations(request.agent_type)):
             first_choice = completion.choices[0]
             tool_calls = first_choice.message.tool_calls
 

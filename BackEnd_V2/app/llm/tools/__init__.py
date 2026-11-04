@@ -20,9 +20,17 @@ from app.llm.tools.schedule import (
 from app.llm.tools.workout import WORKOUT_TOOLS
 from app.llm.tools.workout_definitions import WORKOUT_TOOL_DEFINITIONS
 
-# Rounds of tool calls one reply may use. A plan takes two (look things up, then propose), and the rest is headroom for one
-# corrected retry, because a request that runs out of rounds fails after its tokens are already spent.
-MAX_TOOL_ITERATIONS = 5
+# Rounds of tool calls one reply may use. The Workout Coach gets more: a plan takes two (look things up, then propose), and the rest is
+# headroom for one corrected retry, because a request that runs out of rounds fails after its tokens are already spent. Every other agent
+# keeps the lower limit, so a stuck one costs less.
+DEFAULT_MAX_TOOL_ITERATIONS = 3
+AGENT_MAX_TOOL_ITERATIONS: dict[str, int] = {
+    "workout_coach": 5,
+}
+
+
+def max_tool_iterations(agent_type: str) -> int:
+    return AGENT_MAX_TOOL_ITERATIONS.get(agent_type, DEFAULT_MAX_TOOL_ITERATIONS)
 
 # After these tools run, no re-query is needed — the final structured parse handles the response.
 TERMINAL_TOOL_NAMES: frozenset[str] = frozenset({

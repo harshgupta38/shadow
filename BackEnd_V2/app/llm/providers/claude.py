@@ -65,7 +65,7 @@ from app.schemas.chat import (
 )
 from app.schemas.memory import MemoryExtractionFromLLMSchema
 from app.schemas.daily_report import GenerateReportSchema
-from app.llm.tools import MAX_TOOL_ITERATIONS, AGENT_TOOL_DEFINITIONS, TERMINAL_TOOL_NAMES
+from app.llm.tools import max_tool_iterations, AGENT_TOOL_DEFINITIONS, TERMINAL_TOOL_NAMES
 
 
 def _to_claude_tools(tool_defs: list[dict]) -> list[dict]:
@@ -450,7 +450,7 @@ class ClaudeProvider(BaseLLMProvider):
             total_tokens += usage_delta.total_tokens
 
         terminal_break = False
-        for _ in range(MAX_TOOL_ITERATIONS):
+        for _ in range(max_tool_iterations(request_data.agent_type)):
             if completion.stop_reason != "tool_use":
                 break
 
@@ -699,7 +699,7 @@ class ClaudeProvider(BaseLLMProvider):
             total_output_tokens += usage_delta.output_tokens
             total_tokens += usage_delta.total_tokens
 
-        for _ in range(MAX_TOOL_ITERATIONS):
+        for _ in range(max_tool_iterations(request.agent_type)):
             if completion.stop_reason != "tool_use":
                 break
 

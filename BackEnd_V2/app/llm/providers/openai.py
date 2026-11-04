@@ -66,7 +66,7 @@ from app.schemas.chat import (
     MessageFromLLMSchema,
     NewConvoFromLLMSchema,
 )
-from app.llm.tools import AGENT_REASONING_EFFORT, MAX_TOOL_ITERATIONS, AGENT_TOOL_DEFINITIONS, TERMINAL_TOOL_NAMES, direct_reply
+from app.llm.tools import AGENT_REASONING_EFFORT, max_tool_iterations, AGENT_TOOL_DEFINITIONS, TERMINAL_TOOL_NAMES, direct_reply
 
 
 def _is_reasoning_model(model: str) -> bool:
@@ -469,7 +469,7 @@ class OpenAIProvider(BaseLLMProvider):
 
         terminal_break = False
         tools_were_called = False
-        for _ in range(MAX_TOOL_ITERATIONS):
+        for _ in range(max_tool_iterations(request_data.agent_type)):
             first_choice = completion.choices[0]
             tool_calls = first_choice.message.tool_calls
 
@@ -682,7 +682,7 @@ class OpenAIProvider(BaseLLMProvider):
             total_tokens += usage_delta.total_tokens
 
         direct_content: str | None = None  # a reply a terminal tool wrote itself, which spares the call that would repeat it
-        for _ in range(MAX_TOOL_ITERATIONS):
+        for _ in range(max_tool_iterations(request.agent_type)):
             first_choice = completion.choices[0]
             tool_calls = first_choice.message.tool_calls
 

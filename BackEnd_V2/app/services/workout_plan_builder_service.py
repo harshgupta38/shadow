@@ -149,18 +149,33 @@ def build_plan(db: Session, draft: PlanDraftInput) -> BuiltPlan:
         weekday_name = WEEKDAYS_LONG[day.weekday]
         today = {slot.exercise_id for slot in day.exercises if slot.exercise_id is not None}  # within the day: a rule
         entries: list[PlanExerciseInput] = []
+        day_notes: list[str] = []
         for slot in day.exercises:
             row = by_id[slot.exercise_id] if slot.exercise_id is not None else _pick(rows, slot, owned, level_cap, used, today, rank)
             if row is None:
-                notes.append(f"{weekday_name}: no {slot.muscle or slot.hint or 'matching'} exercise fits your equipment, so it was left out.")
+                day_notes.append(f"{weekday_name}: no {(slot.muscle or slot.hint or 'matching').replace('_', ' ')} exercise fits your equipment, so it was left out.")
                 continue
             used.add(row.id)
             today.add(row.id)
             chosen[row.id] = row
             entries.append(_entry(row, slot))
         if not entries:
-            raise AppError(f"{weekday_name} ended up with no exercises: nothing in the library fits those slots with the equipment given.")
+            # A day nothing fits is left out with one honest note, not an error: the person gets the rest of the plan at once instead of
+            # the model retrying at the cost of their AI allowance.
+            wanted = ", ".join(dict.fromkeys((slot.muscle or slot.hint or "cardio").replace("_", " ") for slot in day.exercises))
+            add = " Tell me if you have a pull-up bar, bands or dumbbells and I'll add it." if "full_gym" not in owned else ""
+            notes.append(f"{weekday_name} was left out: nothing fits your equipment for {wanted}.{add}")
+            continue
+        notes.extend(day_notes)
         days.append(PlanDayInput(weekday=day.weekday, name=day.name.strip()[:_DAY_NAME_MAX] or f"{weekday_name} workout", exercises=entries))
+
+    if not days:
+        can_train = sorted({m for row in rows if row.kind == "strength" and usable(row, owned) for m in row.primary_muscles})
+        raise AppError(
+            "Nothing in the library fits those slots with the equipment given. With that equipment the library can train: "
+            f"{', '.join(m.replace('_', ' ') for m in can_train) or 'nothing'}. Plan around those muscles, or add equipment the user has "
+            "(for example 'other' for a pull-up bar, 'band' or 'dumbbell')."
+        )
 
     request = WorkoutPlanSaveRequest(
         name=draft.name.strip()[:_NAME_MAX],

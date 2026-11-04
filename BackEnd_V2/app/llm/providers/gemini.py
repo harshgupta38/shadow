@@ -65,7 +65,7 @@ from app.schemas.chat import (
     NewConvoFromLLMSchema,
 )
 from app.schemas.daily_report import GenerateReportSchema
-from app.llm.tools import MAX_TOOL_ITERATIONS, AGENT_TOOL_DEFINITIONS, TERMINAL_TOOL_NAMES
+from app.llm.tools import max_tool_iterations, AGENT_TOOL_DEFINITIONS, TERMINAL_TOOL_NAMES
 
 
 def _strip_schema_extras(obj):
@@ -415,7 +415,7 @@ class GeminiProvider(BaseLLMProvider):
             total_tokens += usage_delta.total_tokens
 
         terminal_break = False
-        for _ in range(MAX_TOOL_ITERATIONS):
+        for _ in range(max_tool_iterations(request_data.agent_type)):
             function_calls = self._get_function_calls(response)
             if not function_calls:
                 break
@@ -589,7 +589,7 @@ class GeminiProvider(BaseLLMProvider):
             total_tokens += usage_delta.total_tokens
 
         terminal_break = False
-        for _ in range(MAX_TOOL_ITERATIONS):
+        for _ in range(max_tool_iterations(request.agent_type)):
             function_calls = self._get_function_calls(response)
             if not function_calls:
                 break

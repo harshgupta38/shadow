@@ -122,7 +122,11 @@ export function WorkoutPlanReviewPanel({ proposal, onClose, onSaved }: WorkoutPl
         plan: toSaveRequest(draft),
         activate: follow,
       });
-      await onSaved?.(plan);
+      try {
+        await onSaved?.(plan);
+      } catch {
+        // The plan is saved by now. The chat shows it the next time it loads, so this must not read as a failed save.
+      }
       requestClose();
     } catch (saveError) {
       setGeneralError(saveError instanceof ApiError ? saveError.message : "We could not save the plan right now. Please try again.");

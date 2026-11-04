@@ -1,4 +1,4 @@
-import { HeartPulseFill, PlusLg } from "react-bootstrap-icons";
+import { HeartPulseFill, PlusLg, Stars } from "react-bootstrap-icons";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
@@ -35,6 +35,13 @@ export function WorkoutPage() {
         subtitle="Build a routine you can actually stick to."
         icon={<HeartPulseFill />}
         actions={[
+          {
+            key: "workout-coach",
+            label: "Ask Workout Coach",
+            icon: <Stars size={15} />,
+            tone: "soft",
+            onClick: () => navigate(ROUTES.ASSISTANT, { state: { agentType: "workout_coach" } }),
+          },
           { key: "new-plan", label: "New plan", icon: <PlusLg size={14} />, tone: "brand", onClick: () => navigate(ROUTES.WORKOUT_PLAN_CREATE) },
         ]}
       />

@@ -3,6 +3,7 @@ import type {
   WorkoutGoal,
   WorkoutLevel,
   WorkoutPlanDetail,
+  WorkoutPlanProposalPlan,
   WorkoutPlanSaveRequest,
 } from "@/api/types";
 import { WEEKDAY_LONG } from "@/pages/workout/WorkoutPage.constants";
@@ -55,6 +56,31 @@ export const EMPTY_DRAFT: PlanDraft = {
 };
 
 export function draftFromPlan(plan: WorkoutPlanDetail): PlanDraft {
+  return {
+    name: plan.name,
+    description: plan.description,
+    goal: plan.goal,
+    level: plan.level,
+    days: [...plan.days]
+      .sort((a, b) => a.weekday - b.weekday)
+      .map((d) => ({
+        weekday: d.weekday,
+        name: d.name,
+        exercises: d.exercises.map((e) => ({
+          key: nextKey(),
+          exercise: e.exercise,
+          sets: e.sets,
+          reps: e.reps,
+          rest_seconds: e.rest_seconds,
+          weight_kg: e.weight_kg,
+          note: e.note,
+        })),
+      })),
+  };
+}
+
+/** A plan the Workout Coach drafted, ready to be edited like any plan being built. */
+export function draftFromProposal(plan: WorkoutPlanProposalPlan): PlanDraft {
   return {
     name: plan.name,
     description: plan.description,

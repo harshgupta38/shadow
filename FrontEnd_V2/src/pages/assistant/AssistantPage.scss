@@ -366,6 +366,14 @@
     margin-top: 5px;
   }
 
+  .chat-message-stamp {
+    margin-bottom: 3px;
+    font-size: 0.7rem;
+    line-height: 1.2;
+    color: var(--jv-faint);
+    font-variant-numeric: tabular-nums;
+  }
+
   .chat-message-action-btn {
     display: grid;
     place-items: center;

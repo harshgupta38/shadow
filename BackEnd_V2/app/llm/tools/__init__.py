@@ -17,8 +17,12 @@ from app.llm.tools.schedule import (
     SCHEDULE_TOOLS,
     ScheduleToolDefinitions,
 )
+from app.llm.tools.workout import WORKOUT_TOOLS
+from app.llm.tools.workout_definitions import WORKOUT_TOOL_DEFINITIONS
 
-MAX_TOOL_ITERATIONS = 3
+# Rounds of tool calls one reply may use. A plan takes two (look things up, then propose), and the rest is headroom for one
+# corrected retry, because a request that runs out of rounds fails after its tokens are already spent.
+MAX_TOOL_ITERATIONS = 5
 
 # After these tools run, no re-query is needed — the final structured parse handles the response.
 TERMINAL_TOOL_NAMES: frozenset[str] = frozenset({
@@ -26,6 +30,7 @@ TERMINAL_TOOL_NAMES: frozenset[str] = frozenset({
     "create_milestone_proposals",          # writes proposals to context.action_data; UI renders them
     "create_task_proposals",               # writes proposals to context.action_data; UI renders them
     "create_scheduled_task_proposal",      # writes proposal to context.action_data; UI renders it
+    "create_workout_plan_proposal",        # writes the plan to context.action_data; UI renders it for review
 })
 
 ALL_TOOL_DEFINITIONS: list[dict] = [
@@ -59,6 +64,7 @@ AVAILABLE_TOOLS = {
     **TASK_TOOLS,
     **SCHEDULE_TOOLS,
     **DIET_TOOLS,
+    **WORKOUT_TOOLS,
 }
 
 AGENT_TOOL_DEFINITIONS: dict[str, list[dict]] = {
@@ -67,7 +73,24 @@ AGENT_TOOL_DEFINITIONS: dict[str, list[dict]] = {
     "career_advisor": [],
     "insights": [],
     "diet_coach": DIET_TOOL_DEFINITIONS,
+    "workout_coach": WORKOUT_TOOL_DEFINITIONS,
 }
+
+
+# Reasoning models think before they answer, and that thinking is billed as output against the user's daily AI allowance. An agent that
+# mostly looks things up and fills in a form needs little of it, so it asks for less. Only providers that have such a setting use this.
+AGENT_REASONING_EFFORT: dict[str, str] = {
+    "workout_coach": "low",
+}
+
+
+def direct_reply(executed: list[tuple[str, object]]) -> str | None:
+    """The finished reply a terminal tool wrote for itself, when every tool of this step was terminal and has one. Using it as is
+    saves the model call that would only re-read the tool's result and say the same thing, which costs the user AI allowance."""
+    if not executed or any(name not in TERMINAL_TOOL_NAMES for name, _ in executed):
+        return None
+    replies = [result.get("final_reply") if isinstance(result, dict) else None for _, result in executed]
+    return replies[-1] if all(replies) else None
 
 
 def execute_tool(name: str, arguments: dict, context: ToolContext) -> dict:

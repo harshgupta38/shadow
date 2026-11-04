@@ -8,6 +8,7 @@ from app.schemas.workout import (
     ExerciseDetailResponse,
     ExerciseSummaryResponse,
     PlanSource,
+    SaveWorkoutPlanFromProposalRequest,
     SessionSaveRequest,
     SessionStartRequest,
     WarmUpRoutineResponse,
@@ -92,6 +93,19 @@ def create_plan(
     current_user: UserDBM = Depends(get_current_user),
 ) -> WorkoutPlanDetailResponse:
     return workout_plans_service.create_plan(db, current_user, data)
+
+
+@router.post(
+    ENDPOINTS.WORKOUT.PLAN_FROM_PROPOSAL,
+    response_model=WorkoutPlanDetailResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def save_plan_from_proposal(
+    data: SaveWorkoutPlanFromProposalRequest,
+    db=Depends(get_db),
+    current_user: UserDBM = Depends(get_current_user),
+) -> WorkoutPlanDetailResponse:
+    return workout_plans_service.save_plan_from_proposal(db, current_user, data)
 
 
 @router.post(ENDPOINTS.WORKOUT.PLANS_DEACTIVATE, status_code=status.HTTP_204_NO_CONTENT)

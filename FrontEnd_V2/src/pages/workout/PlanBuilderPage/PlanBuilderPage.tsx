@@ -10,7 +10,7 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
-import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CheckLg, ExclamationTriangleFill, Files, HeartPulseFill, PlusLg, Trash3 } from "react-bootstrap-icons";
 import { useNavigate, useParams } from "react-router-dom";
 
@@ -28,19 +28,16 @@ import { MuscleLegend, MuscleMap } from "@/pages/workout/MuscleMap/MuscleMap";
 import { BuilderExerciseRow } from "@/pages/workout/PlanBuilderPage/BuilderExerciseRow/BuilderExerciseRow";
 import { CopyDayModal } from "@/pages/workout/PlanBuilderPage/CopyDayModal/CopyDayModal";
 import { WeekdayTab } from "@/pages/workout/PlanBuilderPage/WeekdayTab/WeekdayTab";
+import { usePlanDraft } from "@/pages/workout/PlanBuilderPage/usePlanDraft";
 import {
   EMPTY_DRAFT,
   MAX_DESCRIPTION,
   MAX_NAME,
   cloneDayExercises,
   draftFromPlan,
-  newDraftDay,
-  newDraftExercise,
   snapshot,
   toSaveRequest,
   validateDraft,
-  type DraftDay,
-  type DraftExercise,
   type PlanDraft,
 } from "@/pages/workout/PlanBuilderPage/PlanBuilderPage.constants";
 import { WorkoutSkeleton } from "@/pages/workout/WorkoutSkeleton/WorkoutSkeleton";
@@ -68,11 +65,11 @@ export function PlanBuilderPage() {
   const navigate = useNavigate();
   const toast = useToast();
 
-  const [draft, setDraft] = useState<PlanDraft>(EMPTY_DRAFT);
+  const { draft, setDraft, weekday, setWeekday, day, patchDraft, patchDay, addDay, removeDay: removeDayFromDraft, addExercises: addPickedExercises, changeExercise, removeExercise, sensors, onDragEnd } =
+    usePlanDraft(EMPTY_DRAFT);
   const [initial, setInitial] = useState(() => snapshot(EMPTY_DRAFT));
   const [loading, setLoading] = useState(isEdit);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [weekday, setWeekday] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [showErrors, setShowErrors] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -121,21 +118,8 @@ export function PlanBuilderPage() {
   }, [dirty]);
 
   // ── Draft editing ──────────────────────────────────────────────────────────
-  const day = draft.days.find((d) => d.weekday === weekday) ?? null;
-
-  const patchDraft = (patch: Partial<PlanDraft>) => setDraft((d) => ({ ...d, ...patch }));
-
-  const patchDay = (target: number, fn: (d: DraftDay) => DraftDay) =>
-    setDraft((d) => ({ ...d, days: d.days.map((x) => (x.weekday === target ? fn(x) : x)) }));
-
-  function addDay(target: number) {
-    setDraft((d) => ({ ...d, days: [...d.days, newDraftDay(target)].sort((a, b) => a.weekday - b.weekday) }));
-    setWeekday(target);
-  }
-
   function removeDay(target: number) {
-    setDraft((d) => ({ ...d, days: d.days.filter((x) => x.weekday !== target) }));
-    setWeekday((current) => (current === target ? (draft.days.find((x) => x.weekday !== target)?.weekday ?? null) : current));
+    removeDayFromDraft(target);
     setConfirm(null);
   }
 
@@ -176,29 +160,8 @@ export function PlanBuilderPage() {
   }
 
   function addExercises(picked: ExerciseSummary[]) {
-    if (weekday === null) return;
-    patchDay(weekday, (d) => ({ ...d, exercises: [...d.exercises, ...picked.map(newDraftExercise)] }));
+    addPickedExercises(picked);
     setPickerOpen(false);
-  }
-
-  const changeExercise = (key: string, patch: Partial<DraftExercise>) =>
-    weekday !== null && patchDay(weekday, (d) => ({ ...d, exercises: d.exercises.map((e) => (e.key === key ? { ...e, ...patch } : e)) }));
-
-  const removeExercise = (key: string) =>
-    weekday !== null && patchDay(weekday, (d) => ({ ...d, exercises: d.exercises.filter((e) => e.key !== key) }));
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
-
-  function onDragEnd({ active, over }: DragEndEvent) {
-    if (!over || active.id === over.id || weekday === null) return;
-    patchDay(weekday, (d) => {
-      const from = d.exercises.findIndex((e) => e.key === active.id);
-      const to = d.exercises.findIndex((e) => e.key === over.id);
-      return from < 0 || to < 0 ? d : { ...d, exercises: arrayMove(d.exercises, from, to) };
-    });
   }
 
   // A plain (non-sortable) draggable/droppable grid — the keyboard sensor's default coordinate

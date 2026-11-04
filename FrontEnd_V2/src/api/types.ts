@@ -344,7 +344,7 @@ export interface TaskDataResponse extends TaskSchedulingFields {
   cancelled_at: string | null;
 }
 
-export type AssistantAgentType = "shadow" | "goal_coach" | "career_advisor" | "insights" | "diet_coach";
+export type AssistantAgentType = "shadow" | "goal_coach" | "career_advisor" | "insights" | "diet_coach" | "workout_coach";
 export type ChatRole = "user" | "assistant" | "system" | "tool";
 
 export interface ConvoDataShortResponse {
@@ -420,6 +420,7 @@ export interface MessageLinkedItems {
   milestone_proposals?: MilestoneProposal[];
   task_proposals?: TaskProposal[];
   scheduled_task_proposals?: ScheduledTaskProposal[];
+  workout_plan_proposals?: WorkoutPlanProposal[];
 }
 
 export interface MessageDataResponse {
@@ -1318,6 +1319,47 @@ export interface WorkoutPlanSummary {
 
 export interface WorkoutPlanDetail extends WorkoutPlanSummary {
   days: PlanDay[];
+}
+
+export interface ProposedPlanExercise {
+  exercise_id: number;
+  exercise: ExerciseSummary;
+  sets: number;
+  reps: string;
+  rest_seconds: number;
+  weight_kg: number | null;
+  note: string | null;
+}
+
+export interface ProposedPlanDay {
+  weekday: number; // 0 = Sunday
+  name: string;
+  exercises: ProposedPlanExercise[];
+}
+
+/** A plan the Workout Coach drafted. Nothing is saved until the user reviews it and saves it. */
+export interface WorkoutPlanProposalPlan {
+  name: string;
+  description: string;
+  rationale: string; // why the coach built it this way, shown above the plan in the review panel
+  goal: WorkoutGoal;
+  level: WorkoutLevel;
+  days: ProposedPlanDay[];
+}
+
+export interface WorkoutPlanProposal {
+  proposal_id: string;
+  content_index: number;
+  status: ProposalStatus;
+  plan_id: number | null;
+  plan: WorkoutPlanProposalPlan;
+  plan_action: ProposalAction;
+}
+
+export interface SaveWorkoutPlanFromProposalRequest {
+  proposal_id: string;
+  plan: WorkoutPlanSaveRequest;
+  activate: boolean; // also start following the plan today
 }
 
 interface PlanExerciseSaveInput {

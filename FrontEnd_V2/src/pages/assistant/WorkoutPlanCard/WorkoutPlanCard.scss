@@ -1,0 +1,45 @@
+.workout-plan-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+  margin-top: 0.6rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--jv-border);
+  border-left: 3px solid var(--jv-violet);
+  border-radius: 10px;
+  background: var(--jv-surface);
+}
+
+.workout-plan-card-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--jv-violet);
+}
+
+.workout-plan-card-title { font-size: 0.95rem; color: var(--jv-text); }
+.workout-plan-card-sub { font-size: 0.78rem; color: var(--jv-muted); }
+
+.workout-plan-card-days {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0.2rem 0 0.15rem;
+}
+
+.workout-plan-card-day {
+  padding: 0.12rem 0.5rem;
+  font-size: 0.74rem;
+  color: var(--jv-text);
+  border-radius: 999px;
+  background: var(--jv-surface-3);
+
+  b { color: var(--jv-violet); font-weight: 800; }
+}
+
+.workout-plan-card-cta {
+  font-size: 0.85rem;
+  white-space: nowrap;
+}

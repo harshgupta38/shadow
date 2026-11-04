@@ -26,6 +26,21 @@ function istParts(date: Date) {
     };
 }
 
+const IST_DAY = new Intl.DateTimeFormat("en-GB", { timeZone: IST_TIMEZONE, day: "numeric", month: "long", year: "numeric" });
+
+/** The exact moment a message was sent, such as "4 November 2026, 12:40 pm" (or "12:40" for a 24-hour clock). */
+export function formatChatDateTime(createdAt: string, format: TimeFormat = "12h"): string {
+    const date = parseServerDate(createdAt);
+    if (Number.isNaN(date.getTime())) return "";
+
+    const { hour24, minute } = istParts(date);
+    const time =
+        format === "24h"
+            ? `${String(hour24).padStart(2, "0")}:${minute}`
+            : `${hour24 % 12 || 12}:${minute} ${hour24 >= 12 ? "pm" : "am"}`;
+    return `${IST_DAY.format(date)}, ${time}`;
+}
+
 export function formatChatTime(createdAt: string, format: TimeFormat = "12h"): string {
     const date = parseServerDate(createdAt);
     if (Number.isNaN(date.getTime())) return createdAt;

@@ -66,12 +66,18 @@ from app.schemas.chat import (
     MessageFromLLMSchema,
     NewConvoFromLLMSchema,
 )
-from app.llm.tools import MAX_TOOL_ITERATIONS, AGENT_TOOL_DEFINITIONS, TERMINAL_TOOL_NAMES
+from app.llm.tools import AGENT_REASONING_EFFORT, MAX_TOOL_ITERATIONS, AGENT_TOOL_DEFINITIONS, TERMINAL_TOOL_NAMES, direct_reply
 
 
 def _is_reasoning_model(model: str) -> bool:
     """Reasoning-family models (gpt-5*, o-series) think before they answer. Other models reject the settings that control that."""
     return model.startswith("gpt-5") or model.startswith("o")
+
+
+def _agent_reasoning(model: str, agent_type: str) -> dict:
+    """The reasoning effort an agent asks for (see AGENT_REASONING_EFFORT), as request arguments. Non-reasoning models reject it."""
+    effort = AGENT_REASONING_EFFORT.get(agent_type)
+    return {"reasoning_effort": effort} if effort and _is_reasoning_model(model) else {}
 
 
 class OpenAIProvider(BaseLLMProvider):
@@ -111,6 +117,7 @@ class OpenAIProvider(BaseLLMProvider):
         tools = AGENT_TOOL_DEFINITIONS.get(agent_type, [])
         if tools:
             kwargs["tools"] = tools
+        kwargs.update(_agent_reasoning(model, agent_type))
 
         if temperature is not None:
             kwargs["temperature"] = temperature
@@ -432,6 +439,7 @@ class OpenAIProvider(BaseLLMProvider):
         _agent_tools = AGENT_TOOL_DEFINITIONS.get(request_data.agent_type, [])
         if _agent_tools:
             initial_kwargs["tools"] = _agent_tools
+        initial_kwargs.update(_agent_reasoning(model, request_data.agent_type))
         if request.temperature is not None:
             initial_kwargs["temperature"] = request.temperature
         if request.max_tokens is not None:
@@ -557,6 +565,7 @@ class OpenAIProvider(BaseLLMProvider):
                     final_kwargs["temperature"] = request.temperature
                 if request.max_tokens is not None:
                     final_kwargs["max_completion_tokens"] = request.max_tokens
+                final_kwargs.update(_agent_reasoning(model, request_data.agent_type))
                 final_completion = await self._client.beta.chat.completions.parse(**final_kwargs)
             except (APIConnectionError, APIStatusError, OpenAIError) as exc:
                 raise LLMProviderError(f"OpenAI create_conversation failed: {exc}") from exc
@@ -672,6 +681,7 @@ class OpenAIProvider(BaseLLMProvider):
             total_output_tokens += usage_delta.output_tokens
             total_tokens += usage_delta.total_tokens
 
+        direct_content: str | None = None  # a reply a terminal tool wrote itself, which spares the call that would repeat it
         for _ in range(MAX_TOOL_ITERATIONS):
             first_choice = completion.choices[0]
             tool_calls = first_choice.message.tool_calls
@@ -700,11 +710,13 @@ class OpenAIProvider(BaseLLMProvider):
                 }
             )
 
+            executed: list[tuple[str, object]] = []
             for tool_call in tool_calls:
                 arguments = json.loads(tool_call.function.arguments or "{}")
                 result = request.tool_executor(tool_call.function.name, arguments)
                 if asyncio.iscoroutine(result):
                     result = await result
+                executed.append((tool_call.function.name, result))
                 messages.append(
                     {
                         "role": Role.TOOL,
@@ -712,6 +724,10 @@ class OpenAIProvider(BaseLLMProvider):
                         "content": json.dumps(result),
                     }
                 )
+
+            direct_content = direct_reply(executed)
+            if direct_content is not None:
+                break
 
             tool_names = "\n".join(tool_call.function.name for tool_call in tool_calls)
             completion, usage_delta = await self._tool_complete(
@@ -727,19 +743,22 @@ class OpenAIProvider(BaseLLMProvider):
                 total_output_tokens += usage_delta.output_tokens
                 total_tokens += usage_delta.total_tokens
 
-        if completion.choices[0].message.tool_calls:
+        if direct_content is None and completion.choices[0].message.tool_calls:
             raise LLMRequestError("OpenAI exceeded the maximum number of tool iterations.")
 
         response_time_ms = int((perf_counter() - started_at) * 1000)
 
         first_choice = completion.choices[0]
         message = first_choice.message
-        if message.refusal:
-            raise LLMRequestError(f"OpenAI refused respond_to_message response: {message.refusal}")
+        if direct_content is not None:
+            content = direct_content
+        else:
+            if message.refusal:
+                raise LLMRequestError(f"OpenAI refused respond_to_message response: {message.refusal}")
 
-        content = message.content
-        if not content:
-            raise LLMRequestError("OpenAI returned an empty respond_to_message response.")
+            content = message.content
+            if not content:
+                raise LLMRequestError("OpenAI returned an empty respond_to_message response.")
 
         parsed = MessageFromLLMSchema(content=content)
 
@@ -756,7 +775,7 @@ class OpenAIProvider(BaseLLMProvider):
             provider=LLMProvider.OPENAI,
             model=model,
             model_str=completion.model or model,
-            finish_reason=first_choice.finish_reason,
+            finish_reason="stop" if direct_content is not None else first_choice.finish_reason,
             usage=usage,
             response_id=completion.id,
             response_time_ms=response_time_ms,

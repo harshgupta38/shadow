@@ -57,6 +57,7 @@ from app.models.workout_plan_exercise import WorkoutPlanExerciseDBM
 from app.models.workout_setting import WorkoutSettingDBM
 from app.models.workout_session import WorkoutSessionDBM
 from app.models.workout_session_exercise import WorkoutSessionExerciseDBM
+from app.models.workout_plan_proposal import WorkoutPlanProposalDBM
 from app.models.diet_profile import DietProfileDBM
 from app.models.food import FoodDBM
 from app.models.food_override import FoodOverrideDBM

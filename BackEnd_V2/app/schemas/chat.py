@@ -5,7 +5,7 @@ from typing import Literal, get_args
 
 from app.schemas.common import ORMModel
 
-AssistantAgentType = Literal["shadow", "goal_coach", "career_advisor", "insights", "diet_coach"]
+AssistantAgentType = Literal["shadow", "goal_coach", "career_advisor", "insights", "diet_coach", "workout_coach"]
 
 
 class MessageRoleEnum(StrEnum):

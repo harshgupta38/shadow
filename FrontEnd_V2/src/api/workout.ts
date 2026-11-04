@@ -3,6 +3,7 @@ import { http } from "@/api/client";
 import type {
   ExerciseDetail,
   ExerciseSummary,
+  SaveWorkoutPlanFromProposalRequest,
   SessionSaveRequest,
   SessionStartRequest,
   WarmUpRoutine,
@@ -57,6 +58,11 @@ export const workoutApi = {
 
   createPlan(data: WorkoutPlanSaveRequest): Promise<WorkoutPlanDetail> {
     return http.post<WorkoutPlanDetail>(url(W.PLANS), data);
+  },
+
+  /** Saves a plan the Workout Coach drafted, as the user reviewed and edited it. */
+  savePlanFromProposal(data: SaveWorkoutPlanFromProposalRequest): Promise<WorkoutPlanDetail> {
+    return http.post<WorkoutPlanDetail>(url(W.PLAN_FROM_PROPOSAL), data);
   },
 
   updatePlan(id: number, data: WorkoutPlanSaveRequest): Promise<WorkoutPlanDetail> {

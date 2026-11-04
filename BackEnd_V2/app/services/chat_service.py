@@ -18,6 +18,7 @@ from app.core.exceptions import NotFoundError, TokenLimitReachedError, Validatio
 from app.llm import get_llm_service, LLMService, NewConvoResponse, LLMError, LLMRequestError
 from app.llm.service import get_llm_service_for_ai_behavior
 from app.services import memory_service, settings_service
+from app.services.workout_library_service import exercise_summary, library_by_id
 from app.models.user import UserDBM
 from app.models.chat import ConversationDBM, MessageDBM
 from app.models.goal import GoalDBM
@@ -26,6 +27,8 @@ from app.models.milestone import MilestoneDBM
 from app.models.milestone_proposal import MilestoneProposalDBM
 from app.models.task_proposal import TaskProposalDBM
 from app.models.scheduled_task_proposal import ScheduledTaskProposalDBM
+from app.models.workout_plan import WorkoutPlanDBM
+from app.models.workout_plan_proposal import WorkoutPlanProposalDBM
 from app.schemas.chat import (
     ConvoDataResponse,
     ConvoDataShortResponse,
@@ -197,6 +200,115 @@ def _resolve_scheduled_task_proposal_actions(
     return {**linked_items, "scheduled_task_proposals": resolved_proposals}
 
 
+def _resolve_workout_plan_proposal_actions(
+    db: Session, current_user: UserDBM, linked_items: dict
+) -> dict:
+    """Prepare each workout plan proposal for the frontend.
+
+    A proposal stores only exercise ids and doses, so the exercise details (name, picture, muscles) are read from the
+    library every time rather than frozen in the message. The saved plan comes from the live proposal row, not the
+    message copy: deleting the plan clears the row, and SQLite can hand the freed id to a different plan later.
+    """
+    proposals = linked_items.get("workout_plan_proposals")
+    if not proposals:
+        return linked_items
+
+    live_plan_ids: dict[str, int | None] = dict(
+        db.execute(
+            select(WorkoutPlanProposalDBM.proposal_id, WorkoutPlanProposalDBM.plan_id).where(
+                WorkoutPlanProposalDBM.proposal_id.in_([p["proposal_id"] for p in proposals]),
+                WorkoutPlanProposalDBM.user_id == current_user.id,
+            )
+        ).all()
+    )
+    plan_ids = {plan_id for plan_id in live_plan_ids.values() if plan_id is not None}
+    existing_plan_ids: set[int] = set()
+    if plan_ids:
+        existing_plan_ids = set(
+            db.scalars(
+                select(WorkoutPlanDBM.id).where(
+                    WorkoutPlanDBM.id.in_(plan_ids),
+                    WorkoutPlanDBM.user_id == current_user.id,
+                )
+            ).all()
+        )
+
+    library = library_by_id(
+        db,
+        {entry["exercise_id"] for p in proposals for day in p["plan"]["days"] for entry in day["exercises"]},
+    )
+
+    resolved_proposals = []
+    for proposal in proposals:
+        plan = proposal["plan"]
+        days = [
+            {
+                **day,
+                "exercises": [
+                    {**entry, "exercise": exercise_summary(library[entry["exercise_id"]]).model_dump(mode="json")}
+                    for entry in day["exercises"]
+                    if entry["exercise_id"] in library
+                ],
+            }
+            for day in plan["days"]
+        ]
+        saved_plan_id = live_plan_ids.get(proposal["proposal_id"])
+        still_saved = saved_plan_id is not None and saved_plan_id in existing_plan_ids
+        resolved_proposals.append(
+            {
+                **proposal,
+                "status": "saved" if still_saved else "pending",
+                "plan_id": saved_plan_id if still_saved else None,
+                "plan": {**plan, "days": days},
+                "plan_action": "view" if still_saved else "create",
+            }
+        )
+
+    return {**linked_items, "workout_plan_proposals": resolved_proposals}
+
+
+def _attach_workout_plan_proposal(
+    db: Session,
+    current_user: UserDBM,
+    conversation: ConversationDBM,
+    assistant_message: MessageDBM,
+    action_data: dict | None,
+    content_index: int,
+) -> None:
+    """Persist a workout plan proposal for a specific generated content version and attach it to the message."""
+    if not action_data or "workout_plan_proposal" not in action_data:
+        return
+
+    proposal_id = str(uuid.uuid4())
+    db.add(
+        WorkoutPlanProposalDBM(
+            proposal_id=proposal_id,
+            user_id=current_user.id,
+            conversation_id=conversation.id,
+            message_id=assistant_message.id,
+            content_index=content_index,
+            status="pending",
+            plan_id=None,
+        )
+    )
+
+    existing_linked_items = assistant_message.linked_items or {}
+    existing_proposals = list(existing_linked_items.get("workout_plan_proposals") or [])
+    existing_proposals.append(
+        {
+            "proposal_id": proposal_id,
+            "content_index": content_index,
+            "status": "pending",
+            "plan_id": None,
+            "plan": action_data["workout_plan_proposal"],
+        }
+    )
+    assistant_message.linked_items = {
+        **existing_linked_items,
+        "workout_plan_proposals": existing_proposals,
+    }
+
+
 def _attach_scheduled_task_proposal(
     db: Session,
     current_user: UserDBM,
@@ -249,6 +361,7 @@ def _serialize_message(
     data.linked_items = _resolve_milestone_proposal_actions(db, current_user, data.linked_items)
     data.linked_items = _resolve_task_proposal_actions(db, current_user, data.linked_items)
     data.linked_items = _resolve_scheduled_task_proposal_actions(db, current_user, data.linked_items)
+    data.linked_items = _resolve_workout_plan_proposal_actions(db, current_user, data.linked_items)
     return data
 
 
@@ -498,6 +611,7 @@ async def create_conversation(
     _attach_milestone_proposals(db, current_user, conversation, assistant_message, tool_context.action_data, 0)
     _attach_task_proposals(db, current_user, conversation, assistant_message, tool_context.action_data, 0)
     _attach_scheduled_task_proposal(db, current_user, conversation, assistant_message, tool_context.action_data, 0)
+    _attach_workout_plan_proposal(db, current_user, conversation, assistant_message, tool_context.action_data, 0)
 
     db.commit()
     db.refresh(conversation)
@@ -513,6 +627,9 @@ async def create_conversation(
         db, current_user, resolved_linked_items
     )
     resolved_linked_items = _resolve_scheduled_task_proposal_actions(
+        db, current_user, resolved_linked_items
+    )
+    resolved_linked_items = _resolve_workout_plan_proposal_actions(
         db, current_user, resolved_linked_items
     )
 
@@ -601,6 +718,11 @@ def delete_conversation(
     db.execute(
         delete(GoalProposalDBM).where(
             GoalProposalDBM.conversation_id == conversation_id
+        )
+    )
+    db.execute(
+        delete(WorkoutPlanProposalDBM).where(
+            WorkoutPlanProposalDBM.conversation_id == conversation_id
         )
     )
     db.execute(delete(MessageDBM).where(MessageDBM.conversation_id == conversation_id))
@@ -704,6 +826,9 @@ async def _call_llm_and_save(
         db, current_user, conversation, assistant_message, tool_context.action_data, 0
     )
     _attach_scheduled_task_proposal(
+        db, current_user, conversation, assistant_message, tool_context.action_data, 0
+    )
+    _attach_workout_plan_proposal(
         db, current_user, conversation, assistant_message, tool_context.action_data, 0
     )
 
@@ -1047,6 +1172,7 @@ async def regenerate_response(
     _attach_milestone_proposals(db, current_user, conversation, assistant_message, tool_context.action_data, new_content_index)
     _attach_task_proposals(db, current_user, conversation, assistant_message, tool_context.action_data, new_content_index)
     _attach_scheduled_task_proposal(db, current_user, conversation, assistant_message, tool_context.action_data, new_content_index)
+    _attach_workout_plan_proposal(db, current_user, conversation, assistant_message, tool_context.action_data, new_content_index)
 
     conversation.updated_at = datetime.now(timezone.utc)
     db.commit()

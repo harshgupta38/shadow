@@ -2,17 +2,19 @@
 
 from datetime import date
 
-from sqlalchemy import or_, select
+from sqlalchemy import or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.common import today_ist
-from app.core.exceptions import ForbiddenError, NotFoundError, ValidationError
+from app.core.exceptions import ConflictError, ForbiddenError, NotFoundError, ValidationError
+from app.models.chat import MessageDBM
 from app.models.user import UserDBM
 from app.models.workout_exercise import WorkoutExerciseDBM
 from app.models.workout_plan import WorkoutPlanDBM
 from app.models.workout_plan_day import WorkoutPlanDayDBM
 from app.models.workout_plan_exercise import WorkoutPlanExerciseDBM
+from app.models.workout_plan_proposal import WorkoutPlanProposalDBM
 from app.models.workout_setting import WorkoutSettingDBM
 from app.schemas.workout import (
     ExerciseSummaryResponse,
@@ -21,6 +23,7 @@ from app.schemas.workout import (
     PlanExerciseInput,
     PlanExerciseResponse,
     PlanSource,
+    SaveWorkoutPlanFromProposalRequest,
     WarmUpRoutineResponse,
     WorkoutPlanDetailResponse,
     WorkoutPlanSaveRequest,
@@ -173,12 +176,34 @@ def _dose(exercise: WorkoutExerciseDBM, entry: PlanExerciseInput) -> dict:
     return {"sets": entry.sets, "reps": entry.reps, "rest_seconds": entry.rest_seconds, "weight_kg": entry.weight_kg}
 
 
-def _build_days(db: Session, days: list[PlanDayInput]) -> list[WorkoutPlanDayDBM]:
+def _library_for(db: Session, days: list[PlanDayInput]) -> dict[int, WorkoutExerciseDBM]:
     wanted = {entry.exercise_id for day in days for entry in day.exercises}
     library = {row.id: row for row in db.scalars(select(WorkoutExerciseDBM).where(WorkoutExerciseDBM.id.in_(wanted))).all()}
     if wanted - library.keys():
         message = "Some exercises are no longer in the library. Remove them and try again."
         raise ValidationError(message, errors={"days": message})
+    return library
+
+
+def normalised_days(db: Session, days: list[PlanDayInput]) -> list[PlanDayInput]:
+    """The same days with every dose checked against how its exercise is counted. Raises ValidationError for an unknown
+    exercise or a dose that doesn't fit, exactly as saving a plan would."""
+    library = _library_for(db, days)
+    return [
+        PlanDayInput(
+            weekday=day.weekday,
+            name=day.name,
+            exercises=[
+                PlanExerciseInput(exercise_id=entry.exercise_id, note=entry.note, **_dose(library[entry.exercise_id], entry))
+                for entry in day.exercises
+            ],
+        )
+        for day in days
+    ]
+
+
+def _build_days(db: Session, days: list[PlanDayInput]) -> list[WorkoutPlanDayDBM]:
+    library = _library_for(db, days)
 
     return [
         WorkoutPlanDayDBM(
@@ -242,6 +267,69 @@ def create_plan(db: Session, user: UserDBM, data: WorkoutPlanSaveRequest) -> Wor
     )
     db.add(plan)
     db.commit()
+    return get_plan(db, user, plan.id)
+
+
+def _mark_proposal_saved_in_message(db: Session, message_id: int, proposal_id: str, plan_id: int) -> None:
+    message = db.get(MessageDBM, message_id)
+    if message is None:
+        return
+    linked_items = message.linked_items or {}
+    proposals = linked_items.get("workout_plan_proposals") or []
+    message.linked_items = {
+        **linked_items,
+        "workout_plan_proposals": [
+            {**proposal, "status": "saved", "plan_id": plan_id} if proposal.get("proposal_id") == proposal_id else proposal
+            for proposal in proposals
+        ],
+    }
+
+
+def _own_plan(db: Session, user: UserDBM, plan_id: int | None) -> WorkoutPlanDBM | None:
+    if plan_id is None:
+        return None
+    return db.scalar(_plan_query().where(WorkoutPlanDBM.id == plan_id, WorkoutPlanDBM.user_id == user.id))
+
+
+def _create_plan_for_proposal(db: Session, user: UserDBM, proposal: WorkoutPlanProposalDBM, data: SaveWorkoutPlanFromProposalRequest) -> WorkoutPlanDBM:
+    """Makes the plan for a proposal that has none. Only one of two requests saving the same proposal at once can move it on from the
+    state both of them read, and the other gets the plan the first one made."""
+    plan = WorkoutPlanDBM(
+        user_id=user.id,
+        name=data.plan.name,
+        description=data.plan.description,
+        goal=data.plan.goal,
+        level=data.plan.level,
+        days=_build_days(db, data.plan.days),
+    )
+    db.add(plan)
+    db.flush()
+    moved = db.execute(
+        update(WorkoutPlanProposalDBM)
+        .where(WorkoutPlanProposalDBM.proposal_id == data.proposal_id, WorkoutPlanProposalDBM.plan_id == proposal.plan_id)
+        .values(status="saved", plan_id=plan.id)
+    )
+    if moved.rowcount == 0:
+        db.rollback()
+        winner = _own_plan(db, user, db.scalar(select(WorkoutPlanProposalDBM.plan_id).where(WorkoutPlanProposalDBM.proposal_id == data.proposal_id)))
+        if winner is None:
+            raise ConflictError("This workout plan proposal could not be saved. Please try again.")
+        return winner
+    _mark_proposal_saved_in_message(db, proposal.message_id, data.proposal_id, plan.id)
+    db.commit()
+    return plan
+
+
+def save_plan_from_proposal(db: Session, user: UserDBM, data: SaveWorkoutPlanFromProposalRequest) -> WorkoutPlanDetailResponse:
+    """Creates the plan the user reviewed from a Workout Coach proposal. Saving the same proposal again returns the plan it already
+    made, and a plan that has since been deleted is made again, the way goals and milestones behave."""
+    proposal = db.scalar(select(WorkoutPlanProposalDBM).where(WorkoutPlanProposalDBM.proposal_id == data.proposal_id))
+    if proposal is None or proposal.user_id != user.id:
+        raise NotFoundError("Workout plan proposal not found.")
+
+    plan = _own_plan(db, user, proposal.plan_id) or _create_plan_for_proposal(db, user, proposal, data)
+    if data.activate:
+        activate_plan(db, user, plan.id)
     return get_plan(db, user, plan.id)
 
 

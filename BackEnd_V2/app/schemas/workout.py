@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import Literal
+from typing import Literal, get_args
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -12,6 +12,8 @@ EquipmentType = Literal["no_equipment", "light_equipment", "heavy_equipment"]
 Level = Literal["beginner", "intermediate", "advanced"]
 Goal = Literal["build_muscle", "lose_fat", "strength", "endurance", "general_fitness"]
 Mechanic = Literal["compound", "isolation"]
+# What a person can list as having besides their own body; "full_gym" stands for all of it.
+OwnedEquipment = Literal["dumbbell", "kettlebell", "band", "barbell", "machine", "cable", "other", "full_gym"]
 ExerciseKind = Literal["strength", "cardio", "warmup"]
 ExerciseMeasure = Literal["minutes", "seconds", "reps"]
 PlanSource = Literal["predefined", "custom"]
@@ -85,6 +87,12 @@ class WorkoutPlanSaveRequest(BaseModel):
         if len(set(weekdays)) != len(weekdays):
             raise ValueError("Each weekday can only have one training day.")
         return days
+
+
+class SaveWorkoutPlanFromProposalRequest(BaseModel):
+    proposal_id: str = Field(min_length=1, max_length=36)
+    plan: WorkoutPlanSaveRequest  # what the user reviewed, with any changes they made
+    activate: bool = False  # also follow the plan from today
 
 
 class SessionStartRequest(BaseModel):
@@ -298,3 +306,40 @@ class WorkoutProgressResponse(BaseModel):
     personal_records: list[PersonalRecordResponse]
     total_sessions: int
     current_streak_weeks: int
+
+
+# ── Workout Coach plan drafts ─────────────────────────────────────────────────
+# What the chat agent sends when it drafts a plan. It names a muscle (and maybe a few words of the exercise's name) for each place
+# in a session instead of choosing exercises, and the app picks them from the library (workout_plan_builder_service).
+
+
+class PlanSlotInput(BaseModel):
+    muscle: MuscleId | None = None  # None makes it a cardio slot
+    hint: str | None = None  # words to prefer in the exercise's name, such as "push-up"
+    exercise_id: int | None = None  # keeps this exact exercise instead of choosing one
+    sets: int | None = None
+    reps: str | None = None
+    rest_seconds: int | None = None  # sets, reps and rest left None take the exercise's usual
+
+
+class PlanDraftDayInput(BaseModel):
+    weekday: int = Field(ge=0, le=6)
+    name: str = ""
+    exercises: list[PlanSlotInput]
+
+
+class PlanDraftInput(BaseModel):
+    name: str
+    description: str = ""
+    rationale: str = ""  # why the plan fits the person; shown above it in the review panel
+    goal: Goal
+    level: Level
+    equipment: list[OwnedEquipment] = Field(default_factory=list)  # empty means bodyweight only
+    days: list[PlanDraftDayInput]
+
+    @field_validator("equipment", mode="before")
+    @classmethod
+    def _known_equipment_only(cls, value):
+        """Bodyweight is always allowed, so a model that lists it, or something unknown, is not an error."""
+        known = set(get_args(OwnedEquipment))
+        return [item for item in value if item in known] if isinstance(value, list) else value

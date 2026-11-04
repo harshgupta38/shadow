@@ -2,18 +2,24 @@
 
 from collections.abc import Iterable
 from datetime import datetime
+from typing import get_args
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, contains_eager, defer
 
 from app.core.exceptions import NotFoundError
 from app.models.workout_exercise import WorkoutExerciseDBM
+from app.models.workout_plan import WorkoutPlanDBM
+from app.models.workout_plan_day import WorkoutPlanDayDBM
+from app.models.workout_plan_exercise import WorkoutPlanExerciseDBM
 from app.models.workout_session import WorkoutSessionDBM
 from app.models.workout_session_exercise import WorkoutSessionExerciseDBM
 from app.schemas.workout import (
     ExerciseDetailResponse,
     ExercisePerformanceResponse,
     ExerciseSummaryResponse,
+    Level,
+    MuscleId,
     WarmUpItemResponse,
     WarmUpRoutineResponse,
 )
@@ -21,6 +27,8 @@ from app.services.workout_calc_service import timed_amount, warm_up_seconds
 from app.services.workout_media_service import media_url, thumbnail_url
 
 _HISTORY_SCAN_LIMIT = 20  # recent entries inspected when looking for one with done sets
+_LEVELS = get_args(Level)
+_MUSCLES = get_args(MuscleId)
 
 
 def exercise_summary(exercise: WorkoutExerciseDBM) -> ExerciseSummaryResponse:
@@ -50,19 +58,82 @@ def library_by_id(db: Session, exercise_ids: Iterable[int]) -> dict[int, Workout
     return {row.id: row for row in rows}
 
 
+def _without_long_text():
+    """Every exercise, without the long text columns that only the details page shows."""
+    return select(WorkoutExerciseDBM).options(
+        defer(WorkoutExerciseDBM.description),
+        defer(WorkoutExerciseDBM.instructions),
+        defer(WorkoutExerciseDBM.tips),
+        defer(WorkoutExerciseDBM.common_mistakes),
+    )
+
+
+def all_exercises(db: Session) -> list[WorkoutExerciseDBM]:
+    """The whole library in its own order, for callers that choose among the rows themselves."""
+    return list(db.scalars(_without_long_text().order_by(WorkoutExerciseDBM.position, WorkoutExerciseDBM.id)).all())
+
+
 def list_exercises(db: Session) -> list[ExerciseSummaryResponse]:
-    # The list shows only summary fields, so the long text columns are left out of the query.
-    rows = db.scalars(
-        select(WorkoutExerciseDBM)
-        .options(
-            defer(WorkoutExerciseDBM.description),
-            defer(WorkoutExerciseDBM.instructions),
-            defer(WorkoutExerciseDBM.tips),
-            defer(WorkoutExerciseDBM.common_mistakes),
-        )
-        .order_by(WorkoutExerciseDBM.position, WorkoutExerciseDBM.id)
-    ).all()
-    return [exercise_summary(row) for row in rows]
+    return [exercise_summary(row) for row in all_exercises(db)]
+
+
+def find_exercise(db: Session, exercise_id: int | None, name: str | None) -> tuple[WorkoutExerciseDBM | None, list[str]]:
+    """The exercise someone meant, by id or by name, plus the names of other exercises they could have meant. The name may be part of
+    one: an exact match wins, otherwise the shortest name containing it."""
+    if exercise_id is not None:
+        return db.get(WorkoutExerciseDBM, int(exercise_id)), []
+    text = (name or "").strip().lower()
+    if not text:
+        return None, []
+    rows = list(db.scalars(_without_long_text().where(func.lower(WorkoutExerciseDBM.name).contains(text)).order_by(WorkoutExerciseDBM.position)).all())
+    if not rows:
+        return None, []
+    best = next((row for row in rows if row.name.lower() == text), None) or min(rows, key=lambda row: (len(row.name), row.position))
+    return best, [row.name for row in rows if row.id != best.id][:5]
+
+
+def curated_exercise_ids(db: Session) -> set[int]:
+    """Exercises the ready-made plans use: a proven starting set, so they come first wherever exercises are ranked."""
+    return set(
+        db.scalars(
+            select(WorkoutPlanExerciseDBM.exercise_id)
+            .join(WorkoutPlanDayDBM, WorkoutPlanDayDBM.id == WorkoutPlanExerciseDBM.day_id)
+            .join(WorkoutPlanDBM, WorkoutPlanDBM.id == WorkoutPlanDayDBM.plan_id)
+            .where(WorkoutPlanDBM.user_id.is_(None))
+            .distinct()
+        ).all()
+    )
+
+
+def exercise_rank(curated: set[int]):
+    """A sort key that puts the best-known, best-documented, simplest exercises first. Ties keep the library's own order."""
+    return lambda row: (row.id not in curated, not row.images, row.mechanic != "compound", len(row.name), row.position)
+
+
+def search_exercises(
+    db: Session,
+    *,
+    query: str | None = None,
+    muscles: Iterable[str] = (),
+    equipment_type: str | None = None,
+    kind: str = "strength",
+    max_level: str | None = None,
+) -> list[WorkoutExerciseDBM]:
+    """Library exercises of one kind that match every filter given, best first. Every word of the query must be in the name, and an
+    exercise matches the muscles when it mainly trains any one of them."""
+    words = (query or "").lower().split()
+    wanted = [muscle for muscle in muscles if muscle in _MUSCLES]
+    level_cap = _LEVELS.index(max_level) if max_level in _LEVELS else len(_LEVELS) - 1
+    matches = [
+        row
+        for row in db.scalars(_without_long_text().where(WorkoutExerciseDBM.kind == kind).order_by(WorkoutExerciseDBM.position)).all()
+        if _LEVELS.index(row.level) <= level_cap
+        and (not wanted or any(muscle in row.primary_muscles for muscle in wanted))
+        and (not equipment_type or row.equipment_type == equipment_type)
+        and all(word in row.name.lower() for word in words)
+    ]
+    matches.sort(key=exercise_rank(curated_exercise_ids(db)))
+    return matches
 
 
 def recent_done_entries(

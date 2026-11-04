@@ -211,7 +211,7 @@ def migrate_water_logs(engine) -> None:
 
 
 def migrate_conversations(engine) -> None:
-    """SQLite cannot change a CHECK constraint in place. A conversations table made before the Diet Coach existed only allows the
+    """SQLite cannot change a CHECK constraint in place. A conversations table made before the Workout Coach existed only allows the
     older agent types, so its rows are copied into a table built from the current model and its indexes are made again. The
     messages that point at the conversations keep their links: the copy keeps every id. Idempotent, and safe when workers start
     together: BEGIN IMMEDIATE makes them take turns, and the one that comes second finds the table already rebuilt."""
@@ -221,7 +221,7 @@ def migrate_conversations(engine) -> None:
         try:
             conn.exec_driver_sql("BEGIN IMMEDIATE")
             current = conn.execute(text("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'conversations'")).scalar()
-            if current is None or "'diet_coach'" in current:
+            if current is None or "'workout_coach'" in current:
                 conn.rollback()
                 return
             ddl = str(CreateTable(table).compile(dialect=conn.dialect)).replace(

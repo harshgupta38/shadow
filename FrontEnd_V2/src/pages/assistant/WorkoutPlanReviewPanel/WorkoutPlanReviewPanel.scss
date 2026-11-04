@@ -1,0 +1,239 @@
+// The panel's backdrop sits at z-index 1200, above Bootstrap's modals. The exercise picker, the exercise
+// details and the confirm dialog open from inside the panel, so while it is open they are lifted above it.
+body.wk-review-open {
+  .modal { z-index: 1300; }
+  .modal-backdrop { z-index: 1290; }
+}
+
+.goal-refined-review-panel.wk-rp { width: min(780px, 100%); }
+
+.wk-rp-stack {
+  align-items: stretch;
+  gap: 0.9rem;
+
+  > * { width: 100%; }
+}
+
+// ── Why this plan ────────────────────────────────────────────────────────────
+
+.wk-rp-why {
+  display: flex;
+  gap: 0.7rem;
+  padding: 0.8rem 0.95rem;
+  border-radius: 12px;
+  color: var(--jv-violet);
+  background: var(--jv-violet-soft);
+
+  svg { flex: none; margin-top: 0.15rem; }
+  strong { display: block; font-size: 0.82rem; color: var(--jv-text); }
+  p { margin: 0.15rem 0 0; font-size: 0.84rem; line-height: 1.55; color: var(--jv-text); }
+}
+
+// ── Cards ────────────────────────────────────────────────────────────────────
+
+.wk-rp-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  padding: 1rem;
+  border: 1px solid var(--jv-border);
+  border-radius: 14px;
+  background: var(--jv-surface);
+}
+
+.wk-rp-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; }
+
+.wk-rp-h {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--jv-muted);
+}
+
+.wk-rp-meta { font-size: 0.78rem; color: var(--jv-muted); }
+.wk-rp-hint { margin: 0; font-size: 0.82rem; color: var(--jv-muted); line-height: 1.5; }
+
+.wk-rp-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.8rem;
+
+  @media (max-width: 560px) { grid-template-columns: 1fr; }
+}
+
+.wk-rp-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+
+  > span {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--jv-faint);
+
+    em { font-style: normal; font-weight: 500; text-transform: none; letter-spacing: 0; }
+  }
+
+  textarea.form-control { resize: none; }
+
+  &--wide { grid-column: 1 / -1; }
+  &--grow { flex: 1 1 200px; }
+}
+
+// ── Schedule ─────────────────────────────────────────────────────────────────
+
+.wk-rp-week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.35rem;
+}
+
+.wk-rp-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  min-width: 0;
+  padding: 0.5rem 0.2rem;
+  font: inherit;
+  color: var(--jv-faint);
+  border: 1px dashed var(--jv-border-strong);
+  border-radius: 11px;
+  background: transparent;
+  cursor: pointer;
+  transition: border-color 140ms, background 140ms, color 140ms;
+
+  &:hover { border-color: var(--jv-brand-1); }
+  &:focus-visible { outline: none; box-shadow: var(--jv-ring); }
+
+  &.is-on {
+    color: var(--jv-brand-1);
+    border-style: solid;
+    border-color: transparent;
+    background: var(--jv-brand-soft);
+  }
+
+  &.is-selected { border: 1px solid var(--jv-brand-1); }
+}
+
+.wk-rp-day-label { font-size: 0.64rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
+
+.wk-rp-day-name {
+  max-width: 100%;
+  padding: 0 0.15rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--jv-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  .wk-rp-day:not(.is-on) & { color: var(--jv-faint); font-weight: 500; }
+}
+
+.wk-rp-rest {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  background: var(--jv-surface-2);
+
+  p { margin: 0; font-size: 0.86rem; color: var(--jv-muted); }
+}
+
+.wk-rp-daybox { display: flex; flex-direction: column; gap: 0.7rem; }
+
+.wk-rp-dayhead { display: flex; align-items: flex-end; gap: 0.75rem; flex-wrap: wrap; }
+
+.wk-rp-daymeta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+
+  strong { font-size: 0.84rem; color: var(--jv-text); }
+  span { font-size: 0.74rem; color: var(--jv-muted); }
+}
+
+.wk-rp-removeday {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  height: 34px;
+  padding: 0 0.7rem;
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--jv-muted);
+  border: 1px solid var(--jv-border-strong);
+  border-radius: 9px;
+  background: transparent;
+  cursor: pointer;
+
+  &:hover:not(:disabled) { color: var(--jv-danger); border-color: var(--jv-danger); background: var(--jv-danger-soft); }
+}
+
+.wk-rp-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.45rem; }
+
+.wk-rp-empty {
+  padding: 1rem;
+  font-size: 0.84rem;
+  text-align: center;
+  color: var(--jv-muted);
+  border: 1px dashed var(--jv-border-strong);
+  border-radius: 12px;
+
+  &.is-error { color: var(--jv-danger); border-color: var(--jv-danger); }
+}
+
+.wk-rp-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.55rem;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--jv-brand-1);
+  border: 1px dashed var(--jv-brand-1);
+  border-radius: 12px;
+  background: transparent;
+  cursor: pointer;
+
+  &:hover:not(:disabled) { background: var(--jv-brand-soft); }
+}
+
+// ── Footer ───────────────────────────────────────────────────────────────────
+
+.wk-rp-footer {
+  position: sticky;
+  bottom: -1.5rem; // the panel pads its bottom by 1.5rem, which the footer paints over
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin: 0.25rem 0 -1.5rem;
+  padding: 0.8rem 0 1.5rem;
+  background: var(--jv-surface);
+  border-top: 1px solid var(--jv-border);
+}
+
+.wk-rp-follow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: fit-content;
+  font-size: 0.86rem;
+  color: var(--jv-text);
+  cursor: pointer;
+
+  input { width: 1rem; height: 1rem; accent-color: var(--jv-brand-1); cursor: pointer; }
+}

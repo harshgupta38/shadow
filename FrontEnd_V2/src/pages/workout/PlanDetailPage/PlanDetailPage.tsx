@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CheckCircleFill, Clock, Copy, HeartPulseFill, Pencil, PlayFill, Trash3Fill, XCircle } from "react-bootstrap-icons";
+import { CheckCircleFill, Clock, Copy, HeartPulseFill, Pencil, PlayFill, Stars, Trash3Fill, XCircle } from "react-bootstrap-icons";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { api, ApiError } from "@/api";
@@ -197,6 +197,17 @@ export function PlanDetailPage() {
   } else {
     actions.push({ key: "use", label: busy === "activate" ? "Switching…" : "Use this plan", icon: <PlayFill size={14} />, tone: "brand", disabled: busy !== null, onClick: () => void activate() });
   }
+  actions.push({
+    key: "coach",
+    label: "Ask coach",
+    icon: <Stars size={14} />,
+    tone: "soft",
+    disabled: busy !== null,
+    onClick: () =>
+      navigate(ROUTES.ASSISTANT, {
+        state: { agentType: "workout_coach", prefillMessage: `Review my "${plan.name}" plan and tell me what you would improve.` },
+      }),
+  });
   if (isCustom) {
     actions.push(
       { key: "edit", label: "Edit", icon: <Pencil size={14} />, tone: "soft", disabled: busy !== null, onClick: () => editPlan(plan) },

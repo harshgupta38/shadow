@@ -7,7 +7,7 @@ import ReactMarkdown from "react-markdown";
 import boySitting from "@/assets/boy_sitting.png";
 import { api } from "@/api";
 import { ApiError } from "@/api/client";
-import type { ConvoDataShortResponse, GoalProposal, MessageDataResponse, MilestoneProposal, ScheduledTaskProposal, TaskProposal } from "@/api/types";
+import type { ConvoDataShortResponse, GoalProposal, MessageDataResponse, MilestoneProposal, ScheduledTaskProposal, TaskProposal, WorkoutPlanProposal } from "@/api/types";
 import { ROUTES } from "@/routes/RoutePaths";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { PageHeader } from "@/components/ui/PageHeader/PageHeader";
@@ -19,8 +19,10 @@ import { ANIMATION } from "@/constant/tuning";
 import { RefinedGoalReviewPanel } from "@/pages/assistant/RefinedGoalReviewPanel/RefinedGoalReviewPanel";
 import { MilestoneProposalReviewPanel } from "@/pages/assistant/MilestoneProposalReviewPanel/MilestoneProposalReviewPanel";
 import { TaskProposalReviewPanel } from "@/pages/assistant/TaskProposalReviewPanel/TaskProposalReviewPanel";
+import { WorkoutPlanCard } from "@/pages/assistant/WorkoutPlanCard/WorkoutPlanCard";
+import { WorkoutPlanReviewPanel } from "@/pages/assistant/WorkoutPlanReviewPanel/WorkoutPlanReviewPanel";
 import { useToast } from "@/context/ToastContext";
-import { formatChatTime } from "@/services/chat-time.service";
+import { formatChatDateTime, formatChatTime } from "@/services/chat-time.service";
 import { useTimeFormat } from "@/context/PlannerContext";
 import { resizeTextareaToMaxLines } from "@/services/textarea-resize.service";
 
@@ -63,6 +65,7 @@ export function AssistantPage() {
   const [reviewingProposal, setReviewingProposal] = useState<GoalProposal | null>(null);
   const [reviewingMilestoneProposal, setReviewingMilestoneProposal] = useState<MilestoneProposal | null>(null);
   const [reviewingTaskProposal, setReviewingTaskProposal] = useState<TaskProposal | null>(null);
+  const [reviewingWorkoutPlanProposal, setReviewingWorkoutPlanProposal] = useState<WorkoutPlanProposal | null>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const composerTextareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesRequestIdRef = useRef(0);
@@ -410,6 +413,10 @@ export function AssistantPage() {
     return msg.linked_items.scheduled_task_proposals?.filter(p => p.content_index === contentIndex) ?? [];
   }
 
+  function getActiveWorkoutPlanProposals(msg: MessageDataResponse, contentIndex: number): WorkoutPlanProposal[] {
+    return msg.linked_items.workout_plan_proposals?.filter(p => p.content_index === contentIndex) ?? [];
+  }
+
   async function retryMessage(message: MessageDataResponse) {
     if (isLoadingMessages || !activeItem) return;
 
@@ -733,6 +740,7 @@ export function AssistantPage() {
                         const activeMilestoneProposals = getActiveMilestoneProposals(msg, activeContentIndex);
                         const activeTaskProposals = getActiveTaskProposals(msg, activeContentIndex);
                         const activeScheduledTaskProposals = getActiveScheduledTaskProposals(msg, activeContentIndex);
+                        const activeWorkoutPlanProposals = getActiveWorkoutPlanProposals(msg, activeContentIndex);
                         return (
                           <div
                             key={msgKey}
@@ -740,6 +748,7 @@ export function AssistantPage() {
                             className={`d-flex ${msg.role === "user" ? "justify-content-end" : "justify-content-start"}`}
                           >
                             <div className={`d-flex flex-column ${msg.role === "user" ? "align-items-end" : "align-items-start"}`} style={{ maxWidth: "75%" }}>
+                              <span className="chat-message-stamp">{formatChatDateTime(msg.created_at, timeFormat)}</span>
                               <div className={`px-3 py-2 rounded-3 small ${msg.role === "user" ? "" : "surface-2"}`}
                                 style={msg.role === "user" ? { background: "var(--jv-brand-1)", color: "#fff", whiteSpace: "pre-wrap" } : {}}>
                                 <ReactMarkdown
@@ -851,6 +860,14 @@ export function AssistantPage() {
                                     ))}
                                   </div>
                                 )}
+                                {activeWorkoutPlanProposals.map((wp) => (
+                                  <WorkoutPlanCard
+                                    key={wp.proposal_id}
+                                    proposal={wp}
+                                    onReview={() => setReviewingWorkoutPlanProposal(wp)}
+                                    onView={() => navigate(ROUTES.WORKOUT_PLAN_DETAIL.replace(":planId", String(wp.plan_id)))}
+                                  />
+                                ))}
                               </div>
                               <div>
                                 <div className="chat-message-actions">
@@ -1072,6 +1089,32 @@ export function AssistantPage() {
               };
             }));
             toast.success("Task created successfully.");
+          }}
+        />
+      )}
+
+      {reviewingWorkoutPlanProposal && (
+        <WorkoutPlanReviewPanel
+          proposal={reviewingWorkoutPlanProposal}
+          onClose={() => setReviewingWorkoutPlanProposal(null)}
+          onSaved={(plan) => {
+            const proposalId = reviewingWorkoutPlanProposal.proposal_id;
+            if (!activeConversation) return;
+            updateConversationMessages(activeConversation.id, prev => prev.map(m => {
+              if (!m.linked_items.workout_plan_proposals?.some(p => p.proposal_id === proposalId)) return m;
+              return {
+                ...m,
+                linked_items: {
+                  ...m.linked_items,
+                  workout_plan_proposals: m.linked_items.workout_plan_proposals!.map(p => (
+                    p.proposal_id === proposalId
+                      ? { ...p, status: "saved", plan_id: plan.id, plan_action: "view" }
+                      : p
+                  )),
+                },
+              };
+            }));
+            toast.success(plan.is_active ? "Workout plan saved and started." : "Workout plan saved.");
           }}
         />
       )}

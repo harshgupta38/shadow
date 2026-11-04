@@ -155,6 +155,7 @@ class Endpoints:
         PLAN_DUPLICATE = "/plans/{plan_id}/duplicate"
         PLAN_DAY_WARM_UPS = "/plans/{plan_id}/days/{weekday}/warm-ups"
         PLAN_DAY_WARM_UP_ROUTINE = "/plans/{plan_id}/days/{weekday}/warm-up-routine"
+        PLAN_FROM_PROPOSAL = "/save-plan-from-proposal"
         SESSIONS = "/sessions"
         SESSION_DETAIL = "/sessions/{session_id}"
         SESSION_FINISH = "/sessions/{session_id}/finish"

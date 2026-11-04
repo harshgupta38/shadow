@@ -5,6 +5,7 @@ import {
   BriefcaseFill,
   Bullseye,
   EggFried,
+  HeartPulseFill,
   type IconProps,
   Robot,
 } from "react-bootstrap-icons";
@@ -83,6 +84,19 @@ export const ASSISTANT_AGENTS: Record<AssistantAgentType, AssistantAgent> = {
       "What should I eat for my next meal?",
       "How has my eating been this week?",
       "Am I getting enough protein?",
+    ],
+  },
+  workout_coach: {
+    type: "workout_coach",
+    label: "Workout Coach",
+    tagline: "Knows your training",
+    description: "Reads your workout history to review your progress and build workout plans you can edit and save.",
+    icon: HeartPulseFill,
+    gradient: ["#8b5cf6", "#ec4899"],
+    suggestions: [
+      "Build me a workout plan",
+      "How has my training been going?",
+      "Am I getting stronger on my main lifts?",
     ],
   },
 };

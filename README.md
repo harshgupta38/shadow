@@ -227,7 +227,7 @@ One entry per user per day (`journal_entries`, unique on `user_id + entry_date`)
 
 ### Notifications
 
-Event-driven alerts (goal or milestone due within 3 days, scheduled-task reminders, tasks due or overdue, the daily plan reminder, a habit-at-risk nudge) are produced by a notification scheduler loop and written to `notifications` with a `(user_id, event_key)` unique key, so the same event never fires twice. Delivery is in-app and live over SSE (the bell and the notifications page), Web Push, and optional email, controlled in Settings by a master toggle, separate email and reminder toggles, and quiet hours. Email unsubscribe links are supported.
+Event-driven alerts (goal or milestone due within 3 days, scheduled-task reminders, tasks due or overdue, the daily plan reminder, a habit-at-risk nudge) are produced by a notification scheduler loop and written to `notifications` with a `(user_id, event_key)` unique key, so the same event never fires twice. Delivery is in-app and live over SSE (the bell and the notifications page), Web Push, and optional email, controlled in Settings by a master toggle, separate email and reminder toggles, and quiet hours. Email unsubscribe links are supported. On a day the followed workout plan has a workout that is not done or under way, `workout_reminder_service` sends three in-app reminders (09:00, 14:00 and 19:00 IST, in the app only) and one push at a time learned from the person's own history: the median start time of their last 12 completed workouts, less 30 minutes, kept out of quiet hours (18:00 until they have 3 workouts). A reminder is skipped when the workout is done, under way, or the day is a rest day, and the 19:00-style nudge is skipped when it falls within an hour of the push.
 
 ### Workout & Diet
 

@@ -58,6 +58,7 @@ def create_notification(
     priority: int = 2,
     send_email: bool = True,
     force: bool = False,
+    push: bool = True,
 ) -> NotificationDBM | None:
     """
     Create and persist a notification for a user.
@@ -77,6 +78,9 @@ def create_notification(
     force=True skips the preference check — for user-initiated actions (e.g. a
     manual "generate now" button) where the result must be delivered regardless
     of the notifications_enabled toggle. Dedup via event_key still applies.
+
+    push=False keeps the notification in the app (the inbox and the live bell)
+    without a push to the person's devices.
     """
     prefs = _get_notification_prefs(db, user.id)
     if not force and not _should_notify(prefs, level):
@@ -107,18 +111,19 @@ def create_notification(
     db.refresh(notif)
 
     # Fire push to all active devices for this user (best-effort).
-    try:
-        from app.services import push_service
-        push_service.send_push_to_user(
-            db,
-            user_id=user.id,
-            title=title,
-            body=body or "",
-            url=url or "/",
-            is_urgent=(level == LEVEL_CRITICAL),
-        )
-    except Exception:
-        pass
+    if push:
+        try:
+            from app.services import push_service
+            push_service.send_push_to_user(
+                db,
+                user_id=user.id,
+                title=title,
+                body=body or "",
+                url=url or "/",
+                is_urgent=(level == LEVEL_CRITICAL),
+            )
+        except Exception:
+            pass
 
     # Send email for Level-1 (Critical) and security-type notifications.
     # Skip "welcome:*" events — auth_service sends a dedicated welcome email directly.

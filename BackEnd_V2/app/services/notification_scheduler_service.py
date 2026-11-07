@@ -18,6 +18,12 @@ Jobs:
   Every tick (60 s)  specific_time_reminders (global):
     #14 Habits/tasks with a custom specific_time — 5-min warning + on-time nudge
 
+  09:00 / 14:00 / 19:00 IST  workout nudges (in-app only, see workout_reminder_service):
+    #15 A workout day whose workout is still waiting
+
+  Every tick (60 s)  workout pushes (see workout_reminder_service):
+    #16 One push per workout day, at a time learned from the person's past workouts
+
 Deduplication: all notifications pass a stable event_key to create_notification(),
 which skips the insert if (user_id, event_key) already exists in the table.
 
@@ -44,7 +50,7 @@ from app.models.schedule_task import ScheduledTaskDBM
 from app.models.task import TaskDBM
 from app.models.user import UserDBM
 from app.models.user_setting import UserSettingDBM
-from app.services import notifications_service
+from app.services import notifications_service, workout_reminder_service
 
 _DEFAULT_REMINDER_TIME = "21:00"
 
@@ -433,6 +439,21 @@ async def notification_scheduler_loop() -> None:
                         log.exception("Notification scheduler: reminder jobs error")
         except Exception:
             log.exception("Notification scheduler: reminder time check error")
+
+        # Workout nudges — in-app only, three times a day on a day the plan has a workout that is still waiting
+        for slot, slot_minute in workout_reminder_service.NUDGE_SLOTS.items():
+            if slot_minute <= minutes < slot_minute + 2 and f"workout_nudge:{slot}" not in triggered_today:
+                triggered_today.add(f"workout_nudge:{slot}")
+                try:
+                    await asyncio.to_thread(workout_reminder_service.send_nudges, today, slot)
+                except Exception:
+                    log.exception("Notification scheduler: workout nudges error")
+
+        # Workout push — every tick, for whoever's usual workout time is coming up (the time is learned per person)
+        try:
+            await asyncio.to_thread(workout_reminder_service.send_due_pushes, today, minutes)
+        except Exception:
+            log.exception("Notification scheduler: workout pushes error")
 
         # Specific-time reminders — every tick (habits + tasks with custom specific_time)
         try:

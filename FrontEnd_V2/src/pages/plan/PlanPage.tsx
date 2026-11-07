@@ -4,14 +4,12 @@ import { useNavigate, useLocation } from "react-router-dom";
 import {
   Calendar3,
   CalendarCheckFill,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
-  Eye,
-  EyeSlash,
   MoonFill,
   MoonStarsFill,
   Plus,
+  SkipForward,
   SunFill,
 } from "react-bootstrap-icons";
 
@@ -31,6 +29,7 @@ import {
 import { currentIstHour, todayDate } from "@/services/date.service";
 import { useDateParam } from "@/hooks/useUrlAnchor";
 import { PlanCard } from "@/pages/plan/PlanCard/PlanCard";
+import { PlanCollapsePanel } from "@/pages/plan/PlanCollapsePanel/PlanCollapsePanel";
 import { DayOverviewPanel } from "@/pages/plan/DayOverviewPanel/DayOverviewPanel";
 import { YesterdayClosingPanel } from "@/pages/plan/YesterdayClosingPanel/YesterdayClosingPanel";
 import { ScheduleTaskDetailPanel } from "@/pages/schedule/ScheduleTaskDetailPanel/ScheduleTaskDetailPanel";
@@ -210,11 +209,9 @@ export function PlanPage() {
 
   const activeItems = useMemo(
     () => planItems.filter(
-      (item) =>
-        (item.saved_data?.status !== "done" || completingIds.has(item.plan_id)) &&
-        (!item.saved_data?.skipped || skippedOpen),
+      (item) => (item.saved_data?.status !== "done" || completingIds.has(item.plan_id)) && !item.saved_data?.skipped,
     ),
-    [planItems, completingIds, skippedOpen],
+    [planItems, completingIds],
   );
   const doneItems = useMemo(
     () => planItems.filter(
@@ -498,18 +495,6 @@ export function PlanPage() {
               <span style={{ fontSize: "0.9rem", fontWeight: 400, color: "var(--jv-muted)" }}>
                 {selectedDate.toLocaleDateString(undefined, { weekday: "long" })}
               </span>
-              {skippedCount > 0 && (
-                <button
-                  type="button"
-                  className="plan-header-icon-btn"
-                  style={{ marginLeft: "auto", alignSelf: "center" }}
-                  aria-label={skippedOpen ? "Hide skipped items" : `Show ${skippedCount} skipped item${skippedCount === 1 ? "" : "s"}`}
-                  title={skippedOpen ? "Hide skipped items" : "Show skipped items"}
-                  onClick={() => setSkippedOpen((o) => !o)}
-                >
-                  {skippedOpen ? <EyeSlash size={16} /> : <Eye size={16} />}
-                </button>
-              )}
             </h2>
 
             {loadingPlan ? (
@@ -562,7 +547,7 @@ export function PlanPage() {
               </div>
             ) : activeItems.length === 0 && doneItems.length === 0 && skippedCount > 0 ? (
               <div className="empty-state">
-                <span className="empty-state-icon"><EyeSlash size={20} /></span>
+                <span className="empty-state-icon"><SkipForward size={20} /></span>
                 <h3 className="text-normal">Nothing to do — {skippedCount} skipped</h3>
                 <p>
                   {isToday ? "Everything left for today was skipped. " : "Everything left on this date was skipped. "}
@@ -599,38 +584,37 @@ export function PlanPage() {
           </section>
 
           {!loadingPlan && !planError && doneItems.length > 0 && (
-            <section className="plan-panel completed-panel">
-              <button
-                type="button"
-                className="completed-panel-header"
-                onClick={() => setCompletedOpen((o) => !o)}
-                aria-expanded={completedOpen}
-              >
-                <span className="completed-panel-title">Completed</span>
-                <span className="completed-panel-count">{doneItems.length}</span>
-                <ChevronDown
-                  className={`completed-panel-chevron${completedOpen ? " is-open" : ""}`}
-                  size={15}
+            <PlanCollapsePanel title="Completed" count={doneItems.length} open={completedOpen} onToggle={() => setCompletedOpen((o) => !o)}>
+              {doneItems.map((item) => (
+                <PlanCard
+                  key={item.saved_data?.record_id ?? item.plan_id}
+                  item={item}
+                  readOnly={!isToday}
+                  busy={busyIds.has(item.plan_id)}
+                  onToggle={() => handleToggle(item.plan_id)}
+                  onSaveDelta={(delta) => handleSaveDelta(item.plan_id, delta)}
+                  onSaveNote={(note) => handleSaveNote(item.plan_id, note)}
                 />
-              </button>
-              <div className={`completed-panel-collapse${completedOpen ? " is-open" : ""}`}>
-                <div className="completed-panel-collapse-inner">
-                  <div className="plan-task-list mt-0">
-                    {doneItems.map((item) => (
-                      <PlanCard
-                        key={item.saved_data?.record_id ?? item.plan_id}
-                        item={item}
-                        readOnly={!isToday}
-                        busy={busyIds.has(item.plan_id)}
-                        onToggle={() => handleToggle(item.plan_id)}
-                        onSaveDelta={(delta) => handleSaveDelta(item.plan_id, delta)}
-                        onSaveNote={(note) => handleSaveNote(item.plan_id, note)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </section>
+              ))}
+            </PlanCollapsePanel>
+          )}
+
+          {!loadingPlan && !planError && skippedCount > 0 && (
+            <PlanCollapsePanel title="Skipped" count={skippedCount} open={skippedOpen} onToggle={() => setSkippedOpen((o) => !o)}>
+              {skippedItems.map((item) => (
+                <PlanCard
+                  key={item.saved_data?.record_id ?? item.plan_id}
+                  item={item}
+                  readOnly={!isToday}
+                  busy={busyIds.has(item.plan_id)}
+                  onToggle={() => handleToggle(item.plan_id)}
+                  onToggleSkip={() => handleToggleSkip(item.plan_id)}
+                  onSaveDelta={(delta) => handleSaveDelta(item.plan_id, delta)}
+                  onSaveNote={(note) => handleSaveNote(item.plan_id, note)}
+                  onSaveNoteAndDone={(note) => handleSaveNoteAndDone(item.plan_id, note)}
+                />
+              ))}
+            </PlanCollapsePanel>
           )}
         </div>
 

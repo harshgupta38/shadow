@@ -9,23 +9,6 @@
     color: var(--jv-muted);
   }
 
-  .plan-header-icon-btn {
-    display: inline-flex;
-    width: 16px;
-    height: 16px;
-    padding: 0;
-    border: none;
-    background: none;
-    color: var(--jv-muted);
-    line-height: 0;
-    cursor: pointer;
-    flex-shrink: 0;
-
-    &:hover {
-      color: var(--jv-text);
-    }
-  }
-
   .plan-columns {
     display: grid;
     grid-template-columns: minmax(0, 2.06fr) minmax(280px, 1fr);

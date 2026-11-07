@@ -25,14 +25,6 @@
     pointer-events: none;
     will-change: transform, opacity;
   }
-
-  &--skipped {
-    opacity: 0.7;
-    .plan-card-title {
-      color: var(--jv-muted);
-      text-decoration: line-through;
-    }
-  }
 }
 
 @keyframes plan-card-complete {

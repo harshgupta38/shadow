@@ -188,7 +188,7 @@ export function PlanCard({ item, onToggle, onToggleSkip, onSaveDelta, onSaveNote
 
   return (
     <article
-      className={`plan-card${isDone ? " plan-card--done" : ""}${isMissed ? " plan-card--missed" : ""}${isSkipped ? " plan-card--skipped" : ""}${isCompleting ? " plan-card--completing" : ""}`}
+      className={`plan-card${isDone ? " plan-card--done" : ""}${isMissed ? " plan-card--missed" : ""}${isCompleting ? " plan-card--completing" : ""}`}
     >
       {/* Row 1 — title · time · checkbox */}
       <div className="plan-card-row">

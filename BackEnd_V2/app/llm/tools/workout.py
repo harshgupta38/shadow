@@ -9,15 +9,13 @@ model sees are in workout_definitions.py.
 from collections import defaultdict
 from datetime import date, timedelta
 from enum import StrEnum
-from functools import wraps
 from typing import Callable, get_args
 
-from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
 from app.common import today_ist
-from app.core.exceptions import AppError
+from app.llm.tools.common import safe_tool as _safe
 from app.llm.tools.context import ToolContext
 from app.llm.tools.workout_definitions import (
     DEFAULT_BALANCE_DAYS,
@@ -45,24 +43,6 @@ from app.services.workout_calc_service import clamp_int, estimated_one_rep_max, 
 
 _MUSCLES = get_args(MuscleId)
 _MAX_HISTORY_SESSIONS = 60
-
-
-def _safe(tool: Callable) -> Callable:
-    """Turns any error inside a tool into a result the model can read, because a raised error would fail the whole request."""
-
-    @wraps(tool)
-    def run(context: ToolContext, arguments: dict) -> dict:
-        try:
-            return tool(context, arguments)
-        except AppError as exc:
-            return {"error": getattr(exc, "detail", None) or str(exc) or "That could not be done."}
-        except PydanticValidationError as exc:
-            problems = "; ".join(f"{'.'.join(str(p) for p in error['loc'])}: {error['msg']}" for error in exc.errors()[:5])
-            return {"error": f"The request was not valid. {problems}"}
-        except (ValueError, KeyError, TypeError) as exc:
-            return {"error": f"The request could not be understood: {exc}"}
-
-    return run
 
 
 # ── Shaping results ──────────────────────────────────────────────────────────

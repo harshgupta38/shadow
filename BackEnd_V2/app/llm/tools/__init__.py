@@ -19,13 +19,18 @@ from app.llm.tools.schedule import (
 )
 from app.llm.tools.workout import WORKOUT_TOOLS
 from app.llm.tools.workout_definitions import WORKOUT_TOOL_DEFINITIONS
+from app.llm.tools import goal_progress, habits, journal, plan, reports, snapshot
 
 # Rounds of tool calls one reply may use. The Workout Coach gets more: a plan takes two (look things up, then propose), and the rest is
-# headroom for one corrected retry, because a request that runs out of rounds fails after its tokens are already spent. Every other agent
-# keeps the lower limit, so a stuck one costs less.
+# headroom for one corrected retry, because a request that runs out of rounds fails after its tokens are already spent. The agents that
+# read across the whole app get one more than the rest, because a broad question can look something up, then look into what it found.
+# Every other agent keeps the lower limit, so a stuck one costs less.
 DEFAULT_MAX_TOOL_ITERATIONS = 3
 AGENT_MAX_TOOL_ITERATIONS: dict[str, int] = {
     "workout_coach": 5,
+    "shadow": 4,
+    "goal_coach": 4,
+    "insights": 4,
 }
 
 
@@ -66,6 +71,17 @@ GOAL_COACH_TOOL_DEFINITIONS: list[dict] = [
     ScheduleToolDefinitions.GET_SCHEDULE_TASK_LIST.value,
 ]
 
+# Read-only tools over the rest of the app (plan, habits, goal progress, journal, reports, a one-call snapshot, what is coming up).
+# They are handed out per agent below: every tool is sent with every request and counts against the user's daily AI allowance.
+APP_READ_TOOL_DEFINITIONS: dict[str, dict] = {
+    **snapshot.TOOL_DEFINITIONS,
+    **plan.TOOL_DEFINITIONS,
+    **habits.TOOL_DEFINITIONS,
+    **goal_progress.TOOL_DEFINITIONS,
+    **reports.TOOL_DEFINITIONS,
+    **journal.TOOL_DEFINITIONS,
+}
+
 AVAILABLE_TOOLS = {
     **GOAL_TOOLS,
     **MILESTONE_TOOLS,
@@ -73,15 +89,48 @@ AVAILABLE_TOOLS = {
     **SCHEDULE_TOOLS,
     **DIET_TOOLS,
     **WORKOUT_TOOLS,
+    **snapshot.TOOLS,
+    **plan.TOOLS,
+    **habits.TOOLS,
+    **goal_progress.TOOLS,
+    **reports.TOOLS,
+    **journal.TOOLS,
 }
 
+
+def _app_tools(*names: str) -> list[dict]:
+    return [APP_READ_TOOL_DEFINITIONS[name] for name in names]
+
+
+def _borrowed(definitions: list[dict], *names: str) -> list[dict]:
+    """Tools of another agent that this one may also use, picked by name from that agent's definitions."""
+    by_name = {d["function"]["name"]: d for d in definitions}
+    return [by_name[name] for name in names]
+
+
 AGENT_TOOL_DEFINITIONS: dict[str, list[dict]] = {
-    "shadow": ALL_TOOL_DEFINITIONS,
-    "goal_coach": GOAL_COACH_TOOL_DEFINITIONS,
-    "career_advisor": [],
-    "insights": [],
-    "diet_coach": DIET_TOOL_DEFINITIONS,
-    "workout_coach": WORKOUT_TOOL_DEFINITIONS,
+    # The general assistant sees the whole day at a glance; training and nutrition detail stay with their coaches.
+    "shadow": [
+        *ALL_TOOL_DEFINITIONS,
+        *_app_tools("get_life_snapshot", "get_daily_plan", "get_habits", "get_goal_progress", "get_reports", "get_journal", "get_upcoming_schedule"),
+    ],
+    "goal_coach": [
+        *GOAL_COACH_TOOL_DEFINITIONS,
+        *_app_tools("get_goal_progress", "get_habits", "get_daily_plan", "get_upcoming_schedule"),
+    ],
+    "career_advisor": [
+        *_borrowed(GOAL_COACH_TOOL_DEFINITIONS, "get_current_goals", "get_goal_detail"),
+        *_app_tools("get_goal_progress"),
+    ],
+    # Insights reads patterns across every area, so it also borrows the two history tools of the coaches.
+    "insights": [
+        *_app_tools("get_life_snapshot", "get_plan_history", "get_goal_progress", "get_habits", "get_reports", "get_journal", "get_daily_plan"),
+        *_borrowed(WORKOUT_TOOL_DEFINITIONS, "get_workout_history"),
+        *_borrowed(DIET_TOOL_DEFINITIONS, "get_diet_history"),
+    ],
+    # The two coaches each see a little of the other's area, because training and eating shape each other.
+    "diet_coach": [*DIET_TOOL_DEFINITIONS, *_borrowed(WORKOUT_TOOL_DEFINITIONS, "get_workout_overview")],
+    "workout_coach": [*WORKOUT_TOOL_DEFINITIONS, *_borrowed(DIET_TOOL_DEFINITIONS, "get_diet_history")],
 }
 
 

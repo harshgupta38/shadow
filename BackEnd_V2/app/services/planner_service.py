@@ -143,6 +143,12 @@ def _matches_date(plan: PlanDBM, target: date) -> bool:
     return _freq_matches(plan, target)
 
 
+def plans_on(db: Session, user_id: int, target: date) -> list[PlanDBM]:
+    """The active recurring plans that apply to `target`, without creating any record: a look at days that have not come yet."""
+    plans = db.scalars(select(PlanDBM).where(PlanDBM.user_id == user_id, PlanDBM.status == "active")).all()
+    return sorted((p for p in plans if _matches_date(p, target)), key=lambda p: (_PRIORITY_ORDER.get(p.priority, 99), _TIME_ORDER.get(p.preferred_time, 99), p.id))
+
+
 def _normalize(planner_type: str, planner_target, value_unit) -> tuple[int | None, str | None]:
     if planner_type == "simple":
         return 1, "occurrence"

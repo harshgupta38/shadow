@@ -265,6 +265,7 @@ def _evening_jobs(today: date) -> None:
                 DailyPlanRecordDBM.scheduled_date == today,
                 DailyPlanRecordDBM.source_type == "habit",
                 DailyPlanRecordDBM.status != "done",
+                DailyPlanRecordDBM.skipped.is_(False),
             )
         ).all())
 
@@ -293,8 +294,8 @@ def _evening_jobs(today: date) -> None:
 def _specific_time_reminders(today: date, now_minutes: int) -> None:
     """#14 — 5-min warning + on-time nudge for habits/tasks with a custom specific_time.
 
-    Only fires for items that are on today's plan and not yet marked done,
-    so users are never reminded about habits/tasks they've already completed.
+    Only fires for items that are on today's plan and neither marked done nor skipped,
+    so users are never reminded about habits/tasks they've already completed or excused themselves from.
     """
     with SessionLocal() as db:
         users = _active_users(db)
@@ -305,7 +306,7 @@ def _specific_time_reminders(today: date, now_minutes: int) -> None:
         # (title, user_id, target_minutes, dedup-key-prefix)
         items: list[tuple[str, int, int, str]] = []
 
-        # Habits on today's plan that aren't done yet
+        # Habits on today's plan that aren't done or skipped (only habits can be skipped)
         for habit in db.scalars(
             select(HabitDBM)
             .join(
@@ -313,7 +314,8 @@ def _specific_time_reminders(today: date, now_minutes: int) -> None:
                 (DailyPlanRecordDBM.source_id == HabitDBM.id)
                 & (DailyPlanRecordDBM.source_type == "habit")
                 & (DailyPlanRecordDBM.scheduled_date == today)
-                & (DailyPlanRecordDBM.status != "done"),
+                & (DailyPlanRecordDBM.status != "done")
+                & (DailyPlanRecordDBM.skipped.is_(False)),
             )
             .where(
                 HabitDBM.user_id.in_(user_ids),

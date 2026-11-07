@@ -242,7 +242,7 @@ def progress(db: Session, user: UserDBM, weeks: int) -> WorkoutProgressResponse:
             )
         )
 
-    streak, total_sessions = _streak_and_total(db, user.id, current)
+    streak, total_sessions = _streak_and_total(db, user.id, current, today)
     return WorkoutProgressResponse(
         weeks=week_rows,
         muscles=_muscle_rows([row for row in recent if row.session_date >= month_ago]),

@@ -58,6 +58,8 @@ class ScheduledTaskDBM(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
     goal_id: Mapped[int | None] = mapped_column(ForeignKey("goals.id", ondelete="SET NULL"), index=True, nullable=True)
+    # The countdown this task is a step towards, if any. The task outlives the countdown: deleting it only unlinks.
+    countdown_id: Mapped[int | None] = mapped_column(ForeignKey("countdowns.id", ondelete="SET NULL"), index=True, nullable=True)
 
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     note: Mapped[str | None] = mapped_column(String(2000), nullable=True)
@@ -94,4 +96,9 @@ class ScheduledTaskDBM(Base):
         "GoalDBM",
         foreign_keys=[goal_id],
         lazy="select",
+    )
+    countdown: Mapped["CountdownDBM | None"] = relationship(  # type: ignore[name-defined]
+        "CountdownDBM",
+        foreign_keys=[countdown_id],
+        lazy="joined",
     )

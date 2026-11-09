@@ -74,6 +74,23 @@
     flex-shrink: 0;
 }
 
+.sc-countdown {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    min-width: 0;
+    max-width: 11rem;
+    padding: 0 0.45rem;
+    border-radius: 99px;
+    background: color-mix(in srgb, var(--jv-brand-1) 10%, transparent);
+    font-size: 0.66rem;
+    font-weight: 600;
+    color: var(--jv-brand-1);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .sc-category-icon {
     font-size: 0.85rem;
     line-height: 1;

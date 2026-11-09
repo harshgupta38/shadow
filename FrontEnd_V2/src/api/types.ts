@@ -677,14 +677,17 @@ export interface ScheduledTaskCreateRequest {
 
   category: GoalCategory | null;
   goal_id: number | null;
+  /** The countdown this task is a step towards. Left out on an edit, the link stays. */
+  countdown_id?: number | null;
 }
 
 export interface ScheduledTaskUpdateRequest extends Partial<ScheduledTaskCreateRequest> { }
 
-export interface ScheduledTaskDataResponse extends Omit<ScheduledTaskCreateRequest, "goal_id" | "repeat_yearly"> {
+export interface ScheduledTaskDataResponse extends Omit<ScheduledTaskCreateRequest, "goal_id" | "repeat_yearly" | "countdown_id"> {
   id: number;
   repeat_yearly: boolean; // true if from yearly_tasks — derived from table membership, not a stored column
   goal?: GoalDataInPlan;
+  countdown?: CountdownSummary | null;
   status: ScheduledTaskStatus;
   subtasks: SubtaskResponse[];
   created_at: string;
@@ -1077,6 +1080,8 @@ export interface JournalEntryResponse {
   entry_date: string; // YYYY-MM-DD
   mood: JournalMood | null;
   text: string;
+  /** The countdowns this day is a note for. */
+  countdown_ids: number[];
   created_at: string;
   updated_at: string;
 }
@@ -1084,6 +1089,64 @@ export interface JournalEntryResponse {
 export interface JournalEntryUpsertRequest {
   mood: JournalMood | null;
   text: string;
+  /** Sent: replaces the day's tags. Left out: they stay as they are. */
+  countdown_ids?: number[];
+}
+
+// ── Countdowns ─────────────────────────────────────────────────────────────────
+
+export type CountdownColor = "brand" | "success" | "info" | "warn" | "violet";
+export type CountdownStatus = "active" | "achieved";
+
+export interface CountdownResponse {
+  id: number;
+  title: string;
+  note: string | null;
+  emoji: string;
+  color: CountdownColor;
+  start_date: string; // YYYY-MM-DD, the day counting started
+  target_date: string; // YYYY-MM-DD
+  status: CountdownStatus;
+  achieved_at: string | null;
+  /** Negative once the date has passed. */
+  days_left: number;
+  total_days: number;
+  progress_pct: number;
+  tasks_total: number;
+  tasks_done: number;
+  notes_count: number;
+  created_at: string;
+}
+
+export interface CountdownTask {
+  id: number;
+  title: string;
+  scheduled_date: string; // YYYY-MM-DD
+  status: ScheduledTaskStatus;
+  priority: ScheduledTaskPriority;
+}
+
+export interface CountdownDetailResponse extends CountdownResponse {
+  tasks: CountdownTask[];
+}
+
+export interface CountdownCreateRequest {
+  title: string;
+  target_date: string;
+  /** Empty means today; an earlier day shows the progress since a plan made long ago. */
+  start_date?: string | null;
+  emoji: string;
+  color: CountdownColor;
+  note: string | null;
+}
+
+export type CountdownUpdateRequest = Partial<CountdownCreateRequest> & { status?: CountdownStatus };
+
+export interface CountdownSummary {
+  id: number;
+  title: string;
+  emoji: string;
+  color: CountdownColor;
 }
 
 // ─── Settings ─────────────────────────────────────────────────────────────────

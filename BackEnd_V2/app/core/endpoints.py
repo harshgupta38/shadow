@@ -138,6 +138,12 @@ class Endpoints:
         REGENERATE_RESPONSE = "/conversations/{conversation_id}/regenerate_response/{message_id}"
         RETRY_FAILED_MESSAGE = "/conversations/{conversation_id}/retry_message/{message_id}"
 
+    class COUNTDOWNS:
+        PREFIX = "/countdowns"
+        ROOT = ""
+        DETAIL = "/{countdown_id}"
+        NOTES = "/{countdown_id}/notes"
+
     class JOURNAL:
         PREFIX = "/journal"
         LIST = "/entries"           # GET ?start=YYYY-MM-DD&end=YYYY-MM-DD

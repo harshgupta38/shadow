@@ -9,12 +9,15 @@ import { useWeekStart } from "@/context/PlannerContext";
 import type { JournalEntryResponse, JournalMood } from "@/api/types";
 import { MOODS, computeWeekDates, fmtDisplayDate, weekOffsetOf } from "@/pages/journal/JournalPage.constants";
 import { JournalTimeline } from "@/pages/journal/JournalTimeline/JournalTimeline";
+import { JournalCountdowns } from "@/pages/journal/JournalCountdowns/JournalCountdowns";
+import { useCountdowns } from "@/pages/journal/JournalCountdowns/useCountdowns";
+import { colorCss } from "@/pages/journal/JournalCountdowns/JournalCountdowns.constants";
 import { TIMING } from "@/constant/tuning";
 import "@/pages/journal/JournalPage.scss";
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 type WeekStatus = "loading" | "ready" | "error";
-interface PendingEdit { date: string; mood: JournalMood | null; text: string }
+interface PendingEdit { date: string; mood: JournalMood | null; text: string; countdownIds: number[] }
 
 // Quill keeps empty-but-formatted markup (<p><br></p>, <h2><br></h2>, an empty list...) when the
 // text is cleared. Anything without visible text is stored as an empty string.
@@ -58,6 +61,9 @@ export function JournalPage() {
 
     const [mood, setMood]           = useState<JournalMood | null>(null);
     const [text, setText]           = useState("");
+    // The countdowns the open day is a note for.
+    const [countdownIds, setCountdownIds] = useState<number[]>([]);
+    const { countdowns, status: countdownStatus, reload: reloadCountdowns } = useCountdowns();
     const [saveState, setSaveState] = useState<SaveState>("idle");
     const [weekStatus, setWeekStatus] = useState<Record<string, WeekStatus>>({});
     const saveTimerRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -69,6 +75,8 @@ export function JournalPage() {
     const entryMapRef    = useRef(new Map<string, JournalEntryResponse>());
     const weekStatusRef  = useRef(weekStatus);
     const weekCardRef    = useRef<HTMLDivElement>(null);
+    const editorRef      = useRef<HTMLDivElement>(null);
+    const quillRef       = useRef<ReactQuill>(null);
     weekStatusRef.current = weekStatus;
 
     const weekDates = useMemo(() => computeWeekDates(TODAY, weekOffset, weekStartsOn), [TODAY, weekOffset, weekStartsOn]);
@@ -77,6 +85,11 @@ export function JournalPage() {
     // The editor is locked until the visible week's entries are known, so a blank editor can
     // never be saved over an entry that simply hasn't arrived yet.
     const isReady   = status === "ready";
+    // Active countdowns can be picked; a finished one stays on the days that were already tagged to it.
+    const tagCandidates = useMemo(
+        () => countdowns.filter(c => c.status === "active" || countdownIds.includes(c.id)),
+        [countdowns, countdownIds],
+    );
 
     // ── Persist ───────────────────────────────────────────────────────────────
 
@@ -88,16 +101,19 @@ export function JournalPage() {
         pendingRef.current = null;
 
         const isCurrent = () => currentDateRef.current === edit.date;
-        const isBlank   = edit.mood === null && edit.text === "";
+        const isBlank   = edit.mood === null && edit.text === "" && edit.countdownIds.length === 0;
         if (isBlank && !entryMapRef.current.has(edit.date)) {
             if (isCurrent()) setSaveState("idle");
             return;
         }
 
-        void api.journal.upsertEntry(edit.date, { mood: edit.mood, text: edit.text })
+        const hadTags = (entryMapRef.current.get(edit.date)?.countdown_ids.length ?? 0) > 0;
+        void api.journal.upsertEntry(edit.date, { mood: edit.mood, text: edit.text, countdown_ids: edit.countdownIds })
             .then(entry => {
                 entryMapRef.current.set(entry.entry_date, entry);
                 setSavedEntry(entry);
+                // The cards count their notes, so they follow a day being tagged or untagged.
+                if (hadTags || entry.countdown_ids.length > 0) void reloadCountdowns();
                 if (!isCurrent()) return;
                 setSaveState("saved");
                 savedTimerRef.current = setTimeout(() => setSaveState("idle"), TIMING.JOURNAL_SAVED_BANNER_MS);
@@ -109,10 +125,10 @@ export function JournalPage() {
             });
     }
 
-    function scheduleSave(date: string, newMood: JournalMood | null, newText: string) {
+    function scheduleSave(date: string, newMood: JournalMood | null, newText: string, newCountdownIds: number[]) {
         if (saveTimerRef.current)  clearTimeout(saveTimerRef.current);
         if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
-        pendingRef.current = { date, mood: newMood, text: newText };
+        pendingRef.current = { date, mood: newMood, text: newText, countdownIds: newCountdownIds };
         setSaveState("saving");
         saveTimerRef.current = setTimeout(flushSave, TIMING.JOURNAL_SAVE_DEBOUNCE_MS);
     }
@@ -137,6 +153,7 @@ export function JournalPage() {
                 if (entry) {
                     setMood(entry.mood ?? null);
                     setText(entry.text ?? "");
+                    setCountdownIds(entry.countdown_ids ?? []);
                 }
             })
             .catch(() => setWeekStatus(prev => ({ ...prev, [start]: "error" })));
@@ -153,6 +170,7 @@ export function JournalPage() {
         const entry = entryMapRef.current.get(selectedDate);
         setMood(entry?.mood ?? null);
         setText(entry?.text ?? "");
+        setCountdownIds(entry?.countdown_ids ?? []);
         setSaveState("idle");
         setViewMonth(monthOf(selectedDate));
     }, [selectedDate]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -163,14 +181,29 @@ export function JournalPage() {
         if (!isReady) return;
         const next = mood === m ? null : m;
         setMood(next);
-        scheduleSave(selectedDate, next, normalizeQuillHtml(text));
+        scheduleSave(selectedDate, next, normalizeQuillHtml(text), countdownIds);
+    }
+
+    function handleCountdownToggle(id: number) {
+        if (!isReady) return;
+        const next = countdownIds.includes(id) ? countdownIds.filter(x => x !== id) : [...countdownIds, id];
+        setCountdownIds(next);
+        scheduleSave(selectedDate, mood, normalizeQuillHtml(text), next);
+    }
+
+    // "Add a note" on a countdown card: the open day becomes a note for it, and the cursor is in the editor ready to write.
+    function writeNoteFor(id: number) {
+        if (!isReady) return;
+        if (!countdownIds.includes(id)) handleCountdownToggle(id);
+        editorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        quillRef.current?.focus();
     }
 
     // Quill reports programmatic value changes with source "api"; only "user" is a real edit.
     function handleQuillChange(val: string, _delta: unknown, source: string) {
         if (source !== "user") return;
         setText(val);
-        scheduleSave(selectedDate, mood, normalizeQuillHtml(val));
+        scheduleSave(selectedDate, mood, normalizeQuillHtml(val), countdownIds);
     }
 
     // Opens a day picked from the timeline: the week strip moves to its week and the editor loads it.
@@ -216,6 +249,16 @@ export function JournalPage() {
                     onClick: goToToday,
                     tone: "soft",
                 }]}
+            />
+
+            {/* ── Countdowns ─────────────────────────────────────────── */}
+            <JournalCountdowns
+                countdowns={countdowns}
+                status={countdownStatus}
+                reload={reloadCountdowns}
+                taggedIds={countdownIds}
+                onWriteNote={writeNoteFor}
+                onOpenNote={openEntry}
             />
 
             {/* ── Week strip ─────────────────────────────────────────── */}
@@ -271,7 +314,7 @@ export function JournalPage() {
             </div>
 
             {/* ── Editor ─────────────────────────────────────────────── */}
-            <div className="surface jnl-editor mt-3">
+            <div className="surface jnl-editor mt-3" ref={editorRef}>
                 <div className="jnl-editor-head">
                     <span className="jnl-editor-date">{fmtDisplayDate(selectedDate)}</span>
                     <span className="jnl-save-indicator">
@@ -289,6 +332,7 @@ export function JournalPage() {
                 </div>
 
                 <ReactQuill
+                    ref={quillRef}
                     className="jnl-quill"
                     theme="snow"
                     value={text}
@@ -298,6 +342,29 @@ export function JournalPage() {
                     formats={QUILL_FORMATS}
                     placeholder="What happened today? What's on your mind?"
                 />
+
+                {tagCandidates.length > 0 && (
+                    <div className="cd-tag-row">
+                        <span className="cd-tag-label">This day is a note for</span>
+                        <div className="cd-tag-chips">
+                            {tagCandidates.map(c => (
+                                <button
+                                    key={c.id}
+                                    type="button"
+                                    className={`cd-tag-chip${countdownIds.includes(c.id) ? " is-on" : ""}`}
+                                    style={{ "--cd-color": colorCss(c.color) } as React.CSSProperties}
+                                    onClick={() => handleCountdownToggle(c.id)}
+                                    disabled={!isReady}
+                                    aria-pressed={countdownIds.includes(c.id)}
+                                    title={countdownIds.includes(c.id) ? `Remove from ${c.title}` : `Add to ${c.title}`}
+                                >
+                                    <span aria-hidden="true">{c.emoji}</span>
+                                    <span>{c.title}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
 
                 <div className="jnl-mood-row">
                     <span className="jnl-mood-label-text">How was your day?</span>
@@ -326,6 +393,7 @@ export function JournalPage() {
                 month={viewMonth}
                 selectedDate={selectedDate}
                 savedEntry={savedEntry}
+                countdowns={countdowns}
                 onChangeMonth={setViewMonth}
                 onOpenEntry={openEntry}
             />

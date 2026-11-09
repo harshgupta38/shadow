@@ -20,6 +20,7 @@ MIN_STREAK_DAYS = 3
 MAX_GOALS = 6
 MAX_COMING_UP = 4
 COMING_UP_DAYS = 14
+MAX_COUNTDOWNS = 3
 
 
 def _plan_today(db, user, today) -> dict | None:
@@ -115,6 +116,13 @@ def _coming_up(db, user, today) -> list | None:
     return [f"{t.title}: {t.scheduled_date.isoformat()} ({weekday_name(t.scheduled_date)})" for t in items] or None
 
 
+def _countdowns(db, user, today) -> list | None:
+    from app.services import countdown_service  # prevent circular import
+
+    active = [c for c in countdown_service.list_countdowns(db, user) if c.status == "active"][:MAX_COUNTDOWNS]
+    return [f"{c.emoji} {c.title}: {c.days_left} days left ({c.progress_pct}% of the way)" for c in active] or None
+
+
 def _journal_today(db, user, today) -> dict | None:
     entries = journal_service.get_entries(db, user, today, today)
     if not entries:
@@ -129,6 +137,7 @@ _SECTIONS = (
     ("training", _workout),
     ("nutrition_today", _nutrition),
     ("coming_up", _coming_up),
+    ("countdowns", _countdowns),
     ("journal_today", _journal_today),
 )
 
@@ -154,7 +163,7 @@ TOOL_DEFINITIONS: dict[str, dict] = {
     "get_life_snapshot": tool_definition(
         "get_life_snapshot",
         "A quick picture of the user's day across the app: today's plan (done, left, what is next, habit streaks), active goals, the latest report, "
-        "training today, nutrition today, what is coming up and today's mood. Call it first for broad questions like 'how am I doing', "
+        "training today, nutrition today, what is coming up, their countdowns and today's mood. Call it first for broad questions like 'how am I doing', "
         "'what should I focus on' or 'plan my day', then use a specific tool only if you need detail.",
     ),
 }

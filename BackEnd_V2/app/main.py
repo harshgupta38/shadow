@@ -50,6 +50,7 @@ from app.models.ip_rate_limit import IpRateLimitDBM
 from app.models.daily_usage import DailyUsageDBM
 from app.models.scheduled_task_subtask import ScheduledTaskSubtaskDBM
 from app.models.journal import JournalEntryDBM
+from app.models.countdown import CountdownDBM, CountdownJournalLinkDBM
 from app.models.workout_exercise import WorkoutExerciseDBM
 from app.models.workout_plan import WorkoutPlanDBM
 from app.models.workout_plan_day import WorkoutPlanDayDBM
@@ -92,6 +93,7 @@ def _create_schema(engine) -> None:
             migrations.migrate_water_logs(engine)
             migrations.migrate_conversations(engine)
             migrations.migrate_subscriptions(engine)
+            migrations.migrate_countdowns(engine)
             return
         except OperationalError as exc:
             transient = "already exists" in str(exc) or "database is locked" in str(exc)

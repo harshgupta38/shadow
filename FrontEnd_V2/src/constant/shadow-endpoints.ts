@@ -124,6 +124,11 @@ export const ENDPOINTS = {
         RETRY_FAILED_MESSAGE: (conversation_id: number, message_id: number) => `/conversations/${conversation_id}/retry_message/${message_id}`,
         NEW_MESSAGE: "/conversations/messages",
     },
+    COUNTDOWNS: {
+        PREFIX: "/countdowns",
+        DETAIL: (id: number) => `/${id}`,
+        NOTES: (id: number) => `/${id}/notes`,
+    },
     JOURNAL: {
         PREFIX: "/journal",
         LIST: "/entries",

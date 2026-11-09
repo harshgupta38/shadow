@@ -55,6 +55,7 @@ const CATEGORY_VISUAL: Record<string, { icon: typeof BellFill; color: string }> 
   habit_risk:     { icon: ExclamationTriangleFill,  color: "var(--jv-warn)" },
   workout_nudge:  { icon: HeartPulseFill,           color: "var(--jv-brand-1)" },
   workout_push:   { icon: HeartPulseFill,           color: "var(--jv-brand-1)" },
+  countdown:      { icon: HourglassSplit,           color: "var(--jv-brand-1)" },
   welcome:        { icon: Stars,                    color: "var(--jv-warn)" },
   milestone_done: { icon: TrophyFill,               color: "var(--jv-success)" },
   goal_done:      { icon: TrophyFill,               color: "var(--jv-success)" },

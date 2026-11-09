@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, ExclamationCircleFill, PencilSquare } from "react-bootstrap-icons";
 import { api } from "@/api";
-import type { JournalEntryResponse } from "@/api/types";
+import type { CountdownResponse, JournalEntryResponse } from "@/api/types";
+import { colorCss } from "@/pages/journal/JournalCountdowns/JournalCountdowns.constants";
 import { dayParts, fmtMonthTitle, monthOf, monthRange, shiftMonth, todayIso } from "@/services/date.service";
 import {
     COLLAPSED_MAX_PX,
@@ -21,6 +22,8 @@ interface JournalTimelineProps {
     selectedDate: string;
     /** The entry the editor saved last, so the timeline updates without reloading the month. */
     savedEntry: JournalEntryResponse | null;
+    /** The person's countdowns, to name the ones an entry is a note for. */
+    countdowns: CountdownResponse[];
     onChangeMonth: (month: string) => void;
     onOpenEntry: (date: string) => void;
 }
@@ -28,10 +31,11 @@ interface JournalTimelineProps {
 interface TimelineItemProps {
     entry: JournalEntryResponse;
     selected: boolean;
+    tags: CountdownResponse[];
     onOpen: (date: string) => void;
 }
 
-function TimelineItem({ entry, selected, onOpen }: TimelineItemProps) {
+function TimelineItem({ entry, selected, tags, onOpen }: TimelineItemProps) {
     const mood = entry.mood ? MOOD_BY_KEY[entry.mood] : null;
     const html = useMemo(() => sanitizeEntryHtml(entry.text), [entry.text]);
     const hasText = html.replace(/<[^>]*>/g, "").trim() !== "";
@@ -80,6 +84,17 @@ function TimelineItem({ entry, selected, onOpen }: TimelineItemProps) {
 
                 {mood && <span className="jnl-tl-mood">{mood.label}</span>}
 
+                {tags.length > 0 && (
+                    <div className="cd-entry-tags">
+                        {tags.map(c => (
+                            <span key={c.id} className="cd-entry-tag" style={{ "--cd-color": colorCss(c.color) } as React.CSSProperties} title={`A note for ${c.title}`}>
+                                <span aria-hidden="true">{c.emoji}</span>
+                                <span>{c.title}</span>
+                            </span>
+                        ))}
+                    </div>
+                )}
+
                 {hasText && (
                     <div
                         ref={bodyRef}
@@ -98,7 +113,7 @@ function TimelineItem({ entry, selected, onOpen }: TimelineItemProps) {
     );
 }
 
-export function JournalTimeline({ month, selectedDate, savedEntry, onChangeMonth, onOpenEntry }: JournalTimelineProps) {
+export function JournalTimeline({ month, selectedDate, savedEntry, countdowns, onChangeMonth, onOpenEntry }: JournalTimelineProps) {
     const [entries, setEntries] = useState<JournalEntryResponse[]>([]);
     const [status, setStatus] = useState<Status>("loading");
     const [reloadKey, setReloadKey] = useState(0);
@@ -168,7 +183,13 @@ export function JournalTimeline({ month, selectedDate, savedEntry, onChangeMonth
                 {status === "ready" && visible.length > 0 && (
                     <ol className="jnl-tl-list">
                         {visible.map(entry => (
-                            <TimelineItem key={entry.entry_date} entry={entry} selected={entry.entry_date === selectedDate} onOpen={onOpenEntry} />
+                            <TimelineItem
+                                key={entry.entry_date}
+                                entry={entry}
+                                selected={entry.entry_date === selectedDate}
+                                tags={countdowns.filter(c => entry.countdown_ids.includes(c.id))}
+                                onOpen={onOpenEntry}
+                            />
                         ))}
                     </ol>
                 )}

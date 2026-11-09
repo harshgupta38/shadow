@@ -6,6 +6,7 @@ Jobs:
     #5  Goals due in 3 days
     #7  Milestones due in 3 days
     #13 Scheduled-task reminders (tasks with specific_time within next 30 min)
+    #17 Countdown milestones (100, 50, 30, 14, 7, 3, 1 days to go, the day itself, and the day after)
 
   user's default_reminder_time  reminder_jobs (per-user, default 21:00 IST):
     #9  Tasks due today (via parent milestone target_date)
@@ -50,7 +51,7 @@ from app.models.schedule_task import ScheduledTaskDBM
 from app.models.task import TaskDBM
 from app.models.user import UserDBM
 from app.models.user_setting import UserSettingDBM
-from app.services import notifications_service, workout_reminder_service
+from app.services import countdown_service, notifications_service, workout_reminder_service
 
 _DEFAULT_REMINDER_TIME = "21:00"
 
@@ -158,6 +159,9 @@ def _morning_jobs(today: date) -> None:
                     )
             except (ValueError, AttributeError):
                 pass
+
+        # #17 — Countdown milestones
+        countdown_service.send_milestone_notifications(db, users, today)
 
 
 # ── Per-user reminder jobs (at each user's default_reminder_time) ─────────────

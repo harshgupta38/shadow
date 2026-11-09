@@ -47,6 +47,7 @@ class ScheduledTaskCreateRequest(BaseModel):
 
     category: CategoryType | None = Field(default=None)
     goal_id: int | None = None
+    countdown_id: int | None = None  # the countdown this task is a step towards
     repeat_yearly: bool = False
 
     @field_validator("title", mode="before")
@@ -134,6 +135,7 @@ class ScheduledTaskUpdateRequest(BaseModel):
 
     category: CategoryType | None = Field(default=None)
     goal_id: int | None = None
+    countdown_id: int | None = None  # send null to unlink the task
     repeat_yearly: bool | None = None
 
 
@@ -158,6 +160,13 @@ class ScheduledTaskProposalLLMSchema(BaseModel):
 class SaveScheduledTaskFromProposalRequest(BaseModel):
     proposal_id: str
     task: ScheduledTaskCreateRequest
+
+
+class CountdownSummary(BaseModel):
+    id: int
+    title: str
+    emoji: str
+    color: str
 
 
 class ScheduledTaskDataResponse(ORMModel):
@@ -190,6 +199,7 @@ class ScheduledTaskDataResponse(ORMModel):
 
     category: CategoryType | None
     goal: GoalSummary | None = None
+    countdown: CountdownSummary | None = None
 
     status: ScheduledTaskStatus
 

@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.common import to_ist, today_ist
 from app.core.exceptions import NotFoundError, ValidationError
+from app.models.countdown import CountdownDBM
 from app.models.goal import GoalDBM
 from app.models.schedule_task import ScheduledTaskDBM
 from app.models.scheduled_task_proposal import ScheduledTaskProposalDBM
@@ -13,6 +14,7 @@ from app.models.scheduled_task_subtask import ScheduledTaskSubtaskDBM
 from app.models.user import UserDBM
 from app.models.yearly_task import YearlyTaskDBM
 from app.schemas.schedule import (
+    CountdownSummary,
     GoalSummary,
     SaveScheduledTaskFromProposalRequest,
     ScheduledTaskCreateRequest,
@@ -33,6 +35,15 @@ def _resolve_goal(db: Session, current_user: UserDBM, goal_id: int | None) -> Go
     return goal
 
 
+def _resolve_countdown(db: Session, current_user: UserDBM, countdown_id: int | None) -> CountdownDBM | None:
+    if countdown_id is None:
+        return None
+    countdown = db.scalar(select(CountdownDBM).where(CountdownDBM.id == countdown_id, CountdownDBM.user_id == current_user.id))
+    if countdown is None:
+        raise NotFoundError("Countdown not found.")
+    return countdown
+
+
 def _serialize(
     task: ScheduledTaskDBM,
     subtasks: list[SubtaskResponse] | None = None,
@@ -42,6 +53,9 @@ def _serialize(
     goal_summary: GoalSummary | None = None
     if task.goal_id is not None and task.goal is not None:
         goal_summary = GoalSummary(id=task.goal.id, title=task.goal.title, category=task.goal.category)
+    countdown_summary: CountdownSummary | None = None
+    if task.countdown is not None:
+        countdown_summary = CountdownSummary(id=task.countdown.id, title=task.countdown.title, emoji=task.countdown.emoji, color=task.countdown.color)
     return ScheduledTaskDataResponse(
         id=task.id,
         title=task.title,
@@ -65,6 +79,7 @@ def _serialize(
         repeat_yearly=False,
         category=task.category,
         goal=goal_summary,
+        countdown=countdown_summary,
         status=task.status,
         created_at=task.created_at,
         updated_at=task.updated_at,
@@ -355,9 +370,12 @@ def save_task(
     data: ScheduledTaskCreateRequest,
 ) -> ScheduledTaskDataResponse:
     goal = _resolve_goal(db, current_user, data.goal_id)
+    countdown = _resolve_countdown(db, current_user, data.countdown_id)
     is_metric = data.planner_type == "metric"
 
     if data.repeat_yearly:
+        if countdown is not None:
+            raise ValidationError(errors={"countdown_id": "A yearly task repeats every year, so it can't be a step towards one countdown."})
         yearly_task = YearlyTaskDBM(
             user_id=current_user.id,
             goal_id=goal.id if goal is not None else None,
@@ -385,6 +403,7 @@ def save_task(
     task = ScheduledTaskDBM(
         user_id=current_user.id,
         goal_id=goal.id if goal is not None else None,
+        countdown_id=countdown.id if countdown is not None else None,
         title=data.title.strip(),
         note=data.note.strip() if data.note and data.note.strip() else None,
         category=goal.category if goal is not None else (data.category.strip() if data.category and data.category.strip() else None),
@@ -663,6 +682,10 @@ def update_task(
     if "goal_id" in fields:
         goal = _resolve_goal(db, current_user, data.goal_id)
         task.goal_id = goal.id if goal is not None else None
+
+    if "countdown_id" in fields:
+        countdown = _resolve_countdown(db, current_user, data.countdown_id)
+        task.countdown_id = countdown.id if countdown is not None else None
 
     if "goal_id" in fields or "category" in fields:
         if task.goal_id is not None:

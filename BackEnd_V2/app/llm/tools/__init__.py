@@ -19,7 +19,7 @@ from app.llm.tools.schedule import (
 )
 from app.llm.tools.workout import WORKOUT_TOOLS
 from app.llm.tools.workout_definitions import WORKOUT_TOOL_DEFINITIONS
-from app.llm.tools import goal_progress, habits, journal, plan, reports, snapshot
+from app.llm.tools import countdowns, goal_progress, habits, journal, plan, reports, snapshot
 
 # Rounds of tool calls one reply may use. The Workout Coach gets more: a plan takes two (look things up, then propose), and the rest is
 # headroom for one corrected retry, because a request that runs out of rounds fails after its tokens are already spent. The agents that
@@ -80,6 +80,7 @@ APP_READ_TOOL_DEFINITIONS: dict[str, dict] = {
     **goal_progress.TOOL_DEFINITIONS,
     **reports.TOOL_DEFINITIONS,
     **journal.TOOL_DEFINITIONS,
+    **countdowns.TOOL_DEFINITIONS,
 }
 
 AVAILABLE_TOOLS = {
@@ -95,6 +96,7 @@ AVAILABLE_TOOLS = {
     **goal_progress.TOOLS,
     **reports.TOOLS,
     **journal.TOOLS,
+    **countdowns.TOOLS,
 }
 
 
@@ -112,7 +114,7 @@ AGENT_TOOL_DEFINITIONS: dict[str, list[dict]] = {
     # The general assistant sees the whole day at a glance; training and nutrition detail stay with their coaches.
     "shadow": [
         *ALL_TOOL_DEFINITIONS,
-        *_app_tools("get_life_snapshot", "get_daily_plan", "get_habits", "get_goal_progress", "get_reports", "get_journal", "get_upcoming_schedule"),
+        *_app_tools("get_life_snapshot", "get_daily_plan", "get_habits", "get_goal_progress", "get_reports", "get_journal", "get_upcoming_schedule", "get_countdowns"),
     ],
     "goal_coach": [
         *GOAL_COACH_TOOL_DEFINITIONS,
@@ -124,7 +126,7 @@ AGENT_TOOL_DEFINITIONS: dict[str, list[dict]] = {
     ],
     # Insights reads patterns across every area, so it also borrows the two history tools of the coaches.
     "insights": [
-        *_app_tools("get_life_snapshot", "get_plan_history", "get_goal_progress", "get_habits", "get_reports", "get_journal", "get_daily_plan"),
+        *_app_tools("get_life_snapshot", "get_plan_history", "get_goal_progress", "get_habits", "get_reports", "get_journal", "get_daily_plan", "get_countdowns"),
         *_borrowed(WORKOUT_TOOL_DEFINITIONS, "get_workout_history"),
         *_borrowed(DIET_TOOL_DEFINITIONS, "get_diet_history"),
     ],

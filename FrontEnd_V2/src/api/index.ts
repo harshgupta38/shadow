@@ -22,6 +22,7 @@ import { habitsApi } from "@/api/habits";
 import { planItemsApi } from "@/api/plan_items";
 import { scheduleApi } from "@/api/schedule";
 import { journalApi } from "@/api/journal";
+import { countdownsApi } from "@/api/countdowns";
 import { settingsApi } from "@/api/settings";
 import { workoutApi } from "@/api/workout";
 import { dietApi } from "@/api/diet";
@@ -42,6 +43,7 @@ export const api = {
   planItems: planItemsApi,
   schedule: scheduleApi,
   journal: journalApi,
+  countdowns: countdownsApi,
   reports: reportsApi,
   settings: settingsApi,
   workout: workoutApi,

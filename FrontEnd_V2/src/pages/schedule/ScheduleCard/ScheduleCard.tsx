@@ -83,6 +83,11 @@ export function ScheduleCard({ task, onSelect, onEdit, onDuplicate, onDelete }: 
                                 {timeDisplay}
                             </span>
                         )}
+                        {task.countdown && (
+                            <span className="sc-countdown" title={`A step towards ${task.countdown.title}`}>
+                                <span aria-hidden="true">{task.countdown.emoji}</span> {task.countdown.title}
+                            </span>
+                        )}
                         {task.task_duration === "long" && task.category && (
                             <span className="sc-category-icon" title={task.category}>
                                 {CATEGORY_ICONS[task.category]}

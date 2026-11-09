@@ -168,6 +168,17 @@ def migrate_diet(engine) -> None:
     _rebuild_diet_profiles_if_outdated(engine)
 
 
+def migrate_countdowns(engine) -> None:
+    """Adds the link from a scheduled task to its countdown to databases created before countdowns. Idempotent."""
+    with engine.connect() as conn:
+        add_column_if_missing(
+            conn, "scheduled_tasks", "countdown_id",
+            "ALTER TABLE scheduled_tasks ADD COLUMN countdown_id INTEGER REFERENCES countdowns(id) ON DELETE SET NULL",
+        )
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_scheduled_tasks_countdown_id ON scheduled_tasks (countdown_id)"))
+        conn.commit()
+
+
 def migrate_water_logs(engine) -> None:
     """Collapse any multi-row (user, day) pairs into one row storing the daily total, and add a UNIQUE constraint.
     Old schema: CHECK(amount_ml BETWEEN 1 AND 5000), multiple rows per day.

@@ -64,6 +64,12 @@ export const CAPTIONS = {
     PAUSE_GAP_SECONDS: 0.5,
 } as const;
 
+/**
+ * Progress with a target above this is typed in, not stepped: 2000 ml or 200,000 rupees cannot be reached one tap at a time.
+ * At or below it the +/- stepper is used (plan cards, milestone tasks).
+ */
+export const PROGRESS_STEPPER_MAX_TARGET = 100;
+
 /** Press-and-hold +/- stepper buttons (metric habit progress, task progress). */
 export const HOLD_REPEAT = {
     /** Delay before repeat-increment starts. */

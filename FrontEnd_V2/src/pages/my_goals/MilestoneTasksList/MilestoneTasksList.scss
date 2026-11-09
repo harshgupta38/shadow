@@ -120,6 +120,30 @@
     color: var(--jv-brand-1);
 }
 
+// The "Add…" box that replaces +/- when the target is too big to step to (same look as the plan card's).
+.milestone-task-progress-input {
+    width: 68px;
+    height: 24px;
+    padding: 0 0.25rem;
+    border: 1px solid var(--jv-border);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--jv-text);
+    font-size: 0.72rem;
+    text-align: center;
+    -moz-appearance: textfield;
+
+    &::-webkit-inner-spin-button,
+    &::-webkit-outer-spin-button { -webkit-appearance: none; }
+
+    &:focus {
+        outline: none;
+        border-color: var(--jv-brand-1);
+    }
+
+    &:disabled { opacity: 0.5; }
+}
+
 @media (max-width: 767.98px) {
     .milestone-task-progress-right {
         font-size: 0.7rem;

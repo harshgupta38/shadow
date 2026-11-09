@@ -613,14 +613,16 @@ def sync_plan_from_task(db: Session, task: TaskDBM, commit: bool = True) -> None
 
 def _purge_today_records(db: Session, source_type: str, source_id: int) -> None:
     """Delete plan_records for today onwards — keeps past history intact."""
-    db.execute(
+    deleted = db.execute(
         delete(DailyPlanRecordDBM).where(
             DailyPlanRecordDBM.source_type == source_type,
             DailyPlanRecordDBM.source_id == source_id,
             DailyPlanRecordDBM.scheduled_date >= today_ist(),
         )
     )
-    if source_type == "task":
+    # Progress is re-derived only when records that carried some were removed. A task that is not on the plan has no records, and
+    # re-deriving then would wipe the progress its owner saved by hand (+/- or a typed amount) back to 0.
+    if source_type == "task" and deleted.rowcount:
         _recompute_task_progress(db, source_id)
 
 

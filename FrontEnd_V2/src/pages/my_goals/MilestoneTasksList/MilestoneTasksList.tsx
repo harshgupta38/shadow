@@ -8,7 +8,7 @@ import { ApiError } from "@/api/client";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import { checkAndConvertPluralWord } from "@/services/word-plurality.service";
 import { ROUTES } from "@/routes/RoutePaths";
-import { HOLD_REPEAT } from "@/constant/tuning";
+import { HOLD_REPEAT, PROGRESS_STEPPER_MAX_TARGET } from "@/constant/tuning";
 
 import "@/pages/my_goals/MilestoneTasksList/MilestoneTasksList.scss";
 
@@ -46,6 +46,8 @@ export function MilestoneTasksList({ goalId, milestoneId, milestoneStatus, onNee
 	const [deleteBusy, setDeleteBusy] = useState(false);
 	const [progressDrafts, setProgressDrafts] = useState<Record<number, number>>({});
 	const [savingProgressId, setSavingProgressId] = useState<number | null>(null);
+	// For tasks with a big target: the amount typed in the "Add…" box, to be added to the progress.
+	const [typedDeltas, setTypedDeltas] = useState<Record<number, string>>({});
 	const holdTimeoutRef = useRef<number | null>(null);
 	const holdIntervalRef = useRef<number | null>(null);
 
@@ -166,24 +168,51 @@ export function MilestoneTasksList({ goalId, milestoneId, milestoneStatus, onNee
 		}, HOLD_REPEAT.INITIAL_DELAY_MS);
 	}
 
-	async function saveProgress(task: TaskDataResponse) {
-		const nextCurrent = progressDrafts[task.id];
-		if (typeof nextCurrent !== "number") return;
-
+	// Saves a task's new progress, whether it came from the +/- draft or from a typed amount. True when it was saved.
+	async function persistProgress(task: TaskDataResponse, nextCurrent: number): Promise<boolean> {
 		setSavingProgressId(task.id);
 		try {
 			const updated = await api.tasks.update(task.id, { current_value: nextCurrent });
 			setTasks((prev) => prev.map((t) => (t.id === task.id ? updated : t)));
+			return true;
+		} catch (err) {
+			setError(err instanceof ApiError ? err.message : "Could not update task progress.");
+			return false;
+		} finally {
+			setSavingProgressId(null);
+		}
+	}
+
+	async function saveProgress(task: TaskDataResponse) {
+		const nextCurrent = progressDrafts[task.id];
+		if (typeof nextCurrent !== "number") return;
+
+		if (await persistProgress(task, nextCurrent)) {
 			setProgressDrafts((prev) => {
 				const nextDrafts = { ...prev };
 				delete nextDrafts[task.id];
 				return nextDrafts;
 			});
-		} catch (err) {
-			setError(err instanceof ApiError ? err.message : "Could not update task progress.");
-		} finally {
-			setSavingProgressId(null);
 		}
+	}
+
+	function clearTypedDelta(taskId: number) {
+		setTypedDeltas((prev) => {
+			const next = { ...prev };
+			delete next[taskId];
+			return next;
+		});
+	}
+
+	// The typed amount is added to the progress (a negative one takes away), and the result stays between 0 and the target.
+	async function saveTypedProgress(task: TaskDataResponse) {
+		const target = task.target_value ?? 0;
+		const delta = parseInt(typedDeltas[task.id] ?? "", 10);
+		if (isNaN(delta) || delta === 0 || target <= 0) return;
+
+		const current = task.current_value ?? 0;
+		const nextCurrent = Math.max(0, Math.min(target, current + delta));
+		if (nextCurrent === current || await persistProgress(task, nextCurrent)) clearTypedDelta(task.id);
 	}
 
 	async function handleDelete(taskId: number) {
@@ -360,7 +389,43 @@ export function MilestoneTasksList({ goalId, milestoneId, milestoneStatus, onNee
 											{progressPercent}%
 										</span>
 
-										{canEditProgress && (
+										{canEditProgress && (task.target_value ?? 0) > PROGRESS_STEPPER_MAX_TARGET && (
+											<div className="milestone-task-progress-actions me-3 mt-2">
+												{typedDeltas[task.id] && !progressBusy && (
+													<button
+														type="button"
+														className="btn btn-ghost btn-icon border-0 milestone-task-progress-action milestone-task-progress-action-save"
+														aria-label="Save task progress"
+														onClick={() => { void saveTypedProgress(task); }}
+														disabled={busy || deleteBusy}
+													>
+														<Floppy size={14} />
+													</button>
+												)}
+												{progressBusy && (
+													<span className="spinner-border spinner-border-sm me-1" role="status" aria-label="Saving progress" />
+												)}
+												<input
+													type="number"
+													className="milestone-task-progress-input"
+													value={typedDeltas[task.id] ?? ""}
+													placeholder="Add..."
+													min={-(task.target_value ?? 0)}
+													max={task.target_value ?? 0}
+													onChange={(e) => {
+														const target = task.target_value ?? 0;
+														const val = parseInt(e.target.value, 10);
+														if (isNaN(val)) { clearTypedDelta(task.id); return; }
+														setTypedDeltas((prev) => ({ ...prev, [task.id]: String(Math.min(Math.max(-target, val), target)) }));
+													}}
+													onKeyDown={(e) => { if (e.key === "Enter") void saveTypedProgress(task); }}
+													disabled={busy || deleteBusy || progressBusy}
+													aria-label="Progress amount to add"
+												/>
+											</div>
+										)}
+
+										{canEditProgress && (task.target_value ?? 0) <= PROGRESS_STEPPER_MAX_TARGET && (
 											<div className="milestone-task-progress-actions">
 												{hasProgressChanges && (
 													<button

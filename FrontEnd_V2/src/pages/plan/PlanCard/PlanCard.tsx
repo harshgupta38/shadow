@@ -23,7 +23,7 @@ import {
 import { NoteDialog } from "@/components/ui/NoteDialog/NoteDialog";
 import { useTimeFormat } from "@/context/PlannerContext";
 import { formatTime } from "@/services/date.service";
-import { HOLD_REPEAT } from "@/constant/tuning";
+import { HOLD_REPEAT, PROGRESS_STEPPER_MAX_TARGET } from "@/constant/tuning";
 
 import type { PlanDataResponse } from "@/api";
 import { ROUTES } from "@/routes/RoutePaths";
@@ -343,7 +343,7 @@ export function PlanCard({ item, onToggle, onToggleSkip, onSaveDelta, onSaveNote
           <span className="plan-card-progress-pct">{pct}%</span>
           {!readOnly && (
             <div className="plan-card-progress-actions">
-              {target > 100 ? (
+              {target > PROGRESS_STEPPER_MAX_TARGET ? (
                 <>
                   {busy || savingProgress ? (
                     <span className="plan-card-check-spinner me-1" role="status" aria-label="Updating status">

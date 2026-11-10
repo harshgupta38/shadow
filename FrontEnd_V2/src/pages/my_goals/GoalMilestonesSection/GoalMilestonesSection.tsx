@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { Dropdown } from "react-bootstrap";
-import { CheckLg, ExclamationTriangle, PencilSquare, PlusLg, Stars, ThreeDotsVertical, Trash3, ArrowsAngleContract, ArrowsAngleExpand, CalendarEvent, ListTask, Eye, EyeSlash } from "react-bootstrap-icons";
+import { ArrowDown, ArrowUp, CheckLg, ExclamationTriangle, PencilSquare, PlusLg, Stars, ThreeDotsVertical, Trash3, ArrowsAngleContract, ArrowsAngleExpand, CalendarEvent, ListTask, Eye, EyeSlash } from "react-bootstrap-icons";
 import { Link, useNavigate } from "react-router-dom";
 
-import { api, GoalDataResponse, type MilestoneDataResponse, type MilestoneStatus } from "@/api";
+import { api, GoalDataResponse, type MilestoneDataResponse, type MilestoneMoveDirection, type MilestoneStatus } from "@/api";
 import { ApiError } from "@/api/client";
 import { ChoiceDialog } from "@/components/ui/ChoiceDialog/ChoiceDialog";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog/ConfirmDialog";
@@ -58,6 +58,9 @@ export function GoalMilestonesSection({ goal }: GoalMilestonesSectionProps) {
     const [loading, setLoading] = useState(false);
     const [loadError, setLoadError] = useState<string | null>(null);
     const [busyId, setBusyId] = useState<number | null>(null);
+    // A move is in flight (the menu's Move items wait for it), and the milestone that just moved, which flashes so the eye can follow it.
+    const [moving, setMoving] = useState(false);
+    const [movedId, setMovedId] = useState<number | null>(null);
     const [confirmUpdateId, setConfirmUpdateId] = useState<number | null>(null);
     const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
     const [deleteBusy, setDeleteBusy] = useState(false);
@@ -122,6 +125,37 @@ export function GoalMilestonesSection({ goal }: GoalMilestonesSectionProps) {
             return false;
         } finally {
             setBusyId(null);
+        }
+    }
+
+    // Moves a milestone one place. The list reorders at once and is replaced by the server's answer (or put back if that fails).
+    async function moveMilestone(milestone: MilestoneDataResponse, direction: MilestoneMoveDirection) {
+        if (moving) return;
+        const order = [...milestones].sort((a, b) => a.position - b.position || a.id - b.id).map((m) => m.id);
+        const from = order.indexOf(milestone.id);
+        const to = direction === "up" ? from - 1 : from + 1;
+        if (to < 0 || to >= order.length) return;
+
+        const before = milestones;
+        [order[from], order[to]] = [order[to], order[from]];
+        setMoving(true);
+        setMilestones((prev) => prev.map((m) => ({ ...m, position: order.indexOf(m.id) })));
+        try {
+            const updated = await api.milestones.move(milestone.id, direction);
+            setMilestones((prev) => {
+                const byId = new Map(updated.map((m) => [m.id, m]));
+                return prev.map((m) => byId.get(m.id) ?? m);
+            });
+            setMovedId(milestone.id);
+            window.setTimeout(() => setMovedId((current) => (current === milestone.id ? null : current)), 1400);
+            window.requestAnimationFrame(() => {
+                document.getElementById(`goal-milestone-${milestone.id}`)?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+            });
+        } catch (err) {
+            setMilestones(before);
+            toast.error(err instanceof ApiError ? err.message : "Couldn't move the milestone. Please try again later.");
+        } finally {
+            setMoving(false);
         }
     }
 
@@ -338,7 +372,8 @@ export function GoalMilestonesSection({ goal }: GoalMilestonesSectionProps) {
                             return (
                                 <div
                                     key={milestone.id}
-                                    className={`goal-milestone-item${index > 0 ? " has-separator" : ""}${isExpanded ? " is-expanded" : ""}`}
+                                    id={`goal-milestone-${milestone.id}`}
+                                    className={`goal-milestone-item${index > 0 ? " has-separator" : ""}${isExpanded ? " is-expanded" : ""}${movedId === milestone.id ? " is-moved" : ""}`}
                                 >
                                     <button
                                         type="button"
@@ -411,6 +446,17 @@ export function GoalMilestonesSection({ goal }: GoalMilestonesSectionProps) {
                                                             <Dropdown.Item onClick={() => openTargetDatePrompt(milestone.id, milestone.target_date)}>
                                                                 <CalendarEvent size={14} className="me-2" /> Set Target Date
                                                             </Dropdown.Item>
+                                                        )}
+                                                        {sorted.length > 1 && (
+                                                            <>
+                                                                <Dropdown.Divider />
+                                                                <Dropdown.Item disabled={moving || index === 0} onClick={() => void moveMilestone(milestone, "up")}>
+                                                                    <ArrowUp size={14} className="me-2" /> Move Up
+                                                                </Dropdown.Item>
+                                                                <Dropdown.Item disabled={moving || index === sorted.length - 1} onClick={() => void moveMilestone(milestone, "down")}>
+                                                                    <ArrowDown size={14} className="me-2" /> Move Down
+                                                                </Dropdown.Item>
+                                                            </>
                                                         )}
                                                         <Dropdown.Divider />
                                                         <Dropdown.Item

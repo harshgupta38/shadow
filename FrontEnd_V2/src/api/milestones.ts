@@ -1,7 +1,7 @@
 import { ENDPOINTS } from "@/constant/shadow-endpoints";
 
 import { http } from "@/api/client";
-import { MilestoneCreateRequest, MilestoneDataResponse, MilestoneStatus, MilestoneUpdateRequest, SaveMilestoneFromProposalRequest } from "@/api/types";
+import { MilestoneCreateRequest, MilestoneDataResponse, MilestoneMoveDirection, MilestoneStatus, MilestoneUpdateRequest, SaveMilestoneFromProposalRequest } from "@/api/types";
 
 export const milestonesApi = {
     async save(data: MilestoneCreateRequest): Promise<MilestoneDataResponse> {
@@ -22,6 +22,11 @@ export const milestonesApi = {
 
     async update(milestoneId: number, data: MilestoneUpdateRequest): Promise<MilestoneDataResponse> {
         return http.patch<MilestoneDataResponse>(`${ENDPOINTS.MILESTONES.PREFIX}${ENDPOINTS.MILESTONES.DETAIL(milestoneId)}`, data);
+    },
+
+    /** Moves the milestone one place up or down among its goal's milestones. Answers with all of them, in their new order. */
+    async move(milestoneId: number, direction: MilestoneMoveDirection): Promise<MilestoneDataResponse[]> {
+        return http.post<MilestoneDataResponse[]>(`${ENDPOINTS.MILESTONES.PREFIX}${ENDPOINTS.MILESTONES.MOVE(milestoneId)}`, { direction });
     },
 
     async remove(milestoneId: number): Promise<void> {

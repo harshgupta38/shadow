@@ -6,6 +6,7 @@ from app.db.session import get_db
 from app.models.user import UserDBM
 from app.schemas.milestones import (
     MilestoneCreateRequest,
+    MilestoneMoveRequest,
     MilestoneUpdateRequest,
     MilestoneStatus,
     MilestoneDataResponse,
@@ -14,6 +15,16 @@ from app.schemas.milestones import (
 from app.services import milestones_service
 
 router = APIRouter(prefix=ENDPOINTS.MILESTONES.PREFIX, tags=["Milestones"])
+
+
+@router.post(ENDPOINTS.MILESTONES.MOVE, response_model=list[MilestoneDataResponse])
+def move_milestone(
+    milestone_id: int,
+    data: MilestoneMoveRequest,
+    db=Depends(get_db),
+    current_user: UserDBM = Depends(get_current_user),
+) -> list[MilestoneDataResponse]:
+    return milestones_service.move_milestone(db, current_user, milestone_id, data)
 
 
 @router.post(

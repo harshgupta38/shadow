@@ -48,6 +48,7 @@ export const ENDPOINTS = {
         FROM_PROPOSAL: "/save-milestone-from-proposal",
         GET_LIST: "/get-milestone-list",
         DETAIL: (id: number) => `/${id}`,
+        MOVE: (id: number) => `/${id}/move`,
     },
     TASKS: {
         PREFIX: "/task",

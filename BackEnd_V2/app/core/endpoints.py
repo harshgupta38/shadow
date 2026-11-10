@@ -60,6 +60,7 @@ class Endpoints:
         FROM_PROPOSAL = "/save-milestone-from-proposal"
         GET_LIST = "/get-milestone-list"
         DETAIL = "/{milestone_id}"
+        MOVE = "/{milestone_id}/move"
 
     class TASKS:
         PREFIX = "/task"

@@ -16,6 +16,10 @@ MilestoneStatus = Literal[
 MilestoneCreatedBy = Literal["User", "Assistant"]
 
 
+class MilestoneMoveRequest(BaseModel):
+    direction: Literal["up", "down"]
+
+
 class MilestoneCreateRequest(BaseModel):
     goal_id: int
     title: str = Field(min_length=1, max_length=255)

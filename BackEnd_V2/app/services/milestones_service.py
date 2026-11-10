@@ -15,6 +15,7 @@ from app.models.user import UserDBM
 from app.schemas.milestones import (
     MilestoneCreateRequest,
     MilestoneDataResponse,
+    MilestoneMoveRequest,
     MilestoneStatus,
     MilestoneUpdateRequest,
     SaveMilestoneFromProposalRequest,
@@ -221,11 +222,48 @@ def get_milestone_list(
     if status is not None:
         query = query.where(MilestoneDBM.status == status)
 
-    query = query.order_by(MilestoneDBM.position)
+    query = query.order_by(MilestoneDBM.position, MilestoneDBM.id)
 
     milestones = db.scalars(query).all()
 
     return [_serialize_milestone(milestone) for milestone in milestones]
+
+
+def move_milestone(
+    db: Session, current_user: UserDBM, milestone_id: int, data: MilestoneMoveRequest
+) -> list[MilestoneDataResponse]:
+    """Moves a milestone one place up or down among its goal's milestones and returns them all in their new order.
+
+    The goal's milestones are renumbered 0, 1, 2... first, because deleting one leaves a gap and an older edit could have left two
+    sharing a position, and swapping the positions of two milestones is only meaningful when positions are distinct. A milestone that
+    is already first (or last) stays where it is: the answer is still the current order, so a stale screen just catches up.
+    """
+    milestone = db.scalar(
+        select(MilestoneDBM).where(
+            MilestoneDBM.id == milestone_id,
+            MilestoneDBM.user_id == current_user.id,
+        )
+    )
+    if milestone is None:
+        raise NotFoundError("Milestone not found. Please check and try again.")
+
+    siblings = list(
+        db.scalars(
+            select(MilestoneDBM)
+            .where(MilestoneDBM.goal_id == milestone.goal_id, MilestoneDBM.user_id == current_user.id)
+            .order_by(MilestoneDBM.position, MilestoneDBM.id)
+        ).all()
+    )
+    index = next(i for i, m in enumerate(siblings) if m.id == milestone.id)
+    neighbour = index - 1 if data.direction == "up" else index + 1
+    if 0 <= neighbour < len(siblings):
+        siblings[index], siblings[neighbour] = siblings[neighbour], siblings[index]
+    for position, sibling in enumerate(siblings):
+        if sibling.position != position:
+            sibling.position = position
+    db.commit()
+
+    return [_serialize_milestone(m) for m in siblings]
 
 
 def get_milestone_detail(

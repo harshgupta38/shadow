@@ -136,11 +136,25 @@
   flex-direction: column;
 }
 
+@keyframes goal-milestone-moved {
+  from { background: var(--jv-brand-soft); }
+  to   { background: transparent; }
+}
+
 .goal-milestone-item {
   display: flex;
   align-items: flex-start;
   gap: 0.75rem;
   padding: 0.65rem 0;
+
+  // The milestone that was just moved, so the eye can follow it to its new place.
+  &.is-moved {
+    animation: goal-milestone-moved 1400ms var(--jv-ease) both;
+
+    @media (prefers-reduced-motion: reduce) {
+      animation: none;
+    }
+  }
 
   &.has-separator {
     border-top: 1px solid var(--jv-border);

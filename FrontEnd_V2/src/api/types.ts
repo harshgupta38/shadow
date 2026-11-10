@@ -225,6 +225,8 @@ export interface MilestoneCreateRequest {
   assistant_context: Record<string, unknown> | null;
 }
 
+export type MilestoneMoveDirection = "up" | "down";
+
 export interface MilestoneUpdateRequest {
   title?: string;
   description?: string | null;
